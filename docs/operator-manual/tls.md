@@ -42,8 +42,8 @@ their own dedicated Certificate Authority.
 ### Certificate Priority (argocd-server only)
 
 1. `argocd-server-tls` secret (recommended)
-2. `argocd-secret` secret (deprecated) 
-3. Auto-generated self-signed certificate
+2. `argocd-secret` secret (deprecated)
+3. Auto-generated self-signed certificate (only when `argocd-server-tls` does not exist, or exists and is annotated with `argocd.argoproj.io/self-signed: "true"`)
 
 ## Configuring TLS for argocd-server
 
@@ -79,11 +79,29 @@ Argo CD decides which TLS certificate to use for the endpoint of
   `tls.crt` and `tls.key` keys, this will be used for the certificate of the
   endpoint of `argocd-server`.
 * Otherwise, if the `argocd-secret` secret contains a valid key pair in the
- `tls.crt` and `tls.key` keys, this will be used as the certificate for the
-  endpoint of `argocd-server`.
-* If no `tls.crt` and `tls.key` keys are found in neither of the two mentioned
-  secrets, Argo CD will generate a self-signed certificate and persist it in
-  the `argocd-secret` secret.
+  `tls.crt` and `tls.key` keys, this will be used as the certificate for the
+  endpoint of `argocd-server`. This fallback is deprecated — see warning below.
+* If the `argocd-server-tls` secret does not exist, or exists and is annotated
+  with `argocd.argoproj.io/self-signed: "true"` but contains no valid key pair,
+  Argo CD will generate a self-signed certificate, persist it in the
+  `argocd-server-tls` secret, and stamp it with that annotation. Argo CD checks
+  this certificate on every `argocd-server` startup and regenerates it if it has
+  expired.
+* If the `argocd-server-tls` secret exists **without** the
+  `argocd.argoproj.io/self-signed: "true"` annotation and no valid key pair can
+  be loaded from it, Argo CD will not overwrite the secret. This protects
+  operator-managed secrets (e.g. those managed by `cert-manager`) from being
+  silently replaced during transient states such as the secret not having been
+  populated yet. Argo CD logs a warning and serves an in-memory self-signed
+  certificate instead, which is not persisted and is regenerated on every
+  restart. Once the secret is populated with a valid key pair, Argo CD picks it
+  up and uses it.
+
+> [!WARNING]
+> Storing TLS certificates in `argocd-secret` is deprecated since Argo CD v2.1
+> and will be removed in a future major version. Please move `tls.crt` and
+> `tls.key` to the `argocd-server-tls` secret. Argo CD will log a warning on
+> startup if it detects TLS data in `argocd-secret`.
 
 The `argocd-server-tls` secret contains only information for TLS configuration
 to be used by `argocd-server` and is safe to be managed via third-party tools
@@ -99,6 +117,109 @@ kubectl create -n argocd secret tls argocd-server-tls \
 
 Argo CD will pick up changes to the `argocd-server-tls` secret automatically
 and will not require restarting to use a renewed certificate.
+
+### Certificate ownership and the `self-signed` annotation
+
+Argo CD uses the `argocd.argoproj.io/self-signed: "true"` annotation on the
+`argocd-server-tls` secret to record that it generated the certificate and is
+therefore allowed to replace it. The annotation is what separates a certificate
+Argo CD owns from one you own:
+
+| Annotation | Who owns the certificate | What Argo CD does |
+|------------|--------------------------|-------------------|
+| Present | Argo CD | Serves the certificate, and regenerates it on startup once it has expired |
+| Absent | You (or a tool such as `cert-manager`) | Serves the certificate, and never writes to the secret |
+
+> [!WARNING]
+> Do not add or remove this annotation by hand, and make sure your GitOps tooling
+> does not strip it. Because the annotation controls ownership, changing it puts
+> the secret into a state that is easy to misread:
+>
+> * **Removing it from an Argo CD-generated certificate** makes Argo CD treat that
+>   certificate as yours. Argo CD will keep serving it but will no longer renew it,
+>   so once it expires clients get an expired certificate and nothing recovers it
+>   automatically. If the secret is also emptied, Argo CD falls back to an in-memory
+>   certificate that changes on every restart.
+> * **Adding it to a certificate you manage** hands ownership to Argo CD, which will
+>   overwrite your certificate with a self-signed one the next time it regenerates.
+>
+> This matters in particular when `argocd-server-tls` is templated by Helm, Kustomize,
+> or an external secrets operator: a template that renders a fixed annotation set will
+> silently drop the annotation on every reconcile.
+
+To recover a secret whose annotation was removed, either restore the annotation to
+let Argo CD manage the certificate again, or delete the secret and let Argo CD
+recreate it:
+
+```shell
+kubectl annotate -n argocd secret argocd-server-tls argocd.argoproj.io/self-signed="true" --overwrite
+```
+
+### Migrating TLS certificates from `argocd-secret`
+
+Argo CD stores the auto-generated certificate in `argocd-server-tls`. Older
+installations may still hold `tls.crt` and `tls.key` in `argocd-secret`, which is
+deprecated. If they are present, `argocd-server` logs this on startup:
+
+```
+Storing TLS certificates in argocd-secret is deprecated and will be removed in a
+future major version. Please move tls.crt and tls.key to the argocd-server-tls
+secret and remove them from argocd-secret.
+```
+
+The warning is logged on every startup until the keys are removed from
+`argocd-secret`. Argo CD keeps reading them in the meantime, so nothing breaks
+while you migrate.
+
+First, find out whose certificate is in `argocd-secret`:
+
+```shell
+kubectl get secret argocd-secret -n argocd -o jsonpath='{.data.tls\.crt}' \
+  | base64 -d | openssl x509 -noout -subject -issuer -dates
+```
+
+A certificate that Argo CD generated itself is self-signed with
+`O = Argo CD`. Anything else is a certificate you or your tooling put there.
+
+On the first startup after upgrading, Argo CD copies the key pair from
+`argocd-secret` into `argocd-server-tls` for you and annotates it with
+`argocd.argoproj.io/self-signed: "true"`, so the certificate being served does not
+change. What you do next depends on whose certificate it is.
+
+**If the certificate was generated by Argo CD**, there is nothing left to move. Skip
+to removing the deprecated keys below.
+
+**If the certificate is your own**, remove the annotation from the copy, otherwise
+Argo CD considers itself the owner and will replace your certificate with a
+self-signed one once it expires:
+
+```shell
+kubectl annotate -n argocd secret argocd-server-tls argocd.argoproj.io/self-signed-
+```
+
+If you would rather manage the secret from scratch — for example to have
+`cert-manager` or your GitOps tooling own it — delete the copy Argo CD made and
+recreate it from your key pair:
+
+```shell
+kubectl delete -n argocd secret argocd-server-tls
+kubectl create -n argocd secret tls argocd-server-tls \
+  --cert=/path/to/cert.pem \
+  --key=/path/to/key.pem
+```
+
+Finally, remove the deprecated keys from `argocd-secret`:
+
+```shell
+kubectl patch secret argocd-secret -n argocd \
+  --type=json \
+  -p='[{"op":"remove","path":"/data/tls.crt"},{"op":"remove","path":"/data/tls.key"}]'
+```
+
+> [!NOTE]
+> Create `argocd-server-tls` before removing the keys from `argocd-secret`. If both
+> locations are empty, Argo CD generates a new self-signed certificate, and clients
+> that pinned or trusted the previous one will need to trust the new one.
 
 ## Configuring inbound TLS for argocd-repo-server
 
