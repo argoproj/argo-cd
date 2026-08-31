@@ -325,7 +325,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             <Spacer />
                             <span>
                                 <CopyLogsButton logs={logs} />
-                                <DownloadLogsButton {...props} previous={previous} />
+                                <DownloadLogsButton {...props} previous={previous} viewTimestamps={viewTimestamps} />
                                 <FullscreenButton
                                     {...props}
                                     viewPodNames={viewPodNames}

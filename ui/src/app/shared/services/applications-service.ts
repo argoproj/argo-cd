@@ -316,10 +316,14 @@ export class ApplicationsService {
         podName: string,
         resource: {group: string; kind: string; name: string},
         containerName: string,
-        previous: boolean
+        previous: boolean,
+        viewTimestamps?: boolean
     ): string {
         const search = this.getLogsQuery({namespace, appNamespace, podName, resource, containerName, follow: false, previous});
         search.set('download', 'true');
+        if (viewTimestamps) {
+            search.set('timestamps', 'true');
+        }
         return `api/v1/applications/${applicationName}/logs?${search.toString()}`;
     }
 

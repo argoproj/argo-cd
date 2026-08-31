@@ -281,33 +281,45 @@ func processApplicationListField(v any, fields map[string]any, exclude bool) (an
 	return nil, errors.New("not an application list")
 }
 
+// downloadLogs streams log entries to the response as a plain-text file attachment.
+// When the "timestamps" query parameter is "true", each line is prefixed with the
+// entry's timestamp, matching what the UI displays when timestamps are enabled.
+func downloadLogs(w gohttp.ResponseWriter, req *gohttp.Request, recv func() (proto.Message, error)) {
+	w.Header().Set("Content-Type", "application/octet-stream")
+	fileName := "log"
+	namespace := req.URL.Query().Get("namespace")
+	podName := req.URL.Query().Get("podName")
+	container := req.URL.Query().Get("container")
+	if kube.IsValidResourceName(namespace) && kube.IsValidResourceName(podName) && kube.IsValidResourceName(container) {
+		fileName = fmt.Sprintf("%s-%s-%s", namespace, podName, container)
+	}
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s.log"`, fileName))
+	withTimestamps := req.URL.Query().Get("timestamps") == "true"
+	for {
+		msg, err := recv()
+		if err != nil {
+			_, _ = w.Write([]byte(err.Error()))
+			return
+		}
+		if logEntry, ok := msg.(*LogEntry); ok {
+			if logEntry.GetLast() {
+				return
+			}
+			content := logEntry.GetContent()
+			if withTimestamps {
+				content = logEntry.GetTimeStampStr() + " " + content
+			}
+			if _, err = w.Write([]byte(content + "\n")); err != nil {
+				return
+			}
+		}
+	}
+}
+
 func init() {
 	logsForwarder := func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w gohttp.ResponseWriter, req *gohttp.Request, recv func() (proto.Message, error), opts ...func(context.Context, gohttp.ResponseWriter, proto.Message) error) {
 		if req.URL.Query().Get("download") == "true" {
-			w.Header().Set("Content-Type", "application/octet-stream")
-			fileName := "log"
-			namespace := req.URL.Query().Get("namespace")
-			podName := req.URL.Query().Get("podName")
-			container := req.URL.Query().Get("container")
-			if kube.IsValidResourceName(namespace) && kube.IsValidResourceName(podName) && kube.IsValidResourceName(container) {
-				fileName = fmt.Sprintf("%s-%s-%s", namespace, podName, container)
-			}
-			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s.log"`, fileName))
-			for {
-				msg, err := recv()
-				if err != nil {
-					_, _ = w.Write([]byte(err.Error()))
-					return
-				}
-				if logEntry, ok := msg.(*LogEntry); ok {
-					if logEntry.GetLast() {
-						return
-					}
-					if _, err = w.Write([]byte(logEntry.GetContent() + "\n")); err != nil {
-						return
-					}
-				}
-			}
+			downloadLogs(w, req, recv)
 		} else {
 			http.StreamForwarder(ctx, mux, marshaler, w, req, recv, opts...)
 		}
