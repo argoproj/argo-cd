@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,6 +26,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
+	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache/mocks"
@@ -4660,6 +4663,120 @@ func TestSetOperationStateTooLargeRequest(t *testing.T) {
 
 			resources, _, _ := unstructured.NestedSlice(patchedObj, "status", "operationState", "syncResult", "resources")
 			assert.Nil(t, resources)
+
+			revision, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "operation", "sync", "revision")
+			assert.Equal(t, "HEAD", revision, "fallback patch must retain the attempted operation, not just phase/message")
 		})
 	}
+}
+
+func TestSetOperationStateTooLargeRequest_PreservesFinishedAtOnCompletion(t *testing.T) {
+	finishedAt := metav1.Now()
+	newState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
+		},
+		Phase:      synccommon.OperationSucceeded,
+		Message:    "succeeded",
+		FinishedAt: &finishedAt,
+	}
+
+	app := newFakeApp()
+	app.Status.OperationState.Phase = synccommon.OperationRunning
+	app.Status.OperationState.FinishedAt = nil
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+	patchCallCount := 0
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	defaultReactor := fakeAppCs.ReactionChain[0]
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return defaultReactor.React(action)
+	})
+	var capturedPatch []byte
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchCallCount++
+		if patchCallCount == 1 {
+			return true, nil, apierrors.NewRequestEntityTooLargeError("limit is 3145728")
+		}
+		capturedPatch = action.(kubetesting.PatchAction).GetPatch()
+		return defaultReactor.React(action)
+	})
+
+	ctrl.setOperationState(t.Context(), app, newState)
+
+	assert.Equal(t, 2, patchCallCount)
+
+	var patchedObj map[string]any
+	require.NoError(t, json.Unmarshal(capturedPatch, &patchedObj))
+
+	finishedAtStr, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "finishedAt")
+	assert.NotEmpty(t, finishedAtStr, "fallback patch must retain FinishedAt from the attempted (completed) state")
+}
+
+func TestSetOperationStateTooLargeRequest_EmitsCompletionTelemetryOnFinalFallback(t *testing.T) {
+	newState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
+		},
+		Phase:   synccommon.OperationTerminating,
+		Message: "terminating",
+	}
+
+	app := newFakeApp()
+	// Use a name unique to this test so its sync metrics series can't collide with
+	// values recorded by other tests sharing the same, package-level Prometheus vectors.
+	app.Name = "too-large-request-completion-telemetry-test"
+	app.Status.OperationState.Phase = synccommon.OperationTerminating
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+	patchCallCount := 0
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	defaultReactor := fakeAppCs.ReactionChain[0]
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return defaultReactor.React(action)
+	})
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchCallCount++
+		if patchCallCount == 1 {
+			return true, nil, apierrors.NewRequestEntityTooLargeError("limit is 3145728")
+		}
+		return defaultReactor.React(action)
+	})
+
+	ctrl.setOperationState(t.Context(), app, newState)
+
+	assert.Equal(t, 2, patchCallCount)
+
+	// The fallback finalized as OperationError (the "already terminating, giving up"
+	// branch), so it should have emitted the same completion event and sync metrics as
+	// the normal terminal path, instead of silently returning after the patch.
+	kubeClient := ctrl.kubeClientset.(*fake.Clientset)
+	var completionEvent *corev1.Event
+	for _, action := range kubeClient.Actions() {
+		createAction, ok := action.(kubetesting.CreateAction)
+		if !ok || createAction.GetResource().Resource != "events" {
+			continue
+		}
+		event, ok := createAction.GetObject().(*corev1.Event)
+		if ok && event.Reason == string(argo.EventReasonOperationCompleted) {
+			completionEvent = event
+			break
+		}
+	}
+	require.NotNil(t, completionEvent, "fallback finalizing as OperationError must emit an OperationCompleted event")
+	assert.Equal(t, corev1.EventTypeWarning, completionEvent.Type)
+	assert.Contains(t, completionEvent.Message, "failed")
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, metrics.MetricsPath, http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	ctrl.metricsServer.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assert.Contains(t, body, fmt.Sprintf(`argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=%q,namespace=%q,phase="Error",project="default"} 1`, app.Name, app.Namespace),
+		"fallback finalizing as OperationError must increment the sync counter, same as the normal terminal path")
 }

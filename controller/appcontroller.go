@@ -1782,10 +1782,10 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	})
 
 	if nonRetryableError != nil {
-		fallbackStatus := &appv1.OperationState{}
-		if app.Status.OperationState != nil {
-			fallbackStatus = app.Status.OperationState.DeepCopy()
-		}
+		// Seed the fallback from the state we actually attempted to persist (not the
+		// previously persisted app.Status.OperationState), so fields set this reconcile
+		// - notably Operation and FinishedAt - aren't silently dropped.
+		fallbackStatus := state.DeepCopy()
 		fallbackStatus.Phase = synccommon.OperationError
 		fallbackStatus.Message = nonRetryableError.Error()
 
@@ -1816,6 +1816,11 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 			}
 		}
 
+		if fallbackStatus.Phase.Completed() && fallbackStatus.FinishedAt == nil {
+			now := metav1.Now()
+			fallbackStatus.FinishedAt = &now
+		}
+
 		fallbackPatch := map[string]any{
 			"status": map[string]any{
 				"operationState": fallbackStatus,
@@ -1838,41 +1843,56 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 			logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
 			return
 		}
+		// The fallback patch bypasses the normal completion path below, so emit the same
+		// completion event and sync metrics here whenever it finalizes the operation (i.e.
+		// alreadyTerminating, where it settles on OperationError instead of Terminating).
+		// Otherwise size-related failures would be silently absent from completion events,
+		// failure counters, and duration metrics despite being persisted as completed operations.
+		if fallbackStatus.Phase.Completed() {
+			ctrl.recordOperationCompletion(ctx, app, logCtx, fallbackStatus)
+		}
 		return
 	}
 
 	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
 	if state.Phase.Completed() {
-		eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
-		var messages []string
-		if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
-			messages = []string{"Partial sync operation"}
-		} else {
-			messages = []string{"Sync operation"}
-		}
-		if state.SyncResult != nil {
-			messages = append(messages, "to", state.SyncResult.Revision)
-		}
-		if state.Phase.Successful() {
-			eventInfo.Type = corev1.EventTypeNormal
-			messages = append(messages, "succeeded")
-		} else {
-			eventInfo.Type = corev1.EventTypeWarning
-			messages = append(messages, "failed:", state.Message)
-		}
-		ctrl.logAppEvent(ctx, app, eventInfo, strings.Join(messages, " "))
-
-		destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, ctrl.db)
-		if err != nil {
-			logCtx.WithError(err).Warn("Unable to get destination cluster, setting dest_server label to empty string in sync metric")
-		}
-		destServer := ""
-		if destCluster != nil {
-			destServer = destCluster.Server
-		}
-		ctrl.metricsServer.IncSync(app, destServer, state)
-		ctrl.metricsServer.IncAppSyncDuration(app, destServer, state)
+		ctrl.recordOperationCompletion(ctx, app, logCtx, state)
 	}
+}
+
+// recordOperationCompletion emits the completion event and sync/duration metrics for a
+// finalized operation state. Called both from the normal completion path and from the
+// too-large-request fallback path once it settles on a terminal phase.
+func (ctrl *ApplicationController) recordOperationCompletion(ctx context.Context, app *appv1.Application, logCtx *log.Entry, state *appv1.OperationState) {
+	eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
+	var messages []string
+	if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
+		messages = []string{"Partial sync operation"}
+	} else {
+		messages = []string{"Sync operation"}
+	}
+	if state.SyncResult != nil {
+		messages = append(messages, "to", state.SyncResult.Revision)
+	}
+	if state.Phase.Successful() {
+		eventInfo.Type = corev1.EventTypeNormal
+		messages = append(messages, "succeeded")
+	} else {
+		eventInfo.Type = corev1.EventTypeWarning
+		messages = append(messages, "failed:", state.Message)
+	}
+	ctrl.logAppEvent(ctx, app, eventInfo, strings.Join(messages, " "))
+
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, ctrl.db)
+	if err != nil {
+		logCtx.WithError(err).Warn("Unable to get destination cluster, setting dest_server label to empty string in sync metric")
+	}
+	destServer := ""
+	if destCluster != nil {
+		destServer = destCluster.Server
+	}
+	ctrl.metricsServer.IncSync(app, destServer, state)
+	ctrl.metricsServer.IncAppSyncDuration(app, destServer, state)
 }
 
 // operationStateSizeLimitMessagePrefix identifies the fallback message set when an operation
