@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	appfake "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	log "github.com/sirupsen/logrus"
@@ -879,7 +881,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
-
+			appObjs := []runtime.Object{}
+			appClientSet := appfake.NewSimpleClientset(appObjs...)
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
 			r := &ApplicationSetReconciler{
@@ -892,7 +895,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				Metrics:       metrics,
 			}
 
-			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r.Client, r)
+			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r.Client, appClientSet, r)
 
 			desiredApps := cc.desiredApps
 			if desiredApps == nil {
@@ -1640,7 +1643,8 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
-
+			appObjs := []runtime.Object{}
+			appClientSet := appfake.NewSimpleClientset(appObjs...)
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
 			r := &ApplicationSetReconciler{
@@ -1652,7 +1656,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				KubeClientset: kubeclientset,
 				Metrics:       metrics,
 			}
-			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r.Client, r)
+			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r.Client, appClientSet, r)
 
 			appStatuses, err := r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatusProgress(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appSyncMap, cc.appStepMap)
 
