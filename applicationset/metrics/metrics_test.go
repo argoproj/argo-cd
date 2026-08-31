@@ -78,6 +78,7 @@ status:
     namespace: argocd
     status: OutOfSync
     version: v1alpha1
+    requiresPruning: true
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
     message: Successfully generated parameters for all Applications
@@ -204,6 +205,13 @@ argocd_appset_info{name="test2",namespace="argocd",resource_update_status="Unkno
 	// If there are no resources on the applicationset the owned application gague should return 0
 	assert.Contains(t, rr.Body.String(), `
 argocd_appset_owned_applications{name="test2",namespace="argocd"} 0
+`)
+	// Resources marked with requiresPruning are counted as orphaned
+	assert.Contains(t, rr.Body.String(), `
+argocd_appset_orphaned_applications{name="test1",namespace="argocd"} 1
+`)
+	assert.Contains(t, rr.Body.String(), `
+argocd_appset_orphaned_applications{name="test2",namespace="argocd"} 0
 `)
 	// Test that filter is working
 	assert.NotContains(t, rr.Body.String(), `name="should-be-filtered-out"`)

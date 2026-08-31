@@ -3847,9 +3847,46 @@ func TestUpdateResourceStatus(t *testing.T) {
 		name                    string
 		appSet                  v1alpha1.ApplicationSet
 		apps                    []v1alpha1.Application
+		generatedApps           []v1alpha1.Application
 		expectedResources       []v1alpha1.ResourceStatus
 		maxResourcesStatusCount int
 	}{
+		{
+			name: "marks applications no longer generated as requiring pruning",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Resources: []v1alpha1.ResourceStatus{},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					Name: "app1",
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+						},
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+					},
+				},
+			},
+			generatedApps: []v1alpha1.Application{},
+			expectedResources: []v1alpha1.ResourceStatus{
+				{
+					Name:   "app1",
+					Status: v1alpha1.SyncStatusCodeSynced,
+					Health: &v1alpha1.HealthStatus{
+						Status: health.HealthStatusHealthy,
+					},
+					RequiresPruning: true,
+				},
+			},
+		},
 		{
 			name: "handles an empty application list",
 			appSet: v1alpha1.ApplicationSet{
@@ -4089,7 +4126,11 @@ func TestUpdateResourceStatus(t *testing.T) {
 				MaxResourcesStatusCount: cc.maxResourcesStatusCount,
 			}
 
-			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
+			generatedApps := cc.generatedApps
+			if generatedApps == nil {
+				generatedApps = cc.apps
+			}
+			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, generatedApps)
 
 			require.NoError(t, err, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedResources, cc.appSet.Status.Resources, "expected resources did not match actual")
@@ -4176,13 +4217,13 @@ func TestResourceStatusAreOrdered(t *testing.T) {
 				Metrics:       metrics,
 			}
 
-			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
+			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, cc.apps)
 			require.NoError(t, err, "expected no errors, but errors occurred")
 
-			err = r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
+			err = r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, cc.apps)
 			require.NoError(t, err, "expected no errors, but errors occurred")
 
-			err = r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
+			err = r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, cc.apps)
 			require.NoError(t, err, "expected no errors, but errors occurred")
 
 			assert.Equal(t, cc.expectedResources, cc.appSet.Status.Resources, "expected resources did not match actual")

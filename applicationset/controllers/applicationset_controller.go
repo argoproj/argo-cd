@@ -396,7 +396,9 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
 	}
-	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications)
+	// Compare against generatedApplications rather than validApps so that generated-but-invalid
+	// applications are not reported as orphaned.
+	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications, generatedApplications)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to update resources status for application set: %w", err)
 	}
@@ -1096,9 +1098,9 @@ func (r *ApplicationSetReconciler) migrateStatus(ctx context.Context, appset *ar
 	return nil
 }
 
-func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, apps []argov1alpha1.Application) error {
+func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, apps []argov1alpha1.Application, generatedApps []argov1alpha1.Application) error {
 	statusMap := status.GetResourceStatusMap(appset)
-	statusMap = status.BuildResourceStatus(statusMap, apps)
+	statusMap = status.BuildResourceStatus(statusMap, apps, generatedApps)
 
 	statuses := []argov1alpha1.ResourceStatus{}
 	for _, status := range statusMap {

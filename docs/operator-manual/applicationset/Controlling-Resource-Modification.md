@@ -39,6 +39,17 @@ spec:
 
 If the controller parameter `--policy` is set, it takes precedence on the field `applicationsSync`. It is possible to allow per ApplicationSet sync policy by setting variable `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE` to argocd-cmd-params-cm `applicationsetcontroller.enable.policy.override` or directly with controller parameter `--enable-policy-override` (default to `false`).
 
+### Tracking Applications that are no longer generated
+
+Under the non-deleting policies (`create-only`, `create-update`), an Application whose generator
+parameters disappear (for example after a selector change) is left in place, stays owned by the
+ApplicationSet, and keeps reporting its own sync and health status as if nothing happened. To make
+these orphaned Applications visible, the controller marks their entry in the ApplicationSet's
+`status.resources` with `requiresPruning: true`. The mark clears automatically if the Application is
+generated again, and the `argocd_appset_orphaned_applications` metric exposes the count per
+ApplicationSet for alerting. The controller never modifies the orphaned Application itself; deleting
+it remains an operator action.
+
 ### Policy - `create-only`: Prevent ApplicationSet controller from modifying and deleting Applications
 
 To allow the ApplicationSet controller to *create* `Application` resources, but prevent any further modification, such as *deletion*, or modification of Application fields, add this parameter in the ApplicationSet controller:
