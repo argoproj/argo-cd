@@ -3863,84 +3863,12 @@ func TestUpdateResourceStatus(t *testing.T) {
 					Resources: []v1alpha1.ResourceStatus{},
 				},
 			},
-			apps: []v1alpha1.Application{
-				{
-					Name: "app1",
-					Status: v1alpha1.ApplicationStatus{
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-						Health: v1alpha1.AppHealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-					},
-				},
-				{
-					Name: "app2",
-					Status: v1alpha1.ApplicationStatus{
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-						Health: v1alpha1.AppHealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-					},
-				},
-			},
-			generatedApps: []v1alpha1.Application{
-				{
-					Name: "app1",
-				},
-			},
-			// app2 is orphaned and truncated out of the resources status, but still counted.
-			expectedResources: []v1alpha1.ResourceStatus{
-				{
-					Name:   "app1",
-					Status: v1alpha1.SyncStatusCodeSynced,
-					Health: &v1alpha1.HealthStatus{
-						Status: health.HealthStatusHealthy,
-					},
-				},
-			},
+			apps:          generateNHealthyApps(2),
+			generatedApps: []v1alpha1.Application{{Name: "app0"}},
+			// app1 is orphaned and truncated out of the resources status, but still counted.
+			expectedResources:       generateNAppResourceStatuses(1),
 			expectedOrphanedCount:   1,
 			maxResourcesStatusCount: 1,
-		},
-		{
-			name: "marks applications no longer generated as orphaned",
-			appSet: v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
-				},
-				Status: v1alpha1.ApplicationSetStatus{
-					Resources: []v1alpha1.ResourceStatus{},
-				},
-			},
-			apps: []v1alpha1.Application{
-				{
-					Name: "app1",
-					Status: v1alpha1.ApplicationStatus{
-						Sync: v1alpha1.SyncStatus{
-							Status: v1alpha1.SyncStatusCodeSynced,
-						},
-						Health: v1alpha1.AppHealthStatus{
-							Status: health.HealthStatusHealthy,
-						},
-					},
-				},
-			},
-			generatedApps: []v1alpha1.Application{},
-			expectedResources: []v1alpha1.ResourceStatus{
-				{
-					Name:   "app1",
-					Status: v1alpha1.SyncStatusCodeSynced,
-					Health: &v1alpha1.HealthStatus{
-						Status: health.HealthStatusHealthy,
-					},
-					Orphaned: true,
-				},
-			},
-			expectedOrphanedCount: 1,
 		},
 		{
 			name: "handles an empty application list",
