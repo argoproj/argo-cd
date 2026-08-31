@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// +kubebuilder:validation:XValidation:rule="self.git != null || self.helm != null",message="sourceIntegrity must specify at least one of git or helm"
+// +kubebuilder:validation:XValidation:rule="has(self.git) || has(self.helm)",message="sourceIntegrity must specify at least one of git or helm"
 type SourceIntegrity struct {
 	// Git - policies for git source verification
 	Git *SourceIntegrityGit `json:"git,omitempty" protobuf:"bytes,1,name=git"`
