@@ -626,10 +626,6 @@ The `argocd-applicationset-controller` also exposes workqueue rate limiter flags
 call external APIs (SCM providers, Kubernetes secrets, cluster API servers), the defaults are deliberately conservative
 to avoid hammering downstream services during failure storms.
 
-> [!NOTE]
-> Unlike the application controller, the ApplicationSet controller flags are configured via CLI flags (or their
-> corresponding environment variables) rather than through `argocd-cmd-params-cm`.
-
 ### Global rate limits (ApplicationSet controller)
 
 Disabled by default. Limits the total number of reconcile requests queued per second across all ApplicationSets.
