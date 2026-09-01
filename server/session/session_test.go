@@ -10,7 +10,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	sessionpb "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
@@ -39,20 +38,16 @@ func newTestKubeClient(t *testing.T) *fake.Clientset {
 	require.NoError(t, err)
 	return fake.NewClientset(
 		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "argocd-cm",
-				Namespace: testNamespace,
-				Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
-			},
+			Name:      "argocd-cm",
+			Namespace: testNamespace,
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
 			Data: map[string]string{
 				"admin.enabled": "true",
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "argocd-secret",
-				Namespace: testNamespace,
-			},
+			Name:      "argocd-secret",
+			Namespace: testNamespace,
 			Data: map[string][]byte{
 				"admin.password":   []byte(hashed),
 				"server.secretkey": []byte(testSecretKey),
@@ -69,21 +64,17 @@ func newTestKubeClientWithLocalUser(t *testing.T, username, pass string) *fake.C
 	require.NoError(t, err)
 	return fake.NewClientset(
 		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "argocd-cm",
-				Namespace: testNamespace,
-				Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
-			},
+			Name:      "argocd-cm",
+			Namespace: testNamespace,
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
 			Data: map[string]string{
 				"admin.enabled":        "true",
 				"accounts." + username: "login",
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "argocd-secret",
-				Namespace: testNamespace,
-			},
+			Name:      "argocd-secret",
+			Namespace: testNamespace,
 			Data: map[string][]byte{
 				"admin.password":                     []byte(adminHashed),
 				"server.secretkey":                   []byte(testSecretKey),

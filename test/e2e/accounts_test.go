@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
 	"github.com/argoproj/argo-cd/v3/util/errors"
@@ -125,6 +126,7 @@ test   true     login, apiKey`, output)
 
 func waitForLoginStatus(t *testing.T, username, password string, expectBlocked bool) {
 	t.Helper()
+	var lastErr error
 	deadline := time.Now().Add(15 * time.Second)
 	for time.Now().Before(deadline) {
 		closer, sessionClient := ArgoCDClientset.NewSessionClientOrDie()
@@ -133,22 +135,21 @@ func waitForLoginStatus(t *testing.T, username, password string, expectBlocked b
 			Password: password,
 		})
 		utilio.Close(closer)
+		lastErr = err
 		if expectBlocked {
 			if st, ok := status.FromError(err); ok && st.Code() == codes.PermissionDenied {
 				return
 			}
-		} else {
-			if err == nil {
-				return
-			}
+		} else if err == nil {
+			return
 		}
 		time.Sleep(500 * time.Millisecond)
 	}
 	if expectBlocked {
-		t.Fatal("expected login to be blocked with PermissionDenied within 15s but it was not")
+		t.Fatalf("expected login to be blocked with PermissionDenied within 15s, last result: %v", lastErr)
 	}
 
-	t.Fatal("expected login to succeed within 15s but it failed")
+	t.Fatalf("expected login to succeed within 15s, last error: %v", lastErr)
 }
 
 func createTestUser(t *testing.T) {
@@ -219,6 +220,55 @@ func TestPreventLoginFlagToggleUnblocksLogin(t *testing.T) {
 	waitForLoginStatus(t, "test", DefaultTestUserPassword, true)
 
 	require.NoError(t, SetParamInRBACConfigMap("policy.prevent-login-without-permissions", "false"))
+
+	waitForLoginStatus(t, "test", DefaultTestUserPassword, false)
+}
+
+func bindTestUserToProjectRole(t *testing.T, roleName string, policies ...string) {
+	t.Helper()
+	require.NoError(t, SetProjectRoles("default", v1alpha1.ProjectRole{
+		Name:     roleName,
+		Policies: policies,
+		Groups:   []string{"test"},
+	}))
+}
+
+func TestPreventLoginProjectRolePermitsLogin(t *testing.T) {
+	EnsureCleanState(t)
+	createTestUser(t)
+	bindTestUserToProjectRole(t, "developer", "p, proj:default:developer, applications, sync, default/*, allow")
+	require.NoError(t, SetParamInRBACConfigMap("policy.prevent-login-without-permissions", "true"))
+
+	waitForLoginStatus(t, "test", DefaultTestUserPassword, false)
+}
+
+func TestPreventLoginProjectRoleWithOnlyDenyPermitsLogin(t *testing.T) {
+	EnsureCleanState(t)
+	createTestUser(t)
+	bindTestUserToProjectRole(t, "deny-only", "p, proj:default:deny-only, applications, sync, default/*, deny")
+	require.NoError(t, SetParamInRBACConfigMap("policy.prevent-login-without-permissions", "true"))
+
+	waitForLoginStatus(t, "test", DefaultTestUserPassword, false)
+}
+
+func TestPreventLoginProjectRoleCancelledByDenyBlocksLogin(t *testing.T) {
+	EnsureCleanState(t)
+	createTestUser(t)
+	bindTestUserToProjectRole(t, "developer", "p, proj:default:developer, applications, sync, default/*, allow")
+	require.NoError(t, SetRawPolicyCsv("p, test, *, *, *, deny"))
+	require.NoError(t, SetParamInRBACConfigMap("policy.prevent-login-without-permissions", "true"))
+
+	waitForLoginStatus(t, "test", DefaultTestUserPassword, true)
+}
+
+func TestPreventLoginProjectRoleGrantUnblocksLogin(t *testing.T) {
+	EnsureCleanState(t)
+	createTestUser(t)
+	require.NoError(t, SetParamInRBACConfigMap("policy.prevent-login-without-permissions", "true"))
+
+	waitForLoginStatus(t, "test", DefaultTestUserPassword, true)
+
+	bindTestUserToProjectRole(t, "developer", "p, proj:default:developer, applications, sync, default/*, allow")
 
 	waitForLoginStatus(t, "test", DefaultTestUserPassword, false)
 }

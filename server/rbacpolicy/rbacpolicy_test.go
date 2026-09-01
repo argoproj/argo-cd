@@ -261,10 +261,8 @@ func TestUserHasAnyPermission_NilProjLister(t *testing.T) {
 
 func TestUserHasAnyPermission_ProjectScope(t *testing.T) {
 	proj := &argoappv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-project",
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      "my-project",
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: argoappv1.AppProjectSpec{
 			Roles: []argoappv1.ProjectRole{
 				{
@@ -341,10 +339,8 @@ func TestUserHasAnyPermission_ProjectScopeDenyOverride(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			proj := &argoappv1.AppProject{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-project",
-					Namespace: test.FakeArgoCDNamespace,
-				},
+				Name:      "my-project",
+				Namespace: test.FakeArgoCDNamespace,
 				Spec: argoappv1.AppProjectSpec{
 					Roles: []argoappv1.ProjectRole{
 						{
@@ -367,7 +363,7 @@ func TestUserHasAnyPermission_ProjectScopeDenyOverride(t *testing.T) {
 
 func projectWithPolicies(name string, policies ...string) *argoappv1.AppProject {
 	return &argoappv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: test.FakeArgoCDNamespace},
+		Name: name, Namespace: test.FakeArgoCDNamespace,
 		Spec: argoappv1.AppProjectSpec{
 			Roles: []argoappv1.ProjectRole{{
 				Name:     "developer",

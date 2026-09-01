@@ -593,6 +593,17 @@ func SetResourceFilter(filters settings.ResourcesFilter) error {
 	})
 }
 
+// SetProjectRoles replaces the roles of an existing AppProject, leaving the rest of its spec alone.
+func SetProjectRoles(project string, roles ...v1alpha1.ProjectRole) error {
+	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	proj.Spec.Roles = roles
+	_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Update(context.Background(), proj, metav1.UpdateOptions{})
+	return err
+}
+
 func SetProjectSpec(project string, spec v1alpha1.AppProjectSpec) error {
 	proj, err := AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Get(context.Background(), project, metav1.GetOptions{})
 	if err != nil {
