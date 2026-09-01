@@ -41,6 +41,14 @@ func init() {
 	initTimeout()
 }
 
+// Timeout reports the deadline a command is killed at. Zero means no timer is
+// started and the child runs to completion however long it takes, so callers
+// reasoning about how long a command may still be in flight must treat zero as
+// unbounded rather than as an elapsed deadline.
+func Timeout() time.Duration {
+	return timeout
+}
+
 func initTimeout() {
 	var err error
 	timeout, err = time.ParseDuration(os.Getenv("ARGOCD_EXEC_TIMEOUT"))

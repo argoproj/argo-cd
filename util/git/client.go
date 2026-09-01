@@ -306,14 +306,37 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 var gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64)
 
 // gitCleanupGracePeriod is the minimum age a file left behind by a killed git
-// process must reach before cleanupOrphanedTempPackfiles or reExecOnStaleLock
-// will remove it. A git command is killed at ARGOCD_EXEC_TIMEOUT (plus the
-// fatal-timeout grace), so twice that comfortably exceeds the longest one can be
-// in flight; anything older cannot belong to a live command (for example one
-// from another repo-server replica sharing an RWX cache volume). The floor keeps
-// a zero ARGOCD_EXEC_TIMEOUT, which the parser accepts, from disabling the window
-// altogether and making every file eligible the moment it appears.
-var gitCleanupGracePeriod = max(2*env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64), time.Minute)
+// process must reach before cleanupOrphanedTempPackfiles will remove it. A git
+// command is killed at the exec timeout (plus the fatal-timeout grace), so twice
+// that comfortably exceeds the longest one can be in flight; anything older
+// cannot belong to a live command (for example one from another repo-server
+// replica sharing an RWX cache volume).
+var gitCleanupGracePeriod = max(saturatingDouble(executil.Timeout()), time.Minute)
+
+// gitLockRecoveryGracePeriod is the age a *.lock must reach before
+// reExecOnStaleLock removes it, or zero when no age can establish that, which
+// disables the recovery. The exec timeout is read through executil rather than
+// re-parsed here so that both packages agree on what it means: with no timeout
+// git is never killed, so a live process can hold a lock indefinitely and no
+// elapsed time proves the lock is dead.
+var gitLockRecoveryGracePeriod = lockRecoveryGracePeriod(executil.Timeout())
+
+func lockRecoveryGracePeriod(execTimeout time.Duration) time.Duration {
+	if execTimeout <= 0 {
+		return 0
+	}
+	return max(saturatingDouble(execTimeout), time.Minute)
+}
+
+// saturatingDouble doubles d without wrapping. The timeout may be as large as
+// math.MaxInt64, where plain 2*d overflows negative and the floors above would
+// then hand the longest configured timeout the shortest possible grace period.
+func saturatingDouble(d time.Duration) time.Duration {
+	if d > math.MaxInt64/2 {
+		return math.MaxInt64
+	}
+	return 2 * d
+}
 
 // Returns a HTTP client object suitable for go-git to use using the following
 // pattern:
@@ -1737,21 +1760,33 @@ func isRetryableNotePushError(errStr string) bool {
 // index update: "Unable to create '<path>': File exists".
 var gitLockFileErrRe = regexp.MustCompile(`Unable to create '([^']+)': File exists`)
 
-// staleGitLockPath returns the lock path named in a failed git command's output,
-// and only when removing it would be safe: a *.lock inside this repository's own
-// .git directory. A working-tree file such as a chart's Chart.lock is therefore
-// never eligible, and a malformed error string cannot reach outside root.
-func staleGitLockPath(root string, outputs ...string) (string, bool) {
-	var match []string
+// staleGitLockPaths returns every lock path named in a failed git command's
+// output, and only those that are safe to remove: a *.lock inside this
+// repository's own .git directory. A working-tree file such as a chart's
+// Chart.lock is therefore never eligible, and a malformed error string cannot
+// reach outside root.
+//
+// One killed `git fetch --prune` strands a lock per ref it was updating and git
+// reports them all, so collecting only the first would leave the repository
+// wedged on the next one after the single retry.
+func staleGitLockPaths(root string, outputs ...string) []string {
+	var paths []string
+	seen := map[string]bool{}
 	for _, out := range outputs {
-		if match = gitLockFileErrRe.FindStringSubmatch(out); match != nil {
-			break
+		for _, match := range gitLockFileErrRe.FindAllStringSubmatch(out, -1) {
+			p, ok := eligibleGitLockPath(root, match[1])
+			if !ok || seen[p] {
+				continue
+			}
+			seen[p] = true
+			paths = append(paths, p)
 		}
 	}
-	if match == nil {
-		return "", false
-	}
-	p := match[1]
+	return paths
+}
+
+func eligibleGitLockPath(root string, named string) (string, bool) {
+	p := named
 	if !filepath.IsAbs(p) {
 		p = filepath.Join(root, p)
 	}
@@ -1780,50 +1815,98 @@ func staleGitLockPath(root string, outputs ...string) (string, bool) {
 	return p, true
 }
 
-// reExecOnStaleLock runs op and, if it failed only because a *.lock left by an
-// interrupted git process blocks a ref or index update, removes that one file
-// and runs op once more. Without this a cache directory wedged by a killed git
-// child (exec timeout, gRPC context cancel, OOM) fails every later operation
-// with exit 128 until the pod is recreated.
+// reExecOnStaleLock runs op and, if it failed only because one or more *.lock
+// files left by an interrupted git process block a ref or index update, removes
+// every one of them and runs op once more. Without this a cache directory wedged
+// by a killed git child (exec timeout, gRPC context cancel, OOM) fails every
+// later operation with exit 128 until the pod is recreated.
 //
-// The lock must be older than gitCleanupGracePeriod, for the same reason
-// cleanupOrphanedTempPackfiles applies it: repo-server replicas can share an RWX
-// cache volume, and unlinking a lock a live git still holds lets both processes
-// write the working tree, leaving it inconsistent with the checked-out revision.
-// A lock younger than that returns git's original error, and the next reconcile
-// retries once the window has passed.
+// A lock must be older than gitLockRecoveryGracePeriod, for the same reason
+// cleanupOrphanedTempPackfiles applies its own: repo-server replicas can share an
+// RWX cache volume, and unlinking a lock a live git still holds lets both
+// processes write the working tree, leaving it inconsistent with the checked-out
+// revision. A lock younger than that returns git's original error, and the next
+// reconcile retries once the window has passed.
 func (m *nativeGitClient) reExecOnStaleLock(op func() (string, error)) (string, error) {
 	out, err := op()
 	if err == nil {
 		return out, nil
 	}
-	lockPath, ok := staleGitLockPath(m.root, err.Error(), out)
-	if !ok {
+	lockPaths := staleGitLockPaths(m.root, err.Error(), out)
+	if len(lockPaths) == 0 {
 		return out, err
 	}
+	if gitLockRecoveryGracePeriod == 0 {
+		log.Warnf("not recovering git lock(s) %v: with no exec timeout a git process is never killed, so a live one may hold them indefinitely", lockPaths)
+		return out, err
+	}
+	removed := 0
+	for _, lockPath := range lockPaths {
+		if removeStaleGitLock(lockPath) {
+			removed++
+		}
+	}
+	// Retrying after a partial removal only reproduces the same failure on a
+	// lock this call already declined to touch.
+	if removed < len(lockPaths) {
+		return out, err
+	}
+	return op()
+}
+
+// removeStaleGitLock unlinks one lock left by an interrupted git process,
+// reporting whether it is gone.
+//
+// The mode and age are taken from an open handle and compared against the path,
+// so a lock replaced after it was first seen is declined rather than removed.
+// The unlink itself is by name, which POSIX offers no inode-addressed form of, so
+// this narrows the window between deciding and removing without closing it;
+// closing it needs recovery serialized across the processes sharing the root.
+func removeStaleGitLock(lockPath string) bool {
 	// Lstat, not Stat: os.Remove would delete a symlink placed here, so refuse
 	// anything that is not a plain file rather than follow or unlink it.
 	fi, statErr := os.Lstat(lockPath)
 	if statErr != nil {
-		if !os.IsNotExist(statErr) {
-			log.Warnf("could not stat stale git lock %q: %v", lockPath, statErr)
+		if os.IsNotExist(statErr) {
+			return true
 		}
-		return out, err
+		log.Warnf("could not stat stale git lock %q: %v", lockPath, statErr)
+		return false
 	}
 	if !fi.Mode().IsRegular() {
 		log.Warnf("refusing to remove %q: git lock files are regular files, found mode %s", lockPath, fi.Mode())
-		return out, err
+		return false
 	}
-	if age := time.Since(fi.ModTime()); age < gitCleanupGracePeriod {
-		log.Warnf("not removing git lock %q: age %s is within the %s grace period, so a live git process may still hold it", lockPath, age, gitCleanupGracePeriod)
-		return out, err
+
+	f, openErr := os.Open(lockPath)
+	if openErr != nil {
+		if os.IsNotExist(openErr) {
+			return true
+		}
+		log.Warnf("could not open stale git lock %q: %v", lockPath, openErr)
+		return false
 	}
+	defer func() { _ = f.Close() }()
+	held, statErr := f.Stat()
+	if statErr != nil {
+		log.Warnf("could not stat stale git lock %q: %v", lockPath, statErr)
+		return false
+	}
+	if !os.SameFile(fi, held) {
+		log.Warnf("not removing git lock %q: it was replaced while being inspected, so a live git process may hold it", lockPath)
+		return false
+	}
+	if age := time.Since(held.ModTime()); age < gitLockRecoveryGracePeriod {
+		log.Warnf("not removing git lock %q: age %s is within the %s grace period, so a live git process may still hold it", lockPath, age, gitLockRecoveryGracePeriod)
+		return false
+	}
+
 	log.Warnf("git operation failed on a stale lock %q from a previously interrupted git process; removing it and retrying once", lockPath)
 	if rmErr := os.Remove(lockPath); rmErr != nil && !os.IsNotExist(rmErr) {
 		log.Warnf("could not remove stale git lock %q: %v", lockPath, rmErr)
-		return out, err
+		return false
 	}
-	return op()
+	return true
 }
 
 // HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
@@ -1912,6 +1995,9 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 	cmd.Env = append(cmd.Env, "GIT_LFS_SKIP_SMUDGE=1")
 	// Disable Git terminal prompts in case we're running with a tty
 	cmd.Env = append(cmd.Env, "GIT_TERMINAL_PROMPT=false")
+	// git translates its own messages from the inherited locale, which would stop
+	// staleGitLockPaths matching the lock path out of an error
+	cmd.Env = append(cmd.Env, "LC_ALL=C")
 	// Add Git configuration options that are essential for ArgoCD operation
 	cmd.Env = append(cmd.Env, m.gitConfigEnv...)
 
