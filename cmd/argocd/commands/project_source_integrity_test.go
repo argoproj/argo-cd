@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 	"testing"
@@ -120,9 +122,7 @@ func runCmd(t *testing.T, cmd *cobra.Command, args ...string) (stdout string, st
 	// Make sure the messare from the error reported by Command.RunE() is appended to the errbuf for verification (same as in main.go)
 	if err != nil {
 		errMsg, _ := NewDefaultPluginHandler().HandleCommandExecutionError(err, true, args)
-		if errMsg != "" {
-			errbuf.WriteString(errMsg)
-		}
+		errbuf.WriteString(errMsg)
 	}
 
 	return outbuf.String(), errbuf.String(), err
@@ -636,6 +636,31 @@ func captureProjectUpdate(t *testing.T, projects *projectmocks.ProjectServiceCli
 	return updatedProject
 }
 
+func setupAndRunInspectCmdAsSubprocess(t *testing.T, mockSetup func(appClient *applicationmocks.ApplicationServiceClient), args []string) (stdout, stderr string, exitCode int) {
+	t.Helper()
+
+	if os.Getenv("BE_CRASHER") == "1" {
+		applications := mockApplicationClient(t)
+		if mockSetup != nil {
+			mockSetup(applications)
+		}
+
+		cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
+		cmd.SetArgs(args)
+
+		_ = cmd.ExecuteContext(t.Context())
+		os.Exit(0) // unreacheable when cmd fails with os.Exit(n)
+	}
+
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run="+t.Name())
+	cmd.Env = append(os.Environ(), "BE_CRASHER=1")
+	var stdoutBuffer, stderrBuffer bytes.Buffer
+	cmd.Stdout = &stdoutBuffer
+	cmd.Stderr = &stderrBuffer
+	_ = cmd.Run()
+	return stdoutBuffer.String(), stderrBuffer.String(), cmd.ProcessState.ExitCode()
+}
+
 func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *testing.T) {
 	projectName := "test-project"
 	applicationName := "test-app"
@@ -649,36 +674,36 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 	}
 
 	tests := []struct {
-		name           string
-		mockSetup      func(appClient *applicationmocks.ApplicationServiceClient)
-		args           []string
-		expectedError  error
-		expectedStdout []string
-		expectedStderr []string
+		name             string
+		mockSetup        func(appClient *applicationmocks.ApplicationServiceClient)
+		args             []string
+		expectedExitCode int
+		expectedStdout   []string
+		expectedStderr   []string
 	}{
 		{
-			name:           "no args",
-			args:           []string{},
-			mockSetup:      nil,
-			expectedError:  NewExitError(1, nil),
-			expectedStdout: usageMessageParts,
-			expectedStderr: []string{},
+			name:             "no args",
+			args:             []string{},
+			mockSetup:        nil,
+			expectedExitCode: 1,
+			expectedStdout:   usageMessageParts,
+			expectedStderr:   []string{},
 		},
 		{
-			name:           "single arg",
-			args:           []string{projectName},
-			mockSetup:      nil,
-			expectedError:  NewExitError(1, nil),
-			expectedStdout: usageMessageParts,
-			expectedStderr: []string{},
+			name:             "single arg",
+			args:             []string{projectName},
+			mockSetup:        nil,
+			expectedExitCode: 1,
+			expectedStdout:   usageMessageParts,
+			expectedStderr:   []string{},
 		},
 		{
-			name:           "three args",
-			args:           []string{projectName, applicationName, "test-repo"},
-			mockSetup:      nil,
-			expectedError:  NewExitError(1, nil),
-			expectedStdout: usageMessageParts,
-			expectedStderr: []string{},
+			name:             "three args",
+			args:             []string{projectName, applicationName, "test-repo"},
+			mockSetup:        nil,
+			expectedExitCode: 1,
+			expectedStdout:   usageMessageParts,
+			expectedStderr:   []string{},
 		},
 		{
 			name: "rpc fails",
@@ -688,9 +713,9 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 					InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
 					Return(nil, errors.New("rpc error"))
 			},
-			expectedError:  errors.New("failed inspecting git gpg source integrity for application \"test-app\": rpc error"),
-			expectedStdout: []string{},
-			expectedStderr: []string{`Error: failed inspecting git gpg source integrity for application "test-app": rpc error`},
+			expectedExitCode: 1,
+			expectedStdout:   []string{},
+			expectedStderr:   []string{`Failed inspecting git gpg source integrity for application "test-app": rpc error`},
 		},
 		{
 			name: "source integrity not configured for any source",
@@ -700,9 +725,9 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 					InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
 					Return(&application.InspectGitGPGSourceIntegrityListResponse{Items: []*application.InspectGitGPGSourceIntegrityResponse{}}, nil)
 			},
-			expectedError:  NewExitError(3, nil),
-			expectedStdout: []string{},
-			expectedStderr: []string{`Git/GPG source integrity is not configured for any source of application "test-app", check the project and application configuration.`},
+			expectedExitCode: 3,
+			expectedStdout:   []string{},
+			expectedStderr:   []string{`Git/GPG source integrity is not configured for any source of application "test-app", check the project and application configuration.`},
 		},
 		{
 			name: "source integrity has problems",
@@ -723,9 +748,9 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 						},
 					}, nil)
 			},
-			expectedError:  NewExitError(2, nil),
-			expectedStdout: []string{"PROBLEMS: multiple git/gpg policies are configured, invalid configuration"},
-			expectedStderr: []string{},
+			expectedExitCode: 2,
+			expectedStdout:   []string{"PROBLEMS: multiple git/gpg policies are configured, invalid configuration"},
+			expectedStderr:   []string{},
 		},
 		{
 			name: "source integrity in head mode",
@@ -749,7 +774,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 						},
 					}, nil)
 			},
-			expectedError: nil, // verification passed, with just a warning - no error return code
+			expectedExitCode: 0, // verification passed, with just a warning - no error
 			expectedStdout: []string{
 				"Repo URL: https://github.com/argoproj/argo-cd.git",
 				"Resolved Revision: v1.0.0",
@@ -784,7 +809,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 						},
 					}, nil)
 			},
-			expectedError: nil, // verification passed, with just a warning - no error return code
+			expectedExitCode: 0, // verification passed, with just a warning - no error
 			expectedStdout: []string{
 				"Repo URL: https://github.com/argoproj/argo-cd.git",
 				"Resolved Revision: v1.0.0",
@@ -819,7 +844,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 						},
 					}, nil)
 			},
-			expectedError: nil, // verification passed
+			expectedExitCode: 0, // verification passed
 			expectedStdout: []string{
 				"Repo URL: https://github.com/argoproj/argo-cd.git",
 				"Resolved Revision: v1.0.0",
@@ -853,7 +878,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 						},
 					}, nil)
 			},
-			expectedError: nil, // verification passed
+			expectedExitCode: 0, // verification passed
 			expectedStdout: []string{
 				"Repo URL: https://github.com/argoproj/argo-cd.git",
 				"Resolved Revision: v1.0.0",
@@ -887,7 +912,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 						},
 					}, nil)
 			},
-			expectedError: nil, // verification passed
+			expectedExitCode: 0, // verification passed
 			expectedStdout: []string{
 				"Repo URL: https://github.com/argoproj/argo-cd.git",
 				"Resolved Revision: v1.0.0",
@@ -903,48 +928,36 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			applications := mockApplicationClient(t)
-			if test.mockSetup != nil {
-				test.mockSetup(applications)
-			}
+			stdout, stderr, exitCode := setupAndRunInspectCmdAsSubprocess(t, test.mockSetup, test.args)
 
-			cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
-			stdout, stderr, err := runCmd(t, cmd, test.args...)
-
-			assert.Equal(t, ExitCodeForError(test.expectedError), ExitCodeForError(err))
-			assert.Equal(t, CLIErrorMessage(test.expectedError), CLIErrorMessage(err))
+			assert.Equal(t, test.expectedExitCode, exitCode)
 			assertContainsAllParts(t, test.expectedStderr, stderr)
 			assertContainsAllParts(t, test.expectedStdout, stdout)
 		})
 
 		t.Run(test.name+" json output flag", func(t *testing.T) {
-			cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
-			_, stderr, err := runCmd(t, cmd, append([]string{"-o", "json"}, test.args...)...)
+			_, stderr, exitCode := setupAndRunInspectCmdAsSubprocess(t, test.mockSetup, append([]string{"-o", "json"}, test.args...))
 
-			assert.Equal(t, ExitCodeForError(test.expectedError), ExitCodeForError(err))
-			assert.Equal(t, CLIErrorMessage(test.expectedError), CLIErrorMessage(err))
+			assert.Equal(t, test.expectedExitCode, exitCode)
 			assertContainsAllParts(t, test.expectedStderr, stderr)
-			// cannot assert stdout as the print function does not use c.OutOrStdout()
+			// stdout content not important for this sub-test as it uses the standard json print function
 		})
 
 		t.Run(test.name+" yaml output flag", func(t *testing.T) {
-			cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
-			_, stderr, err := runCmd(t, cmd, append([]string{"-o", "yaml"}, test.args...)...)
+			_, stderr, exitCode := setupAndRunInspectCmdAsSubprocess(t, test.mockSetup, append([]string{"-o", "yaml"}, test.args...))
 
-			assert.Equal(t, ExitCodeForError(test.expectedError), ExitCodeForError(err))
-			assert.Equal(t, CLIErrorMessage(test.expectedError), CLIErrorMessage(err))
+			assert.Equal(t, test.expectedExitCode, exitCode)
 			assertContainsAllParts(t, test.expectedStderr, stderr)
-			// cannot assert stdout as the print function does not use c.OutOrStdout()
+			// stdout content not important for this sub-test as it uses the standard yaml print function
 		})
 	}
 }
 
 func TestProjectSourceIntegrityGpgInspectRepoCommand_UnknownOutputFormat(t *testing.T) {
-	cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
-	_, _, err := runCmd(t, cmd, "test-project", "test-app", "-o", "unknown")
+	_, stderr, exitCode := setupAndRunInspectCmdAsSubprocess(t, nil, []string{"-o", "unknown", "test-project", "test-app"})
 
-	assert.Equal(t, ExitCodeForError(NewExitError(1, errors.New("unknown output format: unknown"))), ExitCodeForError(err))
-	assert.Equal(t, CLIErrorMessage(NewExitError(1, errors.New("unknown output format: unknown"))), CLIErrorMessage(err))
+	assert.Equal(t, 1, exitCode)
+	assert.Contains(t, stderr, "unknown output format: unknown")
 }
 
 func TestProjectSourceIntegrityGpgInspectRepoCommand_SinglePassingSource(t *testing.T) {
@@ -966,30 +979,29 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_SinglePassingSource(t *test
 	}
 	expectedStdout := strings.Join(stdoutParts, "\n") + "\n"
 
-	applications := mockApplicationClient(t)
-	applications.EXPECT().
-		InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
-		Return(&application.InspectGitGPGSourceIntegrityListResponse{
-			Items: []*application.InspectGitGPGSourceIntegrityResponse{
-				prepareInspectGitGPGSourceIntegrityResponse(
-					"https://github.com/argoproj/argo-cd.git",
-					"abcd1234",
-					"v1.0.0",
-					&appsv1.SourceIntegrityGitPolicyGPG{
-						Mode: appsv1.SourceIntegrityGitPolicyGPGModeHead,
-						Keys: []string{"ABCD1234ABCD1234"},
-					},
-					[]*application.GitGPGCommitInfo{},
-					"",
-				),
-			},
-		}, nil)
+	mockSetup := func(appClient *applicationmocks.ApplicationServiceClient) {
+		appClient.EXPECT().
+			InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
+			Return(&application.InspectGitGPGSourceIntegrityListResponse{
+				Items: []*application.InspectGitGPGSourceIntegrityResponse{
+					prepareInspectGitGPGSourceIntegrityResponse(
+						"https://github.com/argoproj/argo-cd.git",
+						"abcd1234",
+						"v1.0.0",
+						&appsv1.SourceIntegrityGitPolicyGPG{
+							Mode: appsv1.SourceIntegrityGitPolicyGPGModeHead,
+							Keys: []string{"ABCD1234ABCD1234"},
+						},
+						[]*application.GitGPGCommitInfo{},
+						"",
+					),
+				},
+			}, nil)
+	}
 
-	cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
-	stdout, stderr, err := runCmd(t, cmd, projectName, applicationName)
+	stdout, stderr, exitCode := setupAndRunInspectCmdAsSubprocess(t, mockSetup, []string{projectName, applicationName})
 
-	assert.Equal(t, ExitCodeForError(nil), ExitCodeForError(err))
-	assert.Equal(t, CLIErrorMessage(nil), CLIErrorMessage(err))
+	assert.Equal(t, 0, exitCode)
 	assert.Empty(t, stderr)
 	assert.Equal(t, expectedStdout, stdout)
 }
@@ -1022,35 +1034,33 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_SingleProblematicCommitsSou
 		"  git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
 	}
 	expectedStdout := strings.Join(stdoutParts, "\n") + "\n"
-	expectedErr := NewExitError(2, nil)
 
-	applications := mockApplicationClient(t)
-	applications.EXPECT().
-		InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
-		Return(&application.InspectGitGPGSourceIntegrityListResponse{
-			Items: []*application.InspectGitGPGSourceIntegrityResponse{
-				prepareInspectGitGPGSourceIntegrityResponse(
-					"https://github.com/argoproj/argo-cd.git",
-					"abcd1234",
-					"v1.0.0",
-					&appsv1.SourceIntegrityGitPolicyGPG{
-						Mode: appsv1.SourceIntegrityGitPolicyGPGModeStrict,
-						Keys: []string{"ABCD1234ABCD1234"},
-					},
-					[]*application.GitGPGCommitInfo{
-						prepareGitGPGCommitInfo("abcd1234", "Fri, 2 Jan 2026 15:55:44 +0200", "Jim Smith <jim.smith@example.com>", "Add test commit", "unsigned(key_id=)"),
-						prepareGitGPGCommitInfo("defe2234", "Sun, 14 Dec 2025 15:50:22 +0000", "John Doe <john.doe@example.com>", "Fix app port", "unsigned(key_id=)"),
-					},
-					"",
-				),
-			},
-		}, nil)
+	mockSetup := func(appClient *applicationmocks.ApplicationServiceClient) {
+		appClient.EXPECT().
+			InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
+			Return(&application.InspectGitGPGSourceIntegrityListResponse{
+				Items: []*application.InspectGitGPGSourceIntegrityResponse{
+					prepareInspectGitGPGSourceIntegrityResponse(
+						"https://github.com/argoproj/argo-cd.git",
+						"abcd1234",
+						"v1.0.0",
+						&appsv1.SourceIntegrityGitPolicyGPG{
+							Mode: appsv1.SourceIntegrityGitPolicyGPGModeStrict,
+							Keys: []string{"ABCD1234ABCD1234"},
+						},
+						[]*application.GitGPGCommitInfo{
+							prepareGitGPGCommitInfo("abcd1234", "Fri, 2 Jan 2026 15:55:44 +0200", "Jim Smith <jim.smith@example.com>", "Add test commit", "unsigned(key_id=)"),
+							prepareGitGPGCommitInfo("defe2234", "Sun, 14 Dec 2025 15:50:22 +0000", "John Doe <john.doe@example.com>", "Fix app port", "unsigned(key_id=)"),
+						},
+						"",
+					),
+				},
+			}, nil)
+	}
 
-	cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
-	stdout, stderr, err := runCmd(t, cmd, projectName, applicationName)
+	stdout, stderr, exitCode := setupAndRunInspectCmdAsSubprocess(t, mockSetup, []string{projectName, applicationName})
 
-	assert.Equal(t, ExitCodeForError(expectedErr), ExitCodeForError(err))
-	assert.Equal(t, CLIErrorMessage(expectedErr), CLIErrorMessage(err))
+	assert.Equal(t, 2, exitCode)
 	assert.Empty(t, stderr)
 	assert.Equal(t, expectedStdout, stdout)
 }
@@ -1104,54 +1114,52 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_MultipleSources(t *testing.
 		"  git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
 	}
 	expectedStdout := strings.Join(stdoutParts, "\n") + "\n"
-	expectedErr := NewExitError(2, nil)
 
-	applications := mockApplicationClient(t)
-	applications.EXPECT().
-		InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
-		Return(&application.InspectGitGPGSourceIntegrityListResponse{
-			Items: []*application.InspectGitGPGSourceIntegrityResponse{
-				prepareInspectGitGPGSourceIntegrityResponse(
-					"https://github.com/argoproj/argo-cd.git",
-					"abcd1234",
-					"v1.0.0",
-					&appsv1.SourceIntegrityGitPolicyGPG{
-						Mode: appsv1.SourceIntegrityGitPolicyGPGModeStrict,
-						Keys: []string{"1234ABCD1234ABCD"},
-					},
-					[]*application.GitGPGCommitInfo{},
-					"",
-				),
-				prepareInspectGitGPGSourceIntegrityResponse(
-					"https://github.com/argoproj/argo-cd-fork.git",
-					"eef2234",
-					"v1.0.1",
-					&appsv1.SourceIntegrityGitPolicyGPG{
-						Mode: appsv1.SourceIntegrityGitPolicyGPGModeHead,
-						Keys: []string{"ABCD1234ABCD1234", "1234ABCD1234ABCD"},
-					},
-					[]*application.GitGPGCommitInfo{
-						prepareGitGPGCommitInfo("abcd1234", "Fri, 2 Jan 2026 15:55:44 +0200", "Jim Smith <jim.smith@example.com>", "Add test commit", "unsigned(key_id=)"),
-						prepareGitGPGCommitInfo("defe2234", "Sun, 14 Dec 2025 15:50:22 +0000", "John Doe <john.doe@example.com>", "Fix app port", "signed with expired key(key_id=ABCD1234ABCD1234)"),
-					},
-					"",
-				),
-				prepareInspectGitGPGSourceIntegrityResponse(
-					"https://github.com/argoproj/argo-cd-fork2.git",
-					"v1.0.2",
-					"v1.0.2",
-					nil,
-					[]*application.GitGPGCommitInfo{},
-					"multiple git/gpg policies are configured, invalid configuration",
-				),
-			},
-		}, nil)
+	mockSetup := func(appClient *applicationmocks.ApplicationServiceClient) {
+		appClient.EXPECT().
+			InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
+			Return(&application.InspectGitGPGSourceIntegrityListResponse{
+				Items: []*application.InspectGitGPGSourceIntegrityResponse{
+					prepareInspectGitGPGSourceIntegrityResponse(
+						"https://github.com/argoproj/argo-cd.git",
+						"abcd1234",
+						"v1.0.0",
+						&appsv1.SourceIntegrityGitPolicyGPG{
+							Mode: appsv1.SourceIntegrityGitPolicyGPGModeStrict,
+							Keys: []string{"1234ABCD1234ABCD"},
+						},
+						[]*application.GitGPGCommitInfo{},
+						"",
+					),
+					prepareInspectGitGPGSourceIntegrityResponse(
+						"https://github.com/argoproj/argo-cd-fork.git",
+						"eef2234",
+						"v1.0.1",
+						&appsv1.SourceIntegrityGitPolicyGPG{
+							Mode: appsv1.SourceIntegrityGitPolicyGPGModeHead,
+							Keys: []string{"ABCD1234ABCD1234", "1234ABCD1234ABCD"},
+						},
+						[]*application.GitGPGCommitInfo{
+							prepareGitGPGCommitInfo("abcd1234", "Fri, 2 Jan 2026 15:55:44 +0200", "Jim Smith <jim.smith@example.com>", "Add test commit", "unsigned(key_id=)"),
+							prepareGitGPGCommitInfo("defe2234", "Sun, 14 Dec 2025 15:50:22 +0000", "John Doe <john.doe@example.com>", "Fix app port", "signed with expired key(key_id=ABCD1234ABCD1234)"),
+						},
+						"",
+					),
+					prepareInspectGitGPGSourceIntegrityResponse(
+						"https://github.com/argoproj/argo-cd-fork2.git",
+						"v1.0.2",
+						"v1.0.2",
+						nil,
+						[]*application.GitGPGCommitInfo{},
+						"multiple git/gpg policies are configured, invalid configuration",
+					),
+				},
+			}, nil)
+	}
 
-	cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
-	stdout, stderr, err := runCmd(t, cmd, projectName, applicationName)
+	stdout, stderr, exitCode := setupAndRunInspectCmdAsSubprocess(t, mockSetup, []string{projectName, applicationName})
 
-	assert.Equal(t, ExitCodeForError(expectedErr), ExitCodeForError(err))
-	assert.Equal(t, CLIErrorMessage(expectedErr), CLIErrorMessage(err))
+	assert.Equal(t, 2, exitCode)
 	assert.Empty(t, stderr)
 	assert.Equal(t, expectedStdout, stdout)
 }

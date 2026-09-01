@@ -51,13 +51,13 @@ func (h *DefaultPluginHandler) HandleCommandExecutionError(err error, isArgocdCL
 		// This means the command is neither a normal Argo CD Command nor a plugin.
 		if pluginErr != nil {
 			// If plugin handling fails, report the plugin error and exit
-			return CLIErrorMessage(pluginErr), pluginErr
+			return fmt.Sprintf("Error: %v\n", pluginErr), pluginErr
 		} else if pluginPath == "" {
 			return fmt.Sprintf("Error: %v\nRun 'argocd --help' for usage.\n", err), err
 		}
 	} else {
 		// If it's any other error (not an unknown command), report it directly and exit
-		return CLIErrorMessage(err), err
+		return fmt.Sprintf("Error: %v\n", err), err
 	}
 
 	return "", nil

@@ -565,12 +565,13 @@ Exit codes:
 		Args: func(c *cobra.Command, args []string) error {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				return NewExitError(1, nil)
+				os.Exit(1)
 			}
 
 			validOutputFormats := []string{"yaml", "json", "wide", ""}
 			if !slices.Contains(validOutputFormats, output) {
-				return NewExitError(1, fmt.Errorf("unknown output format: %s", output))
+				fmt.Fprintf(c.ErrOrStderr(), "unknown output format: %s", output)
+				os.Exit(1)
 			}
 
 			return nil
@@ -590,12 +591,13 @@ Exit codes:
 				AppNamespace: &appNs,
 			})
 			if err != nil {
-				return fmt.Errorf("failed inspecting git gpg source integrity for application %q: %w", appName, err)
+				fmt.Fprintf(c.ErrOrStderr(), "Failed inspecting git gpg source integrity for application %q: %v", appName, err)
+				os.Exit(1)
 			}
 
 			if len(data.GetItems()) == 0 {
 				fmt.Fprintf(c.ErrOrStderr(), "Git/GPG source integrity is not configured for any source of application %q, check the project and application configuration.\n", appName)
-				return NewExitError(3, nil)
+				os.Exit(3)
 			}
 
 			hasSourceIntegrityProblems := hasSourceIntegrityProblems(data.GetItems())
@@ -605,14 +607,15 @@ Exit codes:
 			case "yaml", "json":
 				err := PrintResourceList(data.GetItems(), output, false)
 				if err != nil {
-					return NewExitError(1, fmt.Errorf("failed printing git gpg source integrity response in %s format: %w", output, err))
+					fmt.Fprintf(c.ErrOrStderr(), "Failed printing git gpg source integrity response in %s format: %v", output, err)
+					os.Exit(1)
 				}
 			case "wide", "":
 				printGitGpgSourceIntegrityResponse(c.OutOrStdout(), data.GetItems())
 			}
 
 			if hasSourceIntegrityProblems {
-				return NewExitError(2, nil)
+				os.Exit(2)
 			}
 
 			return nil
