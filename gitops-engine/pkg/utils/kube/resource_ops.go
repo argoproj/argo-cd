@@ -111,6 +111,7 @@ func (f *realKubectlOptionsRunner) AuthReconcile(opts *auth.ReconcileOptions) (r
 			retErr = fmt.Errorf("error running kubectl auth reconcile: %v", r)
 		}
 	}()
+	// TODO(#29484): Remove this wrapper after the upstream kubectl panic fix is available in Argo CD.
 	opts.Visitor = panicRecoveringVisitor{Visitor: opts.Visitor}
 	return opts.RunReconcile()
 }
