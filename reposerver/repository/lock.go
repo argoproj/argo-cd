@@ -61,7 +61,7 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 			//   - the previous operation was non-concurrent (it may have left exclusive state), OR
 			//   - the revision has changed since the last operation (untracked files from the previous
 			//     revision, e.g. vendored Helm charts and the .argocd-helm-dep-up marker, must be removed).
-			revisionChanged := state.lastRevision != "" && state.lastRevision != revision
+			revisionChanged := state.lastRevision != revision
 			needsClean := !state.allowConcurrent || revisionChanged
 			initCloser, err := init(needsClean)
 			if err != nil {
