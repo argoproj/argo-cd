@@ -132,7 +132,7 @@ type kubectlResourceOperations struct {
 	outputMode    outputMode
 }
 
-type commandExecutor func(ioStreams genericiooptions.IOStreams, fileName string) error
+type commandExecutor func(ioStreams genericiooptions.IOStreams, fileName string, warningHandler rest.WarningHandler) error
 
 func maybeLogManifest(manifestBytes []byte, log logr.Logger) error {
 	// log manifest
@@ -190,12 +190,17 @@ func (k *kubectlResourceOperations) handleJSONOutput(stdout, stderr string) (str
 	return stdout, nil
 }
 
-func (k *kubectlResourceOperations) handleLogOutput(stdout, stderr string) (string, error) {
+// handleLogOutput builds the per-resource message shown in the Argo CD UI. It
+// contains kubectl's stdout and any API server warnings (delivered through the
+// warning handler). kubectl's client-side stderr is intentionally excluded, so
+// kubectl client-side warnings such as the "missing last-applied-configuration"
+// message emitted during create-then-apply are not misreported as warnings in the UI.
+func (k *kubectlResourceOperations) handleLogOutput(stdout, warnings string) (string, error) {
 	var out []string
 	if buf := strings.TrimSpace(stdout); buf != "" {
 		out = append(out, buf)
 	}
-	if buf := strings.TrimSpace(stderr); buf != "" {
+	if buf := strings.TrimSpace(warnings); buf != "" {
 		out = append(out, buf)
 	}
 	return strings.Join(out, ". "), nil
@@ -210,6 +215,7 @@ func (k *kubectlResourceOperations) runResourceCommand(_ context.Context, obj *u
 
 	stdoutBuf := &bytes.Buffer{}
 	stderrBuf := &bytes.Buffer{}
+	warningBuf := &bytes.Buffer{}
 
 	// Run kubectl command
 	ioStreams := genericiooptions.IOStreams{
@@ -217,19 +223,82 @@ func (k *kubectlResourceOperations) runResourceCommand(_ context.Context, obj *u
 		Out:    stdoutBuf,
 		ErrOut: stderrBuf,
 	}
-	err = executor(ioStreams, manifestFile.Name())
+
+	// Capture API server admission warnings into a dedicated buffer, kept separate
+	// from kubectl's own stderr. API server warnings arrive through this handler
+	// (the HTTP "Warning" response header), whereas kubectl also prints client-side
+	// warnings to stderr (for example the "missing last-applied-configuration
+	// annotation" message emitted during create-then-apply). Those notices are not
+	// API server warnings and must not be surfaced as such in the resource's sync
+	// message.
+	//
+	// JSON output (server-side diff) does not surface warnings, so no
+	// handler is created there.
+	var warningHandler rest.WarningHandler
+	if k.outputMode == outputModeLog {
+		warningHandler = rest.NewWarningWriter(warningBuf, rest.WarningWriterOptions{Deduplicate: true})
+	}
+
+	err = executor(ioStreams, manifestFile.Name(), warningHandler)
 	if err != nil {
 		return "", errors.New(cleanKubectlOutput(err.Error()))
 	}
 
 	stdout := stdoutBuf.String()
 	stderr := stderrBuf.String()
+	warnings := warningBuf.String()
 
 	// Delegate to appropriate handler based on output mode
 	if k.outputMode == outputModeJSON {
 		return k.handleJSONOutput(stdout, stderr)
 	}
-	return k.handleLogOutput(stdout, stderr)
+	return k.handleLogOutput(stdout, warnings)
+}
+
+// warningRESTClientGetter wraps the shared RESTClientGetter so that the REST
+// configs it hands out carry a per-operation warning handler. Discovery and REST
+// mapper lookups still delegate to the embedded getter, so the (expensive) shared
+// caches are reused rather than rebuilt per operation.
+type warningRESTClientGetter struct {
+	genericclioptions.RESTClientGetter
+	warningHandler rest.WarningHandler
+}
+
+// ToRESTConfig returns a copy of the shared REST config with the per-operation
+// warning handler attached. The shared config is never mutated, so concurrent
+// operations never see each other's handlers.
+func (g *warningRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
+	config, err := g.RESTClientGetter.ToRESTConfig()
+	if err != nil {
+		return nil, err
+	}
+	if g.warningHandler == nil {
+		return config, nil
+	}
+	config = rest.CopyConfig(config)
+	config.WarningHandler = g.warningHandler
+	return config, nil
+}
+
+// warningClients returns the factory and REST config an operation should use
+// after runResourceCommand has chosen its per-operation warning handler. When no
+// handler is set (JSON output / Server-Side Diff), the shared factory and config
+// are returned unchanged. Otherwise, the handler is attached to both client
+// construction paths.
+//
+// The factory wraps the shared factory's RESTClientGetter (via warningRESTClientGetter)
+// instead of rebuilding one from kubeconfig, so discovery and the REST mapper stay
+// shared; only the per-request REST config carries the handler. A copied REST config
+// is returned for clients that call NewForConfig directly (e.g. the dynamic client).
+func (k *kubectlResourceOperations) warningClients(warningHandler rest.WarningHandler) (cmdutil.Factory, *rest.Config) {
+	if warningHandler == nil {
+		return k.fact, k.config
+	}
+	getter := &warningRESTClientGetter{RESTClientGetter: k.fact, warningHandler: warningHandler}
+	fact := cmdutil.NewFactory(getter)
+	cfg := rest.CopyConfig(k.config)
+	cfg.WarningHandler = warningHandler
+	return fact, cfg
 }
 
 // rbacReconcile will perform reconciliation for RBAC resources. It will run
@@ -247,7 +316,7 @@ func (k *kubectlResourceOperations) rbacReconcile(ctx context.Context, obj *unst
 	span.SetBaggageItem("kind", gvk.Kind)
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
-	return k.runResourceCommand(ctx, obj, func(ioStreams genericiooptions.IOStreams, fileName string) error {
+	return k.runResourceCommand(ctx, obj, func(ioStreams genericiooptions.IOStreams, fileName string, _ rest.WarningHandler) error {
 		kubeClient, err := k.getClientFunc()
 		if err != nil {
 			return fmt.Errorf("error creating kube client: %w", err)
@@ -305,13 +374,14 @@ func (k *kubectlResourceOperations) ReplaceResource(ctx context.Context, obj *un
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
 	k.log.Info(fmt.Sprintf("Replacing resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
-	return k.runResourceCommand(ctx, obj, func(ioStreams genericiooptions.IOStreams, fileName string) error {
-		replaceOptions, err := k.newReplaceOptions(k.config, k.fact, ioStreams, fileName, obj.GetNamespace(), force, dryRunStrategy)
+	return k.runResourceCommand(ctx, obj, func(ioStreams genericiooptions.IOStreams, fileName string, warningHandler rest.WarningHandler) error {
+		replaceFact, replaceConfig := k.warningClients(warningHandler)
+		replaceOptions, err := k.newReplaceOptions(replaceConfig, replaceFact, ioStreams, fileName, obj.GetNamespace(), force, dryRunStrategy)
 		if err != nil {
 			return err
 		}
 
-		return k.optionsRunner.Replace(replaceOptions, k.fact)
+		return k.optionsRunner.Replace(replaceOptions, replaceFact)
 	})
 }
 
@@ -321,7 +391,7 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 	span.SetBaggageItem("kind", gvk.Kind)
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
-	return k.runResourceCommand(ctx, obj, func(ioStreams genericiooptions.IOStreams, fileName string) error {
+	return k.runResourceCommand(ctx, obj, func(ioStreams genericiooptions.IOStreams, fileName string, warningHandler rest.WarningHandler) error {
 		createOptions, err := k.newCreateOptions(ioStreams, fileName, dryRunStrategy)
 		if err != nil {
 			return err
@@ -335,7 +405,8 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 			_ = command.Flags().Set("validate", "true")
 		}
 
-		return k.optionsRunner.Create(createOptions, k.fact, command)
+		createFact, _ := k.warningClients(warningHandler)
+		return k.optionsRunner.Create(createOptions, createFact, command)
 	})
 }
 
@@ -397,8 +468,11 @@ func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unst
 		outReconcile = out
 	}
 
-	return k.runResourceCommand(ctx, obj, func(ioStreams genericiooptions.IOStreams, fileName string) error {
-		applyOpts, err := k.newApplyOptions(ioStreams, obj, fileName, validate, force, serverSideApply, dryRunStrategy, manager)
+	return k.runResourceCommand(ctx, obj, func(ioStreams genericiooptions.IOStreams, fileName string, warningHandler rest.WarningHandler) error {
+		// Admission warnings for RBAC resources with client-side apply are captured here during apply,
+		// not during rbacReconcile above.
+		applyFact, _ := k.warningClients(warningHandler)
+		applyOpts, err := k.newApplyOptions(applyFact, warningHandler, ioStreams, obj, fileName, validate, force, serverSideApply, dryRunStrategy, manager)
 		if err != nil {
 			return err
 		}
@@ -410,7 +484,7 @@ func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unst
 	})
 }
 
-func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericiooptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
+func (k *kubectlResourceOperations) newApplyOptions(applyFact cmdutil.Factory, warningHandler rest.WarningHandler, ioStreams genericiooptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
 	if k.outputMode == outputModeJSON {
 		if dryRunStrategy != cmdutil.DryRunServer {
 			return nil, fmt.Errorf("invalid dry run strategy used with JSON output. : %d, expected %d", dryRunStrategy, cmdutil.DryRunServer)
@@ -437,7 +511,15 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericiooptions.I
 		OpenAPIPatch:      openAPIPatch,
 		ServerSideApply:   serverSideApply,
 	}
-	dynamicClient, err := dynamic.NewForConfig(k.config)
+	// The dynamic client is used for pruning/deletion. Attach the warning
+	// handler to its config copy so warnings from those requests are captured
+	// too, without mutating the shared config.
+	dynamicConfig := k.config
+	if warningHandler != nil {
+		dynamicConfig = rest.CopyConfig(k.config)
+		dynamicConfig.WarningHandler = warningHandler
+	}
+	dynamicClient, err := dynamic.NewForConfig(dynamicConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create dynamic client: %w", err)
 	}
@@ -457,7 +539,12 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericiooptions.I
 	if err != nil {
 		return nil, fmt.Errorf("failed to create validator: %w", err)
 	}
-	o.Builder = k.fact.NewBuilder()
+	// Use the per-apply factory for the builder so its REST client carries the
+	// per-operation warning handler. The factory wraps the shared RESTClientGetter,
+	// so the builder still reuses the shared discovery/mapper caches; only the
+	// per-request REST config carries the handler. The remaining fields (validator,
+	// mapper, openapi) do not issue apply requests and stay cached on k.fact.
+	o.Builder = applyFact.NewBuilder()
 	o.Mapper, err = k.fact.ToRESTMapper()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create restmapper: %w", err)
