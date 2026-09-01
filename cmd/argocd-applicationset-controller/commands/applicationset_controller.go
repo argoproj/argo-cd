@@ -8,6 +8,8 @@ import (
 	"runtime/debug"
 	"time"
 
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+
 	"github.com/argoproj/argo-cd/v3/applicationset/progressivesync"
 
 	"github.com/argoproj/pkg/v2/stats"
@@ -65,6 +67,7 @@ func NewCommand() *cobra.Command {
 		debugLog                     bool
 		dryRun                       bool
 		enableProgressiveSyncs       bool
+		refreshGracePeriodSeconds    int
 		enableNewGitFileGlobbing     bool
 		repoServerPlaintext          bool
 		repoServerStrictTLS          bool
@@ -82,6 +85,7 @@ func NewCommand() *cobra.Command {
 		maxResourcesStatusCount      int
 		cacheSyncPeriod              time.Duration
 		concurrentApplicationUpdates int
+		repoServerClientTLSConfigSrc func() (tls.Configuration, error)
 		scmProxyURL                  string
 		scmNoProxy                   string
 	)
@@ -139,7 +143,7 @@ func NewCommand() *cobra.Command {
 			var watchedNamespace string
 			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
 			if len(applicationSetNamespaces) == 1 {
-				watchedNamespace = (applicationSetNamespaces)[0]
+				watchedNamespace = applicationSetNamespaces[0]
 			} else if enableScmProviders && len(allowedScmProviders) == 0 {
 				log.Error("When enabling applicationset in any namespace using applicationset-namespaces, you must either set --enable-scm-providers=false or specify --allowed-scm-providers")
 				os.Exit(1)
@@ -215,12 +219,12 @@ func NewCommand() *cobra.Command {
 				tokenRefStrictMode, generators.WithProxyURL(scmProxyURL),
 				generators.WithNoProxyList(scmNoProxy))
 
-			tlsConfig := apiclient.TLSConfiguration{
-				DisableTLS:       repoServerPlaintext,
-				StrictValidation: repoServerStrictTLS,
-			}
+			tlsConfig, err := repoServerClientTLSConfigSrc()
+			errors.CheckError(err)
+			tlsConfig.DisableTLS = repoServerPlaintext
+			tlsConfig.StrictValidation = tlsConfig.StrictValidation || repoServerStrictTLS
 
-			if !repoServerPlaintext && repoServerStrictTLS {
+			if !repoServerPlaintext && repoServerStrictTLS && tlsConfig.Certificates == nil {
 				pool, err := tls.LoadX509CertPool(
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/tls.crt",
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/ca.crt",
@@ -251,9 +255,11 @@ func NewCommand() *cobra.Command {
 					return utils.IsNamespaceAllowed(applicationSetNamespaces, appset.Namespace)
 				})
 			appsetReconciler := &controllers.ApplicationSetReconciler{
-				Generators:                   topLevelGenerators,
-				Client:                       cacheSyncClient,
-				Scheme:                       mgr.GetScheme(),
+				Generators: topLevelGenerators,
+				Client:     cacheSyncClient,
+				Scheme:     mgr.GetScheme(),
+				// FIXME: record.EventRecorder -> events.EventRecorder
+				// nolint:staticcheck
 				Recorder:                     mgr.GetEventRecorderFor("applicationset-controller"),
 				Renderer:                     &utils.Render{},
 				Policy:                       policyObj,
@@ -263,6 +269,7 @@ func NewCommand() *cobra.Command {
 				ArgoCDNamespace:              namespace,
 				ApplicationSetNamespaces:     applicationSetNamespaces,
 				EnableProgressiveSyncs:       enableProgressiveSyncs,
+				RefreshGracePeriodSeconds:    refreshGracePeriodSeconds,
 				SCMRootCAPath:                scmRootCAPath,
 				GlobalPreservedAnnotations:   globalPreservedAnnotations,
 				GlobalPreservedLabels:        globalPreservedLabels,
@@ -271,7 +278,15 @@ func NewCommand() *cobra.Command {
 				ClusterInformer:              clusterInformer,
 				ConcurrentApplicationUpdates: concurrentApplicationUpdates,
 			}
-			appsetReconciler.ProgressiveSyncManager = progressivesync.NewManager(cacheSyncClient, appsetReconciler)
+			appClientset, err := appclientset.NewForConfig(mgr.GetConfig())
+			if err != nil {
+				log.Error(err, "failed to create app clientset")
+			}
+			if appClientset == nil && enableProgressiveSyncs {
+				log.Error(err, "appClientset is nil, progressive sync when enabled expects to have app clientset")
+				os.Exit(1)
+			}
+			appsetReconciler.ProgressiveSyncManager = progressivesync.NewManager(cacheSyncClient, mgr.GetAPIReader(), appClientset, appsetReconciler)
 
 			if err = appsetReconciler.SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
@@ -306,9 +321,11 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&dryRun, "dry-run", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN", false), "Enable dry run mode")
 	command.Flags().BoolVar(&tokenRefStrictMode, "token-ref-strict-mode", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE", false), fmt.Sprintf("Set to true to require secrets referenced by SCM providers to have the %s=%s label set (Default: false)", common.LabelKeySecretType, common.LabelValueSecretTypeSCMCreds))
 	command.Flags().BoolVar(&enableProgressiveSyncs, "enable-progressive-syncs", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS", false), "Enable use of the experimental progressive syncs feature.")
+	command.Flags().IntVar(&refreshGracePeriodSeconds, "refresh-grace-period-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REFRESH_GRACE_PERIOD_SECONDS", 30, 0, math.MaxInt64), "The minimum grace period before a progressive sync may start refreshing outdated applications")
 	command.Flags().BoolVar(&enableNewGitFileGlobbing, "enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
+	errors.CheckError(command.Flags().MarkDeprecated("repo-server-strict-tls", "use --repo-server-ca-cert-path instead"))
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().IntVar(&maxConcurrentReconciliations, "concurrent-reconciliations", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS", 10, 1, math.MaxInt), "Max concurrent reconciliations limit for the controller")
 	command.Flags().StringVar(&scmRootCAPath, "scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
@@ -322,6 +339,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&maxResourcesStatusCount, "max-resources-status-count", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT", 5000, 0, math.MaxInt), "Max number of resources stored in appset status.")
 	command.Flags().DurationVar(&cacheSyncPeriod, "cache-sync-period", env.ParseDurationFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CACHE_SYNC_PERIOD", time.Hour*10, 0, time.Hour*24), "Period at which the manager client cache is forcefully resynced with the Kubernetes API server. 0 disables periodic resync.")
 	command.Flags().IntVar(&concurrentApplicationUpdates, "concurrent-application-updates", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_APPLICATION_UPDATES", 1, 1, 200), "Number of concurrent Application create/update/delete operations per ApplicationSet reconcile.")
+	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmdWithPrefix(&command, "APPLICATIONSET_CONTROLLER")
 	return &command
 }
 

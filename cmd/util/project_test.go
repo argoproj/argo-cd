@@ -10,6 +10,7 @@ import (
 )
 
 func TestProjectOpts_ResourceLists(t *testing.T) {
+	t.Parallel()
 	opts := ProjectOpts{
 		allowedNamespacedResources: []string{"ConfigMap"},
 		deniedNamespacedResources:  []string{"apps/DaemonSet"},
@@ -24,6 +25,7 @@ func TestProjectOpts_ResourceLists(t *testing.T) {
 }
 
 func TestProjectOpts_GetDestinationServiceAccounts(t *testing.T) {
+	t.Parallel()
 	opts := ProjectOpts{
 		destinationServiceAccounts: []string{
 			"https://192.168.99.100:8443,test-ns,test-sa",

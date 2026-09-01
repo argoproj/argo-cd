@@ -15,6 +15,7 @@ import (
 )
 
 func TestUnmarshalLocalFile(t *testing.T) {
+	t.Parallel()
 	const (
 		field1 = "Hello, world!"
 		field2 = 42
@@ -45,6 +46,7 @@ func TestUnmarshalLocalFile(t *testing.T) {
 }
 
 func TestUnmarshal(t *testing.T) {
+	t.Parallel()
 	const (
 		field1 = "Hello, world!"
 		field2 = 42
@@ -64,6 +66,7 @@ func TestUnmarshal(t *testing.T) {
 }
 
 func TestUnmarshalRemoteFile(t *testing.T) {
+	t.Parallel()
 	const (
 		field1 = "Hello, world!"
 		field2 = 42
@@ -113,6 +116,7 @@ func TestUnmarshalRemoteFile(t *testing.T) {
 }
 
 func TestUnmarshalReader(t *testing.T) {
+	t.Parallel()
 	type testStruct struct {
 		Value string
 	}

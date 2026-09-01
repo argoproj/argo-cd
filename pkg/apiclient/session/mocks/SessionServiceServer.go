@@ -74,7 +74,7 @@ type SessionServiceServer_Create_Call struct {
 // Create is a helper method to define mock.On call
 //   - context1 context.Context
 //   - sessionCreateRequest *session.SessionCreateRequest
-func (_e *SessionServiceServer_Expecter) Create(context1 interface{}, sessionCreateRequest interface{}) *SessionServiceServer_Create_Call {
+func (_e *SessionServiceServer_Expecter) Create(context1 any, sessionCreateRequest any) *SessionServiceServer_Create_Call {
 	return &SessionServiceServer_Create_Call{Call: _e.mock.On("Create", context1, sessionCreateRequest)}
 }
 
@@ -142,7 +142,7 @@ type SessionServiceServer_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - context1 context.Context
 //   - sessionDeleteRequest *session.SessionDeleteRequest
-func (_e *SessionServiceServer_Expecter) Delete(context1 interface{}, sessionDeleteRequest interface{}) *SessionServiceServer_Delete_Call {
+func (_e *SessionServiceServer_Expecter) Delete(context1 any, sessionDeleteRequest any) *SessionServiceServer_Delete_Call {
 	return &SessionServiceServer_Delete_Call{Call: _e.mock.On("Delete", context1, sessionDeleteRequest)}
 }
 
@@ -210,7 +210,7 @@ type SessionServiceServer_GetUserInfo_Call struct {
 // GetUserInfo is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getUserInfoRequest *session.GetUserInfoRequest
-func (_e *SessionServiceServer_Expecter) GetUserInfo(context1 interface{}, getUserInfoRequest interface{}) *SessionServiceServer_GetUserInfo_Call {
+func (_e *SessionServiceServer_Expecter) GetUserInfo(context1 any, getUserInfoRequest any) *SessionServiceServer_GetUserInfo_Call {
 	return &SessionServiceServer_GetUserInfo_Call{Call: _e.mock.On("GetUserInfo", context1, getUserInfoRequest)}
 }
 

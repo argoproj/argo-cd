@@ -49,8 +49,10 @@ func newStreamMock() *streamMock {
 }
 
 func TestReceiveApplicationStream(t *testing.T) {
+	t.Parallel()
 	t.Run("will receive the application stream successfully", func(t *testing.T) {
 		// given
+		t.Parallel()
 		streamMock := newStreamMock()
 		appDir := filepath.Join(getTestDataDir(t), "app")
 		workdir, err := files.CreateTempDir("")

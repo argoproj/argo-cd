@@ -112,23 +112,27 @@ func (db *db) deleteSecret(ctx context.Context, secret *corev1.Secret) error {
 	return err
 }
 
-func (db *db) watchSecrets(ctx context.Context,
-	secretType string,
+// secretEventHandlerFuncs builds the informer event handlers used by watchSecrets,
+// dispatching add/update/delete events for *corev1.Secret objects to the provided
+// callbacks. DeleteFunc unwraps cache.DeletedFinalStateUnknown tombstones before the
+// type assertion, and events whose object is not a *corev1.Secret (including
+// tombstones wrapping a nil or unexpected object) are ignored.
+func secretEventHandlerFuncs(
 	handleAddEvent func(secret *corev1.Secret),
 	handleModEvent func(oldSecret *corev1.Secret, newSecret *corev1.Secret),
 	handleDeleteEvent func(secret *corev1.Secret),
-) {
-	secretListOptions := func(options *metav1.ListOptions) {
-		labelSelector := fields.ParseSelectorOrDie(common.LabelKeySecretType + "=" + secretType)
-		options.LabelSelector = labelSelector.String()
-	}
-	secretEventHandler := cache.ResourceEventHandlerFuncs{
+) cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			if secretObj, ok := obj.(*corev1.Secret); ok {
 				handleAddEvent(secretObj)
 			}
 		},
 		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
 			if secretObj, ok := obj.(*corev1.Secret); ok {
 				handleDeleteEvent(secretObj)
 			}
@@ -141,6 +145,19 @@ func (db *db) watchSecrets(ctx context.Context,
 			}
 		},
 	}
+}
+
+func (db *db) watchSecrets(ctx context.Context,
+	secretType string,
+	handleAddEvent func(secret *corev1.Secret),
+	handleModEvent func(oldSecret *corev1.Secret, newSecret *corev1.Secret),
+	handleDeleteEvent func(secret *corev1.Secret),
+) {
+	secretListOptions := func(options *metav1.ListOptions) {
+		labelSelector := fields.ParseSelectorOrDie(common.LabelKeySecretType + "=" + secretType)
+		options.LabelSelector = labelSelector.String()
+	}
+	secretEventHandler := secretEventHandlerFuncs(handleAddEvent, handleModEvent, handleDeleteEvent)
 
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	clusterSecretInformer := informersv1.NewFilteredSecretInformer(db.kubeclientset, db.ns, 3*time.Minute, indexers, secretListOptions)

@@ -151,6 +151,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -379,6 +381,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -390,6 +394,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -653,6 +659,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -880,6 +888,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -1061,6 +1071,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -1289,6 +1301,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -1300,6 +1314,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -1563,6 +1579,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -1790,6 +1808,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -1972,6 +1992,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -2200,6 +2222,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -2211,6 +2235,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -2474,6 +2500,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -2701,6 +2729,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -2861,6 +2891,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -3089,6 +3121,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -3100,6 +3134,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -3363,6 +3399,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -3590,6 +3628,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -3775,6 +3815,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -4003,6 +4045,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -4014,6 +4058,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -4277,6 +4323,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -4504,6 +4552,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -4685,6 +4735,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -4913,6 +4965,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -4924,6 +4978,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -5187,6 +5243,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -5414,6 +5472,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -5596,6 +5656,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -5824,6 +5886,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -5835,6 +5899,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -6098,6 +6164,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -6325,6 +6393,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -6485,6 +6555,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -6713,6 +6785,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -6724,6 +6798,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -6987,6 +7063,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -7214,6 +7292,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -7382,6 +7462,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -7610,6 +7692,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -7621,6 +7705,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -7884,6 +7970,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -8111,6 +8199,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -8506,6 +8596,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -8734,6 +8826,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -8745,6 +8839,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -9008,6 +9104,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -9235,6 +9333,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -9627,6 +9727,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -9855,6 +9957,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -9866,6 +9970,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -10129,6 +10235,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -10357,6 +10465,8 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                tagPrefix:
+                                                  type: string
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -10533,6 +10643,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -10761,6 +10873,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -10772,6 +10886,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -11035,6 +11151,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -11262,6 +11380,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -11449,6 +11569,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -11677,6 +11799,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -11688,6 +11812,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -11951,6 +12077,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -12178,6 +12306,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -12359,6 +12489,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -12587,6 +12719,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -12598,6 +12732,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -12861,6 +12997,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -13088,6 +13226,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -13270,6 +13410,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -13498,6 +13640,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -13509,6 +13653,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -13772,6 +13918,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -13999,6 +14147,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -14159,6 +14309,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -14387,6 +14539,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -14398,6 +14552,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -14661,6 +14817,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -14888,6 +15046,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -15056,6 +15216,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -15284,6 +15446,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -15295,6 +15459,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -15558,6 +15724,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -15785,6 +15953,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -16180,6 +16350,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -16408,6 +16580,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -16419,6 +16593,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -16682,6 +16858,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -16909,6 +17087,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -17301,6 +17481,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -17529,6 +17711,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -17540,6 +17724,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -17803,6 +17989,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -18031,6 +18219,8 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                tagPrefix:
+                                                  type: string
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -18211,6 +18401,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -18439,6 +18631,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -18450,6 +18644,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -18713,6 +18909,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -18940,6 +19138,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -19107,6 +19307,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -19335,6 +19537,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -19346,6 +19550,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -19609,6 +19815,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -19836,6 +20044,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -20231,6 +20441,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -20459,6 +20671,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -20470,6 +20684,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -20733,6 +20949,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -20960,6 +21178,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -21352,6 +21572,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -21580,6 +21802,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -21591,6 +21815,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -21854,6 +22080,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -22081,6 +22309,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -22335,6 +22565,8 @@ spec:
                             type: string
                           directory:
                             properties:
+                              disableExtensionFilter:
+                                type: boolean
                               exclude:
                                 type: string
                               include:
@@ -22563,6 +22795,8 @@ spec:
                             type: string
                           repoURL:
                             type: string
+                          tagPrefix:
+                            type: string
                           targetRevision:
                             type: string
                         required:
@@ -22574,6 +22808,8 @@ spec:
                             properties:
                               directory:
                                 properties:
+                                  disableExtensionFilter:
+                                    type: boolean
                                   exclude:
                                     type: string
                                   include:
@@ -22837,6 +23073,8 @@ spec:
                               type: string
                             directory:
                               properties:
+                                disableExtensionFilter:
+                                  type: boolean
                                 exclude:
                                   type: string
                                 include:
@@ -23064,6 +23302,8 @@ spec:
                             ref:
                               type: string
                             repoURL:
+                              type: string
+                            tagPrefix:
                               type: string
                             targetRevision:
                               type: string
