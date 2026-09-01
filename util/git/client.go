@@ -1823,7 +1823,7 @@ func eligibleGitLockPath(root string, named string) (string, bool) {
 //
 // A lock must be older than gitLockRecoveryGracePeriod, for the same reason
 // cleanupOrphanedTempPackfiles applies its own: repo-server replicas can share an
-// RWX cache volume, and unlinking a lock a live git still holds lets both
+// RWX cache volume, and unlinking a lock that a live git still holds lets both
 // processes write the working tree, leaving it inconsistent with the checked-out
 // revision. A lock younger than that returns git's original error, and the next
 // reconcile retries once the window has passed.
