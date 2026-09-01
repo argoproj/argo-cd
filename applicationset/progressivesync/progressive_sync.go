@@ -466,6 +466,8 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 				Status:             argov1alpha1.ProgressiveSyncWaiting,
 				Step:               strconv.Itoa(getAppStep(app.Name, appStepMap)),
 			}
+			// New app in Waiting status should trigger rollout start time annotation
+			hasNewWaiting = true
 		} else {
 			// we have an existing AppStatus
 			currentAppStatus = applicationSet.Status.ApplicationStatus[idx]
@@ -921,7 +923,11 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 		if len(newPendingSteps) > 0 {
 			stepStarts, parseErr := getStepStartTimesFromAnnotation(applicationSet)
 			if parseErr != nil {
-				logCtx.WithError(parseErr).Warn("Failed to parse step start times annotation")
+				logCtx.WithError(parseErr).Warn("Failed to parse step start times annotation, resetting with current pending steps only (step completion metrics will be lost for in-progress steps)")
+				// Reset to empty map - this discards any corrupted timing data but allows
+				// the controller to recover and track new steps going forward. Step completion
+				// metrics will be incorrect for any steps that were already in progress.
+				stepStarts = make(map[string]time.Time)
 			}
 			needsUpdate := false
 			for step := range newPendingSteps {
