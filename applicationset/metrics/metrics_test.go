@@ -186,7 +186,7 @@ spec:
           values:
           - dev
       - matchExpressions:
-        - key: environmen
+        - key: environment
           operator: In
           values:
           - staging
