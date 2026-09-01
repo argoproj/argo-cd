@@ -78,8 +78,8 @@ status:
     namespace: argocd
     status: OutOfSync
     version: v1alpha1
-    orphaned: true
-  orphanedCount: 1
+    abandoned: true
+  abandonedCount: 1
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
     message: Successfully generated parameters for all Applications
@@ -207,12 +207,12 @@ argocd_appset_info{name="test2",namespace="argocd",resource_update_status="Unkno
 	assert.Contains(t, rr.Body.String(), `
 argocd_appset_owned_applications{name="test2",namespace="argocd"} 0
 `)
-	// The orphaned applications gauge reports status.orphanedCount
+	// The abandoned applications gauge reports status.abandonedCount
 	assert.Contains(t, rr.Body.String(), `
-argocd_appset_orphaned_applications{name="test1",namespace="argocd"} 1
+argocd_appset_abandoned_applications{name="test1",namespace="argocd"} 1
 `)
 	assert.Contains(t, rr.Body.String(), `
-argocd_appset_orphaned_applications{name="test2",namespace="argocd"} 0
+argocd_appset_abandoned_applications{name="test2",namespace="argocd"} 0
 `)
 	// Test that filter is working
 	assert.NotContains(t, rr.Body.String(), `name="should-be-filtered-out"`)

@@ -23374,6 +23374,9 @@ spec:
             type: object
           status:
             properties:
+              abandonedCount:
+                format: int64
+                type: integer
               applicationStatus:
                 items:
                   properties:
@@ -23431,12 +23434,11 @@ spec:
                   status:
                     type: string
                 type: object
-              orphanedCount:
-                format: int64
-                type: integer
               resources:
                 items:
                   properties:
+                    abandoned:
+                      type: boolean
                     group:
                       type: string
                     health:
@@ -23457,8 +23459,6 @@ spec:
                       type: string
                     namespace:
                       type: string
-                    orphaned:
-                      type: boolean
                     requiresDeletionConfirmation:
                       type: boolean
                     requiresPruning:

@@ -843,12 +843,12 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 
 		// Update the list and remove element
 		// As policy is create-update, app deletion must not be reflected,
-		// but the surviving application must be reported as orphaned in the status
+		// but the surviving application must be reported as abandoned in the status
 		When().
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Generators = []v1alpha1.ApplicationSetGenerator{}
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
-		Expect(ApplicationSetHasOrphanedCount(1)).
+		Expect(ApplicationSetHasAbandonedCount(1)).
 
 		// verify the ApplicationSet status conditions were set correctly
 		Expect(ApplicationSetHasConditions(ExpectedConditions)).

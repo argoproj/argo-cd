@@ -397,7 +397,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
 	}
 	// Compare against generatedApplications rather than validApps so that generated-but-invalid
-	// applications are not reported as orphaned.
+	// applications are not reported as abandoned.
 	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications, generatedApplications)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to update resources status for application set: %w", err)
@@ -1103,13 +1103,13 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 	statusMap = status.BuildResourceStatus(statusMap, apps, generatedApps)
 
 	statuses := []argov1alpha1.ResourceStatus{}
-	// Count orphaned Applications before truncation so the count stays correct even when their
+	// Count abandoned Applications before truncation so the count stays correct even when their
 	// entries do not fit into the truncated resource status list.
-	orphanedCount := int64(0)
+	abandonedCount := int64(0)
 	for _, status := range statusMap {
 		statuses = append(statuses, status)
-		if status.Orphaned {
-			orphanedCount++
+		if status.Abandoned {
+			abandonedCount++
 		}
 	}
 	sort.Slice(statuses, func(i, j int) bool {
@@ -1122,7 +1122,7 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 	}
 	appset.Status.Resources = statuses
 	appset.Status.ResourcesCount = resourcesCount
-	appset.Status.OrphanedCount = orphanedCount
+	appset.Status.AbandonedCount = abandonedCount
 	// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
@@ -1136,7 +1136,7 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 
 		updatedAppset.Status.Resources = appset.Status.Resources
 		updatedAppset.Status.ResourcesCount = resourcesCount
-		updatedAppset.Status.OrphanedCount = orphanedCount
+		updatedAppset.Status.AbandonedCount = abandonedCount
 
 		// Update the newly fetched object with new status resources
 		err := r.Client.Status().Update(ctx, updatedAppset)

@@ -25,33 +25,33 @@ func newApp(name string) argov1alpha1.Application {
 	}
 }
 
-func TestBuildResourceStatusMarksOrphanedApplications(t *testing.T) {
+func TestBuildResourceStatusMarksAbandonedApplications(t *testing.T) {
 	apps := []argov1alpha1.Application{newApp("app1"), newApp("app2")}
 	generated := []argov1alpha1.Application{newApp("app1")}
 
 	statusMap := BuildResourceStatus(map[string]argov1alpha1.ResourceStatus{}, apps, generated)
 
 	assert.Len(t, statusMap, 2)
-	assert.False(t, statusMap["app1"].Orphaned, "generated application must not be marked as orphaned")
-	assert.True(t, statusMap["app2"].Orphaned, "application no longer generated must be marked as orphaned")
+	assert.False(t, statusMap["app1"].Abandoned, "generated application must not be marked as abandoned")
+	assert.True(t, statusMap["app2"].Abandoned, "application no longer generated must be marked as abandoned")
 }
 
-func TestBuildResourceStatusDoesNotMarkDeletingApplicationsOrphaned(t *testing.T) {
+func TestBuildResourceStatusDoesNotMarkDeletingApplicationsAbandoned(t *testing.T) {
 	deleting := newApp("app1")
 	now := metav1.Now()
 	deleting.DeletionTimestamp = &now
 
 	statusMap := BuildResourceStatus(map[string]argov1alpha1.ResourceStatus{}, []argov1alpha1.Application{deleting}, nil)
 
-	assert.False(t, statusMap["app1"].Orphaned, "application that is already being deleted must not be marked as orphaned")
+	assert.False(t, statusMap["app1"].Abandoned, "application that is already being deleted must not be marked as abandoned")
 }
 
-func TestBuildResourceStatusClearsOrphanedMarkWhenGeneratedAgain(t *testing.T) {
+func TestBuildResourceStatusClearsAbandonedMarkWhenGeneratedAgain(t *testing.T) {
 	apps := []argov1alpha1.Application{newApp("app1")}
 
 	statusMap := BuildResourceStatus(map[string]argov1alpha1.ResourceStatus{}, apps, nil)
-	assert.True(t, statusMap["app1"].Orphaned)
+	assert.True(t, statusMap["app1"].Abandoned)
 
 	statusMap = BuildResourceStatus(statusMap, apps, apps)
-	assert.False(t, statusMap["app1"].Orphaned, "orphaned mark must clear once the application is generated again")
+	assert.False(t, statusMap["app1"].Abandoned, "abandoned mark must clear once the application is generated again")
 }

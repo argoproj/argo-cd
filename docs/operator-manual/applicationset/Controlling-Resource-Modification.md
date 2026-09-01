@@ -39,22 +39,26 @@ spec:
 
 If the controller parameter `--policy` is set, it takes precedence on the field `applicationsSync`. It is possible to allow per ApplicationSet sync policy by setting variable `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE` to argocd-cmd-params-cm `applicationsetcontroller.enable.policy.override` or directly with controller parameter `--enable-policy-override` (default to `false`).
 
-### Tracking Applications that are no longer generated
+### Tracking abandoned Applications
 
 Under the non-deleting policies (`create-only`, `create-update`), an Application whose generator
 parameters disappear (for example after a selector change) is left in place, stays owned by the
-ApplicationSet, and keeps reporting its own sync and health status as if nothing happened. To make
-these orphaned Applications visible, the controller marks their entry in the ApplicationSet's
-`status.resources` with `orphaned: true` and records the total in `status.orphanedCount` (which,
+ApplicationSet, and keeps reporting its own sync and health status as if nothing happened. Such
+Applications — often loosely called orphaned — are *abandoned*: still owned by a living
+ApplicationSet that no longer generates them. (This is distinct from deleting an ApplicationSet with
+`--cascade=orphan`, which removes the ownership itself.)
+
+To make abandoned Applications visible, the controller marks their entry in the ApplicationSet's
+`status.resources` with `abandoned: true` and records the total in `status.abandonedCount` (which,
 unlike the resource status list, is not truncated). The mark clears automatically if the Application
-is generated again, and the `argocd_appset_orphaned_applications` metric exposes the count per
-ApplicationSet for alerting. The controller never modifies the orphaned Application itself; deleting
-it remains an operator action.
+is generated again, and the `argocd_appset_abandoned_applications` metric exposes the count per
+ApplicationSet for alerting. The controller never modifies the abandoned Application itself;
+deleting it remains an operator action.
 
 Two caveats when alerting on the metric. The count reflects the last successful generation: while a
 generator is erroring, the status is not recomputed, so the count can be stale in either direction.
 And a generator that transiently succeeds with empty output (for example a cluster generator whose
-selector briefly matches no cluster secrets) marks every owned Application orphaned until the next
+selector briefly matches no cluster secrets) marks every owned Application abandoned until the next
 successful generation — the same window in which the delete-capable policies would have deleted
 them. Give alerts a tolerance (`for:`) rather than paging on the instant value.
 
