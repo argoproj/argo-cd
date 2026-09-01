@@ -446,7 +446,9 @@ data:
     jqPathExpressions:
       - '.metadata.annotations."notified.notifications.argoproj.io"'
       - '.metadata.annotations."argocd.argoproj.io/refresh"'
+      - '.metadata.annotations."argocd.argoproj.io/refresh-timestamp"'
       - '.metadata.annotations."argocd.argoproj.io/hydrate"'
+      - '.metadata.annotations."argocd.argoproj.io/hydrate-timestamp"'
       - '.operation'
   resource.customizations.ignoreResourceUpdates.argoproj.io_Rollout: |
     jqPathExpressions:
@@ -1195,6 +1197,18 @@ spec:
               key: log.format.timestamp
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_COMMIT_SERVER_SIGNING_KEY_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: commitserver.signing.key.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_COMMIT_SERVER_SIGNING_KEY_PASSPHRASE_FILE
+          valueFrom:
+            configMapKeyRef:
+              key: commitserver.signing.key.passphrase.file
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -1229,10 +1243,11 @@ spec:
           name: ssh-known-hosts
         - mountPath: /app/config/tls
           name: tls-certs
-        - mountPath: /app/config/gpg/source
-          name: gpg-keys
         - mountPath: /app/config/gpg/keys
           name: gpg-keyring
+        - mountPath: /app/config/gpg/signing
+          name: gpg-signing-key
+          readOnly: true
         - mountPath: /tmp
           name: tmp
       serviceAccountName: argocd-commit-server
@@ -1243,11 +1258,12 @@ spec:
       - configMap:
           name: argocd-tls-certs-cm
         name: tls-certs
-      - configMap:
-          name: argocd-gpg-keys-cm
-        name: gpg-keys
       - emptyDir: {}
         name: gpg-keyring
+      - name: gpg-signing-key
+        secret:
+          optional: true
+          secretName: argocd-commit-server-gpg-signing-key
       - emptyDir: {}
         name: tmp
       - name: argocd-commit-server-tls
@@ -1323,7 +1339,7 @@ spec:
               key: dexserver.connector.failure.continue
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.45.0
+        image: ghcr.io/dexidp/dex:v2.45.1
         imagePullPolicy: Always
         name: dex
         ports:
@@ -1572,7 +1588,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.1-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -1741,6 +1757,18 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_SENTINEL_HOSTS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.hosts
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_SENTINEL_MASTER
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.master
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDIS_COMPRESSION
           valueFrom:
             configMapKeyRef:
@@ -1787,6 +1815,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.sample.ratio
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
@@ -1957,6 +1991,8 @@ spec:
           name: helm-working-dir
         - mountPath: /home/argocd/cmp-server/plugins
           name: plugins
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
       initContainers:
       - args:
         - /bin/cp /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln -sf /var/run/argocd/argocd
@@ -2164,6 +2200,12 @@ spec:
               key: server.disable.auth
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_DISABLE_SWAGGER_UI
+          valueFrom:
+            configMapKeyRef:
+              key: server.disable.swagger.ui
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_SERVER_ENABLE_GZIP
           valueFrom:
             configMapKeyRef:
@@ -2278,6 +2320,18 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_SENTINEL_HOSTS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.hosts
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_SENTINEL_MASTER
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.master
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDIS_COMPRESSION
           valueFrom:
             configMapKeyRef:
@@ -2342,6 +2396,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_OTLP_SAMPLE_RATIO
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.sample.ratio
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
@@ -2811,6 +2871,18 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_SENTINEL_HOSTS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.hosts
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_SENTINEL_MASTER
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.master
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDIS_COMPRESSION
           valueFrom:
             configMapKeyRef:
@@ -2857,6 +2929,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.sample.ratio
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES

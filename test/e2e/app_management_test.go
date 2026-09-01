@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -492,6 +492,48 @@ func TestInvalidAppProject(t *testing.T) {
 		// We're not allowed to infer whether the project exists based on this error message. Instead, we get a generic
 		// permission denied error.
 		Expect(Error("", "is not allowed"))
+}
+
+// Test a refresh request comes while a refresh is already running
+func TestNestedRefresh(t *testing.T) {
+	dir := "slow-manifest"
+	valuesFile := "values.yaml"
+	ctx := Given(t)
+	acts := ctx.Path(dir).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(All(OperationPhaseIs(OperationSucceeded), SyncStatusIs(SyncStatusCodeSynced))).
+		When().
+		// set long delay for the next helm template invocation
+		PatchFile(valuesFile, `[{"op": "replace", "path": "/iterations", "value": 400}]`)
+
+	// runs app get --refresh asynchronously, so we do not wait for the refresh to finish
+	go ctx.When().Refresh(RefreshTypeNormal)
+
+	// wait until Refresh actually runs `helm template`. We can
+	// catch it because the template is really nasty and
+	// `helm template` rendering takes tens of seconds
+	acts.Then().Expect(HelmTemplateRuns())
+	// ps output line containing helm PID and command line
+	helmProcessData := acts.GetLastOutput()
+
+	// make another change: removing the long delay: we do not need it for the second template invocation,
+	acts = acts.PatchFile(valuesFile, `[{"op": "replace", "path": "/iterations", "value": 1}]`)
+	// get last revision
+	revision := acts.GitRevList("HEAD", "-1").GetLastOutput()
+
+	// second (nested) refresh request
+	go ctx.When().Refresh(RefreshTypeNormal)
+
+	// get process one more time and ensure the same helm process
+	// still running, so the second refresh was nested
+	acts.Then().Expect(All(HelmTemplateRuns(), Success(helmProcessData)))
+
+	// the last committed revision - the second refresh worked
+	// it is expected to take a long time if runner is slow
+	acts.ThenWithTimeout(80).Expect(SyncRevisionIs(revision))
 }
 
 func TestAppDeletion(t *testing.T) {
@@ -1226,6 +1268,7 @@ func TestPermissions(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		// make sure application resource actions are successful
 		And(func(app *Application) {
 			assertResourceActions(t, app.Name, true, appCtx.DeploymentNamespace())
@@ -1586,6 +1629,45 @@ func TestExcludedResource(t *testing.T) {
 		Expect(Condition(ApplicationConditionExcludedResourceWarning, "Resource apps/Deployment guestbook-ui is excluded in the settings"))
 }
 
+// TestResourceSelector makes sure that a label selector configured via resource.selectors removes the
+// matching resources from the cluster cache, while leaving them running in the cluster.
+func TestResourceSelector(t *testing.T) {
+	isDeploymentPod := func(node ResourceNode) bool {
+		return node.Kind == kube.PodKind && node.Group == ""
+	}
+	isDeploymentPodInCluster := func(pod corev1.Pod) bool {
+		return pod.Labels["my-label"] == "whatever"
+	}
+
+	Given(t).
+		Path("one-deployment").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(Pod(isDeploymentPodInCluster)).
+		// the pod is part of the application resource tree
+		Expect(ResourceTreeNode(isDeploymentPod)).
+		When().
+		// filter out the pods of the deployment
+		SetResourceFilter(settings.ResourcesFilter{
+			ResourceSelectors: []settings.FilteredResource{{
+				APIGroups: []string{""},
+				Kinds:     []string{kube.PodKind},
+				Selector:  "my-label!=whatever",
+			}},
+		}).
+		Refresh(RefreshTypeHard).
+		Then().
+		// the pod is gone from the resource tree ...
+		Expect(NotResourceTreeNode(isDeploymentPod)).
+		// ... but is still running in the cluster
+		Expect(Pod(isDeploymentPodInCluster)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
 func TestRevisionHistoryLimit(t *testing.T) {
 	Given(t).
 		Path("config-map").
@@ -1627,9 +1709,7 @@ func TestOrphanedResource(t *testing.T) {
 		When().
 		And(func() {
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "orphaned-configmap",
-				},
+				Name: "orphaned-configmap",
 			}, metav1.CreateOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).
@@ -1705,27 +1785,23 @@ func TestNotPermittedResources(t *testing.T) {
 
 	pathType := networkingv1.PathTypePrefix
 	ingress := &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "sample-ingress",
-			Labels: map[string]string{
-				common.LabelKeyAppInstance: ctx.GetName(),
-			},
+		Name: "sample-ingress",
+		Labels: map[string]string{
+			common.LabelKeyAppInstance: ctx.GetName(),
 		},
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{{
-				IngressRuleValue: networkingv1.IngressRuleValue{
-					HTTP: &networkingv1.HTTPIngressRuleValue{
-						Paths: []networkingv1.HTTPIngressPath{{
-							Path: "/",
-							Backend: networkingv1.IngressBackend{
-								Service: &networkingv1.IngressServiceBackend{
-									Name: "guestbook-ui",
-									Port: networkingv1.ServiceBackendPort{Number: 80},
-								},
+				HTTP: &networkingv1.HTTPIngressRuleValue{
+					Paths: []networkingv1.HTTPIngressPath{{
+						Path: "/",
+						Backend: networkingv1.IngressBackend{
+							Service: &networkingv1.IngressServiceBackend{
+								Name: "guestbook-ui",
+								Port: networkingv1.ServiceBackendPort{Number: 80},
 							},
-							PathType: &pathType,
-						}},
-					},
+						},
+						PathType: &pathType,
+					}},
 				},
 			}},
 		},
@@ -1736,11 +1812,9 @@ func TestNotPermittedResources(t *testing.T) {
 	}()
 
 	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "guestbook-ui",
-			Labels: map[string]string{
-				common.LabelKeyAppInstance: ctx.GetName(),
-			},
+		Name: "guestbook-ui",
+		Labels: map[string]string{
+			common.LabelKeyAppInstance: ctx.GetName(),
 		},
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{{
@@ -1839,6 +1913,7 @@ func TestSyncWithRetryAndRefreshEnabled(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
+		Refresh(RefreshTypeNormal).
 		IgnoreErrors().
 		Sync().
 		DoNotIgnoreErrors().
@@ -1850,6 +1925,7 @@ func TestSyncWithRetryAndRefreshEnabled(t *testing.T) {
 		PatchApp(`[{"op": "add", "path": "/spec/source/path", "value": "failure-during-sync"}]`).
 		// push a fixed commit on HEAD branch
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 42}]`).
+		Refresh(RefreshTypeNormal).
 		IgnoreErrors().
 		Sync().
 		DoNotIgnoreErrors().
@@ -1963,9 +2039,7 @@ func TestListResource(t *testing.T) {
 		When().
 		And(func() {
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "orphaned-configmap",
-				},
+				Name: "orphaned-configmap",
 			}, metav1.CreateOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).
@@ -2064,6 +2138,71 @@ func TestFailedSyncWithRetry(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(OperationMessageContains("retried 1 times"))
+}
+
+// TestStaleOperationRevisionNotUsedNewSync validates new operations resolve the revision
+// and do not use the existing completed operation state.
+func TestStaleOperationRevisionNotUsedNewSync(t *testing.T) {
+	var revisionX string
+	var revisionY string
+
+	ctx := Given(t)
+	ctx.
+		Path("hook").
+		When().
+		CreateApp().
+		And(func() {
+			sha, err := fixture.Run(fixture.TmpDir()+"/testdata.git", "git", "rev-parse", "HEAD")
+			require.NoError(t, err)
+			revisionX = strings.TrimSpace(sha)
+		}).
+		// 1. Create and sync the app on revision X.
+		Sync("--revision", revisionX).
+		Then().
+		// 2. The app must be synced and healthy on X.
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.OperationState)
+			require.NotNil(t, app.Status.OperationState.SyncResult)
+			require.Equal(t, revisionX, app.Status.OperationState.SyncResult.Revision)
+		}).
+		When().
+		// 3. Push an invalid commit Y (an apply-time failure only present on HEAD).
+		AddFile("failure-during-sync.yaml", `apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: failure-during-sync
+  labels:
+    my-label: has-inva/id-character!
+`).
+		And(func() {
+			sha, err := fixture.Run(fixture.TmpDir()+"/testdata.git", "git", "rev-parse", "HEAD")
+			require.NoError(t, err)
+			revisionY = strings.TrimSpace(sha)
+			require.NotEqual(t, revisionX, revisionY)
+			// 4. Add a sync Operation on HEAD (without any resolved revisions)
+			patch := fmt.Sprintf(`{
+				"operation": {
+					"initiatedBy": {"username": "e2e", "automated": true},
+					"info": [{"name": "Reason", "value": "Syncing latest without resolved revision"}],
+					"sync": {},
+					"retry": {"limit": %d, "backoff": {"duration": %q}}
+				}
+			}`, 1, "1s")
+			_, err = fixture.Run("", "kubectl", "-n", fixture.TestNamespace(), "patch", "application", ctx.AppName(), "--type", "merge", "-p", patch)
+			require.NoError(t, err)
+		}).
+		Then().
+		// 5. The sync resolves the new revision Y and fails on it
+		Expect(OperationRetriedMinimumTimes(1)).
+		Expect(OperationPhaseIs(OperationFailed)).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.OperationState.SyncResult)
+			// syncResult must record revision Y, the current broken HEAD that failed.
+			assert.Equal(t, revisionY, app.Status.OperationState.SyncResult.Revision)
+		})
 }
 
 func TestCreateDisableValidation(t *testing.T) {
@@ -2373,11 +2512,9 @@ func TestSwitchTrackingMethod(t *testing.T) {
 			// Add resource with tracking annotation. This should put the
 			// application OutOfSync.
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "other-configmap",
-					Annotations: map[string]string{
-						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/other-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
-					},
+				Name: "other-configmap",
+				Annotations: map[string]string{
+					common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/other-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2407,11 +2544,9 @@ func TestSwitchTrackingMethod(t *testing.T) {
 			// affect the application, because we now use the tracking method
 			// "label".
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "other-configmap",
-					Annotations: map[string]string{
-						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/other-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
-					},
+				Name: "other-configmap",
+				Annotations: map[string]string{
+					common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/other-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2424,11 +2559,9 @@ func TestSwitchTrackingMethod(t *testing.T) {
 			// Add a resource with the tracking label. The app should become
 			// OutOfSync.
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "extra-configmap",
-					Labels: map[string]string{
-						common.LabelKeyAppInstance: ctx.GetName(),
-					},
+				Name: "extra-configmap",
+				Labels: map[string]string{
+					common.LabelKeyAppInstance: ctx.GetName(),
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2445,6 +2578,91 @@ func TestSwitchTrackingMethod(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+// TestTrackingMethodAnnotationMovedResource verifies that a resource previously
+// tracked by another application surfaces as OutOfSync and that syncing updates
+// its tracking annotation. The manifest deliberately carries a chart-rendered
+// app.kubernetes.io/instance label, which used to hide the stale tracking
+// annotation from the diff (issue #17965).
+func TestTrackingMethodAnnotationMovedResource(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
+		Path("tracking-instance-label").
+		When().
+		CreateApp().
+		Sync().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			// Rewrite the tracking annotation to the value a previous application
+			// (e.g. one replaced by an ApplicationSet-generated app) left behind.
+			patch := fmt.Sprintf(`{"metadata":{"annotations":{%q:%q}}}`,
+				common.AnnotationKeyAppInstance,
+				fmt.Sprintf("old-app:/ConfigMap:%s/my-map", ctx.DeploymentNamespace()))
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Patch(
+				t.Context(), "my-map", types.MergePatchType, []byte(patch), metav1.PatchOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		// The stale tracking annotation is a real difference and must show up.
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			// Syncing must repair the tracking annotation.
+			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Get(t.Context(), "my-map", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("%s:/ConfigMap:%s/my-map", app.Name, ctx.DeploymentNamespace()), cm.Annotations[common.AnnotationKeyAppInstance])
+			// The chart-rendered instance label is not owned by tracking and stays.
+			assert.Equal(t, "my-release", cm.Labels["app.kubernetes.io/instance"])
+		})
+}
+
+// TestTrackingMethodAnnotationMovedResourceSSA is the server-side apply variant
+// of TestTrackingMethodAnnotationMovedResource.
+func TestTrackingMethodAnnotationMovedResourceSSA(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
+		Path("tracking-instance-label").
+		When().
+		CreateApp("--sync-option", "ServerSideApply=true").
+		Sync().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			patch := fmt.Sprintf(`{"metadata":{"annotations":{%q:%q}}}`,
+				common.AnnotationKeyAppInstance,
+				fmt.Sprintf("old-app:/ConfigMap:%s/my-map", ctx.DeploymentNamespace()))
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Patch(
+				t.Context(), "my-map", types.MergePatchType, []byte(patch), metav1.PatchOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Get(t.Context(), "my-map", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("%s:/ConfigMap:%s/my-map", app.Name, ctx.DeploymentNamespace()), cm.Annotations[common.AnnotationKeyAppInstance])
+		})
 }
 
 func TestSwitchTrackingLabel(t *testing.T) {
@@ -2466,11 +2684,9 @@ func TestSwitchTrackingLabel(t *testing.T) {
 			// Add extra resource that carries the default tracking label
 			// We expect the app to go out of sync.
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "other-configmap",
-					Labels: map[string]string{
-						common.LabelKeyAppInstance: ctx.GetName(),
-					},
+				Name: "other-configmap",
+				Labels: map[string]string{
+					common.LabelKeyAppInstance: ctx.GetName(),
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2500,11 +2716,9 @@ func TestSwitchTrackingLabel(t *testing.T) {
 			// Create resource with the new tracking label, the application
 			// is expected to go out of sync
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "other-configmap",
-					Labels: map[string]string{
-						"argocd.tracking": ctx.GetName(),
-					},
+				Name: "other-configmap",
+				Labels: map[string]string{
+					"argocd.tracking": ctx.GetName(),
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2527,11 +2741,9 @@ func TestSwitchTrackingLabel(t *testing.T) {
 			// We expect the app to stay in sync, because the configured
 			// label is different.
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "other-configmap",
-					Labels: map[string]string{
-						common.LabelKeyAppInstance: ctx.GetName(),
-					},
+				Name: "other-configmap",
+				Labels: map[string]string{
+					common.LabelKeyAppInstance: ctx.GetName(),
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2560,11 +2772,9 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 			// Add a resource with an annotation that is not referencing the
 			// resource.
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "extra-configmap",
-					Annotations: map[string]string{
-						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:apps/Deployment:%s/guestbook-cm", ctx.GetName(), ctx.DeploymentNamespace()),
-					},
+				Name: "extra-configmap",
+				Annotations: map[string]string{
+					common.AnnotationKeyAppInstance: fmt.Sprintf("%s:apps/Deployment:%s/guestbook-cm", ctx.GetName(), ctx.DeploymentNamespace()),
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2585,11 +2795,9 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 			// Add a resource with an annotation that is self-referencing the
 			// resource.
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "other-configmap",
-					Annotations: map[string]string{
-						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/other-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
-					},
+				Name: "other-configmap",
+				Annotations: map[string]string{
+					common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/other-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2614,14 +2822,12 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		And(func() {
 			// Add a cluster-scoped resource that is not referencing itself
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.RbacV1().ClusterRoles().Create(t.Context(), &rbacv1.ClusterRole{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "e2e-test-clusterrole",
-					Annotations: map[string]string{
-						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:rbac.authorization.k8s.io/ClusterRole:%s/e2e-other-clusterrole", ctx.GetName(), ctx.DeploymentNamespace()),
-					},
-					Labels: map[string]string{
-						fixture.TestingLabel: "true",
-					},
+				Name: "e2e-test-clusterrole",
+				Annotations: map[string]string{
+					common.AnnotationKeyAppInstance: fmt.Sprintf("%s:rbac.authorization.k8s.io/ClusterRole:%s/e2e-other-clusterrole", ctx.GetName(), ctx.DeploymentNamespace()),
+				},
+				Labels: map[string]string{
+					fixture.TestingLabel: "true",
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2634,14 +2840,12 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		And(func() {
 			// Add a cluster-scoped resource that is referencing itself
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.RbacV1().ClusterRoles().Create(t.Context(), &rbacv1.ClusterRole{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "e2e-other-clusterrole",
-					Annotations: map[string]string{
-						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:rbac.authorization.k8s.io/ClusterRole:%s/e2e-other-clusterrole", ctx.GetName(), ctx.DeploymentNamespace()),
-					},
-					Labels: map[string]string{
-						fixture.TestingLabel: "true",
-					},
+				Name: "e2e-other-clusterrole",
+				Annotations: map[string]string{
+					common.AnnotationKeyAppInstance: fmt.Sprintf("%s:rbac.authorization.k8s.io/ClusterRole:%s/e2e-other-clusterrole", ctx.GetName(), ctx.DeploymentNamespace()),
+				},
+				Labels: map[string]string{
+					fixture.TestingLabel: "true",
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2715,11 +2919,9 @@ func TestInstallationID(t *testing.T) {
 		And(func() {
 			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(
 				t.Context(), &corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test-configmap",
-						Annotations: map[string]string{
-							common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/test-configmap", ctx.AppName(), ctx.DeploymentNamespace()),
-						},
+					Name: "test-configmap",
+					Annotations: map[string]string{
+						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/test-configmap", ctx.AppName(), ctx.DeploymentNamespace()),
 					},
 				}, metav1.CreateOptions{})
 			require.NoError(t, err)
@@ -2760,12 +2962,10 @@ func TestDeletionConfirmation(t *testing.T) {
 		And(func() {
 			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(
 				t.Context(), &corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test-configmap",
-						Annotations: map[string]string{
-							common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/test-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
-							AnnotationSyncOptions:           "Prune=confirm",
-						},
+					Name: "test-configmap",
+					Annotations: map[string]string{
+						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/test-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
+						AnnotationSyncOptions:           "Prune=confirm",
 					},
 				}, metav1.CreateOptions{})
 			require.NoError(t, err)
@@ -2796,11 +2996,9 @@ func TestDeletionConfirmationAppLevel(t *testing.T) {
 		And(func() {
 			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(
 				t.Context(), &corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test-configmap",
-						Annotations: map[string]string{
-							common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/test-configmap", ctx.AppName(), ctx.DeploymentNamespace()),
-						},
+					Name: "test-configmap",
+					Annotations: map[string]string{
+						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/test-configmap", ctx.AppName(), ctx.DeploymentNamespace()),
 					},
 				}, metav1.CreateOptions{})
 			require.NoError(t, err)

@@ -105,3 +105,11 @@ func TestBlockingDial_ProxyEnvironmentHandling(t *testing.T) {
 		})
 	}
 }
+
+func TestBlockingNewClient_CancelledContextAbortsDial(t *testing.T) {
+	clearProxyEnv(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err := BlockingNewClient(ctx, "tcp", "10.255.255.1:443", nil)
+	require.ErrorIs(t, err, context.Canceled)
+}
