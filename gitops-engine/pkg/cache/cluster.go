@@ -26,9 +26,11 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -92,6 +94,11 @@ const (
 	RespectRbacStrict
 )
 
+// errSkipNamespace is returned by a processApi callback to signal that the
+// current (GVK, namespace) pair should be skipped and iteration should
+// continue with the next namespace.
+var errSkipNamespace = errors.New("skip namespace: inaccessible (GVK, namespace) pair")
+
 // callState tracks whether action() has been called on a resource during hierarchy iteration.
 type callState int
 
@@ -129,6 +136,8 @@ type ClusterInfo struct {
 	SyncError error
 	// APIResources holds list of API resources supported by the cluster
 	APIResources []kube.APIResourceInfo
+	// SyncWarnings holds warnings from the most recent sync (e.g. inaccessible namespaces)
+	SyncWarnings []string
 }
 
 // OnEventHandler is a function that handles Kubernetes event
@@ -262,9 +271,11 @@ type clusterCache struct {
 	resources map[kube.ResourceKey]*Resource
 	nsIndex   map[string]map[kube.ResourceKey]*Resource
 
-	kubectl          kube.Kubectl
-	log              logr.Logger
-	config           *rest.Config
+	kubectl kube.Kubectl
+	log     logr.Logger
+	config  *rest.Config
+	// clientset, when set, overrides the kubernetes clientset built from config (injectable for tests/SSAR).
+	clientset        kubernetes.Interface
 	namespaces       []string
 	clusterResources bool
 	settings         Settings
@@ -285,6 +296,12 @@ type clusterCache struct {
 	// Using a set eliminates O(k) duplicate checking on insertions
 	// Used for cross-namespace hierarchy traversal; namespaced traversal still builds a graph
 	parentUIDToChildren map[types.UID]map[kube.ResourceKey]struct{}
+
+	// syncSkippedNs tracks namespaces where resource listing was denied during sync.
+	// Idempotent: re-skipping the same (GVK, ns) is a no-op.
+	// Reset at the start of each sync; written concurrently by GVK goroutines, so guarded by syncSkippedNsLock.
+	syncSkippedNs     map[string]map[schema.GroupKind]struct{}
+	syncSkippedNsLock sync.Mutex
 }
 
 type clusterCacheSync struct {
@@ -663,9 +680,9 @@ func (c *clusterCache) startMissingWatches() error {
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
-	clientset, err := kubernetes.NewForConfig(c.config)
+	clientset, err := c.resolveClientset()
 	if err != nil {
-		return fmt.Errorf("failed to create clientset: %w", err)
+		return err
 	}
 	namespacedResources := make(map[schema.GroupKind]bool)
 	for i := range apis {
@@ -674,30 +691,49 @@ func (c *clusterCache) startMissingWatches() error {
 		if _, ok := c.apisMeta[api.GroupKind]; !ok {
 			ctx, cancel := context.WithCancel(context.Background())
 			c.apisMeta[api.GroupKind] = &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
+			watchStarted := false
 
 			err := c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
 				resourceVersion, err := c.loadInitialState(ctx, api, resClient, ns, false) // don't lock here, we are already in a lock before startMissingWatches is called inside watchEvents
-				if err != nil && c.isRestrictedResource(err) {
-					keep := false
-					if c.respectRBAC == RespectRbacStrict {
-						k, permErr := c.checkPermission(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api)
-						if permErr != nil {
-							return fmt.Errorf("failed to check permissions for resource %s: %w, original error=%v", api.GroupKind.String(), permErr, err.Error())
+				if err != nil {
+					if ns != "" && apierrors.IsForbidden(err) {
+						skipErr := c.handleNamespacedListError(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api, ns, err)
+						if errors.Is(skipErr, errSkipNamespace) {
+							return errSkipNamespace
 						}
-						keep = k
+						if skipErr != nil && skipErr != err {
+							return skipErr
+						}
 					}
-					// if we are not allowed to list the resource, remove it from the watch list
-					if !keep {
-						delete(c.apisMeta, api.GroupKind)
-						delete(namespacedResources, api.GroupKind)
-						return nil
+					// SSAR says allowed: not a namespace-level denial, let isRestrictedResource decide.
+					if c.isRestrictedResource(err) {
+						keep := false
+						if c.respectRBAC == RespectRbacStrict {
+							k, permErr := c.checkPermission(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api)
+							if permErr != nil {
+								return fmt.Errorf("failed to check permissions for resource %s: %w, original error=%v", api.GroupKind.String(), permErr, err.Error())
+							}
+							keep = k
+						}
+						// if we are not allowed to list the resource, remove it from the watch list
+						if !keep {
+							delete(c.apisMeta, api.GroupKind)
+							delete(namespacedResources, api.GroupKind)
+							return nil
+						}
 					}
 				}
+				watchStarted = true
 				go c.watchEvents(ctx, api, resClient, ns, resourceVersion)
 				return nil
 			})
 			if err != nil {
 				return err
+			}
+			if !watchStarted {
+				cancel()
+				delete(c.apisMeta, api.GroupKind)
+				delete(namespacedResources, api.GroupKind)
 			}
 		}
 	}
@@ -1015,6 +1051,7 @@ func isAPIServiceAvailable(obj *unstructured.Unstructured) bool {
 // processApi processes all the resources for a given API. First we construct an API client for the given API. Then we
 // call the callback. If we're managing the whole cluster, we call the callback with the client and an empty namespace.
 // If we're managing specific namespaces, we call the callback for each namespace.
+// The callback may return errSkipNamespace to skip the current namespace and continue with the next one.
 func (c *clusterCache) processApi(client dynamic.Interface, api kube.APIResourceInfo, callback func(resClient dynamic.ResourceInterface, ns string) error) error {
 	resClient := client.Resource(api.GroupVersionResource)
 	switch {
@@ -1025,6 +1062,9 @@ func (c *clusterCache) processApi(client dynamic.Interface, api kube.APIResource
 	case len(c.namespaces) != 0 && api.Meta.Namespaced:
 		for _, ns := range c.namespaces {
 			err := callback(resClient.Namespace(ns), ns)
+			if errors.Is(err, errSkipNamespace) {
+				continue
+			}
 			if err != nil {
 				return err
 			}
@@ -1083,6 +1123,105 @@ func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface auth
 	return true, nil
 }
 
+// checkNamespacePermission runs a self subject access review for a specific (GVK, namespace) pair
+// to check if the controller has permission to list the resource in that namespace.
+func (c *clusterCache) checkNamespacePermission(ctx context.Context, reviewInterface authType1.SelfSubjectAccessReviewInterface, api kube.APIResourceInfo, namespace string) (bool, error) {
+	sar := &authorizationv1.SelfSubjectAccessReview{
+		Spec: authorizationv1.SelfSubjectAccessReviewSpec{
+			ResourceAttributes: &authorizationv1.ResourceAttributes{
+				Namespace: namespace,
+				Verb:      "list",
+				Group:     api.GroupVersionResource.Group,
+				Resource:  api.GroupVersionResource.Resource,
+			},
+		},
+	}
+	resp, err := reviewInterface.Create(ctx, sar, metav1.CreateOptions{})
+	if err != nil {
+		return false, fmt.Errorf("failed to create self subject access review: %w", err)
+	}
+	if resp == nil {
+		return false, fmt.Errorf("SSAR returned nil response for %s in namespace %q", api.GroupKind, namespace)
+	}
+	if resp.Status.Allowed {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (c *clusterCache) recordSkippedNamespace(ns string, gk schema.GroupKind) {
+	c.syncSkippedNsLock.Lock()
+	defer c.syncSkippedNsLock.Unlock()
+	if c.syncSkippedNs[ns] == nil {
+		c.syncSkippedNs[ns] = make(map[schema.GroupKind]struct{})
+	}
+	c.syncSkippedNs[ns][gk] = struct{}{}
+}
+
+// renderSkippedNamespaces collapses the per-(namespace, GroupKind) skip set into
+// one warning string per namespace, sorted deterministically.
+func renderSkippedNamespaces(skipped map[string]map[schema.GroupKind]struct{}) []string {
+	if len(skipped) == 0 {
+		return nil
+	}
+	namespaces := make([]string, 0, len(skipped))
+	for ns := range skipped {
+		namespaces = append(namespaces, ns)
+	}
+	slices.Sort(namespaces)
+
+	warnings := make([]string, 0, len(namespaces))
+	for _, ns := range namespaces {
+		gks := skipped[ns]
+		count := len(gks)
+		if count == 0 {
+			continue
+		}
+
+		if count <= 5 {
+			names := make([]string, 0, count)
+			for gk := range gks {
+				names = append(names, gk.String())
+			}
+			slices.Sort(names)
+			warnings = append(warnings, fmt.Sprintf("namespace %q: skipped, inaccessible (%s)", ns, strings.Join(names, ", ")))
+		} else {
+			warnings = append(warnings, fmt.Sprintf("namespace %q: skipped, inaccessible (%d resource types). If deleted, remove from cluster secret.", ns, count))
+		}
+	}
+	return warnings
+}
+
+// handleNamespacedListError classifies a list error for a (GVK, namespace) pair.
+// Forbidden → SSAR disambiguates: denied = skip with warning, allowed = propagate (genuine 403).
+// Anything else → propagate as-is.
+func (c *clusterCache) handleNamespacedListError(ctx context.Context, reviewInterface authType1.SelfSubjectAccessReviewInterface, api kube.APIResourceInfo, namespace string, listErr error) error {
+	if !apierrors.IsForbidden(listErr) {
+		return listErr
+	}
+	allowed, err := c.checkNamespacePermission(ctx, reviewInterface, api, namespace)
+	if err != nil {
+		return fmt.Errorf("failed to verify access to %s in namespace %q: %w, original error=%v", api.GroupKind, namespace, err, listErr)
+	}
+	if allowed {
+		return listErr
+	}
+	c.log.V(1).Info("Skipping inaccessible resource in namespace", "namespace", namespace, "groupKind", api.GroupKind, "error", listErr)
+	c.recordSkippedNamespace(namespace, api.GroupKind)
+	return errSkipNamespace
+}
+
+func (c *clusterCache) resolveClientset() (kubernetes.Interface, error) {
+	if c.clientset != nil {
+		return c.clientset, nil
+	}
+	cs, err := kubernetes.NewForConfig(c.config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create clientset: %w", err)
+	}
+	return cs, nil
+}
+
 // sync retrieves the current state of the cluster and stores relevant information in the clusterCache fields.
 //
 // First we get some metadata from the cluster, like the server version, OpenAPI document, and the list of all API
@@ -1134,6 +1273,9 @@ func (c *clusterCache) sync() (err error) {
 	c.namespacedResources = make(map[schema.GroupKind]bool)
 	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
 	syncLock.Unlock()
+	c.syncSkippedNsLock.Lock()
+	c.syncSkippedNs = make(map[string]map[schema.GroupKind]struct{})
+	c.syncSkippedNsLock.Unlock()
 	config := c.config
 	version, err := c.kubectl.GetServerVersion(config)
 	if err != nil {
@@ -1165,9 +1307,9 @@ func (c *clusterCache) sync() (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := c.resolveClientset()
 	if err != nil {
-		return fmt.Errorf("failed to create clientset: %w", err)
+		return err
 	}
 
 	if c.batchEventsProcessing {
@@ -1184,8 +1326,9 @@ func (c *clusterCache) sync() (err error) {
 		c.apisMeta[api.GroupKind] = info
 		c.namespacedResources[api.GroupKind] = api.Meta.Namespaced
 		syncLock.Unlock()
+		watchStarted := false
 
-		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
+		err := c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
 			resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
 				// Use the WithAlloc variant: newResource may retain the object (as Resource.Resource, or via the
 				// Info returned by the OnPopulateResourceInfoHandler). Plain EachListItem yields &list.Items[i],
@@ -1203,6 +1346,16 @@ func (c *clusterCache) sync() (err error) {
 				})
 			})
 			if err != nil {
+				if ns != "" && apierrors.IsForbidden(err) {
+					skipErr := c.handleNamespacedListError(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api, ns, err)
+					if errors.Is(skipErr, errSkipNamespace) {
+						return errSkipNamespace
+					}
+					if skipErr != nil && skipErr != err {
+						return skipErr
+					}
+				}
+				// SSAR says allowed: not a namespace-level denial, let isRestrictedResource decide
 				if c.isRestrictedResource(err) {
 					keep := false
 					if c.respectRBAC == RespectRbacStrict {
@@ -1224,10 +1377,19 @@ func (c *clusterCache) sync() (err error) {
 				return fmt.Errorf("failed to load initial state of resource %s: %w", api.GroupKind.String(), err)
 			}
 
+			watchStarted = true
 			go c.watchEvents(ctx, api, resClient, ns, resourceVersion)
 
 			return nil
 		})
+		if !watchStarted && err == nil {
+			cancel()
+			syncLock.Lock()
+			delete(c.apisMeta, api.GroupKind)
+			delete(c.namespacedResources, api.GroupKind)
+			syncLock.Unlock()
+		}
+		return err
 	})
 	if err != nil {
 		return fmt.Errorf("failed to sync cluster %s: %w", c.config.Host, err)
@@ -1773,9 +1935,13 @@ var ignoredRefreshResources = map[string]bool{
 func (c *clusterCache) GetClusterInfo() ClusterInfo {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
+
+	c.syncSkippedNsLock.Lock()
+	warnings := renderSkippedNamespaces(c.syncSkippedNs)
+	c.syncSkippedNsLock.Unlock()
+
 	c.syncStatus.lock.Lock()
 	defer c.syncStatus.lock.Unlock()
-
 	return ClusterInfo{
 		APIsCount:         len(c.apisMeta),
 		K8SVersion:        c.serverVersion,
@@ -1784,6 +1950,7 @@ func (c *clusterCache) GetClusterInfo() ClusterInfo {
 		LastCacheSyncTime: c.syncStatus.syncTime,
 		SyncError:         c.syncStatus.syncError,
 		APIResources:      c.apiResources,
+		SyncWarnings:      warnings,
 	}
 }
 
