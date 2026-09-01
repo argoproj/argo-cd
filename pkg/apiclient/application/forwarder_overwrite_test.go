@@ -689,3 +689,74 @@ type failingResponseWriter struct {
 func (f *failingResponseWriter) Write(p []byte) (int, error) {
 	return f.Writer.Write(p)
 }
+
+func TestDownloadLogs(t *testing.T) {
+	t.Parallel()
+	entries := []*LogEntry{
+		{Content: proto.String("line one"), TimeStampStr: proto.String("2026-08-31T10:00:00.000000001Z")},
+		{Content: proto.String("line two"), TimeStampStr: proto.String("2026-08-31T10:00:01.000000001Z")},
+		{Last: proto.Bool(true)},
+	}
+
+	tests := []struct {
+		name     string
+		url      string
+		expected string
+	}{
+		{
+			name:     "without timestamps",
+			url:      "/api/v1/applications/my-app/logs?download=true&namespace=my-ns&podName=my-pod&container=main",
+			expected: "line one\nline two\n",
+		},
+		{
+			name:     "with timestamps",
+			url:      "/api/v1/applications/my-app/logs?download=true&timestamps=true&namespace=my-ns&podName=my-pod&container=main",
+			expected: "2026-08-31T10:00:00.000000001Z line one\n2026-08-31T10:00:01.000000001Z line two\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, tt.url, http.NoBody)
+			w := httptest.NewRecorder()
+			i := 0
+			recv := func() (proto.Message, error) {
+				if i >= len(entries) {
+					return nil, io.EOF
+				}
+				entry := entries[i]
+				i++
+				return entry, nil
+			}
+			downloadLogs(w, req, recv)
+			assert.Equal(t, tt.expected, w.Body.String())
+			assert.Equal(t, `attachment;filename="my-ns-my-pod-main.log"`, w.Header().Get("Content-Disposition"))
+		})
+	}
+
+	t.Run("writes recv error to response", func(t *testing.T) {
+		t.Parallel()
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/applications/my-app/logs?download=true", http.NoBody)
+		w := httptest.NewRecorder()
+		downloadLogs(w, req, func() (proto.Message, error) {
+			return nil, errors.New("stream failed")
+		})
+		assert.Equal(t, "stream failed", w.Body.String())
+		assert.Equal(t, `attachment;filename="log.log"`, w.Header().Get("Content-Disposition"))
+	})
+
+	t.Run("stops on write error", func(t *testing.T) {
+		t.Parallel()
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/applications/my-app/logs?download=true", http.NoBody)
+		w := httptest.NewRecorder()
+		fw := &failingResponseWriter{ResponseWriter: w, Writer: &failAfterNWriter{w: w, limit: 0}}
+		i := 0
+		recv := func() (proto.Message, error) {
+			i++
+			require.LessOrEqual(t, i, 1, "must stop receiving after a write failure")
+			return entries[0], nil
+		}
+		downloadLogs(fw, req, recv)
+		assert.Empty(t, w.Body.String())
+	})
+}
