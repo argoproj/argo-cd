@@ -18,13 +18,18 @@ import {createMatcher} from './applications-list-search';
 import {AppSetsStatusBar} from './applications-status-bar';
 import {AppSetTile} from './appset-tile';
 import {AppSetTableRow} from './appset-table-row';
-import {ApplicationSetsSummary} from './application-sets-summary';
 import {FlexTopBar} from '../../../shared/components';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {ViewTypeSwitcher} from './view-type-switcher';
 
 import './applications-list.scss';
 import './applications-table.scss';
 import './applications-tiles.scss';
+
+const ApplicationSetsSummary = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "appset-summary" */ './application-sets-summary').then(m => ({default: m.ApplicationSetsSummary}))),
+    'Failed to load application sets summary. Please reload and try again.'
+);
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
