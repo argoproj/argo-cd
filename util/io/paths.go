@@ -13,6 +13,9 @@ type TempPaths interface {
 	GetPath(key string) (string, error)
 	GetPathIfExists(key string) string
 	GetPaths() map[string]string
+	// Remove removes a path mapping for the given key. This is useful for cleaning up
+	// temporary paths like git worktrees that are no longer needed.
+	Remove(key string)
 }
 
 // RandomizedTempPaths allows generating and memoizing random paths, each path being mapped to a specific key.
@@ -68,4 +71,11 @@ func (p *RandomizedTempPaths) GetPaths() map[string]string {
 	paths := map[string]string{}
 	maps.Copy(paths, p.paths)
 	return paths
+}
+
+// Remove removes a path mapping for the given key.
+func (p *RandomizedTempPaths) Remove(key string) {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	delete(p.paths, key)
 }
