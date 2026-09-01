@@ -10,7 +10,10 @@ const mostRecentLoggedIn = new BehaviorSubject<boolean>(false);
 import './page.scss';
 
 function isLoggedIn(): Observable<boolean> {
-    services.users.get().then(info => mostRecentLoggedIn.next(info.loggedIn));
+    services.users
+        .get()
+        .then(info => mostRecentLoggedIn.next(info.loggedIn))
+        .catch((): void => undefined);
     return mostRecentLoggedIn;
 }
 

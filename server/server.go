@@ -362,6 +362,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		permCache := cacheutil.NewCache(cacheutil.NewRedisCache(opts.RedisClient, rbacpolicy.PermCheckCacheTTL, cacheutil.RedisCompressionNone))
 		policyEnf.SetPermCheckCache(permCache)
 	}
+	_, err = projInformer.AddEventHandler(projectPolicyEventHandler(policyEnf))
+	errorsutil.CheckError(err)
 
 	staticFS, err := fs.Sub(ui.Embedded, "dist/app")
 	errorsutil.CheckError(err)
@@ -683,6 +685,10 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	if !cache.WaitForCacheSync(ctx.Done(), server.projInformer.HasSynced, server.appInformer.HasSynced, server.clusterInformer.HasSynced) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
+	// Replace the boot-unique seed with the real content hash now that the projects are known. An
+	// installation with no AppProjects never fires an event, so without this the seeds would never
+	// converge and replicas would keep invalidating each other's cache entries.
+	server.policyEnforcer.RefreshProjectPolicyEpoch()
 
 	shutdownFunc := func() {
 		log.Info("API Server shutdown initiated. Shutting down servers...")
@@ -904,9 +910,28 @@ func (server *ArgoCDServer) watchSettings() {
 	server.stopCh <- GracefulRestartSignal{}
 }
 
+func projectPolicyEventHandler(policyEnf *rbacpolicy.Enforcer) cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(_ any) {
+			policyEnf.RefreshProjectPolicyEpoch()
+		},
+		UpdateFunc: func(oldObj, newObj any) {
+			oldProj, oldOk := oldObj.(*v1alpha1.AppProject)
+			newProj, newOk := newObj.(*v1alpha1.AppProject)
+			if oldOk && newOk && oldProj.ProjectPoliciesString() == newProj.ProjectPoliciesString() {
+				return
+			}
+			policyEnf.RefreshProjectPolicyEpoch()
+		},
+		DeleteFunc: func(_ any) {
+			policyEnf.RefreshProjectPolicyEpoch()
+		},
+	}
+}
+
 func (server *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
 	// Flush the permission-check cache only after the new Casbin policy is fully installed. Registering the hook here
-	// ensure that it is going to be execited on the initial load as well as every update.
+	// ensures that it is going to be executed on the initial load as well as every update.
 	server.enf.SetAfterPolicyInstalled(func(resourceVersion string) {
 		server.policyEnforcer.FlushPermCheckCache(resourceVersion)
 	})

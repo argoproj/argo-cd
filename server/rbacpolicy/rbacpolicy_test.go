@@ -8,10 +8,13 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v3/test"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
@@ -283,6 +286,171 @@ func TestUserHasAnyPermission_ProjectScope(t *testing.T) {
 
 	assert.False(t, rbacEnf.UserHasAnyPermission("bob", nil),
 		"user with no global or project permissions should be blocked")
+}
+
+func TestUserHasAnyPermission_ProjectScopeDenyOverride(t *testing.T) {
+	const projectAllow = "p, proj:my-project:developer, applications, sync, my-project/*, allow"
+
+	tests := []struct {
+		name         string
+		globalPolicy string
+		projPolicies []string
+		expected     bool
+	}{
+		{
+			name:         "project role allow with no deny",
+			projPolicies: []string{projectAllow},
+			expected:     true,
+		},
+		{
+			name:         "blanket deny on the group that carries the project role",
+			globalPolicy: "p, dev-team, *, *, *, deny",
+			projPolicies: []string{projectAllow},
+			expected:     false,
+		},
+		{
+			name:         "deny inside the project role cancels its own allows",
+			projPolicies: []string{projectAllow, "p, proj:my-project:developer, *, *, *, deny"},
+			expected:     false,
+		},
+		{
+			name:         "narrow deny leaves the project role allow standing",
+			globalPolicy: "p, dev-team, clusters, get, *, deny",
+			projPolicies: []string{projectAllow},
+			expected:     true,
+		},
+		{
+			name:         "deny on the user does not cancel an allow reached through their group",
+			globalPolicy: "p, alice, *, *, *, deny",
+			projPolicies: []string{projectAllow},
+			expected:     true,
+		},
+		{
+			name:         "project role with only a deny still grants the implicit projects/get",
+			projPolicies: []string{"p, proj:my-project:developer, applications, sync, my-project/*, deny"},
+			expected:     true,
+		},
+		{
+			name:         "project role with only a deny, cancelled by a blanket deny on the group",
+			globalPolicy: "p, dev-team, *, *, *, deny",
+			projPolicies: []string{"p, proj:my-project:developer, applications, sync, my-project/*, deny"},
+			expected:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			proj := &argoappv1.AppProject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "my-project",
+					Namespace: test.FakeArgoCDNamespace,
+				},
+				Spec: argoappv1.AppProjectSpec{
+					Roles: []argoappv1.ProjectRole{
+						{
+							Name:     "developer",
+							Policies: tt.projPolicies,
+							Groups:   []string{"dev-team"},
+						},
+					},
+				},
+			}
+
+			enf := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+			require.NoError(t, enf.SetUserPolicy(tt.globalPolicy))
+			rbacEnf := NewRBACPolicyEnforcer(enf, test.NewFakeProjLister(proj))
+
+			assert.Equal(t, tt.expected, rbacEnf.UserHasAnyPermission("alice", []string{"dev-team"}))
+		})
+	}
+}
+
+func projectWithPolicies(name string, policies ...string) *argoappv1.AppProject {
+	return &argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: test.FakeArgoCDNamespace},
+		Spec: argoappv1.AppProjectSpec{
+			Roles: []argoappv1.ProjectRole{{
+				Name:     "developer",
+				Policies: policies,
+				Groups:   []string{"dev-team"},
+			}},
+		},
+	}
+}
+
+func TestRefreshProjectPolicyEpoch(t *testing.T) {
+	newEnforcer := func(projects ...runtime.Object) *Enforcer {
+		enf := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+		return NewRBACPolicyEnforcer(enf, test.NewFakeProjLister(projects...))
+	}
+	epochOf := func(e *Enforcer) string {
+		e.RefreshProjectPolicyEpoch()
+		epoch, _ := e.projectsEpoch.Load().(string)
+		return epoch
+	}
+
+	allow := "p, proj:my-project:developer, applications, sync, my-project/*, allow"
+	baseline := epochOf(newEnforcer(projectWithPolicies("my-project", allow)))
+
+	t.Run("stable for the same projects", func(t *testing.T) {
+		assert.Equal(t, baseline, epochOf(newEnforcer(projectWithPolicies("my-project", allow))))
+	})
+
+	t.Run("independent of the order projects are listed in", func(t *testing.T) {
+		other := projectWithPolicies("other-project", "p, proj:other-project:developer, applications, get, other-project/*, allow")
+		mine := projectWithPolicies("my-project", allow)
+		assert.Equal(t, epochOf(newEnforcer(mine, other)), epochOf(newEnforcer(other, mine)))
+	})
+
+	t.Run("changes when a policy changes", func(t *testing.T) {
+		changed := epochOf(newEnforcer(projectWithPolicies("my-project", "p, proj:my-project:developer, applications, get, my-project/*, allow")))
+		assert.NotEqual(t, baseline, changed)
+	})
+
+	t.Run("changes when a project is added", func(t *testing.T) {
+		added := epochOf(newEnforcer(
+			projectWithPolicies("my-project", allow),
+			projectWithPolicies("other-project", allow),
+		))
+		assert.NotEqual(t, baseline, added)
+	})
+
+	t.Run("changes when a project is removed", func(t *testing.T) {
+		assert.NotEqual(t, baseline, epochOf(newEnforcer()))
+	})
+
+	t.Run("replaces the boot seed", func(t *testing.T) {
+		e := newEnforcer(projectWithPolicies("my-project", allow))
+		seed, _ := e.projectsEpoch.Load().(string)
+		require.NotEmpty(t, seed, "the epoch must be seeded so entries from a previous process are never trusted")
+		assert.NotEqual(t, seed, epochOf(e))
+	})
+}
+
+func TestUserHasAnyPermission_ProjectEpochInvalidatesCache(t *testing.T) {
+	projects := apps.NewSimpleClientset()
+	projLister := test.NewFakeProjListerFromInterface(projects.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace))
+
+	enf := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	rbacEnf := NewRBACPolicyEnforcer(enf, projLister)
+	rbacEnf.SetPermCheckCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Hour)))
+	rbacEnf.RefreshProjectPolicyEpoch()
+
+	require.False(t, rbacEnf.UserHasAnyPermission("alice", []string{"dev-team"}),
+		"no projects exist yet, so there is nothing to grant alice any permission")
+
+	_, err := projects.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Create(t.Context(),
+		projectWithPolicies("my-project", "p, proj:my-project:developer, applications, sync, my-project/*, allow"),
+		metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	assert.False(t, rbacEnf.UserHasAnyPermission("alice", []string{"dev-team"}),
+		"until the epoch is refreshed the stale denial is still served from cache")
+
+	rbacEnf.RefreshProjectPolicyEpoch()
+
+	assert.True(t, rbacEnf.UserHasAnyPermission("alice", []string{"dev-team"}),
+		"refreshing the project epoch must invalidate the cached denial")
 }
 
 func newEnforcerWithInMemoryCache(t *testing.T) (*rbac.Enforcer, *Enforcer) {

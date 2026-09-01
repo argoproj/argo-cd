@@ -29,10 +29,13 @@ import (
 // TTL is a safety net for cases where the flush is missed (e.g., Redis unavailable).
 const PermCheckCacheTTL = 60 * time.Second
 
-// permCheckEntry is the value stored in the permission-check Redis cache.
+// permCheckEntry is the value stored in the permission-check Redis cache. Both epochs must still
+// match for the entry to be served: the result depends on the RBAC ConfigMap and on the AppProject
+// policies, and either can change independently of the other.
 type permCheckEntry struct {
-	Epoch   string `json:"e"`
-	Allowed bool   `json:"a"`
+	Epoch         string `json:"e"`
+	ProjectsEpoch string `json:"p"`
+	Allowed       bool   `json:"a"`
 }
 
 // Enforcer provides an RBAC Claims Enforcer which additionally consults AppProject
@@ -44,6 +47,9 @@ type Enforcer struct {
 	scopes      []string
 	permCache   *cacheutil.Cache
 	policyEpoch atomic.Value // stores a string: the RBAC ConfigMap resourceVersion (or a boot UUID before the first CM load)
+	// stores a string: a content hash of every AppProject's policies (or a boot UUID before the first
+	// RefreshProjectPolicyEpoch call)
+	projectsEpoch atomic.Value
 }
 
 // NewRBACPolicyEnforcer returns a new RBAC Enforcer for the Argo CD API Server
@@ -53,10 +59,12 @@ func NewRBACPolicyEnforcer(enf *rbac.Enforcer, projLister applister.AppProjectNa
 		projLister: projLister,
 		scopes:     nil,
 	}
-	// Seed the epoch with a random boot-unique value so that Redis entries written by a
+	// Seed both epochs with random boot-unique values so that Redis entries written by a
 	// previous process instance are never treated as valid cache hits on restart, even
-	// before the first ConfigMap load supplies a resourceVersion.
+	// before the first ConfigMap load supplies a resourceVersion and before the AppProject
+	// informer has synced.
 	e.policyEpoch.Store(uuid.New().String())
+	e.projectsEpoch.Store(uuid.New().String())
 	return e
 }
 
@@ -78,6 +86,41 @@ func (p *Enforcer) FlushPermCheckCache(resourceVersion string) {
 	if resourceVersion != "" {
 		p.policyEpoch.Store(resourceVersion)
 	}
+}
+
+// RefreshProjectPolicyEpoch recomputes the epoch that guards cached permission-check results against
+// AppProject changes and must be called whenever a project's roles or policies change. Without it a
+// user whose only permissions come from a project role would keep a stale cached result for up to
+// PermCheckCacheTTL after being granted or revoked access. The RBAC ConfigMap - the only
+// other thing that advances an epoch - has not changed.
+//
+// The epoch is a content hash rather than a counter so that it is stable across informer resynced and
+// identical on every replica observing the same projects, which keeps the shared Redis cache usable
+// in an HA deployment.
+func (p *Enforcer) RefreshProjectPolicyEpoch() {
+	p.projectsEpoch.Store(p.computeProjectPolicyEpoch())
+}
+
+func (p *Enforcer) computeProjectPolicyEpoch() string {
+	if p.projLister == nil {
+		return ""
+	}
+	projects, err := p.projLister.List(labels.Everything())
+	if err != nil {
+		log.WithError(err).Error("failed to list AppProjects for the permission-check cache epoch")
+		return uuid.New().String()
+	}
+	entries := make([]string, 0, len(projects))
+	for _, proj := range projects {
+		entries = append(entries, proj.Name+"\x00"+proj.ProjectPoliciesString())
+	}
+	sort.Strings(entries)
+
+	h := sha256.New()
+	for _, entry := range entries {
+		fmt.Fprintf(h, "%q", entry)
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 func (p *Enforcer) SetScopes(scopes []string) {
@@ -170,17 +213,19 @@ func (p *Enforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool {
 // by the current policy or the default role.
 // Results are cached in Redis (keyed by username+groups) to avoid a Casbin lookup on every GetUserInfo
 // call for SSO users. Cache entries are validated against the current policy epoch (the RBAC ConfigMap
-// resourceVersion) stored inside the entry; a stale epoch causes a cache miss and a fresh Casbin lookup.
+// resourceVersion) and project policy epoch stored inside the entry; a stale epoch on either causes a
+// cache miss and a fresh Casbin lookup.
 func (p *Enforcer) UserHasAnyPermission(username string, groups []string) bool {
 	if p.permCache != nil {
 		epoch, _ := p.policyEpoch.Load().(string)
+		projectsEpoch, _ := p.projectsEpoch.Load().(string)
 		key := permCheckCacheKey(username, groups)
 		var entry permCheckEntry
-		if err := p.permCache.GetItem(key, &entry); err == nil && entry.Epoch == epoch {
+		if err := p.permCache.GetItem(key, &entry); err == nil && entry.Epoch == epoch && entry.ProjectsEpoch == projectsEpoch {
 			return entry.Allowed
 		}
 		allowed := p.userHasAnyPermissionUncached(username, groups)
-		_ = p.permCache.SetItem(key, &permCheckEntry{Epoch: epoch, Allowed: allowed},
+		_ = p.permCache.SetItem(key, &permCheckEntry{Epoch: epoch, ProjectsEpoch: projectsEpoch, Allowed: allowed},
 			&cacheutil.CacheActionOpts{Expiration: PermCheckCacheTTL})
 		return allowed
 	}
@@ -209,8 +254,6 @@ func (p *Enforcer) userHasAnyPermissionUncached(username string, groups []string
 	return p.hasAnyProjectPermission(username, groups)
 }
 
-// hasAnyProjectPermission returns true if the user or any of their groups has at least one
-// allow permission in any AppProject's runtime policy.
 func (p *Enforcer) hasAnyProjectPermission(username string, groups []string) bool {
 	if p.projLister == nil {
 		return false
@@ -228,14 +271,8 @@ func (p *Enforcer) hasAnyProjectPermission(username string, groups []string) boo
 		}
 		enf := p.enf.CreateEnforcerWithRuntimePolicy(proj.Name, policy)
 		for _, subject := range subjects {
-			perms, err := enf.GetImplicitPermissionsForUser(subject)
-			if err != nil {
-				continue
-			}
-			for _, row := range perms {
-				if len(row) > 0 && strings.EqualFold(row[len(row)-1], "allow") {
-					return true
-				}
+			if p.enf.HasAnyAllowPermissionWithCustomEnforcer(enf, subject) {
+				return true
 			}
 		}
 	}

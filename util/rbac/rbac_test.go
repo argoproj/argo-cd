@@ -570,6 +570,7 @@ func TestLoadPolicyLine(t *testing.T) {
 func TestHasAnyAllowPermission(t *testing.T) {
 	tests := []struct {
 		name          string
+		matchMode     string
 		builtinPolicy string
 		userPolicy    string
 		subject       string
@@ -641,16 +642,149 @@ func TestHasAnyAllowPermission(t *testing.T) {
 			subject:    "alice",
 			expected:   true,
 		},
+		{
+			name:       "empty effect column is indeterminate, not an allow",
+			userPolicy: "p, alice, applications, get, *, ",
+			subject:    "alice",
+			expected:   false,
+		},
+
+		{
+			name:       "glob character class in object pattern",
+			userPolicy: "p, alice, applications, get, default/app-[a-z]*, allow",
+			subject:    "alice",
+			expected:   true,
+		},
+		{
+			name:       "glob character class in resource pattern",
+			userPolicy: "p, alice, [ac]lusters, get, *, allow",
+			subject:    "alice",
+			expected:   true,
+		},
+		{
+			name:       "glob single-character wildcard in object pattern",
+			userPolicy: "p, alice, applications, get, default/app-?, allow",
+			subject:    "alice",
+			expected:   true,
+		},
+		{
+			name:       "regex mode: anchored object pattern",
+			matchMode:  RegexMatchMode,
+			userPolicy: "p, alice, applications, get, ^default/.*$, allow",
+			subject:    "alice",
+			expected:   true,
+		},
+		{
+			name:       "regex mode: quantified object pattern",
+			matchMode:  RegexMatchMode,
+			userPolicy: "p, alice, repositories, get, https://github.com/argo[a-z]{4}/argo-[a-z]+.git, allow",
+			subject:    "alice",
+			expected:   true,
+		},
+		{
+			name:       "regex mode: unanchored catch-all object pattern",
+			matchMode:  RegexMatchMode,
+			userPolicy: "p, alice, applications, get, .*, allow",
+			subject:    "alice",
+			expected:   true,
+		},
+		{
+			name:       "glob character class allow cancelled by blanket deny",
+			userPolicy: "p, alice, applications, get, default/app-[a-z]*, allow\np, alice, *, *, *, deny",
+			subject:    "alice",
+			expected:   false,
+		},
+		{
+			name:       "regex mode: anchored allow cancelled by catch-all deny",
+			matchMode:  RegexMatchMode,
+			userPolicy: "p, alice, applications, get, ^default/.*$, allow\np, alice, .*, .*, .*, deny",
+			subject:    "alice",
+			expected:   false,
+		},
+		{
+			name:       "regex mode: allow cancelled by an identical deny",
+			matchMode:  RegexMatchMode,
+			userPolicy: "p, alice, applications, get, ^default/.*$, allow\np, alice, applications, get, ^default/.*$, deny",
+			subject:    "alice",
+			expected:   false,
+		},
+		{
+			name:       "regex mode: non-universal deny does not cancel the allow",
+			matchMode:  RegexMatchMode,
+			userPolicy: "p, alice, applications, get, ^default/.*$, allow\np, alice, applications, get, ^prod/.*$, deny",
+			subject:    "alice",
+			expected:   true,
+		},
+		{
+			name:       "literal allow cancelled by a broader glob deny",
+			userPolicy: "p, alice, applications, get, default/my-app, allow\np, alice, applications, get, default/*, deny",
+			subject:    "alice",
+			expected:   false,
+		},
+		{
+			name:       "narrow deny does not cancel a broader allow",
+			userPolicy: "p, alice, applications, get, */*, allow\np, alice, applications, get, default/secret-app, deny",
+			subject:    "alice",
+			expected:   true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			enf := NewEnforcer(fake.NewClientset(), fakeNamespace, fakeConfigMapName, nil)
+			enf.SetMatchMode(tt.matchMode)
 			if tt.builtinPolicy != "" {
 				require.NoError(t, enf.SetBuiltinPolicy(tt.builtinPolicy))
 			}
 			require.NoError(t, enf.SetUserPolicy(tt.userPolicy))
 			assert.Equal(t, tt.expected, enf.HasAnyAllowPermission(tt.subject))
+		})
+	}
+}
+
+// TestHasAnyAllowPermission_MatchesEnforce guards the property that actually matters: whenever
+// HasAnyAllowPermission reports that a subject has no permissions, no request may in fact be
+// allowed for them. A false negative here blocks the login of a user with working access.
+func TestHasAnyAllowPermission_MatchesEnforce(t *testing.T) {
+	tests := []struct {
+		name       string
+		matchMode  string
+		userPolicy string
+		request    []any
+	}{
+		{
+			name:       "glob character class",
+			userPolicy: "p, alice, applications, get, default/app-[a-z]*, allow",
+			request:    []any{"alice", "applications", "get", "default/app-foo"},
+		},
+		{
+			name:       "glob single-character wildcard",
+			userPolicy: "p, alice, applications, get, default/app-?, allow",
+			request:    []any{"alice", "applications", "get", "default/app-1"},
+		},
+		{
+			name:       "regex anchored",
+			matchMode:  RegexMatchMode,
+			userPolicy: "p, alice, applications, get, ^default/.*$, allow",
+			request:    []any{"alice", "applications", "get", "default/my-app"},
+		},
+		{
+			name:       "regex quantified",
+			matchMode:  RegexMatchMode,
+			userPolicy: "p, alice, repositories, get, https://github.com/argo[a-z]{4}/argo-[a-z]+.git, allow",
+			request:    []any{"alice", "repositories", "get", "https://github.com/argoproj/argo-cd.git"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			enf := NewEnforcer(fake.NewClientset(), fakeNamespace, fakeConfigMapName, nil)
+			enf.SetMatchMode(tt.matchMode)
+			require.NoError(t, enf.SetUserPolicy(tt.userPolicy))
+
+			require.True(t, enf.Enforce(tt.request...), "test setup: the request should be allowed")
+			assert.True(t, enf.HasAnyAllowPermission("alice"),
+				"subject has a request that Enforce allows, so HasAnyAllowPermission must not report otherwise")
 		})
 	}
 }

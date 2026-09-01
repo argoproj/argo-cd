@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -43,6 +44,10 @@ const (
 	RegexMatchMode                          = "regex"
 
 	defaultRBACSyncPeriod = 10 * time.Minute
+	allowEffect           = "allow"
+	denyEffect            = "deny"
+	globMetaChars         = `*?[]{}\`
+	policyRowLen          = 5
 )
 
 // CasbinEnforcer represents methods that must be implemented by a Casbin enforces
@@ -151,6 +156,11 @@ type Enforcer struct {
 type cachedEnforcer struct {
 	enforcer CasbinEnforcer
 	policy   string
+}
+
+type denyRule struct {
+	patterns  [3]string
+	universal [3]bool
 }
 
 func (e *Enforcer) invalidateCache(actions ...func()) {
@@ -612,26 +622,101 @@ func (e *Enforcer) GetImplicitPermissionsForUser(user string) ([][]string, error
 	return enf.GetImplicitPermissionsForUser(user)
 }
 
-// HasAnyAllowPermission reports whether a subject has at least one effective "allow" permission
-// in the current policy, including permissions inherited transitively from roles. It calls
-// Enforce() for each allow tuple so that deny rules (which override allows per the model's
-// effect `some(allow) && !some(deny)`) are respected. A subject with only deny-overridden allows
-// correctly returns false.
+// HasAnyAllowPermission reports whether a subject has at least one effective "allow" permission in
+// the current policy, including permissions inherited transitively from roles. Allow rows that are
+// entirely overridden by a deny row (per the model's effect `some(allow) && !some(deny)`) do not
+// count, so a subject suspended with a blanket deny correctly returns false.
+//
+// The deny check is deliberately a sound under-approximation: a deny only cancels an allow when it
+// provably matches every request the allow would grant (see patternCovers). When containment cannot
+// be proven the allow is treated as surviving. That keeps this check biased towards reporting
+// "has permissions", because the caller uses it to gate logins and a false negative locks out a
+// user who does in fact have working access.
 func (e *Enforcer) HasAnyAllowPermission(subject string) bool {
-	perms, err := e.GetImplicitPermissionsForUser(subject)
+	enf, err := e.tryGetCasbinEnforcer("", "")
 	if err != nil {
 		return false
 	}
-	// Each row is [subject, resource, action, object, effect].
+	return e.HasAnyAllowPermissionWithCustomEnforcer(enf, subject)
+}
+
+// HasAnyAllowPermissionWithCustomEnforcer is HasAnyAllowPermission evaluated against a custom
+// enforcer, such as one built by CreateEnforcerWithRuntimePolicy for an AppProject's runtime policy.
+// Because that enforcer layers the project policy on top of the built-in and user-defined policies,
+// an explicit deny in either of those correctly cancels a project role's allow.
+func (e *Enforcer) HasAnyAllowPermissionWithCustomEnforcer(enf CasbinEnforcer, subject string) bool {
+	perms, err := enf.GetImplicitPermissionsForUser(subject)
+	if err != nil {
+		return false
+	}
+	return hasSurvivingAllow(perms, e.getMatchMode())
+}
+
+// hasSurvivingAllow reports whether any allow row in perms is left standing once the deny rows in
+// perms are applied. Every row in perms already applies to the subject the rows were collected for,
+// so no further subject matching is needed here.
+func hasSurvivingAllow(perms [][]string, matchMode string) bool {
+	denies := make([]denyRule, 0, len(perms))
 	for _, row := range perms {
-		if len(row) < 5 || !strings.EqualFold(row[4], "allow") {
+		if len(row) < policyRowLen || row[4] != denyEffect {
 			continue
 		}
-		if e.Enforce(subject, row[1], row[2], row[3]) {
+		rule := denyRule{patterns: [3]string{row[1], row[2], row[3]}}
+		for i, pattern := range rule.patterns {
+			rule.universal[i] = isUniversalPattern(pattern, matchMode)
+		}
+		denies = append(denies, rule)
+	}
+
+	for _, row := range perms {
+		if len(row) < policyRowLen || row[4] != allowEffect {
+			continue
+		}
+		if !isNullifiedByDenies(row, denies, matchMode) {
 			return true
 		}
 	}
 	return false
+}
+
+func isNullifiedByDenies(allow []string, denies []denyRule, matchMode string) bool {
+	for _, deny := range denies {
+		covered := true
+		for i, denyPattern := range deny.patterns {
+			if !patternCovers(denyPattern, allow[i+1], deny.universal[i], matchMode) {
+				covered = false
+				break
+			}
+		}
+		if covered {
+			return true
+		}
+	}
+	return false
+}
+
+func patternCovers(denyPattern, allowPattern string, denyIsUniversal bool, matchMode string) bool {
+	if denyIsUniversal || denyPattern == allowPattern {
+		return true
+	}
+	if matchMode != RegexMatchMode && !strings.ContainsAny(allowPattern, globMetaChars) {
+		return glob.Match(denyPattern, allowPattern)
+	}
+	return false
+}
+
+func isUniversalPattern(pattern, matchMode string) bool {
+	if matchMode == RegexMatchMode {
+		matched, err := regexp.MatchString(pattern, "")
+		return err == nil && matched
+	}
+	return pattern == "*" || pattern == "**"
+}
+
+func (e *Enforcer) getMatchMode() string {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	return e.matchMode
 }
 
 // ValidatePolicy verifies a policy string is acceptable to casbin

@@ -47,7 +47,7 @@ data:
 When the flag is enabled:
 
 - **Local users** — the check runs once at login time (`argocd login` / the UI login form). A user with no matching `allow` rule receives a `PermissionDenied` error and no token is issued.
-- **SSO users** — because SSO authentication is handled externally, there is no local login step. Instead, the check runs on each user-info fetch (i.e., each UI page navigation). Permission changes (grants and revocations) take effect as soon as `argocd-rbac-cm` is saved; the 60-second TTL on the cached result is only a safety net for cases where the cache flush is missed (e.g., if Redis is temporarily unavailable).
+- **SSO users** — because SSO authentication is handled externally, there is no local login step. Instead, the check runs on each user-info fetch (i.e., each UI page navigation). Permission changes (grants and revocations) take effect as soon as `argocd-rbac-cm` is saved or an `AppProject` role is changed; the 60-second TTL on the cached result is only a safety net for cases where the cache flush is missed (e.g., if Redis is temporarily unavailable).
 
 > [!WARNING]
 > Enabling this flag takes effect immediately for existing SSO sessions.
@@ -57,6 +57,13 @@ When the flag is enabled:
 
 > [!NOTE]
 > `admin` is a built-in superuser and is never affected by this flag.
+
+> [!NOTE]
+> This flag works differently for local and SSO users. Local users are checked during login, and no
+> token is issued when they have no permissions. SSO users are authenticated by the identity provider,
+> so Argo CD cannot refuse the login. Their token remains valid and they can still call the API, where
+> normal RBAC rules deny every request. For these users the flag only affects the UI, which shows an
+> explanation instead of an empty page.
 
 > [!WARNING]
 > If `policy.default` is set to a role such as `role:readonly`, every authenticated user already inherits those permissions, which means the flag will **not** block them — all users will satisfy the "has at least one allow" check. Set `policy.default` to `""` when you want this flag to have effect.

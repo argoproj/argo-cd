@@ -209,3 +209,9 @@ export function isSSOConfigured(userInfo: UserInfo | null | undefined, authSetti
     const hasOidcConfig = !!authSettings.oidcConfig;
     return isExternalIssuer && (hasDexConnectors || hasOidcConfig);
 }
+
+export function httpStatusOf(err: unknown): number | undefined {
+    const candidate = err as {status?: unknown; response?: {status?: unknown}} | null | undefined;
+    const status = candidate?.response?.status ?? candidate?.status;
+    return typeof status === 'number' ? status : undefined;
+}

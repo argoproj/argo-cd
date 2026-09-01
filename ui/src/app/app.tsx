@@ -16,7 +16,7 @@ import {VersionPanel} from './shared/components/version-info/version-info-panel'
 import {AuthSettingsCtx, Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
-import {hashCode, isSSOConfigured} from './shared/utils';
+import {hashCode, httpStatusOf, isSSOConfigured} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings, UserInfo} from './shared/models';
@@ -87,16 +87,42 @@ const navItems: NavItem[] = [
 
 const versionLoader = services.version.version();
 
-async function fetchUserInfoSafe(): Promise<UserInfo> {
+function anonymousUserInfo(): UserInfo {
+    return {loggedIn: false, username: '', iss: 'argocd', groups: []};
+}
+
+interface SessionBootstrap {
+    userInfo: UserInfo;
+    permissionDenied: boolean;
+}
+
+async function fetchUserInfoSafe(): Promise<SessionBootstrap> {
     try {
-        return await services.users.get();
-    } catch (err: any) {
-        if (err?.response?.status === 401 || err?.status === 401) {
-            return {loggedIn: false, username: '', iss: 'argocd', groups: []};
+        return {userInfo: await services.users.get(), permissionDenied: false};
+    } catch (err: unknown) {
+        switch (httpStatusOf(err)) {
+            case 401:
+                return {userInfo: anonymousUserInfo(), permissionDenied: false};
+            case 403:
+                return {userInfo: anonymousUserInfo(), permissionDenied: true};
+            default:
+                throw err;
         }
-        throw err;
     }
 }
+
+const NoPermissionsScreen: React.FC = () => (
+    <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: '12px', padding: '0 24px', textAlign: 'center'}}>
+        <i className='fa fa-lock' style={{fontSize: '36px', color: '#6d7f8b'}} />
+        <h3 style={{margin: 0}}>Your account has no permissions</h3>
+        <p style={{color: '#6d7f8b', maxWidth: '480px', margin: 0}}>
+            You are signed in, but no Argo CD permissions have been assigned to your account. Contact your administrator to request access.
+        </p>
+        <button className='argo-button argo-button--base' onClick={() => (window.location.href = requests.toAbsURL('/auth/logout'))}>
+            Log out
+        </button>
+    </div>
+);
 
 function sessionFromBootstrap(userInfo: UserInfo, authSettings: AuthSettings, versionInfo: any): {loggedIn: boolean; isSSO: boolean} {
     const loggedIn = userInfo?.loggedIn ?? false;
@@ -127,7 +153,16 @@ async function isExpiredSSO() {
 
 export class App extends React.Component<
     {},
-    {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; authSettings: AuthSettings; sessionResolved: boolean}
+    {
+        popupProps: PopupProps;
+        showVersionPanel: boolean;
+        error: Error;
+        navItems: NavItem[];
+        routes: Routes;
+        authSettings: AuthSettings;
+        sessionResolved: boolean;
+        permissionDenied: boolean;
+    }
 > {
     public static getDerivedStateFromError(error: Error) {
         return {error};
@@ -150,7 +185,8 @@ export class App extends React.Component<
             navItems: [],
             routes: null,
             authSettings: null,
-            sessionResolved: false
+            sessionResolved: false,
+            permissionDenied: false
         };
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
@@ -179,8 +215,14 @@ export class App extends React.Component<
     }
 
     private async bootstrapAppSession(): Promise<void> {
-        const [authSettings, userInfoResult, versionInfo] = await Promise.all([services.authService.settings(), fetchUserInfoSafe(), versionLoader]);
+        const [authSettings, session, versionInfo] = await Promise.all([services.authService.settings(), fetchUserInfoSafe(), versionLoader]);
 
+        if (session.permissionDenied) {
+            this.setState(prev => ({...prev, permissionDenied: true, sessionResolved: true}));
+            return;
+        }
+
+        const userInfoResult = session.userInfo;
         const {loggedIn, isSSO} = sessionFromBootstrap(userInfoResult, authSettings, versionInfo);
 
         const {trackingID, anonymizeUsers} = authSettings.googleAnalytics || {trackingID: '', anonymizeUsers: true};
@@ -252,6 +294,18 @@ export class App extends React.Component<
                     <br />
                     <p>Stacktrace:</p>
                     <pre>{stack}</pre>
+                </React.Fragment>
+            );
+        }
+
+        if (this.state.permissionDenied) {
+            return (
+                <React.Fragment>
+                    <Helmet>
+                        <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-32x32.png`} sizes='32x32' />
+                        <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-16x16.png`} sizes='16x16' />
+                    </Helmet>
+                    <NoPermissionsScreen />
                 </React.Fragment>
             );
         }

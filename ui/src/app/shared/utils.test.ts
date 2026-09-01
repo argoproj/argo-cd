@@ -3,7 +3,7 @@ declare const test: any;
 declare const expect: any;
 declare const describe: any;
 import {concatMaps} from './utils';
-import {isValidManagedByURL, isValidURL} from './utils';
+import {httpStatusOf, isValidManagedByURL, isValidURL} from './utils';
 
 test('map concatenation', () => {
     const map1 = {
@@ -56,5 +56,30 @@ describe('isValidManagedByURL', () => {
     test('rejects invalid URL strings', () => {
         expect(isValidManagedByURL('not-a-url')).toBe(false);
         expect(isValidManagedByURL('')).toBe(false);
+    });
+});
+
+describe('httpStatusOf', () => {
+    test('reads the status off the response', () => {
+        expect(httpStatusOf({response: {status: 403}})).toBe(403);
+    });
+
+    test('falls back to the status on the error itself', () => {
+        expect(httpStatusOf({status: 401})).toBe(401);
+    });
+
+    test('prefers the response status when both are present', () => {
+        expect(httpStatusOf({status: 500, response: {status: 403}})).toBe(403);
+    });
+
+    test('returns undefined when no status is carried', () => {
+        expect(httpStatusOf(new Error('network failure'))).toBeUndefined();
+        expect(httpStatusOf({response: {}})).toBeUndefined();
+        expect(httpStatusOf(null)).toBeUndefined();
+        expect(httpStatusOf(undefined)).toBeUndefined();
+    });
+
+    test('ignores a non-numeric status', () => {
+        expect(httpStatusOf({status: '403'})).toBeUndefined();
     });
 });
