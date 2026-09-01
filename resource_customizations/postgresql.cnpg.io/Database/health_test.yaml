@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "Database has been created successfully"
+  inputPath: testdata/database_applied.yaml
+- healthStatus:
+    status: Degraded
+    message: "Database creation failed"
+  inputPath: testdata/database_not_applied.yaml
+- healthStatus:
+    status: Unknown
+    message: "Database status unknown"
+  inputPath: testdata/database_no_status.yaml
