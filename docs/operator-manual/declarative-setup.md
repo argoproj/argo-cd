@@ -1405,6 +1405,23 @@ kind: ConfigMap
 The `resource.inclusions` and `resource.exclusions` might be used together. The final list of resources includes group/kinds specified in `resource.inclusions` minus group/kinds
 specified in `resource.exclusions` setting.
 
+### Appending additional exclusions
+
+Use `resource.additionalExclusions` to add exclusions without replacing the current `resource.exclusions` value. Argo CD parses both settings using the same schema and appends the additional entries after the existing exclusions:
+
+```yaml
+apiVersion: v1
+data:
+  resource.additionalExclusions: |
+    - apiGroups:
+      - "my.custom.io"
+      kinds:
+      - "*"
+kind: ConfigMap
+```
+
+This preserves defaults supplied by the installed Argo CD manifests or a Helm chart while allowing organisation-specific additions. If the installation removes or replaces `resource.exclusions`, `resource.additionalExclusions` does not restore those defaults.
+
 Notes:
 
 * Quote globs in your YAML to avoid parsing errors.

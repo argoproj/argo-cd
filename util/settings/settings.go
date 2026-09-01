@@ -491,6 +491,8 @@ const (
 	resourceCustomizationsKey = "resource.customizations"
 	// resourceExclusions is the key to the list of excluded resources
 	resourceExclusionsKey = "resource.exclusions"
+	// resourceAdditionalExclusions is the key to a list of excluded resources appended to resource.exclusions
+	resourceAdditionalExclusionsKey = "resource.additionalExclusions"
 	// resourceInclusions is the key to the list of explicitly watched resources
 	resourceInclusionsKey = "resource.inclusions"
 	// resourceIgnoreResourceUpdatesEnabledKey is the key to a boolean determining whether the resourceIgnoreUpdates feature is enabled
@@ -882,25 +884,33 @@ func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
+
 	rf := &ResourcesFilter{}
-	if value, ok := argoCDCM.Data[resourceInclusionsKey]; ok {
-		includedResources := make([]FilteredResource, 0)
-		err := yaml.Unmarshal([]byte(value), &includedResources)
-		if err != nil {
-			return nil, fmt.Errorf("error unmarshalling included resources %w", err)
-		}
-		rf.ResourceInclusions = includedResources
+	if err := parseFilteredResources(argoCDCM.Data, resourceInclusionsKey, &rf.ResourceInclusions); err != nil {
+		return nil, fmt.Errorf("error parsing resource filters: %w", err)
+	}
+	if err := parseFilteredResources(argoCDCM.Data, resourceExclusionsKey, &rf.ResourceExclusions); err != nil {
+		return nil, fmt.Errorf("error parsing resource filters: %w", err)
+	}
+	var additionalExclusions []FilteredResource
+	if err := parseFilteredResources(argoCDCM.Data, resourceAdditionalExclusionsKey, &additionalExclusions); err != nil {
+		return nil, fmt.Errorf("error parsing resource filters: %w", err)
 	}
 
-	if value, ok := argoCDCM.Data[resourceExclusionsKey]; ok {
-		excludedResources := make([]FilteredResource, 0)
-		err := yaml.Unmarshal([]byte(value), &excludedResources)
-		if err != nil {
-			return nil, fmt.Errorf("error unmarshalling excluded resources %w", err)
-		}
-		rf.ResourceExclusions = excludedResources
-	}
+	rf.ResourceExclusions = append(rf.ResourceExclusions, additionalExclusions...)
 	return rf, nil
+}
+
+func parseFilteredResources(data map[string]string, key string, resources *[]FilteredResource) error {
+	value, ok := data[key]
+	if !ok {
+		return nil
+	}
+	*resources = make([]FilteredResource, 0)
+	if err := yaml.Unmarshal([]byte(value), resources); err != nil {
+		return fmt.Errorf("error unmarshalling %s: %w", key, err)
+	}
+	return nil
 }
 
 func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
