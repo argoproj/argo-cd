@@ -41,6 +41,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
@@ -4572,16 +4573,13 @@ func TestIsOperationStatePayloadTooLargeError(t *testing.T) {
 	})
 }
 
-// newFakeControllerWithTooLargeFirstPatch builds a fake controller for app where the first
-// application patch fails with a 413 (request entity too large) and the second patch
-// succeeds. It returns the controller, a pointer to the running patch call count, and a
-// pointer that is set to the raw bytes of the second (fallback) patch once it happens.
-func newFakeControllerWithTooLargeFirstPatch(t *testing.T, app *v1alpha1.Application) (*ApplicationController, *int, *[]byte) {
+// newFakeControllerWithFailingPatch builds a fake controller whose "patch" reactor fails with
+// a 413 (request entity too large) whenever shouldFail returns true for the patch action, and
+// otherwise passes the action through to the default reactor. "get" always passes through.
+func newFakeControllerWithFailingPatch(t *testing.T, data *fakeData, shouldFail func(kubetesting.PatchAction) bool) *ApplicationController {
 	t.Helper()
-	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	ctrl := newFakeController(t.Context(), data, nil)
 
-	patchCallCount := 0
-	var capturedPatch []byte
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	defaultReactor := fakeAppCs.ReactionChain[0]
 	fakeAppCs.ReactionChain = nil
@@ -4589,15 +4587,104 @@ func newFakeControllerWithTooLargeFirstPatch(t *testing.T, app *v1alpha1.Applica
 		return defaultReactor.React(action)
 	})
 	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchCallCount++
-		if patchCallCount == 1 {
+		patchAction := action.(kubetesting.PatchAction)
+		if shouldFail(patchAction) {
 			return true, nil, apierrors.NewRequestEntityTooLargeError("limit is 3145728")
 		}
-		capturedPatch = action.(kubetesting.PatchAction).GetPatch()
 		return defaultReactor.React(action)
 	})
 
-	return ctrl, &patchCallCount, &capturedPatch
+	return ctrl
+}
+
+// newFakeControllerWithTooLargeFirstPatch builds a fake controller for app where the first
+// application patch fails with a 413 (request entity too large) and the second patch
+// succeeds. It returns the controller, a pointer to the running patch call count, and a
+// pointer that is set to the raw bytes of the second (fallback) patch once it happens.
+func newFakeControllerWithTooLargeFirstPatch(t *testing.T, app *v1alpha1.Application) (*ApplicationController, *int, *[]byte) {
+	t.Helper()
+	callCount := 0
+	var capturedPatch []byte
+	ctrl := newFakeControllerWithFailingPatch(t, &fakeData{apps: []runtime.Object{app}}, func(patchAction kubetesting.PatchAction) bool {
+		callCount++
+		if callCount == 1 {
+			return true
+		}
+		capturedPatch = patchAction.GetPatch()
+		return false
+	})
+	return ctrl, &callCount, &capturedPatch
+}
+
+// newFakeControllerWithAlwaysTooLargeRealPatch builds a fake controller for app where every
+// "real" operation-state patch (the JSONPatch setOperationState issues to persist the actual
+// state) fails with a 413 (request entity too large), while every fallback patch (the
+// MergePatch setOperationState issues once it strips SyncResult.Resources) succeeds. This
+// models an operation state that is permanently too large to persist as-is, so it can be used
+// to drive processRequestedAppOperation across multiple reconciles and verify the fallback
+// state machine (Running -> Terminating -> OperationError) terminates within a bounded number
+// of reconciles instead of retrying forever.
+func newFakeControllerWithAlwaysTooLargeRealPatch(t *testing.T, app *v1alpha1.Application) (*ApplicationController, *int) {
+	t.Helper()
+	realPatchAttempts := 0
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		// One response per reconcile: each processRequestedAppOperation call performs a full
+		// compare/sync regardless of whether it ends up terminating, since the too-large
+		// fallback never mutates the in-memory state processRequestedAppOperation continues
+		// with after the initial setOperationState call.
+		manifestResponses: []*apiclient.ManifestResponse{
+			{Manifests: []string{}},
+			{Manifests: []string{}},
+			{Manifests: []string{}},
+		},
+	}
+	// realPatchAttempts only counts the JSONPatch setOperationState issues to persist the
+	// actual (too-large) state, i.e. one per reconcile. It intentionally ignores unrelated
+	// MergePatch calls the sync engine makes along the way (e.g. recording deploy history),
+	// so the count reflects only the retry behavior under test.
+	ctrl := newFakeControllerWithFailingPatch(t, data, func(patchAction kubetesting.PatchAction) bool {
+		if patchAction.GetPatchType() != types.JSONPatchType {
+			return false
+		}
+		realPatchAttempts++
+		return true
+	})
+	return ctrl, &realPatchAttempts
+}
+
+func TestProcessRequestedAppOperation_TooLargeRequestTerminatesWithinBoundedReconciles(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "default"
+	app.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+	app.Status.OperationState.Operation = *app.Operation
+	app.Status.OperationState.Phase = synccommon.OperationRunning
+	app.Status.OperationState.Message = "running"
+	app.Status.OperationState.FinishedAt = nil
+
+	ctrl, realPatchAttempts := newFakeControllerWithAlwaysTooLargeRealPatch(t, app)
+
+	// Bound well below what an infinite retry loop would need, so this test fails loudly
+	// (instead of hanging) if the fallback logic regresses into looping forever.
+	const maxReconciles = 3
+	var finalPhase synccommon.OperationPhase
+	for range maxReconciles {
+		ctrl.processRequestedAppOperation(app)
+
+		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		app = patchedApp
+		finalPhase = app.Status.OperationState.Phase
+		if finalPhase.Completed() {
+			break
+		}
+	}
+
+	require.True(t, finalPhase.Completed(), "operation must reach a terminal phase within %d reconciles, not loop forever", maxReconciles)
+	assert.Equal(t, synccommon.OperationError, finalPhase)
+	assert.Nil(t, app.Operation, "operation must be cleared once finalized, so the controller stops re-queuing it")
+	assert.Contains(t, app.Status.OperationState.Message, "exceeds the Kubernetes resource size limit")
+	assert.Equal(t, 2, *realPatchAttempts, "each reconcile must attempt the real patch exactly once before falling back, not retry it in a loop")
 }
 
 func TestSetOperationStateTooLargeRequest(t *testing.T) {
