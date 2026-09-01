@@ -384,6 +384,18 @@ data:
   applicationsetcontroller.status.max.resources.count: "5000"
   # Enables profile endpoint on the internal metrics port
   applicationsetcontroller.profile.enabled: "false"
+  # Workqueue rate limiter bucket size (default "500")
+  applicationsetcontroller.wq.bucket.size: "500"
+  # Workqueue rate limiter bucket QPS. Defaults to MaxFloat64, which disables the bucket limiter
+  applicationsetcontroller.wq.bucket.qps: "500"
+  # Workqueue per-item rate limiter base delay, in nanoseconds (default "1000000", 1ms)
+  applicationsetcontroller.wq.basedelay.ns: "1000000"
+  # Workqueue per-item rate limiter max delay, in nanoseconds (default "1000000000", 1s)
+  applicationsetcontroller.wq.maxdelay.ns: "1000000000"
+  # Workqueue per-item rate limiter backoff factor (default "1.5")
+  applicationsetcontroller.wq.backoff.factor: "1.5"
+  # Workqueue per-item rate limiter cooldown duration, in nanoseconds. 0 disables the per-item rate limiter (default "0")
+  applicationsetcontroller.wq.cooldown.ns: "0"
   # QPS (Queries Per Second) limit for K8s API client requests (default "50")
   # Can also be set via ARGOCD_K8S_CLIENT_QPS environment variable
   applicationsetcontroller.k8s.client.qps: "50"
