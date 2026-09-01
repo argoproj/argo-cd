@@ -176,6 +176,8 @@ type ArgoCDSettings struct {
 	// RequireOverridePrivilegeForRevisionSync indicates whether giving an external revision during snyc is considered an override.
 	// Up to revision 3.2, this was always false. It is now still false by default, in order to not breaking existing usage.
 	RequireOverridePrivilegeForRevisionSync bool `json:"requireOverridePrivilegeForRevisionSync"`
+	// DefaultRetryLimit defines the global default retry limit for automated application sync operations
+	DefaultRetryLimit int64 `json:"retry.default.limit,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -586,11 +588,16 @@ const (
 	impersonationEnforcedKey = "application.sync.impersonation.enforced"
 	// requireOverridePrivilegeForRevisionSyncKey is the key to configure whether giving an external revision during sync is considered an override
 	requireOverridePrivilegeForRevisionSyncKey = "application.sync.requireOverridePrivilegeForRevisionSync"
+	// settingsRetryDefaultLimitKey is the key to configure the default retry limit for automated sync operations
+	settingsRetryDefaultLimitKey = "retry.default.limit"
 )
 
 const (
 	// default max webhook payload size is 50MB
 	defaultMaxWebhookPayloadSize = int64(50) * 1024 * 1024
+
+	// default retry limit for automated application sync operations
+	defaultRetryLimit = int64(5)
 
 	// default webhook refresh jitter threshold
 	defaultWebhookRefreshJitterThreshold = 10
@@ -984,6 +991,25 @@ func (mgr *SettingsManager) GetMaxPodLogsToRender() (int64, error) {
 	}
 
 	return strconv.ParseInt(argoCDCM.Data[settingsMaxPodLogsToRender], 10, 64)
+}
+
+func (mgr *SettingsManager) GetDefaultRetryLimit() (int64, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return defaultRetryLimit, err
+	}
+
+	if argoCDCM.Data[settingsRetryDefaultLimitKey] == "" {
+		return defaultRetryLimit, nil
+	}
+
+	val, err := strconv.ParseInt(argoCDCM.Data[settingsRetryDefaultLimitKey], 10, 64)
+	if err != nil {
+		log.Warnf("Failed to parse '%s' key: %v", settingsRetryDefaultLimitKey, err)
+		return defaultRetryLimit, nil
+	}
+
+	return val, nil
 }
 
 func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error) {
@@ -1748,6 +1774,14 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 			log.Warnf("Failed to parse '%s' key: %v", settingsMaxPodLogsToRender, err)
 		} else {
 			settings.MaxPodLogsToRender = val
+		}
+	}
+	settings.DefaultRetryLimit = defaultRetryLimit
+	if retryDefaultLimitStr, ok := argoCDCM.Data[settingsRetryDefaultLimitKey]; ok && retryDefaultLimitStr != "" {
+		if val, err := strconv.ParseInt(retryDefaultLimitStr, 10, 64); err != nil {
+			log.Warnf("Failed to parse '%s' key: %v", settingsRetryDefaultLimitKey, err)
+		} else {
+			settings.DefaultRetryLimit = val
 		}
 	}
 	settings.ExecEnabled = argoCDCM.Data[execEnabledKey] == "true"
