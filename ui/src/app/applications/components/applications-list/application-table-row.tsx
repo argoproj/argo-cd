@@ -119,7 +119,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                             </>
                                         }>
                                         <a className='applications-list__table-row-name' href={appLink.href} onClick={appLink.onClick} tabIndex={-1}>
-                                            {app.metadata.name}
+                                            {appDisplayName}
                                         </a>
                                     </Tooltip>
                                     <ApplicationURLs urls={app.status.summary?.externalURLs} />
