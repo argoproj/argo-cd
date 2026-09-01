@@ -648,6 +648,10 @@ func setupAndRunInspectCmdAsSubprocess(t *testing.T, mockSetup func(appClient *a
 		cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
 		cmd.SetArgs(args)
 
+		// silence usage and errors the same ways as main.go does it
+		cmd.SilenceUsage = true
+		cmd.SilenceErrors = true
+
 		_ = cmd.ExecuteContext(t.Context())
 		os.Exit(0) // unreacheable when cmd fails with os.Exit(n)
 	}
