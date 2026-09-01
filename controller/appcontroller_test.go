@@ -3086,9 +3086,9 @@ func TestProcessRequestedAppOperation_HasRetriesTerminatedWithUnrelatedMessage(t
 	}
 	app.Status.OperationState.Operation = *app.Operation
 	app.Status.OperationState.Phase = synccommon.OperationTerminating
-	// The Terminate UI/API action only flips Phase to Terminating; it does not overwrite
-	// Message. This leftover message (e.g. from the prior sync attempt) must not be
-	// mislabeled as the reason termination was requested.
+	// The Terminate UI/API action only sets Phase to Terminating; it does not update
+	// Message. This leftover message (e.g. from a prior sync attempt) must not be
+	// mislabeled as the termination reason.
 	app.Status.OperationState.Message = "dummy operation state message"
 
 	data := &fakeData{
@@ -3119,9 +3119,8 @@ func TestProcessRequestedAppOperation_HasRetriesTerminatedWithSizeLimitCause(t *
 	}
 	app.Status.OperationState.Operation = *app.Operation
 	app.Status.OperationState.Phase = synccommon.OperationTerminating
-	// Only the explicitly identifiable size-limit fallback message (set by setOperationState
-	// when the operation state could not be persisted) should be surfaced as the termination
-	// cause on the final state.
+	// Only the size-limit fallback message (set by setOperationState when the operation
+	// state could not be persisted) should be surfaced as the termination cause.
 	sizeLimitMessage := operationStateSizeLimitMessagePrefix + " and could not be persisted. error: request entity too large"
 	app.Status.OperationState.Message = sizeLimitMessage
 
@@ -4573,11 +4572,10 @@ func TestIsOperationStatePayloadTooLargeError(t *testing.T) {
 	})
 }
 
-// newFakeControllerWithTooLargeFirstPatch builds a fake controller for app whose first
-// application patch fails with a 413 (request entity too large) and whose second patch
-// succeeds normally. It returns the controller, a pointer to the running patch call
-// count, and a pointer that's set to the raw bytes of the second (fallback) patch once
-// it happens.
+// newFakeControllerWithTooLargeFirstPatch builds a fake controller for app where the first
+// application patch fails with a 413 (request entity too large) and the second patch
+// succeeds. It returns the controller, a pointer to the running patch call count, and a
+// pointer that is set to the raw bytes of the second (fallback) patch once it happens.
 func newFakeControllerWithTooLargeFirstPatch(t *testing.T, app *v1alpha1.Application) (*ApplicationController, *int, *[]byte) {
 	t.Helper()
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
@@ -4720,8 +4718,8 @@ func TestSetOperationStateTooLargeRequest_EmitsCompletionTelemetryOnFinalFallbac
 	}
 
 	app := newFakeApp()
-	// Use a name unique to this test so its sync metrics series can't collide with
-	// values recorded by other tests sharing the same, package-level Prometheus vectors.
+	// Use a name unique to this test so its sync metrics don't collide with values
+	// recorded by other tests that share the same package-level Prometheus vectors.
 	app.Name = "too-large-request-completion-telemetry-test"
 	app.Status.OperationState.Phase = synccommon.OperationTerminating
 
@@ -4731,9 +4729,9 @@ func TestSetOperationStateTooLargeRequest_EmitsCompletionTelemetryOnFinalFallbac
 
 	assert.Equal(t, 2, *patchCallCount)
 
-	// The fallback finalized as OperationError (the "already terminating, giving up"
-	// branch), so it should have emitted the same completion event and sync metrics as
-	// the normal terminal path, instead of silently returning after the patch.
+	// The fallback finalized as OperationError (the "already terminating, giving up" branch),
+	// so it should emit the same completion event and sync metrics as the normal terminal
+	// path, not just return silently after the patch.
 	kubeClient := ctrl.kubeClientset.(*fake.Clientset)
 	var completionEvent *corev1.Event
 	for _, action := range kubeClient.Actions() {

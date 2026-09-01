@@ -1599,11 +1599,9 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		switch {
 		case state.Phase == synccommon.OperationTerminating:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
-			// state.Message is whatever was last recorded on the operation state, which is not
-			// necessarily why termination was requested: the Terminate UI/API action only flips
-			// Phase to Terminating and leaves the previous (e.g. sync status) message untouched.
-			// Only surface it as the termination cause when it's the explicitly identifiable
-			// size-limit fallback message set by setOperationState.
+			// state.Message may just be a leftover sync message: the Terminate UI/API action
+			// only sets Phase to Terminating, it does not update Message. Only use it as the
+			// terminating cause when it matches the size-limit fallback message from setOperationState.
 			if isSizeLimitTerminationCause(state.Message) {
 				terminatingCause = state.Message
 			}
@@ -1782,9 +1780,9 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	})
 
 	if nonRetryableError != nil {
-		// Seed the fallback from the state we actually attempted to persist (not the
-		// previously persisted app.Status.OperationState), so fields set this reconcile
-		// - notably Operation and FinishedAt - aren't silently dropped.
+		// Base the fallback on the state we tried to persist, not the old
+		// app.Status.OperationState, so fields set in this reconcile (Operation, FinishedAt)
+		// are not lost.
 		fallbackStatus := state.DeepCopy()
 		fallbackStatus.Phase = synccommon.OperationError
 		fallbackStatus.Message = nonRetryableError.Error()
@@ -1843,11 +1841,11 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 			logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
 			return
 		}
-		// The fallback patch bypasses the normal completion path below, so emit the same
-		// completion event and sync metrics here whenever it finalizes the operation (i.e.
-		// alreadyTerminating, where it settles on OperationError instead of Terminating).
-		// Otherwise size-related failures would be silently absent from completion events,
-		// failure counters, and duration metrics despite being persisted as completed operations.
+		// This fallback patch skips the normal completion path below, so emit the completion
+		// event and sync metrics here when it finalizes the operation (the alreadyTerminating
+		// case, which settles on OperationError instead of Terminating). Without this, a
+		// completed operation would be missing from completion events, failure counters, and
+		// duration metrics.
 		if fallbackStatus.Phase.Completed() {
 			ctrl.recordOperationCompletion(ctx, app, logCtx, fallbackStatus)
 		}
@@ -1861,8 +1859,8 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 }
 
 // recordOperationCompletion emits the completion event and sync/duration metrics for a
-// finalized operation state. Called both from the normal completion path and from the
-// too-large-request fallback path once it settles on a terminal phase.
+// finalized operation state. It is called from the normal completion path and from the
+// too-large-request fallback path once that path reaches a terminal phase.
 func (ctrl *ApplicationController) recordOperationCompletion(ctx context.Context, app *appv1.Application, logCtx *log.Entry, state *appv1.OperationState) {
 	eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
 	var messages []string
@@ -1895,17 +1893,16 @@ func (ctrl *ApplicationController) recordOperationCompletion(ctx context.Context
 	ctrl.metricsServer.IncAppSyncDuration(app, destServer, state)
 }
 
-// operationStateSizeLimitMessagePrefix identifies the fallback message set when an operation
-// is forced into Terminating because its state could not be persisted due to the Kubernetes
-// resource size limit. It lets processRequestedAppOperation distinguish this specific,
-// explicitly-known termination cause from an arbitrary message left over on the operation
-// state (e.g. the last sync status), which the Terminate UI/API action does not overwrite.
+// operationStateSizeLimitMessagePrefix marks the fallback message set when an operation is
+// forced into Terminating because its state exceeds the Kubernetes resource size limit. It
+// lets processRequestedAppOperation tell this known cause apart from a leftover message
+// (e.g. the last sync status), which the Terminate UI/API action does not overwrite.
 const operationStateSizeLimitMessagePrefix = "Operation state patch exceeds the Kubernetes resource size limit"
 
 // isSizeLimitTerminationCause reports whether message is the fallback message set when an
-// operation was moved to Terminating because its state exceeded the Kubernetes resource size
-// limit. Only this explicitly identifiable cause should be surfaced as "triggered by" on the
-// final operation state; other preserved messages are not termination reasons.
+// operation moved to Terminating because its state exceeded the Kubernetes resource size
+// limit. Only this cause should be surfaced as "triggered by"; other preserved messages are
+// not termination reasons.
 func isSizeLimitTerminationCause(message string) bool {
 	return strings.HasPrefix(message, operationStateSizeLimitMessagePrefix)
 }
