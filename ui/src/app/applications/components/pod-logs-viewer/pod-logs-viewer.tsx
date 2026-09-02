@@ -167,6 +167,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     if (prevQueryKey !== queryKey) {
         setPrevQueryKey(queryKey);
         setLogs([]);
+        setSelectedPod(null);
     }
 
     useEffect(() => {
