@@ -39,7 +39,7 @@ func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Se
 // This struct is used to serialize/deserialize commit metadata (such as the dry run SHA)
 // stored in the custom note namespace by the hydrator.
 type CommitNote struct {
-	DrySHA string `json:"drySha"` // SHA of original commit that triggerd the hydrator
+	DrySHA string `json:"drySha"` // SHA of original commit that triggered the hydrator
 }
 
 // CommitHydratedManifests handles a commit request. It clones the repository, checks out the sync branch, checks out

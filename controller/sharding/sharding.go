@@ -501,7 +501,7 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 				errors.CheckError(err)
 			}
 			if shardNumber > replicasCount {
-				log.Warnf("Calculated shard number %d is greated than the number of replicas count. Defaulting to 0", shardNumber)
+				log.Warnf("Calculated shard number %d is greater than the number of replicas count. Defaulting to 0", shardNumber)
 				shardNumber = 0
 			}
 		}
