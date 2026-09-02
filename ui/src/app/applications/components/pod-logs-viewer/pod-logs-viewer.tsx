@@ -10,6 +10,7 @@ import {services, ViewPreferences} from '../../../shared/services';
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
 
 import './pod-logs-viewer.scss';
+import {ClearLogsButton} from './clear-logs-button';
 import {CopyLogsButton} from './copy-logs-button';
 import {DownloadLogsButton} from './download-logs-button';
 import {ContainerSelector} from './container-selector';
@@ -110,6 +111,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const highlight = useMemo(() => buildHighlightRegExp(filter, matchCase), [filter, matchCase]);
     const [scrollToBottom, setScrollToBottom] = useState(true);
     const [logs, setLogs] = useState<LogEntry[]>([]);
+    const [receivedLogs, setReceivedLogs] = useState<LogEntry[]>([]);
     const logsContainerRef = useRef(null);
     const uniquePods = Array.from(new Set(logs.map(log => log.podName)));
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -167,6 +169,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     if (prevQueryKey !== queryKey) {
         setPrevQueryKey(queryKey);
         setLogs([]);
+        setReceivedLogs([]);
     }
 
     useEffect(() => {
@@ -210,6 +213,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
             .subscribe(log => {
                 if (log.length) {
                     setLogs(previousLogs => previousLogs.concat(log));
+                    setReceivedLogs(previousLogs => previousLogs.concat(log));
                 }
             });
 
@@ -324,7 +328,8 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             </span>
                             <Spacer />
                             <span>
-                                <CopyLogsButton logs={logs} />
+                                <ClearLogsButton disabled={logs.length === 0} onClear={() => setLogs([])} />
+                                <CopyLogsButton logs={receivedLogs} />
                                 <DownloadLogsButton {...props} previous={previous} />
                                 <FullscreenButton
                                     {...props}
