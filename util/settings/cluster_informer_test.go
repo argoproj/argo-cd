@@ -28,12 +28,10 @@ func TestClusterInformer_ConcurrentAccess(t *testing.T) {
 	defer cancel()
 
 	secret1 := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster1",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "cluster1",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://cluster1.example.com"),
@@ -73,12 +71,10 @@ func TestClusterInformer_TransformErrors(t *testing.T) {
 	defer cancel()
 
 	badSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "bad-cluster",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "bad-cluster",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://bad.example.com"),
@@ -112,12 +108,10 @@ func TestClusterInformer_TransformErrors_MixedSecrets(t *testing.T) {
 
 	// One good secret and one bad secret
 	goodSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "good-cluster",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "good-cluster",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://good.example.com"),
@@ -127,12 +121,10 @@ func TestClusterInformer_TransformErrors_MixedSecrets(t *testing.T) {
 	}
 
 	badSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "bad-cluster",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "bad-cluster",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://bad.example.com"),
@@ -165,12 +157,10 @@ func TestClusterInformer_DynamicUpdates(t *testing.T) {
 	defer cancel()
 
 	secret1 := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster1",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "cluster1",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://cluster1.example.com"),
@@ -191,12 +181,10 @@ func TestClusterInformer_DynamicUpdates(t *testing.T) {
 	assert.Len(t, clusters, 1)
 
 	secret2 := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster2",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "cluster2",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://cluster2.example.com"),
@@ -225,12 +213,10 @@ func TestClusterInformer_URLNormalization(t *testing.T) {
 	defer cancel()
 
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster1",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "cluster1",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://cluster.example.com/"),
@@ -265,12 +251,10 @@ func TestClusterInformer_GetClusterServersByName(t *testing.T) {
 
 	secrets := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "prod-cluster-1",
-				Namespace: "argocd",
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-				},
+			Name:      "prod-cluster-1",
+			Namespace: "argocd",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 			},
 			Data: map[string][]byte{
 				"server":  []byte("https://prod1.example.com"),
@@ -279,12 +263,10 @@ func TestClusterInformer_GetClusterServersByName(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "prod-cluster-2",
-				Namespace: "argocd",
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-				},
+			Name:      "prod-cluster-2",
+			Namespace: "argocd",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 			},
 			Data: map[string][]byte{
 				"server":  []byte("https://prod2.example.com"),
@@ -316,12 +298,10 @@ func TestClusterInformer_RaceCondition(t *testing.T) {
 	var secrets []*corev1.Secret
 	for i := range 10 {
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("cluster-%d", i),
-				Namespace: "argocd",
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-				},
+			Name:      fmt.Sprintf("cluster-%d", i),
+			Namespace: "argocd",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 			},
 			Data: map[string][]byte{
 				"server": fmt.Appendf(nil, "https://cluster%d.example.com", i),
@@ -433,12 +413,10 @@ func TestClusterInformer_DeepCopyIsolation(t *testing.T) {
 	defer cancel()
 
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-cluster",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "test-cluster",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server":     []byte("https://test.example.com"),
@@ -502,12 +480,10 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 			name: "Cluster with empty name",
 			secrets: []runtime.Object{
 				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "cluster-no-name",
-						Namespace: "argocd",
-						Labels: map[string]string{
-							common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-						},
+					Name:      "cluster-no-name",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 					Data: map[string][]byte{
 						"server": []byte("https://noname.example.com"),
@@ -531,12 +507,10 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 			name: "Cluster with special characters in URL",
 			secrets: []runtime.Object{
 				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "special-cluster",
-						Namespace: "argocd",
-						Labels: map[string]string{
-							common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-						},
+					Name:      "special-cluster",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 					Data: map[string][]byte{
 						"server": []byte("https://cluster.example.com:8443/path"),
@@ -557,12 +531,10 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 			name: "Multiple clusters with same URL",
 			secrets: []runtime.Object{
 				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "cluster1",
-						Namespace: "argocd",
-						Labels: map[string]string{
-							common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-						},
+					Name:      "cluster1",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 					Data: map[string][]byte{
 						"server": []byte("https://duplicate.example.com"),
@@ -571,12 +543,10 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 					},
 				},
 				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "cluster2",
-						Namespace: "argocd",
-						Labels: map[string]string{
-							common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-						},
+					Name:      "cluster2",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 					Data: map[string][]byte{
 						"server": []byte("https://duplicate.example.com/"),
@@ -596,12 +566,10 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 			name: "Cluster with very long namespace list",
 			secrets: []runtime.Object{
 				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "many-namespaces",
-						Namespace: "argocd",
-						Labels: map[string]string{
-							common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-						},
+					Name:      "many-namespaces",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 					Data: map[string][]byte{
 						"server": []byte("https://many-ns.example.com"),
@@ -633,21 +601,19 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 			name: "Cluster with annotations and labels",
 			secrets: []runtime.Object{
 				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "annotated-cluster",
-						Namespace: "argocd",
-						Labels: map[string]string{
-							common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-							"custom-label":            "custom-value",
-							"team":                    "platform",
-						},
-						Annotations: map[string]string{
-							"description":                      "Production cluster",
-							"owner":                            "platform-team",
-							common.AnnotationKeyManagedBy:      "argocd", // system annotation - should be filtered
-							appv1.AnnotationKeyRefresh:         time.Now().Format(time.RFC3339),
-							corev1.LastAppliedConfigAnnotation: "should-be-filtered",
-						},
+					Name:      "annotated-cluster",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+						"custom-label":            "custom-value",
+						"team":                    "platform",
+					},
+					Annotations: map[string]string{
+						"description":                      "Production cluster",
+						"owner":                            "platform-team",
+						common.AnnotationKeyManagedBy:      "argocd", // system annotation - should be filtered
+						appv1.AnnotationKeyRefresh:         time.Now().Format(time.RFC3339),
+						corev1.LastAppliedConfigAnnotation: "should-be-filtered",
 					},
 					Data: map[string][]byte{
 						"server": []byte("https://annotated.example.com"),
@@ -706,12 +672,10 @@ func TestClusterInformer_SecretDeletion(t *testing.T) {
 	defer cancel()
 
 	secret1 := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster1",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "cluster1",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://cluster1.example.com"),
@@ -720,12 +684,10 @@ func TestClusterInformer_SecretDeletion(t *testing.T) {
 	}
 
 	secret2 := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster2",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "cluster2",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://cluster2.example.com"),
@@ -774,13 +736,11 @@ func TestClusterInformer_ComplexConfig(t *testing.T) {
 		Username:    "admin",
 		Password:    "password123",
 		BearerToken: "bearer-token",
-		TLSClientConfig: appv1.TLSClientConfig{
-			Insecure:   true,
-			ServerName: "cluster.internal",
-			CertData:   []byte("cert-data"),
-			KeyData:    []byte("key-data"),
-			CAData:     []byte("ca-data"),
-		},
+		Insecure:    true,
+		ServerName:  "cluster.internal",
+		CertData:    []byte("cert-data"),
+		KeyData:     []byte("key-data"),
+		CAData:      []byte("ca-data"),
 		AWSAuthConfig: &appv1.AWSAuthConfig{
 			ClusterName: "eks-cluster",
 			RoleARN:     "arn:aws:iam::123456789:role/eks-role",
@@ -799,12 +759,10 @@ func TestClusterInformer_ComplexConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "complex-cluster",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "complex-cluster",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server":           []byte("https://complex.example.com"),
@@ -850,12 +808,10 @@ func BenchmarkClusterInformer_GetClusterByURL(b *testing.B) {
 	var secrets []runtime.Object
 	for i := range 1000 {
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("cluster-%d", i),
-				Namespace: "argocd",
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-				},
+			Name:      fmt.Sprintf("cluster-%d", i),
+			Namespace: "argocd",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 			},
 			Data: map[string][]byte{
 				"server": fmt.Appendf(nil, "https://cluster%d.example.com", i),
@@ -897,11 +853,9 @@ func TestClusterInformer_GetProjectClusters(t *testing.T) {
 
 	secrets := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "cluster-proj-a-1",
-				Namespace: "argocd",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
-			},
+			Name:      "cluster-proj-a-1",
+			Namespace: "argocd",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
 			Data: map[string][]byte{
 				"server":  []byte("https://a1.example.com"),
 				"name":    []byte("a1"),
@@ -910,11 +864,9 @@ func TestClusterInformer_GetProjectClusters(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "cluster-proj-a-2",
-				Namespace: "argocd",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
-			},
+			Name:      "cluster-proj-a-2",
+			Namespace: "argocd",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
 			Data: map[string][]byte{
 				"server":  []byte("https://a2.example.com"),
 				"name":    []byte("a2"),
@@ -923,11 +875,9 @@ func TestClusterInformer_GetProjectClusters(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "cluster-proj-b",
-				Namespace: "argocd",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
-			},
+			Name:      "cluster-proj-b",
+			Namespace: "argocd",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
 			Data: map[string][]byte{
 				"server":  []byte("https://b1.example.com"),
 				"name":    []byte("b1"),

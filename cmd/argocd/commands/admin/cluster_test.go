@@ -16,45 +16,36 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
 func Test_loadClustersSkipsApplicationWithRemovedCluster(t *testing.T) {
 	argoCDCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cm",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{},
 	}
 	argoCDCmdCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cmd-params-cm",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cmd-params-cm",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{},
 	}
 	argoCDSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: "argocd",
-		},
+		Name:      "argocd-secret",
+		Namespace: "argocd",
 		Data: map[string][]byte{
 			"server.secretkey": []byte("test"),
 		},
 	}
 	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "argocd",
-		},
+		Name:      "test",
+		Namespace: "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
@@ -120,39 +111,31 @@ func Test_loadClusters_ShardingAlgorithm(t *testing.T) {
 	defer log.SetLevel(originalLevel)
 
 	argoCDCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cm",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{},
 	}
 	argoCDCmdCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cmd-params-cm",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cmd-params-cm",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{},
 	}
 	argoCDSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: "argocd",
-		},
+		Name:      "argocd-secret",
+		Namespace: "argocd",
 		Data: map[string][]byte{
 			"server.secretkey": []byte("test"),
 		},
 	}
 	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "argocd",
-		},
+		Name:      "test",
+		Namespace: "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{

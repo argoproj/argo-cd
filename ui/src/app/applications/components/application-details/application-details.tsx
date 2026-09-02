@@ -5,7 +5,7 @@ import * as ReactDOM from 'react-dom';
 import * as models from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
-import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
+import {filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, Context, ContextApis} from '../../../shared/context';
@@ -29,7 +29,7 @@ import {ApplicationResourceList, ApplicationResourceParentRef} from './applicati
 import {APPLICATION_DETAILS_SORT_KEY, ApplicationResourceSortKey, compareApplicationResource, GROUPED_NODES_DETAILS_SORT_KEY} from './application-resource-sort';
 import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {Filters, FiltersProps, getEffectiveResourceFilter} from './application-resource-filter';
-import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
+import {getAppDefaultSource, getAppCurrentVersion, urlPattern, getApplicationDetailsContainerClass} from '../utils';
 import {ChartDetails, OCIMetadata} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
@@ -754,6 +754,17 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 }));
                             };
 
+                            // For ApplicationSets, clicking an Application node navigates to its details page; otherwise the node is selected in place.
+                            const handleNodeClick = (fullName: string) => {
+                                const parts = fullName.split('/');
+                                const [group, kind, namespace, name] = parts;
+                                if (!isApplication && group === 'argoproj.io' && kind === 'Application' && namespace && name) {
+                                    appContext.navigation.goto(`/applications/${namespace}/${name}`);
+                                } else {
+                                    selectNode(fullName);
+                                }
+                            };
+
                             // Helper to get ApplicationResourceTree props based on resource type
                             const getResourceTreeProps = () => {
                                 const commonProps = {
@@ -806,16 +817,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 } else {
                                     return {
                                         ...commonProps,
-                                        onNodeClick: (fullName: string) => {
-                                            // For ApplicationSets, navigate to Application details if clicking an Application node
-                                            const parts = fullName.split('/');
-                                            const [group, kind, namespace, name] = parts;
-                                            if (group === 'argoproj.io' && kind === 'Application' && namespace && name) {
-                                                appContext.navigation.goto(`/applications/${namespace}/${name}`);
-                                            } else {
-                                                selectNode(fullName);
-                                            }
-                                        },
+                                        onNodeClick: handleNodeClick,
                                         app: application,
                                         showOrphanedResources: false,
                                         useNetworkingHierarchy: false,
@@ -911,7 +913,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             }
 
                             return (
-                                <div className={`application-details ${props.match.params.name}`}>
+                                <div className={getApplicationDetailsContainerClass(props.match.params.name)}>
                                     <Page
                                         title={props.match.params.name + ' - ' + getPageTitle(pref.view)}
                                         useTitleOnly={true}
@@ -1162,7 +1164,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                     {data => (
                                                                         <ApplicationResourceList
                                                                             pref={pref}
-                                                                            onNodeClick={fullName => selectNode(fullName)}
+                                                                            onNodeClick={handleNodeClick}
                                                                             selectedNodeFullName={highlightNodeKey || undefined}
                                                                             sortKey={resourceSort.sortKey}
                                                                             requestSort={resourceSort.requestSort}
@@ -1535,7 +1537,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                             })
                                         )
                                         .pipe(repeat())
-                                        .pipe(retryWhen(errors => errors.pipe(delay(500))))
+                                        .pipe(retry({delay: 500}))
                                 )
                             ),
                             merge(
@@ -1545,7 +1547,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                     services.applications
                                         .watchResourceTree(name, appNamespace, objectListKind)
                                         .pipe(repeat())
-                                        .pipe(retryWhen(errors => errors.pipe(delay(500))))
+                                        .pipe(retry({delay: 500}))
                                 )
                             )
                         );

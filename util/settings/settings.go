@@ -493,6 +493,8 @@ const (
 	resourceExclusionsKey = "resource.exclusions"
 	// resourceInclusions is the key to the list of explicitly watched resources
 	resourceInclusionsKey = "resource.inclusions"
+	// resourceSelectorsKey is the key to the list of label selectors that narrow down the watched resources
+	resourceSelectorsKey = "resource.selectors"
 	// resourceIgnoreResourceUpdatesEnabledKey is the key to a boolean determining whether the resourceIgnoreUpdates feature is enabled
 	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
 	// resourceSensitiveAnnotationsKey is the key to list of annotations to mask in secret resource
@@ -727,9 +729,7 @@ func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) er
 			return err
 		}
 		argoCDSecret = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: common.ArgoCDSecretName,
-			},
+			Name: common.ArgoCDSecretName,
 			Data: make(map[string][]byte),
 		}
 		createSecret = true
@@ -765,9 +765,7 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) err
 			return err
 		}
 		argoCDCM = &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: common.ArgoCDConfigMapName,
-			},
+			Name: common.ArgoCDConfigMapName,
 			Data: make(map[string]string),
 		}
 		createCM = true
@@ -903,6 +901,20 @@ func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 			return nil, fmt.Errorf("error unmarshalling excluded resources %w", err)
 		}
 		rf.ResourceExclusions = excludedResources
+	}
+
+	if value, ok := argoCDCM.Data[resourceSelectorsKey]; ok {
+		resourceSelectors := make([]FilteredResource, 0)
+		err := yaml.Unmarshal([]byte(value), &resourceSelectors)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshalling resource selectors %w", err)
+		}
+		for _, resourceSelector := range resourceSelectors {
+			if _, err := labels.Parse(resourceSelector.Selector); err != nil {
+				return nil, fmt.Errorf("error parsing resource selector %q: %w", resourceSelector.Selector, err)
+			}
+		}
+		rf.ResourceSelectors = resourceSelectors
 	}
 	return rf, nil
 }

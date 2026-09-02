@@ -2,7 +2,7 @@ import {DataLoader} from 'argo-ui';
 import classNames from 'classnames';
 import * as React from 'react';
 import {useEffect, useMemo, useState, useRef} from 'react';
-import {bufferTime, catchError, delay, retryWhen} from 'rxjs/operators';
+import {bufferTime, catchError, retry} from 'rxjs/operators';
 
 import {LogEntry} from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
@@ -205,7 +205,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                         }
                     }
                 }),
-                retryWhen(errors => errors.pipe(delay(500)))
+                retry({delay: 500})
             )
             .subscribe(log => {
                 if (log.length) {
