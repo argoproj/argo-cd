@@ -263,13 +263,11 @@ func Test_modifyAllowClusterResourceList(t *testing.T) {
 
 func dummySIProject(name string, si *v1alpha1.SourceIntegrity, sk []v1alpha1.SignatureKey) v1alpha1.AppProject { // nolint:staticcheck
 	return v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
+		Name: name,
 		Spec: v1alpha1.AppProjectSpec{
 			Description:     "No description",
 			SourceIntegrity: si,
-			SignatureKeys:   sk,
+			SignatureKeys:   sk, // nolint:staticcheck
 		},
 	}
 }
