@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sync"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/klauspost/compress/s2"
@@ -181,20 +182,33 @@ func (msgpackSerializer) unmarshal(data []byte) (map[string]any, error) {
 	return obj, nil
 }
 
-type gzipCompressor struct{ level int }
+type gzipCompressor struct {
+	level int
+	pool  sync.Pool
+}
 
 func (c *gzipCompressor) compress(data []byte) ([]byte, error) {
 	var buf bytes.Buffer
-	gz, err := gzip.NewWriterLevel(&buf, c.level)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create gzip writer: %w", err)
+
+	var gz *gzip.Writer
+	if v := c.pool.Get(); v != nil {
+		gz = v.(*gzip.Writer)
+		gz.Reset(&buf)
+	} else {
+		var err error
+		gz, err = gzip.NewWriterLevel(&buf, c.level)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create gzip writer: %w", err)
+		}
 	}
+
 	if _, err := gz.Write(data); err != nil {
 		return nil, fmt.Errorf("failed to write gzip data: %w", err)
 	}
 	if err := gz.Close(); err != nil {
 		return nil, fmt.Errorf("failed to close gzip writer: %w", err)
 	}
+	c.pool.Put(gz)
 	return buf.Bytes(), nil
 }
 
