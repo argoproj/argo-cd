@@ -2,22 +2,26 @@ package kube
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/mocks"
-	"k8s.io/kubectl/pkg/cmd/auth"
 	testingutils "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/testing"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/tracing"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/kubectl/pkg/cmd/apply"
+	"k8s.io/kubectl/pkg/cmd/auth"
 	"k8s.io/kubectl/pkg/cmd/create"
 	"k8s.io/kubectl/pkg/cmd/replace"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -561,4 +565,77 @@ func TestRealKubectlOptionsRunner_AuthReconcile_PanicRecovery(t *testing.T) {
 	err := runner.AuthReconcile((*auth.ReconcileOptions)(nil))
 	require.Error(t, err, "AuthReconcile must return an error rather than propagating the panic")
 	assert.Contains(t, err.Error(), "error running kubectl auth reconcile")
+}
+
+// TestApplyResource_ServerSideApplyConflict reproduces
+// https://github.com/argoproj/argo-cd/issues/21085: when a resource is
+// mutated very frequently by another controller (e.g. an HPA whose
+// `status`/`spec.replicas` a HPA controller or KEDA writes every few
+// seconds), the server can return a transient 409 conflict for a
+// server-side apply patch even though no field ownership conflict exists,
+// simply because the object changed between when the patch was built and
+// when it landed. `kubectl apply --server-side` only sends the patch once;
+// unlike its client-side apply counterpart (which retries via
+// Patcher.Patch's built-in RetryOnConflict loop), it does not retry the
+// request on conflict. ApplyResource now retries such conflicts for
+// server-side apply, since resending the identical desired state is safe.
+func TestApplyResource_ServerSideApplyConflict(t *testing.T) {
+	t.Parallel()
+
+	newConflictErr := func() error {
+		return apierrors.NewConflict(
+			schema.GroupResource{Group: "autoscaling", Resource: "horizontalpodautoscalers"},
+			"my-hpa",
+			errors.New("the object has been modified; please apply your changes to the latest version and try again"),
+		)
+	}
+
+	t.Run("a transient conflict is retried and can succeed", func(t *testing.T) {
+		t.Parallel()
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+
+		// Simulate what kubectl's server-side apply branch returns on the
+		// first attempt: the raw apiserver conflict, exactly as it would be
+		// after a second writer (e.g. the HPA controller) updated the object
+		// in between. The retry then succeeds, as it would against a real
+		// apiserver once the transient write race has cleared.
+		cmdMocks.On("Apply", mock.Anything).Return(newConflictErr()).Once()
+		cmdMocks.On("Apply", mock.Anything).Return(nil).Once()
+
+		obj := testingutils.NewPod()
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, false, false, true, "argocd-controller")
+
+		require.NoError(t, err, "a transient conflict should be retried instead of failing the sync outright")
+		cmdMocks.AssertNumberOfCalls(t, "Apply", 2)
+	})
+
+	t.Run("a persistent conflict still fails after retries are exhausted", func(t *testing.T) {
+		t.Parallel()
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+
+		cmdMocks.On("Apply", mock.Anything).Return(newConflictErr())
+
+		obj := testingutils.NewPod()
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, false, false, true, "argocd-controller")
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "the object has been modified")
+		cmdMocks.AssertNumberOfCalls(t, "Apply", retry.DefaultRetry.Steps)
+	})
+
+	t.Run("client-side apply conflicts are not retried by ApplyResource itself", func(t *testing.T) {
+		t.Parallel()
+		// kubectl's client-side apply path (Patcher.Patch) already retries
+		// conflicts on its own; ApplyResource must not add a second,
+		// redundant retry loop on top of it for the non-SSA path.
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+
+		cmdMocks.On("Apply", mock.Anything).Return(newConflictErr()).Once()
+
+		obj := testingutils.NewPod()
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, false, false, false, "argocd-controller")
+
+		require.Error(t, err)
+		cmdMocks.AssertNumberOfCalls(t, "Apply", 1)
+	})
 }

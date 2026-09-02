@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/kubectl/pkg/cmd/apply"
 	"k8s.io/kubectl/pkg/cmd/auth"
 	"k8s.io/kubectl/pkg/cmd/create"
@@ -398,15 +399,35 @@ func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unst
 	}
 
 	return k.runResourceCommand(ctx, obj, func(ioStreams genericiooptions.IOStreams, fileName string) error {
-		applyOpts, err := k.newApplyOptions(ioStreams, obj, fileName, validate, force, serverSideApply, dryRunStrategy, manager)
-		if err != nil {
-			return err
-		}
-		_, err = ioStreams.Out.Write([]byte(outReconcile))
-		if err != nil {
+		if _, err := ioStreams.Out.Write([]byte(outReconcile)); err != nil {
 			return fmt.Errorf("error writing reconcile output to stdout: %w", err)
 		}
-		return k.optionsRunner.Apply(applyOpts)
+
+		applyOnce := func() error {
+			applyOpts, err := k.newApplyOptions(ioStreams, obj, fileName, validate, force, serverSideApply, dryRunStrategy, manager)
+			if err != nil {
+				return err
+			}
+			return k.optionsRunner.Apply(applyOpts)
+		}
+
+		if !serverSideApply {
+			return applyOnce()
+		}
+
+		// A server-side apply PATCH is sent to the apiserver exactly once by
+		// kubectl. Unlike client-side apply's three-way merge patch, which
+		// kubectl retries itself on conflict (see Patcher.Patch), a conflict
+		// on the server-side apply request is returned straight to the
+		// caller. Because the request always carries our full desired state
+		// rather than a patch computed against a possibly-stale read, a
+		// conflict here just means some other writer (e.g. an HPA or KEDA
+		// controller updating status/replicas) modified the object between
+		// when we built the request and when it reached the apiserver.
+		// Resending the identical request is safe and frequently succeeds,
+		// so retry instead of failing the sync outright.
+		// See https://github.com/argoproj/argo-cd/issues/21085.
+		return retry.RetryOnConflict(retry.DefaultRetry, applyOnce)
 	})
 }
 
