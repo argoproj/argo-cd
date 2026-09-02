@@ -175,6 +175,11 @@ type client struct {
 	proxyServer     *grpc.Server
 	proxyUsersCount int
 	httpClient      *http.Client
+	// tlsTransport is the underlying *http.Transport used for non-plaintext
+	// connections. When HttpRetryMax > 0, httpClient wraps a retryablehttp
+	// RoundTripper (which does not implement CloseIdleConnections), so we keep
+	// a direct reference to close idle connections in the grpc-web proxy.
+	tlsTransport *http.Transport
 }
 
 // NewClient creates a new API client from a set of config options.
@@ -294,21 +299,49 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 		c.GRPCWebRootPath = opts.GRPCWebRootPath
 	}
 
-	if opts.HttpRetryMax > 0 {
-		retryClient := retryablehttp.NewClient()
-		retryClient.RetryMax = opts.HttpRetryMax
-		c.httpClient = retryClient.StandardClient()
-	} else {
-		c.httpClient = &http.Client{}
-	}
-
+	// Keep a typed reference to the TLS transport (not http.RoundTripper) so the
+	// grpc-web proxy can close idle connections on it directly: when retries are
+	// enabled, httpClient wraps a retryablehttp RoundTripper that does not
+	// implement CloseIdleConnections.
 	if !c.PlainText {
 		tlsConfig, err := c.tlsConfig()
 		if err != nil {
 			return nil, err
 		}
-		c.httpClient.Transport = &http.Transport{
+		c.tlsTransport = &http.Transport{
 			TLSClientConfig: tlsConfig,
+		}
+	}
+
+	if opts.HttpRetryMax > 0 {
+		retryClient := retryablehttp.NewClient()
+		retryClient.RetryMax = opts.HttpRetryMax
+		// retryablehttp.NewClient() installs a default logger that writes a line
+		// to stderr for every request, even successful non-retried ones. The
+		// plain http.Client path below is silent, so disable the logger to keep
+		// behavior consistent and avoid per-request noise on the CLI.
+		retryClient.Logger = nil
+		// Use ErrorPropagatedRetryPolicy so that when retries are exhausted the
+		// returned error still carries the underlying cause (e.g. "unexpected
+		// HTTP status 502"). The default policy discards it, turning a persistent
+		// 502 into a bare "giving up after N attempt(s)" with the status stripped.
+		retryClient.CheckRetry = retryablehttp.ErrorPropagatedRetryPolicy
+		// Cap the backoff so retries can't stack unbounded latency ahead of
+		// command-level timeouts (e.g. app sync/wait).
+		retryClient.RetryWaitMax = 10 * time.Second
+		// Apply the TLS transport to the retryable client's inner HTTP client
+		// before wrapping it. StandardClient() returns an *http.Client whose
+		// Transport is the retry RoundTripper, so overwriting Transport after
+		// the fact (as the non-plaintext branch used to do) would silently
+		// discard the retry behavior on TLS connections.
+		if c.tlsTransport != nil {
+			retryClient.HTTPClient.Transport = c.tlsTransport
+		}
+		c.httpClient = retryClient.StandardClient()
+	} else {
+		c.httpClient = &http.Client{}
+		if c.tlsTransport != nil {
+			c.httpClient.Transport = c.tlsTransport
 		}
 	}
 	if !c.GRPCWeb {
