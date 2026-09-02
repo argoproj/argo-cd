@@ -1,0 +1,22 @@
+apiVersion: karpenter.sh/v1
+kind: NodeClaim
+metadata:
+  name: default-xxxx
+  generation: 1
+spec:
+  nodeClassRef:
+    group: karpenter.k8s.aws
+    kind: EC2NodeClass
+    name: default
+  requirements:
+    - key: karpenter.k8s.aws/instance-family
+      operator: In
+      values:
+        - m5
+status:
+  observedGeneration: 1
+  conditions:
+    - message: ""
+      reason: Unknown
+      status: "Unknown"
+      type: Ready

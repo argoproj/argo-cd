@@ -17,15 +17,11 @@ import (
 func TestListMatrixGenerator(t *testing.T) {
 	generateExpectedApp := func(cluster, name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       fmt.Sprintf("%s-%s", cluster, name),
-				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       fmt.Sprintf("%s-%s", cluster, name),
+			Namespace:  utils.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -131,21 +127,17 @@ func TestListMatrixGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestClusterMatrixGenerator(t *testing.T) {
 	generateExpectedApp := func(cluster, name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       fmt.Sprintf("%s-%s", cluster, name),
-				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       fmt.Sprintf("%s-%s", cluster, name),
+			Namespace:  utils.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -254,21 +246,17 @@ func TestClusterMatrixGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 	generateExpectedApp := func(cluster, name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       fmt.Sprintf("%s-%s", cluster, name),
-				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       fmt.Sprintf("%s-%s", cluster, name),
+			Namespace:  utils.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -392,21 +380,17 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 			})
 		}).Then().Expect(ApplicationsExist(expectedApps)).Expect(ApplicationsDoNotExist(excludedApps)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(excludedApps)).Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(excludedApps)).Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 	generateExpectedApp := func(name, nameSuffix string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       fmt.Sprintf("%s-%s", name, nameSuffix),
-				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       fmt.Sprintf("%s-%s", name, nameSuffix),
+			Namespace:  utils.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -530,5 +514,5 @@ func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 			})
 		}).Then().Expect(ApplicationsExist(expectedApps)).Expect(ApplicationsDoNotExist(excludedApps)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(excludedApps)).Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(excludedApps)).Expect(ApplicationsDoNotExist(expectedApps))
 }

@@ -73,7 +73,7 @@ type RepoClientFactory_NewClient_Call struct {
 // NewClient is a helper method to define mock.On call
 //   - repo *v1alpha1.Repository
 //   - rootPath string
-func (_e *RepoClientFactory_Expecter) NewClient(repo interface{}, rootPath interface{}) *RepoClientFactory_NewClient_Call {
+func (_e *RepoClientFactory_Expecter) NewClient(repo any, rootPath any) *RepoClientFactory_NewClient_Call {
 	return &RepoClientFactory_NewClient_Call{Call: _e.mock.On("NewClient", repo, rootPath)}
 }
 

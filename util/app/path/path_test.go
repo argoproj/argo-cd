@@ -8,59 +8,68 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	fileutil "github.com/argoproj/argo-cd/v3/test/fixture/path"
 )
 
 func TestPathRoot(t *testing.T) {
+	t.Parallel()
 	_, err := Path("./testdata", "/")
 	require.EqualError(t, err, "/: app path is absolute")
 }
 
 func TestPathAbsolute(t *testing.T) {
+	t.Parallel()
 	_, err := Path("./testdata", "/etc/passwd")
 	require.EqualError(t, err, "/etc/passwd: app path is absolute")
 }
 
 func TestPathDotDot(t *testing.T) {
+	t.Parallel()
 	_, err := Path("./testdata", "..")
 	require.EqualError(t, err, "..: app path outside root")
 }
 
 func TestPathDotDotSlash(t *testing.T) {
+	t.Parallel()
 	_, err := Path("./testdata", "../")
 	require.EqualError(t, err, "../: app path outside root")
 }
 
 func TestPathDot(t *testing.T) {
+	t.Parallel()
 	_, err := Path("./testdata", ".")
 	require.NoError(t, err)
 }
 
 func TestPathDotSlash(t *testing.T) {
+	t.Parallel()
 	_, err := Path("./testdata", "./")
 	require.NoError(t, err)
 }
 
 func TestNonExistentPath(t *testing.T) {
+	t.Parallel()
 	_, err := Path("./testdata", "does-not-exist")
 	require.EqualError(t, err, "does-not-exist: app path does not exist")
+	require.ErrorIs(t, err, ErrAppPathDoesNotExist)
 }
 
 func TestPathNotDir(t *testing.T) {
+	t.Parallel()
 	_, err := Path("./testdata", "file.txt")
 	require.EqualError(t, err, "file.txt: app path is not a directory")
 }
 
 func TestGoodSymlinks(t *testing.T) {
+	t.Parallel()
 	err := CheckOutOfBoundsSymlinks("./testdata/goodlink")
 	require.NoError(t, err)
 }
 
 // Simple check of leaving the repo
 func TestBadSymlinks(t *testing.T) {
+	t.Parallel()
 	err := CheckOutOfBoundsSymlinks("./testdata/badlink")
 	var oobError *OutOfBoundsSymlinkError
 	require.ErrorAs(t, err, &oobError)
@@ -69,6 +78,7 @@ func TestBadSymlinks(t *testing.T) {
 
 // Crazy formatting check
 func TestBadSymlinks2(t *testing.T) {
+	t.Parallel()
 	err := CheckOutOfBoundsSymlinks("./testdata/badlink2")
 	var oobError *OutOfBoundsSymlinkError
 	require.ErrorAs(t, err, &oobError)
@@ -77,10 +87,17 @@ func TestBadSymlinks2(t *testing.T) {
 
 // Make sure no part of the symlink can leave the repo, even if it ultimately targets inside the repo
 func TestBadSymlinks3(t *testing.T) {
+	t.Parallel()
 	err := CheckOutOfBoundsSymlinks("./testdata/badlink3")
 	var oobError *OutOfBoundsSymlinkError
 	require.ErrorAs(t, err, &oobError)
 	assert.Equal(t, "badlink", oobError.File)
+}
+
+func TestBadSymlinksExcluded(t *testing.T) {
+	t.Parallel()
+	err := CheckOutOfBoundsSymlinks("./testdata/badlink", "badlink")
+	assert.NoError(t, err)
 }
 
 // No absolute symlinks allowed
@@ -102,9 +119,7 @@ func TestAbsSymlink(t *testing.T) {
 
 func getApp(annotation *string, sourcePath *string) *v1alpha1.Application {
 	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-app",
-		},
+		Name: "test-app",
 	}
 	if annotation != nil {
 		app.Annotations = make(map[string]string)

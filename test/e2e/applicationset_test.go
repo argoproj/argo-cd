@@ -15,7 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
@@ -57,15 +57,11 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 	externalNamespace := string(utils.ArgoCDExternalNamespace)
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  externalNamespace,
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       "Application",
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  externalNamespace,
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -147,7 +143,7 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
@@ -155,15 +151,11 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 	externalNamespace2 := string(utils.ArgoCDExternalNamespace2)
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  externalNamespace,
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       "Application",
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  externalNamespace,
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -179,15 +171,11 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 	}
 
 	expectedAppExternalNamespace2 := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  externalNamespace2,
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       "Application",
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  externalNamespace2,
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -210,9 +198,7 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 		When().
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace2).
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: externalNamespace2,
-			},
+			Namespace: externalNamespace2,
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
@@ -244,9 +230,7 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 		When().
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: externalNamespace,
-			},
+			Namespace: externalNamespace,
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
@@ -325,26 +309,22 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 		Then().
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata})).
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata})).
 		When().
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace2).
 		Then().
 		Expect(ApplicationsExist([]v1alpha1.Application{expectedAppExternalNamespace2})).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppExternalNamespace2}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppExternalNamespace2}))
 }
 
 func TestSimpleListGenerator(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -420,20 +400,16 @@ func TestSimpleListGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -509,20 +485,16 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestRenderHelmValuesObject(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -581,22 +553,18 @@ func TestRenderHelmValuesObject(t *testing.T) {
 	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
 }
 
 func TestTemplatePatch(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			Annotations: map[string]string{
-				"annotation-some-key": "annotation-some-value",
-			},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+		Annotations: map[string]string{
+			"annotation-some-key": "annotation-some-value",
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -614,26 +582,6 @@ func TestTemplatePatch(t *testing.T) {
 			},
 		},
 	}
-
-	templatePatch := `{
-		"metadata": {
-			"annotations": {
-				{{- range $k, $v := .annotations }}
-				"{{ $k }}": "{{ $v }}"
-				{{- end }}
-			}
-		},
-		{{- if .createNamespace }}
-		"spec": {
-			"syncPolicy": {
-				"syncOptions": [
-					"CreateNamespace=true"
-				]
-			}
-		}
-		{{- end }}
-	}
-	`
 
 	var expectedAppNewNamespace *v1alpha1.Application
 	var expectedAppNewMetadata *v1alpha1.Application
@@ -658,7 +606,25 @@ func TestTemplatePatch(t *testing.T) {
 					},
 				},
 			},
-			TemplatePatch: &templatePatch,
+			TemplatePatch: new(`{
+		"metadata": {
+			"annotations": {
+				{{- range $k, $v := .annotations }}
+				"{{ $k }}": "{{ $v }}"
+				{{- end }}
+			}
+		},
+		{{- if .createNamespace }}
+		"spec": {
+			"syncPolicy": {
+				"syncOptions": [
+					"CreateNamespace=true"
+				]
+			}
+		}
+		{{- end }}
+	}
+	`),
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
 					List: &v1alpha1.ListGenerator{
@@ -705,20 +671,16 @@ func TestTemplatePatch(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestUpdateHelmValuesObject(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -787,20 +749,16 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 		Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
 		When().
 		// Delete the ApplicationSet, and verify it deletes the Applications
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
 }
 
 func TestSyncPolicyCreateUpdate(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook-sync-policy-create-update",
-			Namespace:  utils.ArgoCDNamespace,
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       "Application",
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook-sync-policy-create-update",
+		Namespace:  utils.ArgoCDNamespace,
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -878,9 +836,8 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 			appset.Spec.Template.Labels = map[string]string{
 				"label-key": "label-value",
 			}
-			applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateUpdate
 			appset.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
-				ApplicationsSync: &applicationsSyncPolicy,
+				ApplicationsSync: new(v1alpha1.ApplicationsSyncPolicyCreateUpdate),
 			}
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
 
@@ -898,20 +855,16 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
 		// So AppSet deletion will be reflected, but all the applications it generates will still exist
 		When().
-		Delete().Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestSyncPolicyCreateDelete(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook-sync-policy-create-delete",
-			Namespace:  utils.ArgoCDNamespace,
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       "Application",
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook-sync-policy-create-delete",
+		Namespace:  utils.ArgoCDNamespace,
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -976,9 +929,8 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-			applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateDelete
 			appset.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
-				ApplicationsSync: &applicationsSyncPolicy,
+				ApplicationsSync: new(v1alpha1.ApplicationsSyncPolicyCreateDelete),
 			}
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
 
@@ -994,20 +946,16 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 
 		// Delete the ApplicationSet
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func TestSyncPolicyCreateOnly(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook-sync-policy-create-only",
-			Namespace:  utils.ArgoCDNamespace,
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       "Application",
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook-sync-policy-create-only",
+		Namespace:  utils.ArgoCDNamespace,
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -1075,9 +1023,8 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-			applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateOnly
 			appset.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
-				ApplicationsSync: &applicationsSyncPolicy,
+				ApplicationsSync: new(v1alpha1.ApplicationsSyncPolicyCreateOnly),
 			}
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
 
@@ -1095,7 +1042,7 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
 		// So AppSet deletion will be reflected, but all the applications it generates will still exist
 		When().
-		Delete().Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func githubSCMMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -1311,15 +1258,11 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 	defer ts.Close()
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "argo-cd-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "argo-cd-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -1333,9 +1276,6 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 			},
 		},
 	}
-
-	// Because you can't &"".
-	repoMatch := "argo-cd"
 
 	Given(t).
 		// Create an SCMProviderGenerator-based ApplicationSet
@@ -1365,7 +1305,7 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
-								RepositoryMatch: &repoMatch,
+								RepositoryMatch: new("argo-cd"),
 							},
 						},
 					},
@@ -1383,15 +1323,11 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 	defer ts.Close()
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "argo-cd-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "argo-cd-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -1405,9 +1341,6 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 			},
 		},
 	}
-
-	// Because you can't &"".
-	repoMatch := "argo-cd"
 
 	Given(t).
 		// Create an SCMProviderGenerator-based ApplicationSet
@@ -1438,7 +1371,7 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
-								RepositoryMatch: &repoMatch,
+								RepositoryMatch: new("argo-cd"),
 							},
 						},
 					},
@@ -1450,15 +1383,11 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 
 func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "argo-cd-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "argo-cd-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -1472,9 +1401,6 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 			},
 		},
 	}
-
-	// Because you can't &"".
-	repoMatch := "argo-cd"
 
 	ctx := Given(t)
 	// Create an SCMProviderGenerator-based ApplicationSet
@@ -1505,7 +1431,7 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
-								RepositoryMatch: &repoMatch,
+								RepositoryMatch: new("argo-cd"),
 							},
 						},
 					},
@@ -1523,15 +1449,11 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 
 func TestCustomApplicationFinalizers(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.BackgroundPropagationPolicyFinalizer},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.BackgroundPropagationPolicyFinalizer},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -1582,20 +1504,16 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
 }
 
 func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.BackgroundPropagationPolicyFinalizer},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.BackgroundPropagationPolicyFinalizer},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -1647,7 +1565,7 @@ func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
 }
 
 func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -1698,15 +1616,11 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 	defer ts.Close()
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "argo-cd-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "argo-cd-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -1721,18 +1635,13 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 		},
 	}
 
-	// Because you can't &"".
-	repoMatch := "argo-cd"
-
 	Given(t).
 		And(func() {
 			_, err := utils.GetE2EFixtureK8sClient(t).KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Create(t.Context(), &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: fixture.TestNamespace(),
-					Name:      secretName,
-					Labels: map[string]string{
-						common.LabelKeySecretType: common.LabelValueSecretTypeSCMCreds,
-					},
+				Namespace: fixture.TestNamespace(),
+				Name:      secretName,
+				Labels: map[string]string{
+					common.LabelKeySecretType: common.LabelValueSecretTypeSCMCreds,
 				},
 				Data: map[string][]byte{
 					"hello": []byte("world"),
@@ -1772,7 +1681,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
-								RepositoryMatch: &repoMatch,
+								RepositoryMatch: new("argo-cd"),
 							},
 						},
 					},
@@ -1797,17 +1706,13 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 	defer ts.Close()
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "argo-cd-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			Labels: map[string]string{
-				common.LabelKeyAppInstance: "simple-scm-provider-generator-strict-ko",
-			},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "argo-cd-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+		Labels: map[string]string{
+			common.LabelKeyAppInstance: "simple-scm-provider-generator-strict-ko",
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1823,19 +1728,14 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 		},
 	}
 
-	// Because you can't &"".
-	repoMatch := "argo-cd"
-
 	ctx := Given(t)
 	ctx.And(func() {
 		_, err := utils.GetE2EFixtureK8sClient(t).KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Create(t.Context(), &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: fixture.TestNamespace(),
-				Name:      secretName,
-				Labels: map[string]string{
-					// Try to exfiltrate cluster secret
-					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-				},
+			Namespace: fixture.TestNamespace(),
+			Name:      secretName,
+			Labels: map[string]string{
+				// Try to exfiltrate cluster secret
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 			},
 			Data: map[string][]byte{
 				"hello": []byte("world"),
@@ -1875,7 +1775,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
-								RepositoryMatch: &repoMatch,
+								RepositoryMatch: new("argo-cd"),
 							},
 						},
 					},
@@ -1903,15 +1803,11 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 	defer ts.Close()
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "guestbook-1",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "guestbook-1",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -1978,16 +1874,12 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 	defer ts.Close()
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "guestbook-1",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			Labels:     map[string]string{"app": "preview"},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "guestbook-1",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+		Labels:     map[string]string{"app": "preview"},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -2051,17 +1943,13 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 
 func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "guestbook-1",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			Labels: map[string]string{
-				"app": "preview",
-			},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "guestbook-1",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+		Labels: map[string]string{
+			"app": "preview",
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -2174,7 +2062,7 @@ func TestApplicationSetAPIListResourceEvents(t *testing.T) {
 			// Events list should be returned (may be empty if no events have been generated yet)
 			assert.NotNil(t, events)
 		}).
-		When().Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{}))
+		When().Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{}))
 }
 
 // TestApplicationSetHealthStatusCLI tests that the CLI commands display the health status field for an ApplicationSet.

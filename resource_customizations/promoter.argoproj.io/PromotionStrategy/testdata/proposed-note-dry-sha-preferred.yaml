@@ -1,0 +1,30 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: PromotionStrategy
+metadata:
+  generation: 1
+spec: {}
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      observedGeneration: 1
+  environments:
+    - branch: dev
+      active:
+        dry:
+          sha: abc1234abcdef0
+      proposed:
+        dry:
+          sha: old1111abcdef0
+        note:
+          drySha: new9999abcdef0
+    - branch: prod
+      active:
+        dry:
+          sha: abc1234abcdef0
+      proposed:
+        dry:
+          sha: old2222abcdef0
+        note:
+          drySha: new9999abcdef0
+

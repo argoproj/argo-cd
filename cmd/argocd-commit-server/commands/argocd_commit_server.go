@@ -1,11 +1,14 @@
 package commands
 
 import (
+	"context"
+	stderrors "errors"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -22,17 +25,21 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/gpgsign"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 )
 
 // NewCommand returns a new instance of an argocd-commit-server command
 func NewCommand() *cobra.Command {
 	var (
-		listenHost  string
-		listenPort  int
-		metricsPort int
-		metricsHost string
+		listenHost               string
+		listenPort               int
+		metricsPort              int
+		metricsHost              string
+		signingKeyPath           string
+		signingKeyPassphraseFile string
 	)
 	command := &cobra.Command{
 		Use:   common.CommandCommitServer,
@@ -57,7 +64,24 @@ func NewCommand() *cobra.Command {
 			askPassServer := askpass.NewServer(askpass.CommitServerSocketPath)
 			go func() { errors.CheckError(askPassServer.Run()) }()
 
-			server := commitserver.NewServer(askPassServer, metricsServer)
+			errors.CheckError(validateSigningFlags(signingKeyPath, signingKeyPassphraseFile))
+
+			// A configured signing key path is what enables signing: there is
+			// no separate on/off toggle. Inferring intent from the key path
+			// avoids contradictory states (enabled-but-no-key, key-but-disabled).
+			var signingConfig *gpgsign.Config
+			if signingKeyPath != "" {
+				cfg, err := setupSigningKey(signingKeyPath, signingKeyPassphraseFile)
+				errors.CheckError(err)
+				signingConfig = cfg
+				log.WithFields(log.Fields{
+					"keyID":       cfg.KeyID,
+					"fingerprint": cfg.Fingerprint,
+					"gnupgHome":   common.GetGnuPGHomePath(),
+				}).Info("Hydrated commit signing enabled")
+			}
+
+			server := commitserver.NewServer(askPassServer, metricsServer, signingConfig)
 			grpc := server.CreateGRPC()
 			ctx := cmd.Context()
 
@@ -112,6 +136,74 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortCommitServer, "Listen on given port for incoming connections")
 	command.Flags().StringVar(&metricsHost, "metrics-address", env.StringFromEnv("ARGOCD_COMMIT_SERVER_METRICS_LISTEN_ADDRESS", common.DefaultAddressCommitServerMetrics), "Listen on given address for metrics")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortCommitServerMetrics, "Start metrics server on given port")
+	command.Flags().StringVar(&signingKeyPath, "signing-key-path", env.StringFromEnv("ARGOCD_COMMIT_SERVER_SIGNING_KEY_PATH", ""), "Path to the ASCII-armored GPG private key used to sign hydrated commits. Setting this enables signing; when set, the commit server fails at startup if the key cannot be loaded.")
+	command.Flags().StringVar(&signingKeyPassphraseFile, "signing-key-passphrase-file", env.StringFromEnv("ARGOCD_COMMIT_SERVER_SIGNING_KEY_PASSPHRASE_FILE", ""), "Optional path to a file containing the passphrase for the signing key.")
 
 	return command
+}
+
+// validateSigningFlags rejects contradictory signing configuration before
+// startup. Signing is enabled solely by setting the key path, so a passphrase
+// without a key is meaningless — reject it rather than silently ignoring it.
+func validateSigningFlags(keyPath, passphraseFile string) error {
+	if keyPath == "" && passphraseFile != "" {
+		return stderrors.New("signing-key-passphrase-file is set but signing-key-path is empty; set signing-key-path to enable signing")
+	}
+	return nil
+}
+
+// setupSigningKey initializes the shared GNUPGHOME, imports the configured
+// private signing key, and — for a passphrase-protected key — loads the
+// passphrase into gpg-agent so later `git commit -S` calls sign
+// non-interactively. Any error here must propagate up to abort startup —
+// silently falling back to unsigned commits would defeat the feature's purpose.
+func setupSigningKey(keyPath, passphraseFile string) (*gpgsign.Config, error) {
+	if err := sourceintegrity.InitializeGnuPG(); err != nil {
+		return nil, fmt.Errorf("failed to initialize GnuPG home: %w", err)
+	}
+
+	// Write gpg-agent.conf into the GNUPGHOME that InitializeGnuPG just created.
+	// The agent is typically already running by now (InitializeGnuPG generates a
+	// key, which starts it); PresetSigningPassphrase reloads the agent so
+	// allow-preset-passphrase takes effect before the passphrase is preset.
+	if err := gpgsign.WriteAgentConfig(common.GetGnuPGHomePath()); err != nil {
+		return nil, fmt.Errorf("failed to configure gpg-agent: %w", err)
+	}
+
+	keyData, err := os.ReadFile(keyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read signing key from %s: %w", keyPath, err)
+	}
+	if strings.TrimSpace(string(keyData)) == "" {
+		return nil, fmt.Errorf("signing key file %s is empty", keyPath)
+	}
+
+	var passphrase string
+	if passphraseFile != "" {
+		pp, err := os.ReadFile(passphraseFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read signing key passphrase from %s: %w", passphraseFile, err)
+		}
+		// Strip trailing newline that file-editors love to add. We deliberately
+		// don't TrimSpace — a passphrase legitimately can start/end with spaces.
+		passphrase = strings.TrimRight(string(pp), "\r\n")
+	}
+
+	cfg, err := gpgsign.ImportSigningKey(context.Background(), keyData, passphrase)
+	// keyData held a copy of the private signing key. Scrub it as soon as the
+	// import returns so the secret doesn't linger on the heap until GC reclaims
+	// it. Defense-in-depth only: the key still lives on disk and in GNUPGHOME,
+	// and the passphrase string can't be wiped the same way.
+	clear(keyData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to import signing key: %w", err)
+	}
+
+	// Only a protected key needs a preset; an unprotected key signs without one.
+	if passphrase != "" {
+		if err := gpgsign.PresetSigningPassphrase(context.Background(), cfg.Fingerprint, passphrase); err != nil {
+			return nil, fmt.Errorf("failed to preset signing passphrase: %w", err)
+		}
+	}
+	return cfg, nil
 }

@@ -13,14 +13,21 @@ argocd appset get APPSETNAME [flags]
 ```
   # Get ApplicationSets
   argocd appset get APPSETNAME
+  
+  # Get ApplicationSet in a specific namespace using qualified name (namespace/name)
+  argocd appset get APPSET_NAMESPACE/APPSETNAME
+  
+  # Get ApplicationSet in a specific namespace using --appset-namespace flag
+  argocd appset get --appset-namespace=APPSET_NAMESPACE APPSETNAME
 ```
 
 ### Options
 
 ```
-  -h, --help            help for get
-  -o, --output string   Output format. One of: json|yaml|wide (default "wide")
-      --show-params     Show ApplicationSet parameters and overrides
+  -N, --appset-namespace string   Only get ApplicationSet from a namespace (ignored when qualified name is provided)
+  -h, --help                      help for get
+  -o, --output string             Output format. One of: json|yaml|wide (default "wide")
+      --show-params               Show ApplicationSet parameters and overrides
 ```
 
 ### Options inherited from parent commands

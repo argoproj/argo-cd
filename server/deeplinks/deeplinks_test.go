@@ -5,11 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -33,10 +32,8 @@ func TestDeepLinks(t *testing.T) {
 	t.Parallel()
 
 	appObj, err := kube.ToUnstructured(&v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "test",
-		},
+		Name:      "test",
+		Namespace: "test",
 		Spec: v1alpha1.ApplicationSpec{
 			Destination: v1alpha1.ApplicationDestination{
 				Server:    "test.example.com",
@@ -46,11 +43,9 @@ func TestDeepLinks(t *testing.T) {
 	})
 	require.NoError(t, err)
 	resourceObj, err := kube.ToUnstructured(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-cm",
-			Namespace: "test-cm",
-			Labels:    map[string]string{"test-label": "cm-value"},
-		},
+		Name:      "test-cm",
+		Namespace: "test-cm",
+		Labels:    map[string]string{"test-label": "cm-value"},
 		Data: map[string]string{
 			"key": "value1",
 		},
@@ -62,10 +57,8 @@ func TestDeepLinks(t *testing.T) {
 	})
 	require.NoError(t, err)
 	projectObj, err := kube.ToUnstructured(&v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-project",
-			Namespace: "test-project",
-		},
+		Name:      "test-project",
+		Namespace: "test-project",
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos: []string{"test-repo.git"},
 		},
@@ -217,11 +210,9 @@ func TestManagedByURLAnnotation(t *testing.T) {
 
 		// Create an application with managed-by-url annotation
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test-app",
-				Annotations: map[string]string{
-					v1alpha1.AnnotationKeyManagedByURL: managedByURL,
-				},
+			Name: "test-app",
+			Annotations: map[string]string{
+				v1alpha1.AnnotationKeyManagedByURL: managedByURL,
 			},
 		}
 
@@ -237,12 +228,31 @@ func TestManagedByURLAnnotation(t *testing.T) {
 		assert.Equal(t, managedByURL, deeplinksObj[ManagedByURLKey])
 	})
 
+	t.Run("application with invalid managed-by-url annotation is omitted", func(t *testing.T) {
+		// Non http(s) protocols are invalid and should not be used in deep link generation.
+		managedByURL := "ftp://localhost:8081"
+
+		app := &v1alpha1.Application{
+			Name: "test-app",
+			Annotations: map[string]string{
+				v1alpha1.AnnotationKeyManagedByURL: managedByURL,
+			},
+		}
+
+		obj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(app)
+		require.NoError(t, err)
+		unstructuredObj := &unstructured.Unstructured{Object: obj}
+
+		deeplinksObj := CreateDeepLinksObject(nil, unstructuredObj, nil, nil)
+
+		_, exists := deeplinksObj[ManagedByURLKey]
+		assert.False(t, exists)
+	})
+
 	t.Run("application without managed-by-url annotation", func(t *testing.T) {
 		// Create an application without managed-by-url annotation
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test-app",
-			},
+			Name: "test-app",
 		}
 
 		// Convert to unstructured for the deeplinks function
@@ -260,11 +270,9 @@ func TestManagedByURLAnnotation(t *testing.T) {
 	t.Run("application with empty managed-by-url annotation", func(t *testing.T) {
 		// Create an application with empty managed-by-url annotation
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test-app",
-				Annotations: map[string]string{
-					v1alpha1.AnnotationKeyManagedByURL: "",
-				},
+			Name: "test-app",
+			Annotations: map[string]string{
+				v1alpha1.AnnotationKeyManagedByURL: "",
 			},
 		}
 
@@ -285,13 +293,11 @@ func TestManagedByURLAnnotation(t *testing.T) {
 
 		// Create an application with managed-by-url and other annotations
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test-app",
-				Annotations: map[string]string{
-					v1alpha1.AnnotationKeyManagedByURL: managedByURL,
-					"argocd.argoproj.io/deep-link-1":   "https://grafana.example.com/d/argo/argo-cd-application-dashboard",
-					"argocd.argoproj.io/deep-link-2":   "https://kibana.example.com/app/kibana#/discover",
-				},
+			Name: "test-app",
+			Annotations: map[string]string{
+				v1alpha1.AnnotationKeyManagedByURL: managedByURL,
+				"argocd.argoproj.io/deep-link-1":   "https://grafana.example.com/d/argo/argo-cd-application-dashboard",
+				"argocd.argoproj.io/deep-link-2":   "https://kibana.example.com/app/kibana#/discover",
 			},
 		}
 

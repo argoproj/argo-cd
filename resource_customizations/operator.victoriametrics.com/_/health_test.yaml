@@ -1,0 +1,21 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "All components are operational"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Reconciliation in progress"
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for the operator to reconcile"
+    inputPath: testdata/progressing-generation.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'generating config for vmagent failed: loading additional scrape configs from Secret failed: unable to fetch secret="nonexistent-secret", ns="demo": secrets "nonexistent-secret" not found'
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Suspended
+      message: "Reconciliation is paused"
+    inputPath: testdata/suspended.yaml

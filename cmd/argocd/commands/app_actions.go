@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -65,6 +66,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	var group string
 	var resourceName string
 	var output string
+	var appNamespace string
 	command := &cobra.Command{
 		Use:   "list APPNAME",
 		Short: "Lists available actions on a resource",
@@ -73,15 +75,15 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	argocd app actions list APPNAME
 	`),
 	}
-	command.Run = func(c *cobra.Command, args []string) {
+	command.Run = cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 		ctx := c.Context()
 
 		if len(args) != 1 {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
-		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
+		appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
+		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 		defer utilio.Close(conn)
 		resources, err := getActionableResourcesForApplication(ctx, appIf, &appNs, &appName)
 		errors.CheckError(err)
@@ -124,13 +126,14 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			fmt.Println(string(jsonBytes))
 		case "":
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "GROUP\tKIND\tNAME\tACTION\tDISABLED\n")
+			fmt.Fprint(w, "GROUP\tKIND\tNAME\tACTION\tDISABLED\n")
 			for _, action := range availableActions {
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", action.Group, action.Kind, action.Name, action.Action, strconv.FormatBool(action.Disabled))
 			}
 			_ = w.Flush()
 		}
-	}
+	})
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
 	command.Flags().StringVar(&kind, "kind", "", "Kind")
 	command.Flags().StringVar(&group, "group", "", "Group")
@@ -143,6 +146,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 // NewApplicationResourceActionsRunCommand returns a new instance of an `argocd app actions run` command
 func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var namespace string
+	var appNamespace string
 	var resourceName string
 	var kind string
 	var group string
@@ -158,23 +162,24 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	}
 
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource on which the action should be run")
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace of the resource on which the action should be run")
 	command.Flags().StringVar(&kind, "kind", "", "Kind of the resource on which the action should be run")
 	command.Flags().StringVar(&group, "group", "", "Group of the resource on which the action should be run")
 	errors.CheckError(command.MarkFlagRequired("kind"))
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to run the action on multiple matching resources")
 
-	command.Run = func(c *cobra.Command, args []string) {
+	command.Run = cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 		ctx := c.Context()
 
 		if len(args) != 2 {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+		appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 		actionName := args[1]
 
-		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
+		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 		defer utilio.Close(conn)
 		resources, err := getActionableResourcesForApplication(ctx, appIf, &appNs, &appName)
 		errors.CheckError(err)
@@ -222,7 +227,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			})
 			errors.CheckError(err)
 		}
-	}
+	})
 	return command
 }
 

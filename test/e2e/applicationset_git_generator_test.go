@@ -3,6 +3,7 @@ package e2e
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -33,15 +34,11 @@ func randStr(t *testing.T) string {
 func TestSimpleGitDirectoryGenerator(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -133,21 +130,17 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -240,43 +233,22 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
-	expectedErrorMessage := `error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = permission denied`
-	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
-		{
-			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-	}
+	fixture.EnsureCleanState(t)
+	expectedErrorMessage := regexp.MustCompile(
+		`error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = GIT/GPG: Failed verifying revision .* by '.*': unsigned \(key_id=\)`,
+	)
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -299,6 +271,8 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 
 	Given(t).
 		When().
+		// Create an unsigned local commit not to rely on whatever is in the repo's HEAD
+		AddFile("test.yaml", randStr(t)).
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
 			Spec: v1alpha1.ApplicationSetSpec{
@@ -320,7 +294,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Git: &v1alpha1.GitGenerator{
-							RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+							RepoURL: fixture.RepoURL("file://"),
 							Directories: []v1alpha1.GitDirectoryGeneratorItem{
 								{
 									Path: guestbookPath,
@@ -333,45 +307,41 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 		}).
 		Then().Expect(ApplicationsDoNotExist(expectedApps)).
 		// verify the ApplicationSet error status conditions were set correctly
-		Expect(ApplicationSetHasConditions(expectedConditionsParamsError)).
+		Expect(ApplicationSetHasCondition(
+			v1alpha1.ApplicationSetConditionErrorOccurred,
+			v1alpha1.ApplicationSetConditionStatusTrue,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		)).
+		Expect(ApplicationSetHasCondition(
+			v1alpha1.ApplicationSetConditionParametersGenerated,
+			v1alpha1.ApplicationSetConditionStatusFalse,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonErrorOccurred,
+		)).
+		Expect(ApplicationSetHasCondition(
+			v1alpha1.ApplicationSetConditionResourcesUpToDate,
+			v1alpha1.ApplicationSetConditionStatusFalse,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonErrorOccurred,
+		)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
-	expectedErrorMessage := `error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = permission denied`
-	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
-		{
-			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-	}
+	fixture.EnsureCleanState(t)
+	expectedErrorMessage := regexp.MustCompile(
+		`error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = GIT/GPG: Failed verifying revision .* by '.*': signed with key not in keyring \(key_id=` + fixture.GpgGoodKeyID + `\)`,
+	)
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -396,7 +366,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		AddSignedFile("test.yaml", randStr(t)).IgnoreErrors().
+		AddSignedFile("test.yaml", randStr(t)).
 		IgnoreErrors().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
@@ -423,7 +393,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Git: &v1alpha1.GitGenerator{
-							RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+							RepoURL: fixture.RepoURL("file://"),
 							Directories: []v1alpha1.GitDirectoryGeneratorItem{
 								{
 									Path: guestbookPath,
@@ -435,24 +405,37 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			},
 		}).Then().
 		// verify the ApplicationSet error status conditions were set correctly
-		Expect(ApplicationSetHasConditions(expectedConditionsParamsError)).
+		Expect(ApplicationSetHasCondition(
+			v1alpha1.ApplicationSetConditionErrorOccurred,
+			v1alpha1.ApplicationSetConditionStatusTrue,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		)).
+		Expect(ApplicationSetHasCondition(
+			v1alpha1.ApplicationSetConditionParametersGenerated,
+			v1alpha1.ApplicationSetConditionStatusFalse,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonErrorOccurred,
+		)).
+		Expect(ApplicationSetHasCondition(
+			v1alpha1.ApplicationSetConditionResourcesUpToDate,
+			v1alpha1.ApplicationSetConditionStatusFalse,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonErrorOccurred,
+		)).
 		Expect(ApplicationsDoNotExist(expectedApps)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestSimpleGitFilesGenerator(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -544,44 +527,22 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
-	expectedErrorMessage := `error generating params from git: error retrieving Git files: rpc error: code = Unknown desc = permission denied`
-	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
-		{
-			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-	}
+	fixture.EnsureCleanState(t)
+	expectedErrorMessage := regexp.MustCompile(`error generating params from git: error retrieving Git files: rpc error: code = Unknown desc = GIT/GPG: Failed verifying revision .* by '.*': unsigned \(key_id=\)`)
+
 	project := "gpg"
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: project,
 				Source: &v1alpha1.ApplicationSource{
@@ -597,15 +558,19 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 		}
 	}
 
-	expectedApps := []v1alpha1.Application{
+	unexpectedApps := []v1alpha1.Application{
 		generateExpectedApp("engineering-dev-guestbook"),
 		generateExpectedApp("engineering-prod-guestbook"),
 	}
 
 	Given(t).
+		Path(guestbookPath).
 		When().
+		// Create an unsigned local commit not to rely on whatever is in the repo's HEAD
+		AddFile("test.yaml", randStr(t)).
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
+			Name: "simple-git-generator",
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
@@ -625,7 +590,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Git: &v1alpha1.GitGenerator{
-							RepoURL: "https://github.com/argoproj/applicationset.git",
+							RepoURL: fixture.RepoURL("file://"),
 							Files: []v1alpha1.GitFileGeneratorItem{
 								{
 									Path: "examples/git-generator-files-discovery/cluster-config/**/config.json",
@@ -635,48 +600,45 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 					},
 				},
 			},
-		}).Then().Expect(ApplicationsDoNotExist(expectedApps)).
-		// verify the ApplicationSet error status conditions were set correctly
-		Expect(ApplicationSetHasConditions(expectedConditionsParamsError)).
-		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+		}).
+		Then().Expect(ApplicationsDoNotExist(unexpectedApps)).
+		Expect(ApplicationSetHasCondition(
+			v1alpha1.ApplicationSetConditionErrorOccurred,
+			v1alpha1.ApplicationSetConditionStatusTrue,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		)).
+		Expect(ApplicationSetHasCondition(
+			v1alpha1.ApplicationSetConditionParametersGenerated,
+			v1alpha1.ApplicationSetConditionStatusFalse,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonErrorOccurred,
+		)).
+		Expect(ApplicationSetHasCondition(
+			v1alpha1.ApplicationSetConditionResourcesUpToDate,
+			v1alpha1.ApplicationSetConditionStatusFalse,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonErrorOccurred,
+		)).
+		When().Delete(metav1.DeletePropagationForeground).
+		Then().Expect(ApplicationsDoNotExist(unexpectedApps))
 }
 
 func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
-	expectedErrorMessage := `error generating params from git: error retrieving Git files: rpc error: code = Unknown desc = permission denied`
-	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
-		{
-			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-	}
+	fixture.EnsureCleanState(t)
+	expectedErrorMessage := regexp.MustCompile(
+		`error generating params from git: error retrieving Git files: rpc error: code = Unknown desc = GIT/GPG: Failed verifying revision .* by '.*': signed with key not in keyring \(key_id=` + fixture.GpgGoodKeyID + `\)`,
+	)
+
 	project := "gpg"
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: project,
 				Source: &v1alpha1.ApplicationSource{
@@ -700,7 +662,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
 		When().
-		AddSignedFile("test.yaml", randStr(t)).IgnoreErrors().
+		AddSignedFile("test.yaml", randStr(t)).
 		IgnoreErrors().
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
@@ -723,7 +685,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Git: &v1alpha1.GitGenerator{
-							RepoURL: "https://github.com/argoproj/applicationset.git",
+							RepoURL: fixture.RepoURL("file://"),
 							Files: []v1alpha1.GitFileGeneratorItem{
 								{
 									Path: "examples/git-generator-files-discovery/cluster-config/**/config.json",
@@ -735,24 +697,37 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 			},
 		}).Then().
 		// verify the ApplicationSet error status conditions were set correctly
-		Expect(ApplicationSetHasConditions(expectedConditionsParamsError)).
+		Expect(ApplicationSetHasCondition(
+			v1alpha1.ApplicationSetConditionErrorOccurred,
+			v1alpha1.ApplicationSetConditionStatusTrue,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		)).
+		Expect(ApplicationSetHasCondition(
+			v1alpha1.ApplicationSetConditionParametersGenerated,
+			v1alpha1.ApplicationSetConditionStatusFalse,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonErrorOccurred,
+		)).
+		Expect(ApplicationSetHasCondition(
+			v1alpha1.ApplicationSetConditionResourcesUpToDate,
+			v1alpha1.ApplicationSetConditionStatusFalse,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonErrorOccurred,
+		)).
 		Expect(ApplicationsDoNotExist(expectedApps)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -845,7 +820,7 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
@@ -894,7 +869,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 			// We use an extra-long duration here, as we might need to wait for image pull.
 		}).Then().ExpectWithDuration(Pod(t, func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }), 6*time.Minute).
 		When().
-		Delete().
+		Delete(metav1.DeletePropagationForeground).
 		And(func() {
 			t.Log("Waiting 15 seconds to give the cluster a chance to delete the pods.")
 			// Wait 15 seconds to give the cluster a chance to deletes the pods, if it is going to do so.
@@ -952,7 +927,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 			// We use an extra-long duration here, as we might need to wait for image pull.
 		}).Then().ExpectWithDuration(Pod(t, func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }), 6*time.Minute).
 		When().
-		Delete().
+		Delete(metav1.DeletePropagationForeground).
 		And(func() {
 			t.Log("Waiting 15 seconds to give the cluster a chance to delete the pods.")
 			// Wait 15 seconds to give the cluster a chance to deletes the pods, if it is going to do so.
@@ -966,15 +941,11 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 func TestGitGeneratorPrivateRepo(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -1034,21 +1005,17 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedApps)).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -1108,21 +1075,17 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedApps)).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestSimpleGitGeneratorPrivateRepoWithNoRepo(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -1180,21 +1143,17 @@ func TestSimpleGitGeneratorPrivateRepoWithNoRepo(t *testing.T) {
 		}).Then().Expect(ApplicationsDoNotExist(expectedApps)).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestSimpleGitGeneratorPrivateRepoWithMatchingProject(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -1251,21 +1210,17 @@ func TestSimpleGitGeneratorPrivateRepoWithMatchingProject(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedApps)).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestSimpleGitGeneratorPrivateRepoWithMismatchingProject(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -1324,21 +1279,17 @@ func TestSimpleGitGeneratorPrivateRepoWithMismatchingProject(t *testing.T) {
 		}).Then().Expect(ApplicationsDoNotExist(expectedApps)).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestGitGeneratorPrivateRepoWithTemplatedProject(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -1400,7 +1351,7 @@ func TestGitGeneratorPrivateRepoWithTemplatedProject(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedApps)).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestGitGeneratorPrivateRepoWithTemplatedProjectAndProjectScopedRepo(t *testing.T) {
@@ -1414,15 +1365,11 @@ func TestGitGeneratorPrivateRepoWithTemplatedProjectAndProjectScopedRepo(t *test
 
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -1484,5 +1431,5 @@ func TestGitGeneratorPrivateRepoWithTemplatedProjectAndProjectScopedRepo(t *test
 		}).Then().Expect(ApplicationsDoNotExist(expectedApps)).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }

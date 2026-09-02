@@ -46,7 +46,7 @@ spec:
   - clusters: {} # Automatically use all clusters defined within Argo CD
   template:
     metadata:
-      name: '{{.name}}-guestbook' # 'name' field of the Secret
+      name: '{{.name}}-guestbook' # 'name' field of the cluster
     spec:
       project: "my-project"
       source:
@@ -54,7 +54,7 @@ spec:
         targetRevision: HEAD
         path: guestbook
       destination:
-        server: '{{.server}}' # 'server' field of the secret
+        server: '{{.server}}' # 'server' field of the cluster
         namespace: guestbook
 ```
 (*The [full example](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/cluster).*)
@@ -152,14 +152,14 @@ spec:
   - clusters:
       selector:
         matchLabels:
-          argocd.argoproj.io/kubernetes-version: 1.28
+          argocd.argoproj.io/kubernetes-version: v1.28.1
         # matchExpressions are also supported.
         #matchExpressions:
         #  - key: argocd.argoproj.io/kubernetes-version
         #    operator: In
         #    values:
-        #      - "1.27"
-        #      - "1.28"
+        #      - "v1.27.1"
+        #      - "v1.28.1"
 ```
 
 ### Pass additional key-value pairs via `values` field

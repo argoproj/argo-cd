@@ -110,13 +110,18 @@ foo:
 		{
 			name: "file parameters are added to params with go template",
 			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				fileContent:   defaultContent,
-				values:        map[string]string{},
+				filePath:    "path/dir/file_name.yaml",
+				fileContent: defaultContent,
+				values: map[string]string{
+					"somekey": "{{.path.basename}}",
+				},
 				useGoTemplate: true,
 			},
 			want: []map[string]any{
 				{
+					"values": map[string]string{
+						"somekey": "dir",
+					},
 					"foo": map[string]any{
 						"bar": "baz",
 					},
@@ -160,6 +165,41 @@ foo:
 								"dir",
 							},
 						},
+					},
+				},
+			},
+		},
+		{
+			name: "path parameter are prefixed with go template and values",
+			args: args{
+				filePath:    "path/dir/file_name.yaml",
+				fileContent: defaultContent,
+				values: map[string]string{
+					"somekey": "{{.myRepo.path.basename}}",
+				},
+				useGoTemplate:   true,
+				pathParamPrefix: "myRepo",
+			},
+			want: []map[string]any{
+				{
+					"foo": map[string]any{
+						"bar": "baz",
+					},
+					"myRepo": map[string]any{
+						"path": map[string]any{
+							"path":               "path/dir",
+							"basename":           "dir",
+							"filename":           "file_name.yaml",
+							"basenameNormalized": "dir",
+							"filenameNormalized": "file-name.yaml",
+							"segments": []string{
+								"path",
+								"dir",
+							},
+						},
+					},
+					"values": map[string]string{
+						"somekey": "dir",
 					},
 				},
 			},
@@ -325,9 +365,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -626,9 +664,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{
@@ -820,7 +856,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 			},
 			repoPathsError: nil,
 			expected:       []map[string]any{},
-			expectedError:  errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []map[string]interface {}"),
+			expectedError:  errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json' from repository 'RepoURL': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []map[string]interface {}"),
 		},
 		{
 			name:  "test JSON array",
@@ -1001,9 +1037,7 @@ cluster:
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -1343,9 +1377,7 @@ env: testing
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -1680,9 +1712,7 @@ env: testing
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -1911,9 +1941,7 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{
@@ -2051,7 +2079,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 			},
 			repoPathsError: nil,
 			expected:       []map[string]any{},
-			expectedError:  errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []map[string]interface {}"),
+			expectedError:  errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json' from repository 'RepoURL': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []map[string]interface {}"),
 		},
 		{
 			name:  "test JSON array",
@@ -2266,9 +2294,7 @@ cluster:
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{

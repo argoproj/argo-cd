@@ -33,7 +33,7 @@ function hibernating(obj)
 end
 
 -- Check if reconciliation is suspended, since this is an explicit user action we return the "suspended" status immediately
-if obj.metadata and obj.metadata.annotations and obj.metadata.annotations["cnpg.io/reconciliation"] == "disabled" then
+if obj.metadata and obj.metadata.annotations and obj.metadata.annotations["cnpg.io/reconciliationLoop"] == "disabled" then
     hs.status = "Suspended"
     hs.message = "Cluster reconciliation is suspended"
     return hs

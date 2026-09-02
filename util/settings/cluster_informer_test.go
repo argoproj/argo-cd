@@ -1,11 +1,10 @@
-//go:build race
-
 package settings
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -24,16 +23,15 @@ import (
 )
 
 func TestClusterInformer_ConcurrentAccess(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	secret1 := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster1",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "cluster1",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://cluster1.example.com"),
@@ -42,7 +40,7 @@ func TestClusterInformer_ConcurrentAccess(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(secret1)
+	clientset := fake.NewClientset(secret1)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -50,16 +48,15 @@ func TestClusterInformer_ConcurrentAccess(t *testing.T) {
 	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 100 {
+		wg.Go(func() {
 			cluster, err := informer.GetClusterByURL("https://cluster1.example.com")
-			assert.NoError(t, err)
+			// require calls t.FailNow(), which only stops the current goroutine, not the test
+			assert.NoError(t, err) //nolint:testifylint
 			assert.NotNil(t, cluster)
 			// Modifying returned cluster should not affect others due to DeepCopy
 			cluster.Name = "modified"
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -69,16 +66,15 @@ func TestClusterInformer_ConcurrentAccess(t *testing.T) {
 }
 
 func TestClusterInformer_TransformErrors(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	badSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "bad-cluster",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "bad-cluster",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://bad.example.com"),
@@ -87,7 +83,7 @@ func TestClusterInformer_TransformErrors(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(badSecret)
+	clientset := fake.NewClientset(badSecret)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -96,27 +92,26 @@ func TestClusterInformer_TransformErrors(t *testing.T) {
 
 	// GetClusterByURL should return not found since transform failed
 	_, err = informer.GetClusterByURL("https://bad.example.com")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 
 	// ListClusters should return an error because the cache contains a secret and not a cluster
 	_, err = informer.ListClusters()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cluster cache contains unexpected type")
 }
 
 func TestClusterInformer_TransformErrors_MixedSecrets(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	// One good secret and one bad secret
 	goodSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "good-cluster",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "good-cluster",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://good.example.com"),
@@ -126,12 +121,10 @@ func TestClusterInformer_TransformErrors_MixedSecrets(t *testing.T) {
 	}
 
 	badSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "bad-cluster",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "bad-cluster",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://bad.example.com"),
@@ -140,7 +133,7 @@ func TestClusterInformer_TransformErrors_MixedSecrets(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(goodSecret, badSecret)
+	clientset := fake.NewClientset(goodSecret, badSecret)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -152,23 +145,22 @@ func TestClusterInformer_TransformErrors_MixedSecrets(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "good-cluster", cluster.Name)
 
-	// But ListClusters should fail because there's a bad secret in the cache
+	// ListClusters should fail because there's a bad secret in the cache
 	_, err = informer.ListClusters()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cluster cache contains unexpected type")
 }
 
 func TestClusterInformer_DynamicUpdates(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	secret1 := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster1",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "cluster1",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://cluster1.example.com"),
@@ -177,7 +169,7 @@ func TestClusterInformer_DynamicUpdates(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(secret1)
+	clientset := fake.NewClientset(secret1)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -189,12 +181,10 @@ func TestClusterInformer_DynamicUpdates(t *testing.T) {
 	assert.Len(t, clusters, 1)
 
 	secret2 := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster2",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "cluster2",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://cluster2.example.com"),
@@ -218,16 +208,15 @@ func TestClusterInformer_DynamicUpdates(t *testing.T) {
 }
 
 func TestClusterInformer_URLNormalization(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster1",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "cluster1",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://cluster.example.com/"),
@@ -235,7 +224,7 @@ func TestClusterInformer_URLNormalization(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(secret)
+	clientset := fake.NewClientset(secret)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -256,17 +245,16 @@ func TestClusterInformer_URLNormalization(t *testing.T) {
 }
 
 func TestClusterInformer_GetClusterServersByName(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	secrets := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "prod-cluster-1",
-				Namespace: "argocd",
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-				},
+			Name:      "prod-cluster-1",
+			Namespace: "argocd",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 			},
 			Data: map[string][]byte{
 				"server":  []byte("https://prod1.example.com"),
@@ -275,12 +263,10 @@ func TestClusterInformer_GetClusterServersByName(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "prod-cluster-2",
-				Namespace: "argocd",
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-				},
+			Name:      "prod-cluster-2",
+			Namespace: "argocd",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 			},
 			Data: map[string][]byte{
 				"server":  []byte("https://prod2.example.com"),
@@ -290,7 +276,7 @@ func TestClusterInformer_GetClusterServersByName(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(secrets...)
+	clientset := fake.NewClientset(secrets...)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -305,29 +291,28 @@ func TestClusterInformer_GetClusterServersByName(t *testing.T) {
 }
 
 func TestClusterInformer_RaceCondition(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	var secrets []*corev1.Secret
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("cluster-%d", i),
-				Namespace: "argocd",
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-				},
+			Name:      fmt.Sprintf("cluster-%d", i),
+			Namespace: "argocd",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 			},
 			Data: map[string][]byte{
-				"server": []byte(fmt.Sprintf("https://cluster%d.example.com", i)),
-				"name":   []byte(fmt.Sprintf("cluster-%d", i)),
+				"server": fmt.Appendf(nil, "https://cluster%d.example.com", i),
+				"name":   fmt.Appendf(nil, "cluster-%d", i),
 				"config": []byte(`{"bearerToken":"token"}`),
 			},
 		}
 		secrets = append(secrets, secret)
 	}
 
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	for _, secret := range secrets {
 		_, err := clientset.CoreV1().Secrets("argocd").Create(t.Context(), secret, metav1.CreateOptions{})
 		require.NoError(t, err)
@@ -342,11 +327,11 @@ func TestClusterInformer_RaceCondition(t *testing.T) {
 	var wg sync.WaitGroup
 	var readErrors, updateErrors atomic.Int64
 
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 100; j++ {
+			for j := range 100 {
 				clusterID := j % 10
 				url := fmt.Sprintf("https://cluster%d.example.com", clusterID)
 
@@ -376,13 +361,13 @@ func TestClusterInformer_RaceCondition(t *testing.T) {
 		}(i)
 	}
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 20; j++ {
+			for j := range 20 {
 				secret := secrets[id%10].DeepCopy()
-				secret.Data["name"] = []byte(fmt.Sprintf("updated-%d-%d", id, j))
+				secret.Data["name"] = fmt.Appendf(nil, "updated-%d-%d", id, j)
 
 				_, err := clientset.CoreV1().Secrets("argocd").Update(t.Context(), secret, metav1.UpdateOptions{})
 				if err != nil {
@@ -393,11 +378,9 @@ func TestClusterInformer_RaceCondition(t *testing.T) {
 		}(i)
 	}
 
-	for i := 0; i < 20; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 50; j++ {
+	for range 20 {
+		wg.Go(func() {
+			for range 50 {
 				clusters, err := informer.ListClusters()
 				if err != nil {
 					readErrors.Add(1)
@@ -412,7 +395,7 @@ func TestClusterInformer_RaceCondition(t *testing.T) {
 				}
 				time.Sleep(5 * time.Millisecond)
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -425,16 +408,15 @@ func TestClusterInformer_RaceCondition(t *testing.T) {
 }
 
 func TestClusterInformer_DeepCopyIsolation(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-cluster",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "test-cluster",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server":     []byte("https://test.example.com"),
@@ -444,7 +426,7 @@ func TestClusterInformer_DeepCopyIsolation(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(secret)
+	clientset := fake.NewClientset(secret)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -474,6 +456,7 @@ func TestClusterInformer_DeepCopyIsolation(t *testing.T) {
 }
 
 func TestClusterInformer_EdgeCases(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		secrets  []runtime.Object
@@ -483,12 +466,13 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 			name:    "Empty namespace - no clusters",
 			secrets: []runtime.Object{},
 			testFunc: func(t *testing.T, informer *ClusterInformer) {
+				t.Helper()
 				clusters, err := informer.ListClusters()
 				require.NoError(t, err)
 				assert.Empty(t, clusters)
 
 				_, err = informer.GetClusterByURL("https://nonexistent.example.com")
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), "not found")
 			},
 		},
@@ -496,12 +480,10 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 			name: "Cluster with empty name",
 			secrets: []runtime.Object{
 				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "cluster-no-name",
-						Namespace: "argocd",
-						Labels: map[string]string{
-							common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-						},
+					Name:      "cluster-no-name",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 					Data: map[string][]byte{
 						"server": []byte("https://noname.example.com"),
@@ -511,9 +493,10 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 				},
 			},
 			testFunc: func(t *testing.T, informer *ClusterInformer) {
+				t.Helper()
 				cluster, err := informer.GetClusterByURL("https://noname.example.com")
 				require.NoError(t, err)
-				assert.Equal(t, "", cluster.Name)
+				assert.Empty(t, cluster.Name)
 
 				servers, err := informer.GetClusterServersByName("")
 				require.NoError(t, err)
@@ -524,12 +507,10 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 			name: "Cluster with special characters in URL",
 			secrets: []runtime.Object{
 				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "special-cluster",
-						Namespace: "argocd",
-						Labels: map[string]string{
-							common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-						},
+					Name:      "special-cluster",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 					Data: map[string][]byte{
 						"server": []byte("https://cluster.example.com:8443/path"),
@@ -539,6 +520,7 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 				},
 			},
 			testFunc: func(t *testing.T, informer *ClusterInformer) {
+				t.Helper()
 				cluster, err := informer.GetClusterByURL("https://cluster.example.com:8443/path/")
 				require.NoError(t, err)
 				assert.Equal(t, "special", cluster.Name)
@@ -549,12 +531,10 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 			name: "Multiple clusters with same URL",
 			secrets: []runtime.Object{
 				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "cluster1",
-						Namespace: "argocd",
-						Labels: map[string]string{
-							common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-						},
+					Name:      "cluster1",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 					Data: map[string][]byte{
 						"server": []byte("https://duplicate.example.com"),
@@ -563,12 +543,10 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 					},
 				},
 				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "cluster2",
-						Namespace: "argocd",
-						Labels: map[string]string{
-							common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-						},
+					Name:      "cluster2",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 					Data: map[string][]byte{
 						"server": []byte("https://duplicate.example.com/"),
@@ -578,6 +556,7 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 				},
 			},
 			testFunc: func(t *testing.T, informer *ClusterInformer) {
+				t.Helper()
 				cluster, err := informer.GetClusterByURL("https://duplicate.example.com")
 				require.NoError(t, err)
 				assert.NotNil(t, cluster)
@@ -587,31 +566,30 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 			name: "Cluster with very long namespace list",
 			secrets: []runtime.Object{
 				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "many-namespaces",
-						Namespace: "argocd",
-						Labels: map[string]string{
-							common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-						},
+					Name:      "many-namespaces",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 					},
 					Data: map[string][]byte{
 						"server": []byte("https://many-ns.example.com"),
 						"name":   []byte("many-ns"),
 						"namespaces": func() []byte {
-							ns := ""
-							for i := 0; i < 100; i++ {
+							var sb strings.Builder
+							for i := range 100 {
 								if i > 0 {
-									ns += ","
+									sb.WriteString(",")
 								}
-								ns += fmt.Sprintf("namespace-%d", i)
+								fmt.Fprintf(&sb, "namespace-%d", i)
 							}
-							return []byte(ns)
+							return []byte(sb.String())
 						}(),
 						"config": []byte(`{}`),
 					},
 				},
 			},
 			testFunc: func(t *testing.T, informer *ClusterInformer) {
+				t.Helper()
 				cluster, err := informer.GetClusterByURL("https://many-ns.example.com")
 				require.NoError(t, err)
 				assert.Len(t, cluster.Namespaces, 100)
@@ -623,21 +601,19 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 			name: "Cluster with annotations and labels",
 			secrets: []runtime.Object{
 				&corev1.Secret{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "annotated-cluster",
-						Namespace: "argocd",
-						Labels: map[string]string{
-							common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-							"custom-label":            "custom-value",
-							"team":                    "platform",
-						},
-						Annotations: map[string]string{
-							"description":                      "Production cluster",
-							"owner":                            "platform-team",
-							common.AnnotationKeyManagedBy:      "argocd", // system annotation - should be filtered
-							appv1.AnnotationKeyRefresh:         time.Now().Format(time.RFC3339),
-							corev1.LastAppliedConfigAnnotation: "should-be-filtered",
-						},
+					Name:      "annotated-cluster",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+						"custom-label":            "custom-value",
+						"team":                    "platform",
+					},
+					Annotations: map[string]string{
+						"description":                      "Production cluster",
+						"owner":                            "platform-team",
+						common.AnnotationKeyManagedBy:      "argocd", // system annotation - should be filtered
+						appv1.AnnotationKeyRefresh:         time.Now().Format(time.RFC3339),
+						corev1.LastAppliedConfigAnnotation: "should-be-filtered",
 					},
 					Data: map[string][]byte{
 						"server": []byte("https://annotated.example.com"),
@@ -648,6 +624,7 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 				},
 			},
 			testFunc: func(t *testing.T, informer *ClusterInformer) {
+				t.Helper()
 				cluster, err := informer.GetClusterByURL("https://annotated.example.com")
 				require.NoError(t, err)
 
@@ -673,10 +650,11 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			ctx, cancel := context.WithCancel(t.Context())
-			defer cancel()
+			t.Cleanup(cancel)
 
-			clientset := fake.NewSimpleClientset(tt.secrets...)
+			clientset := fake.NewClientset(tt.secrets...)
 			informer, err := NewClusterInformer(clientset, "argocd")
 			require.NoError(t, err)
 
@@ -689,16 +667,15 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 }
 
 func TestClusterInformer_SecretDeletion(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
 	secret1 := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster1",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "cluster1",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://cluster1.example.com"),
@@ -707,12 +684,10 @@ func TestClusterInformer_SecretDeletion(t *testing.T) {
 	}
 
 	secret2 := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster2",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "cluster2",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("https://cluster2.example.com"),
@@ -720,7 +695,7 @@ func TestClusterInformer_SecretDeletion(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(secret1, secret2)
+	clientset := fake.NewClientset(secret1, secret2)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -734,10 +709,13 @@ func TestClusterInformer_SecretDeletion(t *testing.T) {
 	err = clientset.CoreV1().Secrets("argocd").Delete(t.Context(), "cluster1", metav1.DeleteOptions{})
 	require.NoError(t, err)
 
-	time.Sleep(100 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		_, err := informer.GetClusterByURL("https://cluster1.example.com")
+		return err != nil
+	}, 5*time.Second, 10*time.Millisecond, "expected cluster1 to be removed from cache after secret deletion")
 
 	_, err = informer.GetClusterByURL("https://cluster1.example.com")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 
 	cluster2, err := informer.GetClusterByURL("https://cluster2.example.com")
@@ -750,6 +728,7 @@ func TestClusterInformer_SecretDeletion(t *testing.T) {
 }
 
 func TestClusterInformer_ComplexConfig(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
@@ -757,13 +736,11 @@ func TestClusterInformer_ComplexConfig(t *testing.T) {
 		Username:    "admin",
 		Password:    "password123",
 		BearerToken: "bearer-token",
-		TLSClientConfig: appv1.TLSClientConfig{
-			Insecure:   true,
-			ServerName: "cluster.internal",
-			CertData:   []byte("cert-data"),
-			KeyData:    []byte("key-data"),
-			CAData:     []byte("ca-data"),
-		},
+		Insecure:    true,
+		ServerName:  "cluster.internal",
+		CertData:    []byte("cert-data"),
+		KeyData:     []byte("key-data"),
+		CAData:      []byte("ca-data"),
 		AWSAuthConfig: &appv1.AWSAuthConfig{
 			ClusterName: "eks-cluster",
 			RoleARN:     "arn:aws:iam::123456789:role/eks-role",
@@ -782,12 +759,10 @@ func TestClusterInformer_ComplexConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "complex-cluster",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "complex-cluster",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server":           []byte("https://complex.example.com"),
@@ -798,7 +773,7 @@ func TestClusterInformer_ComplexConfig(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(secret)
+	clientset := fake.NewClientset(secret)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -811,8 +786,8 @@ func TestClusterInformer_ComplexConfig(t *testing.T) {
 	assert.Equal(t, "admin", cluster.Config.Username)
 	assert.Equal(t, "password123", cluster.Config.Password)
 	assert.Equal(t, "bearer-token", cluster.Config.BearerToken)
-	assert.True(t, cluster.Config.TLSClientConfig.Insecure)
-	assert.Equal(t, "cluster.internal", cluster.Config.TLSClientConfig.ServerName)
+	assert.True(t, cluster.Config.Insecure)
+	assert.Equal(t, "cluster.internal", cluster.Config.ServerName)
 
 	assert.NotNil(t, cluster.Config.AWSAuthConfig)
 	assert.Equal(t, "eks-cluster", cluster.Config.AWSAuthConfig.ClusterName)
@@ -831,25 +806,23 @@ func BenchmarkClusterInformer_GetClusterByURL(b *testing.B) {
 	defer cancel()
 
 	var secrets []runtime.Object
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("cluster-%d", i),
-				Namespace: "argocd",
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-				},
+			Name:      fmt.Sprintf("cluster-%d", i),
+			Namespace: "argocd",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 			},
 			Data: map[string][]byte{
-				"server": []byte(fmt.Sprintf("https://cluster%d.example.com", i)),
-				"name":   []byte(fmt.Sprintf("cluster-%d", i)),
+				"server": fmt.Appendf(nil, "https://cluster%d.example.com", i),
+				"name":   fmt.Appendf(nil, "cluster-%d", i),
 				"config": []byte(`{"bearerToken":"token"}`),
 			},
 		}
 		secrets = append(secrets, secret)
 	}
 
-	clientset := fake.NewSimpleClientset(secrets...)
+	clientset := fake.NewClientset(secrets...)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(b, err)
 
@@ -869,6 +842,101 @@ func BenchmarkClusterInformer_GetClusterByURL(b *testing.B) {
 				b.Fatal("cluster should not be nil")
 			}
 			i++
+		}
+	})
+}
+
+func TestClusterInformer_GetProjectClusters(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(t.Context())
+	t.Cleanup(cancel)
+
+	secrets := []runtime.Object{
+		&corev1.Secret{
+			Name:      "cluster-proj-a-1",
+			Namespace: "argocd",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+			Data: map[string][]byte{
+				"server":  []byte("https://a1.example.com"),
+				"name":    []byte("a1"),
+				"config":  []byte("{}"),
+				"project": []byte("project-a"),
+			},
+		},
+		&corev1.Secret{
+			Name:      "cluster-proj-a-2",
+			Namespace: "argocd",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+			Data: map[string][]byte{
+				"server":  []byte("https://a2.example.com"),
+				"name":    []byte("a2"),
+				"config":  []byte("{}"),
+				"project": []byte("project-a"),
+			},
+		},
+		&corev1.Secret{
+			Name:      "cluster-proj-b",
+			Namespace: "argocd",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+			Data: map[string][]byte{
+				"server":  []byte("https://b1.example.com"),
+				"name":    []byte("b1"),
+				"config":  []byte("{}"),
+				"project": []byte("project-b"),
+			},
+		},
+	}
+
+	clientset := fake.NewClientset(secrets...)
+	informer, err := NewClusterInformer(clientset, "argocd")
+	require.NoError(t, err)
+
+	go informer.Run(ctx.Done())
+	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
+
+	t.Run("returns clusters for matching project", func(t *testing.T) {
+		t.Parallel()
+		clusters, err := informer.GetProjectClusters("project-a")
+		require.NoError(t, err)
+		assert.Len(t, clusters, 2)
+
+		servers := make([]string, 0, len(clusters))
+		for _, c := range clusters {
+			servers = append(servers, c.Server)
+		}
+		assert.Contains(t, servers, "https://a1.example.com")
+		assert.Contains(t, servers, "https://a2.example.com")
+	})
+
+	t.Run("does not return clusters from other projects", func(t *testing.T) {
+		t.Parallel()
+		clusters, err := informer.GetProjectClusters("project-b")
+		require.NoError(t, err)
+		assert.Len(t, clusters, 1)
+		assert.Equal(t, "https://b1.example.com", clusters[0].Server)
+	})
+
+	t.Run("returns empty for non-existent project", func(t *testing.T) {
+		t.Parallel()
+		clusters, err := informer.GetProjectClusters("no-such-project")
+		require.NoError(t, err)
+		assert.Empty(t, clusters)
+	})
+
+	t.Run("returned clusters are isolated from cache", func(t *testing.T) {
+		t.Parallel()
+		clusters, err := informer.GetProjectClusters("project-a")
+		require.NoError(t, err)
+		require.Len(t, clusters, 2)
+
+		// Mutate the returned cluster
+		clusters[0].Name = "mutated"
+
+		// Fetch again and verify cache is unaffected
+		fresh, err := informer.GetProjectClusters("project-a")
+		require.NoError(t, err)
+		for _, c := range fresh {
+			assert.NotEqual(t, "mutated", c.Name, "cache should not be affected by caller mutation")
 		}
 	})
 }
