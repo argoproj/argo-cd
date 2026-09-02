@@ -2,6 +2,7 @@ package rbac
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -857,4 +858,46 @@ func TestPreventLoginWithoutPermissions(t *testing.T) {
 
 	enf.SetPreventLoginWithoutPermissions(false)
 	assert.False(t, enf.GetPreventLoginWithoutPermissions())
+}
+
+func TestLoadPolicyFromConfigMap(t *testing.T) {
+	t.Run("installs the policy and its derived settings before returning", func(t *testing.T) {
+		cm := fakeConfigMap()
+		cm.Data[ConfigMapPolicyCSVKey] = "p, alice, applications, get, ^foo/.*$, allow"
+		cm.Data[ConfigMapPolicyDefaultKey] = "role:readonly"
+		cm.Data[ConfigMapMatchModeKey] = RegexMatchMode
+		cm.Data[ConfigMapPreventLoginWithoutPermissions] = "true"
+		enf := NewEnforcer(fake.NewClientset(cm), fakeNamespace, fakeConfigMapName, nil)
+
+		require.False(t, enf.GetPreventLoginWithoutPermissions(), "the flag must read as disabled before the load")
+		require.NoError(t, enf.LoadPolicyFromConfigMap(t.Context(), noOpUpdate))
+
+		assert.True(t, enf.GetPreventLoginWithoutPermissions(), "the flag must be live as soon as the load returns")
+		assert.Equal(t, "role:readonly", enf.GetDefaultRole())
+		assert.Equal(t, RegexMatchMode, enf.getMatchMode())
+		assert.True(t, enf.Enforce("alice", "applications", "get", "foo/bar"))
+	})
+
+	t.Run("a missing configmap is not an error", func(t *testing.T) {
+		enf := NewEnforcer(fake.NewClientset(), fakeNamespace, fakeConfigMapName, nil)
+		require.NoError(t, enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV))
+
+		require.NoError(t, enf.LoadPolicyFromConfigMap(t.Context(), noOpUpdate))
+
+		assert.False(t, enf.GetPreventLoginWithoutPermissions())
+		assert.True(t, enf.HasAnyAllowPermission("admin"), "the built-in policy must survive a missing configmap")
+	})
+
+	t.Run("a failing callback aborts the load", func(t *testing.T) {
+		cm := fakeConfigMap()
+		cm.Data[ConfigMapPreventLoginWithoutPermissions] = "true"
+		enf := NewEnforcer(fake.NewClientset(cm), fakeNamespace, fakeConfigMapName, nil)
+
+		err := enf.LoadPolicyFromConfigMap(t.Context(), func(_ *corev1.ConfigMap) error {
+			return errors.New("bad scopes")
+		})
+
+		require.ErrorContains(t, err, "bad scopes")
+		assert.False(t, enf.GetPreventLoginWithoutPermissions(), "nothing may be applied when the callback rejects the update")
+	})
 }

@@ -25,8 +25,9 @@ import (
 )
 
 // PermCheckCacheTTL is how long a cached permission-check result is valid.
-// On RBAC policy changes the cache is invalidated immediately via FlushPermCheckCache;
-// TTL is a safety net for cases where the flush is missed (e.g., Redis unavailable).
+// Entries are invalidated immediately when either input changes: FlushPermCheckCache on an RBAC
+// ConfigMap update, RefreshProjectPolicyEpoch on an AppProject one. TTL is a safety net for cases
+// where an invalidation is missed (e.g., Redis unavailable).
 const PermCheckCacheTTL = 60 * time.Second
 
 // permCheckEntry is the value stored in the permission-check Redis cache. Both epochs must still
@@ -91,10 +92,10 @@ func (p *Enforcer) FlushPermCheckCache(resourceVersion string) {
 // RefreshProjectPolicyEpoch recomputes the epoch that guards cached permission-check results against
 // AppProject changes and must be called whenever a project's roles or policies change. Without it a
 // user whose only permissions come from a project role would keep a stale cached result for up to
-// PermCheckCacheTTL after being granted or revoked access. The RBAC ConfigMap - the only
+// PermCheckCacheTTL after being granted or revoked access, because the RBAC ConfigMap - the only
 // other thing that advances an epoch - has not changed.
 //
-// The epoch is a content hash rather than a counter so that it is stable across informer resynced and
+// The epoch is a content hash rather than a counter so that it is stable across informer resyncs and
 // identical on every replica observing the same projects, which keeps the shared Redis cache usable
 // in an HA deployment.
 func (p *Enforcer) RefreshProjectPolicyEpoch() {
@@ -261,6 +262,7 @@ func (p *Enforcer) hasAnyProjectPermission(username string, groups []string) boo
 	}
 	projects, err := p.projLister.List(labels.Everything())
 	if err != nil {
+		log.WithError(err).Warn("failed to list AppProjects for the permission check; treating the user as having no project permissions")
 		return false
 	}
 	subjects := []string{username}

@@ -469,18 +469,27 @@ func (e *Enforcer) newInformer() cache.SharedIndexInformer {
 	return informersv1.NewFilteredConfigMapInformer(e.clientset, e.namespace, defaultRBACSyncPeriod, indexers, tweakConfigMap)
 }
 
-// RunPolicyLoader runs the policy loader which watches policy updates from the configmap and reloads them
-func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *corev1.ConfigMap) error) error {
+func (e *Enforcer) LoadPolicyFromConfigMap(ctx context.Context, onUpdated func(cm *corev1.ConfigMap) error) error {
 	cm, err := e.clientset.CoreV1().ConfigMaps(e.namespace).Get(ctx, e.configmap, metav1.GetOptions{})
 	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return fmt.Errorf("error getting RBAC configmap %q: %w", e.configmap, err)
+		if apierrors.IsNotFound(err) {
+			return nil
 		}
-	} else {
-		err = e.syncUpdate(cm, onUpdated)
-		if err != nil {
-			return fmt.Errorf("error syncing RBAC policy update: %w", err)
-		}
+		return fmt.Errorf("error getting RBAC configmap %q: %w", e.configmap, err)
+	}
+	if err := e.syncUpdate(cm, onUpdated); err != nil {
+		return fmt.Errorf("error syncing RBAC policy update: %w", err)
+	}
+	return nil
+}
+
+func (e *Enforcer) WatchPolicy(ctx context.Context, onUpdated func(cm *corev1.ConfigMap) error) {
+	e.runInformer(ctx, onUpdated)
+}
+
+func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *corev1.ConfigMap) error) error {
+	if err := e.LoadPolicyFromConfigMap(ctx, onUpdated); err != nil {
+		return err
 	}
 	e.runInformer(ctx, onUpdated)
 	return nil

@@ -667,6 +667,8 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		grpcL = tlsm.MatchWithWriters(cmux.HTTP2MatchHeaderFieldSendSettings("content-type", "application/grpc"))
 	}
 
+	server.loadRBACPolicy(ctx)
+
 	// Start the muxed listeners for our servers
 	log.Infof("argocd %s serving on port %d (url: %s, tls: %v, namespace: %s, sso: %v)",
 		common.GetVersion(), server.ListenPort, server.settings.URL, server.useTLS(), server.Namespace, server.settings.IsSSOConfigured())
@@ -679,7 +681,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		go func() { server.checkServeErr("tlsm", tlsm.Serve()) }()
 	}
 	go server.watchSettings()
-	go server.rbacPolicyLoader(ctx)
+	go server.watchRBACPolicy(ctx)
 	go func() { server.checkServeErr("tcpm", tcpm.Serve()) }()
 	go func() { server.checkServeErr("metrics", metricsServ.Serve(listeners.Metrics)) }()
 	if !cache.WaitForCacheSync(ctx.Done(), server.projInformer.HasSynced, server.appInformer.HasSynced, server.clusterInformer.HasSynced) {
@@ -932,25 +934,29 @@ func projectPolicyEventHandler(policyEnf *rbacpolicy.Enforcer) cache.ResourceEve
 	}
 }
 
-func (server *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
-	// Flush the permission-check cache only after the new Casbin policy is fully installed. Registering the hook here
-	// ensures that it is going to be executed on the initial load as well as every update.
+// rbacPolicyUpdated is the callback applied on every RBAC ConfigMap load, initial or subsequent.
+func (server *ArgoCDServer) rbacPolicyUpdated(cm *corev1.ConfigMap) error {
+	var scopes []string
+	if scopesStr, ok := cm.Data[rbac.ConfigMapScopesKey]; scopesStr != "" && ok {
+		scopes = make([]string, 0)
+		err := yaml.Unmarshal([]byte(scopesStr), &scopes)
+		if err != nil {
+			return fmt.Errorf("error unmarshalling scopes: %w", err)
+		}
+	}
+	server.policyEnforcer.SetScopes(scopes)
+	return nil
+}
+
+func (server *ArgoCDServer) loadRBACPolicy(ctx context.Context) {
 	server.enf.SetAfterPolicyInstalled(func(resourceVersion string) {
 		server.policyEnforcer.FlushPermCheckCache(resourceVersion)
 	})
-	err := server.enf.RunPolicyLoader(ctx, func(cm *corev1.ConfigMap) error {
-		var scopes []string
-		if scopesStr, ok := cm.Data[rbac.ConfigMapScopesKey]; scopesStr != "" && ok {
-			scopes = make([]string, 0)
-			err := yaml.Unmarshal([]byte(scopesStr), &scopes)
-			if err != nil {
-				return fmt.Errorf("error unmarshalling scopes: %w", err)
-			}
-		}
-		server.policyEnforcer.SetScopes(scopes)
-		return nil
-	})
-	errorsutil.CheckError(err)
+	errorsutil.CheckError(server.enf.LoadPolicyFromConfigMap(ctx, server.rbacPolicyUpdated))
+}
+
+func (server *ArgoCDServer) watchRBACPolicy(ctx context.Context) {
+	server.enf.WatchPolicy(ctx, server.rbacPolicyUpdated)
 }
 
 func (server *ArgoCDServer) useTLS() bool {

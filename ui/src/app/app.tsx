@@ -16,7 +16,8 @@ import {VersionPanel} from './shared/components/version-info/version-info-panel'
 import {AuthSettingsCtx, Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
-import {hashCode, httpStatusOf, isSSOConfigured} from './shared/utils';
+import {hashCode, isSSOConfigured} from './shared/utils';
+import {fetchUserInfoSafe, NoPermissionsScreen} from './shared/session/session-bootstrap';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings, UserInfo} from './shared/models';
@@ -86,43 +87,6 @@ const navItems: NavItem[] = [
 ];
 
 const versionLoader = services.version.version();
-
-function anonymousUserInfo(): UserInfo {
-    return {loggedIn: false, username: '', iss: 'argocd', groups: []};
-}
-
-interface SessionBootstrap {
-    userInfo: UserInfo;
-    permissionDenied: boolean;
-}
-
-async function fetchUserInfoSafe(): Promise<SessionBootstrap> {
-    try {
-        return {userInfo: await services.users.get(), permissionDenied: false};
-    } catch (err: unknown) {
-        switch (httpStatusOf(err)) {
-            case 401:
-                return {userInfo: anonymousUserInfo(), permissionDenied: false};
-            case 403:
-                return {userInfo: anonymousUserInfo(), permissionDenied: true};
-            default:
-                throw err;
-        }
-    }
-}
-
-const NoPermissionsScreen: React.FC = () => (
-    <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', flexDirection: 'column', gap: '12px', padding: '0 24px', textAlign: 'center'}}>
-        <i className='fa fa-lock' style={{fontSize: '36px', color: '#6d7f8b'}} />
-        <h3 style={{margin: 0}}>Your account has no permissions</h3>
-        <p style={{color: '#6d7f8b', maxWidth: '480px', margin: 0}}>
-            You are signed in, but no Argo CD permissions have been assigned to your account. Contact your administrator to request access.
-        </p>
-        <button className='argo-button argo-button--base' onClick={() => (window.location.href = requests.toAbsURL('/auth/logout'))}>
-            Log out
-        </button>
-    </div>
-);
 
 function sessionFromBootstrap(userInfo: UserInfo, authSettings: AuthSettings, versionInfo: any): {loggedIn: boolean; isSSO: boolean} {
     const loggedIn = userInfo?.loggedIn ?? false;
