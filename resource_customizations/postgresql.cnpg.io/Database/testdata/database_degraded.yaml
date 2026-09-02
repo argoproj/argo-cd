@@ -1,6 +1,7 @@
-# A failed reconcile: CloudNativePG's SetAsFailed sets applied=false and a
-# message, and does NOT advance observedGeneration. This is why the health
-# check evaluates applied==false before the observedGeneration guard.
+# A regression: CloudNativePG had already applied the current generation
+# (observedGeneration == generation), and a later reconcile of that same
+# generation now fails (applied=false). This is a genuine failure of an
+# already-applied Database, not a first-adoption transient, so it is Degraded.
 apiVersion: postgresql.cnpg.io/v1
 kind: Database
 metadata:
@@ -19,4 +20,5 @@ spec:
   owner: app
 status:
   applied: false
-  message: 'failed to reconcile database "app": role "app" does not exist (SQLSTATE 42704)'
+  observedGeneration: 1
+  message: 'failed to reconcile database "app": permission denied to create database (SQLSTATE 42501)'
