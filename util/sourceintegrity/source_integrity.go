@@ -244,6 +244,8 @@ func gpgProblemMessage(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfo gi
 	)
 }
 
+// VerifyGPGSignatureInfo verifies the signature result and checks if the key used for the signature is allowed by the policy.
+// Returns a message describing the result and a boolean indicating if the signature is valid and allowed by the policy.
 func VerifyGPGSignatureInfo(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfo git.RevisionSignatureInfo) (string, bool) {
 	if signatureInfo.VerificationResult != git.GPGVerificationResultGood {
 		return fmt.Sprintf("%s (key_id=%s)", signatureInfo.VerificationResult, signatureInfo.SignatureKeyID), false
