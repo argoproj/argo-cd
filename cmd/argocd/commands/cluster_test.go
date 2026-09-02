@@ -1,9 +1,12 @@
 package commands
 
 import (
+	"io"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
@@ -11,6 +14,8 @@ import (
 
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	clustermocks "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster/mocks"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -23,6 +28,61 @@ func TestNewClusterListCommand_SelectorFlag(t *testing.T) {
 	require.NotNil(t, flag)
 	assert.Equal(t, "l", flag.Shorthand)
 	assert.Empty(t, flag.DefValue)
+}
+
+func mockClusterClient(t *testing.T) *clustermocks.ClusterServiceClient {
+	t.Helper()
+	mockClient := clustermocks.NewClusterServiceClient(t)
+	original := newClusterClient
+	t.Cleanup(func() { newClusterClient = original })
+	newClusterClient = func(_ *argocdclient.ClientOptions, _ *cobra.Command) (io.Closer, clusterpkg.ClusterServiceClient) {
+		return io.NopCloser(nil), mockClient
+	}
+	return mockClient
+}
+
+// TestNewClusterListCommand_SelectorSentToServer executes the command end to end against a mocked
+// ClusterServiceClient, so it covers the whole path from parsing --selector/-l through to the
+// ClusterListQuery that reaches the server. A regression in that wiring would not be caught by
+// asserting flag registration alone.
+func TestNewClusterListCommand_SelectorSentToServer(t *testing.T) {
+	tests := []struct {
+		name             string
+		args             []string
+		expectedSelector string
+	}{
+		{"no selector given", nil, ""},
+		{"equality", []string{"-l", "env=prod"}, "env=prod"},
+		{"double equality", []string{"-l", "env==prod"}, "env==prod"},
+		{"negation", []string{"-l", "env!=prod"}, "env!=prod"},
+		{"key exists", []string{"-l", "env"}, "env"},
+		{"key does not exist", []string{"-l", "!env"}, "!env"},
+		{"set-based in", []string{"-l", "env in (prod,staging)"}, "env in (prod,staging)"},
+		{"set-based notin", []string{"-l", "env notin (dev,staging)"}, "env notin (dev,staging)"},
+		{"multiple constraints", []string{"-l", "env=prod,tier=backend"}, "env=prod,tier=backend"},
+		{"long flag name", []string{"--selector", "env=prod"}, "env=prod"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clusters := mockClusterClient(t)
+
+			var gotQuery *clusterpkg.ClusterListQuery
+			clusters.On("List", mock.Anything, mock.Anything).
+				Run(func(args mock.Arguments) {
+					gotQuery = args.Get(1).(*clusterpkg.ClusterListQuery)
+				}).
+				Return(&v1alpha1.ClusterList{}, nil).
+				Once()
+
+			cmd := NewClusterListCommand(&argocdclient.ClientOptions{})
+			_, _, err := runCmd(t, cmd, append([]string{"-o", "server"}, tt.args...)...)
+			require.NoError(t, err)
+
+			require.NotNil(t, gotQuery, "expected the command to issue a List call")
+			assert.Equal(t, tt.expectedSelector, gotQuery.Selector)
+		})
+	}
 }
 
 func Test_getQueryBySelector(t *testing.T) {
