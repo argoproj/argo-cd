@@ -23,8 +23,8 @@ type Consequences struct {
 }
 
 func (c *Consequences) Expect(e Expectation) *Consequences {
-	// this invocation makes sure this func is not reported as the cause of the failure - we are a "test helper"
 	c.context.T().Helper()
+
 	var message string
 	var state state
 	sleepIntervals := []time.Duration{
@@ -61,7 +61,6 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 // ExpectConsistently will continuously evaluate a condition. Once true, it must be true each time it is evaluated, otherwise the test is failed.
 // The condition will be repeatedly evaluated once it is true,until 'expirationDuration' is met, waiting 'waitDuration' after each success.
 func (c *Consequences) ExpectConsistently(e Expectation, waitDuration time.Duration, expirationDuration time.Duration) *Consequences {
-	// this invocation makes sure this func is not reported as the cause of the failure - we are a "test helper"
 	c.context.T().Helper()
 
 	c.Expect(e) // ensure the condition is true before expecting consistency
@@ -116,6 +115,19 @@ func (c *Consequences) app() *v1alpha1.Application {
 
 func (c *Consequences) get() (*v1alpha1.Application, error) {
 	return fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.AppNamespace()).Get(context.Background(), c.context.AppName(), metav1.GetOptions{})
+}
+
+func (c *Consequences) resourceTree() (*v1alpha1.ApplicationTree, error) {
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	defer utilio.Close(closer)
+	return client.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{
+		ApplicationName: new(c.context.AppName()),
+		Project:         new(c.context.project),
+		AppNamespace:    new(c.context.appNamespace),
+	})
 }
 
 func (c *Consequences) resource(kind, name, namespace string) v1alpha1.ResourceStatus {

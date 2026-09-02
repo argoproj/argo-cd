@@ -766,7 +766,10 @@ func (c *clusterCache) listResources(ctx context.Context, resClient dynamic.Reso
 func (c *clusterCache) loadInitialState(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string, lock bool) (string, error) {
 	var items []*Resource
 	resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
-		return listPager.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
+		// Use the WithAlloc variant: newResource may retain the object (as Resource.Resource, or via the
+		// Info returned by the OnPopulateResourceInfoHandler). Plain EachListItem yields &list.Items[i],
+		// so retaining one item keeps the page's whole backing array, and every manifest in it, reachable.
+		return listPager.EachListItemWithAlloc(ctx, metav1.ListOptions{LabelSelector: api.LabelSelector}, func(obj runtime.Object) error {
 			if un, ok := obj.(*unstructured.Unstructured); !ok {
 				return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
 			} else {
@@ -807,6 +810,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 
 		w, err := watchutil.NewRetryWatcherWithContext(ctx, resourceVersion, &cache.ListWatch{
 			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+				options.LabelSelector = api.LabelSelector
 				res, err := resClient.Watch(ctx, options)
 				if apierrors.IsNotFound(err) {
 					c.stopWatching(api.GroupKind, ns)
@@ -880,6 +884,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 								Version:      v.Name,
 								ShortNames:   crd.Spec.Names.ShortNames,
 							},
+							LabelSelector: c.settings.ResourcesFilter.GetLabelSelector(crd.Spec.Group, crd.Spec.Names.Kind, c.config.Host),
 						})
 					}
 
@@ -1091,10 +1096,29 @@ func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface auth
 //
 // When this function exits, the cluster cache is up to date, and the appropriate resources are being watched for
 // changes.
-func (c *clusterCache) sync() error {
+func (c *clusterCache) sync() (err error) {
 	c.log.Info("Start syncing cluster")
 
+	start := time.Now()
 	syncLock := sync.Mutex{}
+
+	var discoveryEnd time.Time
+	defer func() {
+		end := time.Now()
+		if discoveryEnd.IsZero() {
+			discoveryEnd = end
+		}
+		log := c.log.WithValues(
+			"total_ms", end.Sub(start).Milliseconds(),
+			"discovery_ms", discoveryEnd.Sub(start).Milliseconds(),
+			"list_ms", end.Sub(discoveryEnd).Milliseconds(),
+		)
+		if err != nil {
+			log.Error(err, "Failed to sync cluster")
+		} else {
+			log.Info("Cluster successfully synced")
+		}
+	}()
 
 	for i := range c.apisMeta {
 		c.apisMeta[i].watchCancel()
@@ -1152,6 +1176,7 @@ func (c *clusterCache) sync() error {
 		go c.processEvents()
 	}
 
+	discoveryEnd = time.Now()
 	err = kube.RunAllAsync(len(apis), func(i int) error {
 		api := apis[i]
 
@@ -1164,7 +1189,10 @@ func (c *clusterCache) sync() error {
 
 		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
 			resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
-				return listPager.EachListItem(context.Background(), metav1.ListOptions{}, func(obj runtime.Object) error {
+				// Use the WithAlloc variant: newResource may retain the object (as Resource.Resource, or via the
+				// Info returned by the OnPopulateResourceInfoHandler). Plain EachListItem yields &list.Items[i],
+				// so retaining one item keeps the page's whole backing array, and every manifest in it, reachable.
+				return listPager.EachListItemWithAlloc(ctx, metav1.ListOptions{LabelSelector: api.LabelSelector}, func(obj runtime.Object) error {
 					if un, ok := obj.(*unstructured.Unstructured); !ok {
 						return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
 					} else {
@@ -1204,11 +1232,8 @@ func (c *clusterCache) sync() error {
 		})
 	})
 	if err != nil {
-		c.log.Error(err, "Failed to sync cluster")
 		return fmt.Errorf("failed to sync cluster %s: %w", c.config.Host, err)
 	}
-
-	c.log.Info("Cluster successfully synced")
 	return nil
 }
 

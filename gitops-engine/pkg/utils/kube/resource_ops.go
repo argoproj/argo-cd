@@ -96,13 +96,39 @@ func (f *realKubectlOptionsRunner) Replace(opts *replace.ReplaceOptions, fact cm
 }
 
 // AuthReconcile will perform https://kubernetes.io/docs/reference/kubectl/generated/kubectl_auth/kubectl_auth_reconcile/
-func (f *realKubectlOptionsRunner) AuthReconcile(opts *auth.ReconcileOptions) error {
+func (f *realKubectlOptionsRunner) AuthReconcile(opts *auth.ReconcileOptions) (retErr error) {
 	cleanup, err := f.processKubectlRun("auth")
 	if err != nil {
 		return err
 	}
 	defer cleanup()
+	// kubectl panics instead of returning an error when the impersonated
+	// ServiceAccount is forbidden (see GitHub #28607, k8s#140338). Catch
+	// any panic so the controller can surface a SyncFailed status rather
+	// than crashing.
+	defer func() {
+		if r := recover(); r != nil {
+			retErr = fmt.Errorf("error running kubectl auth reconcile: %v", r)
+		}
+	}()
+	// TODO(#29484): Remove this wrapper after the upstream kubectl panic fix is available in Argo CD.
+	opts.Visitor = panicRecoveringVisitor{Visitor: opts.Visitor}
 	return opts.RunReconcile()
+}
+
+type panicRecoveringVisitor struct {
+	resource.Visitor
+}
+
+func (v panicRecoveringVisitor) Visit(fn resource.VisitorFunc) error {
+	return v.Visitor.Visit(func(info *resource.Info, err error) (retErr error) {
+		defer func() {
+			if r := recover(); r != nil {
+				retErr = fmt.Errorf("error running kubectl auth reconcile: %v", r)
+			}
+		}()
+		return fn(info, err)
+	})
 }
 
 func (f *realKubectlOptionsRunner) processKubectlRun(cmd string) (CleanupFunc, error) {

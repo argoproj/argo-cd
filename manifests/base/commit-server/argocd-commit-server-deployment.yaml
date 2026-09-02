@@ -60,6 +60,18 @@ spec:
                 name: argocd-cmd-params-cm
                 key: log.format.timestamp
                 optional: true
+          - name: ARGOCD_COMMIT_SERVER_SIGNING_KEY_PATH
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: commitserver.signing.key.path
+                optional: true
+          - name: ARGOCD_COMMIT_SERVER_SIGNING_KEY_PASSPHRASE_FILE
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: commitserver.signing.key.passphrase.file
+                optional: true
         ports:
         - containerPort: 8086
         - containerPort: 8087
@@ -91,10 +103,11 @@ spec:
           mountPath: /app/config/ssh
         - name: tls-certs
           mountPath: /app/config/tls
-        - name: gpg-keys
-          mountPath: /app/config/gpg/source
         - name: gpg-keyring
           mountPath: /app/config/gpg/keys
+        - name: gpg-signing-key
+          mountPath: /app/config/gpg/signing
+          readOnly: true
         # We need a writeable temp directory for the askpass socket file.
         - name: tmp
           mountPath: /tmp
@@ -105,11 +118,12 @@ spec:
         - name: tls-certs
           configMap:
             name: argocd-tls-certs-cm
-        - name: gpg-keys
-          configMap:
-            name: argocd-gpg-keys-cm
         - name: gpg-keyring
           emptyDir: {}
+        - name: gpg-signing-key
+          secret:
+            secretName: argocd-commit-server-gpg-signing-key
+            optional: true
         - name: tmp
           emptyDir: {}
         - name: argocd-commit-server-tls

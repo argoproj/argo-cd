@@ -49,8 +49,19 @@ import (
 )
 
 var (
-	ErrInvalidRepoURL = errors.New("repo URL is invalid")
-	ErrNoNoteFound    = errors.New("no note found")
+	ErrInvalidRepoURL   = errors.New("repo URL is invalid")
+	ErrNoNoteFound      = errors.New("no note found")
+	ErrRevisionNotFound = errors.New("revision not found")
+)
+
+// Values returned by CommitSignatureStatus for the GPG signature status code
+// (git's %G? placeholder). The full set is documented under PRETTY FORMATS
+// in git-log(1); only G and U represent good signatures that callers should
+// accept (U = good but unknown trust, expected when the signing key has not
+// been ultimately trusted in the local keyring).
+const (
+	SignatureStatusGood             = "G"
+	SignatureStatusGoodUnknownTrust = "U"
 )
 
 // builtinGitConfig configuration contains statements that are needed
@@ -158,8 +169,20 @@ type Client interface {
 	CheckoutOrNew(ctx context.Context, branch, base string, submoduleEnabled bool) (string, error)
 	// RemoveContents removes all files from the given paths in the git repository.
 	RemoveContents(ctx context.Context, paths []string) (string, error)
-	// CommitAndPush commits and pushes changes to the target branch.
-	CommitAndPush(ctx context.Context, branch, message string) (string, error)
+	// Commit stages all changes and creates a single commit. If signingKeyID
+	// is non-empty, the commit is GPG-signed with the given key from the
+	// shared GNUPGHOME (common.GetGnuPGHomePath()); the key's passphrase, if
+	// any, must already be cached in gpg-agent. Returns the git output.
+	Commit(message, signingKeyID string) (string, error)
+	// Push pushes the target branch to origin.
+	Push(branch string) (string, error)
+	// CommitSignatureStatus returns git's signature status code (%G?) and the
+	// long key ID used to sign the given revision (%GK). Used to assert a
+	// freshly created signed commit was produced by the expected key before
+	// pushing. Pass an exact commit SHA so the check is pinned to the commit
+	// being verified. See the SignatureStatus* constants for the values that
+	// indicate a usable signature.
+	CommitSignatureStatus(ctx context.Context, revision string) (status, keyID string, err error)
 	// GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
 	GetCommitNote(ctx context.Context, sha string, namespace string) (string, error)
 	// AddAndPushNote adds a note to a DRY sha and then pushes it.
@@ -276,11 +299,11 @@ func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, pr
 	r := regexp.MustCompile(`([/:])`)
 	normalizedGitURL := NormalizeGitURL(rawRepoURL)
 	if normalizedGitURL == "" {
-		return nil, fmt.Errorf("repository %q cannot be initialized: %w", rawRepoURL, ErrInvalidRepoURL)
+		return nil, fmt.Errorf("repository %q cannot be initialized: %w", SanitizeRepoURL(rawRepoURL), ErrInvalidRepoURL)
 	}
 	root := filepath.Join(os.TempDir(), r.ReplaceAllString(normalizedGitURL, "_"))
 	if root == os.TempDir() {
-		return nil, fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
+		return nil, fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", SanitizeRepoURL(rawRepoURL), root)
 	}
 	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, noProxy, opts...)
 }
@@ -431,7 +454,7 @@ func buildSSHAuth(repoURL string, creds *SSHCreds) (transport.AuthMethod, error)
 		// avoids handing back an AuthMethod with no host-key verification.
 		// For the no-credentials path, newAuth catches this and lets go-git
 		// fall back to its DefaultAuthBuilder.
-		return nil, fmt.Errorf("could not set up SSH known hosts callback for %s: %w", repoURL, err)
+		return nil, fmt.Errorf("could not set up SSH known hosts callback for %s: %w", SanitizeRepoURL(repoURL), err)
 	}
 
 	if creds == nil {
@@ -915,7 +938,7 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 			// Formula: timeToWait = duration * factor^retry_number
 			// Note that timeToWait should equal to duration for the first retry attempt.
 			// When timeToWait is more than maxDuration retry should be performed at maxDuration.
-			timeToWait := float64(retryDuration) * (math.Pow(float64(factor), float64(attempt)))
+			timeToWait := float64(retryDuration) * math.Pow(float64(factor), float64(attempt))
 			if maxRetryDuration > 0 {
 				timeToWait = math.Min(float64(maxRetryDuration), timeToWait)
 			}
@@ -1000,7 +1023,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 
 	// If we get here, revision string had non hexadecimal characters (indicating its a branch, tag,
 	// or symbolic ref) and we were unable to resolve it to a commit SHA.
-	return "", fmt.Errorf("unable to resolve '%s' to a commit SHA", revision)
+	return "", fmt.Errorf("unable to resolve '%s' to a commit SHA: %w", revision, ErrRevisionNotFound)
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
@@ -1030,7 +1053,7 @@ func (m *nativeGitClient) RevisionMetadata(ctx context.Context, revision string)
 	cmd.Stdin = strings.NewReader(message)
 	out, err = m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to interpret trailers for revision %q in repo %q: %w", revision, m.repoURL, err)
+		return nil, fmt.Errorf("failed to interpret trailers for revision %q in repo %q: %w", revision, SanitizeRepoURL(m.repoURL), err)
 	}
 	relatedCommits, _ := GetReferences(log.WithFields(log.Fields{"repo": m.repoURL, "revision": revision}), out)
 
@@ -1595,32 +1618,75 @@ func (m *nativeGitClient) RemoveContents(ctx context.Context, paths []string) (s
 	return "", nil
 }
 
-// CommitAndPush commits and pushes changes to the target branch.
-func (m *nativeGitClient) CommitAndPush(ctx context.Context, branch, message string) (string, error) {
-	out, err := m.runCmd(ctx, "add", ".")
-	if err != nil {
+// Commit stages all changes and creates a single commit. If signingKeyID is
+// non-empty, the commit is GPG-signed with that key from the shared GNUPGHOME;
+// the key's passphrase, if any, must already be cached in gpg-agent so gpg can
+// sign non-interactively.
+func (m *nativeGitClient) Commit(message, signingKeyID string) (string, error) {
+	ctx := context.Background()
+	if out, err := m.runCmd(ctx, "add", "."); err != nil {
 		return out, fmt.Errorf("failed to add files: %w", err)
 	}
 
-	out, err = m.runCmd(ctx, "commit", "-m", message)
-	if err != nil {
-		if strings.Contains(out, "nothing to commit, working tree clean") {
-			return out, nil
+	if signingKeyID == "" {
+		out, err := m.runCmd(ctx, "commit", "-m", message)
+		if err != nil {
+			if strings.Contains(out, "nothing to commit, working tree clean") {
+				return out, nil
+			}
+			return out, fmt.Errorf("failed to commit: %w", err)
 		}
-		return out, fmt.Errorf("failed to commit: %w", err)
+		return out, nil
 	}
 
+	// Signed commit: configure the signing key on this invocation only (no
+	// persistent git config writes) and route through cmdWithGPG so gpg sees
+	// the configured GNUPGHOME.
+	args := []string{
+		"-c", "user.signingkey=" + signingKeyID,
+		"-c", "commit.gpgsign=true",
+		"commit", "-m", message,
+	}
+	cmd := m.cmdWithGPG(ctx, "git", args...)
+	out, err := m.runCmdOutput(cmd, runOpts{})
+	if err != nil {
+		// Unlike the unsigned path we do NOT swallow "nothing to commit": a
+		// signed commit is only requested when we expect a real change, and
+		// silently returning would leave the caller verifying the signature of
+		// a stale HEAD it never created.
+		return out, fmt.Errorf("failed to create signed commit: %w", err)
+	}
+	return out, nil
+}
+
+// Push pushes the target branch to origin.
+func (m *nativeGitClient) Push(branch string) (string, error) {
 	if m.OnPush != nil {
 		done := m.OnPush(m.repoURL)
 		defer done()
 	}
-
-	err = m.runCredentialedCmd(ctx, "push", "origin", branch)
-	if err != nil {
+	if err := m.runCredentialedCmd(context.Background(), "push", "origin", branch); err != nil {
 		return "", fmt.Errorf("failed to push: %w", err)
 	}
-
 	return "", nil
+}
+
+// CommitSignatureStatus returns the GPG signature status code (%G?) and the
+// signing key ID (%GK) for the given revision. Status is "N" (and keyID "")
+// when the commit carries no signature. See man git-log under PRETTY FORMATS
+// for codes; for our purposes "G" (good) and "U" (good but unknown trust) are
+// acceptable and everything else — including "N" — must be rejected.
+func (m *nativeGitClient) CommitSignatureStatus(ctx context.Context, revision string) (string, string, error) {
+	cmd := m.cmdWithGPG(ctx, "git", "log", "-1", "--pretty=format:%G?:%GK", revision, "--")
+	out, err := m.runCmdOutput(cmd, runOpts{})
+	if err != nil {
+		return "", "", fmt.Errorf("failed to read signature status of %q: %w", revision, err)
+	}
+	parts := strings.SplitN(strings.TrimSpace(out), ":", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("unexpected signature status output: %q", out)
+	}
+	return parts[0], parts[1], nil
 }
 
 // GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
@@ -1779,7 +1845,24 @@ func (m *nativeGitClient) runCredentialedCmd(ctx context.Context, args ...string
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Env = append(cmd.Env, environ...)
 	_, err = m.runCmdOutput(cmd, runOpts{})
-	return err
+	return humanizeAuthPromptError(m.repoURL, err)
+}
+
+// gitTerminalPromptDisabledMsg is the substring Git prints when it needs
+// credentials it wasn't given and interactive prompts are disabled
+// (GIT_TERMINAL_PROMPT=0). It signals a failed git authentication, not an actual
+// terminal problem.
+const gitTerminalPromptDisabledMsg = "terminal prompts disabled"
+
+// humanizeAuthPromptError rewrites Git's misleading "terminal prompts disabled"
+// failure into an authentication error, since the raw message reads as a tty
+// problem when the real cause is that no credentials matched the repository URL.
+// Any other error is returned unchanged.
+func humanizeAuthPromptError(repoURL string, err error) error {
+	if err == nil || !strings.Contains(err.Error(), gitTerminalPromptDisabledMsg) {
+		return err
+	}
+	return fmt.Errorf("failed to authenticate to git repository %q: no credentials matched this URL: %w", SanitizeRepoURL(repoURL), err)
 }
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {
