@@ -495,6 +495,8 @@ const (
 	resourceExclusionsKey = "resource.exclusions"
 	// resourceInclusions is the key to the list of explicitly watched resources
 	resourceInclusionsKey = "resource.inclusions"
+	// resourceSelectorsKey is the key to the list of label selectors that narrow down the watched resources
+	resourceSelectorsKey = "resource.selectors"
 	// resourceIgnoreResourceUpdatesEnabledKey is the key to a boolean determining whether the resourceIgnoreUpdates feature is enabled
 	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
 	// resourceSensitiveAnnotationsKey is the key to list of annotations to mask in secret resource
@@ -906,6 +908,20 @@ func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 			return nil, fmt.Errorf("error unmarshalling excluded resources %w", err)
 		}
 		rf.ResourceExclusions = excludedResources
+	}
+
+	if value, ok := argoCDCM.Data[resourceSelectorsKey]; ok {
+		resourceSelectors := make([]FilteredResource, 0)
+		err := yaml.Unmarshal([]byte(value), &resourceSelectors)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshalling resource selectors %w", err)
+		}
+		for _, resourceSelector := range resourceSelectors {
+			if _, err := labels.Parse(resourceSelector.Selector); err != nil {
+				return nil, fmt.Errorf("error parsing resource selector %q: %w", resourceSelector.Selector, err)
+			}
+		}
+		rf.ResourceSelectors = resourceSelectors
 	}
 	return rf, nil
 }
