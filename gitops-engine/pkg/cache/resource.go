@@ -153,12 +153,10 @@ func (r *Resource) SetManifestWithCodec(un *unstructured.Unstructured, storageTy
 }
 
 // GetManifest returns the stored resource manifest.
-// If compression is enabled, it decompresses from compressedManifest.
-// If compression is disabled, it returns the raw Resource field.
-// Returns nil if no manifest is stored.
+// Always returns a new object; callers may mutate it without affecting the cache.
 func (r *Resource) GetManifest() (*unstructured.Unstructured, error) {
 	if r.Resource != nil {
-		return r.Resource, nil
+		return r.Resource.DeepCopy(), nil
 	}
 	if r.compressedManifest == nil {
 		return nil, nil
