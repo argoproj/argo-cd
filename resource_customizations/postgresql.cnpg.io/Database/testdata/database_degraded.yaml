@@ -1,0 +1,22 @@
+# A failed reconcile: CloudNativePG's SetAsFailed sets applied=false and a
+# message, and does NOT advance observedGeneration. This is why the health
+# check evaluates applied==false before the observedGeneration guard.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  creationTimestamp: "2026-09-02T12:00:00Z"
+  finalizers:
+  - cnpg.io/deleteDatabase
+  generation: 1
+  name: database-example
+  namespace: default
+spec:
+  cluster:
+    name: cluster-example
+  databaseReclaimPolicy: retain
+  ensure: present
+  name: app
+  owner: app
+status:
+  applied: false
+  message: 'failed to reconcile database "app": role "app" does not exist (SQLSTATE 42704)'

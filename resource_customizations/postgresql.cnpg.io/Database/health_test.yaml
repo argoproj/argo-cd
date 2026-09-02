@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/database_healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for CloudNativePG to observe the current Database generation"
+  inputPath: testdata/database_progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: 'failed to reconcile database "app": role "app" does not exist (SQLSTATE 42704)'
+  inputPath: testdata/database_degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for CloudNativePG to reconcile Database"
+  inputPath: testdata/database_progressing_no_status.yaml
