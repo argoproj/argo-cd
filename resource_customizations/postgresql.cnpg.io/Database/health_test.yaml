@@ -15,3 +15,7 @@ tests:
     status: Progressing
     message: "Waiting for CloudNativePG to reconcile Database"
   inputPath: testdata/database_progressing_no_status.yaml
+- healthStatus:
+    status: Progressing
+    message: "unable to determine database status: connection refused"
+  inputPath: testdata/database_progressing_applied_unset.yaml
