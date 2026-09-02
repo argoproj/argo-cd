@@ -82,6 +82,60 @@ func TestGetConfigMapByName(t *testing.T) {
 	})
 }
 
+func TestGetDefaultCABundle(t *testing.T) {
+	t.Run("returns nil when dedicated ConfigMap does not exist", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), nil)
+		caBundle, err := settingsManager.GetDefaultCABundle()
+		require.NoError(t, err)
+		assert.Nil(t, caBundle)
+	})
+
+	t.Run("returns nil when ca.crt key is missing or empty in dedicated ConfigMap", func(t *testing.T) {
+		kubeClient, settingsManager := fixtures(t.Context(), nil)
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDDefaultCAConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{
+				"ca.crt": "   ",
+			},
+		}
+		_, err := kubeClient.CoreV1().ConfigMaps("default").Create(t.Context(), cm, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		caBundle, err := settingsManager.GetDefaultCABundle()
+		require.NoError(t, err)
+		assert.Nil(t, caBundle)
+	})
+
+	t.Run("returns CA bundle byte slice when ca.crt key is present in dedicated ConfigMap", func(t *testing.T) {
+		kubeClient, settingsManager := fixtures(t.Context(), nil)
+		expectedPEM := "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDDefaultCAConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{
+				"ca.crt": expectedPEM,
+			},
+		}
+		_, err := kubeClient.CoreV1().ConfigMaps("default").Create(t.Context(), cm, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		caBundle, err := settingsManager.GetDefaultCABundle()
+		require.NoError(t, err)
+		assert.Equal(t, []byte(expectedPEM), caBundle)
+	})
+}
+
 func TestGetSecretByName(t *testing.T) {
 	t.Run("data is never nil", func(t *testing.T) {
 		_, settingsManager := fixtures(t.Context(), nil, func(secret *corev1.Secret) { secret.Data = nil })
