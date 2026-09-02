@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
@@ -20,14 +19,12 @@ func Test_newCluster(t *testing.T) {
 	labels := map[string]string{"key1": "val1"}
 	annotations := map[string]string{"key2": "val2"}
 	clusterWithData := NewCluster("test-cluster", []string{"test-namespace"}, false, &rest.Config{
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure:   false,
-			ServerName: "test-endpoint.example.com",
-			CAData:     []byte("test-ca-data"),
-			CertData:   []byte("test-cert-data"),
-			KeyData:    []byte("test-key-data"),
-		},
-		Host: "test-endpoint.example.com",
+		Insecure:   false,
+		ServerName: "test-endpoint.example.com",
+		CAData:     []byte("test-ca-data"),
+		CertData:   []byte("test-cert-data"),
+		KeyData:    []byte("test-key-data"),
+		Host:       "test-endpoint.example.com",
 	},
 		"test-bearer-token",
 		&v1alpha1.AWSAuthConfig{},
@@ -41,14 +38,12 @@ func Test_newCluster(t *testing.T) {
 	assert.False(t, clusterWithData.Config.DisableCompression)
 
 	clusterWithFiles := NewCluster("test-cluster", []string{"test-namespace"}, false, &rest.Config{
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure:   false,
-			ServerName: "test-endpoint.example.com",
-			CAData:     []byte("test-ca-data"),
-			CertFile:   "./testdata/test.cert.pem",
-			KeyFile:    "./testdata/test.key.pem",
-		},
-		Host: "test-endpoint.example.com",
+		Insecure:   false,
+		ServerName: "test-endpoint.example.com",
+		CAData:     []byte("test-ca-data"),
+		CertFile:   "./testdata/test.cert.pem",
+		KeyFile:    "./testdata/test.key.pem",
+		Host:       "test-endpoint.example.com",
 	},
 		"test-bearer-token",
 		&v1alpha1.AWSAuthConfig{},
@@ -61,12 +56,10 @@ func Test_newCluster(t *testing.T) {
 	assert.Nil(t, clusterWithFiles.Annotations)
 
 	clusterWithBearerToken := NewCluster("test-cluster", []string{"test-namespace"}, false, &rest.Config{
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure:   false,
-			ServerName: "test-endpoint.example.com",
-			CAData:     []byte("test-ca-data"),
-		},
-		Host: "test-endpoint.example.com",
+		Insecure:   false,
+		ServerName: "test-endpoint.example.com",
+		CAData:     []byte("test-ca-data"),
+		Host:       "test-endpoint.example.com",
 	},
 		"test-bearer-token",
 		&v1alpha1.AWSAuthConfig{},
@@ -77,11 +70,9 @@ func Test_newCluster(t *testing.T) {
 	assert.Nil(t, clusterWithBearerToken.Annotations)
 
 	clusterWithDisableCompression := NewCluster("test-cluster", []string{"test-namespace"}, false, &rest.Config{
-		TLSClientConfig: rest.TLSClientConfig{
-			Insecure:   false,
-			ServerName: "test-endpoint.example.com",
-			CAData:     []byte("test-ca-data"),
-		},
+		Insecure:           false,
+		ServerName:         "test-endpoint.example.com",
+		CAData:             []byte("test-ca-data"),
 		DisableCompression: true,
 		Host:               "test-endpoint.example.com",
 	}, "test-bearer-token",
@@ -103,10 +94,8 @@ func TestGetKubePublicEndpoint(t *testing.T) {
 		{
 			name: "has public endpoint and certificate authority data",
 			clusterInfo: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "kube-public",
-					Name:      "cluster-info",
-				},
+				Namespace: "kube-public",
+				Name:      "cluster-info",
 				Data: map[string]string{
 					"kubeconfig": kubeconfigFixture("https://test-cluster:6443", []byte("test-ca-data")),
 				},
@@ -117,10 +106,8 @@ func TestGetKubePublicEndpoint(t *testing.T) {
 		{
 			name: "has public endpoint",
 			clusterInfo: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "kube-public",
-					Name:      "cluster-info",
-				},
+				Namespace: "kube-public",
+				Name:      "cluster-info",
 				Data: map[string]string{
 					"kubeconfig": kubeconfigFixture("https://test-cluster:6443", nil),
 				},
@@ -135,10 +122,8 @@ func TestGetKubePublicEndpoint(t *testing.T) {
 		{
 			name: "no kubeconfig in cluster-info",
 			clusterInfo: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "kube-public",
-					Name:      "cluster-info",
-				},
+				Namespace: "kube-public",
+				Name:      "cluster-info",
 				Data: map[string]string{
 					"argo": "the project, not the movie",
 				},
@@ -148,10 +133,8 @@ func TestGetKubePublicEndpoint(t *testing.T) {
 		{
 			name: "no clusters in cluster-info kubeconfig",
 			clusterInfo: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "kube-public",
-					Name:      "cluster-info",
-				},
+				Namespace: "kube-public",
+				Name:      "cluster-info",
 				Data: map[string]string{
 					"kubeconfig": kubeconfigFixture("", nil),
 				},
@@ -161,10 +144,8 @@ func TestGetKubePublicEndpoint(t *testing.T) {
 		{
 			name: "can't parse kubeconfig",
 			clusterInfo: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "kube-public",
-					Name:      "cluster-info",
-				},
+				Namespace: "kube-public",
+				Name:      "cluster-info",
 				Data: map[string]string{
 					"kubeconfig": "this is not valid YAML",
 				},

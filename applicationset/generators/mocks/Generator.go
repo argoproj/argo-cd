@@ -103,8 +103,8 @@ func (_c *Generator_GenerateParams_Call) Run(run func(appSetGenerator *v1alpha1.
 	return _c
 }
 
-func (_c *Generator_GenerateParams_Call) Return(stringToVs []map[string]any, err error) *Generator_GenerateParams_Call {
-	_c.Call.Return(stringToVs, err)
+func (_c *Generator_GenerateParams_Call) Return(stringToAnyMoqParams []map[string]any, err error) *Generator_GenerateParams_Call {
+	_c.Call.Return(stringToAnyMoqParams, err)
 	return _c
 }
 

@@ -16,12 +16,14 @@ import {
     ComparisonStatusIcon,
     getAppDrySource,
     getAppHydratorSyncSource,
+    getApplicationDetailsContainerClass,
     getAppOperationState,
     getAppSpecDefaultSource,
     getHydratorSyncSourceRepoURL,
     getOperationType,
     getPodStateReason,
     HealthStatusIcon,
+    nameConfirmationError,
     OperationState,
     ResourceResultIcon
 } from './utils';
@@ -1044,6 +1046,39 @@ describe('getAppHydratorSyncSource', () => {
     });
 });
 
+describe('nameConfirmationError', () => {
+    const emptyMsg = 'Enter the resource name to confirm the deletion';
+    const mismatchMsg = 'Resource name does not match';
+
+    it('returns false when entered value matches expected', () => {
+        expect(nameConfirmationError('my-app', 'my-app', emptyMsg, mismatchMsg)).toBe(false);
+    });
+
+    it('returns empty message when field is empty', () => {
+        expect(nameConfirmationError('', 'my-app', emptyMsg, mismatchMsg)).toBe(emptyMsg);
+    });
+
+    it('returns mismatch message when field has a wrong value', () => {
+        expect(nameConfirmationError('wrong-name', 'my-app', emptyMsg, mismatchMsg)).toBe(mismatchMsg);
+    });
+
+    it('returns mismatch message when field has a partial value', () => {
+        expect(nameConfirmationError('my-ap', 'my-app', emptyMsg, mismatchMsg)).toBe(mismatchMsg);
+    });
+
+    it('returns false when both entered and expected are empty strings', () => {
+        expect(nameConfirmationError('', '', emptyMsg, mismatchMsg)).toBe(false);
+    });
+
+    it('uses the provided message strings (application delete variant)', () => {
+        const appEmpty = 'Enter the application name to confirm the deletion';
+        const appMismatch = 'Application name does not match';
+        expect(nameConfirmationError('', 'guestbook', appEmpty, appMismatch)).toBe(appEmpty);
+        expect(nameConfirmationError('guestbook-typo', 'guestbook', appEmpty, appMismatch)).toBe(appMismatch);
+        expect(nameConfirmationError('guestbook', 'guestbook', appEmpty, appMismatch)).toBe(false);
+    });
+});
+
 describe('getAppSpecDefaultSource', () => {
     it('returns sync source for hydrator apps', () => {
         expect(
@@ -1058,5 +1093,19 @@ describe('getAppSpecDefaultSource', () => {
             targetRevision: 'env/test',
             path: 'out'
         });
+    });
+});
+
+describe('getApplicationDetailsContainerClass', () => {
+    it('keeps the static application-details class and adds a prefixed per-application class', () => {
+        expect(getApplicationDetailsContainerClass('guestbook')).toBe('application-details user-app-guestbook');
+    });
+
+    it('prefixes the per-application class so an app named after a component class does not collide (#24220)', () => {
+        const classes = getApplicationDetailsContainerClass('login').split(' ');
+        // the per-application hook is present, but namespaced...
+        expect(classes).toContain('user-app-login');
+        // ...and must NOT emit a bare `login` class that would pull in the login page's `.login` styles.
+        expect(classes).not.toContain('login');
     });
 });

@@ -195,6 +195,7 @@ type ArgoCDServer struct {
 	settingsMgr     *settings_util.SettingsManager
 	enf             *rbac.Enforcer
 	projInformer    cache.SharedIndexInformer
+	projLister      applisters.AppProjectNamespaceLister
 	policyEnforcer  *rbacpolicy.RBACPolicyEnforcer
 	clusterInformer *settings_util.ClusterInformer
 	appInformer     cache.SharedIndexInformer
@@ -253,6 +254,7 @@ type ArgoCDServerOpts struct {
 	EnableK8sEvent          []string
 	HydratorEnabled         bool
 	SyncWithReplaceAllowed  bool
+	DisableSwaggerUI        bool
 }
 
 type ApplicationSetOpts struct {
@@ -290,7 +292,7 @@ func (g GracefulRestartSignal) Signal() {}
 // initializeDefaultProject creates the default project if it does not already exist
 func initializeDefaultProject(opts ArgoCDServerOpts) error {
 	defaultProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.DefaultAppProjectName, Namespace: opts.Namespace},
+		Name: v1alpha1.DefaultAppProjectName, Namespace: opts.Namespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:              []string{"*"},
 			Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -400,6 +402,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		settingsMgr:        settingsMgr,
 		enf:                enf,
 		projInformer:       projInformer,
+		projLister:         projLister,
 		appInformer:        appInformer,
 		appLister:          appLister,
 		appsetInformer:     appsetInformer,
@@ -807,11 +810,13 @@ func (server *ArgoCDServer) watchSettings() {
 	prevOIDCConfig := server.settings.OIDCConfig()
 	prevDexCfgBytes, err := dexutil.GenerateDexConfigYAML(server.settings, server.DexTLSConfig == nil || server.DexTLSConfig.DisableTLS)
 	errorsutil.CheckError(err)
+	prevDexAuthConnectorID := server.settings.DexAuthConnectorID
 	prevGitHubSecret := server.settings.GetWebhookGitHubSecret()
 	prevGitLabSecret := server.settings.GetWebhookGitLabSecret()
 	prevBitbucketUUID := server.settings.GetWebhookBitbucketUUID()
 	prevBitbucketServerSecret := server.settings.GetWebhookBitbucketServerSecret()
 	prevGogsSecret := server.settings.GetWebhookGogsSecret()
+	prevHarborSecret := server.settings.GetWebhookHarborSecret()
 	prevExtConfig := server.settings.ExtensionConfig
 	var prevCert, prevCertKey string
 	if server.settings.Certificate != nil && !server.Insecure {
@@ -825,6 +830,10 @@ func (server *ArgoCDServer) watchSettings() {
 		errorsutil.CheckError(err)
 		if !bytes.Equal(newDexCfgBytes, prevDexCfgBytes) {
 			log.Infof("dex config modified. restarting")
+			break
+		}
+		if prevDexAuthConnectorID != server.settings.DexAuthConnectorID {
+			log.Infof("dex auth connector id modified. restarting")
 			break
 		}
 		if checkOIDCConfigChange(prevOIDCConfig, server.settings) {
@@ -857,6 +866,10 @@ func (server *ArgoCDServer) watchSettings() {
 		}
 		if prevGogsSecret != server.settings.GetWebhookGogsSecret() {
 			log.Infof("gogs secret modified. restarting")
+			break
+		}
+		if prevHarborSecret != server.settings.GetWebhookHarborSecret() {
+			log.Infof("harbor secret modified. restarting")
 			break
 		}
 		if !reflect.DeepEqual(prevExtConfig, server.settings.ExtensionConfig) {
@@ -1166,6 +1179,17 @@ func compressHandler(handler http.Handler) http.Handler {
 	})
 }
 
+// registerSwaggerUI registers the Swagger UI and OpenAPI spec handlers on mux, unless disableSwaggerUI
+// is set. The endpoint serves API documentation and is unauthenticated by design, since the docs are
+// static and identical across Argo CD instances. Some environments (e.g. those fronted by OpenShift
+// Routes, which unlike Ingress cannot block specific paths via annotations) still want the ability to
+// disable it. See https://github.com/argoproj/argo-cd/issues/19780.
+func registerSwaggerUI(mux *http.ServeMux, rootPath string, disableSwaggerUI bool) {
+	if !disableSwaggerUI {
+		swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", rootPath)
+	}
+}
+
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
 // using grpc-gateway as a proxy to the gRPC server.
 func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandler http.Handler, appResourceTreeFn application.AppResourceTreeFn, conn *grpc.ClientConn, metricsReg HTTPMetricsRegistry) *http.Server {
@@ -1247,8 +1271,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	mustRegisterGWHandler(ctx, certificatepkg.RegisterCertificateServiceHandler, gwmux, conn)
 	mustRegisterGWHandler(ctx, gpgkeypkg.RegisterGPGKeyServiceHandler, gwmux, conn)
 
-	// Swagger UI
-	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", server.RootPath)
+	registerSwaggerUI(mux, server.RootPath, server.DisableSwaggerUI)
 	healthz.ServeHealthCheck(mux, server.healthCheck)
 
 	// Dex reverse proxy and OAuth2 login/callback
@@ -1256,7 +1279,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.WebhookRefreshWorkers, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize(), server.settingsMgr.GetWebhookRefreshJitter(), server.settingsMgr.GetWebhookRefreshJitterThreshold())
+	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.WebhookRefreshWorkers, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize(), server.settingsMgr.GetWebhookRefreshJitter(), server.settingsMgr.GetWebhookRefreshJitterThreshold(), server.projLister)
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 

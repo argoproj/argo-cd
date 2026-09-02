@@ -486,7 +486,9 @@ data:
     jqPathExpressions:
       - '.metadata.annotations."notified.notifications.argoproj.io"'
       - '.metadata.annotations."argocd.argoproj.io/refresh"'
+      - '.metadata.annotations."argocd.argoproj.io/refresh-timestamp"'
       - '.metadata.annotations."argocd.argoproj.io/hydrate"'
+      - '.metadata.annotations."argocd.argoproj.io/hydrate-timestamp"'
       - '.operation'
   resource.customizations.ignoreResourceUpdates.argoproj.io_Rollout: |
     jqPathExpressions:
@@ -1993,6 +1995,42 @@ spec:
               key: applicationsetcontroller.status.max.resources.count
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BUCKET_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.bucket.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BUCKET_QPS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.bucket.qps
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BASE_DELAY_NS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.basedelay.ns
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_MAX_DELAY_NS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.maxdelay.ns
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BACKOFF_FACTOR
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.backoff.factor
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_FAILURE_COOLDOWN_NS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.cooldown.ns
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -2135,7 +2173,7 @@ spec:
               key: dexserver.connector.failure.continue
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.45.0
+        image: ghcr.io/dexidp/dex:v2.45.1
         imagePullPolicy: Always
         name: dex
         ports:
@@ -2835,6 +2873,8 @@ spec:
           name: helm-working-dir
         - mountPath: /home/argocd/cmp-server/plugins
           name: plugins
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
       initContainers:
       - args:
         - /bin/cp /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln -sf /var/run/argocd/argocd
@@ -3042,6 +3082,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.disable.auth
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_DISABLE_SWAGGER_UI
+          valueFrom:
+            configMapKeyRef:
+              key: server.disable.swagger.ui
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_SERVER_ENABLE_GZIP
@@ -3954,7 +4000,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.6.4-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.1-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -4025,7 +4071,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.6.4-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.1-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           postStart:
@@ -4100,7 +4146,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.6.4-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.1-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:
           exec:
@@ -4156,7 +4202,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.6.4-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.1-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:

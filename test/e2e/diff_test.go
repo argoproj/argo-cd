@@ -86,16 +86,19 @@ data:
 			// Server-Side diff should show a diff with the sensitive value masked
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--server-side-diff", "--exit-code=false")
 			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
 
 			// Local diff with server-side-generate should show a diff with the sensitive value masked
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", localRepoRoot, "--server-side-generate", "--exit-code=false")
 			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
 
 			// Local diff should exclude secret resources completely
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", appPath, "--local-repo-root", localRepoRoot, "--exit-code=false")
 			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Empty(t, diff, "Secret kind should not be displayed in CLI diff output")
 		})
 }
@@ -156,16 +159,19 @@ data:
 			// Server-Side diff should show a diff with the sensitive value masked
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--server-side-diff", "--exit-code=false")
 			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
 
 			// Local diff with server-side-generate should show a diff with the sensitive value masked
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", localRepoRoot, "--server-side-generate", "--exit-code=false")
 			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
 
 			// Local diff should exclude secret resources completely
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", appPath, "--local-repo-root", localRepoRoot, "--exit-code=false")
 			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Empty(t, diff, "Secret kind should not be displayed in CLI diff output")
 
 			msg := app.Status.OperationState.Message

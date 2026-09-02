@@ -13,17 +13,20 @@ on:
   roles: all # ***** argo-cd specific: make sure the workflow will be executed for issue of any author, as by default it gets executed only for issue authors who are maintainers of the repo *****
 
 permissions:
-   # ***** argo-cd specific: instead of the default read-all, which does not include copilot, giving explicit permissions so that copilot can be invoked without a COPILOT_GITHUB_TOKEN secret
-   # https://github.github.com/gh-aw/reference/auth/
+   # ***** argo-cd specific: instead of the default read-all, giving explicit permissions to placate Zizmor. Removing the copilot-requests so that COPILOT_GITHUB_TOKEN can be used. copilot-requests is for GitHub org level Copilot seat that CNCF does not grant us at this point in time.
    # *****
   issues: read
   contents: read
-  copilot-requests: write
 
 network: defaults
 
 # This workflow runs often, so you can use a small model to keep costs down.
-engine: copilot
+# ***** argo-cd specific: the model is pinned explicitly. The gh-aw default (claude-sonnet-4.6) is
+# not offered to the "agentic-workflows" integrator, so every run failed with
+# "The requested model is not available for integrator". *****
+engine:
+  id: copilot
+  model: claude-sonnet-5
 
 safe-outputs:
   add-labels:

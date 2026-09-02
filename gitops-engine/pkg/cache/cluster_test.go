@@ -2936,3 +2936,38 @@ metadata:
 		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): mustToUnstructured(testDeploy()),
 	}, managedObjs)
 }
+
+func TestAPIResourceLabelSelectorIsAppliedToList(t *testing.T) {
+	matching := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: matching
+    namespace: default
+    uid: "1"
+    labels:
+      foo: bar`)
+	notMatching := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: not-matching
+    namespace: default
+    uid: "2"`)
+
+	cluster := newCluster(t, matching, notMatching)
+	apiResources := cluster.kubectl.(*kubetest.MockKubectlCmd).APIResources
+	for i := range apiResources {
+		if apiResources[i].GroupKind.Kind == "Pod" {
+			apiResources[i].LabelSelector = "foo=bar"
+		}
+	}
+
+	require.NoError(t, cluster.EnsureSynced())
+
+	resources := cluster.FindResources("default", func(r *Resource) bool {
+		return r.ResourceKey().Kind == "Pod"
+	})
+	assert.Len(t, resources, 1)
+	assert.Contains(t, resources, kube.NewResourceKey("", "Pod", "default", "matching"))
+}
