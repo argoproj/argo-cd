@@ -638,6 +638,14 @@ export const deletePopup = async (
                     }
                     close();
                 } catch (e) {
+                    if (e.status === 404) {
+                        ctx.notifications.show({
+                            content: 'Resource already deleted',
+                            type: NotificationType.Success
+                        });
+                        close();
+                        return;
+                    }
                     ctx.notifications.show({
                         content: <ErrorNotification title='Unable to delete resource' e={e} />,
                         type: NotificationType.Error
