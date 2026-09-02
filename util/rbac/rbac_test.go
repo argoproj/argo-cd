@@ -2,6 +2,7 @@ package rbac
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -727,6 +728,34 @@ func TestHasAnyAllowPermission(t *testing.T) {
 			subject:    "alice",
 			expected:   true,
 		},
+		{
+			name:       "regex mode: ^$ deny matches only the empty string and cancels nothing",
+			matchMode:  RegexMatchMode,
+			userPolicy: "p, alice, applications, get, ^default/.*$, allow\np, alice, ^$, ^$, ^$, deny",
+			subject:    "alice",
+			expected:   true,
+		},
+		{
+			name:       "regex mode: \\A\\z deny matches only the empty string and cancels nothing",
+			matchMode:  RegexMatchMode,
+			userPolicy: "p, alice, applications, get, ^default/.*$, allow\np, alice, \\A\\z, \\A\\z, \\A\\z, deny",
+			subject:    "alice",
+			expected:   true,
+		},
+		{
+			name:       "regex mode: lazy catch-all deny cancels the allow",
+			matchMode:  RegexMatchMode,
+			userPolicy: "p, alice, applications, get, ^default/.*$, allow\np, alice, .*?, .*?, .*?, deny",
+			subject:    "alice",
+			expected:   false,
+		},
+		{
+			name:       "regex mode: unrecognised catch-all deny leaves the allow standing",
+			matchMode:  RegexMatchMode,
+			userPolicy: "p, alice, applications, get, ^default/.*$, allow\np, alice, .+, .+, .+, deny",
+			subject:    "alice",
+			expected:   true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -739,6 +768,35 @@ func TestHasAnyAllowPermission(t *testing.T) {
 			require.NoError(t, enf.SetUserPolicy(tt.userPolicy))
 			assert.Equal(t, tt.expected, enf.HasAnyAllowPermission(tt.subject))
 		})
+	}
+}
+
+func TestIsUniversalPattern(t *testing.T) {
+	probes := []string{"", "applications", "get", "default/my-app", "*/*", "a\nb"}
+
+	tests := []struct {
+		matchMode string
+		patterns  []string
+	}{
+		{matchMode: GlobMatchMode, patterns: []string{"*", "**", "", "?", "default/*", "app-[a-z]*"}},
+		{matchMode: RegexMatchMode, patterns: []string{".*", ".*?", "(.*)", "^$", `\A\z`, ".+", "^", "$", "^.*$", "^default/.*$"}},
+	}
+
+	for _, tt := range tests {
+		for _, pattern := range tt.patterns {
+			t.Run(tt.matchMode+"/"+pattern, func(t *testing.T) {
+				if !isUniversalPattern(pattern, tt.matchMode) {
+					t.Skip("not claimed to be universal, so there is nothing to verify")
+				}
+				enf := NewEnforcer(fake.NewClientset(), fakeNamespace, fakeConfigMapName, nil)
+				enf.SetMatchMode(tt.matchMode)
+				require.NoError(t, enf.SetUserPolicy(fmt.Sprintf("p, alice, %s, %s, %s, allow", pattern, pattern, pattern)))
+				for _, probe := range probes {
+					assert.True(t, enf.Enforce("alice", probe, probe, probe),
+						"pattern %q is treated as universal but does not match %q", pattern, probe)
+				}
+			})
+		}
 	}
 }
 

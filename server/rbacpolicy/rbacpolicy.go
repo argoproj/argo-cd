@@ -217,11 +217,12 @@ func (p *Enforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool {
 // cache miss and a fresh Casbin lookup.
 func (p *Enforcer) UserHasAnyPermission(username string, groups []string) bool {
 	if p.permCache != nil {
-		epoch, _ := p.policyEpoch.Load().(string)
-		projectsEpoch, _ := p.projectsEpoch.Load().(string)
 		key := permCheckCacheKey(username, groups)
 		var entry permCheckEntry
-		if err := p.permCache.GetItem(key, &entry); err == nil && entry.Epoch == epoch && entry.ProjectsEpoch == projectsEpoch {
+		cacheErr := p.permCache.GetItem(key, &entry)
+		epoch, _ := p.policyEpoch.Load().(string)
+		projectsEpoch, _ := p.projectsEpoch.Load().(string)
+		if cacheErr == nil && entry.Epoch == epoch && entry.ProjectsEpoch == projectsEpoch {
 			return entry.Allowed
 		}
 		allowed := p.userHasAnyPermissionUncached(username, groups)

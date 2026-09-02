@@ -175,6 +175,7 @@ export class App extends React.Component<
     private routes: Routes;
     private popupPropsSubscription: Subscription;
     private unauthorizedSubscription: Subscription;
+    private permissionDeniedSubscription: Subscription;
 
     constructor(props: {}) {
         super(props);
@@ -195,6 +196,7 @@ export class App extends React.Component<
         this.routes = routes;
         this.popupPropsSubscription = null;
         this.unauthorizedSubscription = null;
+        this.permissionDeniedSubscription = null;
         services.extensions.addEventListener('systemLevel', this.onAddSystemLevelExtension.bind(this));
     }
 
@@ -202,6 +204,14 @@ export class App extends React.Component<
         this.popupPropsSubscription = this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps}));
         this.subscribeUnauthorized().then(subscription => {
             this.unauthorizedSubscription = subscription;
+        });
+
+        // The refusal can also arrive long after bootstrap, when permissions are revoked while the UI
+        // is already loaded. Any user-info fetch that hits it lands here, so no extra polling is needed.
+        this.permissionDeniedSubscription = services.users.permissionDenied.subscribe(denied => {
+            if (denied) {
+                this.setState(prev => ({...prev, permissionDenied: true, sessionResolved: true}));
+            }
         });
 
         void this.bootstrapAppSession().catch((err: unknown) => {
@@ -277,6 +287,9 @@ export class App extends React.Component<
         }
         if (this.unauthorizedSubscription) {
             this.unauthorizedSubscription.unsubscribe();
+        }
+        if (this.permissionDeniedSubscription) {
+            this.permissionDeniedSubscription.unsubscribe();
         }
     }
 

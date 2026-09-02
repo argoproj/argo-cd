@@ -910,9 +910,12 @@ func (server *ArgoCDServer) watchSettings() {
 	server.stopCh <- GracefulRestartSignal{}
 }
 
-func projectPolicyEventHandler(policyEnf *rbacpolicy.Enforcer) cache.ResourceEventHandlerFuncs {
-	return cache.ResourceEventHandlerFuncs{
-		AddFunc: func(_ any) {
+func projectPolicyEventHandler(policyEnf *rbacpolicy.Enforcer) cache.ResourceEventHandlerDetailedFuncs {
+	return cache.ResourceEventHandlerDetailedFuncs{
+		AddFunc: func(_ any, isInInitialList bool) {
+			if isInInitialList {
+				return
+			}
 			policyEnf.RefreshProjectPolicyEpoch()
 		},
 		UpdateFunc: func(oldObj, newObj any) {

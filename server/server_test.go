@@ -25,7 +25,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	k8scache "k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
+
+	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
 
 	dynfake "k8s.io/client-go/dynamic/fake"
 	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -1950,4 +1953,50 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	argocd.newStaticAssetsHandler()(w, req)
 	resp = w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "should have been able to access the normal file")
+}
+
+func testAppProject(name, group string) *v1alpha1.AppProject {
+	return &v1alpha1.AppProject{
+		Name:      name,
+		Namespace: test.FakeArgoCDNamespace,
+		Spec: v1alpha1.AppProjectSpec{
+			Roles: []v1alpha1.ProjectRole{{
+				Name:     "developer",
+				Policies: []string{"p, proj:" + name + ":developer, applications, get, " + name + "/*, allow"},
+				Groups:   []string{group},
+			}},
+		},
+	}
+}
+
+func TestProjectPolicyEventHandlerInvalidatesCache(t *testing.T) {
+	appClient := apps.NewSimpleClientset(testAppProject("existing", "other-team"))
+	factory := appinformer.NewSharedInformerFactoryWithOptions(appClient, 0, appinformer.WithNamespace(test.FakeArgoCDNamespace))
+	informer := factory.Argoproj().V1alpha1().AppProjects().Informer()
+	lister := factory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(test.FakeArgoCDNamespace)
+
+	enf := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, lister)
+	policyEnf.SetPermCheckCache(cache.NewCache(cache.NewInMemoryCache(time.Hour)))
+
+	_, err := informer.AddEventHandler(projectPolicyEventHandler(policyEnf))
+	require.NoError(t, err)
+
+	stop := make(chan struct{})
+	defer close(stop)
+	go informer.Run(stop)
+	require.True(t, k8scache.WaitForCacheSync(stop, informer.HasSynced))
+	policyEnf.RefreshProjectPolicyEpoch()
+
+	require.False(t, policyEnf.UserHasAnyPermission("alice", []string{"dev-team"}),
+		"no project grants dev-team anything yet, and the denial is now cached")
+
+	_, err = appClient.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Create(t.Context(),
+		testAppProject("granted", "dev-team"), metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	assert.Eventually(t, func() bool {
+		return policyEnf.UserHasAnyPermission("alice", []string{"dev-team"})
+	}, 5*time.Second, 20*time.Millisecond,
+		"creating an AppProject that grants the user access must invalidate the cached denial")
 }

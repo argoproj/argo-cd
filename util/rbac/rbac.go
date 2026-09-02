@@ -5,7 +5,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
-	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -705,10 +705,11 @@ func patternCovers(denyPattern, allowPattern string, denyIsUniversal bool, match
 	return false
 }
 
+var universalRegexPatterns = []string{".*", ".*?", "(.*)"}
+
 func isUniversalPattern(pattern, matchMode string) bool {
 	if matchMode == RegexMatchMode {
-		matched, err := regexp.MatchString(pattern, "")
-		return err == nil && matched
+		return slices.Contains(universalRegexPatterns, pattern)
 	}
 	return pattern == "*" || pattern == "**"
 }
