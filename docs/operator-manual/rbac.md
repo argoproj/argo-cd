@@ -65,6 +65,11 @@ When the flag is enabled:
 > normal RBAC rules deny every request. For these users the flag only affects the UI, which shows an
 > explanation instead of an empty page.
 
+> [!NOTE]
+> A `deny` rule cancels an `allow` only when it clearly covers the whole of it. An identical rule does that, and
+> so does a catch-all. In `regex` mode the catch-alls recognized here are `.*`, `.*?` and `(.*)`, so an anchored
+> `^.*$` will leave the `allow` standing.
+
 > [!WARNING]
 > If `policy.default` is set to a role such as `role:readonly`, every authenticated user already inherits those permissions, which means the flag will **not** block them — all users will satisfy the "has at least one allow" check. Set `policy.default` to `""` when you want this flag to have effect.
 
@@ -408,6 +413,23 @@ Even if more specific policies with the `allow` effect match as well, the `deny`
 
 The order in which the policies appears in the policy file configuration has no impact, and the result is deterministic.
 
+> [!WARNING]
+> A `deny` only reaches the subject it is written against, plus any roles that subject is bound to with a `g` line.
+> Groups that come from SSO claims are checked separately, as subjects in their own right. So a `deny` on someone's
+> username will not take away a permission their group has, and it will not touch an `AppProject` role they hold
+> through a group either.
+
+In the example below alice keeps her `get` access. The deny is checked against `alice` and the allow against
+`dev-team`, and those two checks never see each other.
+
+```yaml
+g, dev-team, role:dev
+p, role:dev, applications, get, */*, allow
+p, alice, *, *, *, deny
+```
+
+To take access away, deny every subject that grants it, or remove the bindings.
+
 ## Policies Evaluation and Matching
 
 The evaluation of access is done in two parts: validating against the default policy configuration, then validating against the policies for the current user.
@@ -579,3 +601,9 @@ you can use the [`argocd admin settings rbac validate` command](../user-guide/co
 To test whether a role or subject (group or local user) has sufficient
 permissions to execute certain actions on certain resources, you can
 use the [`argocd admin settings rbac can` command](../user-guide/commands/argocd_admin_settings_rbac_can.md).
+
+> [!NOTE]
+> `argocd admin settings rbac can` answers questions about one specific action at a time, so it cannot tell you
+> whether someone has any permission at all. Nothing lists the users that
+> `policy.prevent-login-without-permissions` would shut out, so read through the policy yourself before turning
+> the flag on for a live instance.
