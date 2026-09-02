@@ -2,10 +2,10 @@ package kube
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/mocks"
-	"k8s.io/kubectl/pkg/cmd/auth"
 	testingutils "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/testing"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/tracing"
 	"github.com/go-logr/logr"
@@ -14,10 +14,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
+	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/apply"
+	"k8s.io/kubectl/pkg/cmd/auth"
 	"k8s.io/kubectl/pkg/cmd/create"
 	"k8s.io/kubectl/pkg/cmd/replace"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -561,4 +563,39 @@ func TestRealKubectlOptionsRunner_AuthReconcile_PanicRecovery(t *testing.T) {
 	err := runner.AuthReconcile((*auth.ReconcileOptions)(nil))
 	require.Error(t, err, "AuthReconcile must return an error rather than propagating the panic")
 	assert.Contains(t, err.Error(), "error running kubectl auth reconcile")
+}
+
+type concurrentTestVisitor struct {
+	info *resource.Info
+	err  error
+}
+
+func (v concurrentTestVisitor) Visit(fn resource.VisitorFunc) error {
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- fn(v.info, v.err)
+	}()
+	return <-errCh
+}
+
+func TestRealKubectlOptionsRunner_AuthReconcile_ConcurrentVisitorPanicRecovery(t *testing.T) {
+	t.Parallel()
+	runner := &realKubectlOptionsRunner{}
+	opts := auth.NewReconcileOptions(genericclioptions.IOStreams{})
+	opts.Visitor = concurrentTestVisitor{}
+
+	err := runner.AuthReconcile(opts)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "error running kubectl auth reconcile")
+}
+
+func TestRealKubectlOptionsRunner_AuthReconcile_VisitorError(t *testing.T) {
+	t.Parallel()
+	runner := &realKubectlOptionsRunner{}
+	expectedErr := errors.New("visit failed")
+	opts := auth.NewReconcileOptions(genericclioptions.IOStreams{})
+	opts.Visitor = concurrentTestVisitor{err: expectedErr}
+
+	err := runner.AuthReconcile(opts)
+	require.ErrorIs(t, err, expectedErr)
 }
