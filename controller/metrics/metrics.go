@@ -65,7 +65,7 @@ var (
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
 		"Information about application.",
-		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation", "phase"),
+		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation", "phase", "hydrator_status"),
 		nil,
 	)
 
@@ -445,6 +445,15 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 	if healthStatus == "" {
 		healthStatus = health.HealthStatusUnknown
 	}
+	var hydratorStatus string
+	if app.Spec.SourceHydrator != nil {
+		if app.Status.SourceHydrator.CurrentOperation != nil {
+			hydratorStatus = string(app.Status.SourceHydrator.CurrentOperation.Phase)
+		}
+		if hydratorStatus == "" {
+			hydratorStatus = "Unknown"
+		}
+	}
 
 	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled()
 
@@ -453,7 +462,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		operationPhase = string(app.Status.OperationState.Phase)
 	}
 
-	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), destServer, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation, operationPhase)
+	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), destServer, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation, operationPhase, hydratorStatus)
 
 	if len(c.appLabels) > 0 {
 		labelValues := []string{}
