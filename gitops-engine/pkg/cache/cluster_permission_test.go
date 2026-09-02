@@ -54,7 +54,7 @@ func TestCheckPermission_RequiresListAndWatch(t *testing.T) {
 
 	t.Run("allowed when both list and watch are permitted", func(t *testing.T) {
 		ssar := &recordingSSAR{allowed: map[string]bool{"list": true, "watch": true}}
-		keep, err := cluster.checkPermission(context.Background(), ssar, storageClassAPI())
+		keep, err := cluster.checkPermission(context.Background(), ssar, storageClassAPI(), "")
 		require.NoError(t, err)
 		assert.True(t, keep)
 		assert.ElementsMatch(t, []string{"list", "watch"}, ssar.verbs)
@@ -62,7 +62,7 @@ func TestCheckPermission_RequiresListAndWatch(t *testing.T) {
 
 	t.Run("denied when only list is permitted (OpenShift basic-user case)", func(t *testing.T) {
 		ssar := &recordingSSAR{allowed: map[string]bool{"list": true, "watch": false}}
-		keep, err := cluster.checkPermission(context.Background(), ssar, storageClassAPI())
+		keep, err := cluster.checkPermission(context.Background(), ssar, storageClassAPI(), "")
 		require.NoError(t, err)
 		assert.False(t, keep, "list without watch must not keep the resource on the watch list")
 		assert.Contains(t, ssar.verbs, "list")
@@ -71,7 +71,7 @@ func TestCheckPermission_RequiresListAndWatch(t *testing.T) {
 
 	t.Run("denied when list is not permitted", func(t *testing.T) {
 		ssar := &recordingSSAR{allowed: map[string]bool{"list": false, "watch": true}}
-		keep, err := cluster.checkPermission(context.Background(), ssar, storageClassAPI())
+		keep, err := cluster.checkPermission(context.Background(), ssar, storageClassAPI(), "")
 		require.NoError(t, err)
 		assert.False(t, keep)
 		assert.Contains(t, ssar.verbs, "list")
@@ -79,7 +79,7 @@ func TestCheckPermission_RequiresListAndWatch(t *testing.T) {
 
 	t.Run("denied when neither verb is permitted", func(t *testing.T) {
 		ssar := &recordingSSAR{allowed: map[string]bool{"list": false, "watch": false}}
-		keep, err := cluster.checkPermission(context.Background(), ssar, storageClassAPI())
+		keep, err := cluster.checkPermission(context.Background(), ssar, storageClassAPI(), "")
 		require.NoError(t, err)
 		assert.False(t, keep)
 	})
@@ -93,7 +93,7 @@ func TestIsAllowed_SetsGroupAndVerb(t *testing.T) {
 		sar.Status.Allowed = true
 	}}
 
-	allowed, err := cluster.isAllowed(context.Background(), ssar, storageClassAPI(), "watch")
+	allowed, err := cluster.isAllowed(context.Background(), ssar, storageClassAPI(), "watch", "")
 	require.NoError(t, err)
 	assert.True(t, allowed)
 	require.NotNil(t, got)
@@ -114,16 +114,29 @@ func TestIsAllowed_Namespaced(t *testing.T) {
 
 	t.Run("allowed if any managed namespace permits the verb", func(t *testing.T) {
 		ssar := &nsAwareSSAR{allow: map[string]bool{"app-ns": true, "other-ns": false}}
-		allowed, err := cluster.isAllowed(context.Background(), ssar, api, "watch")
+		allowed, err := cluster.isAllowed(context.Background(), ssar, api, "watch", "")
 		require.NoError(t, err)
 		assert.True(t, allowed)
 	})
 
 	t.Run("denied if no managed namespace permits the verb", func(t *testing.T) {
 		ssar := &nsAwareSSAR{allow: map[string]bool{"app-ns": false, "other-ns": false}}
-		allowed, err := cluster.isAllowed(context.Background(), ssar, api, "watch")
+		allowed, err := cluster.isAllowed(context.Background(), ssar, api, "watch", "")
 		require.NoError(t, err)
 		assert.False(t, allowed)
+	})
+
+	t.Run("scoped to the namespace being watched", func(t *testing.T) {
+		ssar := &nsAwareSSAR{allow: map[string]bool{"app-ns": true, "other-ns": false}}
+		allowed, err := cluster.isAllowed(context.Background(), ssar, api, "watch", "other-ns")
+		require.NoError(t, err)
+		assert.False(t, allowed, "must not start a watch in a namespace that denies the verb")
+
+		ssar = &nsAwareSSAR{allow: map[string]bool{"app-ns": true, "other-ns": false}}
+		allowed, err = cluster.isAllowed(context.Background(), ssar, api, "watch", "app-ns")
+		require.NoError(t, err)
+		assert.True(t, allowed)
+		assert.Equal(t, []string{"app-ns"}, ssar.seen)
 	})
 }
 
@@ -158,11 +171,14 @@ var _ authType1.SelfSubjectAccessReviewInterface = (*captureSSAR)(nil)
 // nsAwareSSAR answers based on the namespace on the review request.
 type nsAwareSSAR struct {
 	allow map[string]bool
+	seen  []string
 }
 
 func (n *nsAwareSSAR) Create(ctx context.Context, sar *authorizationv1.SelfSubjectAccessReview, opts metav1.CreateOptions) (*authorizationv1.SelfSubjectAccessReview, error) {
+	ns := sar.Spec.ResourceAttributes.Namespace
+	n.seen = append(n.seen, ns)
 	out := sar.DeepCopy()
-	out.Status.Allowed = n.allow[sar.Spec.ResourceAttributes.Namespace]
+	out.Status.Allowed = n.allow[ns]
 	return out, nil
 }
 
@@ -183,7 +199,7 @@ func TestVerbsRequiredForWatch_ReturnsFreshSlice(t *testing.T) {
 func TestCheckPermission_PropagatesSSARError(t *testing.T) {
 	cluster := &clusterCache{}
 	ssar := &errorSSAR{err: assert.AnError}
-	keep, err := cluster.checkPermission(context.Background(), ssar, storageClassAPI())
+	keep, err := cluster.checkPermission(context.Background(), ssar, storageClassAPI(), "")
 	require.Error(t, err)
 	assert.False(t, keep)
 	assert.ErrorContains(t, err, "failed to create self subject access review")
@@ -192,7 +208,7 @@ func TestCheckPermission_PropagatesSSARError(t *testing.T) {
 func TestCheckPermission_StopsAfterFirstDeniedVerb(t *testing.T) {
 	cluster := &clusterCache{}
 	ssar := &recordingSSAR{allowed: map[string]bool{"list": false, "watch": true}}
-	keep, err := cluster.checkPermission(context.Background(), ssar, storageClassAPI())
+	keep, err := cluster.checkPermission(context.Background(), ssar, storageClassAPI(), "")
 	require.NoError(t, err)
 	assert.False(t, keep)
 	// list is checked first; once denied, watch is not required.
@@ -202,7 +218,7 @@ func TestCheckPermission_StopsAfterFirstDeniedVerb(t *testing.T) {
 func TestIsAllowed_PropagatesSSARError(t *testing.T) {
 	cluster := &clusterCache{}
 	ssar := &errorSSAR{err: assert.AnError}
-	allowed, err := cluster.isAllowed(context.Background(), ssar, storageClassAPI(), "watch")
+	allowed, err := cluster.isAllowed(context.Background(), ssar, storageClassAPI(), "watch", "")
 	require.Error(t, err)
 	assert.False(t, allowed)
 }
@@ -217,7 +233,7 @@ func TestIsAllowed_ClusterScopedWithClusterResources(t *testing.T) {
 		sar.Status.Allowed = true
 	}}
 
-	allowed, err := cluster.isAllowed(context.Background(), ssar, storageClassAPI(), "list")
+	allowed, err := cluster.isAllowed(context.Background(), ssar, storageClassAPI(), "list", "")
 	require.NoError(t, err)
 	assert.True(t, allowed)
 	require.NotNil(t, got)
@@ -229,7 +245,7 @@ func TestIsAllowed_NotWatchedScopeReturnsTrue(t *testing.T) {
 	// processApi would not watch this resource, so isAllowed returns true.
 	cluster := &clusterCache{namespaces: []string{"app-ns"}, clusterResources: false}
 	ssar := &recordingSSAR{allowed: map[string]bool{}}
-	allowed, err := cluster.isAllowed(context.Background(), ssar, storageClassAPI(), "watch")
+	allowed, err := cluster.isAllowed(context.Background(), ssar, storageClassAPI(), "watch", "")
 	require.NoError(t, err)
 	assert.True(t, allowed)
 	assert.Empty(t, ssar.verbs, "no SSAR should be issued for unwatched scopes")
@@ -245,7 +261,7 @@ func TestIsAllowed_NamespacedPropagatesSSARError(t *testing.T) {
 		Meta: metav1.APIResource{Name: "secrets", Namespaced: true, Kind: "Secret", Version: "v1"},
 	}
 	ssar := &errorSSAR{err: assert.AnError}
-	allowed, err := cluster.isAllowed(context.Background(), ssar, api, "watch")
+	allowed, err := cluster.isAllowed(context.Background(), ssar, api, "watch", "")
 	require.Error(t, err)
 	assert.False(t, allowed)
 }
