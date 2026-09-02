@@ -901,3 +901,26 @@ func TestLoadPolicyFromConfigMap(t *testing.T) {
 		assert.False(t, enf.GetPreventLoginWithoutPermissions(), "nothing may be applied when the callback rejects the update")
 	})
 }
+
+func TestSyncUpdatePublishesFlagLast(t *testing.T) {
+	cm := fakeConfigMap()
+	cm.Data[ConfigMapPolicyCSVKey] = "p, alice, applications, get, */*, allow"
+	cm.Data[ConfigMapPreventLoginWithoutPermissions] = "true"
+
+	enf := NewEnforcer(fake.NewClientset(), fakeNamespace, fakeConfigMapName, nil)
+	require.False(t, enf.GetPreventLoginWithoutPermissions())
+	require.False(t, enf.Enforce("alice", "applications", "get", "foo/bar"))
+
+	var flagAtFlush, policyAtFlush bool
+	enf.SetAfterPolicyInstalled(func(string) {
+		flagAtFlush = enf.GetPreventLoginWithoutPermissions()
+		policyAtFlush = enf.Enforce("alice", "applications", "get", "foo/bar")
+	})
+
+	require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
+
+	assert.True(t, policyAtFlush, "the new policy must already be live when the cache is invalidated")
+	assert.False(t, flagAtFlush, "the flag must stay invisible until the invalidation has happened")
+	assert.True(t, enf.GetPreventLoginWithoutPermissions(), "the flag must be live once the update completes")
+	assert.True(t, enf.Enforce("alice", "applications", "get", "foo/bar"))
+}
