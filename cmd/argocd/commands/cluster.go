@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -92,7 +93,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command := &cobra.Command{
 		Use:   "add CONTEXT",
 		Short: common.CommandCLI + " cluster add CONTEXT",
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			var configAccess clientcmd.ConfigAccess = pathOpts
@@ -161,12 +162,17 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			annotationsMap, err := label.Parse(annotations)
 			errors.CheckError(err)
 
-			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			if clusterOpts.Name != "" {
 				contextName = clusterOpts.Name
 			}
 			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, managerBearerToken, awsAuthConf, execProviderConf, labelsMap, annotationsMap)
+			// If --server-proxy-url was explicitly provided, override the proxy that the ArgoCD server will use to
+			// reach this cluster.  An explicit empty string means "no proxy", which is the common case when the local
+			// machine needs a proxy but the two clusters can reach each other directly.
+			err = applyServerProxyOverride(c.Flags().Changed("server-proxy-url"), clusterOpts.ServerProxyURL, clst)
+			errors.CheckError(err)
 			if clusterOpts.InClusterEndpoint() {
 				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
 			} else if clusterOpts.ClusterEndpoint == string(cmdutil.KubePublicEndpoint) {
@@ -193,7 +199,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			_, err = clusterIf.Create(ctx, &clstCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("Cluster '%s' added\n", clst.Server)
-		},
+		}),
 	}
 	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
 	command.Flags().BoolVar(&clusterOpts.Upsert, "upsert", false, "Override an existing cluster with the same name even if the spec differs")
@@ -203,6 +209,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
 	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
 	command.Flags().StringVar(&clusterOpts.ProxyUrl, "proxy-url", "", "use proxy to connect cluster")
+	command.Flags().StringVar(&clusterOpts.ServerProxyURL, "server-proxy-url", "", "use a different proxy URL (or \"\" for no proxy) for the ArgoCD server to connect to the cluster; if omitted the value from --proxy-url or the kubeconfig is used")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
 }
@@ -231,6 +238,22 @@ func getRestConfig(pathOpts *clientcmd.PathOptions, ctxName string) (*rest.Confi
 	return conf, nil
 }
 
+// applyServerProxyOverride encapsulates the logic for handling the --server-proxy-url flag.
+// When changed is true, it validates non-empty values using argoappv1.ParseProxyUrl and
+// applies the override (including clearing the value when serverProxyURL is an explicit empty string).
+func applyServerProxyOverride(changed bool, serverProxyURL string, clst *argoappv1.Cluster) error {
+	if !changed {
+		return nil
+	}
+	if serverProxyURL != "" {
+		if _, err := argoappv1.ParseProxyUrl(serverProxyURL); err != nil {
+			return err
+		}
+	}
+	clst.Config.ProxyUrl = serverProxyURL
+	return nil
+}
+
 // NewClusterSetCommand returns a new instance of an `argocd cluster set` command
 func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -245,7 +268,7 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Example: `  # Set cluster information
   argocd cluster set CLUSTER_NAME --name new-cluster-name --namespace '*'
   argocd cluster set CLUSTER_NAME --name new-cluster-name --namespace namespace-one --namespace namespace-two`,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
@@ -253,7 +276,7 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 			// name of the cluster whose fields have to be updated.
 			clusterName = args[0]
-			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			// checks the fields that needs to be updated
 			updatedFields := checkFieldsToUpdate(clusterOptions, labels, annotations)
@@ -293,7 +316,7 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			} else {
 				fmt.Print("Specify the cluster field to be updated.\n")
 			}
-		},
+		}),
 	}
 	command.Flags().StringVar(&clusterOptions.Name, "name", "", "Overwrite the cluster name")
 	command.Flags().StringArrayVar(&clusterOptions.Namespaces, "namespace", nil, "List of namespaces which are allowed to manage. Specify '*' to manage all namespaces")
@@ -328,14 +351,14 @@ func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		Short: "Get cluster information",
 		Example: `argocd cluster get https://12.34.567.89
 argocd cluster get in-cluster`,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			clusters := make([]argoappv1.Cluster, 0)
 			for _, clusterSelector := range args {
@@ -354,7 +377,7 @@ argocd cluster get in-cluster`,
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
-		},
+		}),
 	}
 	// we have yaml as default to not break backwards-compatibility
 	command.Flags().StringVarP(&output, "output", "o", "yaml", "Output format. One of: json|yaml|wide|server")
@@ -403,14 +426,14 @@ func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions, pathOpts *c
 		Short: "Remove cluster credentials",
 		Example: `argocd cluster rm https://12.34.567.89
 argocd cluster rm cluster-name`,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			numOfClusters := len(args)
 			var isConfirmAll bool
@@ -459,7 +482,7 @@ argocd cluster rm cluster-name`,
 					fmt.Println("The command to remove '" + clusterSelector + "' was cancelled.")
 				}
 			}
-		},
+		}),
 	}
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm remove of cluster resources")
 	return command
@@ -505,10 +528,10 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured clusters",
-		Run: func(c *cobra.Command, _ []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
-			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			clusters, err := clusterIf.List(ctx, &clusterpkg.ClusterListQuery{Selector: selector})
 			errors.CheckError(err)
@@ -523,7 +546,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
-		},
+		}),
 		Example: `
 # List Clusters in Default "Wide" Format
 argocd cluster list
@@ -560,14 +583,14 @@ func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Short: common.CommandCLI + " cluster rotate-auth SERVER/NAME",
 		Example: `argocd cluster rotate-auth https://12.34.567.89
 argocd cluster rotate-auth cluster-name`,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			cluster := args[0]
@@ -576,7 +599,7 @@ argocd cluster rotate-auth cluster-name`,
 			errors.CheckError(err)
 
 			fmt.Printf("Cluster '%s' rotated auth\n", cluster)
-		},
+		}),
 	}
 	return command
 }
