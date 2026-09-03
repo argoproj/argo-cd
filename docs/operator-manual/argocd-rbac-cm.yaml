@@ -42,4 +42,11 @@ data:
   # will be set to 'glob' as default.
   policy.matchMode: 'glob'
 
+  # policy.reportNoPermissions tells the API server to mark a session, on the user-info response, when
+  # it holds no effective RBAC permission at all. The UI uses that to explain an otherwise empty page
+  # rather than leaving the user to guess. Nothing is refused: the user still logs in, and every
+  # request is authorised exactly as before.
+  # Defaults to "false".
+  # policy.reportNoPermissions: "false"
+
 

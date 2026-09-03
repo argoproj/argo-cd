@@ -5,9 +5,11 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/util/assets"
@@ -33,12 +35,13 @@ import (
 )
 
 const (
-	ConfigMapPolicyCSVKey     = "policy.csv"
-	ConfigMapPolicyDefaultKey = "policy.default"
-	ConfigMapScopesKey        = "scopes"
-	ConfigMapMatchModeKey     = "policy.matchMode"
-	GlobMatchMode             = "glob"
-	RegexMatchMode            = "regex"
+	ConfigMapPolicyCSVKey           = "policy.csv"
+	ConfigMapPolicyDefaultKey       = "policy.default"
+	ConfigMapScopesKey              = "scopes"
+	ConfigMapMatchModeKey           = "policy.matchMode"
+	ConfigMapReportNoPermissionsKey = "policy.reportNoPermissions"
+	GlobMatchMode                   = "glob"
+	RegexMatchMode                  = "regex"
 
 	defaultRBACSyncPeriod = 10 * time.Minute
 )
@@ -127,18 +130,19 @@ var ProjectScoped = map[string]bool{
 // * supports a user-defined policy
 // * supports a custom JWT claims enforce function
 type Enforcer struct {
-	lock               sync.Mutex
-	enforcerCache      *gocache.Cache
-	adapter            *argocdAdapter
-	enableLog          bool
-	enabled            bool
-	clientset          kubernetes.Interface
-	namespace          string
-	configmap          string
-	claimsEnforcerFunc ClaimsEnforcerFunc
-	model              model.Model
-	defaultRole        string
-	matchMode          string
+	lock                sync.Mutex
+	enforcerCache       *gocache.Cache
+	adapter             *argocdAdapter
+	enableLog           bool
+	enabled             bool
+	clientset           kubernetes.Interface
+	namespace           string
+	configmap           string
+	claimsEnforcerFunc  ClaimsEnforcerFunc
+	model               model.Model
+	defaultRole         string
+	reportNoPermissions atomic.Bool
+	matchMode           string
 }
 
 // cachedEnforcer holds the Casbin enforcer instances and optional custom project policy
@@ -319,6 +323,120 @@ func (e *Enforcer) SetDefaultRole(roleName string) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 	e.defaultRole = roleName
+}
+
+// GetDefaultRole returns the role applied to every authenticated subject, or "" when none is set.
+func (e *Enforcer) GetDefaultRole() string {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	return e.defaultRole
+}
+
+// GetReportNoPermissions reports whether the server should tell the UI when a session holds no
+// effective permission. Off unless argocd-rbac-cm opts in.
+func (e *Enforcer) GetReportNoPermissions() bool {
+	return e.reportNoPermissions.Load()
+}
+
+// SetReportNoPermissions overrides the setting. The ConfigMap is the normal source.
+func (e *Enforcer) SetReportNoPermissions(v bool) {
+	e.reportNoPermissions.Store(v)
+}
+
+func (e *Enforcer) getMatchMode() string {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	return e.matchMode
+}
+
+const (
+	allowEffect = "allow"
+	denyEffect  = "deny"
+)
+
+const policyRowLen = 5
+
+const globMetaChars = `*?[]{}\`
+
+var universalRegexPatterns = []string{".*", ".*?", "(.*)"}
+
+type denyRule struct {
+	patterns  [3]string
+	universal [3]bool
+}
+
+// HasAnyAllowPermission reports whether a subject holds at least one effective "allow" permission in
+// the current policy, including permissions inherited transitively from roles. Allow rows entirely
+// overridden by a deny row (per the model's effect `some(allow) && !some(deny)`) do not count, so a
+// subject suspended with a blanket deny correctly returns false.
+//
+// The deny check is deliberately a sound under-approximation: a deny only cancels an allow when it
+// provably matches every request the allow would grant. Where containment cannot be proven the allow
+// is treated as surviving, which keeps the answer biased towards "has permissions".
+func (e *Enforcer) HasAnyAllowPermission(subject string) bool {
+	perms, err := e.CreateEnforcerWithRuntimePolicy("", "").GetImplicitPermissionsForUser(subject)
+	if err != nil {
+		log.WithError(err).Errorf("failed to read implicit permissions for %q", subject)
+		return false
+	}
+	return hasSurvivingAllow(perms, e.getMatchMode())
+}
+
+func hasSurvivingAllow(perms [][]string, matchMode string) bool {
+	denies := make([]denyRule, 0, len(perms))
+	for _, row := range perms {
+		if len(row) < policyRowLen || row[4] != denyEffect {
+			continue
+		}
+		rule := denyRule{patterns: [3]string{row[1], row[2], row[3]}}
+		for i, pattern := range rule.patterns {
+			rule.universal[i] = isUniversalPattern(pattern, matchMode)
+		}
+		denies = append(denies, rule)
+	}
+
+	for _, row := range perms {
+		if len(row) < policyRowLen || row[4] != allowEffect {
+			continue
+		}
+		if !isNullifiedByDenies(row, denies, matchMode) {
+			return true
+		}
+	}
+	return false
+}
+
+func isNullifiedByDenies(allow []string, denies []denyRule, matchMode string) bool {
+	for _, deny := range denies {
+		covered := true
+		for i, denyPattern := range deny.patterns {
+			if !patternCovers(denyPattern, allow[i+1], deny.universal[i], matchMode) {
+				covered = false
+				break
+			}
+		}
+		if covered {
+			return true
+		}
+	}
+	return false
+}
+
+func patternCovers(denyPattern, allowPattern string, denyIsUniversal bool, matchMode string) bool {
+	if denyIsUniversal || denyPattern == allowPattern {
+		return true
+	}
+	if matchMode != RegexMatchMode && !strings.ContainsAny(allowPattern, globMetaChars) {
+		return glob.Match(denyPattern, allowPattern)
+	}
+	return false
+}
+
+func isUniversalPattern(pattern, matchMode string) bool {
+	if matchMode == RegexMatchMode {
+		return slices.Contains(universalRegexPatterns, pattern)
+	}
+	return pattern == "*" || pattern == "**"
 }
 
 // SetClaimsEnforcerFunc sets a claims enforce function during enforcement. The claims enforce function
@@ -557,7 +675,11 @@ func (e *Enforcer) syncUpdate(cm *corev1.ConfigMap, onUpdated func(cm *corev1.Co
 	if err := onUpdated(cm); err != nil {
 		return fmt.Errorf("error running policy update callback: %w", err)
 	}
-	return e.SetUserPolicy(policyCSV)
+	if err := e.SetUserPolicy(policyCSV); err != nil {
+		return err
+	}
+	e.reportNoPermissions.Store(cm.Data[ConfigMapReportNoPermissionsKey] == "true")
+	return nil
 }
 
 // ValidatePolicy verifies a policy string is acceptable to casbin

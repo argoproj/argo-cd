@@ -6525,6 +6525,10 @@
         "loggedIn": {
           "type": "boolean"
         },
+        "noPermissions": {
+          "description": "noPermissions is set when the session carries no effective RBAC permission at all. It lets the\nUI explain an empty page instead of leaving the user to guess. The negative form matters: an\nunset value means \"nothing to report\", so an older server keeps today's behaviour.",
+          "type": "boolean"
+        },
         "username": {
           "type": "string"
         }

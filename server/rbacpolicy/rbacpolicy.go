@@ -1,6 +1,7 @@
 package rbacpolicy
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -53,6 +54,30 @@ func GetProjectRoleFromSubject(subject string) (string, string, bool) {
 		return parts[1], parts[2], true
 	}
 	return "", "", false
+}
+
+// ReportNoPermissions reports whether argocd-rbac-cm has opted in to describing sessions that hold
+// no effective permission.
+func (p *RBACPolicyEnforcer) ReportNoPermissions() bool {
+	return p.enf.GetReportNoPermissions()
+}
+
+// HasAnyPermission reports whether the subject, the default role, or any of the subject's groups
+// holds at least one effective allow permission. It is informational: callers use it to explain an
+// otherwise empty UI, not to refuse a request. Deny rules that fully cancel an allow are respected,
+// and where that cannot be determined the answer is biased towards "has permissions", so a wrong
+// answer produces a misleading message rather than a user who is told they have no access.
+//
+// It does not consult AppProject roles, so a subject whose only permissions come from a project role
+// is reported as having none.
+func (p *RBACPolicyEnforcer) HasAnyPermission(subject string, groups []string) bool {
+	if defaultRole := p.enf.GetDefaultRole(); defaultRole != "" && p.enf.HasAnyAllowPermission(defaultRole) {
+		return true
+	}
+	if subject != "" && p.enf.HasAnyAllowPermission(subject) {
+		return true
+	}
+	return slices.ContainsFunc(groups, p.enf.HasAnyAllowPermission)
 }
 
 // EnforceClaims is an RBAC claims enforcer specific to the Argo CD API server

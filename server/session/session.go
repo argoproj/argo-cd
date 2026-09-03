@@ -102,10 +102,19 @@ func (s *Server) AuthFuncOverride(ctx context.Context, _ string) (context.Contex
 }
 
 func (s *Server) GetUserInfo(ctx context.Context, _ *session.GetUserInfoRequest) (*session.GetUserInfoResponse, error) {
+	loggedIn := sessionmgr.LoggedIn(ctx)
+	groups := sessionmgr.Groups(ctx, s.policyEnf.GetScopes())
+
+	noPermissions := false
+	if loggedIn && s.policyEnf.ReportNoPermissions() {
+		noPermissions = !s.policyEnf.HasAnyPermission(sessionmgr.GetUserIdentifier(ctx), groups)
+	}
+
 	return &session.GetUserInfoResponse{
-		LoggedIn: sessionmgr.LoggedIn(ctx),
-		Username: sessionmgr.Username(ctx),
-		Iss:      sessionmgr.Iss(ctx),
-		Groups:   sessionmgr.Groups(ctx, s.policyEnf.GetScopes()),
+		LoggedIn:      loggedIn,
+		Username:      sessionmgr.Username(ctx),
+		Iss:           sessionmgr.Iss(ctx),
+		Groups:        groups,
+		NoPermissions: noPermissions,
 	}, nil
 }
