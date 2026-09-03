@@ -447,11 +447,9 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 	}
 	var hydratorStatus string
 	if app.Spec.SourceHydrator != nil {
-		if app.Status.SourceHydrator.CurrentOperation != nil {
-			hydratorStatus = string(app.Status.SourceHydrator.CurrentOperation.Phase)
-		}
-		if hydratorStatus == "" {
-			hydratorStatus = "Unknown"
+		hydratorStatus = string(argoappv1.HydrateOperationPhaseUnknown)
+		if op := app.Status.SourceHydrator.CurrentOperation; op != nil && op.Phase != "" {
+			hydratorStatus = string(op.Phase)
 		}
 	}
 

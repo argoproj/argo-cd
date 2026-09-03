@@ -1304,6 +1304,9 @@ type SuccessfulHydrateOperation struct {
 type HydrateOperationPhase string
 
 const (
+	// HydrateOperationPhaseUnknown indicates that the hydration phase could not be reliably determined.
+	// For now this is only used in metrics, not in the CR status.
+	HydrateOperationPhaseUnknown HydrateOperationPhase = "Unknown"
 	HydrateOperationPhaseHydrating HydrateOperationPhase = "Hydrating"
 	HydrateOperationPhaseFailed    HydrateOperationPhase = "Failed"
 	HydrateOperationPhaseHydrated  HydrateOperationPhase = "Hydrated"
