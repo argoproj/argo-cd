@@ -886,3 +886,18 @@ func TestGetGitFilesChanges(t *testing.T) {
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
 	})
 }
+
+func TestGetRefTargetRevisionMappingForCacheKey_OCINormalization(t *testing.T) {
+	// Regression: refSourceCommitSHAs is keyed with NormalizeRepoURL, which preserves the ".git"
+	// suffix for OCI URLs while git.NormalizeGitURL strips it. Looking the digest up with git
+	// normalization missed and blanked TargetRevision, so manifest generation ran at an empty revision.
+	repoURL := "oci://example.com/org/repo.git"
+	mapping := v1alpha1.RefTargetRevisionMapping{
+		"$values": {Repo: v1alpha1.Repository{Repo: repoURL}, TargetRevision: "1.0.0"},
+	}
+	shas := ResolvedRevisions{v1alpha1.NormalizeOCIURL(repoURL): "sha256:digest"}
+
+	res := getRefTargetRevisionMappingForCacheKey(mapping, shas)
+
+	assert.Equal(t, "sha256:digest", res["$values"].TargetRevision)
+}

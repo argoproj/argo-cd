@@ -20,7 +20,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/hash"
 )
 
@@ -109,7 +108,8 @@ func getRefTargetRevisionMappingForCacheKey(refTargetRevisionMapping appv1.RefTa
 
 	for k, v := range refTargetRevisionMapping {
 		// forcefully update TargetRevision based on refSourceCommitSHAs so that the resolved revision is always stored in the cache
-		v.TargetRevision = refSourceCommitSHAs[git.NormalizeGitURL(v.Repo.Repo)]
+		// NormalizeRepoURL (OCI-aware) must match how refSourceCommitSHAs is keyed when populated.
+		v.TargetRevision = refSourceCommitSHAs[v.Repo.NormalizeRepoURL()]
 		res[k] = refTargetForCacheKeyFromRefTarget(v)
 	}
 	return res

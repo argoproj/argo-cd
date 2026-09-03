@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/TomOnTime/utfutil"
-	"github.com/bmatcuk/doublestar/v4"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	gocache "github.com/patrickmn/go-cache"
 	"sigs.k8s.io/yaml"
@@ -381,7 +380,14 @@ func (s *Service) runRepoOperation(
 		return err
 	}
 
-	repoRefs, err := resolveReferencedSources(hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision, gitClientOpts)
+	repoRefs, err := resolveReferencedSources(ctx, hasMultipleSources, source.Helm, refSources, refSourceResolver{
+		newClientResolveRevision:    s.newClientResolveRevision,
+		newOCIClientResolveRevision: s.newOCIClientResolveRevision,
+		gitClientOpts:               gitClientOpts,
+		// OCI has no ClientOpts equivalent, so pass the same no-cache decision that
+		// gitClientOpts encodes above, keeping Git and OCI ref resolution consistent.
+		ociNoRevisionCache: settings.noCache || settings.noRevisionCache,
+	})
 	if err != nil {
 		return err
 	}
@@ -571,12 +577,26 @@ func getRepoSanitizerRegex(rootDir string) *regexp.Regexp {
 
 type gitClientGetter func(repo *v1alpha1.Repository, revision string, opts ...git.ClientOpts) (git.Client, string, error)
 
+type ociClientGetter func(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (oci.Client, string, error)
+
+// refSourceResolver bundles the revision-resolution dependencies and cache settings used
+// when resolving referenced sources. It keeps resolveReferencedSources from taking a long
+// list of positional arguments and ensures the Git and OCI paths honor the same cache
+// settings: gitClientOpts already encodes the caller's no-cache request for Git, and
+// ociNoRevisionCache carries the equivalent flag for OCI.
+type refSourceResolver struct {
+	newClientResolveRevision    gitClientGetter
+	newOCIClientResolveRevision ociClientGetter
+	gitClientOpts               git.ClientOpts
+	ociNoRevisionCache          bool
+}
+
 // resolveReferencedSources resolves the revisions for the given referenced sources. This lets us invalidate the cached
 // when one or more referenced sources change.
 //
 // Much of this logic is duplicated in runManifestGenAsync. If making changes here, check whether runManifestGenAsync
 // should be updated.
-func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter, gitClientOpts git.ClientOpts) (map[string]string, error) {
+func resolveReferencedSources(ctx context.Context, hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, resolver refSourceResolver) (map[string]string, error) {
 	repoRefs := make(map[string]string)
 	if !hasMultipleSources || source == nil {
 		return repoRefs, nil
@@ -605,16 +625,35 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 			}
 			return nil, fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
 		}
+
+		// The 'chart' field is not honored for ref sources: ref resolution keys off the
+		// repository URL only and does not incorporate 'chart', so accepting it (for Git or
+		// OCI) would silently ignore it. Reject it instead of misleading users.
 		if refSourceMapping.Chart != "" {
-			return nil, errors.New("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
+			return nil, errors.New("source has a 'chart' field defined, but the 'chart' field is not supported for 'ref' sources")
 		}
-		normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
+
+		// Key must match runManifestGenAsync, which keys refSourceCommitSHAs the same way;
+		// both feed the manifest cache key.
+		normalizedRepoURL := refSourceMapping.Repo.NormalizeRepoURL()
+
 		_, ok = repoRefs[normalizedRepoURL]
 		if !ok {
-			_, referencedCommitSHA, err := newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, gitClientOpts)
-			if err != nil {
-				log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
-				return nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
+			var referencedCommitSHA string
+			var err error
+
+			if refSourceMapping.Repo.IsOCI() {
+				_, referencedCommitSHA, err = resolver.newOCIClientResolveRevision(ctx, &refSourceMapping.Repo, refSourceMapping.TargetRevision, resolver.ociNoRevisionCache)
+				if err != nil {
+					log.Errorf("Failed to get OCI client for repo %s: %v", refSourceMapping.Repo.Repo, err)
+					return nil, fmt.Errorf("failed to get OCI client for repo %s", refSourceMapping.Repo.Repo)
+				}
+			} else {
+				_, referencedCommitSHA, err = resolver.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, resolver.gitClientOpts)
+				if err != nil {
+					log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
+					return nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
+				}
 			}
 
 			repoRefs[normalizedRepoURL] = referencedCommitSHA
@@ -659,10 +698,20 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 
 	var err error
 
-	// Skip this path for ref only sources
-	if q.HasMultipleSources && q.ApplicationSource.Path == "" && !q.ApplicationSource.IsOCI() && !q.ApplicationSource.IsHelm() && q.ApplicationSource.IsRef() {
+	// Skip this path for ref only sources. A ref-only source (empty path, 'ref' set, no
+	// chart) contributes value files to other sources, not manifests of its own, so we only
+	// resolve its revision for the cache key. This applies to OCI ref sources as well: those
+	// must resolve the digest via the OCI client rather than the git resolver, and must not
+	// fall through to manifest generation (which would parse a plain values.yaml as k8s YAML).
+	if q.HasMultipleSources && q.ApplicationSource.Path == "" && !q.ApplicationSource.IsHelm() && q.ApplicationSource.IsRef() {
 		log.Debugf("Skipping manifest generation for ref only source for application: %s and ref %s", q.AppName, q.ApplicationSource.Ref)
-		_, revision, err := s.newClientResolveRevision(q.Repo, q.Revision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+		var revision string
+		var err error
+		if q.ApplicationSource.IsOCI() {
+			_, revision, err = s.newOCIClientResolveRevision(ctx, q.Repo, q.Revision, q.NoCache || q.NoRevisionCache)
+		} else {
+			_, revision, err = s.newClientResolveRevision(q.Repo, q.Revision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+		}
 		res = &apiclient.ManifestResponse{
 			Revision: revision,
 		}
@@ -846,6 +895,170 @@ type repoRef struct {
 	key string
 }
 
+// closeAndLog closes a resource closer and logs a warning if closing fails. It is used to release
+// the repo/OCI locks acquired while resolving referenced sources.
+func closeAndLog(closer goio.Closer, what string) {
+	if err := closer.Close(); err != nil {
+		log.Errorf("Failed to release %s: %v", what, err)
+	}
+}
+
+// refSourceResolveRequest bundles the inputs shared by resolveOCIRefSource and resolveGitRefSource
+// when resolving a referenced ($ref) source during manifest generation.
+type refSourceResolveRequest struct {
+	refSourceMapping  *v1alpha1.RefTarget
+	normalizedRepoURL string
+	refVar            string
+	// noCache and noRevisionCache carry the caller's cache preferences. They are passed explicitly
+	// rather than as a request object because ref sources are resolved both for manifest generation
+	// and for GetAppDetails, which use different request types.
+	noCache         bool
+	noRevisionCache bool
+	// appRepoURL and appRevision describe the primary (application) source. The git resolver uses
+	// them to reject referencing a different revision of the same repository.
+	appRepoURL  string
+	appRevision string
+	// commitSHA is the resolved commit of the primary (application) source. The git resolver uses it
+	// to reject referencing a different revision of the same repository and for the out-of-bounds
+	// symlink check.
+	commitSHA string
+	// ociRefPaths receives the extracted OCI directory (keyed by normalizedRepoURL) for later value
+	// file resolution. Only used by the OCI resolver.
+	ociRefPaths utilio.TempPaths
+}
+
+// resolveOCIRefSource resolves and extracts an OCI $ref source for the current request (manifest
+// generation or app details). It registers the extracted directory in req.ociRefPaths (keyed by
+// req.normalizedRepoURL) so value files can be resolved against it, and returns a repoRef
+// describing the resolution along with a closer that releases the OCI lock. The caller must hold
+// the returned closer until the referenced value files have been read. Errors returned for
+// external causes are redacted for surfacing to the client; the detailed cause is logged here.
+//
+// Unlike resolveGitRefSource, there is deliberately no "same repository, different revision" guard.
+// That git check exists because a referenced git source and the primary source can share a single
+// checkout directory, making two revisions of one repo contradictory. OCI ref content is instead
+// extracted into a request-scoped directory of its own (ociRefPaths), so there is no shared-checkout
+// conflict to detect, and the primary source's revision (a git commit SHA) is not comparable to an
+// OCI digest.
+func (s *Service) resolveOCIRefSource(ctx context.Context, req refSourceResolveRequest) (repoRef, goio.Closer, error) {
+	refSourceMapping := req.refSourceMapping
+	ociClient, err := s.newOCIClient(refSourceMapping.Repo.Repo, refSourceMapping.Repo.GetOCICreds(), refSourceMapping.Repo.Proxy, refSourceMapping.Repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts()...)
+	if err != nil {
+		log.Errorf("Failed to create OCI client for repo %s: %v", refSourceMapping.Repo.Repo, err)
+		return repoRef{}, nil, fmt.Errorf("failed to create OCI client for repo %s", refSourceMapping.Repo.Repo)
+	}
+
+	referencedDigest, err := ociClient.ResolveRevision(ctx, refSourceMapping.TargetRevision, req.noCache || req.noRevisionCache)
+	if err != nil {
+		log.Errorf("Failed to resolve OCI revision %s: %v", refSourceMapping.TargetRevision, err)
+		return repoRef{}, nil, fmt.Errorf("failed to resolve OCI revision %s", refSourceMapping.TargetRevision)
+	}
+
+	ociPath, closer, err := ociClient.Extract(ctx, referencedDigest)
+	if err != nil {
+		log.Errorf("Failed to extract OCI image %s: %v", refSourceMapping.Repo.Repo, err)
+		return repoRef{}, nil, fmt.Errorf("failed to extract OCI image %s", refSourceMapping.Repo.Repo)
+	}
+
+	// Check for out-of-bounds symlinks
+	if !s.initConstants.AllowOutOfBoundsSymlinks {
+		if err := apppathutil.CheckOutOfBoundsSymlinks(ociPath); err != nil {
+			closeAndLog(closer, "OCI lock")
+			oobError := &apppathutil.OutOfBoundsSymlinkError{}
+			if errors.As(err, &oobError) {
+				log.WithFields(log.Fields{
+					common.SecurityField: common.SecurityHigh,
+					"repo":               refSourceMapping.Repo,
+					"revision":           refSourceMapping.TargetRevision,
+					"file":               oobError.File,
+				}).Warn("oci image contains out-of-bounds symlink")
+				return repoRef{}, nil, fmt.Errorf("oci image contains out-of-bounds symlinks. file: %s", oobError.File)
+			}
+			return repoRef{}, nil, err
+		}
+	}
+
+	// Register the extracted path for value file resolution during this generation
+	req.ociRefPaths.Add(req.normalizedRepoURL, ociPath)
+	return repoRef{revision: refSourceMapping.TargetRevision, commitSHA: referencedDigest, key: req.refVar}, closer, nil
+}
+
+// resolveGitRefSource checks out a referenced git source at its target revision for the current
+// manifest generation. It returns a repoRef describing the resolution along with a closer that
+// releases the repo lock. The caller must hold the returned closer until manifest generation
+// completes. Errors returned for external causes are redacted for surfacing to the client; the
+// detailed cause is logged here.
+func (s *Service) resolveGitRefSource(ctx context.Context, req refSourceResolveRequest) (repoRef, goio.Closer, error) {
+	refSourceMapping := req.refSourceMapping
+	gitClient, referencedCommitSHA, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, git.WithCache(s.cache, !req.noRevisionCache && !req.noCache))
+	if err != nil {
+		log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
+		return repoRef{}, nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
+	}
+
+	if git.NormalizeGitURL(req.appRepoURL) == req.normalizedRepoURL && req.commitSHA != referencedCommitSHA {
+		return repoRef{}, nil, fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", req.refVar, refSourceMapping.TargetRevision, referencedCommitSHA, req.appRevision, req.commitSHA)
+	}
+
+	closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func(clean bool) (goio.Closer, error) {
+		// Use the referenced source's own depth instead of the primary source's depth.
+		// For multi-source Applications where the primary source is a Helm/OCI artifact,
+		// q.Repo.Depth is unset (0), which would otherwise force a full fetch of the
+		// referenced git repository regardless of its configured depth.
+		return s.checkoutRevision(ctx, gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, refSourceMapping.Repo.Depth, clean)
+	})
+	if err != nil {
+		log.Errorf("failed to acquire lock for referenced source %s", req.normalizedRepoURL)
+		return repoRef{}, nil, err
+	}
+
+	// Symlink check must happen after acquiring lock.
+	if !s.initConstants.AllowOutOfBoundsSymlinks {
+		if err := s.checkOutOfBoundsSymlinks(gitClient.Root(), req.commitSHA, req.noCache, ".git"); err != nil {
+			closeAndLog(closer, "repo lock")
+			oobError := &apppathutil.OutOfBoundsSymlinkError{}
+			if errors.As(err, &oobError) {
+				log.WithFields(log.Fields{
+					common.SecurityField: common.SecurityHigh,
+					"repo":               refSourceMapping.Repo,
+					"revision":           refSourceMapping.TargetRevision,
+					"file":               oobError.File,
+				}).Warn("repository contains out-of-bounds symlink")
+				return repoRef{}, nil, fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
+			}
+			return repoRef{}, nil, err
+		}
+	}
+
+	return repoRef{revision: refSourceMapping.TargetRevision, commitSHA: referencedCommitSHA, key: req.refVar}, closer, nil
+}
+
+// extractOCIRefSource extracts an OCI $ref source into ociRefPaths, keyed by normalized repo URL,
+// which is how value file resolution looks it up. A repository already extracted for an earlier
+// $ref is reused, and referencing it at a second revision is rejected.
+func (s *Service) extractOCIRefSource(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery, refName string, refSource *v1alpha1.RefTarget, refSources map[string]repoRef, ociRefPaths utilio.TempPaths) (goio.Closer, error) {
+	normalizedRepoURL := refSource.Repo.NormalizeRepoURL()
+	if prevRef, ok := refSources[normalizedRepoURL]; ok {
+		if prevRef.revision != refSource.TargetRevision {
+			return nil, fmt.Errorf("cannot reference multiple revisions for the same repository (%s references %q while %s references %q)", refName, refSource.TargetRevision, prevRef.key, prevRef.revision)
+		}
+		return utilio.NopCloser, nil
+	}
+	ref, closer, err := s.resolveOCIRefSource(ctx, refSourceResolveRequest{
+		refSourceMapping:  refSource,
+		normalizedRepoURL: normalizedRepoURL,
+		refVar:            refName,
+		noCache:           q.NoCache,
+		noRevisionCache:   q.NoRevisionCache,
+		ociRefPaths:       ociRefPaths,
+	})
+	if err != nil {
+		return nil, err
+	}
+	refSources[normalizedRepoURL] = ref
+	return closer, nil
+}
+
 func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, revision string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest, ch *generateManifestCh) {
 	defer func() {
 		close(ch.errCh)
@@ -856,6 +1069,12 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	// key. Overrides will break the cache anyway, because changes to overrides will change the revision.
 	appSourceCopy := q.ApplicationSource.DeepCopy()
 	repoRefs := make(map[string]repoRef)
+	// OCI ref sources are extracted to a directory unique to this generation and removed
+	// when it completes, so the repo URL -> extracted dir mapping must be request-scoped:
+	// registering it in the service-wide s.ociPaths would let concurrent generations
+	// referencing the same repo read each other's (possibly different-revision, possibly
+	// already-deleted) directories.
+	ociRefPaths := utilio.NewRandomizedTempPaths(os.TempDir())
 
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()
@@ -889,11 +1108,13 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 						ch.errCh <- fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
 						return
 					}
+					// The 'chart' field is not honored for ref sources (see resolveReferencedSources).
 					if refSourceMapping.Chart != "" {
-						ch.errCh <- errors.New("source has a 'chart' field defined, but Helm charts are not yet not supported for 'ref' sources")
+						ch.errCh <- errors.New("source has a 'chart' field defined, but the 'chart' field is not supported for 'ref' sources")
 						return
 					}
-					normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
+
+					normalizedRepoURL := refSourceMapping.Repo.NormalizeRepoURL()
 					closer, ok := repoRefs[normalizedRepoURL]
 					if ok {
 						if closer.revision != refSourceMapping.TargetRevision {
@@ -901,63 +1122,37 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							return
 						}
 					} else {
-						gitClient, referencedCommitSHA, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
-						if err != nil {
-							log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
-							ch.errCh <- fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
-							return
+						req := refSourceResolveRequest{
+							refSourceMapping:  refSourceMapping,
+							normalizedRepoURL: normalizedRepoURL,
+							refVar:            refVar,
+							noCache:           q.NoCache,
+							noRevisionCache:   q.NoRevisionCache,
+							appRepoURL:        q.ApplicationSource.RepoURL,
+							appRevision:       q.Revision,
+							commitSHA:         commitSHA,
+							ociRefPaths:       ociRefPaths,
 						}
-
-						if git.NormalizeGitURL(q.ApplicationSource.RepoURL) == normalizedRepoURL && commitSHA != referencedCommitSHA {
-							ch.errCh <- fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refVar, refSourceMapping.TargetRevision, referencedCommitSHA, q.Revision, commitSHA)
-							return
+						var ref repoRef
+						var closer goio.Closer
+						var err error
+						if refSourceMapping.Repo.IsOCI() {
+							ref, closer, err = s.resolveOCIRefSource(ctx, req)
+						} else {
+							ref, closer, err = s.resolveGitRefSource(ctx, req)
 						}
-						closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func(clean bool) (goio.Closer, error) {
-							// Use the referenced source's own depth instead of the primary source's depth.
-							// For multi-source Applications where the primary source is a Helm/OCI artifact,
-							// q.Repo.Depth is unset (0), which would otherwise force a full fetch of the
-							// referenced git repository regardless of its configured depth.
-							return s.checkoutRevision(ctx, gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, refSourceMapping.Repo.Depth, clean)
-						})
 						if err != nil {
-							log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
 							ch.errCh <- err
 							return
 						}
-						defer func(closer goio.Closer) {
-							err := closer.Close()
-							if err != nil {
-								log.Errorf("Failed to release repo lock: %v", err)
-							}
-						}(closer)
-
-						// Symlink check must happen after acquiring lock.
-						if !s.initConstants.AllowOutOfBoundsSymlinks {
-							err := s.checkOutOfBoundsSymlinks(gitClient.Root(), commitSHA, q.NoCache, ".git")
-							if err != nil {
-								oobError := &apppathutil.OutOfBoundsSymlinkError{}
-								if errors.As(err, &oobError) {
-									log.WithFields(log.Fields{
-										common.SecurityField: common.SecurityHigh,
-										"repo":               refSourceMapping.Repo,
-										"revision":           refSourceMapping.TargetRevision,
-										"file":               oobError.File,
-									}).Warn("repository contains out-of-bounds symlink")
-									ch.errCh <- fmt.Errorf("repository contains out-of-bounds symlinks. file: %s", oobError.File)
-									return
-								}
-								ch.errCh <- err
-								return
-							}
-						}
-
-						repoRefs[normalizedRepoURL] = repoRef{revision: refSourceMapping.TargetRevision, commitSHA: referencedCommitSHA, key: refVar}
+						defer closeAndLog(closer, "referenced source lock")
+						repoRefs[normalizedRepoURL] = ref
 					}
 				}
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths), WithOCIPaths(ociRefPaths))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1282,7 +1477,7 @@ func parseKubeVersion(version string) (string, error) {
 	return kubeVersion.String(), nil
 }
 
-func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
+func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths, ociPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
 	// We use the app name as Helm's release name property, which must not
 	// contain any underscore characters and must not exceed 53 characters.
 	// We are not interested in the fully qualified application name while
@@ -1318,7 +1513,7 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1a
 			templateOpts.Namespace = appHelm.Namespace
 		}
 
-		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, appHelm.IgnoreMissingValueFiles)
+		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, ociPaths, appHelm.IgnoreMissingValueFiles)
 		if err != nil {
 			return nil, "", fmt.Errorf("error resolving helm value files: %w", err)
 		}
@@ -1355,8 +1550,7 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1a
 			var resolvedPath pathutil.ResolvedFilePath
 			referencedSource := getReferencedSource(p.Path, q.RefSources)
 			if referencedSource != nil {
-				// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving the source
-				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths)
+				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths, ociPaths)
 				if err != nil {
 					return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
 				}
@@ -1403,7 +1597,7 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1a
 	out, command, err := h.Template(templateOpts)
 	if err != nil {
 		if !helm.IsMissingDependencyErr(err) {
-			return nil, "", err
+			return nil, "", redactPathsInError(err, templateOpts.ExtraValues, gitRepoPaths, ociPaths)
 		}
 
 		err = runHelmBuild(ctx, appPath, h)
@@ -1426,30 +1620,36 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1a
 				return nil, "", status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
 			}
 
-			return nil, "", err
+			return nil, "", redactPathsInError(err, templateOpts.ExtraValues, gitRepoPaths, ociPaths)
 		}
 
 		out, command, err = h.Template(templateOpts)
 		if err != nil {
-			return nil, "", err
+			return nil, "", redactPathsInError(err, templateOpts.ExtraValues, gitRepoPaths, ociPaths)
 		}
 	}
 	objs, err := kube.SplitYAML([]byte(out))
 
-	redactedCommand := redactPaths(command, gitRepoPaths, templateOpts.ExtraValues)
+	// Redact both Git and OCI temp paths: value files resolved from a $ref OCI source live
+	// under ociPaths and would otherwise leak the reposerver filesystem path in the returned
+	// helm template command.
+	redactedCommand := redactPaths(command, templateOpts.ExtraValues, gitRepoPaths, ociPaths)
 
 	return objs, redactedCommand, err
 }
 
 // redactPaths removes temp repo paths, since those paths are randomized (and therefore not helpful for the user) and
 // sensitive (so not suitable for logging). It also replaces the path of the randomly-named values file which is used
-// to hold the `spec.source.helm.values` or `valuesObject` contents.
-func redactPaths(s string, paths utilio.TempPaths, extraValuesPath pathutil.ResolvedFilePath) string {
-	if paths == nil {
-		return s
-	}
-	for _, p := range paths.GetPaths() {
-		s = strings.ReplaceAll(s, p, ".")
+// to hold the `spec.source.helm.values` or `valuesObject` contents. All supplied path sets (e.g. Git checkouts and
+// extracted OCI artifacts) are redacted.
+func redactPaths(s string, extraValuesPath pathutil.ResolvedFilePath, pathSets ...utilio.TempPaths) string {
+	for _, paths := range pathSets {
+		if paths == nil {
+			continue
+		}
+		for _, p := range paths.GetPaths() {
+			s = strings.ReplaceAll(s, p, ".")
+		}
 	}
 	if extraValuesPath != "" {
 		// Replace with a placeholder so that the user knows what this values file was for.
@@ -1458,6 +1658,34 @@ func redactPaths(s string, paths utilio.TempPaths, extraValuesPath pathutil.Reso
 	return s
 }
 
+// redactedError overrides an error's message with a path-redacted version while preserving
+// the wrapped error via Unwrap, so errors.Is/errors.As continue to see the original error
+// identity (e.g. context.Canceled/DeadlineExceeded, *exec.ExitError, gRPC status errors).
+type redactedError struct {
+	msg string
+	err error
+}
+
+func (e *redactedError) Error() string { return e.msg }
+
+func (e *redactedError) Unwrap() error { return e.err }
+
+// redactPathsInError redacts sensitive temp paths from an error message. Helm template/build
+// failures embed the rendered command (including `--values <temp path>`), which would otherwise
+// leak randomized reposerver filesystem paths for Git checkouts and extracted OCI artifacts.
+// The original error is preserved for errors.Is/errors.As; only the surfaced message is redacted.
+func redactPathsInError(err error, extraValuesPath pathutil.ResolvedFilePath, pathSets ...utilio.TempPaths) error {
+	if err == nil {
+		return nil
+	}
+	return &redactedError{
+		msg: redactPaths(err.Error(), extraValuesPath, pathSets...),
+		err: err,
+	}
+}
+
+// getResolvedValueFiles resolves a list of raw value file paths (handling local
+// files, $ref Git/OCI sources, and glob expansion) via the valueFileResolver.
 func getResolvedValueFiles(
 	appPath string,
 	repoRoot string,
@@ -1466,134 +1694,21 @@ func getResolvedValueFiles(
 	rawValueFiles []string,
 	refSources map[string]*v1alpha1.RefTarget,
 	gitRepoPaths utilio.TempPaths,
+	ociRepoPaths utilio.TempPaths,
 	ignoreMissingValueFiles bool,
 ) ([]pathutil.ResolvedFilePath, error) {
-	// Pre-collect resolved paths for all explicit (non-glob) entries. This allows glob
-	// expansion to skip files that also appear explicitly, so the explicit entry controls
-	// the final position. For example, with ["*.yaml", "c.yaml"], c.yaml is excluded from
-	// the glob expansion and placed at the end where it was explicitly listed.
-	explicitPaths := make(map[pathutil.ResolvedFilePath]struct{})
-	for _, rawValueFile := range rawValueFiles {
-		referencedSource := getReferencedSource(rawValueFile, refSources)
-		var resolved pathutil.ResolvedFilePath
-		var err error
-		if referencedSource != nil {
-			resolved, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
-		} else {
-			resolved, _, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(rawValueFile), allowedValueFilesSchemas)
-		}
-		if err != nil {
-			continue // resolution errors will be surfaced in the main loop below
-		}
-		if !isGlobPath(string(resolved)) {
-			explicitPaths[resolved] = struct{}{}
-		}
-	}
+	resolver := newValueFileResolver(
+		appPath,
+		repoRoot,
+		env,
+		allowedValueFilesSchemas,
+		refSources,
+		gitRepoPaths,
+		ociRepoPaths,
+		ignoreMissingValueFiles,
+	)
 
-	var resolvedValueFiles []pathutil.ResolvedFilePath
-	seen := make(map[pathutil.ResolvedFilePath]struct{})
-	appendUnique := func(p pathutil.ResolvedFilePath) {
-		if _, ok := seen[p]; !ok {
-			seen[p] = struct{}{}
-			resolvedValueFiles = append(resolvedValueFiles, p)
-		}
-	}
-	for _, rawValueFile := range rawValueFiles {
-		isRemote := false
-		var resolvedPath pathutil.ResolvedFilePath
-		var err error
-
-		referencedSource := getReferencedSource(rawValueFile, refSources)
-		// effectiveRoot is the repository root used for the symlink boundary check
-		// on glob matches. For ref-source paths this is the external repo's checkout
-		// directory; for local paths it is the main repo root.
-		effectiveRoot := repoRoot
-		if referencedSource != nil {
-			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
-			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
-			if err != nil {
-				return nil, fmt.Errorf("error resolving value file path: %w", err)
-			}
-			if refRepoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(referencedSource.Repo.Repo)); refRepoPath != "" {
-				effectiveRoot = refRepoPath
-			}
-		} else {
-			// This will resolve val to an absolute path (or a URL)
-			resolvedPath, isRemote, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(rawValueFile), allowedValueFilesSchemas)
-			if err != nil {
-				return nil, fmt.Errorf("error resolving value file path: %w", err)
-			}
-		}
-
-		// If the resolved path contains a glob pattern, expand it to all matching files.
-		// doublestar.FilepathGlob is used (consistent with AppSet generators) because it supports
-		// ** for recursive matching in addition to all standard glob patterns (*,?,[).
-		// Matches are returned in lexical order, which determines helm's merge precedence
-		// (later files override earlier ones). Glob patterns are only expanded for local files;
-		// remote value file URLs (e.g. https://...) are passed through as-is.
-		// If the glob matches no files and ignoreMissingValueFiles is true, skip it silently.
-		// Otherwise, return an error — consistent with how missing non-glob value files are handled.
-		if !isRemote && isGlobPath(string(resolvedPath)) {
-			matches, err := doublestar.FilepathGlob(string(resolvedPath))
-			if err != nil {
-				return nil, fmt.Errorf("error expanding glob pattern %q: %w", rawValueFile, err)
-			}
-			if len(matches) == 0 {
-				if ignoreMissingValueFiles {
-					log.Debugf(" %s values file glob matched no files", rawValueFile)
-					continue
-				}
-				return nil, &GlobNoMatchError{Pattern: rawValueFile}
-			}
-			if err := verifyGlobMatchesWithinRoot(matches, effectiveRoot); err != nil {
-				return nil, fmt.Errorf("glob pattern %q: %w", rawValueFile, err)
-			}
-			for _, match := range matches {
-				// Skip files that are also listed explicitly - they will be placed
-				// at their explicit position rather than the glob's position.
-				if _, isExplicit := explicitPaths[pathutil.ResolvedFilePath(match)]; !isExplicit {
-					appendUnique(pathutil.ResolvedFilePath(match))
-				}
-			}
-			continue
-		}
-		if !isRemote {
-			_, err = os.Stat(string(resolvedPath))
-			if os.IsNotExist(err) {
-				if ignoreMissingValueFiles {
-					log.Debugf(" %s values file does not exist", resolvedPath)
-					continue
-				}
-			}
-		}
-
-		appendUnique(resolvedPath)
-	}
-	log.Infof("resolved value files: %v", resolvedValueFiles)
-	return resolvedValueFiles, nil
-}
-
-func getResolvedRefValueFile(
-	rawValueFile string,
-	env *v1alpha1.Env,
-	allowedValueFilesSchemas []string,
-	refSourceRepo string,
-	gitRepoPaths utilio.TempPaths,
-) (pathutil.ResolvedFilePath, error) {
-	pathStrings := strings.Split(rawValueFile, "/")
-	repoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
-	if repoPath == "" {
-		return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
-	}
-	pathStrings[0] = "" // Remove first segment. It will be inserted by pathutil.ResolveValueFilePathOrUrl.
-	substitutedPath := strings.Join(pathStrings, "/")
-
-	// Resolve the path relative to the referenced repo and block any attempt at traversal.
-	resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(repoPath, repoPath, env.Envsubst(substitutedPath), allowedValueFilesSchemas)
-	if err != nil {
-		return "", fmt.Errorf("error resolving value file path: %w", err)
-	}
-	return resolvedPath, nil
+	return resolver.ResolveValueFiles(rawValueFiles)
 }
 
 func getReferencedSources(rawValueFiles []string, refSources map[string]*v1alpha1.RefTarget) map[string]*v1alpha1.RefTarget {
@@ -1700,6 +1815,7 @@ type (
 		cmpTarDoneCh                chan<- bool
 		cmpTarExcludedGlobs         []string
 		cmpUseManifestGeneratePaths bool
+		ociPaths                    utilio.TempPaths
 	}
 )
 
@@ -1736,6 +1852,13 @@ func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 	}
 }
 
+// WithOCIPaths sets the OCI paths for manifest generation
+func WithOCIPaths(ociPaths utilio.TempPaths) GenerateManifestOpt {
+	return func(o *generateManifestOpt) {
+		o.ociPaths = ociPaths
+	}
+}
+
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
 func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths utilio.TempPaths, opts ...GenerateManifestOpt) (_ *apiclient.ManifestResponse, retErr error) {
 	ctx, span := tracer.Start(ctx, "reposerver.GenerateManifests")
@@ -1763,7 +1886,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
 		var command string
-		targetObjs, command, err = helmTemplate(ctx, appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+		targetObjs, command, err = helmTemplate(ctx, appPath, repoRoot, env, q, isLocal, gitRepoPaths, opt.ociPaths)
 		commands = append(commands, command)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		var kustomizeBinary string
@@ -2548,6 +2671,11 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 	}
 	defer h.Dispose()
 
+	// OCI $ref sources are extracted into a directory scoped to this request. The service-wide
+	// s.ociPaths cannot be reused: it is keyed by repo URL + digest for the OCI client's own cache,
+	// whereas value file resolution looks the extracted path up by normalized repo URL.
+	ociRefPaths := utilio.NewRandomizedTempPaths(os.TempDir())
+
 	if len(q.RefSources) > 0 {
 		refSources := map[string]repoRef{}
 		var mainRepoURL string
@@ -2561,6 +2689,14 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 		sort.Strings(refNames)
 		for _, refName := range refNames {
 			refSource := q.RefSources[refName]
+			if refSource.Repo.IsOCI() {
+				closer, err := s.extractOCIRefSource(ctx, q, refName, refSource, refSources, ociRefPaths)
+				if err != nil {
+					return err
+				}
+				defer utilio.Close(closer)
+				continue
+			}
 			if refSource.Repo.Type != "git" {
 				continue
 			}
@@ -2609,7 +2745,7 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 	if q.Source.Helm != nil {
 		ignoreMissingValueFiles = q.Source.Helm.IgnoreMissingValueFiles
 	}
-	resolvedSelectedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, &v1alpha1.Env{}, q.GetValuesFileSchemes(), selectedValueFiles, q.RefSources, gitRepoPaths, ignoreMissingValueFiles)
+	resolvedSelectedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, &v1alpha1.Env{}, q.GetValuesFileSchemes(), selectedValueFiles, q.RefSources, gitRepoPaths, ociRefPaths, ignoreMissingValueFiles)
 	if err != nil {
 		return fmt.Errorf("failed to resolve value files: %w", err)
 	}
@@ -3454,6 +3590,20 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 	return revision, syncedRevision, changed, nil
 }
 
+// resolveOCIRevision resolves the requested OCI revision (typically a tag) to its digest.
+func (s *Service) resolveOCIRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (string, error) {
+	if repo == nil {
+		return "", status.Error(codes.InvalidArgument, "must pass a valid repo")
+	}
+
+	_, digest, err := s.newOCIClientResolveRevision(ctx, repo, revision, noRevisionCache)
+	if err != nil {
+		return "", status.Errorf(codes.Internal, "unable to resolve oci revision %s: %v", revision, err)
+	}
+
+	return digest, nil
+}
+
 // UpdateRevisionForPaths compares git revisions for single and multi-source applications
 // and determines whether files in the specified paths have changed.
 //
@@ -3566,8 +3716,22 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 		var sourceHasChanges bool
 		var err error
 
-		if sRefSource.TargetRevision != request.RefSources[refName].TargetRevision {
-			resolvedRevision, syncedRevision, sourceHasChanges, err = s.gitSourceHasChanges(ctx, &sRefSource.Repo, request.RefSources[refName].TargetRevision, sRefSource.TargetRevision, refreshPaths, gitClientOpts)
+		// SyncedRefSources holds the revision resolved at sync time (an OCI digest for OCI
+		// sources); RefSources holds the requested target (typically a tag). When they differ we
+		// must re-resolve and compare, branching by source type: an OCI ref must go through the
+		// OCI client, not the git resolver, otherwise creating a git client for an oci:// URL
+		// fails and breaks reconciliation.
+		requestedRevision := request.RefSources[refName].TargetRevision
+		if sRefSource.TargetRevision != requestedRevision {
+			if sRefSource.Repo.IsOCI() {
+				// Unlike git, there is no cheap changed-files diff for an OCI artifact, so any
+				// digest difference is conservatively reported as a change to force manifest
+				// regeneration.
+				resolvedRevision, err = s.resolveOCIRevision(ctx, &sRefSource.Repo, requestedRevision, request.NoRevisionCache)
+				sourceHasChanges = err == nil && resolvedRevision != syncedRevision
+			} else {
+				resolvedRevision, syncedRevision, sourceHasChanges, err = s.gitSourceHasChanges(ctx, &sRefSource.Repo, requestedRevision, sRefSource.TargetRevision, refreshPaths, gitClientOpts)
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -3584,8 +3748,9 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 				}, nil
 			}
 		}
-		// Store resolved revision for cache update
-		normalizedURL := git.NormalizeGitURL(sRefSource.Repo.Repo)
+		// Store resolved revision for cache update. Use NormalizeRepoURL so OCI refs key off the
+		// normalized OCI URL, consistent with resolveReferencedSources and runManifestGenAsync.
+		normalizedURL := sRefSource.Repo.NormalizeRepoURL()
 		newRepoRefs[normalizedURL] = resolvedRevision
 		oldRepoRefs[normalizedURL] = syncedRevision
 	}
