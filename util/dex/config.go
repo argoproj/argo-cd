@@ -73,6 +73,21 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 		if _, found := oauth2Cfg["skipApprovalScreen"].(bool); !found {
 			oauth2Cfg["skipApprovalScreen"] = true
 		}
+		// If the operator has explicitly restricted oauth2.grantTypes, ensure the
+		// device code grant is included — otherwise Dex will reject device code
+		// requests even though the argo-cd-cli client supports it.
+		if existing, found := oauth2Cfg["grantTypes"].([]any); found {
+			hasDeviceCode := false
+			for _, g := range existing {
+				if g == "urn:ietf:params:oauth:grant-type:device_code" {
+					hasDeviceCode = true
+					break
+				}
+			}
+			if !hasDeviceCode {
+				oauth2Cfg["grantTypes"] = append(existing, "urn:ietf:params:oauth:grant-type:device_code")
+			}
+		}
 	} else {
 		dexCfg["oauth2"] = map[string]any{
 			"skipApprovalScreen": true,
@@ -108,10 +123,6 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 			"http://localhost",
 			"http://localhost:8085/auth/callback",
 			"/device/callback",
-		},
-		"grantTypes": []string{
-			"authorization_code",
-			"urn:ietf:params:oauth:grant-type:device_code",
 		},
 	}
 

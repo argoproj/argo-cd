@@ -434,15 +434,18 @@ func pollForToken(ctx context.Context, client httpDoer, tokenURL, clientID, devi
 	tokenData.Set("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
 	tokenData.Set("device_code", deviceCode)
 
+	ctx, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
+
 	timer := time.NewTimer(pollInterval)
 	defer timer.Stop()
 
 	for {
-		if time.Now().After(deadline) {
-			return "", "", stderrors.New("device code expired before authentication completed")
-		}
 		select {
 		case <-ctx.Done():
+			if stderrors.Is(ctx.Err(), context.DeadlineExceeded) {
+				return "", "", stderrors.New("device code expired before authentication completed")
+			}
 			return "", "", stderrors.New("authentication cancelled")
 		case <-timer.C:
 		}

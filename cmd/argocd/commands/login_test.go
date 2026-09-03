@@ -343,7 +343,7 @@ func Test_pollForToken_deadlineExceeded(t *testing.T) {
 	srv := newTokenServer(t, []tokenServerResponse{tokenErr("authorization_pending")})
 	defer srv.Close()
 
-	// Deadline already in the past — first check exits immediately.
+	// Deadline already in the past — context is immediately done.
 	_, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", time.Millisecond, time.Now().Add(-time.Second))
 
 	require.Error(t, err)
