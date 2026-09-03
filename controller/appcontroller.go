@@ -1838,7 +1838,34 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		}
 
 		if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, fallbackPatchJSON, metav1.PatchOptions{}); fbErr != nil {
-			logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
+			if !isOperationStatePayloadTooLargeError(fbErr) {
+				logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
+				return
+			}
+			// The fallback itself is still too large (e.g. the attempted operation carries large
+			// local manifests). Give up preserving any of the attempted operation and persist the
+			// smallest possible terminal state so the requested operation is cleared and the
+			// controller stops looping.
+			logCtx.WithError(fbErr).Warn("Fallback operation status still exceeds the Kubernetes resource size limit; persisting minimal terminal state")
+			minimalStatus := &appv1.OperationState{
+				Phase:      synccommon.OperationError,
+				Message:    operationStateSizeLimitMessagePrefix + " and could not be persisted, even after dropping sync results. error: " + fbErr.Error(),
+				StartedAt:  fallbackStatus.StartedAt,
+				FinishedAt: fallbackStatus.FinishedAt,
+			}
+			minimalPatchJSON, mErr := json.Marshal(map[string]any{
+				"status":    map[string]any{"operationState": minimalStatus},
+				"operation": nil,
+			})
+			if mErr != nil {
+				logCtx.WithError(mErr).Error("Error marshaling minimal fallback patch")
+				return
+			}
+			if _, mfbErr := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, minimalPatchJSON, metav1.PatchOptions{}); mfbErr != nil {
+				logCtx.WithError(mfbErr).Error("Error persisting minimal fallback status")
+				return
+			}
+			ctrl.recordOperationCompletion(ctx, app, logCtx, minimalStatus)
 			return
 		}
 		// This fallback patch skips the normal completion path below, so emit the completion

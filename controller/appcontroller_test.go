@@ -4845,3 +4845,45 @@ func TestSetOperationStateTooLargeRequest_EmitsCompletionTelemetryOnFinalFallbac
 	assert.Contains(t, body, fmt.Sprintf(`argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=%q,namespace=%q,phase="Error",project="default"} 1`, app.Name, app.Namespace),
 		"fallback finalizing as OperationError must increment the sync counter, same as the normal terminal path")
 }
+
+func TestSetOperationStateTooLargeRequest_FallbackAlsoTooLarge(t *testing.T) {
+	newState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{Revision: "HEAD", Manifests: []string{"huge-manifest"}},
+		},
+		Phase:   synccommon.OperationRunning,
+		Message: "running",
+	}
+
+	app := newFakeApp()
+	app.Status.OperationState.Phase = synccommon.OperationTerminating
+
+	var callCount int
+	var capturedPatch []byte
+	ctrl := newFakeControllerWithFailingPatch(t, &fakeData{apps: []runtime.Object{app}}, func(patchAction kubetesting.PatchAction) bool {
+		callCount++
+		if callCount <= 2 {
+			return true
+		}
+		capturedPatch = patchAction.GetPatch()
+		return false
+	})
+
+	ctrl.setOperationState(t.Context(), app, newState)
+
+	assert.Equal(t, 3, callCount, "expected real patch + fallback patch + minimal fallback patch, all rejected until the minimal one")
+
+	var patchedObj map[string]any
+	require.NoError(t, json.Unmarshal(capturedPatch, &patchedObj))
+
+	phase, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "phase")
+	assert.Equal(t, string(synccommon.OperationError), phase, "minimal fallback must finalize the operation, not loop back to Terminating")
+
+	_, hasOperation := patchedObj["operation"]
+	assert.True(t, hasOperation, "minimal fallback must clear the top-level requested operation")
+	assert.Nil(t, patchedObj["operation"])
+
+	_, syncFound, err := unstructured.NestedMap(patchedObj, "status", "operationState", "operation", "sync")
+	require.NoError(t, err)
+	assert.False(t, syncFound, "minimal fallback must omit the bulky attempted operation (e.g. local manifests)")
+}
