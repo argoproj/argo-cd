@@ -915,10 +915,8 @@ func Test_clusterToSecret_ConfigHash_Nil_NotPersisted(t *testing.T) {
 func Test_secretToCluster_ConfigHash_Computed(t *testing.T) {
 	// Verify that a fresh configHash is computed when loading from secret
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-cluster-secret",
-			Namespace: fakeNamespace,
-		},
+		Name:      "test-cluster-secret",
+		Namespace: fakeNamespace,
 		Data: map[string][]byte{
 			"name":   []byte("test-cluster"),
 			"server": []byte("https://example.com"),

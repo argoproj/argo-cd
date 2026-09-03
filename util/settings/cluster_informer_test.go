@@ -852,11 +852,9 @@ func TestClusterInformer_ConfigHash(t *testing.T) {
 		defer cancel()
 
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "cluster-no-hash",
-				Namespace: "argocd",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
-			},
+			Name:      "cluster-no-hash",
+			Namespace: "argocd",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
 			Data: map[string][]byte{
 				"server": []byte("https://no-hash.example.com"),
 				"name":   []byte("cluster-no-hash"),
@@ -882,11 +880,9 @@ func TestClusterInformer_ConfigHash(t *testing.T) {
 		defer cancel()
 
 		secret1 := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "cluster-deterministic-1",
-				Namespace: "argocd",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
-			},
+			Name:      "cluster-deterministic-1",
+			Namespace: "argocd",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
 			Data: map[string][]byte{
 				"server": []byte("https://deterministic.example.com"),
 				"name":   []byte("deterministic-cluster"),
@@ -907,11 +903,9 @@ func TestClusterInformer_ConfigHash(t *testing.T) {
 
 		// Create another secret with same config but different name (different cluster)
 		secret2 := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "cluster-deterministic-2",
-				Namespace: "argocd",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
-			},
+			Name:      "cluster-deterministic-2",
+			Namespace: "argocd",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
 			Data: map[string][]byte{
 				"server": []byte("https://deterministic.example.com"),
 				"name":   []byte("deterministic-cluster"),
