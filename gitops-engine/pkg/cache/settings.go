@@ -7,9 +7,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/tracing"
 )
 
 // NewNoopSettings returns cache settings that has not health customizations and don't filter any resources
@@ -25,6 +25,10 @@ func (f *noopSettings) GetResourceHealth(_ *unstructured.Unstructured) (*health.
 
 func (f *noopSettings) IsExcludedResource(_, _, _ string) bool {
 	return false
+}
+
+func (f *noopSettings) GetLabelSelector(_, _, _ string) string {
+	return ""
 }
 
 // Settings caching customizations

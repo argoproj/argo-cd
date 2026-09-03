@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/argoproj/pkg/v2/sync"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -541,7 +541,7 @@ func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindows
 	if windows.HasWindows() {
 		res.Windows = *windows
 	} else {
-		res.Windows = []*v1alpha1.SyncWindow{}
+		res.Windows = []*v1alpha1.InlineSyncWindow{}
 	}
 
 	return res, nil

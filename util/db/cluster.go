@@ -114,9 +114,7 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	}
 
 	clusterSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secName,
-		},
+		Name: secName,
 	}
 
 	err = clusterToSecret(c, clusterSecret)

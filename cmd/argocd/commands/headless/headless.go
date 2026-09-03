@@ -156,11 +156,11 @@ func (c *forwardRepoClientset) NewRepoServerClient() (utilio.Closer, repoapiclie
 }
 
 func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
-	apiClient, err := apiclient.NewClient(clientOpts)
+	apiClient, err := apiclient.NewClientWithContext(ctx, clientOpts)
 	if err != nil {
 		return fmt.Errorf("failed to create API client: %w", err)
 	}
-	closer, versionClient, err := apiClient.NewVersionClient()
+	closer, versionClient, err := apiClient.NewVersionClientWithContext(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create version client: %w", err)
 	}
@@ -286,6 +286,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		ListenHost:              *address,
 		RepoClientset:           &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName, kubeClientset: kubeClientset},
 		EnableProxyExtension:    false,
+		SyncWithReplaceAllowed:  true,
 	}, server.ApplicationSetOpts{})
 	srv.Init(ctx)
 
@@ -325,7 +326,7 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 	if err != nil {
 		log.Fatal(err)
 	}
-	client, err := apiclient.NewClient(opts)
+	client, err := apiclient.NewClientWithContext(ctx, opts)
 	if err != nil {
 		log.Fatal(err)
 	}
