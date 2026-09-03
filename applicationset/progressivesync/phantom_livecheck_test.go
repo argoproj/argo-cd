@@ -36,22 +36,20 @@ import (
 func agedTerminatingApp() v1alpha1.Application {
 	deletedAt := metav1.NewTime(time.Now().Add(-10 * time.Minute))
 	return v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "appset-stage0",
-			Namespace: "argocd",
-			// Objects decoded from the API server always carry a UID; the eviction delete is gated
-			// on it, so the fixture must have one to be representative.
-			UID:               "11111111-2222-3333-4444-555555555555",
-			Labels:            map[string]string{"stage": "0"},
-			DeletionTimestamp: &deletedAt,
-			Finalizers:        []string{v1alpha1.ForegroundPropagationPolicyFinalizer},
-		},
+		Name:      "appset-stage0",
+		Namespace: "argocd",
+		// Objects decoded from the API server always carry a UID; the eviction delete is gated
+		// on it, so the fixture must have one to be representative.
+		UID:               "11111111-2222-3333-4444-555555555555",
+		Labels:            map[string]string{"stage": "0"},
+		DeletionTimestamp: &deletedAt,
+		Finalizers:        []string{v1alpha1.ForegroundPropagationPolicyFinalizer},
 	}
 }
 
 func singleStepAppSet() v1alpha1.ApplicationSet {
 	return v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "appset", Namespace: "argocd"},
+		Name: "appset", Namespace: "argocd",
 		Spec: v1alpha1.ApplicationSetSpec{
 			Strategy: &v1alpha1.ApplicationSetStrategy{
 				Type:          "RollingSync",

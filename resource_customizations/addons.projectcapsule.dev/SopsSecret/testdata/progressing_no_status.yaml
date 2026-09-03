@@ -1,0 +1,10 @@
+apiVersion: addons.projectcapsule.dev/v1alpha1
+kind: SopsSecret
+metadata:
+  name: solar-db-credentials
+  namespace: solar-production
+spec:
+  secretTemplates:
+    - name: db-password
+      stringData:
+        password: ENC[AES256_GCM,data:encrypted==,tag:tag==,type:str]
