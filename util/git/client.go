@@ -1794,9 +1794,7 @@ func staleGitLockPaths(root string, outputs ...string) []string {
 func withoutRemoteOutput(out string) string {
 	lines := strings.Split(out, "\n")
 	for i, line := range lines {
-		if idx := strings.Index(line, "remote:"); idx >= 0 {
-			lines[i] = line[:idx]
-		}
+		lines[i], _, _ = strings.Cut(line, "remote:")
 	}
 	return strings.Join(lines, "\n")
 }
