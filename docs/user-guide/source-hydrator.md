@@ -642,6 +642,17 @@ The annotation's path filtering applies to the dry source. The sync source is al
 
 ## Limitations
 
+### Repository support
+
+!!! warning "Git repositories only"
+    The source hydrator currently supports only Git repositories. Both `drySource.repoURL` and
+    `syncSource.repoURL` must reference Git repositories, although they may reference different repositories.
+    `hydrateTo` also writes to the repository configured by `syncSource`.
+
+    OCI repositories (`oci://...`) are supported as [regular Application sources](oci.md), but cannot currently
+    be used as a `drySource` or hydration destination. An OCI dry source may be accepted and resolved to a digest,
+    but hydration will fail when Argo CD attempts to retrieve Git revision metadata.
+
 ### Git note attestation and manifest-generate-paths
 
 The hydrator records which dry SHAs it has processed in a git note (`refs/notes/hydrator.metadata`) on the
