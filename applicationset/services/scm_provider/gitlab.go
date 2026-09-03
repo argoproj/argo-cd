@@ -198,11 +198,19 @@ func (g *GitlabProvider) listBranches(_ context.Context, repo *Repository) ([]gi
 	opt := &gitlab.ListBranchesOptions{
 		ListOptions: snippetsListOptions.ListOptions,
 	}
+	firstPage := true
 	for {
 		gitlabBranches, resp, err := g.client.Branches.ListBranches(repo.RepositoryId, opt)
-		// 404s are not an error here, just a normal false.
 		if resp != nil && resp.StatusCode == http.StatusNotFound {
-			return []gitlab.Branch{}, nil
+			// On the first page a 404 just means there are no branches to read, which is not an
+			// error. On a later page it means the listing was truncated part way through, so the
+			// branches collected so far are an incomplete answer. Returning them would look like
+			// a complete result to the caller and prune the Applications for every branch on the
+			// pages we never read, so report the truncation as an error instead.
+			if firstPage {
+				return []gitlab.Branch{}, nil
+			}
+			return nil, fmt.Errorf("received 404 requesting page %d after collecting %d branches", opt.Page, len(branches))
 		}
 		if err != nil {
 			return nil, err
@@ -215,6 +223,7 @@ func (g *GitlabProvider) listBranches(_ context.Context, repo *Repository) ([]gi
 			break
 		}
 		opt.Page = resp.NextPage
+		firstPage = false
 	}
 	return branches, nil
 }

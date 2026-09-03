@@ -1886,3 +1886,96 @@ func TestNewGitlabProvider_Proxy(t *testing.T) {
 
 	assert.Positive(t, proxyCalled, "Proxy should have been called")
 }
+
+// gitlabBranchPaginationHandler serves the ListBranches endpoint as two pages. The first page
+// always succeeds; secondPageStatus decides what the second page returns, which is how the
+// mid-pagination failures below are simulated.
+func gitlabBranchPaginationHandler(t *testing.T, secondPageStatus int) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path != "/api/v4/projects/27084533/repository/branches" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		switch r.URL.Query().Get("page") {
+		case "", "1":
+			w.Header().Set("X-Next-Page", "2")
+			_, err := io.WriteString(w, `[
+				{"name": "master", "commit": {"id": "8898d7999fc99dd0fd578650b58b244fc63f6b58"}},
+				{"name": "release", "commit": {"id": "1e0e4d3f0e6a1b2c3d4e5f60718293a4b5c6d7e8"}}
+			]`)
+			require.NoError(t, err)
+		case "2":
+			if secondPageStatus != http.StatusOK {
+				w.WriteHeader(secondPageStatus)
+				return
+			}
+			w.Header().Set("X-Next-Page", "0")
+			_, err := io.WriteString(w, `[
+				{"name": "feature", "commit": {"id": "2f1e3d4c5b6a798877665544332211009988aabb"}}
+			]`)
+			require.NoError(t, err)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}
+}
+
+// A 404 part way through the branch listing must not be reported as an empty-but-successful
+// result. The ApplicationSet reconciler prunes Applications for branches missing from a
+// successful listing, so silently dropping the collected pages deletes live Applications.
+func TestGitlabListBranchesPagination(t *testing.T) {
+	t.Parallel()
+
+	repo := &Repository{
+		Organization: "test-argocd-proton",
+		Repository:   "argocd",
+		RepositoryId: int64(27084533),
+	}
+
+	t.Run("collects branches across every page", func(t *testing.T) {
+		t.Parallel()
+		ts := httptest.NewServer(http.HandlerFunc(gitlabBranchPaginationHandler(t, http.StatusOK)))
+		defer ts.Close()
+		host, err := NewGitlabProvider("test-argocd-proton", "", ts.URL, true, true, true, false, false, "", "", nil, "", "")
+		require.NoError(t, err)
+
+		repos, err := host.GetBranches(t.Context(), repo)
+		require.NoError(t, err)
+
+		names := make([]string, 0, len(repos))
+		for _, r := range repos {
+			names = append(names, r.Branch)
+		}
+		assert.Equal(t, []string{"master", "release", "feature"}, names)
+	})
+
+	t.Run("returns an error when a later page 404s", func(t *testing.T) {
+		t.Parallel()
+		ts := httptest.NewServer(http.HandlerFunc(gitlabBranchPaginationHandler(t, http.StatusNotFound)))
+		defer ts.Close()
+		host, err := NewGitlabProvider("test-argocd-proton", "", ts.URL, true, true, true, false, false, "", "", nil, "", "")
+		require.NoError(t, err)
+
+		repos, err := host.GetBranches(t.Context(), repo)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "received 404 requesting page 2 after collecting 2 branches")
+		assert.Nil(t, repos)
+	})
+
+	t.Run("reports no branches when the first page 404s", func(t *testing.T) {
+		t.Parallel()
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer ts.Close()
+		host, err := NewGitlabProvider("test-argocd-proton", "", ts.URL, true, true, true, false, false, "", "", nil, "", "")
+		require.NoError(t, err)
+
+		repos, err := host.GetBranches(t.Context(), repo)
+		require.NoError(t, err)
+		assert.Empty(t, repos)
+	})
+}
