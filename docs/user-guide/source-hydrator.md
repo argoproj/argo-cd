@@ -644,13 +644,6 @@ The annotation's path filtering applies to the dry source. The sync source is al
 
 ### Repository support
 
-!!! warning "Git repositories only"
-    The source hydrator currently supports only Git repositories. `drySource.repoURL` must reference a Git
-    repository. The effective sync repository must also be Git: `syncSource.repoURL` may reference a different
-    Git repository or be omitted to inherit `drySource.repoURL`. `hydrateTo` writes to the effective sync repository.
-
-    OCI repositories (`oci://...`) are supported as [regular Application sources](oci.md), but cannot currently
-    be used as a `drySource` or hydration destination. An OCI dry source may be accepted and resolved to a digest,
 The source hydrator currently supports only Git repositories. `drySource.repoURL` must reference a Git
 repository. The effective sync repository must also be Git: `syncSource.repoURL` may reference a different
 Git repository or be omitted to inherit `drySource.repoURL`. `hydrateTo` writes to the effective sync repository.
