@@ -325,7 +325,7 @@ func Test_nativeGitClient_Fetch_cleansOrphanedTempPacksOnError(t *testing.T) {
 
 	client := &nativeGitClient{root: root, repoURL: "file://" + badRemote, creds: NopCreds{}}
 
-	err := client.Fetch(t.Context(), "", 0)
+	err := client.Fetch(t.Context(), "")
 	require.Error(t, err, "fetch against a missing remote must fail")
 	assert.NoFileExists(t, orphanPack, "orphaned temp pack should be cleaned up after a failed fetch")
 	assert.NoFileExists(t, orphanIdx, "orphaned temp index should be cleaned up after a failed fetch")
@@ -341,7 +341,7 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch(t.Context(), "", 0)
+	err = client.Fetch(t.Context(), "")
 	require.NoError(t, err)
 }
 
@@ -359,7 +359,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = runCmd(ctx, tempDir, "git", "branch", "test/foo")
 	require.NoError(t, err)
 
-	err = client.Fetch(t.Context(), "", 0)
+	err = client.Fetch(t.Context(), "")
 	require.NoError(t, err)
 
 	err = runCmd(ctx, tempDir, "git", "branch", "-d", "test/foo")
@@ -367,7 +367,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = runCmd(ctx, tempDir, "git", "branch", "test/foo/bar")
 	require.NoError(t, err)
 
-	err = client.Fetch(t.Context(), "", 0)
+	err = client.Fetch(t.Context(), "")
 	require.NoError(t, err)
 }
 
@@ -829,7 +829,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch(t.Context(), "", 0)
+	err = client.Fetch(t.Context(), "")
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -861,6 +861,110 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	// Call Submodule()
 	err = client.Submodule(t.Context())
 	require.NoError(t, err)
+
+	// Check if the URL change in .gitmodule is reflected in .git/config
+	cmd = exec.CommandContext(ctx, "git", "config", "submodule.bar.url")
+	cmd.Dir = client.Root()
+	result, err = cmd.Output()
+	require.NoError(t, err)
+	assert.Equal(t, bar+"baz\n", string(result))
+}
+
+func Test_nativeGitClient_SubmoduleShallow(t *testing.T) {
+	tempDir := t.TempDir()
+	ctx := t.Context()
+
+	foo := filepath.Join(tempDir, "foo")
+	err := os.Mkdir(foo, 0o755)
+	require.NoError(t, err)
+
+	err = runCmd(ctx, foo, "git", "init")
+	require.NoError(t, err)
+
+	bar := filepath.Join(tempDir, "bar")
+	err = os.Mkdir(bar, 0o755)
+	require.NoError(t, err)
+
+	err = runCmd(ctx, bar, "git", "init")
+	require.NoError(t, err)
+
+	err = runCmd(ctx, bar, "git", "commit", "-m", "Initial commit bar", "--allow-empty")
+	require.NoError(t, err)
+
+	err = runCmd(ctx, bar, "git", "commit", "-m", "Second commit bar", "--allow-empty")
+	require.NoError(t, err)
+
+	// Embed repository bar into repository foo
+	t.Setenv("GIT_ALLOW_PROTOCOL", "file")
+	// We need to use file:// because the --depth flag
+	// is ignored for local clones.
+	err = runCmd(ctx, foo, "git", "submodule", "add", "file://"+bar)
+	require.NoError(t, err)
+
+	err = runCmd(ctx, foo, "git", "commit", "-m", "Initial commit foo")
+	require.NoError(t, err)
+
+	err = runCmd(ctx, foo, "git", "commit", "-m", "Second commit foo", "--allow-empty")
+	require.NoError(t, err)
+
+	tempDir, err = os.MkdirTemp("", "")
+	require.NoError(t, err)
+
+	// Clone foo
+	err = runCmd(ctx, tempDir, "git", "clone", foo)
+	require.NoError(t, err)
+
+	// Initialize a client with depth=1.
+	client, err := NewClient("file://"+foo, NopCreds{}, true, false, "", "", WithDepth(1))
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	err = client.Fetch(ctx, "")
+	require.NoError(t, err)
+
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+
+	_, err = client.Checkout(ctx, commitSHA, true, true)
+	require.NoError(t, err)
+
+	// Check if the .gitmodule URL is reflected in .git/config
+	cmd := exec.CommandContext(ctx, "git", "config", "submodule.bar.url")
+	cmd.Dir = client.Root()
+	result, err := cmd.Output()
+	require.NoError(t, err)
+	assert.Equal(t, fmt.Sprintf("file://%s\n", bar), string(result))
+
+	// Check that there is only one commit in foo.
+	cmd = exec.CommandContext(ctx, "git", "rev-list", "--count", "HEAD")
+	cmd.Dir = client.Root()
+	result, err = cmd.Output()
+	require.NoError(t, err)
+	assert.Equal(t, "1\n", string(result))
+
+	// Check that there is only one commit in bar.
+	cmd = exec.CommandContext(ctx, "git", "rev-list", "--count", "HEAD")
+	cmd.Dir = filepath.Join(client.Root(), "bar")
+	result, err = cmd.Output()
+	require.NoError(t, err)
+	assert.Equal(t, "1\n", string(result))
+
+	// Change URL of submodule bar
+	err = runCmd(ctx, client.Root(), "git", "config", "--file=.gitmodules", "submodule.bar.url", bar+"baz")
+	require.NoError(t, err)
+
+	// Call Submodule()
+	err = client.Submodule(ctx)
+	require.NoError(t, err)
+
+	// Check that there is only one commit in bar.
+	cmd = exec.CommandContext(ctx, "git", "rev-list", "--count", "HEAD")
+	cmd.Dir = filepath.Join(client.Root(), "bar")
+	result, err = cmd.Output()
+	require.NoError(t, err)
+	assert.Equal(t, "1\n", string(result))
 
 	// Check if the URL change in .gitmodule is reflected in .git/config
 	cmd = exec.CommandContext(ctx, "git", "config", "submodule.bar.url")
@@ -1098,7 +1202,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 		require.NoError(t, err, "error output: %s", out)
 
-		err = client.Fetch(t.Context(), "", 0)
+		err = client.Fetch(t.Context(), "")
 		require.NoError(t, err)
 
 		// checkout to origin base branch
@@ -1321,7 +1425,7 @@ func Test_nativeGitClient_Commit_Push(t *testing.T) {
 	out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(t.Context(), branch, 0)
+	err = client.Fetch(t.Context(), branch)
 	require.NoError(t, err)
 
 	out, err = client.Checkout(t.Context(), branch, false, true)
@@ -1890,7 +1994,7 @@ func Test_nativeGitClient_GetCommitNote(t *testing.T) {
 	out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(t.Context(), branch, 0)
+	err = client.Fetch(t.Context(), branch)
 	require.NoError(t, err)
 
 	out, err = client.Checkout(t.Context(), branch, false, true)
@@ -1950,7 +2054,7 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 	out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(t.Context(), branch, 0)
+	err = client.Fetch(t.Context(), branch)
 	require.NoError(t, err)
 
 	out, err = client.Checkout(t.Context(), branch, false, true)
@@ -2063,7 +2167,7 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(t.Context(), branch, 0)
+	err = client.Fetch(t.Context(), branch)
 	require.NoError(t, err)
 
 	out, err = client.Checkout(t.Context(), branch, false, true)
@@ -2182,7 +2286,7 @@ func Test_fetch_authPromptRewrite(t *testing.T) {
 	// NopCreds => no credentials injected, exactly like a repo URL that matched no secret.
 	client := &nativeGitClient{repoURL: srv.URL, root: tmp, creds: NopCreds{}}
 
-	err := client.fetch(ctx, "", 0)
+	err := client.fetch(ctx, "")
 	require.Error(t, err)
 	// The raw git failure really happened (reproduction) ...
 	assert.Contains(t, err.Error(), "terminal prompts disabled", "expected to reproduce the raw git auth-prompt failure")
