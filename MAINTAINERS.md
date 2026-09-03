@@ -5,9 +5,9 @@ This document lists the maintainers of the Argo CD project.
 ## Maintainers
 
 | Maintainer                | GitHub ID                                               | Project Roles        | Affiliation                                     |
-|---------------------------|---------------------------------------------------------|----------------------|-------------------------------------------------|
 | Zach Aller                | [zachaller](https://github.com/zachaller)               | Reviewer             | [Intuit](https://www.github.com/intuit/)        |
 | Leonardo Luz Almeida      | [leoluz](https://github.com/leoluz)                     | Approver             | [Intuit](https://www.github.com/intuit/)        |
+| Jaewoo Choi               | [choejwoo](https://github.com/choejwoo)                 | Approver(ui)         | Hyundai-Autoever                                  |
 | Keith Chong               | [keithchong](https://github.com/keithchong)             | Approver             | [Red Hat](https://redhat.com/)                  |
 | Alex Collins              | [alexec](https://github.com/alexec)                     | Reviewer             | [Intuit](https://www.github.com/intuit/)        |
 | Michael Crenshaw          | [crenshaw-dev](https://github.com/crenshaw-dev)         | Lead                 | [Intuit](https://www.github.com/intuit/)        |
@@ -16,27 +16,26 @@ This document lists the maintainers of the Argo CD project.
 | Jann Fischer              | [jannfis](https://github.com/jannfis)                   | Approver             | [Red Hat](https://redhat.com/)                  |
 | Dan Garfield              | [todaywasawesome](https://github.com/todaywasawesome)   | Approver(docs)       | [Codefresh](https://www.github.com/codefresh/)  |
 | Alexandre Gaudreault      | [agaudreault](https://github.com/agaudreault)           | Approver             | [Intuit](https://www.github.com/intuit/)        |
+| Oliver Gondža             | [olivergondza](https://github.com/olivergondza)         | Reviewer             | [Red Hat](https://redhat.com/)                  |
 | Christian Hernandez       | [christianh814](https://github.com/christianh814)       | Reviewer(docs)       | [Akuity](https://akuity.io/)                    |
 | Peter Jiang               | [pjiang-dev](https://github.com/pjiang-dev)             | Approver(docs)       | [Intuit](https://www.intuit.com/)               |
 | Andrii Korotkov           | [andrii-korotkov](https://github.com/andrii-korotkov)   | Reviewer             | [Verkada](https://www.verkada.com/)             |
 | Pasha Kostohrys           | [pasha-codefresh](https://github.com/pasha-codefresh)   | Approver             | [Codefresh](https://www.github.com/codefresh/)  |
 | Nitish Kumar              | [nitishfy](https://github.com/nitishfy)                 | Approver             | [Akuity](https://akuity.io/)                    |
+| Alexy Mantha              | [alexymantha](https://github.com/alexymantha)           | Reviewer             | GoTo                                              |
 | Justin Marquis            | [34fathombelow](https://github.com/34fathombelow)       | Approver(docs/ci)    | [Akuity](https://akuity.io/)                    |
 | Alexander Matyushentsev   | [alexmt](https://github.com/alexmt)                     | Lead                 | [Akuity](https://akuity.io/)                    |
 | Papapetrou Patroklos      | [ppapapetrou76](https://github.com/ppapapetrou76)       | Approver(cli,docs)   | [Octopus Deploy](https://octopus.com/)          |
 | Blake Pettersson          | [blakepettersson](https://github.com/blakepettersson)   | Approver             | [Akuity](https://akuity.io/)                    |
-| Ishita Sequeira           | [ishitasequeira](https://github.com/ishitasequeira)     | Approver             | [Red Hat](https://redhat.com/)                  |
 | Aditya Raj                | [adityaraj178](https://github.com/adityaraj178)         | Reviewer             | Amadeus                                           |
+| Kanika Rana               | [ranakan19](https://github.com/ranakan19)               | Reviewer             | [Red Hat](https://redhat.com/)                  |
+| Ishita Sequeira           | [ishitasequeira](https://github.com/ishitasequeira)     | Approver             | [Red Hat](https://redhat.com/)                  |
 | Ashutosh Singh            | [ashutosh16](https://github.com/ashutosh16)             | Reviewer(docs)       | [Intuit](https://www.github.com/intuit/)        |
 | Linghao Su                | [linghaoSu](https://github.com/linghaoSu)               | Reviewer             | [DaoCloud](https://daocloud.io)                 |
 | Jesse Suen                | [jessesuen](https://github.com/jessesuen)               | Approver             | [Akuity](https://akuity.io/)                    |
-| Yuan Tang                 | [terrytangyuan](https://github.com/terrytangyuan)       | Reviewer             | [Red Hat](https://redhat.com/)                  |
 | William Tam               | [wtam2018](https://github.com/wtam2018)                 | Reviewer             | [Red Hat](https://redhat.com/)                  |
+| Yuan Tang                 | [terrytangyuan](https://github.com/terrytangyuan)       | Reviewer             | [Red Hat](https://redhat.com/)                  |
 | Ryan Umstead              | [rumstead](https://github.com/rumstead)                 | Approver             | [Black Rock](https://www.github.com/blackrock/) |
 | Regina Voloshin           | [reggie-k](https://github.com/reggie-k)                 | Approver             | [Codefresh](https://www.github.com/codefresh/)  |
 | Jonathan West             | [jgwest](https://github.com/jgwest)                     | Reviewer             | [Red Hat](https://redhat.com/)                  |
-| Jaewoo Choi               | [choejwoo](https://github.com/choejwoo)                 | Approver(ui)         | Hyundai-Autoever                                  |
-| Alexy Mantha              | [alexymantha](https://github.com/alexymantha)           | Reviewer             | GoTo                                              |
-| Kanika Rana               | [ranakan19](https://github.com/ranakan19)               | Reviewer             | [Red Hat](https://redhat.com/)                  |
 | Jonathan Winters          | [jwinters01](https://github.com/jwinters01)             | Approver(ui)         | [Intuit](https://www.github.com/intuit/)        |
-| Oliver Gondža             | [olivergondza](https://github.com/olivergondza)         | Reviewer             | [Red Hat](https://redhat.com/)                  |
