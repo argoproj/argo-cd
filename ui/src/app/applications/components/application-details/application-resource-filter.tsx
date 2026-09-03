@@ -14,6 +14,14 @@ function toOption(label: string) {
     return {label};
 }
 
+export function withoutKindResourceFilters(filters: string[]): string[] {
+    return (filters || []).filter(f => !f.startsWith('kind:'));
+}
+
+export function getEffectiveResourceFilter(isApplication: boolean, resourceFilter?: string[]): string[] {
+    return isApplication ? resourceFilter || [] : withoutKindResourceFilters(resourceFilter);
+}
+
 export interface FiltersProps {
     children?: React.ReactNode;
     pref: AppDetailsPreferences;
@@ -22,12 +30,13 @@ export interface FiltersProps {
     onSetFilter: (items: string[]) => void;
     onClearFilter: () => void;
     collapsed?: boolean;
+    hideKindFilter?: boolean;
 }
 
 export const Filters = (props: FiltersProps) => {
     const ctx = React.useContext(Context);
 
-    const {pref, tree, onSetFilter} = props;
+    const {pref, tree, onSetFilter, hideKindFilter} = props;
 
     const onClearFilter = () => {
         setLoading(true);
@@ -37,10 +46,9 @@ export const Filters = (props: FiltersProps) => {
     const resourceFilter = pref.resourceFilter || [];
     const removePrefix = (prefix: string) => (v: string) => v.replace(prefix + ':', '');
 
-    const [groupedFilters, setGroupedFilters] = React.useState<{[key: string]: string}>({});
     const [loading, setLoading] = React.useState(true);
 
-    React.useEffect(() => {
+    const groupedFilters = React.useMemo(() => {
         const update: {[key: string]: string} = {};
         (resourceFilter || []).forEach(pair => {
             const tmp = pair.split(':');
@@ -50,8 +58,13 @@ export const Filters = (props: FiltersProps) => {
                 update[prefix] = `${cur ? cur + ',' : ''}${pair}`;
             }
         });
-        setGroupedFilters(update);
-        setLoading(false);
+        return update;
+    }, [resourceFilter]);
+
+    React.useEffect(() => {
+        if (loading) {
+            setLoading(false);
+        }
     }, [resourceFilter, loading]);
 
     const setFilters = (prefix: string, values: string[]) => {
@@ -121,18 +134,24 @@ export const Filters = (props: FiltersProps) => {
     };
 
     return (
-        <FiltersGroup title='Resource filters' content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
+        <FiltersGroup
+            title='Resource filters'
+            content={props.children}
+            appliedFilter={hideKindFilter ? withoutKindResourceFilters(resourceFilter) : pref.resourceFilter}
+            onClearFilter={onClearFilter}
+            collapsed={props.collapsed}>
             {ResourceFilter({label: 'NAME', prefix: 'name', options: names.map(toOption), field: true})}
-            {ResourceFilter({
-                label: 'KINDS',
-                prefix: 'kind',
-                options: kinds.map(label => ({
-                    label,
-                    count: getOptionCount(label, 'Kind')
-                })),
-                abbreviations: resources,
-                field: true
-            })}
+            {!hideKindFilter &&
+                ResourceFilter({
+                    label: 'KINDS',
+                    prefix: 'kind',
+                    options: kinds.map(label => ({
+                        label,
+                        count: getOptionCount(label, 'Kind')
+                    })),
+                    abbreviations: resources,
+                    field: true
+                })}
             {ResourceFilter({
                 label: 'SYNC STATUS',
                 prefix: 'sync',

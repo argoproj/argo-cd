@@ -32,8 +32,8 @@ import (
 	testcore "k8s.io/client-go/testing"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 )
 
 func init() {
@@ -933,7 +933,9 @@ func TestResyncClearsStaleNamespaceIndex(t *testing.T) {
 	))
 
 	// A full resync (periodic cluster resync or Invalidate + EnsureSynced) rebuilds the cache.
-	require.NoError(t, cluster.sync())
+	// Use this instead of directly calling cluster.sync() to avoid races.
+	cluster.Invalidate()
+	require.NoError(t, cluster.EnsureSynced())
 
 	cluster.lock.RLock()
 	_, inResources = cluster.resources[podKey]
@@ -2854,4 +2856,39 @@ func BenchmarkIncrementalIndexBuild(b *testing.B) {
 			}
 		})
 	}
+}
+
+func TestAPIResourceLabelSelectorIsAppliedToList(t *testing.T) {
+	matching := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: matching
+    namespace: default
+    uid: "1"
+    labels:
+      foo: bar`)
+	notMatching := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: not-matching
+    namespace: default
+    uid: "2"`)
+
+	cluster := newCluster(t, matching, notMatching)
+	apiResources := cluster.kubectl.(*kubetest.MockKubectlCmd).APIResources
+	for i := range apiResources {
+		if apiResources[i].GroupKind.Kind == "Pod" {
+			apiResources[i].LabelSelector = "foo=bar"
+		}
+	}
+
+	require.NoError(t, cluster.EnsureSynced())
+
+	resources := cluster.FindResources("default", func(r *Resource) bool {
+		return r.ResourceKey().Kind == "Pod"
+	})
+	assert.Len(t, resources, 1)
+	assert.Contains(t, resources, kube.NewResourceKey("", "Pod", "default", "matching"))
 }

@@ -4,16 +4,19 @@ ARG BASE_IMAGE=docker.io/library/ubuntu:26.04@sha256:f3d28607ddd78734bb7f71f117f
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM docker.io/library/golang:1.26.4@sha256:8c5d338aa0da7e8b034efab738460793dc48d2aac8d497c8f8617d4ef964e0a7 AS builder
+FROM docker.io/library/golang:1.27.1@sha256:f773aa2679c165b2d4ccf04c1de9ef5f34c0e4fd7008b3c449d4cdc47d83af55 AS builder
 
 WORKDIR /tmp
+
+# renovate: datasource=deb depName=git registryUrl=https://deb.debian.org/debian?suite=trixie&components=main,security&binaryArch=amd64
+ARG GIT_APT_VERSION=1:2.47.3-0+deb13u1
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     openssh-server \
     nginx \
     unzip \
     fcgiwrap \
-    git \
+    git=${GIT_APT_VERSION} \
     make \
     wget \
     gcc \
@@ -41,6 +44,9 @@ USER root
 ENV ARGOCD_USER_ID=999 \
     DEBIAN_FRONTEND=noninteractive
 
+# renovate: datasource=deb depName=git registryUrl=https://archive.ubuntu.com/ubuntu?suite=resolute&components=main,security&binaryArch=amd64
+ARG GIT_APT_VERSION=1:2.53.0-1ubuntu1
+
 RUN groupadd -g $ARGOCD_USER_ID argocd && \
     useradd -r -u $ARGOCD_USER_ID -g argocd argocd && \
     mkdir -p /home/argocd && \
@@ -49,7 +55,7 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get install --no-install-recommends -y \
-    git tini ca-certificates gpg gpg-agent tzdata connect-proxy openssh-client && \
+    git=${GIT_APT_VERSION} tini ca-certificates gpg gpg-agent tzdata connect-proxy openssh-client && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 
@@ -62,7 +68,9 @@ COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
 COPY --from=builder /usr/local/bin/git-lfs /usr/local/bin/git-lfs
 
 # Initialize git-lfs system configuration (/etc/gitconfig) so LFS filters are active
-RUN git lfs install --system
+# The --skip-repo option prevents failure if / is a Git repository with existing
+# non-git-lfs hooks.
+RUN git lfs install --skip-repo --system
 
 # keep uid_entrypoint.sh for backward compatibility
 RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh
@@ -113,7 +121,7 @@ RUN NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.26.4@sha256:8c5d338aa0da7e8b034efab738460793dc48d2aac8d497c8f8617d4ef964e0a7 AS argocd-build
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.27.1@sha256:f773aa2679c165b2d4ccf04c1de9ef5f34c0e4fd7008b3c449d4cdc47d83af55 AS argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 
