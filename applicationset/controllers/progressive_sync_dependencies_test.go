@@ -115,103 +115,10 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					Application:     "app1",
-					Message:         "Application resource has synced, updating status to Healthy",
-					Status:          v1alpha1.ProgressiveSyncHealthy,
-					Step:            "1",
-					TargetRevisions: []string{"next"},
-				},
-			},
-		},
-		{
-			name:   "moves a new application to healthy when app is synced and healthy",
-			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{}),
-			apps: []v1alpha1.Application{
-				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
-			},
-			appStepMap: map[string]int{
-				"app1": 0,
-			},
-			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:     "app1",
-					Message:         "Application resource has synced, updating status to Healthy",
-					Status:          v1alpha1.ProgressiveSyncHealthy,
-					Step:            "1",
-					TargetRevisions: []string{"current"},
-				},
-			},
-		},
-		{
-			name: "moves a waiting application to healthy when app is synced and healthy",
-			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:        "app1",
-					Message:            "",
-					Status:             v1alpha1.ProgressiveSyncWaiting,
-					Step:               "1",
-					TargetRevisions:    []string{"current"},
-					LastTransitionTime: &nowMinus5,
-				},
-			}),
-			apps: []v1alpha1.Application{
-				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
-			},
-			appStepMap: map[string]int{
-				"app1": 0,
-			},
-			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:     "app1",
-					Message:         "Application resource has synced, updating status to Healthy",
-					Status:          v1alpha1.ProgressiveSyncHealthy,
-					Step:            "1",
-					TargetRevisions: []string{"current"},
-				},
-			},
-		},
-		{
-			name:   "moves a new application to progressing when app is synced but not healthy",
-			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{}),
-			apps: []v1alpha1.Application{
-				newApp("app1", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
-			},
-			appStepMap: map[string]int{
-				"app1": 0,
-			},
-			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:     "app1",
-					Message:         "Application resource has synced, updating status to Progressing",
-					Status:          v1alpha1.ProgressiveSyncProgressing,
-					Step:            "1",
-					TargetRevisions: []string{"current"},
-				},
-			},
-		},
-		{
-			name: "moves an application with new revision to Healthy when it is not OutOfSync",
-			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:        "app1",
-					Message:            "Application resource has synced, updating status to Healthy",
-					Status:             v1alpha1.ProgressiveSyncHealthy,
-					Step:               "1",
-					TargetRevisions:    []string{"previous"},
-					LastTransitionTime: &nowMinus5,
-				},
-			}),
-			apps: []v1alpha1.Application{
-				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "next", newOperationState(common.OperationSucceeded)),
-			},
-			appStepMap: map[string]int{
-				"app1": 0,
-			},
-			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:     "app1",
-					Message:         "Application resource has synced, updating status to Healthy",
-					Status:          v1alpha1.ProgressiveSyncHealthy,
+					Application: "app1",
+					// should be waiting because healthy & synced applications handled in UpdateApplicationSetApplicationStatusProgress
+					Message:         "No Application status found, defaulting status to Waiting",
+					Status:          v1alpha1.ProgressiveSyncWaiting,
 					Step:            "1",
 					TargetRevisions: []string{"next"},
 				},
@@ -259,6 +166,26 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Status:          v1alpha1.ProgressiveSyncWaiting,
 					Step:            "1",
 					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name:   "move new application to waiting status",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", newOperationState(common.OperationSucceeded)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "No Application status found, defaulting status to Waiting",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
 				},
 			},
 		},
@@ -924,12 +851,14 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, cc := range []struct {
-		name              string
-		appSet            v1alpha1.ApplicationSet
-		appSyncMap        map[string]bool
-		appStepMap        map[string]int
-		appMap            map[string]v1alpha1.Application
-		expectedAppStatus []v1alpha1.ApplicationSetApplicationStatus
+		name                string
+		appSet              v1alpha1.ApplicationSet
+		appSyncMap          map[string]bool
+		appStepMap          map[string]int
+		appMap              map[string]v1alpha1.Application
+		currentApplications []v1alpha1.Application
+		desiredApplications []v1alpha1.Application
+		expectedAppStatus   []v1alpha1.ApplicationSetApplicationStatus
 	}{
 		{
 			name: "handles an empty appSync and appStepMap",
@@ -1055,6 +984,37 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 			appStepMap: map[string]int{
 				"app1": 0,
 			},
+			currentApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
+			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:        "app1",
@@ -1104,6 +1064,37 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 			},
 			appStepMap: map[string]int{
 				"app1": 0,
+			},
+			currentApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
@@ -1273,6 +1264,118 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					},
 				},
 			},
+			currentApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app3",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app4",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app3",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app4",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
+			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:        "app1",
@@ -1362,6 +1465,91 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				"app1": 0,
 				"app2": 0,
 				"app3": 0,
+			},
+			currentApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app3",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app3",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
@@ -1529,6 +1717,91 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				"app2": 0,
 				"app3": 0,
 			},
+			currentApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app3",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app3",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
+			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:        "app1",
@@ -1612,6 +1885,91 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				"app2": 0,
 				"app3": 0,
 			},
+			currentApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app3",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeOutOfSync,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app2",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app3",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
+			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:        "app1",
@@ -1629,6 +1987,335 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				},
 				{
 					Application:        "app3",
+					LastTransitionTime: nil,
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
+					Step:               "1",
+				},
+			},
+		},
+		{
+			name: "does not update a RollingSync status if appSyncMap is false",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
+							Step:        "1",
+						},
+					},
+				},
+			},
+			appSyncMap: map[string]bool{
+				"app1": false,
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			currentApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					LastTransitionTime: nil,
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
+					Step:               "1",
+				},
+			},
+		},
+		{
+			name: "moves a new application to healthy when app is synced and healthy",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
+							Step:        "1",
+						},
+					},
+				},
+			},
+			appSyncMap: map[string]bool{
+				"app1": true,
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			currentApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					LastTransitionTime: nil,
+					Message:            "Application resource has synced, updating status to Healthy",
+					Status:             v1alpha1.ProgressiveSyncHealthy,
+					Step:               "1",
+				},
+			},
+		},
+		{
+			name: "moves a waiting application to healthy when app is synced and healthy",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
+							Step:        "1",
+						},
+					},
+				},
+			},
+			appSyncMap: map[string]bool{
+				"app1": true,
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			currentApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "123",
+						},
+					},
+				},
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					LastTransitionTime: nil,
+					Message:            "Application resource has synced, updating status to Healthy",
+					Status:             v1alpha1.ProgressiveSyncHealthy,
+					Step:               "1",
+				},
+			},
+		},
+		{
+			name: "not move waiting application to pending because sync status not updated",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
+							Step:        "1",
+						},
+					},
+				},
+			},
+			appSyncMap: map[string]bool{
+				"app1": true,
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			currentApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://github.com/fake-url.git",
+									TargetRevision: "123",
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/fake-url.git",
+							TargetRevision: "diff",
+						},
+					},
+				},
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
 					LastTransitionTime: nil,
 					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting",
 					Status:             v1alpha1.ProgressiveSyncWaiting,
@@ -1658,7 +2345,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 			}
 			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r.Client, appClientSet, r)
 
-			appStatuses, err := r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatusProgress(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appSyncMap, cc.appStepMap)
+			appStatuses, err := r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatusProgress(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appSyncMap, cc.appStepMap, cc.currentApplications, cc.desiredApplications)
 
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
