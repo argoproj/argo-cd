@@ -2,13 +2,14 @@ import * as React from 'react';
 import * as models from '../../../shared/models';
 import {isApp} from '../utils';
 
-/** Opt-in virtualization kicks in above this count when page size is "All". */
+/** Virtualize only when "Items per page: all" is selected and list is greater than this. */
 export const VIRTUAL_THRESHOLD = 50;
 
 /** Extra rows above/below the viewport (low values flash blank on fast scroll). */
 export const TILE_OVERSCAN_ROW_COUNT = 8;
 export const TABLE_OVERSCAN_ROW_COUNT = 16;
 
+/** Keep in sync with applications-list.scss `&__virtual-viewport` min-height. */
 export const VIRTUAL_VIEWPORT_MIN_HEIGHT = 400;
 export const VIRTUAL_VIEWPORT_BOTTOM_PADDING = 16;
 
@@ -69,12 +70,8 @@ export function getTableRowHeight(app: models.AbstractApplication): number {
     return TABLE_ROW_HEIGHT;
 }
 
-/**
- * Compact layout fingerprint for cache invalidation.
- * Changes on reorder/sort, length, and hydrator on/off — not on unrelated watch-tick field updates.
- */
+/** Hash of app ids + hydrator-on. Changes on reorder or hydrator start/stop — not on other status updates. */
 export function appsLayoutKey(apps: models.AbstractApplication[]): string {
-    // FNV-1a over identity + hydrator bit; avoids a multi-KB string at large N.
     let hash = 2166136261;
     for (let i = 0; i < apps.length; i++) {
         const app = apps[i];
@@ -90,8 +87,8 @@ export function appsLayoutKey(apps: models.AbstractApplication[]): string {
 }
 
 /**
- * Viewport height for AutoSizer: from the container top to the window bottom.
- * Callback ref (not useLayoutEffect) so measurement attaches after DataLoader mounts the node.
+ * Height from the list's top to the bottom of the window, for AutoSizer.
+ * Uses a callback ref so it measures after DataLoader mounts the node.
  */
 export function useVirtualViewportHeight(enabled: boolean = true): [number, React.RefCallback<HTMLElement>] {
     const [height, setHeight] = React.useState(VIRTUAL_VIEWPORT_MIN_HEIGHT);
@@ -107,7 +104,6 @@ export function useVirtualViewportHeight(enabled: boolean = true): [number, Reac
             }
 
             const updateHeight = () => {
-                // Keep the bottom pinned to the window; top may be negative when scrolled up.
                 const top = element.getBoundingClientRect().top;
                 const available = window.innerHeight - top - VIRTUAL_VIEWPORT_BOTTOM_PADDING;
                 setHeight(Math.max(VIRTUAL_VIEWPORT_MIN_HEIGHT, Math.floor(available)));

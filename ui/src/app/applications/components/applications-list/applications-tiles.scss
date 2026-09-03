@@ -6,12 +6,11 @@
     display: block;
     width: 100%;
     padding: 0;
-    // Column widths omit the trailing gap so content fits; keep x clipped as a safeguard.
-    overflow-x: hidden;
-    overflow-y: hidden;
+    // Grid owns scrolling; clip so AutoSizer doesn't grow with the full list.
+    overflow: hidden;
 
     .applications-tiles__virtual-cell {
-        // Positioned Grid cell; height comes from CellMeasurer (variable per row).
+        // Containing block for absolute header/action buttons on the tile.
         position: relative;
         overflow: visible;
     }

@@ -91,7 +91,7 @@ const VirtualizedTilesGrid = ({
                 }
 
                 const app = applications[index];
-                // Paint content width only — column stride already includes the gap.
+                // Tile is content-width; the Grid column already includes the gap.
                 const cellStyle: React.CSSProperties = {
                     ...style,
                     width: tileWidth
@@ -207,8 +207,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         if (selectedApp >= applications.length) {
             reset();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [applications.length]);
+    }, [selectedApp, applications.length, reset]);
 
     React.useEffect(() => {
         if (selectedApp < 0 || !shouldVirtualize || !gridRef.current) {
@@ -220,7 +219,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         });
     }, [selectedApp, shouldVirtualize, columnsPerRow]);
 
-    // Clear on layout/reorder/hydrator changes — not array identity alone (watch ticks would flash).
+    // Remeasure after sort/reorder, hydrator change, or column-width change.
     React.useEffect(() => {
         if (!shouldVirtualize) {
             return;

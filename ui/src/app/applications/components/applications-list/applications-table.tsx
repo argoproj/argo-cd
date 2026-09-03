@@ -54,8 +54,7 @@ export const ApplicationsTable = (props: {
         if (selectedApp >= props.applications.length) {
             reset();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [props.applications.length]);
+    }, [selectedApp, props.applications.length, reset]);
 
     React.useEffect(() => {
         if (selectedApp >= 0 && shouldVirtualize && listRef.current) {
@@ -63,8 +62,6 @@ export const ApplicationsTable = (props: {
         }
     }, [selectedApp, shouldVirtualize]);
 
-    // Derive heights from props; only recomputeRowHeights when layoutKey changes
-    // so watch-tick array identity churn does not flash blank rows.
     const getRowHeight = React.useCallback(
         ({index}: {index: number}) => {
             const app = props.applications[index];
@@ -75,6 +72,7 @@ export const ApplicationsTable = (props: {
 
     const layoutKey = React.useMemo(() => (shouldVirtualize ? appsLayoutKey(props.applications) : ''), [shouldVirtualize, props.applications]);
 
+    // Recalculate row heights after sort/reorder or when a hydrator status line appears/disappears.
     React.useEffect(() => {
         if (shouldVirtualize && listRef.current) {
             listRef.current.recomputeRowHeights();
