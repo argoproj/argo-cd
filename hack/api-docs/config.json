@@ -1,0 +1,8 @@
+{
+  "hideMemberFields": [
+    "TypeMeta"
+  ],
+  "hideTypePatterns": [
+    ".*List$"
+  ]
+}
