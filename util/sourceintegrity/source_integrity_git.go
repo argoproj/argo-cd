@@ -184,6 +184,20 @@ func gpgProblemMessage(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfo gi
 	if isKeyInAllowedList(g.Keys, signatureInfo.SignatureKeyID) {
 		return ""
 	}
+
+	// git signs with a dedicated signing subkey when the key has one, but operators normally
+	// list the primary key in the policy. Resolve the signing key back to its primary and
+	// allow the signature if that primary key is in the policy. The lookup is restricted to
+	// 16-char key IDs, the form git's %GK emits, so it cannot widen matching to key formats
+	// that were not accepted before.
+	if IsShortKeyID(signatureInfo.SignatureKeyID) {
+		if primaryKeyID, err := lookupPrimaryKeyID(signatureInfo.SignatureKeyID); err != nil {
+			log.Debugf("could not resolve primary key for signing key %s: %v", signatureInfo.SignatureKeyID, err)
+		} else if primaryKeyID != signatureInfo.SignatureKeyID && isKeyInAllowedList(g.Keys, primaryKeyID) {
+			return ""
+		}
+	}
+
 	return fmt.Sprintf("Failed verifying revision %s by '%s': "+msgUnallowedKey,
 		signatureInfo.Revision, signatureInfo.AuthorIdentity, signatureInfo.SignatureKeyID,
 	)

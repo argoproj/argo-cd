@@ -31,6 +31,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -811,6 +812,17 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 				Message:            fmt.Sprintf("Resource %s/%s %s is excluded in the settings", gvk.Group, gvk.Kind, targetObj.GetName()),
 				LastTransitionTime: &now,
 			})
+		} else if selectorStr := resFilter.GetLabelSelector(gvk.Group, gvk.Kind, destCluster.Server); selectorStr != "" {
+			// the selector is validated when the settings are loaded, so it is expected to parse
+			if selector, err := labels.Parse(selectorStr); err == nil && !selector.Matches(labels.Set(targetObj.GetLabels())) {
+				// the resource stays managed, but Argo CD does not watch it, so it never has a live
+				// state to compare the target state against
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:               v1alpha1.ApplicationConditionExcludedResourceWarning,
+					Message:            fmt.Sprintf("Resource %s/%s %s does not match the resource selector %q in the settings and will not be watched; it will appear as OutOfSync", gvk.Group, gvk.Kind, targetObj.GetName(), selectorStr),
+					LastTransitionTime: &now,
+				})
+			}
 		}
 
 		// If we reach this path, this means that a namespace has been both defined in Git, as well in the

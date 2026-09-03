@@ -86,6 +86,11 @@ func isKeyInAllowedList(allowedKeys []string, signerKeyID string) bool {
 	return false
 }
 
+// lookupPrimaryKeyID resolves a signing (sub)key ID to the primary key it belongs to.
+// It is a package variable so tests can stub the keyring lookup; because it is shared
+// process-wide, only swap it from serial (non-t.Parallel) tests.
+var lookupPrimaryKeyID = PrimaryKeyID
+
 // IsGPGEnabled returns true if the GPG feature is enabled
 func IsGPGEnabled() bool {
 	if en := os.Getenv("ARGOCD_GPG_ENABLED"); strings.EqualFold(en, "false") || strings.EqualFold(en, "no") {
