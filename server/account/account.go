@@ -129,6 +129,19 @@ func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.Can
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbac.Resources, r.Resource)
 	}
 
+	// When server.rbac.rollback.enforce.enable is false (the default), rollback falls back
+	// to the sync permission for backwards compatibility. Mirror that here so can-i
+	// accurately reflects whether the caller can actually perform a rollback.
+	if r.Action == rbac.ActionRollback {
+		rollbackEnforceEnable, err := s.settingsMgr.GetServerRBACRollbackEnforceEnable()
+		if err != nil {
+			return nil, err
+		}
+		if !rollbackEnforceEnable {
+			r.Action = rbac.ActionSync
+		}
+	}
+
 	subresource := r.Subresource
 
 	// For project-scoped resources, normalize the subresource using security.RBACName
