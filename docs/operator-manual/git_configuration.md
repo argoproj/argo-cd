@@ -41,3 +41,85 @@ environment.
 
 > [!NOTE]
 > Disabling this is not recommended and is not supported!
+
+## Locale
+
+Every Git command `argocd-repo-server` runs is given `LC_ALL=C`. Git translates its
+own messages from the inherited locale, and Argo CD matches one of those messages to
+recover a repository wedged by a leftover lock file (see below), so they must stay in
+the form it parses. This is set unconditionally and is not affected by
+`reposerver.enable.builtin.git.config`.
+
+A side effect is that Git output in `argocd-repo-server` logs is always in English,
+regardless of the container's locale.
+
+## Recovering from an interrupted Git process
+
+Git takes a lock by creating a file such as `.git/HEAD.lock` and renaming it over its
+target. It removes that file on every exit it controls, so a leftover lock is only
+possible when the process is killed outright:
+
+```text
+who removes a Git lock file
+
+ success    create ──▶ write ──▶ rename over the target ──▶ gone
+                                 the rename consumes the lock
+
+ error      create ──▶ write ──▶ unlink                 ──▶ gone
+                                 Git's own cleanup path
+
+ SIGTERM    create ──▶ write ──▶ signal handler unlinks ──▶ gone
+
+ SIGKILL    create ──▶ write ──▶ process dies           ──▶ STAYS
+                                 no cleanup code runs
+```
+
+An OOM kill, a lost node, or a cancelled request delivers that `SIGKILL`. The lock is
+a plain file rather than a kernel lock, so nothing reclaims it, and every later fetch
+or checkout on that cached repository fails with:
+
+```
+Unable to create '<path>/.git/HEAD.lock': File exists
+```
+
+Left alone this does not resolve. `argocd-repo-server` keeps passing its health check
+while every Application backed by that repository stops reconciling.
+
+`argocd-repo-server` therefore recovers from it: when a fetch or checkout fails with
+that error, the lock named in the error is removed and the operation is retried once.
+Locks are only removed when they can be shown to be leftovers:
+
+```text
+what argocd-repo-server will and will not remove
+
+  a fetch or checkout fails with "Unable to create '…': File exists"
+                        │
+                        ▼
+  a *.lock inside this repository's own .git/  no ──▶ left alone,
+                        │ yes                          error returned as-is
+                        ▼
+  a regular file, not a symlink                no ──▶ left alone, logged
+                        │ yes                          "git lock files are
+                        ▼                               regular files"
+  still the same file that was inspected       no ──▶ left alone, logged
+                        │ yes                          "it was replaced while
+                        ▼                               being inspected"
+  older than twice ARGOCD_EXEC_TIMEOUT         no ──▶ left alone, logged
+                        │ yes                          "age … is within the
+                        ▼                               … grace period"
+            removed, and the operation retried once
+```
+
+The age requirement is what separates a leftover lock from one a running Git process
+still holds. Removing a live lock lets two Git processes write the same working tree,
+leaving it holding a mix of two revisions with no error raised anywhere — worse than
+the stuck repository it would be fixing.
+
+Two consequences worth knowing:
+
+- **Recovery is not immediate.** A lock is left alone until it is older than twice
+  `ARGOCD_EXEC_TIMEOUT` (at least one minute), so a reconcile can still fail in the
+  meantime. Each declined removal is logged with the lock's age and the window.
+- **`ARGOCD_EXEC_TIMEOUT=0` disables the recovery.** With no timeout Git is never
+  killed, so no elapsed time can establish that a lock is dead. This is logged when it
+  occurs.
