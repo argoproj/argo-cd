@@ -71,19 +71,19 @@ Syntax: `p, <role/user/group>, <resource>, <action>, <object>, <effect>`
 
 Below is a table that summarizes all possible resources and which actions are valid for each of them.
 
-| Resource\Action     | get | create | update | delete | sync | action | override | invoke |
-| :------------------ | :-: | :----: | :----: | :----: | :--: | :----: | :------: | :----: |
-| **applications**    | ✅  |   ✅   |   ✅   |   ✅   |  ✅  |   ✅   |    ✅    |   ❌   |
-| **applicationsets** | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **clusters**        | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **projects**        | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **repositories**    | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **accounts**        | ✅  |   ❌   |   ✅   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **certificates**    | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **gpgkeys**         | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **logs**            | ✅  |   ❌   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **exec**            | ❌  |   ✅   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **extensions**      | ❌  |   ❌   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ✅   |
+| Resource\Action     | get | create | update | delete | sync | rollback | action | override | invoke |
+| :------------------ | :-: | :----: | :----: | :----: | :--: | :------: | :----: | :------: | :----: |
+| **applications**    | ✅  |   ✅   |   ✅   |   ✅   |  ✅  |    ✅    |   ✅   |    ✅    |   ❌   |
+| **applicationsets** | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **clusters**        | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **projects**        | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **repositories**    | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **accounts**        | ✅  |   ❌   |   ✅   |   ❌   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **certificates**    | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **gpgkeys**         | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **logs**            | ✅  |   ❌   |   ❌   |   ❌   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **exec**            | ❌  |   ✅   |   ❌   |   ❌   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **extensions**      | ❌  |   ❌   |   ❌   |   ❌   |  ❌  |    ❌    |   ❌   |    ❌    |   ✅   |
 
 ### Application-Specific Policy
 
@@ -210,6 +210,43 @@ To allow the user to perform any actions:
 p, example-user, applications, action/*, default/*, allow
 ```
 
+#### The `rollback` action
+
+The `rollback` action allows rolling back applications to previously synced revisions. This is a restricted operation compared to the `sync` action with the following constraints:
+
+* Can only rollback to revisions in the application's revision history (up to the configured `revisionHistoryLimit`)
+* Cannot rollback when auto-sync is enabled
+* Supports `dryRun` and `prune` options but cannot override other sync options
+* Cannot use partial sync on specific resources
+
+#### Enabling Separate Rollback Permission
+
+The `rollback` action is **opt-in** and disabled by default for backwards compatibility. To enable it, set the following in `argocd-cm`:
+
+```yaml
+server.rbac.rollback.enforce.enable: 'true'
+```
+
+When disabled (the default), rollback operations continue to use the `sync` permission check, so existing RBAC policies continue to work without changes.
+
+> [!NOTE]
+> Once enabled, users who previously relied on `sync` permission to perform rollbacks will need to be explicitly granted the `rollback` permission.
+
+**Examples:**
+
+Allow a developer to rollback applications in the dev project:
+
+```csv
+p, developer, applications, rollback, dev-project/*, allow
+```
+
+Allow a team to rollback specific applications:
+
+```csv
+p, release-team, applications, rollback, prod-project/critical-app, allow
+p, release-team, applications, rollback, prod-project/api-service, allow
+```
+
 #### The `override` action
 
 The `override` action privilege can be used to allow passing arbitrary manifests or different revisions when syncing an `Application`. This can e.g. be used for development or testing purposes.
@@ -279,6 +316,52 @@ applications under the `default` project.
 p, example-user, applications, get, default/*, allow
 p, example-user, extensions, invoke, httpbin, allow
 ```
+
+### The `clusters` resource
+
+The clusters resource controls which Argo CD cluster entries a user can list, create, update, or delete via the Argo CD API/UI/CLI. Registered cluster credentials are typically stored as Kubernetes Secrets in the Argo CD namespace with the argocd.argoproj.io/secret-type: cluster label. Such Secrets may optionally carry a project field, which scopes the cluster to a single AppProject.
+
+The `<object>` value in a `clusters` policy is derived from the cluster Secret's
+`server` (its API URL, e.g. `https://kubernetes.default.svc`) and its optional
+`project` field, following [`CreateClusterRBACObject`](https://github.com/argoproj/argo-cd/blob/master/server/cluster/cluster.go):
+
+- **Unscoped cluster** (Secret's `project` is empty): the object is the cluster
+  server URL, e.g. `https://kubernetes.default.svc`.
+- **Project-scoped cluster** (Secret's `project` is set): the object is
+  `<project>/<server-url>`, e.g. `my-project/https://api.example.com:6443`.
+
+Examples:
+
+```csv
+# Grant the default role visibility of the unscoped in-cluster entry
+p, role:defaultrole, clusters, get, https://kubernetes.default.svc, allow
+
+# Grant a role full access to a project-scoped external cluster.
+p, role:my-role, clusters, *, my-project/https://api.example.com:6443, allow
+```
+
+Because `policy.matchMode` defaults to `glob`, wildcards are supported:
+
+```csv
+# Any authenticated user can get every cluster Secret owned by "my-project".
+p, role:defaultrole, clusters, get, my-project/*, allow
+```
+
+> [!NOTE]
+> **The cluster name is not accepted as the RBAC object**
+>
+> The `<object>` for a `clusters` policy must be the cluster server URL,
+> optionally prefixed with the project. The cluster's logical `name` field
+> (`data.name` / `stringData.name` in a declarative cluster Secret) is not an
+> accepted object format. For example, a policy such as
+> `p, ..., clusters, get, my-cluster, allow` will not match a cluster whose
+> server is a URL such as `https://api.example.com:6443`. See
+> [issue #13244](https://github.com/argoproj/argo-cd/issues/13244) for the
+> feature request to also accept cluster names.
+
+For the setup side of project-scoped clusters (how to attach a `project` to a
+cluster Secret and let developers self-register clusters into a project) see
+[Project scoped Repositories and Clusters](../user-guide/projects.md#project-scoped-repositories-and-clusters).
 
 ### The `deny` effect
 

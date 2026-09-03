@@ -1,0 +1,10 @@
+# An empty conditions array means the same as an absent one.
+apiVersion: aws.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: IRSA
+status:
+  conditions: []

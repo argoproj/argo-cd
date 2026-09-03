@@ -141,12 +141,13 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 		panic(err)
 	}
 
+	d := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
 	transport := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		Dial: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).Dial,
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           d.DialContext,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
@@ -601,10 +602,9 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 			return nil, "", common.ErrTokenVerification
 		}
 
-		id, ok := claims["jti"].(string)
-		if !ok {
-			log.Warnf("token does not have jti claim")
-			id = ""
+		id := tokenUniqueID(claims)
+		if id == "" {
+			log.Warnf("token does not have jti or uti claim")
 		}
 		// Workaround for Dex token, because does not have jti.
 		if id == "" {
@@ -622,6 +622,18 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 		}
 		return claims, "", nil
 	}
+}
+
+// tokenUniqueID returns a unique identifier for the token, used for revocation
+// checks. It prefers the standard "jti" claim. Microsoft Entra ID does not emit
+// "jti"; it emits "uti" (unique token identifier), which Microsoft documents as
+// the equivalent, so fall back to it. Returns an empty string when neither claim
+// is present.
+func tokenUniqueID(claims jwt.MapClaims) string {
+	if id := jwtutil.StringField(claims, "jti"); id != "" {
+		return id
+	}
+	return jwtutil.StringField(claims, "uti")
 }
 
 func (mgr *SessionManager) provider() (oidcutil.Provider, error) {

@@ -2,21 +2,24 @@ package kube
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/mocks"
-	testingutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/mocks"
+	testingutils "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/testing"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/tracing"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/printers"
+	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/apply"
+	"k8s.io/kubectl/pkg/cmd/auth"
 	"k8s.io/kubectl/pkg/cmd/create"
 	"k8s.io/kubectl/pkg/cmd/replace"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -329,7 +332,13 @@ func TestApplyOptionsConfiguration(t *testing.T) {
 				assert.Equal(t, tc.strategy, capturedOpts.DryRunStrategy)
 				assert.Equal(t, "test-manager", capturedOpts.FieldManager)
 				assert.True(t, capturedOpts.Overwrite)
-				assert.True(t, capturedOpts.OpenAPIPatch)
+				if tc.strategy == cmdutil.DryRunClient {
+					// workaround for https://github.com/kubernetes/kubernetes/issues/139538
+					// in kubectl v1.36
+					assert.False(t, capturedOpts.OpenAPIPatch)
+				} else {
+					assert.True(t, capturedOpts.OpenAPIPatch)
+				}
 				assert.False(t, capturedOpts.ServerSideApply)
 				assert.False(t, capturedOpts.ForceConflicts)
 			})
@@ -540,4 +549,53 @@ func TestReplaceOptionsConfiguration(t *testing.T) {
 			})
 		}
 	})
+}
+
+// TestRealKubectlOptionsRunner_AuthReconcile_PanicRecovery verifies that the
+// recover() wrapper in realKubectlOptionsRunner.AuthReconcile converts a panic
+// inside kubectl into a returned error instead of crashing the controller
+// (see GitHub #28607).
+func TestRealKubectlOptionsRunner_AuthReconcile_PanicRecovery(t *testing.T) {
+	t.Parallel()
+	runner := &realKubectlOptionsRunner{}
+	// A nil *auth.ReconcileOptions panics at opts.RunReconcile() — the same
+	// class of panic that occurs when the impersonated SA is forbidden.
+	err := runner.AuthReconcile((*auth.ReconcileOptions)(nil))
+	require.Error(t, err, "AuthReconcile must return an error rather than propagating the panic")
+	assert.Contains(t, err.Error(), "error running kubectl auth reconcile")
+}
+
+type concurrentTestVisitor struct {
+	info *resource.Info
+	err  error
+}
+
+func (v concurrentTestVisitor) Visit(fn resource.VisitorFunc) error {
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- fn(v.info, v.err)
+	}()
+	return <-errCh
+}
+
+func TestRealKubectlOptionsRunner_AuthReconcile_ConcurrentVisitorPanicRecovery(t *testing.T) {
+	t.Parallel()
+	runner := &realKubectlOptionsRunner{}
+	opts := auth.NewReconcileOptions(genericclioptions.IOStreams{})
+	opts.Visitor = concurrentTestVisitor{}
+
+	err := runner.AuthReconcile(opts)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "error running kubectl auth reconcile")
+}
+
+func TestRealKubectlOptionsRunner_AuthReconcile_VisitorError(t *testing.T) {
+	t.Parallel()
+	runner := &realKubectlOptionsRunner{}
+	expectedErr := errors.New("visit failed")
+	opts := auth.NewReconcileOptions(genericclioptions.IOStreams{})
+	opts.Visitor = concurrentTestVisitor{err: expectedErr}
+
+	err := runner.AuthReconcile(opts)
+	require.ErrorIs(t, err, expectedErr)
 }

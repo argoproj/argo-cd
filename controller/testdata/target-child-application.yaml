@@ -1,0 +1,80 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: 'app-of-apps:argoproj.io/Application:argocd/argo-workflows'
+  name: argo-workflows
+  namespace: argocd
+spec:
+  destination:
+    name: in-cluster
+    namespace: argo-workflows
+  project: default
+  revisionHistoryLimit: 1
+  source:
+    chart: argo-workflows
+    helm:
+      valuesObject:
+        controller:
+          podSecurityContext:
+            runAsGroup: 1000
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 12m
+              memory: 70M
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmp
+          volumes:
+            - emptyDir: {}
+              name: tmp
+        crds:
+          keep: false
+        executor:
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+        server:
+          extraArgs:
+            - '--auth-mode=server'
+          ingress:
+            annotations:
+              cert-manager.io/cluster-issuer: letsencrypt-dns01-issuer
+            enabled: true
+            hosts:
+              - argo-workflows.hankeln.work
+            ingressClassName: nginx
+            tls:
+              - hosts:
+                  - argo-workflows.hankeln.work
+                secretName: argo-workflows-cert
+          podSecurityContext:
+            runAsGroup: 1000
+            runAsUser: 1000
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              cpu: 12m
+              memory: 50M
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+        workflow:
+          serviceAccount:
+            create: true
+    repoURL: 'https://argoproj.github.io/argo-helm'
+    targetRevision: 0.45.28
+  syncPolicy:
+    automated:
+      allowEmpty: true
+      prune: true

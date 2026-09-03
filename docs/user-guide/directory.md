@@ -131,6 +131,61 @@ spec:
       include: '*.yaml'
 ```
 
+### Allowing Custom File Extensions
+
+By default, a directory-type application only considers files with the built-in manifest extensions
+`.yaml`, `.yml`, `.json`, and `.jsonnet`. Any other file is skipped *before* the `include`/`exclude`
+patterns are evaluated, so an `include` pattern like `*.yaml.sealed` has no effect on its own.
+
+To render files stored under a non-standard extension, for example the `*.yaml.sealed` files used by
+[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets), set `disableExtensionFilter: true`.
+This disables the built-in extension filter, so the `include`/`exclude` patterns become the only mechanism
+deciding which files are rendered. The field defaults to `false`, so existing applications are unaffected
+unless they opt in explicitly.
+
+```shell
+argocd app set guestbook --directory-disable-extension-filter=true --directory-include "{*.yaml.sealed,*.yaml,*.yml,*.json}"
+```
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  source:
+    directory:
+      disableExtensionFilter: true
+      include: '{*.yaml.sealed,*.yaml,*.yml,*.json}'
+```
+
+> [!IMPORTANT]
+> When the filter is disabled, **you are responsible for all filtering via `include`/`exclude`.** The
+> standard extensions are no longer matched automatically, so you must list every extension you want to
+> render, including the standard ones like `include: '*.yaml.sealed'` alone would silently ignore your regular
+> `.yaml` and `.json` manifests. Any selected file is always parsed as YAML (JSON is valid YAML, so `.json`
+> content is still handled correctly).
+
+The `include` and `exclude` patterns use [gobwas/glob](https://github.com/gobwas/glob) syntax, which
+supports brace alternation (`{*.yaml,*.yml}`) and wildcards that match across directory separators.
+`exclude` is applied first, then `include`, so a file is selected when it matches `include` (or `include`
+is empty) **and** does not match `exclude`.
+
+If you disable the filter **without** any `include` or `exclude`, *every* file in the directory is read
+and treated as a candidate manifest, and Argo CD logs a warning. Non-manifest files (those without
+`apiVersion`, `kind`, and `metadata`) are still ignored, but each file is read from disk and its size
+counts toward the maximum combined manifest size (`reposerver.max.combined.directory.manifests.size`,
+default `10M`). Prefer scoping with an `exclude` pattern for known non-manifest files rather than leaving
+both empty:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  source:
+    directory:
+      disableExtensionFilter: true
+      exclude: '{*.md,LICENSE,*.png}'
+```
+
 ### Skipping File Rendering
 
 In some cases, repositories may contain YAML files that resemble Kubernetes manifests because they include fields like `apiVersion`, `kind`, and `metadata`, but are not intended to be rendered or applied as actual Kubernetes resources. Examples include Helm `values.yaml` files or configuration snippets used by CI/CD pipelines.
