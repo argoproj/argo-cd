@@ -1054,15 +1054,11 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 	}
 
 	// Print required signature keys
-	signatureKeysStr := "<none>"
-	if len(p.Spec.SignatureKeys) > 0 { // nolint:staticcheck
-		kids := make([]string, 0)
-		for _, key := range p.Spec.SignatureKeys { // nolint:staticcheck
-			kids = append(kids, key.KeyID)
-		}
-		signatureKeysStr = strings.Join(kids, ", ")
+	sourceIntegrityStr := "<none>"
+	if sourceIntegrityMethods := p.EffectiveSourceIntegrity().ConfiguredMethods(); len(sourceIntegrityMethods) > 0 {
+		sourceIntegrityStr = strings.Join(sourceIntegrityMethods, ", ")
 	}
-	fmt.Fprintf(outWriter, printProjFmtStr, "Signature keys:", signatureKeysStr)
+	fmt.Fprintf(outWriter, printProjFmtStr, "Source integrity:", sourceIntegrityStr)
 
 	fmt.Fprintf(outWriter, printProjFmtStr, "Orphaned Resources:", formatOrphanedResources(p))
 }
