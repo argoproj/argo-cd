@@ -219,7 +219,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         });
     }, [selectedApp, shouldVirtualize, columnsPerRow]);
 
-    // Remeasure after sort/reorder, hydrator change, or column-width change.
+    // Remeasure after sort/reorder, or when height-changing tile rows change.
     React.useEffect(() => {
         if (!shouldVirtualize) {
             return;

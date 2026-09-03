@@ -1,6 +1,6 @@
 import * as React from 'react';
 import * as models from '../../../shared/models';
-import {isApp} from '../utils';
+import {getAppDefaultSource, isApp} from '../utils';
 
 /** Virtualize only when "Items per page: all" is selected and list is greater than this. */
 export const VIRTUAL_THRESHOLD = 50;
@@ -70,7 +70,33 @@ export function getTableRowHeight(app: models.AbstractApplication): number {
     return TABLE_ROW_HEIGHT;
 }
 
-/** Hash of app ids + hydrator-on. Changes on reorder or hydrator start/stop — not on other status updates. */
+/**
+ * Bits for conditional Application tile rows that change measured height
+ * (Path, Chart, Last Sync, hydrator). Matches ApplicationTile rendering.
+ */
+export function tileHeightBits(app: models.AbstractApplication): number {
+    let bits = 0;
+    if (hasActiveHydrator(app)) {
+        bits |= 1;
+    }
+    if (!isApp(app)) {
+        return bits;
+    }
+    const application = app as models.Application;
+    const source = getAppDefaultSource(application);
+    if (source?.path) {
+        bits |= 2;
+    }
+    if (source?.chart) {
+        bits |= 4;
+    }
+    if (application.status?.operationState) {
+        bits |= 8;
+    }
+    return bits;
+}
+
+/** Hash of app ids + height-affecting tile rows. Changes on reorder or those rows appearing/disappearing. */
 export function appsLayoutKey(apps: models.AbstractApplication[]): string {
     let hash = 2166136261;
     for (let i = 0; i < apps.length; i++) {
@@ -80,7 +106,7 @@ export function appsLayoutKey(apps: models.AbstractApplication[]): string {
             hash ^= id.charCodeAt(j);
             hash = Math.imul(hash, 16777619);
         }
-        hash ^= hasActiveHydrator(app) ? 1 : 0;
+        hash ^= tileHeightBits(app);
         hash = Math.imul(hash, 16777619);
     }
     return `${apps.length}:${hash >>> 0}`;
