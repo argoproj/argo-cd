@@ -33,9 +33,7 @@ func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, reposit
 	secName := RepoURLToSecretName(secretPrefix, repository.Repo, repository.Project)
 
 	repositorySecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secName,
-		},
+		Name: secName,
 	}
 
 	updatedSecret := s.repositoryToSecret(repository, repositorySecret)
@@ -172,7 +170,7 @@ func (s *secretsRepositoryBackend) RepositoryExists(_ context.Context, repoURL, 
 			return false, nil
 		}
 
-		return false, fmt.Errorf("failed to get repository secret for %q: %w", repoURL, err)
+		return false, fmt.Errorf("failed to get repository secret for %q: %w", git.SanitizeRepoURL(repoURL), err)
 	}
 
 	return secret != nil, nil
@@ -186,9 +184,7 @@ func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, repoCred
 	secName := RepoURLToSecretName(secretPrefix, repoCreds.URL, "")
 
 	repoCredsSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secName,
-		},
+		Name: secName,
 	}
 
 	updatedSecret := s.repoCredsToSecret(repoCreds, repoCredsSecret)
@@ -595,7 +591,7 @@ func (s *secretsRepositoryBackend) getRepositorySecret(repoURL, project string, 
 		return foundSecret, nil
 	}
 
-	return nil, status.Errorf(codes.NotFound, "repository %q not found", repoURL)
+	return nil, status.Errorf(codes.NotFound, "repository %q not found", git.SanitizeRepoURL(repoURL))
 }
 
 func (s *secretsRepositoryBackend) getRepoCredsSecret(repoURL string) (*corev1.Secret, error) {
@@ -606,7 +602,7 @@ func (s *secretsRepositoryBackend) getRepoCredsSecret(repoURL string) (*corev1.S
 
 	index := s.getRepositoryCredentialIndex(secrets, repoURL)
 	if index < 0 {
-		return nil, status.Errorf(codes.NotFound, "repository credentials %q not found", repoURL)
+		return nil, status.Errorf(codes.NotFound, "repository credentials %q not found", git.SanitizeRepoURL(repoURL))
 	}
 
 	return secrets[index], nil
