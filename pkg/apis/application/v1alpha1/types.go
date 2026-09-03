@@ -101,6 +101,11 @@ type ApplicationSpec struct {
 
 	// SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.
 	SourceHydrator *SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,9,opt,name=sourceHydrator"`
+
+	// IgnoreDuplicateResources controls which resources should suppress RepeatedResourceWarning.
+	// If a resource appears multiple times among application resources but matches one of these
+	// selectors, the RepeatedResourceWarning condition will not be generated for it.
+	IgnoreDuplicateResources IgnoreDuplicateResources `json:"ignoreDuplicateResources,omitempty" protobuf:"bytes,10,opt,name=ignoreDuplicateResources"`
 }
 
 type IgnoreDifferences []ResourceIgnoreDifferences
@@ -132,6 +137,47 @@ type ResourceIgnoreDifferences struct {
 	// ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
 	// desired state defined in the SCM and won't be displayed in diffs
 	ManagedFieldsManagers []string `json:"managedFieldsManagers,omitempty" protobuf:"bytes,7,opt,name=managedFieldsManagers"`
+}
+
+// ResourceIgnoreDuplicate contains resource filter for suppressing RepeatedResourceWarning.
+// If a resource matches the Group/Kind/Name/Namespace selector, the warning will not be
+// generated when that resource appears multiple times among application resources.
+type ResourceIgnoreDuplicate struct {
+	// +kubebuilder:validation:MinLength=1
+	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	// +kubebuilder:validation:MinLength=1
+	Kind      string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
+	Name      string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
+}
+
+// Matches returns true if the given ResourceKey matches this selector.
+// Empty fields act as wildcards.
+func (r *ResourceIgnoreDuplicate) Matches(key kube.ResourceKey) bool {
+	if r.Group != "" && r.Group != key.Group {
+		return false
+	}
+	if r.Kind != "" && r.Kind != key.Kind {
+		return false
+	}
+	if r.Name != "" && r.Name != key.Name {
+		return false
+	}
+	if r.Namespace != "" && r.Namespace != key.Namespace {
+		return false
+	}
+	return true
+}
+
+// IgnoreDuplicateResources is a list of resource selectors for which RepeatedResourceWarning should be suppressed.
+type IgnoreDuplicateResources []ResourceIgnoreDuplicate
+
+func (idr IgnoreDuplicateResources) Equals(other IgnoreDuplicateResources) bool {
+	// Treat nil and empty slice as equivalent
+	if len(idr) == 0 && len(other) == 0 {
+		return true
+	}
+	return reflect.DeepEqual(idr, other)
 }
 
 // EnvEntry represents an entry in the application's environment
@@ -1327,8 +1373,9 @@ func (status *ApplicationStatus) GetRevisions() []string {
 // Application state.
 func (spec *ApplicationSpec) BuildComparedToStatus(sources []ApplicationSource) ComparedTo {
 	ct := ComparedTo{
-		Destination:       spec.Destination,
-		IgnoreDifferences: spec.IgnoreDifferences,
+		Destination:              spec.Destination,
+		IgnoreDifferences:        spec.IgnoreDifferences,
+		IgnoreDuplicateResources: spec.IgnoreDuplicateResources,
 	}
 	if spec.HasMultipleSources() {
 		ct.Sources = sources
@@ -1943,6 +1990,8 @@ type ComparedTo struct {
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,3,opt,name=sources"`
 	// IgnoreDifferences is a reference to the application's ignored differences used for comparison
 	IgnoreDifferences IgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,4,opt,name=ignoreDifferences"`
+	// IgnoreDuplicateResources is a reference to the application's ignored duplicate resources used for comparison
+	IgnoreDuplicateResources IgnoreDuplicateResources `json:"ignoreDuplicateResources,omitempty" protobuf:"bytes,5,opt,name=ignoreDuplicateResources"`
 }
 
 // SyncStatus contains information about the currently observed live and desired states of an application
