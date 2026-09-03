@@ -6,6 +6,8 @@ package lua
 // github.com/yuin/gopher-lua.
 
 import (
+	"math"
+	"math/rand"
 	"strconv"
 	"strings"
 	"time"
@@ -181,4 +183,28 @@ func (fs *flagScanner) Next() (byte, bool) {
 	}
 	fs.Pos++
 	return c, false
+}
+
+func SafeMathLoader(L *lua.LState) int {
+	mod := L.SetFuncs(L.NewTable(), mathFuncs)
+	L.Push(mod)
+	return 1
+}
+
+var mathFuncs = map[string]lua.LGFunction{
+	"random": mathRandom,
+}
+
+func mathRandom(L *lua.LState) int {
+	random := rand.Float64()
+	if L.GetTop() < 2 {
+		L.Push(lua.LNumber(random))
+		return 1
+	}
+	min := L.CheckInt64(1)
+	max := L.CheckInt64(2)
+	spread := max - min
+	number := int64(math.Floor((random * float64(spread)) + float64(min)))
+	L.Push((lua.LNumber(number)))
+	return 1
 }
