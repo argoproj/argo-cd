@@ -100,24 +100,38 @@ For more information see also [Templating](./applicationset/Template.md).
 
 ### Helm Example
 
-This example shows how to use Helm to achieve this. You can, of course, use another tool if you like.
-Notice that most Helm functions are also available in Application Sets. 
 
-A typical layout of your Git repository for this might be:
+This example shows how to use Helm to achieve this. While Helm is used in this example, the same pattern works with any configuration management tool supported by Argo CD (e.g. Kustomize, plain YAML, Jsonnet), or even a custom [Config Management Plugin](./config-management-plugins.md).
+
+### Repository Layout
+
+A typical Git repository layout for a Helm-based app of apps is as follows:
 
 ```
 ├── Chart.yaml
+├── values.yaml
 ├── templates
 │   ├── guestbook.yaml
 │   ├── helm-dependency.yaml
 │   ├── helm-guestbook.yaml
 │   └── kustomize-guestbook.yaml
-└── values.yaml
 ```
 
-`Chart.yaml` is boiler-plate.
+- `Chart.yaml` defines the Helm chart for the parent app.
+- `values.yaml` contains the default values shared across all child applications.
+- `templates/` contains one Helm template per child Application.
 
-`templates` contains one file for each child app, roughly:
+### Child Application Template
+Each file under `templates/` defines a child Argo CD Application. You can either:
+
+- Define one file per child Application, or
+- Use a single Helm template that loops over multiple applications defined in `values.yaml`.
+
+#### Pattern 1: One Template per Child Application
+
+This pattern defines one YAML file per child Application. It is easier to read and reason about, and works well when managing a small number of child Applications.
+
+For example, `templates/guestbook.yaml` contains:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -141,21 +155,82 @@ spec:
       prune: true
 ```
 
-This example sets the sync policy to automated with pruning enabled, so child apps are automatically created, synced, and deleted when the parent app's manifest changes. You may wish to disable automated sync for more control over when changes are applied. The finalizer ensures that child app resources are properly cleaned up on deletion.
+#### Pattern 2: Loop Over Multiple Child Applications
 
-Fix the revision to a specific Git commit SHA to make sure that, even if the child apps repo changes, the app will only change when the parent app change that revision. Alternatively, you can set it to HEAD or a branch name.
+This pattern uses a single Helm template that loops over multiple child Applications defined in `values.yaml`. It is more compact and works well when managing a large number of child Applications.
 
-As you probably want to override the cluster server, this is a templated values.
+For example, `templates/apps.yaml` contains:
 
-`values.yaml` contains the default values:
+```yaml
+{{- range .Values.applications }}
+{{- $config := $.Values.config -}}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ printf "example.%s" .name | quote }}
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: {{ .namespace | default .name | quote }}
+    server: {{ $config.spec.destination.server | quote }}
+  project: default
+  source:
+    path: {{ .path | default .name | quote }}
+    repoURL: {{ $config.spec.source.repoURL }}
+    targetRevision: {{ $config.spec.source.targetRevision }}
+    {{- with .tool }}
+    {{- . | toYaml | nindent 4 }}
+    {{- end }}
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    automated:
+      prune: true
+      selfHeal: true
+```
+In the above pattern:
 
+- `range .Values.applications` loops over each child Application defined in the `applications` list in `values.yaml`.
+- `$.Values.config` accesses shared configuration values defined in `values.yaml`.
+- The finalizer is applied only to child Applications to ensure proper cleanup.
+
+### Fixing vs Floating Revisions
+You may either:
+- Pin to a specific commit SHA:
+```yaml
+    targetRevision: d4c3db5f5e2f4b6c8e8f7e6d5c4b3a2f1e0d9c8b
+```
+- Float to the latest on a branch:
+```yaml
+    targetRevision: HEAD
+```
+- Float to a specific branch or tag:
+```yaml
+    targetRevision: staging
+```
+
+Pinning ensures child Applications only change when the parent Application changes. Even if the child applications repo changes, the child application will only change when the parent app changes that revision.
+
+### `values.yaml`
+The `values.yaml` file provides default values shared across all child Applications:
 ```yaml
 spec:
   destination:
     server: https://kubernetes.default.svc
 ```
 
-Next, you need to create and sync your parent app, e.g. via the CLI:
+This allows you to deploy the same App-of-Apps to multiple clusters by overriding values at install time.
+
+### Parent Application
+The parent Application points to the Helm chart itself and is usually created once (manually or via CI). 
+
+Generally, the sync policy for the parent app is set to automated with pruning enabled, so child Applications are deleted when removed from Git. No finalizer is required on the parent app.
+
+
+### Creating the Parent Application
+Create and sync the parent application using the Argo CD CLI:
 
 ```bash
 argocd app create apps \
@@ -166,7 +241,9 @@ argocd app create apps \
 argocd app sync apps  
 ```
 
-The parent app will appear as in-sync but the child apps will be out of sync:
+After syncing, the parent application will appear as Synced. However, the child applications will initially appear as `OutOfSync`, since they have not yet been created in the cluster, hence they must be reconciled individually.
+
+When a child Application is removed from Git, it will be deleted from the cluster automatically due to the parent's automated sync policy with pruning enabled. The finalizer on the child Applications ensures that all resources managed by the child Applications are fully removed before the child Application itself is deleted.
 
 ![New App Of Apps](../assets/new-app-of-apps.png)
 
