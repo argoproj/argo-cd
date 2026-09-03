@@ -240,7 +240,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
 	fixture.EnsureCleanState(t)
 	expectedErrorMessage := regexp.MustCompile(
-		`error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = GIT/GPG: Failed verifying revision .* by '.*': unsigned \(key_id=\)`,
+		`error generating params from git repo '.+': error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = GIT/GPG: Failed verifying revision .* by '.*': unsigned \(key_id=\)`,
 	)
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
@@ -333,7 +333,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
 	fixture.EnsureCleanState(t)
 	expectedErrorMessage := regexp.MustCompile(
-		`error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = GIT/GPG: Failed verifying revision .* by '.*': signed with key not in keyring \(key_id=` + fixture.GpgGoodKeyID + `\)`,
+		`error generating params from git repo '.+': error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = GIT/GPG: Failed verifying revision .* by '.*': signed with key not in keyring \(key_id=` + fixture.GpgGoodKeyID + `\)`,
 	)
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
@@ -533,7 +533,7 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
 	fixture.EnsureCleanState(t)
-	expectedErrorMessage := regexp.MustCompile(`error generating params from git: error retrieving Git files: rpc error: code = Unknown desc = GIT/GPG: Failed verifying revision .* by '.*': unsigned \(key_id=\)`)
+	expectedErrorMessage := regexp.MustCompile(`error generating params from git repo '.+': error retrieving Git files: rpc error: code = Unknown desc = GIT/GPG: Failed verifying revision .* by '.*': unsigned \(key_id=\)`)
 
 	project := "gpg"
 	generateExpectedApp := func(name string) v1alpha1.Application {
@@ -628,7 +628,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
 	fixture.EnsureCleanState(t)
 	expectedErrorMessage := regexp.MustCompile(
-		`error generating params from git: error retrieving Git files: rpc error: code = Unknown desc = GIT/GPG: Failed verifying revision .* by '.*': signed with key not in keyring \(key_id=` + fixture.GpgGoodKeyID + `\)`,
+		`error generating params from git repo '.+': error retrieving Git files: rpc error: code = Unknown desc = GIT/GPG: Failed verifying revision .* by '.*': signed with key not in keyring \(key_id=` + fixture.GpgGoodKeyID + `\)`,
 	)
 
 	project := "gpg"
