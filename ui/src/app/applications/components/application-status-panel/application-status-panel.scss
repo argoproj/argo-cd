@@ -38,17 +38,21 @@
 
     $row-width: 250px;
 
-    &__conditions {
-        display: flex;
-        max-width: 250px;
-        flex-wrap: wrap;
-        justify-content: center;
-        line-height: 1.5em;
-        a {
-            display: block;
-            margin-right: 12px;
+     &__conditions {
+            display: flex;
+            max-width: 250px;
+            flex-wrap: wrap;
+            justify-content: flex-start;
+            line-height: 1.5em;
+            a {
+                display: flex;
+                margin-right: 12px;
+                align-items: center;
+            }
+            .sync-condition-details {
+                padding-left: 0.2em;
+            }
         }
-    }
 
     &__more-button {
         margin-left: auto;

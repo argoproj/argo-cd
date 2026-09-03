@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/database_healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for CloudNativePG to reconcile Database"
+  inputPath: testdata/database_progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for CloudNativePG to reconcile Database"
+  inputPath: testdata/database_progressing_no_status.yaml
+- healthStatus:
+    status: Progressing
+    message: "unable to determine database status: connection refused"
+  inputPath: testdata/database_progressing_applied_unset.yaml
+- healthStatus:
+    status: Progressing
+    message: 'failed to reconcile database "app": role "app" does not exist (SQLSTATE 42704)'
+  inputPath: testdata/database_progressing_failed_first_reconcile.yaml
+- healthStatus:
+    status: Degraded
+    message: 'failed to reconcile database "app": permission denied to create database (SQLSTATE 42501)'
+  inputPath: testdata/database_degraded.yaml

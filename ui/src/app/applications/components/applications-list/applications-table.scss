@@ -4,12 +4,69 @@ $applications-list-label-min: 5.75rem;
 $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
 
 .applications-table {
-
     .argo-table-list__row {
         line-height: 26px;
         padding-top: 4px;
         padding-bottom: 4px;
         padding-left: 2em;
+    }
+
+    .applications-list__table-row {
+        // No `position: relative` here on purpose: the overlay link anchors to the already-positioned
+        // outer `.argo-table-list__row` (argo-ui sets it `position: relative`), so it spans the full
+        // row including that element's left padding. Making this inner Foundation `.row` a containing
+        // block would shrink the overlay to the narrower inner row instead.
+
+        // Lift interactive and tooltip-bearing descendants above the overlay link so they
+        // receive their own clicks and so native `title` / Tippy hover fires on them. The
+        // overlay anchor catches clicks on the remaining non-interactive areas of the row.
+        // `[title]` covers status icons (HealthStatusIcon, ComparisonStatusIcon, etc. in
+        // utils.tsx which render `<i title=…>`); `.application-notice-icon` covers the
+        // NoticeIcon, which uses Tippy instead of native `title`.
+        button,
+        a:not(.applications-list__table-row__overlay-link),
+        [title],
+        .application-notice-icon {
+            position: relative;
+            z-index: 2;
+        }
+
+        // `.argo-dropdown` is `position: static` by default (argo-ui dropdown.scss), so
+        // z-index alone wouldn't lift it above the overlay link. Promote it to positioned
+        // so the `…` action menu still receives its own clicks.
+        .argo-dropdown {
+            position: relative;
+            z-index: 2;
+        }
+
+        // Visual reset for the name: it's an <a> (tabIndex=-1) styled to read like plain text,
+        // since the row's primary link semantics live on the overlay anchor.
+        .applications-list__table-row-name {
+            color: inherit;
+            text-decoration: none;
+        }
+    }
+
+    .applications-list__table-row__overlay-link {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        color: inherit;
+        text-decoration: none;
+
+        &:hover,
+        &:visited,
+        &:active {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        // Keyboard focus indicator — the anchor itself is invisible, so draw the outline
+        // on its bounding box (the whole row) for keyboard users.
+        &:focus-visible {
+            outline: 2px solid $argo-color-teal-5;
+            outline-offset: -2px;
+        }
     }
 
     .applications-list__table-row.applications-table-row--with-hydrator {
@@ -23,6 +80,7 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
 
     .applications-list__table-row button.managed-by-url-invalid {
         color: #f4c030;
+        cursor: not-allowed;
 
         &:hover {
             color: #f4c030;
@@ -44,11 +102,6 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
             padding: 0;
             margin: 0;
             line-height: 1;
-        }
-
-        .applications-list__external-links-icon-container {
-            display: inline-block;
-            margin-left: 0.125rem;
         }
     }
 
@@ -77,6 +130,49 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    .applications-list__name-value {
+        display: flex;
+        align-items: center;
+
+        .applications-list__table-row-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .applications-list__external-links-icon-container {
+            flex-shrink: 0;
+            margin-left: 0.5em;
+        }
+
+        .application-notice-icon,
+        .applications-list__open-app-button {
+            flex-shrink: 0;
+        }
+
+        .applications-list__open-app-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 0.5em;
+            padding: 0;
+            border: 0;
+            background: none;
+            color: inherit;
+            cursor: pointer;
+            line-height: 1;
+
+            &:hover {
+                color: $argo-color-teal-5;
+            }
+
+            i {
+                font-size: 14px;
+            }
+        }
     }
 
     .applications-list__meta-value.applications-table-source {
