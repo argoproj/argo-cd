@@ -350,20 +350,25 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		fatalTimeoutCh = time.NewTimer(timeout + fatalTimeout).C
 	}
 
-	finish := func(waitErr error) (string, error) {
+	capture := func() string {
 		output := stdout.String()
 		if opts.CaptureStderr {
 			output += stderr.String()
 		}
 		logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
+		return strings.TrimSuffix(output, "\n")
+	}
+
+	finish := func(waitErr error) (string, error) {
+		output := capture()
 		if waitErr == nil {
-			return strings.TrimSuffix(output, "\n"), nil
+			return output, nil
 		}
 		cmdErr := newCmdError(redactor(args), errors.New(redactor(waitErr.Error())), strings.TrimSpace(redactor(stderr.String())))
 		if !opts.SkipErrorLogging {
 			logCtx.Error(cmdErr.Error())
 		}
-		return strings.TrimSuffix(output, "\n"), cmdErr
+		return output, cmdErr
 	}
 
 	timeoutBehavior := DefaultCmdOpts.TimeoutBehavior
@@ -394,25 +399,17 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 				// now original cmd should exit immediately after SIGKILL
 				<-done
 				// return error with a marker indicating that cmd exited only after fatal SIGKILL
-				output := stdout.String()
-				if opts.CaptureStderr {
-					output += stderr.String()
-				}
-				logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
+				output := capture()
 				err = newCmdError(redactor(args), fmt.Errorf("fatal timeout after %v", timeout+fatalTimeout), "")
 				logCtx.Error(err.Error())
-				return strings.TrimSuffix(output, "\n"), err
+				return output, err
 			}
 		}
 		// either did not wait for timeout or cmd did respect SIGTERM
-		output := stdout.String()
-		if opts.CaptureStderr {
-			output += stderr.String()
-		}
-		logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
+		output := capture()
 		err = newCmdError(redactor(args), fmt.Errorf("timeout after %v", timeout), "")
 		logCtx.Error(err.Error())
-		return strings.TrimSuffix(output, "\n"), err
+		return output, err
 	case <-shutdown:
 		// Both cases can be ready at once, and select picks at random: report a command that has
 		// already exited as itself rather than as a shutdown casualty.
@@ -434,11 +431,7 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			// Finished on its own between the check above and the SIGTERM, so it is no casualty.
 			return finish(nil)
 		}
-		output := stdout.String()
-		if opts.CaptureStderr {
-			output += stderr.String()
-		}
-		logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
+		output := capture()
 		// Keep the exit error behind the sentinel: callers match on its text - git reads "exit status 1"
 		// from git diff as "changes found" - and a command that failed on its own during the drain must
 		// still report why.
@@ -447,7 +440,7 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		if !opts.SkipErrorLogging {
 			logCtx.Error(err.Error())
 		}
-		return strings.TrimSuffix(output, "\n"), err
+		return output, err
 	case waitErr := <-done:
 		return finish(waitErr)
 	}
