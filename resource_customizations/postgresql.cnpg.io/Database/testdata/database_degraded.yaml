@@ -1,0 +1,24 @@
+# A regression: CloudNativePG had already applied the current generation
+# (observedGeneration == generation), and a later reconcile of that same
+# generation now fails (applied=false). This is a genuine failure of an
+# already-applied Database, not a first-adoption transient, so it is Degraded.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  creationTimestamp: "2026-09-02T12:00:00Z"
+  finalizers:
+  - cnpg.io/deleteDatabase
+  generation: 1
+  name: database-example
+  namespace: default
+spec:
+  cluster:
+    name: cluster-example
+  databaseReclaimPolicy: retain
+  ensure: present
+  name: app
+  owner: app
+status:
+  applied: false
+  observedGeneration: 1
+  message: 'failed to reconcile database "app": permission denied to create database (SQLSTATE 42501)'

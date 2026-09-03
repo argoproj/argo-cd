@@ -1,0 +1,37 @@
+apiVersion: kro.run/v1alpha1
+kind: WebApplication
+metadata:
+  name: my-app
+  namespace: default
+  generation: 2
+spec:
+  name: web-app
+  image: nginx:latest
+status:
+  state: ACTIVE
+  availableReplicas: 3
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Ready
+      message: ""
+      lastTransitionTime: "2025-08-08T00:03:46Z"
+      observedGeneration: 1
+    - type: InstanceManaged
+      status: "True"
+      reason: Managed
+      message: "instance is properly managed with finalizers and labels"
+      lastTransitionTime: "2025-08-08T00:03:46Z"
+      observedGeneration: 1
+    - type: GraphResolved
+      status: "True"
+      reason: Resolved
+      message: "runtime graph created and all resources resolved"
+      lastTransitionTime: "2025-08-08T00:03:46Z"
+      observedGeneration: 1
+    - type: ResourcesReady
+      status: "True"
+      reason: AllResourcesReady
+      message: "all resources are created and ready"
+      lastTransitionTime: "2025-08-08T00:03:46Z"
+      observedGeneration: 1

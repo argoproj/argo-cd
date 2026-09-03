@@ -1,0 +1,8 @@
+apiVersion: addons.projectcapsule.dev/v1alpha1
+kind: SopsProvider
+metadata:
+  name: aws-kms-provider
+spec:
+  provider:
+    awsKms:
+      keyArn: arn:aws:kms:us-east-1:111122223333:key/example-key-id
