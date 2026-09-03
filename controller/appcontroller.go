@@ -1847,14 +1847,32 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 			// smallest possible terminal state so the requested operation is cleared and the
 			// controller stops looping.
 			logCtx.WithError(fbErr).Warn("Fallback operation status still exceeds the Kubernetes resource size limit; persisting minimal terminal state")
+			minimalFinishedAt := fallbackStatus.FinishedAt
+			if minimalFinishedAt == nil {
+				now := metav1.Now()
+				minimalFinishedAt = &now
+			}
 			minimalStatus := &appv1.OperationState{
 				Phase:      synccommon.OperationError,
 				Message:    operationStateSizeLimitMessagePrefix + " and could not be persisted, even after dropping sync results. error: " + fbErr.Error(),
 				StartedAt:  fallbackStatus.StartedAt,
-				FinishedAt: fallbackStatus.FinishedAt,
+				FinishedAt: minimalFinishedAt,
 			}
+			// Build the patch body by hand instead of marshaling minimalStatus directly: syncResult
+			// and retryCount use `omitempty`, so a merge patch built from the struct would omit them
+			// entirely and, under RFC 7396 merge semantics, leave any stale large syncResult already
+			// on the server untouched - defeating the point of this minimal patch.
 			minimalPatchJSON, mErr := json.Marshal(map[string]any{
-				"status":    map[string]any{"operationState": minimalStatus},
+				"status": map[string]any{
+					"operationState": map[string]any{
+						"phase":      minimalStatus.Phase,
+						"message":    minimalStatus.Message,
+						"startedAt":  minimalStatus.StartedAt,
+						"finishedAt": minimalStatus.FinishedAt,
+						"syncResult": nil,
+						"retryCount": nil,
+					},
+				},
 				"operation": nil,
 			})
 			if mErr != nil {

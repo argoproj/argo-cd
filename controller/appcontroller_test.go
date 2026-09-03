@@ -4887,3 +4887,49 @@ func TestSetOperationStateTooLargeRequest_FallbackAlsoTooLarge(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, syncFound, "minimal fallback must omit the bulky attempted operation (e.g. local manifests)")
 }
+
+// TestSetOperationStateTooLargeRequest_MinimalFallbackClearsSyncResult covers the
+// not-already-terminating path: the fallback patch is a MergePatch carrying Phase=Terminating
+// (not yet a completed phase), so if it also fails as too large, the minimal fallback built on
+// top of it must still (a) explicitly null out syncResult - merge-patch semantics leave omitted
+// fields untouched, so a struct with `omitempty` would silently keep a stale, oversized
+// syncResult already on the server - and (b) set a non-nil finishedAt despite the intermediate
+// fallbackStatus never having reached a completed phase.
+func TestSetOperationStateTooLargeRequest_MinimalFallbackClearsSyncResult(t *testing.T) {
+	newState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{Revision: "HEAD", Manifests: []string{"huge-manifest"}},
+		},
+		Phase:   synccommon.OperationRunning,
+		Message: "running",
+	}
+
+	app := newFakeApp()
+
+	var callCount int
+	var capturedPatch []byte
+	ctrl := newFakeControllerWithFailingPatch(t, &fakeData{apps: []runtime.Object{app}}, func(patchAction kubetesting.PatchAction) bool {
+		callCount++
+		if callCount <= 2 {
+			return true
+		}
+		capturedPatch = patchAction.GetPatch()
+		return false
+	})
+
+	ctrl.setOperationState(t.Context(), app, newState)
+
+	require.Equal(t, 3, callCount, "expected real patch + fallback patch + minimal fallback patch, all rejected until the minimal one")
+
+	var patchedObj map[string]any
+	require.NoError(t, json.Unmarshal(capturedPatch, &patchedObj))
+
+	syncResult, hasSyncResult, err := unstructured.NestedFieldNoCopy(patchedObj, "status", "operationState", "syncResult")
+	require.NoError(t, err)
+	assert.True(t, hasSyncResult, "minimal fallback must explicitly send syncResult so merge-patch clears any stale value on the server, not omit it")
+	assert.Nil(t, syncResult)
+
+	finishedAt, _, err := unstructured.NestedString(patchedObj, "status", "operationState", "finishedAt")
+	require.NoError(t, err)
+	assert.NotEmpty(t, finishedAt, "minimal fallback finalizes as OperationError, so finishedAt must be set even though the intermediate fallback never reached a completed phase")
+}
