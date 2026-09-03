@@ -14,6 +14,8 @@ data:
 
   # Redis server hostname and port (e.g. argocd-redis:6379)
   redis.server: "argocd-redis:6379"
+  redis.sentinel.hosts: ""
+  redis.sentinel.master: ""
   # Enable compression for data sent to Redis with the required compression algorithm. (default 'gzip')
   redis.compression: gzip
   # Redis database
@@ -30,6 +32,8 @@ data:
   otlp.headers: ""
   # Open-Telemetry collector attrs: (e.g. "key1:value1,key2:value2")
   otlp.attrs: ""
+  # Open-Telemetry trace sampling ratio between 0.0 and 1.0: (e.g. "0.1")
+  otlp.sample.ratio: "1.0"
 
   # List of additional namespaces where applications may be created in and
   # reconciled from. The namespace where Argo CD is installed to will always
@@ -96,7 +100,7 @@ data:
   controller.default.cache.expiration: "24h0m0s"
   # Sharding algorithm used to balance clusters across application controller shards (default "legacy")
   controller.sharding.algorithm: legacy
-  # Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit.
+  # Maximum number of concurrent cluster operations during sync. Any value less than 1 means no limit.
   controller.kubectl.parallelism.limit: "20"
   # The maximum number of retries for each request
   controller.k8sclient.retry.max: "0"
@@ -198,6 +202,8 @@ data:
   server.dex.server.strict.tls: "false"
   # Disable client authentication
   server.disable.auth: "false"
+  # Disable the Swagger UI (/swagger-ui) endpoint
+  server.disable.swagger.ui: "false"
   # Toggle GZIP compression
   server.enable.gzip: "true"
   # Set X-Frame-Options header in HTTP responses to value. To disable, set to "". (default "sameorigin")
@@ -324,6 +330,14 @@ data:
   # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
   # See https://github.com/argoproj/argo-cd/issues/24991
   commitserver.grpc.enable.txt.service.config: "false"
+  # Path to the ASCII-armored GPG private key used as the commit server's default
+  # signing key for hydrated commits (default ""). Setting this enables signing:
+  # there is no separate on/off toggle. When set, the commit server fails at
+  # startup if the key cannot be loaded — it will not silently fall back to
+  # unsigned commits.
+  commitserver.signing.key.path: ""
+  # Optional path to a file containing the passphrase for the signing key.
+  commitserver.signing.key.passphrase.file: ""
 
   # Set the logging format. One of: json|text (default "json")
   dexserver.log.format: "json"
@@ -391,6 +405,18 @@ data:
   applicationsetcontroller.status.max.resources.count: "5000"
   # Enables profile endpoint on the internal metrics port
   applicationsetcontroller.profile.enabled: "false"
+  # Workqueue rate limiter bucket size (default "500")
+  applicationsetcontroller.wq.bucket.size: "500"
+  # Workqueue rate limiter bucket QPS. Defaults to MaxFloat64, which disables the bucket limiter
+  applicationsetcontroller.wq.bucket.qps: "500"
+  # Workqueue per-item rate limiter base delay, in nanoseconds (default "1000000", 1ms)
+  applicationsetcontroller.wq.basedelay.ns: "1000000"
+  # Workqueue per-item rate limiter max delay, in nanoseconds (default "1000000000", 1s)
+  applicationsetcontroller.wq.maxdelay.ns: "1000000000"
+  # Workqueue per-item rate limiter backoff factor (default "1.5")
+  applicationsetcontroller.wq.backoff.factor: "1.5"
+  # Workqueue per-item rate limiter cooldown duration, in nanoseconds. 0 disables the per-item rate limiter (default "0")
+  applicationsetcontroller.wq.cooldown.ns: "0"
   # QPS (Queries Per Second) limit for K8s API client requests (default "50")
   # Can also be set via ARGOCD_K8S_CLIENT_QPS environment variable
   applicationsetcontroller.k8s.client.qps: "50"

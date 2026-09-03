@@ -21,6 +21,63 @@ func TestAddCacheFlagsToCmd(t *testing.T) {
 	assert.Equal(t, 24*time.Hour, cache.client.(*redisCache).expiration)
 }
 
+func TestAddCacheFlagsToCmd_SentinelEnvDefaults(t *testing.T) {
+	t.Setenv("REDIS_SENTINEL_HOSTS", "redis1:26379,redis2:26379")
+	t.Setenv("REDIS_SENTINEL_MASTER", "mymaster")
+
+	cmd := &cobra.Command{}
+	AddCacheFlagsToCmd(cmd)
+
+	sentinel, err := cmd.Flags().GetStringArray("sentinel")
+	require.NoError(t, err)
+
+	master, err := cmd.Flags().GetString("sentinelmaster")
+	require.NoError(t, err)
+
+	assert.Equal(t,
+		[]string{"redis1:26379", "redis2:26379"},
+		sentinel,
+	)
+	assert.Equal(t, "mymaster", master)
+}
+
+func TestAddCacheFlagsToCmd_SentinelFlagOverridesEnv(t *testing.T) {
+	t.Setenv("REDIS_SENTINEL_MASTER", "env-master")
+	t.Setenv("REDIS_SENTINEL_HOSTS", "env1:26379")
+
+	cmd := &cobra.Command{}
+	AddCacheFlagsToCmd(cmd)
+
+	err := cmd.Flags().Set("sentinelmaster", "flag-master")
+	require.NoError(t, err)
+
+	err = cmd.Flags().Set("sentinel", "flag1:26379")
+	require.NoError(t, err)
+
+	master, err := cmd.Flags().GetString("sentinelmaster")
+	require.NoError(t, err)
+
+	sentinel, err := cmd.Flags().GetStringArray("sentinel")
+	require.NoError(t, err)
+
+	assert.Equal(t, "flag-master", master)
+	assert.Equal(t, []string{"flag1:26379"}, sentinel)
+}
+
+func TestAddCacheFlagsToCmd_SentinelDefaultValues(t *testing.T) {
+	cmd := &cobra.Command{}
+	AddCacheFlagsToCmd(cmd)
+
+	master, err := cmd.Flags().GetString("sentinelmaster")
+	require.NoError(t, err)
+
+	sentinel, err := cmd.Flags().GetStringArray("sentinel")
+	require.NoError(t, err)
+
+	assert.Equal(t, "master", master)
+	assert.Equal(t, []string{}, sentinel)
+}
+
 func NewInMemoryRedis() (*redis.Client, func()) {
 	mr, err := miniredis.Run()
 	if err != nil {

@@ -236,3 +236,53 @@ func TestGetGitCreds_GitHubApp_OrgExtractionFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to extract organization")
 	assert.Contains(t, err.Error(), "invalid-url-format")
 }
+
+func TestRepository_Normalize(t *testing.T) {
+	tests := []struct {
+		name     string
+		repo     Repository
+		wantType string
+	}{
+		{
+			name:     "OCI URL with empty type defaults to oci",
+			repo:     Repository{Repo: "oci://example.com/foo"},
+			wantType: "oci",
+		},
+		{
+			name:     "HTTPS URL with empty type defaults to git",
+			repo:     Repository{Repo: "https://example.com/foo/bar.git"},
+			wantType: "git",
+		},
+		{
+			name:     "SSH URL with empty type defaults to git",
+			repo:     Repository{Repo: "ssh://git@example.com/foo.git"},
+			wantType: "git",
+		},
+		{
+			name:     "Explicit git type is preserved on HTTPS URL",
+			repo:     Repository{Repo: "https://example.com/foo/bar.git", Type: "git"},
+			wantType: "git",
+		},
+		{
+			name:     "Explicit git type is preserved on SSH URL",
+			repo:     Repository{Repo: "ssh://git@example.com/foo.git", Type: "git"},
+			wantType: "git",
+		},
+		{
+			name:     "Explicit helm type is preserved on HTTPS URL",
+			repo:     Repository{Repo: "https://charts.example.com", Type: "helm"},
+			wantType: "helm",
+		},
+		{
+			name:     "Explicit oci type is preserved on OCI URL",
+			repo:     Repository{Repo: "oci://example.com/foo", Type: "oci"},
+			wantType: "oci",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.repo.Normalize()
+			assert.Equal(t, tt.wantType, got.Type)
+		})
+	}
+}
