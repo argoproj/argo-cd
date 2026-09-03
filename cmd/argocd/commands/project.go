@@ -1107,7 +1107,7 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 }
 
 func getProject(ctx context.Context, c *cobra.Command, clientOpts *argocdclient.ClientOptions, projName string) *projectpkg.DetailedProjectsResponse {
-	conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDieWithContext(ctx)
+	conn, projIf := newProjectClient(clientOpts, c)
 	defer utilio.Close(conn)
 	detailedProject, err := projIf.GetDetailedProject(ctx, &projectpkg.ProjectQuery{Name: projName})
 	errors.CheckError(err)
