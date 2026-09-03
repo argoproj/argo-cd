@@ -529,7 +529,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                         ]}
                                                                         data={filteredApps}
                                                                         onPageChange={page => ctx.navigation.goto('.', {page})}>
-                                                                        {data =>
+                                                                        {(data, useVirtualScrolling) =>
                                                                             (pref.view === 'tiles' && (
                                                                                 <ApplicationTiles
                                                                                     applications={data}
@@ -540,6 +540,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                     deleteApplication={(appName, appNamespace) =>
                                                                                         AppUtils.deleteApplication(appName, appNamespace, ctx)
                                                                                     }
+                                                                                    useVirtualScrolling={useVirtualScrolling}
                                                                                 />
                                                                             )) || (
                                                                                 <ApplicationsTable
@@ -551,6 +552,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                     deleteApplication={(appName, appNamespace) =>
                                                                                         AppUtils.deleteApplication(appName, appNamespace, ctx)
                                                                                     }
+                                                                                    useVirtualScrolling={useVirtualScrolling}
                                                                                 />
                                                                             )
                                                                         }
