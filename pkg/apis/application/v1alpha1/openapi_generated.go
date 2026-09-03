@@ -2421,7 +2421,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationStatus(ref common.Reference
 					},
 					"sourceType": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SourceType specifies the type of this application",
+							Description: "SourceType specifies the type of this application. Deprecated: Use SourceTypes instead, which supports both single and multi-source applications",
 							Type:        []string{"string"},
 							Format:      "",
 						},
