@@ -2275,6 +2275,20 @@ func TestStaleGitLockPathsAllRefs(t *testing.T) {
 	assert.Equal(t, want, staleGitLockPaths(root, sb.String()))
 }
 
+func TestStaleGitLockPathsIgnoresServerSuppliedOutput(t *testing.T) {
+	root := t.TempDir()
+	lock := filepath.Join(root, ".git", "HEAD.lock")
+	hostile := fmt.Sprintf("remote: error: Unable to create '%s': File exists.\n", lock)
+
+	assert.Empty(t, staleGitLockPaths(root, hostile))
+	// CmdError glues the first line of stderr onto its own prefix, so the marker
+	// is not always at the start of a line.
+	assert.Empty(t, staleGitLockPaths(root, "`git fetch origin` failed exit status 128: "+hostile))
+
+	assert.Equal(t, []string{lock},
+		staleGitLockPaths(root, fmt.Sprintf("fatal: Unable to create '%s': File exists.\n", lock)))
+}
+
 // TestStaleGitLockPathsDeduplicates covers a lock named in both the error and the
 // command output, which must not be attempted twice.
 func TestStaleGitLockPathsDeduplicates(t *testing.T) {

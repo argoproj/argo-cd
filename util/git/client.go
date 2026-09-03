@@ -1764,7 +1764,8 @@ var gitLockFileErrRe = regexp.MustCompile(`Unable to create '([^']+)': File exis
 // output, and only those that are safe to remove: a *.lock inside this
 // repository's own .git directory. A working-tree file such as a chart's
 // Chart.lock is therefore never eligible, and a malformed error string cannot
-// reach outside root.
+// reach outside root. Text the git server supplied is discarded before matching,
+// so a repository cannot nominate a path of its own.
 //
 // One killed `git fetch --prune` strands a lock per ref it was updating and git
 // reports them all, so collecting only the first would leave the repository
@@ -1773,7 +1774,7 @@ func staleGitLockPaths(root string, outputs ...string) []string {
 	var paths []string
 	seen := map[string]bool{}
 	for _, out := range outputs {
-		for _, match := range gitLockFileErrRe.FindAllStringSubmatch(out, -1) {
+		for _, match := range gitLockFileErrRe.FindAllStringSubmatch(withoutRemoteOutput(out), -1) {
 			p, ok := eligibleGitLockPath(root, match[1])
 			if !ok || seen[p] {
 				continue
@@ -1783,6 +1784,21 @@ func staleGitLockPaths(root string, outputs ...string) []string {
 		}
 	}
 	return paths
+}
+
+// withoutRemoteOutput drops the part of every line that came from the git
+// server. git prints sideband text verbatim behind a "remote:" marker, so a
+// repository can otherwise reproduce this error's exact wording and name a path
+// of its choosing. Truncating at the marker rather than dropping whole lines
+// also covers the first line of stderr, which CmdError glues onto its own prefix.
+func withoutRemoteOutput(out string) string {
+	lines := strings.Split(out, "\n")
+	for i, line := range lines {
+		if idx := strings.Index(line, "remote:"); idx >= 0 {
+			lines[i] = line[:idx]
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func eligibleGitLockPath(root string, named string) (string, bool) {
@@ -1818,8 +1834,13 @@ func eligibleGitLockPath(root string, named string) (string, bool) {
 // reExecOnStaleLock runs op and, if it failed only because one or more *.lock
 // files left by an interrupted git process block a ref or index update, removes
 // every one of them and runs op once more. Without this a cache directory wedged
-// by a killed git child (exec timeout, gRPC context cancel, OOM) fails every
-// later operation with exit 128 until the pod is recreated.
+// by a killed git child fails every later operation with exit 128 until the pod
+// is recreated.
+//
+// git installs signal handlers that unlink its own locks, so the exec timeout's
+// SIGTERM leaves none behind. Stranding one takes a SIGKILL, which is what a
+// cancelled request (exec.CommandContext kills the process), an OOM kill, a lost
+// node, and the fatal-timeout escalation for a git that ignored SIGTERM deliver.
 //
 // A lock must be older than gitLockRecoveryGracePeriod, for the same reason
 // cleanupOrphanedTempPackfiles applies its own: repo-server replicas can share an
