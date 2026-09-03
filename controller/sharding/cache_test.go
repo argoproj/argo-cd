@@ -17,6 +17,7 @@ func setupTestSharding(shard int, replicas int) *ClusterSharding {
 }
 
 func TestNewClusterSharding(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -29,6 +30,7 @@ func TestNewClusterSharding(t *testing.T) {
 }
 
 func TestClusterSharding_Add(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -64,6 +66,7 @@ func TestClusterSharding_Add(t *testing.T) {
 }
 
 func TestClusterSharding_AddRoundRobin_Redistributes(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 
@@ -124,6 +127,7 @@ func TestClusterSharding_AddRoundRobin_Redistributes(t *testing.T) {
 }
 
 func TestClusterSharding_Delete(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -155,6 +159,7 @@ func TestClusterSharding_Delete(t *testing.T) {
 }
 
 func TestClusterSharding_Update(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -204,6 +209,7 @@ func TestClusterSharding_Update(t *testing.T) {
 }
 
 func TestClusterSharding_UpdateServerName(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -255,6 +261,7 @@ func TestClusterSharding_UpdateServerName(t *testing.T) {
 }
 
 func TestClusterSharding_IsManagedCluster(t *testing.T) {
+	t.Parallel()
 	replicas := 2
 	sharding0 := setupTestSharding(0, replicas)
 
@@ -324,6 +331,7 @@ func TestClusterSharding_IsManagedCluster(t *testing.T) {
 }
 
 func TestIsManagedCluster_SkipReconcileAnnotation(t *testing.T) {
+	t.Parallel()
 	sharding := setupTestSharding(0, 1)
 	sharding.Init(
 		&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{{ID: "1", Server: "https://cluster1"}}},
@@ -346,6 +354,7 @@ func TestIsManagedCluster_SkipReconcileAnnotation(t *testing.T) {
 }
 
 func TestClusterSharding_ClusterShardOfResourceShouldNotBeChanged(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -398,6 +407,7 @@ func TestClusterSharding_ClusterShardOfResourceShouldNotBeChanged(t *testing.T) 
 }
 
 func TestHasShardingUpdates(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		old      *v1alpha1.Cluster
@@ -520,6 +530,7 @@ func TestHasShardingUpdates(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tc.expected, hasShardingUpdates(tc.old, tc.new))
 		})
 	}

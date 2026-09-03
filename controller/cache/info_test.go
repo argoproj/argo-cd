@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -602,6 +602,7 @@ func TestGetPodInfo(t *testing.T) {
 	})
 
 	t.Run("TestGetPodWithInitialContainerInfo", func(t *testing.T) {
+		t.Parallel()
 		pod := strToUnstructured(`
   apiVersion: "v1"
   kind: "Pod"
@@ -659,6 +660,7 @@ func TestGetPodInfo(t *testing.T) {
 	})
 
 	t.Run("TestGetPodWithInitialContainerInfoWithResources", func(t *testing.T) {
+		t.Parallel()
 		pod := strToUnstructured(`
         apiVersion: "v1"
         kind: "Pod"

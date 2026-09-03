@@ -43,11 +43,11 @@ func (_m *ClusterServiceClient) EXPECT() *ClusterServiceClient_Expecter {
 // Create provides a mock function for the type ClusterServiceClient
 func (_mock *ClusterServiceClient) Create(ctx context.Context, in *cluster.ClusterCreateRequest, opts ...grpc.CallOption) (*v1alpha1.Cluster, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -85,9 +85,9 @@ type ClusterServiceClient_Create_Call struct {
 //   - ctx context.Context
 //   - in *cluster.ClusterCreateRequest
 //   - opts ...grpc.CallOption
-func (_e *ClusterServiceClient_Expecter) Create(ctx interface{}, in interface{}, opts ...interface{}) *ClusterServiceClient_Create_Call {
+func (_e *ClusterServiceClient_Expecter) Create(ctx any, in any, opts ...any) *ClusterServiceClient_Create_Call {
 	return &ClusterServiceClient_Create_Call{Call: _e.mock.On("Create",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ClusterServiceClient_Create_Call) Run(run func(ctx context.Context, in *cluster.ClusterCreateRequest, opts ...grpc.CallOption)) *ClusterServiceClient_Create_Call {
@@ -130,11 +130,11 @@ func (_c *ClusterServiceClient_Create_Call) RunAndReturn(run func(ctx context.Co
 // Delete provides a mock function for the type ClusterServiceClient
 func (_mock *ClusterServiceClient) Delete(ctx context.Context, in *cluster.ClusterQuery, opts ...grpc.CallOption) (*cluster.ClusterResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -172,9 +172,9 @@ type ClusterServiceClient_Delete_Call struct {
 //   - ctx context.Context
 //   - in *cluster.ClusterQuery
 //   - opts ...grpc.CallOption
-func (_e *ClusterServiceClient_Expecter) Delete(ctx interface{}, in interface{}, opts ...interface{}) *ClusterServiceClient_Delete_Call {
+func (_e *ClusterServiceClient_Expecter) Delete(ctx any, in any, opts ...any) *ClusterServiceClient_Delete_Call {
 	return &ClusterServiceClient_Delete_Call{Call: _e.mock.On("Delete",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ClusterServiceClient_Delete_Call) Run(run func(ctx context.Context, in *cluster.ClusterQuery, opts ...grpc.CallOption)) *ClusterServiceClient_Delete_Call {
@@ -217,11 +217,11 @@ func (_c *ClusterServiceClient_Delete_Call) RunAndReturn(run func(ctx context.Co
 // Get provides a mock function for the type ClusterServiceClient
 func (_mock *ClusterServiceClient) Get(ctx context.Context, in *cluster.ClusterQuery, opts ...grpc.CallOption) (*v1alpha1.Cluster, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -259,9 +259,9 @@ type ClusterServiceClient_Get_Call struct {
 //   - ctx context.Context
 //   - in *cluster.ClusterQuery
 //   - opts ...grpc.CallOption
-func (_e *ClusterServiceClient_Expecter) Get(ctx interface{}, in interface{}, opts ...interface{}) *ClusterServiceClient_Get_Call {
+func (_e *ClusterServiceClient_Expecter) Get(ctx any, in any, opts ...any) *ClusterServiceClient_Get_Call {
 	return &ClusterServiceClient_Get_Call{Call: _e.mock.On("Get",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ClusterServiceClient_Get_Call) Run(run func(ctx context.Context, in *cluster.ClusterQuery, opts ...grpc.CallOption)) *ClusterServiceClient_Get_Call {
@@ -304,11 +304,11 @@ func (_c *ClusterServiceClient_Get_Call) RunAndReturn(run func(ctx context.Conte
 // InvalidateCache provides a mock function for the type ClusterServiceClient
 func (_mock *ClusterServiceClient) InvalidateCache(ctx context.Context, in *cluster.ClusterQuery, opts ...grpc.CallOption) (*v1alpha1.Cluster, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -346,9 +346,9 @@ type ClusterServiceClient_InvalidateCache_Call struct {
 //   - ctx context.Context
 //   - in *cluster.ClusterQuery
 //   - opts ...grpc.CallOption
-func (_e *ClusterServiceClient_Expecter) InvalidateCache(ctx interface{}, in interface{}, opts ...interface{}) *ClusterServiceClient_InvalidateCache_Call {
+func (_e *ClusterServiceClient_Expecter) InvalidateCache(ctx any, in any, opts ...any) *ClusterServiceClient_InvalidateCache_Call {
 	return &ClusterServiceClient_InvalidateCache_Call{Call: _e.mock.On("InvalidateCache",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ClusterServiceClient_InvalidateCache_Call) Run(run func(ctx context.Context, in *cluster.ClusterQuery, opts ...grpc.CallOption)) *ClusterServiceClient_InvalidateCache_Call {
@@ -391,11 +391,11 @@ func (_c *ClusterServiceClient_InvalidateCache_Call) RunAndReturn(run func(ctx c
 // List provides a mock function for the type ClusterServiceClient
 func (_mock *ClusterServiceClient) List(ctx context.Context, in *cluster.ClusterQuery, opts ...grpc.CallOption) (*v1alpha1.ClusterList, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -433,9 +433,9 @@ type ClusterServiceClient_List_Call struct {
 //   - ctx context.Context
 //   - in *cluster.ClusterQuery
 //   - opts ...grpc.CallOption
-func (_e *ClusterServiceClient_Expecter) List(ctx interface{}, in interface{}, opts ...interface{}) *ClusterServiceClient_List_Call {
+func (_e *ClusterServiceClient_Expecter) List(ctx any, in any, opts ...any) *ClusterServiceClient_List_Call {
 	return &ClusterServiceClient_List_Call{Call: _e.mock.On("List",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ClusterServiceClient_List_Call) Run(run func(ctx context.Context, in *cluster.ClusterQuery, opts ...grpc.CallOption)) *ClusterServiceClient_List_Call {
@@ -478,11 +478,11 @@ func (_c *ClusterServiceClient_List_Call) RunAndReturn(run func(ctx context.Cont
 // RotateAuth provides a mock function for the type ClusterServiceClient
 func (_mock *ClusterServiceClient) RotateAuth(ctx context.Context, in *cluster.ClusterQuery, opts ...grpc.CallOption) (*cluster.ClusterResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -520,9 +520,9 @@ type ClusterServiceClient_RotateAuth_Call struct {
 //   - ctx context.Context
 //   - in *cluster.ClusterQuery
 //   - opts ...grpc.CallOption
-func (_e *ClusterServiceClient_Expecter) RotateAuth(ctx interface{}, in interface{}, opts ...interface{}) *ClusterServiceClient_RotateAuth_Call {
+func (_e *ClusterServiceClient_Expecter) RotateAuth(ctx any, in any, opts ...any) *ClusterServiceClient_RotateAuth_Call {
 	return &ClusterServiceClient_RotateAuth_Call{Call: _e.mock.On("RotateAuth",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ClusterServiceClient_RotateAuth_Call) Run(run func(ctx context.Context, in *cluster.ClusterQuery, opts ...grpc.CallOption)) *ClusterServiceClient_RotateAuth_Call {
@@ -565,11 +565,11 @@ func (_c *ClusterServiceClient_RotateAuth_Call) RunAndReturn(run func(ctx contex
 // Update provides a mock function for the type ClusterServiceClient
 func (_mock *ClusterServiceClient) Update(ctx context.Context, in *cluster.ClusterUpdateRequest, opts ...grpc.CallOption) (*v1alpha1.Cluster, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -607,9 +607,9 @@ type ClusterServiceClient_Update_Call struct {
 //   - ctx context.Context
 //   - in *cluster.ClusterUpdateRequest
 //   - opts ...grpc.CallOption
-func (_e *ClusterServiceClient_Expecter) Update(ctx interface{}, in interface{}, opts ...interface{}) *ClusterServiceClient_Update_Call {
+func (_e *ClusterServiceClient_Expecter) Update(ctx any, in any, opts ...any) *ClusterServiceClient_Update_Call {
 	return &ClusterServiceClient_Update_Call{Call: _e.mock.On("Update",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ClusterServiceClient_Update_Call) Run(run func(ctx context.Context, in *cluster.ClusterUpdateRequest, opts ...grpc.CallOption)) *ClusterServiceClient_Update_Call {

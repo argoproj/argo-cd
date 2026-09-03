@@ -73,7 +73,7 @@ type ServerSideDryRunner_Run_Call struct {
 //   - ctx context.Context
 //   - obj *unstructured.Unstructured
 //   - manager string
-func (_e *ServerSideDryRunner_Expecter) Run(ctx interface{}, obj interface{}, manager interface{}) *ServerSideDryRunner_Run_Call {
+func (_e *ServerSideDryRunner_Expecter) Run(ctx any, obj any, manager any) *ServerSideDryRunner_Run_Call {
 	return &ServerSideDryRunner_Run_Call{Call: _e.mock.On("Run", ctx, obj, manager)}
 }
 

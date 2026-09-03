@@ -8,11 +8,11 @@ import (
 	"context"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	mock "github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
-	"k8s.io/api/core/v1"
 )
 
 // NewProjectServiceClient creates a new instance of ProjectServiceClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -45,11 +45,11 @@ func (_m *ProjectServiceClient) EXPECT() *ProjectServiceClient_Expecter {
 // Create provides a mock function for the type ProjectServiceClient
 func (_mock *ProjectServiceClient) Create(ctx context.Context, in *project.ProjectCreateRequest, opts ...grpc.CallOption) (*v1alpha1.AppProject, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -87,9 +87,9 @@ type ProjectServiceClient_Create_Call struct {
 //   - ctx context.Context
 //   - in *project.ProjectCreateRequest
 //   - opts ...grpc.CallOption
-func (_e *ProjectServiceClient_Expecter) Create(ctx interface{}, in interface{}, opts ...interface{}) *ProjectServiceClient_Create_Call {
+func (_e *ProjectServiceClient_Expecter) Create(ctx any, in any, opts ...any) *ProjectServiceClient_Create_Call {
 	return &ProjectServiceClient_Create_Call{Call: _e.mock.On("Create",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ProjectServiceClient_Create_Call) Run(run func(ctx context.Context, in *project.ProjectCreateRequest, opts ...grpc.CallOption)) *ProjectServiceClient_Create_Call {
@@ -132,11 +132,11 @@ func (_c *ProjectServiceClient_Create_Call) RunAndReturn(run func(ctx context.Co
 // CreateToken provides a mock function for the type ProjectServiceClient
 func (_mock *ProjectServiceClient) CreateToken(ctx context.Context, in *project.ProjectTokenCreateRequest, opts ...grpc.CallOption) (*project.ProjectTokenResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -174,9 +174,9 @@ type ProjectServiceClient_CreateToken_Call struct {
 //   - ctx context.Context
 //   - in *project.ProjectTokenCreateRequest
 //   - opts ...grpc.CallOption
-func (_e *ProjectServiceClient_Expecter) CreateToken(ctx interface{}, in interface{}, opts ...interface{}) *ProjectServiceClient_CreateToken_Call {
+func (_e *ProjectServiceClient_Expecter) CreateToken(ctx any, in any, opts ...any) *ProjectServiceClient_CreateToken_Call {
 	return &ProjectServiceClient_CreateToken_Call{Call: _e.mock.On("CreateToken",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ProjectServiceClient_CreateToken_Call) Run(run func(ctx context.Context, in *project.ProjectTokenCreateRequest, opts ...grpc.CallOption)) *ProjectServiceClient_CreateToken_Call {
@@ -219,11 +219,11 @@ func (_c *ProjectServiceClient_CreateToken_Call) RunAndReturn(run func(ctx conte
 // Delete provides a mock function for the type ProjectServiceClient
 func (_mock *ProjectServiceClient) Delete(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption) (*project.EmptyResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -261,9 +261,9 @@ type ProjectServiceClient_Delete_Call struct {
 //   - ctx context.Context
 //   - in *project.ProjectQuery
 //   - opts ...grpc.CallOption
-func (_e *ProjectServiceClient_Expecter) Delete(ctx interface{}, in interface{}, opts ...interface{}) *ProjectServiceClient_Delete_Call {
+func (_e *ProjectServiceClient_Expecter) Delete(ctx any, in any, opts ...any) *ProjectServiceClient_Delete_Call {
 	return &ProjectServiceClient_Delete_Call{Call: _e.mock.On("Delete",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ProjectServiceClient_Delete_Call) Run(run func(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption)) *ProjectServiceClient_Delete_Call {
@@ -306,11 +306,11 @@ func (_c *ProjectServiceClient_Delete_Call) RunAndReturn(run func(ctx context.Co
 // DeleteToken provides a mock function for the type ProjectServiceClient
 func (_mock *ProjectServiceClient) DeleteToken(ctx context.Context, in *project.ProjectTokenDeleteRequest, opts ...grpc.CallOption) (*project.EmptyResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -348,9 +348,9 @@ type ProjectServiceClient_DeleteToken_Call struct {
 //   - ctx context.Context
 //   - in *project.ProjectTokenDeleteRequest
 //   - opts ...grpc.CallOption
-func (_e *ProjectServiceClient_Expecter) DeleteToken(ctx interface{}, in interface{}, opts ...interface{}) *ProjectServiceClient_DeleteToken_Call {
+func (_e *ProjectServiceClient_Expecter) DeleteToken(ctx any, in any, opts ...any) *ProjectServiceClient_DeleteToken_Call {
 	return &ProjectServiceClient_DeleteToken_Call{Call: _e.mock.On("DeleteToken",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ProjectServiceClient_DeleteToken_Call) Run(run func(ctx context.Context, in *project.ProjectTokenDeleteRequest, opts ...grpc.CallOption)) *ProjectServiceClient_DeleteToken_Call {
@@ -393,11 +393,11 @@ func (_c *ProjectServiceClient_DeleteToken_Call) RunAndReturn(run func(ctx conte
 // Get provides a mock function for the type ProjectServiceClient
 func (_mock *ProjectServiceClient) Get(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption) (*v1alpha1.AppProject, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -435,9 +435,9 @@ type ProjectServiceClient_Get_Call struct {
 //   - ctx context.Context
 //   - in *project.ProjectQuery
 //   - opts ...grpc.CallOption
-func (_e *ProjectServiceClient_Expecter) Get(ctx interface{}, in interface{}, opts ...interface{}) *ProjectServiceClient_Get_Call {
+func (_e *ProjectServiceClient_Expecter) Get(ctx any, in any, opts ...any) *ProjectServiceClient_Get_Call {
 	return &ProjectServiceClient_Get_Call{Call: _e.mock.On("Get",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ProjectServiceClient_Get_Call) Run(run func(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption)) *ProjectServiceClient_Get_Call {
@@ -480,11 +480,11 @@ func (_c *ProjectServiceClient_Get_Call) RunAndReturn(run func(ctx context.Conte
 // GetDetailedProject provides a mock function for the type ProjectServiceClient
 func (_mock *ProjectServiceClient) GetDetailedProject(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption) (*project.DetailedProjectsResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -522,9 +522,9 @@ type ProjectServiceClient_GetDetailedProject_Call struct {
 //   - ctx context.Context
 //   - in *project.ProjectQuery
 //   - opts ...grpc.CallOption
-func (_e *ProjectServiceClient_Expecter) GetDetailedProject(ctx interface{}, in interface{}, opts ...interface{}) *ProjectServiceClient_GetDetailedProject_Call {
+func (_e *ProjectServiceClient_Expecter) GetDetailedProject(ctx any, in any, opts ...any) *ProjectServiceClient_GetDetailedProject_Call {
 	return &ProjectServiceClient_GetDetailedProject_Call{Call: _e.mock.On("GetDetailedProject",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ProjectServiceClient_GetDetailedProject_Call) Run(run func(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption)) *ProjectServiceClient_GetDetailedProject_Call {
@@ -567,11 +567,11 @@ func (_c *ProjectServiceClient_GetDetailedProject_Call) RunAndReturn(run func(ct
 // GetGlobalProjects provides a mock function for the type ProjectServiceClient
 func (_mock *ProjectServiceClient) GetGlobalProjects(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption) (*project.GlobalProjectsResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -609,9 +609,9 @@ type ProjectServiceClient_GetGlobalProjects_Call struct {
 //   - ctx context.Context
 //   - in *project.ProjectQuery
 //   - opts ...grpc.CallOption
-func (_e *ProjectServiceClient_Expecter) GetGlobalProjects(ctx interface{}, in interface{}, opts ...interface{}) *ProjectServiceClient_GetGlobalProjects_Call {
+func (_e *ProjectServiceClient_Expecter) GetGlobalProjects(ctx any, in any, opts ...any) *ProjectServiceClient_GetGlobalProjects_Call {
 	return &ProjectServiceClient_GetGlobalProjects_Call{Call: _e.mock.On("GetGlobalProjects",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ProjectServiceClient_GetGlobalProjects_Call) Run(run func(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption)) *ProjectServiceClient_GetGlobalProjects_Call {
@@ -654,11 +654,11 @@ func (_c *ProjectServiceClient_GetGlobalProjects_Call) RunAndReturn(run func(ctx
 // GetSyncWindowsState provides a mock function for the type ProjectServiceClient
 func (_mock *ProjectServiceClient) GetSyncWindowsState(ctx context.Context, in *project.SyncWindowsQuery, opts ...grpc.CallOption) (*project.SyncWindowsResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -696,9 +696,9 @@ type ProjectServiceClient_GetSyncWindowsState_Call struct {
 //   - ctx context.Context
 //   - in *project.SyncWindowsQuery
 //   - opts ...grpc.CallOption
-func (_e *ProjectServiceClient_Expecter) GetSyncWindowsState(ctx interface{}, in interface{}, opts ...interface{}) *ProjectServiceClient_GetSyncWindowsState_Call {
+func (_e *ProjectServiceClient_Expecter) GetSyncWindowsState(ctx any, in any, opts ...any) *ProjectServiceClient_GetSyncWindowsState_Call {
 	return &ProjectServiceClient_GetSyncWindowsState_Call{Call: _e.mock.On("GetSyncWindowsState",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ProjectServiceClient_GetSyncWindowsState_Call) Run(run func(ctx context.Context, in *project.SyncWindowsQuery, opts ...grpc.CallOption)) *ProjectServiceClient_GetSyncWindowsState_Call {
@@ -741,11 +741,11 @@ func (_c *ProjectServiceClient_GetSyncWindowsState_Call) RunAndReturn(run func(c
 // List provides a mock function for the type ProjectServiceClient
 func (_mock *ProjectServiceClient) List(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption) (*v1alpha1.AppProjectList, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -783,9 +783,9 @@ type ProjectServiceClient_List_Call struct {
 //   - ctx context.Context
 //   - in *project.ProjectQuery
 //   - opts ...grpc.CallOption
-func (_e *ProjectServiceClient_Expecter) List(ctx interface{}, in interface{}, opts ...interface{}) *ProjectServiceClient_List_Call {
+func (_e *ProjectServiceClient_Expecter) List(ctx any, in any, opts ...any) *ProjectServiceClient_List_Call {
 	return &ProjectServiceClient_List_Call{Call: _e.mock.On("List",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ProjectServiceClient_List_Call) Run(run func(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption)) *ProjectServiceClient_List_Call {
@@ -826,13 +826,13 @@ func (_c *ProjectServiceClient_List_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // ListEvents provides a mock function for the type ProjectServiceClient
-func (_mock *ProjectServiceClient) ListEvents(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption) (*v1.EventList, error) {
+func (_mock *ProjectServiceClient) ListEvents(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption) (*events.EventList, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -841,16 +841,16 @@ func (_mock *ProjectServiceClient) ListEvents(ctx context.Context, in *project.P
 		panic("no return value specified for ListEvents")
 	}
 
-	var r0 *v1.EventList
+	var r0 *events.EventList
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *project.ProjectQuery, ...grpc.CallOption) (*v1.EventList, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *project.ProjectQuery, ...grpc.CallOption) (*events.EventList, error)); ok {
 		return returnFunc(ctx, in, opts...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *project.ProjectQuery, ...grpc.CallOption) *v1.EventList); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *project.ProjectQuery, ...grpc.CallOption) *events.EventList); ok {
 		r0 = returnFunc(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*v1.EventList)
+			r0 = ret.Get(0).(*events.EventList)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, *project.ProjectQuery, ...grpc.CallOption) error); ok {
@@ -870,9 +870,9 @@ type ProjectServiceClient_ListEvents_Call struct {
 //   - ctx context.Context
 //   - in *project.ProjectQuery
 //   - opts ...grpc.CallOption
-func (_e *ProjectServiceClient_Expecter) ListEvents(ctx interface{}, in interface{}, opts ...interface{}) *ProjectServiceClient_ListEvents_Call {
+func (_e *ProjectServiceClient_Expecter) ListEvents(ctx any, in any, opts ...any) *ProjectServiceClient_ListEvents_Call {
 	return &ProjectServiceClient_ListEvents_Call{Call: _e.mock.On("ListEvents",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ProjectServiceClient_ListEvents_Call) Run(run func(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption)) *ProjectServiceClient_ListEvents_Call {
@@ -902,12 +902,12 @@ func (_c *ProjectServiceClient_ListEvents_Call) Run(run func(ctx context.Context
 	return _c
 }
 
-func (_c *ProjectServiceClient_ListEvents_Call) Return(eventList *v1.EventList, err error) *ProjectServiceClient_ListEvents_Call {
+func (_c *ProjectServiceClient_ListEvents_Call) Return(eventList *events.EventList, err error) *ProjectServiceClient_ListEvents_Call {
 	_c.Call.Return(eventList, err)
 	return _c
 }
 
-func (_c *ProjectServiceClient_ListEvents_Call) RunAndReturn(run func(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption) (*v1.EventList, error)) *ProjectServiceClient_ListEvents_Call {
+func (_c *ProjectServiceClient_ListEvents_Call) RunAndReturn(run func(ctx context.Context, in *project.ProjectQuery, opts ...grpc.CallOption) (*events.EventList, error)) *ProjectServiceClient_ListEvents_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -915,11 +915,11 @@ func (_c *ProjectServiceClient_ListEvents_Call) RunAndReturn(run func(ctx contex
 // ListLinks provides a mock function for the type ProjectServiceClient
 func (_mock *ProjectServiceClient) ListLinks(ctx context.Context, in *project.ListProjectLinksRequest, opts ...grpc.CallOption) (*application.LinksResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -957,9 +957,9 @@ type ProjectServiceClient_ListLinks_Call struct {
 //   - ctx context.Context
 //   - in *project.ListProjectLinksRequest
 //   - opts ...grpc.CallOption
-func (_e *ProjectServiceClient_Expecter) ListLinks(ctx interface{}, in interface{}, opts ...interface{}) *ProjectServiceClient_ListLinks_Call {
+func (_e *ProjectServiceClient_Expecter) ListLinks(ctx any, in any, opts ...any) *ProjectServiceClient_ListLinks_Call {
 	return &ProjectServiceClient_ListLinks_Call{Call: _e.mock.On("ListLinks",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ProjectServiceClient_ListLinks_Call) Run(run func(ctx context.Context, in *project.ListProjectLinksRequest, opts ...grpc.CallOption)) *ProjectServiceClient_ListLinks_Call {
@@ -1002,11 +1002,11 @@ func (_c *ProjectServiceClient_ListLinks_Call) RunAndReturn(run func(ctx context
 // Update provides a mock function for the type ProjectServiceClient
 func (_mock *ProjectServiceClient) Update(ctx context.Context, in *project.ProjectUpdateRequest, opts ...grpc.CallOption) (*v1alpha1.AppProject, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -1044,9 +1044,9 @@ type ProjectServiceClient_Update_Call struct {
 //   - ctx context.Context
 //   - in *project.ProjectUpdateRequest
 //   - opts ...grpc.CallOption
-func (_e *ProjectServiceClient_Expecter) Update(ctx interface{}, in interface{}, opts ...interface{}) *ProjectServiceClient_Update_Call {
+func (_e *ProjectServiceClient_Expecter) Update(ctx any, in any, opts ...any) *ProjectServiceClient_Update_Call {
 	return &ProjectServiceClient_Update_Call{Call: _e.mock.On("Update",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ProjectServiceClient_Update_Call) Run(run func(ctx context.Context, in *project.ProjectUpdateRequest, opts ...grpc.CallOption)) *ProjectServiceClient_Update_Call {
