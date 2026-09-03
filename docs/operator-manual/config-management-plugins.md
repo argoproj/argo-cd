@@ -65,7 +65,7 @@ spec:
     find:
       # This does the same thing as fileName, but it supports double-star (nested directory) glob patterns.
       glob: "**/Chart.yaml"
-      # The find command runs in the repository's root directory. To match, it must exit with status code 0 _and_ 
+      # The find command runs in the Application source directory. To match, it must exit with status code 0 _and_ 
       # produce non-empty output to standard out.
       command: [sh, -c, find . -name env.yaml]
   # The parameters config describes what parameters the UI should display for an Application. It is up to the user to
