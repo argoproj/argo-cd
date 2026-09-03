@@ -3638,7 +3638,6 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 	err := s.cache.SetNewRevisionManifests(oldKey, newKey)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
-			logCtx.Info("manifest cache miss while moving manifests cache to the new revision")
 			return fmt.Errorf("manifest cache miss during comparison for application %s in repo %s from revision %s: %w", request.AppName, request.GetRepo().Repo, oldRev, cache.ErrCacheMiss)
 		}
 		return fmt.Errorf("manifest cache move error for %s: %w", request.AppName, err)
