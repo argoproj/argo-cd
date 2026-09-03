@@ -228,6 +228,18 @@ data:
       clusters:
       - "*.local"
 
+  # By default all the objects of an included group/kind are watched. The resource.selectors setting
+  # allows narrowing down the watched objects to the ones matching a label selector. The selector is
+  # passed to the Kubernetes API server, so it is a label selector in its string form.
+  resource.selectors: |
+    - apiGroups:
+      - ""
+      kinds:
+      - Pod
+      clusters:
+      - "*.local"
+      selector: "!argocd.argoproj.io/instance"
+
   # An optional comma-separated list of annotation keys to mask in UI/CLI on secrets
   resource.sensitive.mask.annotations: openshift.io/token-secret.value,api-key
 
@@ -381,6 +393,11 @@ data:
   # The maximum number of pod logs to render in UI. If the application has more than this number of pods, the logs will not be rendered.
   # This is to prevent the UI from becoming unresponsive when rendering a large number of logs. Default is 10.
   server.maxPodLogsToRender: "10"
+
+  # server.rbac.rollback.enforce.enable enables a dedicated 'rollback' RBAC action for applications.
+  # When set to 'true', users must be explicitly granted the 'rollback' action to perform rollbacks.
+  # When omitted or 'false' (the default), rollback uses the 'sync' permission for backwards compatibility.
+  server.rbac.rollback.enforce.enable: "false"
 
   # exec.enabled indicates whether the UI exec feature is enabled. It is disabled by default.
   exec.enabled: "false"

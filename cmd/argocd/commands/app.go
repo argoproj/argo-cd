@@ -2206,14 +2206,14 @@ func getResourceStates(app *argoappv1.Application, selectedResources []*argoappv
 	return states
 }
 
-// filterAppResources selects the app resources that match atleast one of the resource filters.
+// filterAppResources selects the app resources that match at least one of the resource filters.
 func filterAppResources(app *argoappv1.Application, selectedResources []*argoappv1.SyncOperationResource) []*argoappv1.SyncOperationResource {
 	var filteredResources []*argoappv1.SyncOperationResource
 	if app != nil && len(selectedResources) > 0 {
 		for i := range app.Status.Resources {
 			appResource := app.Status.Resources[i]
-			if (argo.IncludeResource(appResource.Name, appResource.Namespace,
-				schema.GroupVersionKind{Group: appResource.Group, Kind: appResource.Kind}, selectedResources)) {
+			if argo.IncludeResource(appResource.Name, appResource.Namespace,
+				schema.GroupVersionKind{Group: appResource.Group, Kind: appResource.Kind}, selectedResources) {
 				filteredResources = append(filteredResources, &argoappv1.SyncOperationResource{
 					Group:     appResource.Group,
 					Kind:      appResource.Kind,
@@ -3124,7 +3124,7 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 			errors.CheckError(err)
 
 			if c.Flags() == nil {
-				errors.Fatal(errors.ErrorGeneric, "ApplicationSource needs atleast repoUrl, path or chart or ref field. No source to add.")
+				errors.Fatal(errors.ErrorGeneric, "ApplicationSource needs at least repoUrl, path or chart or ref field. No source to add.")
 			}
 
 			if len(app.Spec.Sources) > 0 {

@@ -68,9 +68,7 @@ func TestMatchValues(t *testing.T) {
 			}
 
 			applicationSetInfo := argov1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: argov1alpha1.ApplicationSetSpec{
 					GoTemplate: false,
 				},
@@ -152,9 +150,7 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 			}
 
 			applicationSetInfo := argov1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: argov1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 				},
@@ -224,9 +220,7 @@ func TestTransForm(t *testing.T) {
 			}
 
 			applicationSetInfo := argov1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: argov1alpha1.ApplicationSetSpec{},
 			}
 
@@ -447,9 +441,7 @@ func TestTransFormGoTemplate(t *testing.T) {
 			}
 
 			applicationSetInfo := argov1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: argov1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 				},
@@ -485,21 +477,17 @@ func emptyTemplate() argov1alpha1.ApplicationSetTemplate {
 func getMockClusterGenerator() Generator {
 	clusters := []crtclient.Object{
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "staging-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "staging",
+				"org":                            "foo",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "staging-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "staging",
-					"org":                            "foo",
-				},
-				Annotations: map[string]string{
-					"foo.argoproj.io": "staging",
-				},
+			Annotations: map[string]string{
+				"foo.argoproj.io": "staging",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -509,21 +497,17 @@ func getMockClusterGenerator() Generator {
 			Type: corev1.SecretType("Opaque"),
 		},
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "production-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "production",
+				"org":                            "bar",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "production-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "production",
-					"org":                            "bar",
-				},
-				Annotations: map[string]string{
-					"foo.argoproj.io": "production",
-				},
+			Annotations: map[string]string{
+				"foo.argoproj.io": "production",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -533,21 +517,17 @@ func getMockClusterGenerator() Generator {
 			Type: corev1.SecretType("Opaque"),
 		},
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "some-really-long-server-url",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "production",
+				"org":                            "bar",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "some-really-long-server-url",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "production",
-					"org":                            "bar",
-				},
-				Annotations: map[string]string{
-					"foo.argoproj.io": "production",
-				},
+			Annotations: map[string]string{
+				"foo.argoproj.io": "production",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -784,11 +764,9 @@ func TestInterpolateGeneratorError(t *testing.T) {
 
 func TestInterpolateGeneratorValuesHandling(t *testing.T) {
 	applicationSetTemplate := argov1alpha1.ApplicationSetTemplate{
-		ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
-			Labels:      map[string]string{},
-			Annotations: map[string]string{},
-			Finalizers:  []string{},
-		},
+		Labels:      map[string]string{},
+		Annotations: map[string]string{},
+		Finalizers:  []string{},
 		Spec: argov1alpha1.ApplicationSpec{
 			IgnoreDifferences: argov1alpha1.IgnoreDifferences{},
 			Info:              []argov1alpha1.Info{},
