@@ -115,7 +115,7 @@
     "prettier": "^3.9.6",
     "react-refresh": "^0.18.0",
     "react-toastify": "11.1.0",
-    "sass": "^1.100.0",
+    "sass": "^1.103.1",
     "sass-loader": "^14.2.1",
     "source-map-loader": "^5.0.0",
     "style-loader": "^4.0.0",
