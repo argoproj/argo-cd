@@ -235,15 +235,12 @@ func NewCommand() *cobra.Command {
 				defer closeTracer()
 			}
 
-			// join on Run so its deferred queue shutdowns happen before we return (and before any
-			// deferred tracer flush). Run does not join its own wait.Until workers and the queues
-			// use ShutDown rather than ShutDownWithDrain, so in-flight items are not drained.
+			// Run blocks until ctx is done; Wait joins it so the queue shutdowns land before the deferred
+			// tracer flush. Workers are not joined and ShutDown does not drain in-flight items.
 			wg := sync.WaitGroup{}
 			wg.Go(func() {
 				appController.Run(ctx, statusProcessors, operationProcessors, hydrationProcessors)
 			})
-
-			<-ctx.Done()
 			wg.Wait()
 			log.Println("clean shutdown")
 

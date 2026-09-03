@@ -149,16 +149,12 @@ func NewCommand() *cobra.Command {
 				return fmt.Errorf("failed to initialize controller: %w", err)
 			}
 
-			// join on Run so its deferred queue shutdown happens before we return, and before the
-			// deferred argocdService.Close() tears down the repo-server connection the workers use.
-			// Run does not join its own wait.Until workers and the queue uses ShutDown rather than
-			// ShutDownWithDrain, so in-flight items are not drained.
+			// Run blocks until ctx is done; Wait joins it so the queue shutdown lands before the deferred
+			// argocdService.Close(). Workers are not joined and ShutDown does not drain in-flight items.
 			wg := sync.WaitGroup{}
 			wg.Go(func() {
 				ctrl.Run(ctx, processorsCount)
 			})
-
-			<-ctx.Done()
 			wg.Wait()
 			return nil
 		}),

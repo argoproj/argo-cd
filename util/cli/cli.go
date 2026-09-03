@@ -54,7 +54,6 @@ func WithSignalContextE(run func(c *cobra.Command, args []string, cancel context
 
 		sigCh := make(chan os.Signal, 1)
 		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-		defer signal.Stop(sigCh)
 		go func() {
 			// unregister once the context is done, whatever cancelled it, so a second Ctrl+C falls through to
 			// the default handler and kills the process
