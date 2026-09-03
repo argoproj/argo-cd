@@ -5,7 +5,7 @@ tests:
   inputPath: testdata/no-status.yaml
 - healthStatus:
     status: Progressing
-    message: ClusterScmProvider is being deleted
+    message: 'ClusterScmProvider is being deleted. clusterscmprovider.promoter.argoproj.io/finalizer: Waiting until no GitRepository still references this cluster-wide SCM provider. Risk if removed manually: GitRepository objects can reference a provider that no longer exists.'
   inputPath: testdata/deleting.yaml
 - healthStatus:
     status: Progressing

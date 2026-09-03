@@ -91,6 +91,9 @@ As is the case with the development process, this document is under constant cha
 
 Need help? Start with the [Contributors FAQ](faq.md)
 
+## Contributing to Argo CD custom health checks
+- [Understanding and writing health checks](../operator-manual/health.md#custom-health-checks)
+
 ## Contributing to Argo CD dependencies
 - [Contributing to argo-ui](dependencies.md#argo-ui-components-githubcomargoprojargo-ui)
 - [Contributing to notifications-engine](dependencies.md#notifications-engine-githubcomargoprojnotifications-engine)
@@ -99,6 +102,9 @@ Need help? Start with the [Contributors FAQ](faq.md)
 * [UI Extensions](extensions/ui-extensions.md)
 * [Proxy Extensions](extensions/proxy-extensions.md)
 * [Config Management Plugins](../operator-manual/config-management-plugins.md)
+
+## Generative AI
+Contributions using generative AI tools must follow the [Argo project Generative AI policy](https://github.com/argoproj/argoproj/blob/main/community/genai.md).
 
 ## Contributing to Argo Website
 The Argo website is maintained in the [argo-site](https://github.com/argoproj/argo-site) repository.

@@ -170,6 +170,8 @@ spec:
     - iat: 1535390316
 ```
 
+`namespaceResourceWhitelist` also determines which child resources are visible in the Application resource tree in the UI. To observe workload children such as `Pod` and `apps/ReplicaSet` under a `Deployment`, those GroupKinds must be included in the whitelist. See [Projects](../user-guide/projects.md) for details.
+
 ## Repositories
 
 > [!NOTE]
@@ -180,7 +182,7 @@ spec:
 
 Repository details are stored in secrets. To configure a repo, create a secret which contains repository details.
 Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store an encrypted secret definition as a Kubernetes manifest.
-Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), or `githubAppPrivateKey` (for GitHub App).
+Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, GitHub App or Azure Service Principal, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), `githubAppPrivateKey` (for GitHub App) or `azureServicePrincipalClientSecret` (for Azure Service Principal).
 Credentials can be scoped to a project using the optional `project` field. When omitted, the credential will be used as the default for all projects without a scoped credential.
 
 > [!WARNING]
@@ -295,6 +297,39 @@ stringData:
 Example for Azure Container Registry/ Azure Devops repositories using Azure workload identity:
 
 Refer to [Azure Container Registry/Azure Repos using Azure Workload Identity](../user-guide/private-repositories.md#azure-container-registryazure-repos-using-azure-workload-identity)
+
+Example for Azure Service Principal:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: service-principal-for-azure-public-cloud
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://dev.azure.com/my-devops-organization/my-devops-project/_git/my-devops-repo
+  azureServicePrincipalClientId: 12345678-1234-1234-1234-123456789012
+  azureServicePrincipalTenantId: 12345678-1234-1234-1234-123456789012
+  azureServicePrincipalClientSecret: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: service-principal-for-azure-other-cloud
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://dev.azure.com/my-devops-organization/my-devops-project/_git/my-devops-repo
+  azureActiveDirectoryEndpoint: https://login.microsoftonline.de
+  azureServicePrincipalClientId: 12345678-1234-1234-1234-123456789012
+  azureServicePrincipalTenantId: 12345678-1234-1234-1234-123456789012
+  azureServicePrincipalClientSecret: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+```
 
 ### Repository Credentials
 
@@ -511,14 +546,14 @@ A note on noProxy: Argo CD uses exec to interact with different tools such as he
 Cluster credentials are stored in secrets same as repositories or repository credentials. Each secret must have label
 `argocd.argoproj.io/secret-type: cluster`.
 
-The secret data must include following fields:
+The secret data can include the following fields:
 
-* `name` - cluster name
-* `server` - cluster api server url
+* `name` - required, cluster name
+* `server` - required, cluster api server url
 * `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Setting namespace values will cause cluster-level resources to be ignored unless `clusterResources` is set to `true`.
 * `clusterResources` - optional boolean string (`"true"` or `"false"`) determining whether Argo CD can manage cluster-level resources on this cluster. This setting is only used when namespaces are restricted using the `namespaces` list.
-* `project` - optional string to designate this as a project-scoped cluster.
-* `config` - JSON representation of the following data structure:
+* `project` - optional string to designate this as a project-scoped cluster. Note that defining a project-scoped cluster implicitly adds its namespaces (or a wildcard if `namespaces` is unset) to the project's destination list. See [Project-scoped repositories and clusters](../user-guide/projects.md#project-scoped-repositories-and-clusters) for more details.
+* `config` - required. JSON representation of the following data structure:
 
 ```yaml
 # Basic authentication settings
@@ -1141,6 +1176,8 @@ Azure cluster secret example using argocd-k8s-auth and [kubelogin](https://githu
 |AZURE_TENANT_ID|The AAD tenant ID.|
 |AZURE_AUTHORITY_HOST|Used in the WorkloadIdentityLogin flow|
 |AZURE_FEDERATED_TOKEN_FILE|Used in the WorkloadIdentityLogin flow|
+|AAD_IS_POP_TOKEN_ENABLED|Enable POP token support for SPN login method|
+|AAD_POP_TOKEN_CLAIMS|POP token claims for SPN login method|
 
 In addition to the environment variables above, argocd-k8s-auth accepts two extra environment variables to set the AAD environment, and to set the AAD server application ID.  The AAD server application ID will default to 6dae42f8-4368-4678-94ff-3960e28e3630 if not specified.  See [Exec Plugin
 ](https://github.com/Azure/kubelogin/blob/main/docs/book/src/concepts/exec-plugin.md) for details.
@@ -1150,7 +1187,7 @@ In addition to the environment variables above, argocd-k8s-auth accepts two extr
 |AAD_ENVIRONMENT_NAME|The azure environment to use, default of AzurePublicCloud|
 |AAD_SERVER_APPLICATION_ID|The optional AAD server application ID, defaults to 6dae42f8-4368-4678-94ff-3960e28e3630|
 
-This is an example of using the [federated workload login flow](https://github.com/Azure/kubelogin#azure-workload-federated-identity-non-interactive).  The federated token file needs to be mounted as a secret into argoCD, so it can be used in the flow.  The location of the token file needs to be set in the environment variable AZURE_FEDERATED_TOKEN_FILE.
+This is an example of using the [federated workload login flow](https://github.com/Azure/kubelogin#azure-workload-federated-identity-non-interactive).  The federated token file needs to be mounted as a secret into Argo CD, so it can be used in the flow.  The location of the token file needs to be set in the environment variable AZURE_FEDERATED_TOKEN_FILE.
 
 If your AKS cluster utilizes the [Mutating Admission Webhook](https://azure.github.io/azure-workload-identity/docs/installation/mutating-admission-webhook.html) from the Azure Workload Identity project, follow these steps to enable the `argocd-application-controller` and `argocd-server` pods to use the federated identity:
 
@@ -1160,7 +1197,7 @@ If your AKS cluster utilizes the [Mutating Admission Webhook](https://azure.gith
 
 3. **Add Annotations to Service Account** Add `"azure.workload.identity/client-id": "$CLIENT_ID"` and `"azure.workload.identity/tenant-id": "$TENANT_ID"` annotations to the `argocd-application-controller` and `argocd-server` service accounts using the details from the federated credential.
 
-4. **Set the AZURE_CLIENT_ID**: Update the `AZURE_CLIENT_ID` in the cluster secret to match the client id of the newly created federated identity credential.
+4. **Set the AZURE_CLIENT_ID**: Update the `AZURE_CLIENT_ID` in the cluster secret to match the client ID of the newly created federated identity credential.
 
 
 ```yaml
@@ -1246,7 +1283,7 @@ spec:
   project: default
   source:
     chart: sealed-secrets
-    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    repoURL: https://bitnami.github.io/sealed-secrets
     targetRevision: 1.16.1
     helm:
       releaseName: sealed-secrets
@@ -1368,12 +1405,43 @@ kind: ConfigMap
 The `resource.inclusions` and `resource.exclusions` might be used together. The final list of resources includes group/kinds specified in `resource.inclusions` minus group/kinds
 specified in `resource.exclusions` setting.
 
+## Filtering resources with a label selector
+
+While `resource.inclusions` and `resource.exclusions` work at the group/kind level, the `resource.selectors` setting
+narrows down which *objects* of a group/kind Argo CD watches. The selector is sent to the Kubernetes API server as part
+of the list/watch call, so the filtered out objects never reach Argo CD:
+
+```yaml
+apiVersion: v1
+data:
+  resource.selectors: |
+    - apiGroups:
+      - ""
+      kinds:
+      - Pod
+      clusters:
+      - https://192.168.0.20
+      selector: "!argocd.argoproj.io/instance"
+kind: ConfigMap
+```
+
+The `resource.selectors` node is a list of objects. Each object can have:
+
+* `apiGroups` A list of globs to match the API group.
+* `kinds` A list of kinds to match. Can be `"*"` to match all.
+* `clusters` A list of globs to match the cluster URL.
+* `selector` A [label selector](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors)
+  in its string form, e.g. `tier=backend`, `tier in (backend,frontend)` or `!tier`.
+
+If `apiGroups`, `kinds` and `clusters` all match, the selector is applied when listing and watching that resource. The
+example above makes Argo CD watch, in cluster `https://192.168.0.20`, only the Pods that do not have the
+`argocd.argoproj.io/instance` label. Omitting `apiGroups`, `kinds` or `clusters` matches all of them, so a rule with only
+a `selector` applies the selector to every watched resource.
+
 Notes:
 
-* Quote globs in your YAML to avoid parsing errors.
-* Invalid globs result in the whole rule being ignored.
-* If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
-* Some excluded objects may already be in the controller cache. A restart of the controller will be necessary to remove them from the Application View.
+* Selectors of all the matching rules are ANDed together.
+* An invalid selector is rejected when the config map is loaded.
 
 ## Mask sensitive Annotations on Secrets
 
@@ -1386,11 +1454,12 @@ An optional comma-separated list of `metadata.annotations` keys can be configure
 ## Auto respect RBAC for controller
 
 Argo CD controller can be restricted from discovering/syncing specific resources using just controller RBAC, without having to manually configure resource exclusions.
-This feature can be enabled by setting `resource.respectRBAC` key in argocd cm, once it is set the controller will automatically stop watching for resources 
+This feature can be enabled by setting `resource.respectRBAC` key in `argocd-cm` ConfigMap, once it is set the controller will automatically stop watching for resources 
 that it does not have the permission to list/access. Possible values for `resource.respectRBAC` are:
-    - `strict` : This setting checks whether the list call made by controller is forbidden/unauthorized and if it is, it will cross-check the permission by making a `SelfSubjectAccessReview` call for the resource.
-    - `normal` : This will only check whether the list call response is forbidden/unauthorized and skip `SelfSubjectAccessReview` call, to minimize any extra api-server calls.
-    - unset/empty (default) : This will disable the feature and controller will continue to monitor all resources.
+
+- `strict`: This setting checks whether the list call made by controller is forbidden/unauthorized and if it is, it will cross-check the permission by making a `SelfSubjectAccessReview` call for the resource.
+- `normal`: This will only check whether the list call response is forbidden/unauthorized and skip `SelfSubjectAccessReview` call, to minimize any extra api-server calls.
+- unset/empty (default): This will disable the feature and controller will continue to monitor all resources.
 
 Users who are comfortable with an increase in kube api-server calls can opt for `strict` option while users who are concerned with higher api calls and are willing to compromise on the accuracy can opt for the `normal` option.
 
@@ -1399,7 +1468,7 @@ Notes:
 * When set to use `strict` mode controller must have RBAC permission to `create` a `SelfSubjectAccessReview` resource 
 * The `SelfSubjectAccessReview` request will be only made for the `list` verb, it is assumed that if `list` is allowed for a resource then all other permissions are also available to the controller.
 
-Example argocd cm with `resource.respectRBAC` set to `strict`:
+Example `argocd-cm` ConfigMap with `resource.respectRBAC` set to `strict`:
 
 ```yaml
 apiVersion: v1

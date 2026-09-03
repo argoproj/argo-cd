@@ -5,7 +5,7 @@ tests:
   inputPath: testdata/no-status.yaml
 - healthStatus:
     status: Progressing
-    message: ScmProvider is being deleted
+    message: 'ScmProvider is being deleted. scmprovider.promoter.argoproj.io/finalizer: Waiting until no GitRepository in this namespace still references this provider. Risk if removed manually: GitRepository objects can reference a provider that no longer exists.'
   inputPath: testdata/deleting.yaml
 - healthStatus:
     status: Progressing

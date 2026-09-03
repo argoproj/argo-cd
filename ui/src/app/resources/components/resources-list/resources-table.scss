@@ -1,0 +1,256 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/foundation-sites/scss/util/util';
+
+// The column widths come from Foundation's grid (the `columns small-N` classes in the markup).
+// The icon is absolutely positioned and overlays the row's left padding, so it does not take a
+// Foundation column; the row menu is absolutely positioned over the row's right padding.
+$resources-table-icon-col-width: 60px;
+$resources-table-menu-width: 2.75rem;
+
+// Reuse application details resource list presentation (icon column, row layout).
+.application-details.resources-table {
+    height: auto;
+    width: 100%;
+
+    .argo-table-list__head .row,
+    .argo-table-list__row .row {
+        position: relative;
+        padding-left: $resources-table-icon-col-width;
+        padding-right: $resources-table-menu-width;
+    }
+
+    .resources-table__col-icon {
+        position: absolute;
+        top: 12px;
+        left: 0;
+        width: $resources-table-icon-col-width;
+        line-height: 1;
+        text-align: center;
+        color: $argo-color-gray-7;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .resources-table__kind {
+        display: inline-block;
+        max-width: 100%;
+        margin-top: 1px;
+        padding: 0 4px;
+        font-size: 0.7rem;
+        color: $argo-color-gray-6;
+        white-space: nowrap;
+        text-align: left;
+    }
+
+    .application-details__item {
+        display: flex;
+    }
+
+    .application-details__item_text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .resources-table__col-group-kind,
+    .resources-table__col-namespace,
+    .resources-table__col-name,
+    .resources-table__col-cluster,
+    .resources-table__col-application,
+    .resources-table__status-col {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    .resources-table__col-group-kind {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        text-align: left;
+
+        .application-details__item_text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 100%;
+        }
+    }
+
+    .resources-table__head-col {
+        overflow: hidden;
+
+        .resources-table__head-text {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .resources-table__head-text--application {
+            display: inline-flex;
+            align-items: center;
+            max-width: 100%;
+            gap: 0.4em;
+
+            .resources-table__head-label {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                min-width: 0;
+            }
+
+            .resources-table__head-external-icon,
+            > span {
+                flex-shrink: 0;
+            }
+        }
+    }
+
+    .resources-table__head-external-icon {
+        font-size: 0.85em;
+        opacity: 0.75;
+    }
+
+    .resources-table__tooltip-anchor,
+    .application-details__item_text.resources-table__tooltip-anchor,
+    .resources-table__cell-text.resources-table__tooltip-anchor {
+        display: inline-block;
+        width: fit-content;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: top;
+    }
+
+    .resources-table__col-namespace,
+    .resources-table__col-name,
+    .resources-table__col-cluster {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        .application-details__item_text,
+        .resources-table__cell-text {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    }
+
+    .resources-table__col-application {
+        overflow: hidden;
+    }
+
+    .resources-table__application-link {
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0;
+        font: inherit;
+        line-height: inherit;
+        color: $argo-color-teal-6;
+        cursor: pointer;
+        text-align: left;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        display: block;
+
+        &:hover,
+        &:focus-visible {
+            color: $argo-color-teal-5;
+            text-decoration: underline;
+        }
+
+        &:focus {
+            outline: none;
+        }
+    }
+
+    .resources-table__row--selected {
+        box-shadow: 0 0 0 1px $argo-color-teal-5;
+    }
+
+    .argo-table-list__row {
+        position: relative;
+    }
+
+    .resources-table__row {
+        // Lift interactive and tooltip-bearing descendants above the overlay link so they receive
+        // their own clicks and hover. `a:not(overlay)` covers the CellLink cell wrappers and the
+        // Application link; `[title]` covers the status icons rendered by utils.tsx (`<i title=…>`);
+        // `.argo-dropdown` (position: static by default) is promoted so the action menu is clickable.
+        a:not(.resources-table__row__overlay-link),
+        button,
+        [title],
+        .argo-dropdown {
+            position: relative;
+            z-index: 2;
+        }
+    }
+
+    .resources-table__row__overlay-link {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        color: inherit;
+        text-decoration: none;
+
+        &:hover,
+        &:visited,
+        &:active {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        // The anchor itself is invisible, so draw the keyboard focus outline on its bounding box
+        // (the whole row) for keyboard users.
+        &:focus-visible {
+            outline: 2px solid $argo-color-teal-5;
+            outline-offset: -2px;
+        }
+    }
+
+    .resources-table__status-col {
+        // Stack the health and sync status on two lines, vertically centered within the row.
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        overflow: hidden;
+        line-height: 2em;
+    }
+
+    .resources-table__status-line {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .resources-table__row-menu {
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        z-index: 1;
+
+        .argo-button--lg {
+            i.fa-ellipsis-v::before {
+                font-size: 1.25em;
+            }
+        }
+    }
+
+    .application-details__action-menu {
+        text-transform: capitalize;
+
+        &:focus {
+            background-color: $argo-color-gray-1;
+            outline: none;
+        }
+    }
+}

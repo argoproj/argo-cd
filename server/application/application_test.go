@@ -2,7 +2,8 @@ package application
 
 import (
 	"context"
-	stderrors "errors"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
@@ -13,11 +14,13 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/labels"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	"github.com/argoproj/pkg/v2/sync"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -159,19 +162,15 @@ func newTestAppServer(t *testing.T, objects ...runtime.Object) *Server {
 func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer), additionalConfig map[string]string, objects ...runtime.Object) *Server {
 	t.Helper()
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "argocd-cm",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Namespace: testNamespace,
+		Name:      "argocd-cm",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: additionalConfig,
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: testNamespace,
-		},
+		Name:      "argocd-secret",
+		Namespace: testNamespace,
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),
@@ -187,7 +186,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(false)}
 
 	defaultProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+		Name: "default", Namespace: "default",
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -195,21 +194,21 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	}
 
 	myProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "my-proj", Namespace: "default"},
+		Name: "my-proj", Namespace: "default",
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
 	projWithSyncWindows := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "proj-maint", Namespace: "default"},
+		Name: "proj-maint", Namespace: "default",
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 			SyncWindows:  v1alpha1.SyncWindows{},
 		},
 	}
-	matchingWindow := &v1alpha1.SyncWindow{
+	matchingWindow := &v1alpha1.InlineSyncWindow{
 		Kind:         "allow",
 		Schedule:     "* * * * *",
 		Duration:     "1h",
@@ -260,14 +259,12 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 			nodes := make([]v1alpha1.ResourceNode, len(app.Status.Resources))
 			for i, res := range app.Status.Resources {
 				nodes[i] = v1alpha1.ResourceNode{
-					ResourceRef: v1alpha1.ResourceRef{
-						Group:     res.Group,
-						Kind:      res.Kind,
-						Version:   res.Version,
-						Name:      res.Name,
-						Namespace: res.Namespace,
-						UID:       "fake",
-					},
+					Group:     res.Group,
+					Kind:      res.Kind,
+					Version:   res.Version,
+					Name:      res.Name,
+					Namespace: res.Namespace,
+					UID:       "fake",
 				}
 			}
 			err = appStateCache.SetAppResourcesTree(app.Name, &v1alpha1.ApplicationTree{
@@ -312,6 +309,27 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	return server.(*Server)
 }
 
+func newCachedManagedResources(t *testing.T, server *Server, app *v1alpha1.Application, objects ...*unstructured.Unstructured) *servercache.Cache {
+	t.Helper()
+	cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
+	appStateCache := appstate.NewCache(cacheClient, time.Minute)
+	appInstanceName := app.InstanceName(server.appNamespaceOrDefault(app.Namespace))
+
+	managedResources := make([]*v1alpha1.ResourceDiff, len(objects))
+	for i, res := range objects {
+		managedResources[i] = &v1alpha1.ResourceDiff{
+			Group:     res.GroupVersionKind().Group,
+			Kind:      res.GetObjectKind().GroupVersionKind().Kind,
+			Name:      res.GetName(),
+			Namespace: res.GetNamespace(),
+		}
+	}
+	err := appStateCache.SetAppManagedResources(appInstanceName, managedResources)
+	require.NoError(t, err)
+
+	return servercache.NewCache(appStateCache, time.Hour, time.Hour)
+}
+
 // return an ApplicationServiceServer which returns fake data
 func newTestAppServerWithBenchmark(b *testing.B, objects ...runtime.Object) *Server {
 	b.Helper()
@@ -325,18 +343,14 @@ func newTestAppServerWithBenchmark(b *testing.B, objects ...runtime.Object) *Ser
 func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rbac.Enforcer), objects ...runtime.Object) *Server {
 	b.Helper()
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "argocd-cm",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Namespace: testNamespace,
+		Name:      "argocd-cm",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: testNamespace,
-		},
+		Name:      "argocd-secret",
+		Namespace: testNamespace,
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),
@@ -352,28 +366,28 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(false)}
 
 	defaultProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+		Name: "default", Namespace: "default",
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
 	myProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "my-proj", Namespace: "default"},
+		Name: "my-proj", Namespace: "default",
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
 	projWithSyncWindows := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "proj-maint", Namespace: "default"},
+		Name: "proj-maint", Namespace: "default",
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 			SyncWindows:  v1alpha1.SyncWindows{},
 		},
 	}
-	matchingWindow := &v1alpha1.SyncWindow{
+	matchingWindow := &v1alpha1.InlineSyncWindow{
 		Kind:         "allow",
 		Schedule:     "* * * * *",
 		Duration:     "1h",
@@ -423,14 +437,12 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 			nodes := make([]v1alpha1.ResourceNode, len(app.Status.Resources))
 			for i, res := range app.Status.Resources {
 				nodes[i] = v1alpha1.ResourceNode{
-					ResourceRef: v1alpha1.ResourceRef{
-						Group:     res.Group,
-						Kind:      res.Kind,
-						Version:   res.Version,
-						Name:      res.Name,
-						Namespace: res.Namespace,
-						UID:       "fake",
-					},
+					Group:     res.Group,
+					Kind:      res.Kind,
+					Version:   res.Version,
+					Name:      res.Name,
+					Namespace: res.Namespace,
+					UID:       "fake",
 				}
 			}
 			err = appStateCache.SetAppResourcesTree(app.Name, &v1alpha1.ApplicationTree{
@@ -709,14 +721,10 @@ func TestNoAppEnumeration(t *testing.T) {
 		enf.SetDefaultRole("role:none")
 	}
 	deployment := appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "test",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "test",
+		Namespace:  "test",
 	}
 	testApp := newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "test"
@@ -1659,7 +1667,7 @@ func TestUpdateApp(t *testing.T) {
 		t.Parallel()
 		testApp := newTestApp()
 		restrictedProj := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "restricted-proj", Namespace: "default"},
+			Name: "restricted-proj", Namespace: "default",
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:  []string{"not-your-repo"},
 				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "not-your-namespace"}},
@@ -1682,7 +1690,7 @@ func TestUpdateApp(t *testing.T) {
 		t.Parallel()
 		testApp := newTestApp()
 		restrictedProj := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "restricted-proj", Namespace: "default"},
+			Name: "restricted-proj", Namespace: "default",
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:  []string{"not-your-repo"},
 				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "not-your-namespace"}},
@@ -1856,6 +1864,44 @@ func TestDeleteApp(t *testing.T) {
 		assert.True(t, deleted)
 		t.Cleanup(revertValues)
 	})
+}
+
+func TestDeleteAppAlreadyDeleting(t *testing.T) {
+	ctx := t.Context()
+	appServer := newTestAppServer(t)
+	createReq := application.ApplicationCreateRequest{
+		Application: newTestApp(),
+	}
+	app, err := appServer.Create(ctx, &createReq)
+	require.NoError(t, err)
+
+	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+	// Drop the default reactor so we can observe exactly which actions Delete issues.
+	fakeAppCs.ReactionChain = nil
+	patched := false
+	deleted := false
+	fakeAppCs.AddReactor("patch", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patched = true
+		return true, nil, nil
+	})
+	fakeAppCs.AddReactor("delete", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		deleted = true
+		return true, nil, nil
+	})
+	now := metav1.Now()
+	fakeAppCs.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, &v1alpha1.Application{
+			DeletionTimestamp: &now,
+			Spec:              v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}},
+		}, nil
+	})
+	appServer.appclientset = fakeAppCs
+
+	trueVar := true
+	_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar})
+	require.NoError(t, err)
+	assert.False(t, patched, "finalizer patch must not be attempted on an app already being deleted")
+	assert.True(t, deleted, "delete call should still be issued so the RPC stays idempotent")
 }
 
 func TestDeleteResourcesRBAC(t *testing.T) {
@@ -2339,10 +2385,8 @@ func TestSyncRBACSettingsError(t *testing.T) {
 
 	// override settings manager to return error
 	brokenclientset := fake.NewClientset(&corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: testNamespace,
-		},
+		Name:      "argocd-secret",
+		Namespace: testNamespace,
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),
@@ -2716,6 +2760,39 @@ func TestGetManifests_WithNoCache(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestGetManifests_SourceHydrator(t *testing.T) {
+	testApp := newTestApp()
+	testApp.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        "https://github.com/org/dry-repo",
+			Path:           "manifests/dry",
+			TargetRevision: "main",
+		},
+		SyncSource: v1alpha1.SyncSource{
+			Path: "manifests/sync",
+		},
+	}
+
+	appServer := newTestAppServer(t, testApp)
+
+	mockRepoServiceClient := mocks.RepoServerServiceClient{}
+
+	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.MatchedBy(func(mr *apiclient.ManifestRequest) bool {
+		return mr.Repo.Repo == "https://github.com/org/dry-repo" &&
+			mr.ApplicationSource.Path == "manifests/dry" &&
+			mr.Revision == "some-revision"
+	})).Return(&apiclient.ManifestResponse{}, nil)
+
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
+
+	_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
+		Name:     &testApp.Name,
+		Revision: new("some-revision"),
+	})
+	require.NoError(t, err)
+	mockRepoServiceClient.AssertExpectations(t)
+}
+
 func TestRollbackApp(t *testing.T) {
 	testApp := newTestApp()
 	testApp.Status.History = []v1alpha1.RevisionHistory{{
@@ -2909,10 +2986,8 @@ func TestGetCachedAppState(t *testing.T) {
 	testApp.ResourceVersion = "1"
 	testApp.Spec.Project = "test-proj"
 	testProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-proj",
-			Namespace: testNamespace,
-		},
+		Name:      "test-proj",
+		Namespace: testNamespace,
 	}
 	appServer := newTestAppServer(t, testApp, testProj)
 	fakeClientSet := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
@@ -2963,7 +3038,7 @@ func TestGetCachedAppState(t *testing.T) {
 	})
 
 	t.Run("NonCacheErrorDoesNotTriggerRefresh", func(t *testing.T) {
-		randomError := stderrors.New("random error")
+		randomError := errors.New("random error")
 		err := appServer.getCachedAppState(t.Context(), testApp, func() error {
 			return randomError
 		})
@@ -3124,14 +3199,10 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 
 	for i := range podNumber {
 		pod := corev1.Pod{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Pod",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf("pod-%d", i),
-				Namespace: "test",
-			},
+			APIVersion: "v1",
+			Kind:       "Pod",
+			Name:       fmt.Sprintf("pod-%d", i),
+			Namespace:  "test",
 		}
 		resources[i] = v1alpha1.ResourceStatus{
 			Group:     pod.GroupVersionKind().Group,
@@ -3275,13 +3346,11 @@ func TestGetApp_HealthStatusPropagation(t *testing.T) {
 		appInstanceName := testApp.InstanceName(appServer.appNamespaceOrDefault(testApp.Namespace))
 		err := appStateCache.SetAppResourcesTree(appInstanceName, &v1alpha1.ApplicationTree{
 			Nodes: []v1alpha1.ResourceNode{{
-				ResourceRef: v1alpha1.ResourceRef{
-					Group:     "apps",
-					Kind:      "Deployment",
-					Name:      "guestbook",
-					Namespace: "default",
-				},
-				Health: &v1alpha1.HealthStatus{Status: health.HealthStatusDegraded},
+				Group:     "apps",
+				Kind:      "Deployment",
+				Name:      "guestbook",
+				Namespace: "default",
+				Health:    &v1alpha1.HealthStatus{Status: health.HealthStatusDegraded},
 			}},
 		})
 		require.NoError(t, err)
@@ -3365,12 +3434,10 @@ func TestInferResourcesStatusHealth(t *testing.T) {
 	appServer := newTestAppServer(t, testApp)
 	appStateCache := appstate.NewCache(cacheClient, time.Minute)
 	err := appStateCache.SetAppResourcesTree(testApp.Name, &v1alpha1.ApplicationTree{Nodes: []v1alpha1.ResourceNode{{
-		ResourceRef: v1alpha1.ResourceRef{
-			Group:     "apps",
-			Kind:      "Deployment",
-			Name:      "guestbook",
-			Namespace: "default",
-		},
+		Group:     "apps",
+		Kind:      "Deployment",
+		Name:      "guestbook",
+		Namespace: "default",
 		Health: &v1alpha1.HealthStatus{
 			Status: health.HealthStatusDegraded,
 		},
@@ -3406,12 +3473,10 @@ func TestInferResourcesStatusHealthWithAppInAnyNamespace(t *testing.T) {
 	appServer := newTestAppServer(t, testApp)
 	appStateCache := appstate.NewCache(cacheClient, time.Minute)
 	err := appStateCache.SetAppResourcesTree("otherNamespace"+"_"+testApp.Name, &v1alpha1.ApplicationTree{Nodes: []v1alpha1.ResourceNode{{
-		ResourceRef: v1alpha1.ResourceRef{
-			Group:     "apps",
-			Kind:      "Deployment",
-			Name:      "guestbook",
-			Namespace: "otherNamespace",
-		},
+		Group:     "apps",
+		Kind:      "Deployment",
+		Name:      "guestbook",
+		Namespace: "otherNamespace",
 		Health: &v1alpha1.HealthStatus{
 			Status: health.HealthStatusDegraded,
 		},
@@ -3449,18 +3514,16 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 	appStateCache := appstate.NewCache(cacheClient, time.Minute)
 
 	nodes := []v1alpha1.ResourceNode{{
-		ResourceRef: v1alpha1.ResourceRef{
-			Group:     group,
-			Kind:      kind,
-			Version:   version,
-			Name:      resourceName,
-			Namespace: testNamespace,
-			UID:       uid,
-		},
+		Group:     group,
+		Kind:      kind,
+		Version:   version,
+		Name:      resourceName,
+		Namespace: testNamespace,
+		UID:       uid,
 	}}
 
 	createJobDenyingProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "createJobDenyingProj", Namespace: "default"},
+		Name: "createJobDenyingProj", Namespace: "default",
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:                []string{"*"},
 			Destinations:               []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -3469,16 +3532,12 @@ func TestRunNewStyleResourceAction(t *testing.T) {
 	}
 
 	cronJob := k8sbatchv1.CronJob{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "batch/v1",
-			Kind:       "CronJob",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-cron-job",
-			Namespace: testNamespace,
-			Labels: map[string]string{
-				"some": "label",
-			},
+		APIVersion: "batch/v1",
+		Kind:       "CronJob",
+		Name:       "my-cron-job",
+		Namespace:  testNamespace,
+		Labels: map[string]string{
+			"some": "label",
 		},
 		Spec: k8sbatchv1.CronJobSpec{
 			Schedule: "* * * * *",
@@ -3578,25 +3637,19 @@ func TestRunOldStyleResourceAction(t *testing.T) {
 	appStateCache := appstate.NewCache(cacheClient, time.Minute)
 
 	nodes := []v1alpha1.ResourceNode{{
-		ResourceRef: v1alpha1.ResourceRef{
-			Group:     group,
-			Kind:      kind,
-			Version:   version,
-			Name:      resourceName,
-			Namespace: testNamespace,
-			UID:       uid,
-		},
+		Group:     group,
+		Kind:      kind,
+		Version:   version,
+		Name:      resourceName,
+		Namespace: testNamespace,
+		UID:       uid,
 	}}
 
 	deployment := appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "nginx-deploy",
-			Namespace: testNamespace,
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "nginx-deploy",
+		Namespace:  testNamespace,
 	}
 
 	t.Run("DefaultPatchOperation", func(t *testing.T) {
@@ -3751,7 +3804,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
 		otherNsProj := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Name: "other-ns", Namespace: "default",
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
 				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -3775,7 +3828,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
 		otherNsProj := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Name: "other-ns", Namespace: "default",
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
 				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -3798,7 +3851,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
 		otherNsProj := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Name: "other-ns", Namespace: "default",
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
 				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -3822,7 +3875,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
 		otherNsProj := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Name: "other-ns", Namespace: "default",
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
 				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -3845,7 +3898,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
 		otherNsProj := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Name: "other-ns", Namespace: "default",
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
 				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -3867,7 +3920,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
 		otherNsProj := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Name: "other-ns", Namespace: "default",
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
 				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -3886,7 +3939,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
 		otherNsProj := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Name: "other-ns", Namespace: "default",
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
 				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -3906,7 +3959,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
 		otherNsProj := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Name: "other-ns", Namespace: "default",
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
 				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -3929,7 +3982,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
 		otherNsProj := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "other-ns", Namespace: "default"},
+			Name: "other-ns", Namespace: "default",
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:      []string{"*"},
 				Destinations:     []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -4352,16 +4405,16 @@ func Test_DeepCopyInformers(t *testing.T) {
 	appls := []v1alpha1.Application{*appOne, *appTwo, *appThree}
 
 	appSetOne := &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "appSetOne", Namespace: namespace},
-		Spec:       v1alpha1.ApplicationSetSpec{},
+		Name: "appSetOne", Namespace: namespace,
+		Spec: v1alpha1.ApplicationSetSpec{},
 	}
 	appSetTwo := &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "appSetTwo", Namespace: namespace},
-		Spec:       v1alpha1.ApplicationSetSpec{},
+		Name: "appSetTwo", Namespace: namespace,
+		Spec: v1alpha1.ApplicationSetSpec{},
 	}
 	appSetThree := &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "appSetThree", Namespace: namespace},
-		Spec:       v1alpha1.ApplicationSetSpec{},
+		Name: "appSetThree", Namespace: namespace,
+		Spec: v1alpha1.ApplicationSetSpec{},
 	}
 	ro = append(ro, appSetOne, appSetTwo, appSetThree)
 	appSets := []v1alpha1.ApplicationSet{*appSetOne, *appSetTwo, *appSetThree}
@@ -4434,7 +4487,7 @@ func Test_DeepCopyInformers(t *testing.T) {
 func TestServerSideDiff(t *testing.T) {
 	// Create test projects (avoid "default" which is already created by newTestAppServerWithEnforcerConfigure)
 	testProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-project", Namespace: testNamespace},
+		Name: "test-project", Namespace: testNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -4442,7 +4495,7 @@ func TestServerSideDiff(t *testing.T) {
 	}
 
 	forbiddenProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "forbidden-project", Namespace: testNamespace},
+		Name: "forbidden-project", Namespace: testNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -4571,6 +4624,421 @@ func TestServerSideDiff(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "application")
 	})
+
+	t.Run("LiveObjectPermissions", func(t *testing.T) {
+		// Test that ServerSideDiff validates that live resources in the request
+		// are part of the application's managed resources
+		// Create an authorized ConfigMap that will be registered as managed
+		authorizedConfigMap := &corev1.ConfigMap{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+			Name:       "authorized-config",
+			Namespace:  "default",
+			Data: map[string]string{
+				"key": "value",
+			},
+		}
+
+		// Create app server with the authorized ConfigMap in managed resources
+		appServerWithManagedResources := newTestAppServer(t, testProj, testApp)
+		appServerWithManagedResources.cache = newCachedManagedResources(
+			t,
+			appServerWithManagedResources,
+			testApp,
+			kube.MustToUnstructured(authorizedConfigMap),
+		)
+
+		// Test 1: Attempt to diff with an unauthorized ConfigMap (different name)
+		unauthorizedConfigMap := &corev1.ConfigMap{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+			Name:       "unauthorized-config",
+			Namespace:  "default",
+			Data: map[string]string{
+				"key": "value",
+			},
+		}
+
+		unauthorizedJSON, err := json.Marshal(unauthorizedConfigMap)
+		require.NoError(t, err)
+
+		unauthorizedQuery := &application.ApplicationServerSideDiffQuery{
+			AppName:      new(testApp.Name),
+			AppNamespace: new(testApp.Namespace),
+			Project:      new(testApp.Spec.Project),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap",
+					Namespace: "default",
+					Name:      "unauthorized-config",
+					LiveState: string(unauthorizedJSON),
+				},
+			},
+			TargetManifests: []string{string(unauthorizedJSON)},
+		}
+
+		_, err = appServerWithManagedResources.ServerSideDiff(t.Context(), unauthorizedQuery)
+
+		// Should fail with PermissionDenied error
+		require.Error(t, err)
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+		assert.Equal(t, "/ConfigMap unauthorized-config not found as part of application test-app", status.Convert(err).Message())
+	})
+
+	t.Run("NewObjectsAreAllowed", func(t *testing.T) {
+		// Test that ServerSideDiff does not check permissions for new objects (LiveState is empty/null)
+
+		// Create an applier that will fail if called
+		applierCalled := false
+		mockApplier := &kubetest.MockKubeApplier{
+			ApplyResourceFunc: func(_ context.Context, _ *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _, _, _ bool, _ string) (string, error) {
+				applierCalled = true
+				return "", errors.New("applier should not be called for new objects")
+			},
+		}
+
+		// Create mock kubectl that returns our custom applier
+		mockKubectl := &kubetest.MockKubectlCmd{}
+		mockKubectl.WithManageServerSideDiffDryRunFunc(func(_ *rest.Config) (diff.KubeApplier, func(), error) {
+			return mockApplier, func() {}, nil
+		})
+
+		appServerWithMock := newTestAppServer(t, testProj, testApp)
+		appServerWithMock.kubectl = mockKubectl
+
+		// Create a new ConfigMap (no LiveState)
+		newConfigMap := &corev1.ConfigMap{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+			Name:       "new-config",
+			Namespace:  "default",
+			Data: map[string]string{
+				"key": "value",
+			},
+		}
+		newConfigJSON, err := json.Marshal(newConfigMap)
+		require.NoError(t, err)
+
+		// Query with new object (no LiveState)
+		queryNewObjectEmpty := &application.ApplicationServerSideDiffQuery{
+			AppName:      new(testApp.Name),
+			AppNamespace: new(testApp.Namespace),
+			Project:      new(testApp.Spec.Project),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap",
+					Namespace: "default",
+					Name:      "new-config",
+					LiveState: "", // Empty LiveState indicates new object
+				},
+			},
+			TargetManifests: []string{string(newConfigJSON)},
+		}
+
+		applierCalled = false
+		resp, err := appServerWithMock.ServerSideDiff(t.Context(), queryNewObjectEmpty)
+
+		// Should succeed without calling the applier
+		require.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.False(t, applierCalled, "applier should not be called for new objects")
+
+		// Also test with "null" LiveState
+		queryNewObjectNull := &application.ApplicationServerSideDiffQuery{
+			AppName:      new(testApp.Name),
+			AppNamespace: new(testApp.Namespace),
+			Project:      new(testApp.Spec.Project),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap",
+					Namespace: "default",
+					Name:      "new-config",
+					LiveState: "null", // "null" also indicates new object
+				},
+			},
+			TargetManifests: []string{string(newConfigJSON)},
+		}
+
+		applierCalled = false
+		resp, err = appServerWithMock.ServerSideDiff(t.Context(), queryNewObjectNull)
+
+		// Should succeed without calling the applier
+		require.NoError(t, err)
+		assert.NotNil(t, resp)
+		// This MUST validate that the applier is NOT called for new objects during diff as well
+		// Calling the applier for new objects would allow the caller to discover existing objects in the
+		// clusters that are not part of the application's managed resources.
+		assert.False(t, applierCalled, "applier should not be called for new objects with null LiveState")
+	})
+
+	t.Run("SecretMaskingNotBypassedBySpoofedLiveKind", func(t *testing.T) {
+		// A caller with get access to the app must not be able to bypass Secret
+		// data masking by pairing a spoofed non-Secret liveResources[i].Kind with a
+		// Secret target manifest. The masking decision must key off the server's own
+		// parsed target/live objects, not the caller-supplied kind/group envelope.
+
+		// Register a decoy ConfigMap as managed so the spoofed live entry passes the
+		// managed-resources membership check.
+		decoyConfigMap := &corev1.ConfigMap{
+			APIVersion: "v1", Kind: "ConfigMap",
+			Name: "decoy-config", Namespace: "default",
+			Data: map[string]string{"key": "value"},
+		}
+		decoyJSON, err := json.Marshal(decoyConfigMap)
+		require.NoError(t, err)
+
+		// The dry-run returns a real Secret (with sensitive data) as the predicted
+		// live state, simulating a server-side apply of the Secret target manifest.
+		const leakedSecret = "czNjcjN0LWxlYWtlZA==" // base64("s3cr3t-leaked")
+		predictedSecret := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"real-secret","namespace":"default"},"type":"Opaque","data":{"password":"` + leakedSecret + `"}}`
+		mockApplier := &kubetest.MockKubeApplier{
+			ApplyResourceFunc: func(_ context.Context, _ *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _, _, _ bool, _ string) (string, error) {
+				return predictedSecret, nil
+			},
+		}
+		mockKubectl := &kubetest.MockKubectlCmd{}
+		mockKubectl.WithManageServerSideDiffDryRunFunc(func(_ *rest.Config) (diff.KubeApplier, func(), error) {
+			return mockApplier, func() {}, nil
+		})
+
+		// Skip webhook-mutation removal (which would require managedFields on the
+		// mock dry-run result); this test is about masking, not webhook handling.
+		spoofApp := newTestApp(func(app *v1alpha1.Application) {
+			app.Name = "spoof-app"
+			app.Namespace = testNamespace
+			app.Spec.Project = "test-project"
+			app.Annotations = map[string]string{
+				"argocd.argoproj.io/compare-options": "IncludeMutationWebhook=true",
+			}
+		})
+
+		appServerSpoof := newTestAppServer(t, testProj, spoofApp)
+		appServerSpoof.kubectl = mockKubectl
+		appServerSpoof.cache = newCachedManagedResources(t, appServerSpoof, spoofApp, kube.MustToUnstructured(decoyConfigMap))
+
+		// Target manifest is a real Secret, but liveResources[0].Kind is spoofed as
+		// ConfigMap to try to skip Secret masking.
+		targetSecret := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"real-secret","namespace":"default"},"type":"Opaque","data":{"password":"` + leakedSecret + `"}}`
+		query := &application.ApplicationServerSideDiffQuery{
+			AppName:      new(spoofApp.Name),
+			AppNamespace: new(spoofApp.Namespace),
+			Project:      new(spoofApp.Spec.Project),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap", // spoofed - target is actually a Secret
+					Namespace: "default",
+					Name:      "decoy-config",
+					LiveState: string(decoyJSON),
+				},
+			},
+			TargetManifests: []string{targetSecret},
+		}
+
+		resp, err := appServerSpoof.ServerSideDiff(t.Context(), query)
+		require.NoError(t, err)
+		require.Len(t, resp.Items, 1)
+
+		assert.NotContains(t, resp.Items[0].TargetState, leakedSecret,
+			"raw secret data from the dry-run must not leak into TargetState even when liveResources[i].Kind is spoofed")
+		assert.NotContains(t, resp.Items[0].LiveState, leakedSecret,
+			"raw secret data from the dry-run must not leak into LiveState even when liveResources[i].Kind is spoofed")
+	})
+
+	t.Run("NonSecretIsNotMasked", func(t *testing.T) {
+		// Guard against over-masking: a genuine ConfigMap on both sides must have its
+		// data returned unmasked. The fix keys masking off the real parsed GVK, so
+		// non-Secret resources must be unaffected.
+		configMap := &corev1.ConfigMap{
+			APIVersion: "v1", Kind: "ConfigMap",
+			Name: "plain-config", Namespace: "default",
+			Data: map[string]string{"key": "not-a-secret"},
+		}
+		configJSON, err := json.Marshal(configMap)
+		require.NoError(t, err)
+
+		predictedConfig := `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"plain-config","namespace":"default"},"data":{"key":"not-a-secret"}}`
+		mockApplier := &kubetest.MockKubeApplier{
+			ApplyResourceFunc: func(_ context.Context, _ *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _, _, _ bool, _ string) (string, error) {
+				return predictedConfig, nil
+			},
+		}
+		mockKubectl := &kubetest.MockKubectlCmd{}
+		mockKubectl.WithManageServerSideDiffDryRunFunc(func(_ *rest.Config) (diff.KubeApplier, func(), error) {
+			return mockApplier, func() {}, nil
+		})
+
+		plainApp := newTestApp(func(app *v1alpha1.Application) {
+			app.Name = "plain-app"
+			app.Namespace = testNamespace
+			app.Spec.Project = "test-project"
+			app.Annotations = map[string]string{
+				"argocd.argoproj.io/compare-options": "IncludeMutationWebhook=true",
+			}
+		})
+
+		appServerPlain := newTestAppServer(t, testProj, plainApp)
+		appServerPlain.kubectl = mockKubectl
+		appServerPlain.cache = newCachedManagedResources(t, appServerPlain, plainApp, kube.MustToUnstructured(configMap))
+
+		query := &application.ApplicationServerSideDiffQuery{
+			AppName:      new(plainApp.Name),
+			AppNamespace: new(plainApp.Namespace),
+			Project:      new(plainApp.Spec.Project),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap",
+					Namespace: "default",
+					Name:      "plain-config",
+					LiveState: string(configJSON),
+				},
+			},
+			TargetManifests: []string{predictedConfig},
+		}
+
+		resp, err := appServerPlain.ServerSideDiff(t.Context(), query)
+		require.NoError(t, err)
+		require.Len(t, resp.Items, 1)
+
+		assert.Contains(t, resp.Items[0].TargetState, "not-a-secret",
+			"ConfigMap data must not be masked")
+	})
+
+	t.Run("LiveObjectConsistency", func(t *testing.T) {
+		// Test that ServerSideDiff validates that the JSON object in LiveState
+		// matches the Group, Kind, Namespace, Name fields of the ResourceDiff
+
+		// Test 1: Name mismatch
+		configMapCorrect := &corev1.ConfigMap{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+			Name:       "correct-name",
+			Namespace:  "default",
+			Data: map[string]string{
+				"key": "value",
+			},
+		}
+		correctJSON, err := json.Marshal(configMapCorrect)
+		require.NoError(t, err)
+
+		queryNameMismatch := &application.ApplicationServerSideDiffQuery{
+			AppName:      new("test-app"),
+			AppNamespace: new(testNamespace),
+			Project:      new("test-project"),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap",
+					Namespace: "default",
+					Name:      "wrong-name", // Name doesn't match JSON
+					LiveState: string(correctJSON),
+				},
+			},
+			TargetManifests: []string{string(correctJSON)},
+		}
+
+		_, err = appServer.ServerSideDiff(t.Context(), queryNameMismatch)
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Equal(t, "name mismatch: expected wrong-name, got correct-name for live resource /ConfigMap/wrong-name", status.Convert(err).Message())
+
+		// Test 2: Namespace mismatch
+		queryNamespaceMismatch := &application.ApplicationServerSideDiffQuery{
+			AppName:      new("test-app"),
+			AppNamespace: new(testNamespace),
+			Project:      new("test-project"),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap",
+					Namespace: "kube-system", // Namespace doesn't match JSON
+					Name:      "correct-name",
+					LiveState: string(correctJSON),
+				},
+			},
+			TargetManifests: []string{string(correctJSON)},
+		}
+
+		_, err = appServer.ServerSideDiff(t.Context(), queryNamespaceMismatch)
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Equal(t, "namespace mismatch: expected kube-system, got default for live resource /ConfigMap/correct-name", status.Convert(err).Message())
+
+		// Test 3: Kind mismatch
+		queryKindMismatch := &application.ApplicationServerSideDiffQuery{
+			AppName:      new("test-app"),
+			AppNamespace: new(testNamespace),
+			Project:      new("test-project"),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "Secret", // Kind doesn't match JSON (ConfigMap)
+					Namespace: "default",
+					Name:      "correct-name",
+					LiveState: string(correctJSON),
+				},
+			},
+			TargetManifests: []string{string(correctJSON)},
+		}
+
+		_, err = appServer.ServerSideDiff(t.Context(), queryKindMismatch)
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Equal(t, "kind mismatch: expected Secret, got ConfigMap for live resource /Secret/correct-name", status.Convert(err).Message())
+
+		// Test 4: Group mismatch
+		deploymentCorrect := &appsv1.Deployment{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+			Name:       "test-deployment",
+			Namespace:  "default",
+			Spec: appsv1.DeploymentSpec{
+				Selector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{"app": "test"},
+				},
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "test"},
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "test",
+								Image: "nginx",
+							},
+						},
+					},
+				},
+			},
+		}
+		deploymentJSON, err := json.Marshal(deploymentCorrect)
+		require.NoError(t, err)
+
+		queryGroupMismatch := &application.ApplicationServerSideDiffQuery{
+			AppName:      new("test-app"),
+			AppNamespace: new(testNamespace),
+			Project:      new("test-project"),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "batch", // Group doesn't match JSON (apps)
+					Kind:      "Deployment",
+					Namespace: "default",
+					Name:      "test-deployment",
+					LiveState: string(deploymentJSON),
+				},
+			},
+			TargetManifests: []string{string(deploymentJSON)},
+		}
+
+		_, err = appServer.ServerSideDiff(t.Context(), queryGroupMismatch)
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Equal(t, "group mismatch: expected batch, got apps for live resource batch/Deployment/test-deployment", status.Convert(err).Message())
+	})
 }
 
 // TestTerminateOperationWithConflicts tests that TerminateOperation properly handles
@@ -4590,7 +5058,7 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 	}
 
 	appServer := newTestAppServer(t, testApp)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Get the fake clientset from the deepCopy wrapper
 	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
@@ -4626,7 +5094,7 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 			return true, nil, apierrors.NewConflict(
 				schema.GroupResource{Group: "argoproj.io", Resource: "applications"},
 				app.Name,
-				stderrors.New("the object has been modified"),
+				errors.New("the object has been modified"),
 			)
 		}
 
@@ -4651,7 +5119,7 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 		appServer := newTestAppServer(t, app)
 
 		project := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+			Name: "default", Namespace: "default",
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:  []string{"*"},
 				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -4670,7 +5138,7 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 		}
 
 		projWithSA := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "proj-impersonate", Namespace: "default"},
+			Name: "proj-impersonate", Namespace: "default",
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:  []string{"*"},
 				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -4712,7 +5180,7 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 
 		// "default" project has no DestinationServiceAccounts
 		project := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+			Name: "default", Namespace: "default",
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos:  []string{"*"},
 				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -4723,6 +5191,76 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 		assert.Nil(t, config)
 		assert.ErrorContains(t, err, "no matching service account found")
 	})
+
+	t.Run("ImpersonationEnabledWithNoMatchEnforcementDisabled", func(t *testing.T) {
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+
+		app := newTestApp()
+		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+			map[string]string{
+				"application.sync.impersonation.enabled":  "true",
+				"application.sync.impersonation.enforced": "false",
+			},
+			app,
+		)
+
+		// "default" project has no DestinationServiceAccounts
+		project := &v1alpha1.AppProject{
+			Name: "default", Namespace: "default",
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			},
+		}
+
+		config, err := appServer.getApplicationClusterConfig(t.Context(), app, project)
+		require.NoError(t, err)
+		assert.NotNil(t, config)
+		// Should not have impersonation set (uses controller SA)
+		assert.Empty(t, config.Impersonate.UserName)
+	})
+
+	t.Run("ImpersonationEnabledWithMatchEnforcementDisabled", func(t *testing.T) {
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+
+		projWithSA := &v1alpha1.AppProject{
+			Name: "proj-impersonate", Namespace: "default",
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+					{
+						Server:                "https://cluster-api.example.com",
+						Namespace:             test.FakeDestNamespace,
+						DefaultServiceAccount: "test-sa",
+					},
+				},
+			},
+		}
+
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Project = "proj-impersonate"
+		})
+
+		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+			map[string]string{
+				"application.sync.impersonation.enabled":  "true",
+				"application.sync.impersonation.enforced": "false",
+			},
+			app, projWithSA,
+		)
+
+		config, err := appServer.getApplicationClusterConfig(t.Context(), app, projWithSA)
+		require.NoError(t, err)
+		// Should use impersonation since SA is configured
+		assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
+	})
 }
 
 func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {
@@ -4732,7 +5270,7 @@ func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {
 	}
 
 	projWithSA := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "proj-impersonate", Namespace: "default"},
+		Name: "proj-impersonate", Namespace: "default",
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -4769,4 +5307,248 @@ func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
+}
+
+func TestRollbackRBACPermissions(t *testing.T) {
+	newTestAppWithRollbackHistory := func() *v1alpha1.Application {
+		app := newTestApp()
+		app.Spec.Project = "default"
+		app.Status.History = []v1alpha1.RevisionHistory{{
+			ID:        1,
+			Revision:  "abc",
+			Revisions: []string{"abc"},
+			Source:    *app.Spec.Source.DeepCopy(),
+			Sources:   []v1alpha1.ApplicationSource{*app.Spec.Source.DeepCopy()},
+		}}
+		return app
+	}
+
+	setupServer := func(t *testing.T, testApp *v1alpha1.Application, rollbackEnforce bool) *Server {
+		t.Helper()
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:readonly")
+		}
+		additionalConfig := map[string]string{}
+		if rollbackEnforce {
+			additionalConfig["server.rbac.rollback.enforce.enable"] = "true"
+		}
+		return newTestAppServerWithEnforcerConfigure(t, f, additionalConfig, testApp)
+	}
+
+	t.Run("rollback permission allows rollback when feature flag enabled", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		appServer := setupServer(t, testApp, true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
+		require.NoError(t, appServer.enf.SetUserPolicy("p, user1, applications, rollback, default/test-app, allow"))
+
+		updatedApp, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, updatedApp.Operation)
+	})
+
+	t.Run("rollback permission denied without sync when feature flag disabled", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		appServer := setupServer(t, testApp, false)
+		// flag=false (default): server checks sync, not rollback
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
+		require.NoError(t, appServer.enf.SetUserPolicy("p, user1, applications, rollback, default/test-app, allow"))
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+
+	t.Run("sync permission allows rollback for backwards compatibility", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		appServer := setupServer(t, testApp, false)
+		// flag=false (default): sync permission is sufficient for rollback
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
+		require.NoError(t, appServer.enf.SetUserPolicy("p, user1, applications, sync, default/test-app, allow"))
+
+		updatedApp, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, updatedApp.Operation)
+	})
+
+	t.Run("rollback denied when feature flag enabled and only sync granted", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		appServer := setupServer(t, testApp, true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
+		// user has sync but NOT rollback — with flag enabled, rollback is required
+		require.NoError(t, appServer.enf.SetUserPolicy("p, user1, applications, sync, default/test-app, allow"))
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+
+	t.Run("no rollback or sync permission is denied", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		appServer := setupServer(t, testApp, true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
+		require.NoError(t, appServer.enf.SetUserPolicy("p, user1, applications, get, default/test-app, allow"))
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+}
+
+func TestRollbackRBACPermissions_ProjectScoped(t *testing.T) {
+	const projName = "rollback-proj"
+
+	newTestAppWithRollbackHistory := func() *v1alpha1.Application {
+		app := newTestApp()
+		app.Spec.Project = projName
+		app.Status.History = []v1alpha1.RevisionHistory{{
+			ID:        1,
+			Revision:  "abc",
+			Revisions: []string{"abc"},
+			Source:    *app.Spec.Source.DeepCopy(),
+			Sources:   []v1alpha1.ApplicationSource{*app.Spec.Source.DeepCopy()},
+		}}
+		return app
+	}
+
+	newProjectWithRole := func(roleName string, policies []string) *v1alpha1.AppProject {
+		return &v1alpha1.AppProject{
+			Name: projName, Namespace: testNamespace,
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Roles: []v1alpha1.ProjectRole{
+					{Name: roleName, Policies: policies},
+				},
+			},
+		}
+	}
+
+	setupServer := func(t *testing.T, testApp *v1alpha1.Application, proj *v1alpha1.AppProject, rollbackEnforce bool) *Server {
+		t.Helper()
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:readonly")
+		}
+		additionalConfig := map[string]string{}
+		if rollbackEnforce {
+			additionalConfig["server.rbac.rollback.enforce.enable"] = "true"
+		}
+		return newTestAppServerWithEnforcerConfigure(t, f, additionalConfig, testApp, proj)
+	}
+
+	t.Run("project-scoped rollback policy allows rollback when feature flag enabled", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		proj := newProjectWithRole("rollback-role", []string{
+			"p, proj:rollback-proj:rollback-role, applications, rollback, rollback-proj/test-app, allow",
+		})
+		appServer := setupServer(t, testApp, proj, true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "proj:rollback-proj:rollback-role"})
+
+		updatedApp, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, updatedApp.Operation)
+	})
+
+	t.Run("project-scoped rollback policy denied without sync when feature flag disabled", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		proj := newProjectWithRole("rollback-role", []string{
+			"p, proj:rollback-proj:rollback-role, applications, rollback, rollback-proj/test-app, allow",
+		})
+		appServer := setupServer(t, testApp, proj, false)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "proj:rollback-proj:rollback-role"})
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+
+	t.Run("project-scoped sync policy allows rollback for backwards compatibility", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		proj := newProjectWithRole("sync-role", []string{
+			"p, proj:rollback-proj:sync-role, applications, sync, rollback-proj/test-app, allow",
+		})
+		appServer := setupServer(t, testApp, proj, false)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "proj:rollback-proj:sync-role"})
+
+		updatedApp, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, updatedApp.Operation)
+	})
+
+	t.Run("project-scoped rollback denied when feature flag enabled and only sync granted", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		proj := newProjectWithRole("sync-role", []string{
+			"p, proj:rollback-proj:sync-role, applications, sync, rollback-proj/test-app, allow",
+		})
+		appServer := setupServer(t, testApp, proj, true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "proj:rollback-proj:sync-role"})
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+
+	t.Run("project-scoped no rollback or sync permission is denied", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		proj := newProjectWithRole("readonly-role", []string{
+			"p, proj:rollback-proj:readonly-role, applications, get, rollback-proj/test-app, allow",
+		})
+		appServer := setupServer(t, testApp, proj, true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "proj:rollback-proj:readonly-role"})
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
 }

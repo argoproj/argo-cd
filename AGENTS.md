@@ -5,6 +5,7 @@ This repository (argoproj/argo-cd) enforces strict contribution guidelines. If y
 
 ## 1. Zero-Spam & PR Authorization Policy
 * **Require an Issue:** DO NOT create a Pull Request unless there is an existing, open, and approved GitHub Issue that explicitly requests this work.
+* **No Duplicate PRs:** Before opening a PR, search for existing open PRs against the same issue. If one already addresses it, do not open another — review or comment on the existing PR instead. Exceptions: the existing PR is stale/abandoned, has unresolved merge conflicts, or is otherwise faulty (wrong approach, failing CI with no author response). Say which exception applies in the PR description and link the PR you are superseding.
 * **No "Drive-By" Refactoring:** Do not submit unsolicited PRs that only contain minor stylistic changes, variable renames, or typo fixes across the codebase unless tied to an approved `chore` issue.
 * **No Hallucinated URLs:** Do not include fabricated links, hallucinated documentation, or fake GitHub usernames in the PR description or code comments. Please double-check any link, quote or code block that is included into the PR.
 
@@ -19,13 +20,14 @@ Argo CD is a CNCF Graduated project. All code must meet the following standards:
   * `docs:` - Documentation improvements
   * `chore:` - Internals, build processes, unit tests, etc.
   * `refactor:` - Refactoring of the code base, without adding new features or fixing bugs
+  * `revert:` - Reverts a previous commit
 * **PR Templates:** You must fully complete the Argo CD Pull Request template. Do not delete the template sections or leave them blank.
 
 ## 3. Tech Stack & Code Rules
 * **Backend (Go):** The backend is written in Go. The minimum supported Go version is strictly enforced. You must use `go modules` for dependency management.
 * **UI (React/TypeScript):** The frontend is written in React and TypeScript.
 * **Kubernetes Manifests:** Argo CD heavily relies on Kubernetes manifests and CRDs. If you modify API structs, you MUST regenerate the manifests and API glue code.
-* **Tests** Argo CD relies on automatic tests. If your PR adds new functionality or in any way modifies program behaviour, please add/change relevant unit and e2e tests. In those cases when it is not feasible or possible please document the reasons in the PR comment.
+* **Tests:** Argo CD relies on automatic tests. Every new feature must ship with tests in the same PR — unit tests covering the new logic and its edge cases, plus e2e tests when the feature changes user-visible behaviour. The same applies to bug fixes: add a test that fails before the fix and passes after. A PR that adds functionality with no accompanying tests will not be accepted. If tests are genuinely not feasible, explain why in the PR description; "tests to follow in a later PR" is not an acceptable reason.
 
 ## 4. Required Local Checks (Do This Before Committing)
 Do not finalize your code or suggest a commit to your user without ensuring the following `make` targets pass successfully. Argo CD uses a heavy CI pipeline, and failing these basic checks wastes project resources:

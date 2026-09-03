@@ -11,6 +11,7 @@ import (
 )
 
 func TestRateLimiter(t *testing.T) {
+	t.Parallel()
 	var closers []utilio.Closer
 	limiter := NewLoginRateLimiter(10)
 	for range 10 {

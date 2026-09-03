@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -13,11 +14,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
+var captureStdoutMutex sync.Mutex
+
 func captureStdout(callback func()) (string, error) {
+	captureStdoutMutex.Lock()
+	defer captureStdoutMutex.Unlock()
+
 	oldStdout := os.Stdout
 	oldStderr := os.Stderr
 	r, w, err := os.Pipe()
@@ -42,19 +47,15 @@ func captureStdout(callback func()) (string, error) {
 
 func newSettingsManager(ctx context.Context, data map[string]string) *settings.SettingsManager {
 	clientset := fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "default",
-			Name:      common.ArgoCDConfigMapName,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Namespace: "default",
+		Name:      common.ArgoCDConfigMapName,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: data,
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "default",
-			Name:      common.ArgoCDSecretName,
-		},
+		Namespace: "default",
+		Name:      common.ArgoCDSecretName,
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),

@@ -14,7 +14,7 @@ Argo CD has the following hook types:
 | `PreDelete`  | Executes before Application resources are deleted. Only runs when the entire Application is being deleted, not during normal sync operations (even with pruning enabled. ) |
 | `PostDelete` | Executes after all Application resources are deleted. _Available starting in v2.10._                                                                                       |
 
-Adding the argocd.argoproj.io/hook annotation to a resource will assign it to a specific phase. During a Sync operation, Argo CD will apply the resource during the appropriate phase of the deployment. Hooks can be any type of Kubernetes resource kind, but tend to be Pod, Job or Argo Workflows. Multiple hooks can be specified as a comma separated list.
+Adding the argocd.argoproj.io/hook annotation to a resource will assign it to a specific phase. During a Sync operation, Argo CD will apply the resource during the appropriate phase of the deployment. Hooks can be any type of Kubernetes resource kind, but tend to be Pod, Job, or Argo Workflows. Multiple hooks can be specified as a comma separated list.
 
 ## How phases work?
 
@@ -32,9 +32,11 @@ Here is a graphical overview of the sync process:
 
 You can use this simple lifecycle method in various scenarios. For example you can run an essential check as a PreSync hook. If it fails then the whole sync operation will stop preventing the deployment from taking place. In a similar manner you can run smoke tests as PostSync hooks. If they succeed you know that your application has passed the validation. If they fail then the whole deployment will be marked as failed and Argo CD can then notify you in order to take further actions.
 
-Hooks at the SyncFail phase can be used for cleanup actions and other housekeeping tasks. Note that if they themselves fail, Argo CD will not do anything special (other than marking the whole operation as failed).
+Hooks do not run during a selective sync operation. During the SyncFail phase, hooks can be used for cleanup and other housekeeping tasks. If a SyncFail hook itself fails, Argo CD does not take any additional action beyond marking the overall operation as failed.
 
-Note that hooks do not run during a selective sync operation.
+During pruning, the wave order is reversed from the creation order. Resources in higher waves are pruned first.
+If pruning any resource in a wave fails, the operation is marked as failed, and resources in lower waves are not processed.
+This ensures that dependent resources are deleted in the correct order.
 
 ## Hook lifecycle and cleanup
 
@@ -50,6 +52,11 @@ This can take the following values:
 
 Note that if no deletion policy is specified, Argo CD will automatically assume `BeforeHookCreation` rules.
 
+> [!WARNING]
+> Stick to the hook-delete-policy annotation for cleaning up hooks and avoid `ttlSecondsAfterFinished`
+> on hook Jobs. Argo CD needs to read the Job to find out how the phase went, and if Kubernetes deletes
+> it first, the sync can end up waiting for a hook that is not there any more.
+
 When Helm hook annotations are mapped onto Argo CD hooks, delete-policy evaluation still follows Argo CD sync phases and sync result semantics rather than Helm's per-hook-event lifecycle. For example, a `PreSync` resource mapped from Helm may remain available until later phases finish, and passive resources such as `ServiceAccount` do not have a completion state like `Job` or `Workflow`.
 
 ## PreDelete and PostDelete Hooks
@@ -57,7 +64,6 @@ When Helm hook annotations are mapped onto Argo CD hooks, delete-policy evaluati
 ### PreDelete Hooks
 
 PreDelete hooks execute before an Application and its resources are deleted. They run only during Application deletion (e.g., `kubectl delete application` or `argocd app delete`), not during normal sync operations, even when pruning is enabled.
-
 **Behavior:**
 
 1. When an Application is deleted, Argo CD checks for PreDelete hooks defined in the Application's manifests
@@ -108,6 +114,8 @@ When a sync operation takes place, Argo CD will:
 2. Apply the resources according to the resulting sequence
 
 There is currently a delay between each sync wave in order to give other controllers a chance to react to the spec change that was just applied. This also prevents Argo CD from assessing resource health too quickly (against the stale object), causing hooks to fire prematurely. The current delay between each sync wave is 2 seconds and can be configured via the environment variable ARGOCD_SYNC_WAVE_DELAY.
+
+
 
 ## Combining Sync waves and hooks
 
@@ -199,7 +207,6 @@ metadata:
     argocd.argoproj.io/hook-delete-policy: HookSucceeded
     argocd.argoproj.io/sync-wave: '-1'
 spec:
-  ttlSecondsAfterFinished: 360
   template:
     spec:
       containers:
@@ -208,7 +215,10 @@ spec:
           imagePullPolicy: Always
           env:
             - name: PGPASSWORD
-              value: admin
+              valueFrom:
+                secretKeyRef:
+                  name: db-migrate-credentials
+                  key: password
             - name: POSTGRES_HOST
               value: my_postgresql_db
           command:
@@ -219,6 +229,28 @@ spec:
       restartPolicy: Never
   backoffLimit: 1
 ```
+
+#### Things to keep in mind
+
+Hooks that talk to something outside the cluster, like a database, come with a few drawbacks.
+
+A PreSync hook is applied before everything in the Sync phase, and that includes any Secret, ConfigMap, or ServiceAccount that belongs to the same Application. 
+So a hook that reads its password from a Secret in that same Application gets the old value or fails outright if the Secret is not there yet. 
+You will usually notice this the first time you rotate the password, so you should either keep the credentials for your hooks outside the Application, 
+or make the Secret a hook as well and give it a lower sync-wave so it lands first.
+
+Hooks also run on every sync, not only when something they care about has changed. 
+A self-heal, a manual sync from the UI, or a change to a completely unrelated part of the Application will all run them again, so whatever the hook does has to be safe to run twice. 
+Most migration tools keep track of what they have already applied and are fine here, so make sure that your manual scripts do the same.
+
+Keep in mind that Argo CD only looks at the hook resource to decide whether the phase worked. 
+A Job that exits with 0 marks the phase as successful, and the next waves go ahead, even if the database ended up in a different state than your application expects. 
+If you want Argo CD to track that state, you need a custom resource with a controller behind it and a [custom health check](../operator-manual/health.md#custom-health-checks), 
+so that the next wave waits for `Healthy` instead of waiting for a process to exit.
+
+Finally, the sync operation stays open for as long as the hook runs, and the Application's status is `Progressing` the whole time. 
+If the migration task takes more time, the operation can hit its timeout while the hook is still going, and terminating the operation does not stop whatever the hook already started. 
+Long or multi-step jobs are usually better handled by a controller or a workflow engine that can report progress on its own.
 
 ### Work around ArgoCD sync failure
 
