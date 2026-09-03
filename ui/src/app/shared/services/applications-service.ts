@@ -79,7 +79,7 @@ export class ApplicationsService {
             .then(res => res.body as models.ApplicationSyncWindowState);
     }
 
-    public ociMetadata(name: string, appNamespace: string, revision: string, sourceIndex: number, versionId: number): Promise<models.OCIMetadata> {
+    public ociMetadata(name: string, appNamespace: string, revision: string, sourceIndex: number, versionId: number | null): Promise<models.OCIMetadata> {
         let r = requests.get(`/applications/${name}/revisions/${revision || 'HEAD'}/ocimetadata`).query({appNamespace});
         if (sourceIndex !== null) {
             r = r.query({sourceIndex});
