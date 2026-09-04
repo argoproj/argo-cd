@@ -73,6 +73,17 @@ function processPath(path: string) {
     return '';
 }
 
+function parseHelmValues(values: string | undefined): {value?: any; error?: string} {
+    if (values === undefined) {
+        return {error: 'Values must be valid YAML'};
+    }
+    try {
+        return {value: jsYaml.load(values)};
+    } catch {
+        return {error: 'Values must be valid YAML'};
+    }
+}
+
 function getParamsEditableItems(
     app: models.Application,
     title: string,
@@ -389,7 +400,9 @@ export const ApplicationParameters = (props: {
                                 }
                             }
                             if (updatedSrc && updatedSrc.helm?.valuesObject) {
-                                updatedSrc.helm.valuesObject = jsYaml.load(updatedSrc.helm.values); // Deserialize json
+                                const parsedValues = parseHelmValues(updatedSrc.helm.values);
+                                if (parsedValues.error) return;
+                                updatedSrc.helm.valuesObject = parsedValues.value; // Deserialize json
                                 updatedSrc.helm.values = '';
                             }
                             await props.save(input, {});
@@ -407,8 +420,8 @@ export const ApplicationParameters = (props: {
 
                         const helmSrc = isMulti ? updatedApp.spec.sources[ind] : updatedApp.spec.source;
                         if (helmSrc?.helm?.values) {
-                            const parsedValues = jsYaml.load(helmSrc.helm.values);
-                            errors[helmValuesPath] = typeof parsedValues === 'object' ? null : 'Values must be a map';
+                            const parsedValues = parseHelmValues(helmSrc.helm.values);
+                            errors[helmValuesPath] = parsedValues.error || (typeof parsedValues.value === 'object' ? null : 'Values must be a map');
                         }
 
                         return errors;
@@ -532,7 +545,9 @@ export const ApplicationParameters = (props: {
                             appSrc.plugin.parameters = params;
                         }
                         if (appSrc.helm && appSrc.helm.valuesObject) {
-                            appSrc.helm.valuesObject = jsYaml.load(appSrc.helm.values); // Deserialize json
+                            const parsedValues = parseHelmValues(appSrc.helm.values);
+                            if (parsedValues.error) return;
+                            appSrc.helm.valuesObject = parsedValues.value; // Deserialize json
                             appSrc.helm.values = '';
                         }
 
@@ -561,8 +576,8 @@ export const ApplicationParameters = (props: {
                     }
 
                     if (updatedApp.spec.sources[ind].helm?.values) {
-                        const parsedValues = jsYaml.load(updatedApp.spec.sources[ind].helm.values);
-                        errors['spec.sources[' + ind + '].helm.values'] = typeof parsedValues === 'object' ? null : 'Values must be a map';
+                        const parsedValues = parseHelmValues(updatedApp.spec.sources[ind].helm.values);
+                        errors['spec.sources[' + ind + '].helm.values'] = parsedValues.error || (typeof parsedValues.value === 'object' ? null : 'Values must be a map');
                     }
 
                     return errors;
