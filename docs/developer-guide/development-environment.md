@@ -77,15 +77,15 @@ Run these commands from your WSL 2 shell, in the root of the Argo CD repository:
 3. Find the WSL 2 gateway address. You will use this address in the next step:
 
    ```shell
-   ip route show | grep default | awk '{print $3}'
+   WSL_GATEWAY_IP=$(ip route show default | awk '{print $3}')
    ```
 
-4. Back up the WSL 2 kubeconfig and create a container-specific copy. Replace `<WSL_GATEWAY_IP>` with the address from the previous command:
+4. Back up the WSL 2 kubeconfig and create a container-specific copy. Kind writes the API server as `127.0.0.1` with a dynamically published port, so replace only the loopback host and preserve that port:
 
    ```shell
    cp ~/.kube/config ~/.kube/config.local
    cp ~/.kube/config ~/.kube/config.container
-   sed -i 's/0.0.0.0:6443/<WSL_GATEWAY_IP>:6443/g' ~/.kube/config.container
+   sed -E -i "s#(server: https://)(127\\.0\\.0\\.1|localhost):([0-9]+)#\\1${WSL_GATEWAY_IP}:\\3#" ~/.kube/config.container
    sed -i '/certificate-authority-data/d' ~/.kube/config.container
    sed -i '/server:/a \    insecure-skip-tls-verify: true' ~/.kube/config.container
    cp ~/.kube/config.container ~/.kube/config
