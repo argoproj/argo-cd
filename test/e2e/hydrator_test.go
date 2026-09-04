@@ -62,10 +62,12 @@ func TestHydratorCrossRepoHydration_READMEUsesDrySourceRepoURL(t *testing.T) {
 
 	drySourceRepoURL := fixture.RepoURL(fixture.RepoURLTypeFile)
 	hydratedRepoURL, hydratedRepoDir := initEmptyGitRepo(t, "hydrated-dest-repo.git")
-	registerRepoAndWriteCredentials(t, "hydrated-dest", hydratedRepoURL)
 
 	Given(t).
 		Name("test-cross-repo-hydration-readme").
+		And(func() {
+			registerRepoAndWriteCredentials(t, "hydrated-dest", hydratedRepoURL)
+		}).
 		When().
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source = nil
@@ -741,6 +743,7 @@ func initEmptyGitRepo(t *testing.T, dirName string) (repoURL, repoDir string) {
 	handler.FailOnErr(fixture.Run(repoDir, "chmod", "777", "."))
 	handler.FailOnErr(fixture.Run(repoDir, "git", "init", "-b", "master"))
 	handler.FailOnErr(fixture.Run(repoDir, "git", "config", "core.sharedRepository", "0666"))
+	handler.FailOnErr(fixture.Run(repoDir, "git", "config", "receive.denyCurrentBranch", "updateInstead"))
 	handler.FailOnErr(fixture.Run(repoDir, "git", "commit", "--allow-empty", "-m", "init"))
 	return "file://" + repoDir, repoDir
 }
