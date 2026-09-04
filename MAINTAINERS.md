@@ -5,6 +5,7 @@ This document lists the maintainers of the Argo CD project.
 ## Maintainers
 
 | Maintainer                | GitHub ID                                               | Project Roles        | Affiliation                                     |
+|---------------------------|---------------------------------------------------------|----------------------|-------------------------------------------------|
 | Zach Aller                | [zachaller](https://github.com/zachaller)               | Reviewer             | [Intuit](https://www.github.com/intuit/)        |
 | Leonardo Luz Almeida      | [leoluz](https://github.com/leoluz)                     | Approver             | [Intuit](https://www.github.com/intuit/)        |
 | Jaewoo Choi               | [choejwoo](https://github.com/choejwoo)                 | Approver(ui)         | Hyundai-Autoever                                  |
