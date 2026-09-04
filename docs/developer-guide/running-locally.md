@@ -175,7 +175,7 @@ Once Argo CD is running locally, you can test it end-to-end against the example 
 Create the sample app from the CLI:
 
 ```shell
-dist/argocd app create guestbook \
+dist/argocd app create guestbook --core \
   --repo https://github.com/argoproj/argocd-example-apps.git \
   --path guestbook \
   --dest-server https://kubernetes.default.svc \
@@ -185,8 +185,8 @@ dist/argocd app create guestbook \
 Then sync and inspect it:
 
 ```shell
-dist/argocd app sync guestbook
-dist/argocd app get guestbook
+dist/argocd --core app sync guestbook
+dist/argocd --core app get guestbook
 ```
 
 You can also verify the same flow in the UI by opening `http://localhost:4000`, logging in as `admin`, and confirming the `guestbook` application appears and reaches a healthy state. This is a good way to validate that your local Argo CD setup can connect to the cluster, read a Git repository, and deploy an application successfully.
