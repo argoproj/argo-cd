@@ -39,9 +39,10 @@ var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/cmpserver/plugin")
 // enough time before the client times out to send a meaningful error message.
 const cmpTimeoutBuffer = 100 * time.Millisecond
 
-// pluginCleanupTimeout is how long a cancelled plugin command's process group has to exit before it
-// is killed. It bounds the whole SIGTERM-then-SIGKILL sequence, see exec.TerminateGroupOnCancel.
-const pluginCleanupTimeout = 5 * time.Second
+// pluginCleanupTimeout bounds the whole SIGTERM-then-SIGKILL sequence for a cancelled plugin command's
+// process group, see exec.TerminateGroupOnCancel. The SIGKILL lands halfway through, so this is twice
+// the cleanup window plugins had before - keeping it at 5s here would have halved it to 2.5s.
+const pluginCleanupTimeout = 10 * time.Second
 
 // Service implements ConfigManagementPluginService interface
 type Service struct {

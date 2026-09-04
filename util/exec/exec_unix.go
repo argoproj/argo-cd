@@ -11,6 +11,9 @@ import (
 // grandchildren too. One holding the command's pipes - git-remote-https on a dead connection, say -
 // otherwise stalls cmd.Wait long past the timeout.
 func SetChildProcessGroup(cmd *exec.Cmd) {
+	if !isolateProcessGroups {
+		return
+	}
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}

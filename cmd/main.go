@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	argoerrors "github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/log"
 )
 
@@ -39,33 +40,33 @@ func init() {
 
 // selectCommand selects the appropriate command based on the binary name.
 // It is a variable so cmd/main_test.go can mock the command selection for testing the exit error handling.
-var selectCommand = func(binaryName string) (command *cobra.Command, isArgocdCLI bool) {
+var selectCommand = func(binaryName string) (command *cobra.Command, isArgocdCLI bool, isInteractiveCLI bool) {
 	switch binaryName {
 	case common.CommandCLI:
-		return cli.NewCommand(), true
+		return cli.NewCommand(), true, true
 	case common.CommandServer:
-		return apiserver.NewCommand(), false
+		return apiserver.NewCommand(), false, false
 	case common.CommandApplicationController:
-		return appcontroller.NewCommand(), false
+		return appcontroller.NewCommand(), false, false
 	case common.CommandRepoServer:
-		return reposerver.NewCommand(), false
+		return reposerver.NewCommand(), false, false
 	case common.CommandCMPServer:
-		return cmpserver.NewCommand(), true
+		return cmpserver.NewCommand(), true, false
 	case common.CommandCommitServer:
-		return commitserver.NewCommand(), false
+		return commitserver.NewCommand(), false, false
 	case common.CommandDex:
-		return dex.NewCommand(), false
+		return dex.NewCommand(), false, false
 	case common.CommandNotifications:
-		return notification.NewCommand(), false
+		return notification.NewCommand(), false, false
 	case common.CommandGitAskPass:
-		return gitaskpass.NewCommand(), true
+		return gitaskpass.NewCommand(), true, false
 	case common.CommandApplicationSetController:
-		return applicationset.NewCommand(), false
+		return applicationset.NewCommand(), false, false
 	case common.CommandK8sAuth:
-		return k8sauth.NewCommand(), true
+		return k8sauth.NewCommand(), true, false
 	default:
 		// "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe" are also valid binary names
-		return cli.NewCommand(), true
+		return cli.NewCommand(), true, true
 	}
 }
 
@@ -78,7 +79,7 @@ func main() {
 		binaryName = val
 	}
 
-	command, isArgocdCLI := selectCommand(binaryName)
+	command, isArgocdCLI, isInteractiveCLI := selectCommand(binaryName)
 
 	if isArgocdCLI {
 		// silence errors and usages since we'll be printing them manually.
@@ -86,6 +87,13 @@ func main() {
 		// errors and usage are always going to get printed that we don't want.
 		command.SilenceErrors = true
 		command.SilenceUsage = true
+	}
+
+	if isInteractiveCLI {
+		// A terminal delivers Ctrl-C to its whole foreground process group, so commands the CLI spawns
+		// - helm and kustomize, via `app diff --local` - have to stay in it. See
+		// exec.DisableProcessGroupIsolation.
+		executil.DisableProcessGroupIsolation()
 	}
 
 	err := command.Execute()
