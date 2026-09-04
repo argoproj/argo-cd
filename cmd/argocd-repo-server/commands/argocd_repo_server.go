@@ -270,7 +270,7 @@ func NewCommand() *cobra.Command {
 			return nil
 		}),
 	}
-	command.Flags().DurationVar(&shutdownDrainTimeout, "shutdown-drain-timeout", env.ParseDurationFromEnv("ARGOCD_REPO_SERVER_SHUTDOWN_DRAIN_TIMEOUT", 10*time.Second, 0, math.MaxInt32*time.Second), "How long to wait for in-flight requests to finish on shutdown before terminating the commands they are running; 0 terminates them as soon as the signal arrives. Drain timeout plus ARGOCD_EXEC_FATAL_TIMEOUT must fit under the pod's grace period, so requests are cancelled before the kubelet's SIGKILL.")
+	command.Flags().DurationVar(&shutdownDrainTimeout, "shutdown-drain-timeout", env.ParseDurationFromEnv("ARGOCD_REPO_SERVER_SHUTDOWN_DRAIN_TIMEOUT", 10*time.Second, 0, math.MaxInt32*time.Second), "How long to wait for in-flight requests to finish on shutdown before terminating the commands they are running; 0 terminates them as soon as the signal arrives. Drain timeout plus twice ARGOCD_EXEC_FATAL_TIMEOUT must fit under the pod's grace period, so requests are cancelled before the kubelet's SIGKILL.")
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", int64(env.ParseNumFromEnv("ARGOCD_REPO_SERVER_PARALLELISM_LIMIT", 0, 0, math.MaxInt32)), "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")

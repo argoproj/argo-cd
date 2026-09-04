@@ -362,24 +362,59 @@ func TestTerminateGroupOnCancelZeroGraceStillEscalates(t *testing.T) {
 	assert.Equal(t, []syscall.Signal{syscall.SIGTERM}, rec.recorded(), "SIGKILL must wait for the grace period")
 }
 
+// TestRunCommandExtBoundsWaitOnHeldPipes covers a grandchild that outlives the command holding its
+// stdout: without a WaitDelay cmd.Wait never returns, and on the shutdown path the repo-server's
+// drain would then block until the kubelet's SIGKILL.
+func TestRunCommandExtBoundsWaitOnHeldPipes(t *testing.T) {
+	t.Cleanup(initTimeout)
+	t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "500ms")
+	initTimeout()
+
+	// The command exits at once; the backgrounded sleep keeps the inherited stdout open.
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "sleep 5 & exit 0")
+
+	start := time.Now()
+	_, err := RunCommandExt(cmd, CmdOpts{Timeout: time.Minute})
+	elapsed := time.Since(start)
+
+	// newCmdError rebuilds the cause from its text, so the sentinel itself does not survive.
+	require.ErrorContains(t, err, exec.ErrWaitDelay.Error())
+	assert.Lessf(t, elapsed, 10*time.Second,
+		"RunCommandExt blocked for %s on pipes held by a grandchild; WaitDelay did not bound the wait", elapsed)
+}
+
+func TestRunCommandExtKeepsCallerWaitDelay(t *testing.T) {
+	cmd := exec.CommandContext(t.Context(), "true")
+	// What TerminateGroupOnCancel installs; RunCommandExt must not overwrite it.
+	cmd.WaitDelay = time.Hour
+	_, err := RunCommandExt(cmd, CmdOpts{Timeout: time.Minute})
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Hour, cmd.WaitDelay)
+}
+
 func TestCancelGrace(t *testing.T) {
+	// Cleanups run LIFO, so registering before t.Setenv is what makes initTimeout re-read the
+	// restored environment rather than the test's own value.
 	t.Run("Falls back when the fatal timeout is disabled", func(t *testing.T) {
+		t.Cleanup(initTimeout)
 		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "0")
 		initTimeout()
-		t.Cleanup(initTimeout)
 		assert.Equal(t, defaultCancelGrace, CancelGrace())
 	})
 	t.Run("Uses the configured fatal timeout", func(t *testing.T) {
+		t.Cleanup(initTimeout)
 		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "3s")
 		initTimeout()
-		t.Cleanup(initTimeout)
 		assert.Equal(t, 3*time.Second, CancelGrace())
 	})
 }
 
 // resetShutdown re-arms Shutdown, so that a test exercising it does not stop every later command in
-// the run. Tests in this package run one at a time, so the unsynchronised write is safe here; a
-// parallel test would have to serialise it against the reads in RunCommandExt.
+// the run. No test that touches shutdown calls t.Parallel(), and the ones that do - here and in
+// exec_norace_test.go - only resume once every serial test and its cleanups have finished, so the
+// unsynchronised write is safe. Making a shutdown test parallel would have to serialise it against
+// the reads in RunCommandExt.
 func resetShutdown() {
 	shutdown = make(chan struct{})
 	shutdownOnce = sync.Once{}

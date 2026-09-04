@@ -396,7 +396,8 @@ func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
 	defer cancel()
 
 	// Use a subshell so there's a child command.
-	// This command sleeps for 4 seconds which is currently less than the 5 second delay between SIGTERM and SIGKILL signal and then exits successfully.
+	// This command sleeps for 4 seconds which is currently less than the 5 second delay between SIGTERM
+	// and SIGKILL signal (half of pluginCleanupTimeout) and then exits successfully.
 	command := Command{
 		Command: []string{"sh", "-c"},
 		Args:    []string{`(trap 'echo "cleanup completed"; exit' TERM; sleep 4)`},

@@ -58,6 +58,18 @@ func initTimeout() {
 // disables the timeout path's SIGKILL, but cancellation has no other backstop.
 const defaultCancelGrace = 10 * time.Second
 
+// isolateProcessGroups gates SetChildProcessGroup. See DisableProcessGroupIsolation.
+var isolateProcessGroups = true
+
+// DisableProcessGroupIsolation keeps commands in the caller's process group. The argocd CLI calls
+// this at startup: a terminal delivers Ctrl-C to its whole foreground group, so a command moved into
+// its own group would keep running after the user interrupts - `app diff --local` spawns helm and
+// kustomize through here. Servers have no terminal and need the isolation, so they leave it on.
+// Call before running any command.
+func DisableProcessGroupIsolation() {
+	isolateProcessGroups = false
+}
+
 // CancelGrace is how long a cancelled command has before it is killed. Callers budgeting around
 // cancellation must use this rather than the raw ARGOCD_EXEC_FATAL_TIMEOUT, so as not to undercut it.
 func CancelGrace() time.Duration {
@@ -286,6 +298,13 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 
 	// Own process group, so a timeout reaps grandchildren too. See SignalProcessGroup.
 	SetChildProcessGroup(cmd)
+	if cmd.WaitDelay == 0 {
+		// Bound cmd.Wait. A grandchild that left the group survives the SIGKILL still holding the
+		// inherited pipes, and every <-done below would then block forever - including the one on the
+		// shutdown path, which the repo-server's drain waits on. Callers that installed
+		// TerminateGroupOnCancel already set this, so leave theirs alone.
+		cmd.WaitDelay = CancelGrace()
+	}
 
 	select {
 	case <-shutdown:
