@@ -210,6 +210,26 @@ func describeProblems(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfos []
 	return problems, legacyDescription
 }
 
+// lookupPrimaryKeyID resolves a signing (sub)key ID to the primary key it belongs to.
+// It is a package variable so tests can stub the keyring lookup; because it is shared
+// process-wide, only swap it from serial (non-t.Parallel) tests.
+var lookupPrimaryKeyID = PrimaryKeyID
+
+// keyAllowed reports whether keyID is one of the keys configured in the policy.
+func keyAllowed(keys []string, keyID string) bool {
+	for _, key := range keys {
+		allowedKeyID, err := KeyID(key)
+		if err != nil {
+			log.Error(err.Error())
+			continue
+		}
+		if allowedKeyID == keyID {
+			return true
+		}
+	}
+	return false
+}
+
 // gpgProblemMessage generates a message describing GPG verification issues for a specific revision signature and the configured policy.
 // When an empty string is returned, it means there is no problem - the validation has passed.
 func gpgProblemMessage(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfo git.RevisionSignatureInfo) string {
@@ -220,13 +240,19 @@ func gpgProblemMessage(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfo gi
 		)
 	}
 
-	for _, allowedKey := range g.Keys {
-		allowedKey, err := KeyID(allowedKey)
-		if err != nil {
-			log.Error(err.Error())
-			continue
-		}
-		if allowedKey == signatureInfo.SignatureKeyID {
+	if keyAllowed(g.Keys, signatureInfo.SignatureKeyID) {
+		return ""
+	}
+
+	// git signs with a dedicated signing subkey when the key has one, but operators normally
+	// list the primary key in the policy. Resolve the signing key back to its primary and
+	// allow the signature if that primary key is in the policy. The lookup is restricted to
+	// 16-char key IDs, the form git's %GK emits, so it cannot widen matching to key formats
+	// that were not accepted before.
+	if IsShortKeyID(signatureInfo.SignatureKeyID) {
+		if primaryKeyID, err := lookupPrimaryKeyID(signatureInfo.SignatureKeyID); err != nil {
+			log.Debugf("could not resolve primary key for signing key %s: %v", signatureInfo.SignatureKeyID, err)
+		} else if primaryKeyID != signatureInfo.SignatureKeyID && keyAllowed(g.Keys, primaryKeyID) {
 			return ""
 		}
 	}

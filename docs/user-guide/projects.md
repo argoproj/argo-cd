@@ -133,6 +133,8 @@ argocd proj deny-cluster-resource <PROJECT> <GROUP> <KIND>
 argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND> [<NAME>]
 ```
 
+When a project uses `namespaceResourceWhitelist`, the whitelist also controls which child resources appear in the Application resource tree in the UI. Any child resource whose GroupKind is not permitted by the project is omitted from the tree, even if it exists and is healthy in the cluster. For example, if the whitelist includes only `apps/Deployment` and `Service`, the Deployment node is shown but its `ReplicaSet` and `Pod` children are hidden until `apps/ReplicaSet` and `Pod` are added to the whitelist. This filtering does not affect sync permissions for resources already deployed; it only affects observability in the resource tree.
+
 #### Restrict Cluster-Scoped Resources by Name
 
 Since the names of certain cluster-scoped resources such as Namespaces and CustomResourceDefinitions (CRDs) have special

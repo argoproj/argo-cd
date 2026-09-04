@@ -551,6 +551,10 @@ On each run, the hydrator:
 
 This improves efficiency and reduces commit noise in your repository.
 
+If external tooling reads git notes for promotion or coordination (for example, to gate on which dry SHAs
+have been processed), be aware that `manifest-generate-paths` can prevent note advancement when hydration
+is skipped. See [Git note attestation and manifest-generate-paths](#git-note-attestation-and-manifest-generate-paths).
+
 ## Hydration failures and retries
 
 When hydration fails, the application remains in the `Failed` phase and the error message is kept on
@@ -589,7 +593,14 @@ The annotation takes one of two values:
 > [!NOTE]
 > Only the exact value `hard` is special-cased. Any other value is treated as `normal`.
 
-Argo CD sets this annotation automatically in a few situations:
+Whenever Argo CD sets this annotation itself (see the triggers below), it also sets the companion
+`argocd.argoproj.io/hydrate-timestamp` annotation to a unique timestamp identifying that specific
+hydration request. When the controller finishes hydrating, it removes both annotations together, but only
+if `hydrate-timestamp` still has the value it had when hydration started. If a new hydration request
+arrived while the previous one was being processed, `hydrate-timestamp` will have a newer value, removal is
+skipped, and the request is processed instead of being silently dropped.
+
+Argo CD sets these annotations automatically in a few situations:
 
 * **Manual or API refresh.** `argocd app get <app> --refresh` (and the equivalent API call) sets it to `normal`;
   `argocd app get <app> --hard-refresh` sets it to `hard`.
@@ -615,6 +626,11 @@ The source hydrator honors the [`manifest-generate-paths` annotation](../operato
 to avoid unnecessary hydration. When the annotation is set, a new dry-source commit that does not touch the annotated
 paths (resolved relative to the `drySource` path) does not trigger re-hydration.
 
+The annotation controls **whether hydration is triggered**, not merely whether hydrated manifests would change.
+When hydration is skipped, the hydrator does not run and the `hydrator.metadata` git note on the hydrated branch
+is not advanced. See [Git note attestation and manifest-generate-paths](#git-note-attestation-and-manifest-generate-paths)
+for implications when external tooling reads git notes.
+
 This applies to both webhook-driven and periodically-reconciled refreshes:
 
 * A webhook for the **dry source** triggers hydration only when the changed files match the annotated paths.
@@ -626,6 +642,35 @@ The annotation's path filtering applies to the dry source. The sync source is al
 
 ## Limitations
 
+### Repository support
+
+The source hydrator currently supports only Git repositories. `drySource.repoURL` must reference a Git
+repository. The effective sync repository must also be Git: `syncSource.repoURL` may reference a different
+Git repository or be omitted to inherit `drySource.repoURL`. 
+
+OCI repositories (`oci://...`) are supported as [regular Application sources](oci.md), but cannot currently
+be used as a `drySource` or hydration destination. An OCI dry source may be accepted and resolved to a digest,
+but hydration will fail when Argo CD attempts to retrieve Git revision metadata.
+
+### Git note attestation and manifest-generate-paths
+
+The hydrator records which dry SHAs it has processed in a git note (`refs/notes/hydrator.metadata`) on the
+hydrated branch. The note is written by commit-server when hydration runs — including the case where manifests
+are unchanged and no new hydrated commit is created.
+
+When `manifest-generate-paths` causes hydration to be skipped (because changed files fall outside the annotated
+paths), commit-server is never called and the git note is **not** advanced. Application status may still record
+that the dry revision was compared, but the note's `drySha` will lag behind. In other words, the note attests only
+the dry commits for which the hydrator actually ran; it does not advance for dry commits filtered out by
+`manifest-generate-paths`, even though those commits would produce no manifest change.
+
+If you consume `hydrator.metadata` notes, account for this: only dry commits that match an Application's
+`manifest-generate-paths` (or all dry commits, when the annotation is unset) are attested on its hydrated branch.
+
+A planned enhancement ([#28556](https://github.com/argoproj/argo-cd/issues/28556)) will add a lightweight
+commit-server endpoint to advance the git note without a full hydration run (no repo-server render or manifest
+disk compare).
+
 ### Signature Verification
 
 *Current Status: Alpha (Since v3.5)*
@@ -636,8 +681,122 @@ not verified), hydration is rejected. Verification is opted into per project by 
 the `AppProject`. See [Source Integrity Verification](source-integrity.md) for how to set it up (for example, using
 [Git GnuPG verification](source-integrity-git-gpg.md)).
 
-The hydrator **does not** sign the commits it pushes to git, so if signature verification is enabled for the
-hydrated branch, those commits will fail verification when Argo CD attempts to sync the hydrated manifests.
+By default the hydrator **does not** sign the commits it pushes to git, so if signature verification is enabled
+for the hydrated branch those commits will fail verification when Argo CD attempts to sync the hydrated manifests.
+See [Signing Hydrated Commits](#signing-hydrated-commits) below for how to opt in.
+
+### Signing Hydrated Commits
+
+*Current Status: Alpha (Since v3.6)*
+
+The commit server can optionally GPG-sign every hydrated commit before pushing it. Signing is enabled simply by
+configuring a signing key path — there is no separate on/off toggle. When a key is configured, the commit server
+fails fast at startup if the signing key is missing or invalid, and refuses to push any commit it cannot locally
+verify against the configured key — there is no unsigned fallback.
+
+To enable signing:
+
+1. Create a Kubernetes Secret in the Argo CD namespace named `argocd-commit-server-gpg-signing-key` containing
+   the ASCII-armored private key, and (optionally) the passphrase:
+
+    ```yaml
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: argocd-commit-server-gpg-signing-key
+      namespace: argocd
+    type: Opaque
+    stringData:
+      signingKey: |
+        -----BEGIN PGP PRIVATE KEY BLOCK-----
+        ...
+        -----END PGP PRIVATE KEY BLOCK-----
+      # Optional. Omit entirely if the key has no passphrase.
+      passphrase: "s3cret"
+    ```
+
+2. Set the relevant params in `argocd-cmd-params-cm`. Setting the key path is what turns signing on:
+
+    ```yaml
+    # Empty by default (signing off). Point this at the mounted Secret entry to enable signing.
+    commitserver.signing.key.path: "/app/config/gpg/signing/signingKey"
+    # Empty by default. Set this ONLY for a passphrase-protected key, pointing at the
+    # mounted `passphrase` Secret entry. Leave unset for an unprotected key.
+    commitserver.signing.key.passphrase.file: "/app/config/gpg/signing/passphrase"
+    ```
+
+3. Add the corresponding **public** key to Argo CD's trusted GPG keys (via the UI, CLI, or the
+   `argocd-gpg-keys-cm` ConfigMap) and configure your project's `SourceIntegrity` policy so the hydrated branch is
+   verified at sync time. Without this step Argo CD will accept the signed commit but won't actually enforce that
+   it was signed.
+
+    Declaratively, add the public key to `argocd-gpg-keys-cm`, keyed by the signing key's ID with the
+    ASCII-armored public key as the value:
+
+    ```yaml
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: argocd-gpg-keys-cm
+      namespace: argocd
+      labels:
+        app.kubernetes.io/name: argocd-gpg-keys-cm
+        app.kubernetes.io/part-of: argocd
+    data:
+      # The signing key's ID, with its ASCII-armored public key as the value.
+      D56C4FCA57A46444: |
+        -----BEGIN PGP PUBLIC KEY BLOCK-----
+        ...
+        -----END PGP PUBLIC KEY BLOCK-----
+    ```
+
+    Then reference that key ID in the project's `SourceIntegrity` policy so the hydrated (`hydrateTo`) branch is
+    verified at sync time:
+
+    ```yaml
+    apiVersion: argoproj.io/v1alpha1
+    kind: AppProject
+    metadata:
+      name: my-project
+      namespace: argocd
+    spec:
+      sourceIntegrity:
+        git:
+          policies:
+            - repos:
+                - url: "https://github.com/my-org/my-hydrated-repo.git"
+              gpg:
+                # "strict" verifies the entire branch history; because the commit server signs every hydrated
+                # commit, this holds for a branch signed from the start. Use "head" to verify only the tip commit
+                # instead — useful when the branch already had unsigned commits before signing was enabled.
+                mode: "strict"
+                keys:
+                  - "D56C4FCA57A46444"
+    ```
+
+    See [Git GnuPG verification](./source-integrity-git-gpg.md) for the full policy reference.
+
+> [!NOTE]
+> The configured key is the commit server's single, cluster-wide **default** signing key. Finer-grained signing
+> keys (for example per-AppProject or per-repository) are not supported yet, but are a planned additive extension —
+> the existing `commitserver.signing.key.*` params will remain the default and won't be renamed.
+
+> [!NOTE]
+> If your signing key has a dedicated **signing subkey** (common when the primary key is kept certify-only, e.g. a
+> key extended with `gpg --quick-add-key <fpr> - sign`), git signs commits with that subkey rather than the primary
+> key. You only need to list the **primary** key fingerprint in your `SourceIntegrity` policy — verification
+> resolves the signing subkey back to its primary key, so a subkey signature is accepted as long as the primary is
+> trusted. The public key you import via `argocd-gpg-keys-cm` already carries its subkeys, so no extra configuration
+> is required.
+
+> [!WARNING]
+> If you use a tool that auto-merges the hydrated `hydrateTo` branch into the `syncSource` branch — for example
+> [GitOps Promoter](https://github.com/argoproj-labs/gitops-promoter) or a GitHub "merge pull request" automation —
+> the live branch HEAD becomes a **merge commit signed by the merger**, not the commit server's signed commit.
+> Argo CD verifies that merge commit when it picks up the change on the live branch, so verification will fail
+> unless the merger's public key is also trusted. Add the merger's public key (e.g. GitHub's web-flow key from
+> `https://github.com/web-flow.gpg`) to `argocd-gpg-keys-cm` and your project's `SourceIntegrity` policy alongside
+> the commit server's signing key.
 
 ### Project-Scoped Push Secrets
 

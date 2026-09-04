@@ -21,7 +21,7 @@ var (
 		prometheus.CounterOpts{
 			Name: "argocd_redis_request_total",
 		},
-		[]string{"initiator", "failed"},
+		[]string{"initiator", "command", "failed"},
 	)
 	redisRequestHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -47,8 +47,8 @@ func NewMockMetricsServer() *MockMetricsServer {
 	}
 }
 
-func (m *MockMetricsServer) IncRedisRequest(failed bool) {
-	m.redisRequestCounter.WithLabelValues("mock", strconv.FormatBool(failed)).Inc()
+func (m *MockMetricsServer) IncRedisRequest(command string, failed bool) {
+	m.redisRequestCounter.WithLabelValues("mock", command, strconv.FormatBool(failed)).Inc()
 }
 
 func (m *MockMetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
@@ -67,6 +67,47 @@ func TestRedisSetCache(t *testing.T) {
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 60*time.Second, RedisCompressionNone)
 		err = client.Set(&Item{Key: "foo", Object: "bar"})
 		require.NoError(t, err)
+	})
+
+	t.Run("Successful get", func(t *testing.T) {
+		var res string
+		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
+		err = client.Get("foo", &res)
+		require.NoError(t, err)
+		assert.Equal(t, "bar", res)
+	})
+
+	t.Run("Successful delete", func(t *testing.T) {
+		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
+		err = client.Delete("foo")
+		require.NoError(t, err)
+	})
+
+	t.Run("Cache miss", func(t *testing.T) {
+		var res string
+		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
+		err = client.Get("foo", &res)
+		assert.ErrorContains(t, err, "cache: key is missing")
+	})
+}
+
+func TestRedisSetCacheWithPrefix(t *testing.T) {
+	prefix := "argocd-dev:"
+	t.Setenv("ARGOCD_REDIS_KEY_PREFIX", prefix)
+	mr, err := miniredis.Run()
+	if err != nil {
+		panic(err)
+	}
+	defer mr.Close()
+	assert.NotNil(t, mr)
+
+	t.Run("Successful set", func(t *testing.T) {
+		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 60*time.Second, RedisCompressionNone)
+		err = client.Set(&Item{Key: "foo", Object: "bar"})
+		require.NoError(t, err)
+		keys := mr.Keys()
+		require.Len(t, keys, 1)
+		assert.Equal(t, prefix+"foo", keys[0])
 	})
 
 	t.Run("Successful get", func(t *testing.T) {
@@ -141,31 +182,40 @@ func TestRedisMetrics(t *testing.T) {
 	faultyClient := NewRedisCache(faultyRedisClient, 60*time.Second, RedisCompressionNone)
 	var res string
 
+	assertCounter := func(command, failed string, expected float64) {
+		t.Helper()
+		m := &promcm.Metric{}
+		c, err := ms.redisRequestCounter.GetMetricWithLabelValues("mock", command, failed)
+		require.NoError(t, err)
+		require.NoError(t, c.Write(m))
+		assert.InEpsilon(t, expected, m.Counter.GetValue(), 0.0001)
+	}
+
 	// client successful request
 	err = client.Set(&Item{Key: "foo", Object: "bar"})
 	require.NoError(t, err)
 	err = client.Get("foo", &res)
 	require.NoError(t, err)
 
-	c, err := ms.redisRequestCounter.GetMetricWithLabelValues("mock", "false")
-	require.NoError(t, err)
-	err = c.Write(metric)
-	require.NoError(t, err)
-	assert.InEpsilon(t, float64(2), metric.Counter.GetValue(), 0.0001)
+	// successful commands are recorded per command with failed="false"
+	assertCounter("set", "false", 1)
+	assertCounter("get", "false", 1)
+
+	// Rename against a missing source key is a benign cache miss: it returns ErrCacheMiss and must
+	// NOT be counted as a failed request.
+	err = client.Rename("missing-old", "new", 0)
+	require.ErrorIs(t, err, ErrCacheMiss)
+	assertCounter("rename", "false", 1)
 
 	// faulty client failed request
 	err = faultyClient.Get("foo", &res)
 	require.Error(t, err)
-	c, err = ms.redisRequestCounter.GetMetricWithLabelValues("mock", "true")
-	require.NoError(t, err)
-	err = c.Write(metric)
-	require.NoError(t, err)
-	assert.InEpsilon(t, float64(1), metric.Counter.GetValue(), 0.0001)
+	assertCounter("get", "true", 1)
 
-	// both clients histogram count
+	// every client request observes a duration sample (set, get, rename, faulty get)
 	o, err := ms.redisRequestHistogram.GetMetricWithLabelValues("mock")
 	require.NoError(t, err)
 	err = o.(prometheus.Metric).Write(metric)
 	require.NoError(t, err)
-	assert.Equal(t, 3, int(metric.Histogram.GetSampleCount()))
+	assert.Equal(t, 4, int(metric.Histogram.GetSampleCount()))
 }

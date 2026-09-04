@@ -73,6 +73,20 @@ export function helpTip(text: string) {
     );
 }
 
+/**
+ * Builds the class list for the Application (and ApplicationSet) details container.
+ *
+ * The per-application class is a styling hook that lets operators target a specific
+ * application's page from custom CSS (see docs/operator-manual/custom-styles.md, added in #13279).
+ * It is prefixed with `user-app-` so that an application whose name matches a built-in component
+ * class cannot collide with that component's styles. For example, an application named `login`
+ * previously rendered the class `application-details login`, which pulled in the login page's
+ * `.login` styles and broke the page (issue #24220).
+ */
+export function getApplicationDetailsContainerClass(appName: string): string {
+    return `application-details user-app-${appName}`;
+}
+
 //CLassic Solid circle-notch icon
 //<!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
 //this will replace all <i> fa-spin </i> icons as they are currently misbehaving with no fix available.
@@ -87,6 +101,11 @@ export const SpinningIcon = ({color, qeId}: {color: string; qeId: string}) => {
         </svg>
     );
 };
+
+export function nameConfirmationError(entered: string, expected: string, emptyMessage: string, mismatchMessage: string): string | false {
+    if (entered === expected) return false;
+    return !entered ? emptyMessage : mismatchMessage;
+}
 
 export async function deleteApplication(appName: string, appNamespace: string, apis: ContextApis, application?: appModels.Application): Promise<boolean> {
     let confirmed = false;
@@ -163,7 +182,7 @@ export async function deleteApplication(appName: string, appNamespace: string, a
         ),
         {
             validate: vals => ({
-                applicationName: vals.applicationName !== appName && 'Enter the application name to confirm the deletion'
+                applicationName: nameConfirmationError(vals.applicationName, appName, 'Enter the application name to confirm the deletion', 'Application name does not match')
             }),
             submit: async (vals, _, close) => {
                 try {
@@ -210,7 +229,7 @@ export async function confirmSyncingAppOfApps(apps: appModels.Application[], api
         ),
         {
             validate: vals => ({
-                applicationName: vals.applicationName !== appNameList && 'Enter the application name(s) to confirm syncing'
+                applicationName: nameConfirmationError(vals.applicationName, appNameList, 'Enter the application name(s) to confirm syncing', 'Application name does not match')
             }),
             submit: async (_vals, _, close) => {
                 try {
@@ -350,7 +369,9 @@ export const ComparisonStatusIcon = ({
             break;
     }
     return className.includes('fa-spin') ? (
-        <SpinningIcon color={color} qeId='utils-sync-status-title' />
+        <React.Fragment>
+            <SpinningIcon color={color} qeId='utils-sync-status-title' /> {label && title}
+        </React.Fragment>
     ) : (
         <React.Fragment>
             <i qe-id='utils-sync-status-title' title={title} className={className} style={{color}} /> {label && title}
@@ -604,7 +625,7 @@ export const deletePopup = async (
         {
             validate: vals =>
                 isManaged && {
-                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
+                    resourceName: nameConfirmationError(vals.resourceName, resource.name, 'Enter the resource name to confirm the deletion', 'Resource name does not match')
                 },
             submit: async (vals, _, close) => {
                 const force = deleteOptions.option === 'force';
@@ -1937,6 +1958,35 @@ export function getAppUrl(app: appModels.AbstractApplication): string {
         return `${basePath}/${app.metadata.name}`;
     }
     return `${basePath}/${app.metadata.namespace}/${app.metadata.name}`;
+}
+
+export interface AppListLink {
+    /** Relative path for in-app navigation via ctx.navigation.goto. */
+    path: string;
+    /** Full base-href-prefixed href so native middle-click / right-click / status-bar URL preview work. */
+    href: string;
+    /** SPA navigation on a plain click; modifier-clicks fall through to the browser (open in new tab/window). */
+    onClick: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+}
+
+// Builds the link target shared by every application / applicationset list row and tile.
+// `view` is the Application details view (e.g. 'tree'); AppSet pages don't support it, so
+// callers omit it there and the URL stays view-less.
+export function getAppListLink(ctx: ContextApis, app: appModels.AbstractApplication, view?: string): AppListLink {
+    const url = getAppUrl(app);
+    const path = `/${url}`;
+    const query = view ? {view} : {};
+    return {
+        path,
+        href: `${ctx.baseHref}${url}${view ? `?view=${encodeURIComponent(view)}` : ''}`,
+        onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
+                return;
+            }
+            e.preventDefault();
+            ctx.navigation.goto(path, query, {event: e});
+        }
+    };
 }
 
 /** RollingSync step for display; backend uses -1 when no step matches the app's labels. */
