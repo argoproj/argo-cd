@@ -1332,7 +1332,7 @@ func (spec *ApplicationSpec) BuildComparedToStatus(sources []ApplicationSource) 
 	}
 	if spec.HasMultipleSources() {
 		ct.Sources = sources
-	} else {
+	} else if len(sources) > 0 {
 		ct.Source = sources[0]
 	}
 	return ct
@@ -1943,6 +1943,29 @@ type ComparedTo struct {
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,3,opt,name=sources"`
 	// IgnoreDifferences is a reference to the application's ignored differences used for comparison
 	IgnoreDifferences IgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,4,opt,name=ignoreDifferences"`
+}
+
+// Equals compares two instances of ComparedTo and returns true if instances are equal.
+func (c *ComparedTo) Equals(other *ComparedTo) bool {
+	if c == nil && other == nil {
+		return true
+	}
+	if c == nil || other == nil {
+		return false
+	}
+	if !c.Source.Equals(&other.Source) {
+		return false
+	}
+	if !c.Sources.Equals(other.Sources) {
+		return false
+	}
+	if !reflect.DeepEqual(c.Destination, other.Destination) {
+		return false
+	}
+	if !c.IgnoreDifferences.Equals(other.IgnoreDifferences) {
+		return false
+	}
+	return true
 }
 
 // SyncStatus contains information about the currently observed live and desired states of an application

@@ -23,6 +23,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -435,6 +436,8 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 		appHealthStatus := app.Status.Health.Status
 		appSyncStatus := app.Status.Sync.Status
 
+		var statusIsFresh bool
+
 		currentAppStatus := argov1alpha1.ApplicationSetApplicationStatus{}
 		idx := utils.FindApplicationStatusIndex(applicationSet.Status.ApplicationStatus, app.Name)
 		if idx == -1 {
@@ -483,9 +486,25 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 				// Failures here are persistent (for example a malformed jsonPointer), so reporting
 				// "changed" would loop forever. Leave the status alone and surface it.
 				statusLogCtx.WithError(cmpErr).Warn("could not compare desired and live specs; leaving progressive sync status unchanged")
+				statusIsFresh = false
 			} else {
 				specChanged = !equivalent
+				if equivalent {
+					// The live spec matches the desired spec (after normalization and ignoreApplicationDifferences).
+					// Ensure the Application controller has reconciled this live spec by checking if it matches the recorded ComparedTo.
+					normalizedLiveSpec := *argo.NormalizeApplicationSpec(app.Spec.DeepCopy())
+					expectedComparedTo := normalizedLiveSpec.BuildComparedToStatus(normalizedLiveSpec.GetSources())
+					statusIsFresh = expectedComparedTo.Equals(&app.Status.Sync.ComparedTo)
+				} else {
+					// If they are not equivalent, the live app is stale by definition.
+					statusIsFresh = false
+				}
 			}
+		} else {
+			// If not in desiredAppsMap, default to checking freshness against the live app's own spec
+			normalizedLiveSpec := *argo.NormalizeApplicationSpec(app.Spec.DeepCopy())
+			expectedComparedTo := normalizedLiveSpec.BuildComparedToStatus(normalizedLiveSpec.GetSources())
+			statusIsFresh = expectedComparedTo.Equals(&app.Status.Sync.ComparedTo)
 		}
 
 		if revisionsChanged || specChanged {
@@ -507,7 +526,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			// App has changed to waiting because the TargetRevisions changed or it is a new selected app
 			// This does not mean we should always sync the app. The app may not be OutOfSync
 			// and may not require a sync if it does not have differences.
-			if appSyncStatus == argov1alpha1.SyncStatusCodeSynced {
+			if appSyncStatus == argov1alpha1.SyncStatusCodeSynced && statusIsFresh {
 				if app.Status.Health.Status == health.HealthStatusHealthy {
 					newAppStatus.LastTransitionTime = &now
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
@@ -551,7 +570,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			if currentAppStatus.Status == argov1alpha1.ProgressiveSyncProgressing {
 				// If the status has reached progressing, we know a sync has been triggered. No matter the result of that operation,
 				// we want an the app to reach the Healthy state for the current revision.
-				if appHealthStatus == health.HealthStatusHealthy && appSyncStatus == argov1alpha1.SyncStatusCodeSynced {
+				if appHealthStatus == health.HealthStatusHealthy && appSyncStatus == argov1alpha1.SyncStatusCodeSynced && statusIsFresh {
 					newAppStatus.LastTransitionTime = &now
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
 					newAppStatus.Message = "Application resource became Healthy, updating status from Progressing to Healthy"
