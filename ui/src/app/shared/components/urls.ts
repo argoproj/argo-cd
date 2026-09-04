@@ -13,8 +13,13 @@ function isBitbucketServer(parsed: GitUrl): boolean {
     return parsed.source === 'bitbucket-server' || (parsed.resource.startsWith('bitbucket') && parsed.source !== 'bitbucket.org');
 }
 
+// Returns true for gitlab.com and self-hosted GitLab instances (e.g. gitlab.my-enterprise.com).
+function isGitlab(parsed: GitUrl): boolean {
+    return parsed.resource.startsWith('gitlab.');
+}
+
 function supportedSource(parsed: GitUrl): boolean {
-    return parsed.resource.startsWith('github') || parsed.source === 'bitbucket.org' || isBitbucketServer(parsed) || parsed.source === 'gitlab.com';
+    return parsed.resource.startsWith('github') || parsed.source === 'bitbucket.org' || isBitbucketServer(parsed) || isGitlab(parsed);
 }
 
 // Bitbucket Server browse URLs differ from clone URLs:
@@ -99,7 +104,7 @@ export function revisionUrl(url: string, revision: string, forPath: boolean): st
 
     // Gitlab changed the way urls to commit look like
     // Ref: https://docs.gitlab.com/ee/update/deprecations.html#legacy-urls-replaced-or-removed
-    if (parsed.source === 'gitlab.com') {
+    if (isGitlab(parsed)) {
         urlSubPath = '-/' + urlSubPath;
     }
 
