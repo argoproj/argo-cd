@@ -760,7 +760,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 				found.Spec = generatedApp.Spec
 
 				// allow setting the Operation field to trigger a sync operation on an Application
-				if generatedApp.Operation != nil {
+				if generatedApp.Operation != nil && !progressivesync.HasActiveOperation(found) {
 					found.Operation = generatedApp.Operation
 				}
 

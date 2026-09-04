@@ -34,6 +34,7 @@ const (
 	revisionAndSpecChangedMsg = "Application has pending changes (revision and spec differ), setting status to Waiting"
 	revisionChangedMsg        = "Application has pending changes, setting status to Waiting"
 	specChangedMsg            = "Application has pending changes (spec differs), setting status to Waiting"
+	outOfSyncMsg              = "Application resource is OutOfSync, setting status to Waiting"
 )
 
 type deleteInOrder struct {
@@ -412,6 +413,20 @@ func getAppStep(appName string, appStepMap map[string]int) int {
 	return step
 }
 
+// HasActiveOperation returns true if an Application has a requested Operation or an active (non-completed) OperationState.
+func HasActiveOperation(app *argov1alpha1.Application) bool {
+	if app == nil {
+		return false
+	}
+	if app.Operation != nil {
+		return true
+	}
+	if app.Status.OperationState != nil && !app.Status.OperationState.Phase.Completed() {
+		return true
+	}
+	return false
+}
+
 // check the status of each Application's status and promote Applications to the next status if needed
 // update AppSet status in-memory, controller will persist it
 func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
@@ -488,7 +503,9 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			}
 		}
 
-		if revisionsChanged || specChanged {
+		outOfSyncAndHealthy := appSyncStatus == argov1alpha1.SyncStatusCodeOutOfSync && currentAppStatus.Status == argov1alpha1.ProgressiveSyncHealthy && !HasActiveOperation(&app)
+
+		if revisionsChanged || specChanged || outOfSyncAndHealthy {
 			newAppStatus.TargetRevisions = app.Status.GetRevisions()
 
 			switch {
@@ -496,8 +513,10 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 				newAppStatus.Message = revisionAndSpecChangedMsg
 			case revisionsChanged:
 				newAppStatus.Message = revisionChangedMsg
-			default:
+			case specChanged:
 				newAppStatus.Message = specChangedMsg
+			default:
+				newAppStatus.Message = outOfSyncMsg
 			}
 			newAppStatus.Status = argov1alpha1.ProgressiveSyncWaiting
 			newAppStatus.LastTransitionTime = &now
