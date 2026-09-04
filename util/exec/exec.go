@@ -72,6 +72,8 @@ func DisableProcessGroupIsolation() {
 
 // CancelGrace is how long a cancelled command has before it is killed. Callers budgeting around
 // cancellation must use this rather than the raw ARGOCD_EXEC_FATAL_TIMEOUT, so as not to undercut it.
+// RunCommandExt also uses it as the default cmd.WaitDelay, so lowering ARGOCD_EXEC_FATAL_TIMEOUT
+// shortens the post-exit pipe drain of every command as well as the SIGTERM-to-SIGKILL window.
 func CancelGrace() time.Duration {
 	if fatalTimeout <= 0 {
 		return defaultCancelGrace

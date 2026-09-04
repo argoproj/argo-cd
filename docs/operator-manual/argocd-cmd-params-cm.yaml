@@ -318,7 +318,9 @@ data:
   reposerver.profile.enabled: "false"
   # How long to wait for in-flight requests to finish when the repo-server is shutting down, before
   # terminating the commands they are running. 0 terminates them as soon as the signal arrives. This
-  # plus ARGOCD_EXEC_FATAL_TIMEOUT must fit under the pod's terminationGracePeriodSeconds.
+  # plus twice ARGOCD_EXEC_FATAL_TIMEOUT must fit under the pod's terminationGracePeriodSeconds: the
+  # grace period before the SIGKILL, then one more bounding the wait on a command whose output pipes
+  # are still held.
   reposerver.shutdown.drain.timeout: "10s"
 
   ## Commit-server properties

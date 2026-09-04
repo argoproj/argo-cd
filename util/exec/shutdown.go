@@ -23,7 +23,9 @@ var (
 // running. Nothing else reaches those processes: the kubelet signals only the container's init
 // process, which forwards to this process alone, and each command sits in its own process group.
 func Shutdown() int64 {
-	running := inFlight.Load()
 	shutdownOnce.Do(func() { close(shutdown) })
-	return running
+	// Counted after the close: a command that passed the pre-check but had not yet incremented would
+	// otherwise be terminated without being reported. Nothing has decremented yet either, since each
+	// command waits out the SIGTERM grace before returning.
+	return inFlight.Load()
 }
