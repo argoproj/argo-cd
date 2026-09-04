@@ -29,7 +29,7 @@ import {ApplicationResourceList, ApplicationResourceParentRef} from './applicati
 import {APPLICATION_DETAILS_SORT_KEY, ApplicationResourceSortKey, compareApplicationResource, GROUPED_NODES_DETAILS_SORT_KEY} from './application-resource-sort';
 import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {Filters, FiltersProps, getEffectiveResourceFilter} from './application-resource-filter';
-import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
+import {getAppDefaultSource, getAppCurrentVersion, urlPattern, getApplicationDetailsContainerClass} from '../utils';
 import {ChartDetails, OCIMetadata} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
@@ -913,7 +913,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             }
 
                             return (
-                                <div className={`application-details ${props.match.params.name}`}>
+                                <div className={getApplicationDetailsContainerClass(props.match.params.name)}>
                                     <Page
                                         title={props.match.params.name + ' - ' + getPageTitle(pref.view)}
                                         useTitleOnly={true}
