@@ -1476,24 +1476,13 @@ export function getAppDrySource(app?: appModels.Application): appModels.Applicat
     return getAppDefaultSource(app);
 }
 
-export function getHydratorSyncSourceRepoURL(sourceHydrator?: appModels.SourceHydrator): string {
-    return sourceHydrator?.syncSource?.repoURL || sourceHydrator?.drySource?.repoURL || '';
-}
-
-export function getAppHydratorSyncSource(sourceHydrator?: appModels.SourceHydrator): appModels.ApplicationSource {
-    return {
-        repoURL: getHydratorSyncSourceRepoURL(sourceHydrator),
-        targetRevision: sourceHydrator?.syncSource?.targetBranch || '',
-        path: sourceHydrator?.syncSource?.path || ''
-    };
-}
-
 // Destination of a hydration push: hydrateTo.targetBranch when set, otherwise the sync source branch.
+// On 3.4 the destination repo is always the dry source repo (syncSource.repoURL is 3.5+).
 export function getAppHydrateToSource(sourceHydrator?: appModels.SourceHydrator): appModels.ApplicationSource {
-    const syncSource = getAppHydratorSyncSource(sourceHydrator);
     return {
-        ...syncSource,
-        targetRevision: sourceHydrator?.hydrateTo?.targetBranch || syncSource.targetRevision
+        repoURL: sourceHydrator?.drySource?.repoURL || '',
+        targetRevision: sourceHydrator?.hydrateTo?.targetBranch || sourceHydrator?.syncSource?.targetBranch || '',
+        path: sourceHydrator?.syncSource?.path || ''
     };
 }
 
