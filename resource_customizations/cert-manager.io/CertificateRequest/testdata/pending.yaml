@@ -1,0 +1,21 @@
+apiVersion: cert-manager.io/v1
+kind: CertificateRequest
+metadata:
+  name: example-tls-xyz12
+  namespace: default
+spec:
+  request: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURSBSRVFVRVNULS0tLS0K
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+    group: cert-manager.io
+status:
+  conditions:
+  - type: Approved
+    status: "True"
+    reason: cert-manager.io
+    message: Certificate request has been approved by cert-manager.io
+  - type: Ready
+    status: "False"
+    reason: Pending
+    message: 'Waiting on certificate issuance from order default/example-order: "pending"'
