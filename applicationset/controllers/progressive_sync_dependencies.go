@@ -27,6 +27,13 @@ func (r *ApplicationSetReconciler) SetAppSetApplicationStatus(
 	return r.setAppSetApplicationStatus(ctx, logCtx, applicationSet, applicationStatuses)
 }
 
+func (r *ApplicationSetReconciler) RecordProgressiveSyncTriggered(
+	applicationSet *argov1alpha1.ApplicationSet,
+	step string,
+) {
+	r.Metrics.SetProgressiveSyncAppSync(applicationSet, step)
+}
+
 func (r *ApplicationSetReconciler) SetApplicationSetStatusCondition(
 	ctx context.Context,
 	applicationSet *argov1alpha1.ApplicationSet,
