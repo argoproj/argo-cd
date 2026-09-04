@@ -25,6 +25,7 @@ node_modules/
 .mirrord/
 .*.swp
 rerunreport.txt
+.pnpm-store/*
 
 # AI tools support
 CLAUDE.local.md
