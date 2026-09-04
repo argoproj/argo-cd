@@ -8,6 +8,7 @@ This document lists the maintainers of the Argo CD project.
 |---------------------------|---------------------------------------------------------|----------------------|-------------------------------------------------|
 | Zach Aller                | [zachaller](https://github.com/zachaller)               | Reviewer             | [Intuit](https://www.github.com/intuit/)        |
 | Leonardo Luz Almeida      | [leoluz](https://github.com/leoluz)                     | Approver             | [Intuit](https://www.github.com/intuit/)        |
+| Henrik Blixt              | [hblixt](https://github.com/hblixt)                     | Reviewer             | [Intuit](https://www.github.com/intuit/)        |
 | Jaewoo Choi               | [choejwoo](https://github.com/choejwoo)                 | Approver(ui)         | Hyundai-Autoever                                  |
 | Keith Chong               | [keithchong](https://github.com/keithchong)             | Approver             | [Red Hat](https://redhat.com/)                  |
 | Alex Collins              | [alexec](https://github.com/alexec)                     | Reviewer             | [Intuit](https://www.github.com/intuit/)        |
@@ -38,5 +39,6 @@ This document lists the maintainers of the Argo CD project.
 | Yuan Tang                 | [terrytangyuan](https://github.com/terrytangyuan)       | Reviewer             | [Red Hat](https://redhat.com/)                  |
 | Ryan Umstead              | [rumstead](https://github.com/rumstead)                 | Approver             | [Black Rock](https://www.github.com/blackrock/) |
 | Regina Voloshin           | [reggie-k](https://github.com/reggie-k)                 | Approver             | [Octopus Deploy](https://octopus.com/)          |
+| Hong Wang                 | [wanghong230](https://github.com/wanghong230)           | Reviewer             | [Akuity](https://akuity.io/)                    |
 | Jonathan West             | [jgwest](https://github.com/jgwest)                     | Reviewer             | [Red Hat](https://redhat.com/)                  |
 | Jonathan Winters          | [jwinters01](https://github.com/jwinters01)             | Approver(ui)         | [Intuit](https://www.github.com/intuit/)        |
