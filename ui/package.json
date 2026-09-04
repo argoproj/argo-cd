@@ -65,7 +65,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.29.6",
-    "@babel/preset-env": "^7.7.1",
+    "@babel/preset-env": "^7.29.7",
     "@babel/preset-react": "^7.18.6",
     "@babel/preset-typescript": "^7.29.7",
     "@codecov/webpack-plugin": "^2.0.1",
