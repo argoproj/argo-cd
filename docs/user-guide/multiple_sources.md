@@ -95,11 +95,11 @@ Multi-source applications cannot be created using individual flags like `--repo`
 argocd app create my-billing-app --file app.yaml
 ```
 
-For parameterized pipelines, pipe a rendered manifest on stdin:
+For parameterized pipelines, pipe a rendered manifest on stdin. The application name is taken from `metadata.name` in the manifest:
 
 ```bash
 envsubst < app-template.yaml | argocd app create my-billing-app --file -
 ```
 
 > [!NOTE]
-> When using `--file`, source-related flags (`--repo`, `--path`, `--helm-set`, etc.) are ignored.
+> When using `--file` with a multi-source manifest, source-related flags (`--repo`, `--path`, `--helm-set`, etc.) are ignored.

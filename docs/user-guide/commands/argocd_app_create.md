@@ -29,7 +29,7 @@ argocd app create APPNAME [flags]
   # Create a multi-source app from a manifest file
   argocd app create my-billing-app --file path/to/app.yaml
 
-  # Create a multi-source app from stdin (e.g. templated manifests in CI)
+  # Create a multi-source app from stdin (e.g. templated manifests in CI); metadata.name in the manifest is used
   envsubst < app-template.yaml | argocd app create my-billing-app --file -
 
   # Create a app using a custom tool:
