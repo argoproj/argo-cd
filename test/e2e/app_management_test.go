@@ -1658,6 +1658,45 @@ func TestExcludedResource(t *testing.T) {
 		Expect(Condition(ApplicationConditionExcludedResourceWarning, "Resource apps/Deployment guestbook-ui is excluded in the settings"))
 }
 
+// TestResourceSelector makes sure that a label selector configured via resource.selectors removes the
+// matching resources from the cluster cache, while leaving them running in the cluster.
+func TestResourceSelector(t *testing.T) {
+	isDeploymentPod := func(node ResourceNode) bool {
+		return node.Kind == kube.PodKind && node.Group == ""
+	}
+	isDeploymentPodInCluster := func(pod corev1.Pod) bool {
+		return pod.Labels["my-label"] == "whatever"
+	}
+
+	Given(t).
+		Path("one-deployment").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(Pod(isDeploymentPodInCluster)).
+		// the pod is part of the application resource tree
+		Expect(ResourceTreeNode(isDeploymentPod)).
+		When().
+		// filter out the pods of the deployment
+		SetResourceFilter(settings.ResourcesFilter{
+			ResourceSelectors: []settings.FilteredResource{{
+				APIGroups: []string{""},
+				Kinds:     []string{kube.PodKind},
+				Selector:  "my-label!=whatever",
+			}},
+		}).
+		Refresh(RefreshTypeHard).
+		Then().
+		// the pod is gone from the resource tree ...
+		Expect(NotResourceTreeNode(isDeploymentPod)).
+		// ... but is still running in the cluster
+		Expect(Pod(isDeploymentPodInCluster)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
 func TestRevisionHistoryLimit(t *testing.T) {
 	Given(t).
 		Path("config-map").
@@ -1699,9 +1738,7 @@ func TestOrphanedResource(t *testing.T) {
 		When().
 		And(func() {
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "orphaned-configmap",
-				},
+				Name: "orphaned-configmap",
 			}, metav1.CreateOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).
@@ -1777,27 +1814,23 @@ func TestNotPermittedResources(t *testing.T) {
 
 	pathType := networkingv1.PathTypePrefix
 	ingress := &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "sample-ingress",
-			Labels: map[string]string{
-				common.LabelKeyAppInstance: ctx.GetName(),
-			},
+		Name: "sample-ingress",
+		Labels: map[string]string{
+			common.LabelKeyAppInstance: ctx.GetName(),
 		},
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{{
-				IngressRuleValue: networkingv1.IngressRuleValue{
-					HTTP: &networkingv1.HTTPIngressRuleValue{
-						Paths: []networkingv1.HTTPIngressPath{{
-							Path: "/",
-							Backend: networkingv1.IngressBackend{
-								Service: &networkingv1.IngressServiceBackend{
-									Name: "guestbook-ui",
-									Port: networkingv1.ServiceBackendPort{Number: 80},
-								},
+				HTTP: &networkingv1.HTTPIngressRuleValue{
+					Paths: []networkingv1.HTTPIngressPath{{
+						Path: "/",
+						Backend: networkingv1.IngressBackend{
+							Service: &networkingv1.IngressServiceBackend{
+								Name: "guestbook-ui",
+								Port: networkingv1.ServiceBackendPort{Number: 80},
 							},
-							PathType: &pathType,
-						}},
-					},
+						},
+						PathType: &pathType,
+					}},
 				},
 			}},
 		},
@@ -1808,11 +1841,9 @@ func TestNotPermittedResources(t *testing.T) {
 	}()
 
 	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "guestbook-ui",
-			Labels: map[string]string{
-				common.LabelKeyAppInstance: ctx.GetName(),
-			},
+		Name: "guestbook-ui",
+		Labels: map[string]string{
+			common.LabelKeyAppInstance: ctx.GetName(),
 		},
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{{
@@ -2037,9 +2068,7 @@ func TestListResource(t *testing.T) {
 		When().
 		And(func() {
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "orphaned-configmap",
-				},
+				Name: "orphaned-configmap",
 			}, metav1.CreateOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).
@@ -2512,11 +2541,9 @@ func TestSwitchTrackingMethod(t *testing.T) {
 			// Add resource with tracking annotation. This should put the
 			// application OutOfSync.
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "other-configmap",
-					Annotations: map[string]string{
-						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/other-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
-					},
+				Name: "other-configmap",
+				Annotations: map[string]string{
+					common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/other-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2546,11 +2573,9 @@ func TestSwitchTrackingMethod(t *testing.T) {
 			// affect the application, because we now use the tracking method
 			// "label".
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "other-configmap",
-					Annotations: map[string]string{
-						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/other-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
-					},
+				Name: "other-configmap",
+				Annotations: map[string]string{
+					common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/other-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2563,11 +2588,9 @@ func TestSwitchTrackingMethod(t *testing.T) {
 			// Add a resource with the tracking label. The app should become
 			// OutOfSync.
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "extra-configmap",
-					Labels: map[string]string{
-						common.LabelKeyAppInstance: ctx.GetName(),
-					},
+				Name: "extra-configmap",
+				Labels: map[string]string{
+					common.LabelKeyAppInstance: ctx.GetName(),
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2690,11 +2713,9 @@ func TestSwitchTrackingLabel(t *testing.T) {
 			// Add extra resource that carries the default tracking label
 			// We expect the app to go out of sync.
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "other-configmap",
-					Labels: map[string]string{
-						common.LabelKeyAppInstance: ctx.GetName(),
-					},
+				Name: "other-configmap",
+				Labels: map[string]string{
+					common.LabelKeyAppInstance: ctx.GetName(),
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2724,11 +2745,9 @@ func TestSwitchTrackingLabel(t *testing.T) {
 			// Create resource with the new tracking label, the application
 			// is expected to go out of sync
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "other-configmap",
-					Labels: map[string]string{
-						"argocd.tracking": ctx.GetName(),
-					},
+				Name: "other-configmap",
+				Labels: map[string]string{
+					"argocd.tracking": ctx.GetName(),
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2751,11 +2770,9 @@ func TestSwitchTrackingLabel(t *testing.T) {
 			// We expect the app to stay in sync, because the configured
 			// label is different.
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "other-configmap",
-					Labels: map[string]string{
-						common.LabelKeyAppInstance: ctx.GetName(),
-					},
+				Name: "other-configmap",
+				Labels: map[string]string{
+					common.LabelKeyAppInstance: ctx.GetName(),
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2784,11 +2801,9 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 			// Add a resource with an annotation that is not referencing the
 			// resource.
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "extra-configmap",
-					Annotations: map[string]string{
-						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:apps/Deployment:%s/guestbook-cm", ctx.GetName(), ctx.DeploymentNamespace()),
-					},
+				Name: "extra-configmap",
+				Annotations: map[string]string{
+					common.AnnotationKeyAppInstance: fmt.Sprintf("%s:apps/Deployment:%s/guestbook-cm", ctx.GetName(), ctx.DeploymentNamespace()),
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2809,11 +2824,9 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 			// Add a resource with an annotation that is self-referencing the
 			// resource.
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "other-configmap",
-					Annotations: map[string]string{
-						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/other-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
-					},
+				Name: "other-configmap",
+				Annotations: map[string]string{
+					common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/other-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2838,14 +2851,12 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		And(func() {
 			// Add a cluster-scoped resource that is not referencing itself
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.RbacV1().ClusterRoles().Create(t.Context(), &rbacv1.ClusterRole{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "e2e-test-clusterrole",
-					Annotations: map[string]string{
-						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:rbac.authorization.k8s.io/ClusterRole:%s/e2e-other-clusterrole", ctx.GetName(), ctx.DeploymentNamespace()),
-					},
-					Labels: map[string]string{
-						fixture.TestingLabel: "true",
-					},
+				Name: "e2e-test-clusterrole",
+				Annotations: map[string]string{
+					common.AnnotationKeyAppInstance: fmt.Sprintf("%s:rbac.authorization.k8s.io/ClusterRole:%s/e2e-other-clusterrole", ctx.GetName(), ctx.DeploymentNamespace()),
+				},
+				Labels: map[string]string{
+					fixture.TestingLabel: "true",
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2858,14 +2869,12 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		And(func() {
 			// Add a cluster-scoped resource that is referencing itself
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.RbacV1().ClusterRoles().Create(t.Context(), &rbacv1.ClusterRole{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "e2e-other-clusterrole",
-					Annotations: map[string]string{
-						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:rbac.authorization.k8s.io/ClusterRole:%s/e2e-other-clusterrole", ctx.GetName(), ctx.DeploymentNamespace()),
-					},
-					Labels: map[string]string{
-						fixture.TestingLabel: "true",
-					},
+				Name: "e2e-other-clusterrole",
+				Annotations: map[string]string{
+					common.AnnotationKeyAppInstance: fmt.Sprintf("%s:rbac.authorization.k8s.io/ClusterRole:%s/e2e-other-clusterrole", ctx.GetName(), ctx.DeploymentNamespace()),
+				},
+				Labels: map[string]string{
+					fixture.TestingLabel: "true",
 				},
 			}, metav1.CreateOptions{}))
 		}).
@@ -2939,11 +2948,9 @@ func TestInstallationID(t *testing.T) {
 		And(func() {
 			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(
 				t.Context(), &corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test-configmap",
-						Annotations: map[string]string{
-							common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/test-configmap", ctx.AppName(), ctx.DeploymentNamespace()),
-						},
+					Name: "test-configmap",
+					Annotations: map[string]string{
+						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/test-configmap", ctx.AppName(), ctx.DeploymentNamespace()),
 					},
 				}, metav1.CreateOptions{})
 			require.NoError(t, err)
@@ -2984,12 +2991,10 @@ func TestDeletionConfirmation(t *testing.T) {
 		And(func() {
 			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(
 				t.Context(), &corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test-configmap",
-						Annotations: map[string]string{
-							common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/test-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
-							AnnotationSyncOptions:           "Prune=confirm",
-						},
+					Name: "test-configmap",
+					Annotations: map[string]string{
+						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/test-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
+						AnnotationSyncOptions:           "Prune=confirm",
 					},
 				}, metav1.CreateOptions{})
 			require.NoError(t, err)
@@ -3020,11 +3025,9 @@ func TestDeletionConfirmationAppLevel(t *testing.T) {
 		And(func() {
 			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(
 				t.Context(), &corev1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test-configmap",
-						Annotations: map[string]string{
-							common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/test-configmap", ctx.AppName(), ctx.DeploymentNamespace()),
-						},
+					Name: "test-configmap",
+					Annotations: map[string]string{
+						common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/test-configmap", ctx.AppName(), ctx.DeploymentNamespace()),
 					},
 				}, metav1.CreateOptions{})
 			require.NoError(t, err)

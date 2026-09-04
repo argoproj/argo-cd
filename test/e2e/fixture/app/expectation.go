@@ -403,6 +403,33 @@ func NotPod(predicate func(p corev1.Pod) bool) Expectation {
 	}
 }
 
+// ResourceTreeNode checks that the app resource tree has a node matching the predicate
+func ResourceTreeNode(predicate func(node v1alpha1.ResourceNode) bool) Expectation {
+	return resourceTreeNode(predicate, succeeded, pending)
+}
+
+// NotResourceTreeNode checks that the app resource tree has no node matching the predicate
+func NotResourceTreeNode(predicate func(node v1alpha1.ResourceNode) bool) Expectation {
+	return resourceTreeNode(predicate, pending, succeeded)
+}
+
+// resourceTreeNode looks for a node matching the predicate in the app resource tree and reports
+// whenMatched if one is found, whenNotMatched otherwise.
+func resourceTreeNode(predicate func(node v1alpha1.ResourceNode) bool, whenMatched, whenNotMatched state) Expectation {
+	return func(c *Consequences) (state, string) {
+		tree, err := c.resourceTree()
+		if err != nil {
+			return failed, err.Error()
+		}
+		for _, node := range tree.Nodes {
+			if predicate(node) {
+				return whenMatched, fmt.Sprintf("resource tree node predicate matched node named '%s'", node.Name)
+			}
+		}
+		return whenNotMatched, "resource tree node predicate did not match any node"
+	}
+}
+
 func pods(namespace string) (*corev1.PodList, error) {
 	pods, err := fixture.KubeClientset.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{})
 	return pods, err

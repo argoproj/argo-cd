@@ -541,7 +541,7 @@ func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindows
 	if windows.HasWindows() {
 		res.Windows = *windows
 	} else {
-		res.Windows = []*v1alpha1.SyncWindow{}
+		res.Windows = []*v1alpha1.InlineSyncWindow{}
 	}
 
 	return res, nil

@@ -420,11 +420,9 @@ func getOrUpdateShardNumberForController(shardMappingData []shardApplicationCont
 // generateDefaultShardMappingCM creates a default shard mapping configMap. Assigns current controller to shard 0.
 func generateDefaultShardMappingCM(namespace, hostname string, replicas, shard int) (*corev1.ConfigMap, error) {
 	shardingCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDAppControllerShardConfigMapName,
-			Namespace: namespace,
-		},
-		Data: map[string]string{},
+		Name:      common.ArgoCDAppControllerShardConfigMapName,
+		Namespace: namespace,
+		Data:      map[string]string{},
 	}
 
 	shardMappingData := getDefaultShardMappingData(replicas)
@@ -501,7 +499,7 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 				errors.CheckError(err)
 			}
 			if shardNumber > replicasCount {
-				log.Warnf("Calculated shard number %d is greated than the number of replicas count. Defaulting to 0", shardNumber)
+				log.Warnf("Calculated shard number %d is greater than the number of replicas count. Defaulting to 0", shardNumber)
 				shardNumber = 0
 			}
 		}

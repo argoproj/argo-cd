@@ -86,11 +86,9 @@ func (l *AuditLogger) logEvent(kIf kubernetes.Interface, objMeta ObjectRef, gvk 
 	eventNamespace := eventNamespaceForInvolvedObject(objMeta.Namespace)
 
 	event := corev1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        fmt.Sprintf("%v.%x", objMeta.Name, t.UnixNano()),
-			Labels:      eventLabels,
-			Annotations: logFields,
-		},
+		Name:        fmt.Sprintf("%v.%x", objMeta.Name, t.UnixNano()),
+		Labels:      eventLabels,
+		Annotations: logFields,
 		Source: corev1.EventSource{
 			Component: l.component,
 		},
