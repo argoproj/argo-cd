@@ -8646,6 +8646,9 @@
             "$ref": "#/definitions/v1alpha1GitFileGeneratorItem"
           }
         },
+        "paramPrefix": {
+          "type": "string"
+        },
         "pathParamPrefix": {
           "type": "string"
         },

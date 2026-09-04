@@ -352,6 +352,11 @@ In addition to the flattened key/value pairs from the configuration file, the fo
 > The default behavior of the Git file generator is very greedy. 
 > Please see [Git File Generator Globbing](./Generators-Git-File-Globbing.md) for more information.
 
+> [!NOTE]
+> If the `paramPrefix` option is specified, all data included from the contents of files will be prefixed with the specified value and a dot separator.
+> E.g., if `paramPrefix` is `myRepo`, and the file included the key `aws_account`, then the generated parameter name would be `myRepo.aws_account` instead of `aws_account`.
+> Using this option is necessary in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items), or if the file contents would conflict with the generated `path` or `values` parameters.
+
 ### Exclude files
 
 The Git file generator also supports an `exclude` option in order to exclude files in the repository from being scanned by the ApplicationSet controller:
