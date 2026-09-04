@@ -15,7 +15,6 @@ import * as jsYaml from 'js-yaml';
 import {
     ComparisonStatusIcon,
     getAppHydrateToSource,
-    getAppHydratorSyncSource,
     hydrationStatusMessage,
     getAppOperationState,
     getOperationType,
@@ -902,31 +901,16 @@ status:
     });
 });
 
-describe('getAppHydratorSyncSource', () => {
-    it('returns the sync source with resolved repo URL', () => {
-        expect(
-            getAppHydratorSyncSource({
-                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main', path: 'in'},
-                syncSource: {repoURL: 'https://github.com/example/hydrated.git', targetBranch: 'env/test', path: 'out'}
-            } as any)
-        ).toEqual({
-            repoURL: 'https://github.com/example/hydrated.git',
-            targetRevision: 'env/test',
-            path: 'out'
-        });
-    });
-});
-
 describe('getAppHydrateToSource', () => {
     it('uses hydrateTo.targetBranch when set', () => {
         expect(
             getAppHydrateToSource({
                 drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main', path: 'in'},
-                syncSource: {repoURL: 'https://github.com/example/hydrated.git', targetBranch: 'env/test', path: 'out'},
+                syncSource: {targetBranch: 'env/test', path: 'out'},
                 hydrateTo: {targetBranch: 'env/test-hydrate'}
-            } as any)
+            })
         ).toEqual({
-            repoURL: 'https://github.com/example/hydrated.git',
+            repoURL: 'https://github.com/example/dry.git',
             targetRevision: 'env/test-hydrate',
             path: 'out'
         });
