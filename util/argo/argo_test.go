@@ -1407,14 +1407,10 @@ func TestFilterByNamesP(t *testing.T) {
 	t.Parallel()
 	apps := []*argoappv1.Application{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "foo",
-			},
+			Name: "foo",
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "bar",
-			},
+			Name: "bar",
 		},
 	}
 
