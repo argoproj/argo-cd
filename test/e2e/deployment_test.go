@@ -299,11 +299,9 @@ func createNamespaceScopedUserWithRules(c *Context, username string, rules []rba
 
 	// Create a Role that allows the ServiceAccount to read/write all within the Namespace
 	role := rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      DnsFriendly("allow-all", "-"+c.ShortID()),
-			Namespace: ns.Name,
-		},
-		Rules: rules,
+		Name:      DnsFriendly("allow-all", "-"+c.ShortID()),
+		Namespace: ns.Name,
+		Rules:     rules,
 	}
 	_, err = KubeClientset.RbacV1().Roles(role.Namespace).Create(c.T().Context(), &role, metav1.CreateOptions{})
 	require.NoError(c.T(), err)

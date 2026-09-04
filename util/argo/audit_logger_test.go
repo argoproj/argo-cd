@@ -247,14 +247,12 @@ func TestLogResourceEvent_CreatesEventInResourceNamespace(t *testing.T) {
 	logger := NewAuditLogger(fake.NewClientset(), _somecomponent, []string{EventReasonResourceActionRan})
 
 	res := argoappv1.ResourceNode{
-		ResourceRef: argoappv1.ResourceRef{
-			Group:     "apps",
-			Version:   "v1",
-			Kind:      "Deployment",
-			Name:      "my-deployment",
-			Namespace: _targetNs,
-			UID:       "deploy-uid-123",
-		},
+		Group:     "apps",
+		Version:   "v1",
+		Kind:      "Deployment",
+		Name:      "my-deployment",
+		Namespace: _targetNs,
+		UID:       "deploy-uid-123",
 	}
 
 	ei := EventInfo{
@@ -386,14 +384,12 @@ func TestLogResourceEvent_EmptyNamespace(t *testing.T) {
 	logger := NewAuditLogger(fake.NewClientset(), _somecomponent, []string{EventReasonResourceActionRan})
 
 	res := argoappv1.ResourceNode{
-		ResourceRef: argoappv1.ResourceRef{
-			Group:     "rbac.authorization.k8s.io",
-			Version:   "v1",
-			Kind:      "ClusterRole",
-			Name:      "cluster-admin",
-			Namespace: "",
-			UID:       "clusterrole-uid",
-		},
+		Group:     "rbac.authorization.k8s.io",
+		Version:   "v1",
+		Kind:      "ClusterRole",
+		Name:      "cluster-admin",
+		Namespace: "",
+		UID:       "clusterrole-uid",
 	}
 
 	ei := EventInfo{
@@ -428,14 +424,12 @@ func TestLogResourceEvent_DestinationClusterCreateError(t *testing.T) {
 	logger := NewAuditLogger(fake.NewClientset(), _somecomponent, []string{EventReasonResourceActionRan})
 
 	res := argoappv1.ResourceNode{
-		ResourceRef: argoappv1.ResourceRef{
-			Group:     "apps",
-			Version:   "v1",
-			Kind:      "Deployment",
-			Name:      "my-deployment",
-			Namespace: _targetNs,
-			UID:       "deploy-uid-123",
-		},
+		Group:     "apps",
+		Version:   "v1",
+		Kind:      "Deployment",
+		Name:      "my-deployment",
+		Namespace: _targetNs,
+		UID:       "deploy-uid-123",
 	}
 	ei := EventInfo{
 		Reason: EventReasonResourceActionRan,
@@ -456,9 +450,7 @@ func TestDestinationClusterClient_RejectsNamespaceMismatch(t *testing.T) {
 	destClient := newDestinationClusterClient()
 
 	invalidEvent := &corev1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "invalid-event",
-		},
+		Name: "invalid-event",
 		InvolvedObject: corev1.ObjectReference{
 			Kind:      "Deployment",
 			Name:      "my-deployment",
