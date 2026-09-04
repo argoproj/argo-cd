@@ -33,6 +33,7 @@ import * as jsYaml from 'js-yaml';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import classNames from 'classnames';
 import {ApplicationParametersSource} from './application-parameters-source';
+import {parseHelmValues, validateHelmValues} from './helm-values';
 
 import './application-parameters.scss';
 import {AppContext} from '../../../shared/context';
@@ -71,25 +72,6 @@ function processPath(path: string) {
         return path;
     }
     return '';
-}
-
-function parseHelmValues(values: string | undefined): {value?: any; error?: string} {
-    if (values === undefined) {
-        return {error: 'Values must be valid YAML'};
-    }
-    try {
-        return {value: jsYaml.load(values)};
-    } catch {
-        return {error: 'Values must be valid YAML'};
-    }
-}
-
-export function validateHelmValues(values: string | undefined) {
-    if (!values) {
-        return undefined;
-    }
-    const parsedValues = parseHelmValues(values);
-    return parsedValues.error || (typeof parsedValues.value === 'object' ? undefined : 'Values must be a map');
 }
 
 function getParamsEditableItems(

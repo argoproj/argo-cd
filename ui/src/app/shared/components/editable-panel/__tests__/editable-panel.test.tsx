@@ -235,6 +235,41 @@ describe('EditablePanel – noReadonlyMode', () => {
 
         expect(save).toHaveBeenCalledTimes(1);
     });
+
+    test('does not autosave invalid values in noReadonlyMode', async () => {
+        const save = jest.fn().mockResolvedValue(undefined);
+        let capturedFormApi: FormApi | null = null;
+        const editItems: EditablePanelItem[] = [
+            {
+                title: 'Name',
+                view: <span>alice</span>,
+                edit: api => {
+                    capturedFormApi = api;
+                    return <input value={api.values.name || ''} onChange={e => api.setValue('name', e.target.value)} />;
+                }
+            }
+        ];
+
+        renderPanel(
+            <EditablePanel
+                values={{name: 'alice'}}
+                items={editItems}
+                save={save}
+                noReadonlyMode={true}
+                validate={values => ({name: values.name === 'invalid' ? 'Invalid value' : null})}
+            />
+        );
+
+        await act(async () => {
+            capturedFormApi?.setValue('name', 'invalid');
+        });
+        expect(save).not.toHaveBeenCalled();
+
+        await act(async () => {
+            capturedFormApi?.setValue('name', 'valid');
+        });
+        expect(save).toHaveBeenCalledTimes(1);
+    });
 });
 
 // ===========================================================================
