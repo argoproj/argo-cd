@@ -27,6 +27,7 @@ export interface ApplicationTableRowProps {
 
 export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, refreshApplication, deleteApplication}: ApplicationTableRowProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
+    const appDisplayName = AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
     const favList = pref.appList.favoritesAppList || [];
     const healthStatus = app.status.health.status;
     const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
@@ -110,7 +111,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                     <Tooltip
                                         content={
                                             <>
-                                                {app.metadata.name}
+                                                {appDisplayName}
                                                 <br />
                                                 <Moment fromNow={true} ago={true}>
                                                     {app.metadata.creationTimestamp}
@@ -118,7 +119,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                             </>
                                         }>
                                         <a className='applications-list__table-row-name' href={appLink.href} onClick={appLink.onClick} tabIndex={-1}>
-                                            {app.metadata.name}
+                                            {appDisplayName}
                                         </a>
                                     </Tooltip>
                                     <ApplicationURLs urls={app.status.summary?.externalURLs} />
