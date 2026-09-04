@@ -12,6 +12,7 @@ require (
 	github.com/Azure/kubelogin v0.2.19
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/Masterminds/sprig/v3 v3.3.0
+	github.com/ProtonMail/go-crypto v1.1.6
 	github.com/TomOnTime/utfutil v1.0.0
 	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/argoproj/argo-cd/gitops-engine/v3 v3.0.0-00010101000000-000000000000 // Tagged as gitops-engine/vX.Y.Z at release time
@@ -163,7 +164,6 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/OvyFlash/telegram-bot-api v0.0.0-20241219171906-3f2ca0c14ada // indirect
 	github.com/PagerDuty/go-pagerduty v1.8.0 // indirect
-	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/RocketChat/Rocket.Chat.Go.SDK v0.0.0-20240116134246-a8cbe886bab0 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.19.1 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.1 // indirect
