@@ -26,8 +26,11 @@ argocd app create APPNAME [flags]
   # Create a Kustomize app
   argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image quay.io/argoprojlabs/argocd-e2e-container:0.1
 
-  # Create a MultiSource app while yaml file contains an application with multiple sources
-  argocd app create guestbook --file <path-to-yaml-file>
+  # Create a multi-source app from a manifest file
+  argocd app create my-billing-app --file path/to/app.yaml
+
+  # Create a multi-source app from stdin (e.g. templated manifests in CI)
+  envsubst < app-template.yaml | argocd app create my-billing-app --file -
 
   # Create a app using a custom tool:
   argocd app create kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
@@ -52,7 +55,7 @@ argocd app create APPNAME [flags]
       --dry-source-repo string                     Repository URL of the app dry source
       --dry-source-revision string                 Revision of the app dry source
       --env string                                 Application environment to monitor
-  -f, --file string                                Filename or URL to Kubernetes manifests for the app
+  -f, --file string                                Filename, URL, or '-' (stdin) for Kubernetes application manifest(s)
       --helm-api-versions stringArray              Helm api-versions (in format [group/]version/kind) to use when running helm template (Can be repeated to set several values: --helm-api-versions traefik.io/v1alpha1/TLSOption --helm-api-versions v1/Service). If not set, use the api-versions from the destination cluster
       --helm-chart string                          Helm Chart name
       --helm-kube-version string                   Helm kube-version to use when running helm template. If not set, use the kube version from the destination cluster

@@ -43,6 +43,23 @@ If multiple sources produce the same resource (same `group`, `kind`, `name`, and
 produce the resource will take precedence. Argo CD will produce a `RepeatedResourceWarning` in this case, but it will 
 sync the resources. This provides a convenient way to override a resource from a chart with a resource from a Git repo.
 
+## Creating with the CLI
+
+Multi-source applications cannot be created using individual flags like `--repo` and `--path` (those apply to a single source). Instead, provide a full Application manifest via `--file`:
+
+```bash
+argocd app create my-billing-app --file app.yaml
+```
+
+For parameterized pipelines, pipe a rendered manifest on stdin:
+
+```bash
+envsubst < app-template.yaml | argocd app create my-billing-app --file -
+```
+
+> [!NOTE]
+> When using `--file`, source-related flags (`--repo`, `--path`, `--helm-set`, etc.) are ignored.
+
 ## Helm value files from external Git repository
 
 One of the most common scenarios for using multiple sources is the following
