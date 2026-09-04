@@ -84,6 +84,14 @@ function parseHelmValues(values: string | undefined): {value?: any; error?: stri
     }
 }
 
+export function validateHelmValues(values: string | undefined) {
+    if (!values) {
+        return undefined;
+    }
+    const parsedValues = parseHelmValues(values);
+    return parsedValues.error || (typeof parsedValues.value === 'object' ? undefined : 'Values must be a map');
+}
+
 function getParamsEditableItems(
     app: models.Application,
     title: string,
@@ -401,9 +409,10 @@ export const ApplicationParameters = (props: {
                             }
                             if (updatedSrc && updatedSrc.helm?.valuesObject) {
                                 const parsedValues = parseHelmValues(updatedSrc.helm.values);
-                                if (parsedValues.error) return;
-                                updatedSrc.helm.valuesObject = parsedValues.value; // Deserialize json
-                                updatedSrc.helm.values = '';
+                                if (!parsedValues.error) {
+                                    updatedSrc.helm.valuesObject = parsedValues.value; // Deserialize json
+                                    updatedSrc.helm.values = '';
+                                }
                             }
                             await props.save(input, {});
                             setRemovedOverrides(new Array<boolean>());
@@ -420,8 +429,7 @@ export const ApplicationParameters = (props: {
 
                         const helmSrc = isMulti ? updatedApp.spec.sources[ind] : updatedApp.spec.source;
                         if (helmSrc?.helm?.values) {
-                            const parsedValues = parseHelmValues(helmSrc.helm.values);
-                            errors[helmValuesPath] = parsedValues.error || (typeof parsedValues.value === 'object' ? null : 'Values must be a map');
+                            errors[helmValuesPath] = validateHelmValues(helmSrc.helm.values) || null;
                         }
 
                         return errors;
@@ -546,9 +554,10 @@ export const ApplicationParameters = (props: {
                         }
                         if (appSrc.helm && appSrc.helm.valuesObject) {
                             const parsedValues = parseHelmValues(appSrc.helm.values);
-                            if (parsedValues.error) return;
-                            appSrc.helm.valuesObject = parsedValues.value; // Deserialize json
-                            appSrc.helm.values = '';
+                            if (!parsedValues.error) {
+                                appSrc.helm.valuesObject = parsedValues.value; // Deserialize json
+                                appSrc.helm.values = '';
+                            }
                         }
 
                         await props.save(input, {});
@@ -576,8 +585,7 @@ export const ApplicationParameters = (props: {
                     }
 
                     if (updatedApp.spec.sources[ind].helm?.values) {
-                        const parsedValues = parseHelmValues(updatedApp.spec.sources[ind].helm.values);
-                        errors['spec.sources[' + ind + '].helm.values'] = parsedValues.error || (typeof parsedValues.value === 'object' ? null : 'Values must be a map');
+                        errors['spec.sources[' + ind + '].helm.values'] = validateHelmValues(updatedApp.spec.sources[ind].helm.values) || null;
                     }
 
                     return errors;
