@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: All Druid Nodes are in Ready Condition
+  inputPath: testdata/healthy.yaml
+
+- healthStatus:
+    status: Degraded
+    message: "Pod druid-test-historicals-0: ContainersNotReady"
+  inputPath: testdata/degraded.yaml
+
+- healthStatus:
+    status: Degraded
+    message: Some pods are not ready
+  inputPath: testdata/degraded_condition_false.yaml
+
+- healthStatus:
+    status: Progressing
+    message: Waiting for Druid status
+  inputPath: testdata/progressing.yaml
+
+- healthStatus:
+    status: Progressing
+    message: Druid cluster is being provisioned
+  inputPath: testdata/progressing_with_partial_status.yaml
