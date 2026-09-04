@@ -2179,7 +2179,7 @@ func validateOIDCConfigWithSecrets(configStr string, secrets map[string]string) 
 
 	resolvedConfig, err := yaml.Marshal(configMap)
 	if err != nil {
-		return err
+		return return errors.New("failed to marshal config after replacing secrets")
 	}
 
 	if err := ValidateOIDCConfig(string(resolvedConfig)); err != nil {
