@@ -1043,6 +1043,42 @@ spec:
               key: applicationsetcontroller.status.max.resources.count
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BUCKET_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.bucket.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BUCKET_QPS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.bucket.qps
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BASE_DELAY_NS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.basedelay.ns
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_MAX_DELAY_NS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.maxdelay.ns
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BACKOFF_FACTOR
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.backoff.factor
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_FAILURE_COOLDOWN_NS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.cooldown.ns
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -1197,6 +1233,18 @@ spec:
               key: log.format.timestamp
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_COMMIT_SERVER_SIGNING_KEY_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: commitserver.signing.key.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_COMMIT_SERVER_SIGNING_KEY_PASSPHRASE_FILE
+          valueFrom:
+            configMapKeyRef:
+              key: commitserver.signing.key.passphrase.file
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -1231,10 +1279,11 @@ spec:
           name: ssh-known-hosts
         - mountPath: /app/config/tls
           name: tls-certs
-        - mountPath: /app/config/gpg/source
-          name: gpg-keys
         - mountPath: /app/config/gpg/keys
           name: gpg-keyring
+        - mountPath: /app/config/gpg/signing
+          name: gpg-signing-key
+          readOnly: true
         - mountPath: /tmp
           name: tmp
       serviceAccountName: argocd-commit-server
@@ -1245,11 +1294,12 @@ spec:
       - configMap:
           name: argocd-tls-certs-cm
         name: tls-certs
-      - configMap:
-          name: argocd-gpg-keys-cm
-        name: gpg-keys
       - emptyDir: {}
         name: gpg-keyring
+      - name: gpg-signing-key
+        secret:
+          optional: true
+          secretName: argocd-commit-server-gpg-signing-key
       - emptyDir: {}
         name: tmp
       - name: argocd-commit-server-tls
@@ -1574,7 +1624,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.6.4-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.1-alpine
         imagePullPolicy: Always
         name: redis
         ports:

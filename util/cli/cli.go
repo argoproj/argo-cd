@@ -12,9 +12,11 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/google/shlex"
@@ -33,6 +35,40 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	utillog "github.com/argoproj/argo-cd/v3/util/log"
 )
+
+func WithSignalContext(run func(c *cobra.Command, args []string, cancel context.CancelFunc)) func(c *cobra.Command, args []string) {
+	runE := WithSignalContextE(func(c *cobra.Command, args []string, cancel context.CancelFunc) error {
+		run(c, args, cancel)
+		return nil
+	})
+	return func(c *cobra.Command, args []string) {
+		_ = runE(c, args)
+	}
+}
+
+func WithSignalContextE(run func(c *cobra.Command, args []string, cancel context.CancelFunc) error) func(c *cobra.Command, args []string) error {
+	return func(c *cobra.Command, args []string) error {
+		ctx, cancel := context.WithCancel(c.Context())
+		defer cancel()
+		c.SetContext(ctx)
+
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+		go func() {
+			// unregister once the context is done, whatever cancelled it, so a second Ctrl+C falls through to
+			// the default handler and kills the process
+			defer signal.Stop(sigCh)
+			select {
+			case s := <-sigCh:
+				log.Printf("got signal %v, attempting graceful shutdown", s)
+				cancel()
+			case <-ctx.Done():
+			}
+		}()
+
+		return run(c, args, cancel)
+	}
+}
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
 func NewVersionCmd(cliName string) *cobra.Command {

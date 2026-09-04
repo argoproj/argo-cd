@@ -5626,6 +5626,9 @@
     "clusterConnector": {
       "type": "object",
       "properties": {
+        "id": {
+          "type": "string"
+        },
         "name": {
           "type": "string"
         },
@@ -5642,6 +5645,10 @@
           "items": {
             "$ref": "#/definitions/clusterConnector"
           }
+        },
+        "dexAuthConnectorID": {
+          "type": "string",
+          "title": "dexAuthConnectorID is the connector ID that the login screen should redirect to directly, bypassing the connector selection screen"
         }
       }
     },
@@ -5791,6 +5798,9 @@
           "additionalProperties": {
             "$ref": "#/definitions/v1alpha1ResourceOverride"
           }
+        },
+        "resourceViewEnabled": {
+          "type": "boolean"
         },
         "statusBadgeEnabled": {
           "type": "boolean"
@@ -6188,7 +6198,7 @@
         "windows": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1SyncWindow"
+            "$ref": "#/definitions/v1alpha1InlineSyncWindow"
           }
         }
       }
@@ -7111,7 +7121,7 @@
           "type": "array",
           "title": "SyncWindows controls when syncs can be run for apps in this project",
           "items": {
-            "$ref": "#/definitions/v1alpha1SyncWindow"
+            "$ref": "#/definitions/v1alpha1InlineSyncWindow"
           }
         }
       }
@@ -7685,6 +7695,10 @@
       "type": "object",
       "title": "ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet",
       "properties": {
+        "disableExtensionFilter": {
+          "description": "DisableExtensionFilter controls whether the built-in file-extension filter is skipped during\nmanifest generation. When false (the default), only files with a .yaml, .yml, .json, or\n.jsonnet extension are considered as potential manifests. Set it to true to disable the filter\nso that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude\nglob patterns instead.",
+          "type": "boolean"
+        },
         "exclude": {
           "type": "string",
           "title": "Exclude contains a glob pattern to match paths against that should be explicitly excluded from being used during manifest generation"
@@ -8896,6 +8910,65 @@
         "value": {
           "description": "Value is human readable content.",
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1InlineSyncWindow": {
+      "type": "object",
+      "title": "InlineSyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
+      "properties": {
+        "andOperator": {
+          "type": "boolean",
+          "title": "UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator"
+        },
+        "applications": {
+          "type": "array",
+          "title": "Applications contains a list of applications that the window will apply to",
+          "items": {
+            "type": "string"
+          }
+        },
+        "clusters": {
+          "type": "array",
+          "title": "Clusters contains a list of clusters that the window will apply to",
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "type": "string",
+          "title": "Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example"
+        },
+        "duration": {
+          "type": "string",
+          "title": "Duration is the amount of time the sync window will be open"
+        },
+        "kind": {
+          "type": "string",
+          "title": "Kind defines if the window allows or blocks syncs"
+        },
+        "manualSync": {
+          "type": "boolean",
+          "title": "ManualSync enables manual syncs when they would otherwise be blocked"
+        },
+        "namespaces": {
+          "type": "array",
+          "title": "Namespaces contains a list of namespaces that the window will apply to",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schedule": {
+          "type": "string",
+          "title": "Schedule is the time the window will begin, specified in cron format"
+        },
+        "syncOverrun": {
+          "type": "boolean",
+          "title": "SyncOverrun allows ongoing syncs to continue in two scenarios:\nFor deny windows: allows syncs that started before the deny window became active to continue running\nFor allow windows: allows syncs that started during the allow window to continue after the window ends"
+        },
+        "timeZone": {
+          "type": "string",
+          "title": "TimeZone of the sync that will be applied to the schedule"
         }
       }
     },
@@ -11050,65 +11123,6 @@
       "properties": {
         "syncStrategyApply": {
           "$ref": "#/definitions/v1alpha1SyncStrategyApply"
-        }
-      }
-    },
-    "v1alpha1SyncWindow": {
-      "type": "object",
-      "title": "SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
-      "properties": {
-        "andOperator": {
-          "type": "boolean",
-          "title": "UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator"
-        },
-        "applications": {
-          "type": "array",
-          "title": "Applications contains a list of applications that the window will apply to",
-          "items": {
-            "type": "string"
-          }
-        },
-        "clusters": {
-          "type": "array",
-          "title": "Clusters contains a list of clusters that the window will apply to",
-          "items": {
-            "type": "string"
-          }
-        },
-        "description": {
-          "type": "string",
-          "title": "Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example"
-        },
-        "duration": {
-          "type": "string",
-          "title": "Duration is the amount of time the sync window will be open"
-        },
-        "kind": {
-          "type": "string",
-          "title": "Kind defines if the window allows or blocks syncs"
-        },
-        "manualSync": {
-          "type": "boolean",
-          "title": "ManualSync enables manual syncs when they would otherwise be blocked"
-        },
-        "namespaces": {
-          "type": "array",
-          "title": "Namespaces contains a list of namespaces that the window will apply to",
-          "items": {
-            "type": "string"
-          }
-        },
-        "schedule": {
-          "type": "string",
-          "title": "Schedule is the time the window will begin, specified in cron format"
-        },
-        "syncOverrun": {
-          "type": "boolean",
-          "title": "SyncOverrun allows ongoing syncs to continue in two scenarios:\nFor deny windows: allows syncs that started before the deny window became active to continue running\nFor allow windows: allows syncs that started during the allow window to continue after the window ends"
-        },
-        "timeZone": {
-          "type": "string",
-          "title": "TimeZone of the sync that will be applied to the schedule"
         }
       }
     },

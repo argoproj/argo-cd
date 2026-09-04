@@ -1,0 +1,17 @@
+// Visual reset so a CellLink reads like the plain text/divs it replaces. The row's overlay
+// anchor provides the visible link semantics; block + min-width:0 preserves the flex/truncation
+// behaviour of the cells these anchors wrap.
+.cell-link {
+    display: block;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+
+    &:hover,
+    &:focus,
+    &:visited,
+    &:active {
+        color: inherit;
+        text-decoration: none;
+    }
+}

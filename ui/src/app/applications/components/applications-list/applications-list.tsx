@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom';
 import {KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
-import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
+import {bufferTime, filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 import {ClusterCtx, DataLoader, EmptyState, Page, Paginate, SearchBar, Spinner} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -53,6 +53,7 @@ const APP_FIELDS = [
     'status.sync.revision',
     'status.health',
     'status.operationState.phase',
+    'status.operationState.operation.sync',
     'status.operationState.startedAt',
     'status.operationState.finishedAt'
 ];
@@ -74,7 +75,7 @@ function loadApplications(projects: string[], appNamespace: string, names?: stri
                 services.applications
                     .watch('application', {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS, names})
                     .pipe(repeat())
-                    .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
+                    .pipe(retry({delay: WATCH_RETRY_TIMEOUT}))
                     // batch events to avoid constant re-rendering and improve UI performance
                     .pipe(bufferTime(EVENTS_BUFFER_TIMEOUT))
                     .pipe(
@@ -263,7 +264,10 @@ const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean
                 },
                 renderItem: item => (
                     <React.Fragment>
-                        <i className='icon argo-icon-application' /> {item.label}
+                        <i className='icon argo-icon-application' style={{flexShrink: 0}} />
+                        <span title={item.label} style={{overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                            {item.label}
+                        </span>
                     </React.Fragment>
                 )
             }}
@@ -443,6 +447,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                             return (
                                                 <React.Fragment>
                                                     <FlexTopBar
+                                                        key={`toolbar-${healthBarPrefs.showHealthStatusBar}-${pref.view}`}
                                                         toolbar={{
                                                             tools: <ApplicationsToolbar applications={applications} pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />,
                                                             options: <ViewTypeSwitcher pref={pref} ctx={ctx} />,

@@ -1,0 +1,8 @@
+apiVersion: kro.run/v1alpha1
+kind: WebApplication
+metadata:
+  name: my-app
+  namespace: default
+spec:
+  name: web-app
+  image: nginx:latest
