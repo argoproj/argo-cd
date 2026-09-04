@@ -2191,7 +2191,9 @@ metadata:
 					"retry": {"limit": %d, "backoff": {"duration": %q}}
 				}
 			}`, 1, "1s")
-			_, err = fixture.Run("", "kubectl", "-n", fixture.TestNamespace(), "patch", "application", ctx.AppName(), "--type", "merge", "-p", patch)
+			// Qualify the version: v1beta1 relocates `operation` under status, and it
+			// outranks v1alpha1 in discovery, so an unqualified patch would be pruned.
+			_, err = fixture.Run("", "kubectl", "-n", fixture.TestNamespace(), "patch", "applications.v1alpha1.argoproj.io", ctx.AppName(), "--type", "merge", "-p", patch)
 			require.NoError(t, err)
 		}).
 		Then().
