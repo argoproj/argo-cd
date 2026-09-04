@@ -143,13 +143,14 @@
       ]
     },
     {
-      "description": "Group the Renovate action with the Renovate image it runs, so the pair is not split across two PRs. `separateMajorMinor` is off to keep it a single PR even when one of them has a major update available and the second does not.",
+      "description": "Group the Renovate action with the Renovate image it runs, so the pair is not split across two PRs. `separateMajorMinor` is off to keep it a single PR even when one of them has a major update available and the second does not. Bump weekly to reduce PR noise.",
       "groupName": "group renovate",
       "matchPackageNames": [
         "renovatebot/github-action",
         "ghcr.io/renovatebot/renovate"
       ],
-      "separateMajorMinor": false
+      "separateMajorMinor": false,
+      "schedule": ["before 9am on monday"]
     },
     {
       "description": "Example to reduce noise with the automerge features.",
