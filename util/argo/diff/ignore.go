@@ -55,7 +55,11 @@ func (i *IgnoreDiffConfig) HasIgnoreDifference(group, kind, name, namespace stri
 	}
 
 	for _, ignore := range i.ignores {
-		if glob.Match(ignore.Group, group) &&
+		ignoreGroup := ignore.Group
+		if ignoreGroup == "" {
+			ignoreGroup = "*"
+		}
+		if glob.Match(ignoreGroup, group) &&
 			glob.Match(ignore.Kind, kind) &&
 			(ignore.Name == "" || ignore.Name == name) &&
 			(ignore.Namespace == "" || ignore.Namespace == namespace) {
