@@ -4,8 +4,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
 )
 
 func TestGetCommonRootPath(t *testing.T) {
@@ -31,6 +33,8 @@ func TestGetCommonRootPath(t *testing.T) {
 		{"glob", "/services/shared/*-secret.yaml", "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731/services/helloworld", "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731/services"},
 		{"relative glob", "../*", "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731/services/helloworld", "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731/services"},
 		{"duplicate slashes", "//services/shared/*-secret.yaml", "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731/services/helloworld", "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731/services"},
+		// whitespace around the separator
+		{"whitespace", ". ; /services", "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731/services/helloworld", "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731/services"},
 	}
 
 	for _, tt := range tests {
@@ -42,4 +46,52 @@ func TestGetCommonRootPath(t *testing.T) {
 			assert.Equal(t, tt.expectedRootPath, rootPath, "input and output should match")
 		})
 	}
+}
+
+func TestGetManifestGenerateIncludePaths(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731"
+	appPath := repoRoot + "/services/helloworld"
+
+	tests := []struct {
+		name       string
+		annotation string
+		appPath    string
+		expected   []string
+	}{
+		{"no annotation", "", appPath, nil},
+		{"app path", ".", appPath, []string{"."}},
+		{"parent of the app path", "..", appPath, []string{"helloworld", "."}},
+		{"absolute path", "/infra;.", appPath, []string{"services/helloworld", "infra"}},
+		{"relative path", "../../infra;.", appPath, []string{"services/helloworld", "infra"}},
+		{"glob", "/services/shared/*-secret.yaml;.", appPath, []string{"helloworld", "shared/*-secret.yaml"}},
+		{"duplicated paths", ".;.;./", appPath, []string{"."}},
+		{"whitespace around the separator", ". ; /infra", appPath, []string{"services/helloworld", "infra"}},
+		{"app path is always included", "/infra", appPath, []string{"services/helloworld", "infra"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := &apiclient.ManifestRequest{AnnotationManifestGeneratePaths: tt.annotation}
+			rootPath := getApplicationRootPath(req, tt.appPath, repoRoot)
+			includePaths, err := getManifestGenerateIncludePaths(req, tt.appPath, rootPath, repoRoot)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, includePaths)
+		})
+	}
+}
+
+func TestGetManifestGenerateIncludePathsError(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731"
+	appPath := repoRoot + "/services/helloworld"
+	req := &apiclient.ManifestRequest{AnnotationManifestGeneratePaths: "."}
+
+	_, err := getManifestGenerateIncludePaths(req, appPath, "/somewhere/else", repoRoot)
+	require.Error(t, err)
+	require.ErrorIs(t, err, files.ErrRelativeOutOfBound)
 }

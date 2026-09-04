@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -56,6 +57,10 @@ func getApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath stri
 func getPaths(q *apiclient.ManifestRequest, appPath, repoPath string) []string {
 	var paths []string
 	for annotationPath := range strings.SplitSeq(q.AnnotationManifestGeneratePaths, ";") {
+		// Trim whitespace because annotation values may contain spaces around
+		// separators (e.g. ".; /path"). Without trimming, paths like " /path"
+		// are not treated as absolute.
+		annotationPath = strings.TrimSpace(annotationPath)
 		if annotationPath == "" {
 			continue
 		}
@@ -82,4 +87,32 @@ func getPaths(q *apiclient.ManifestRequest, appPath, repoPath string) []string {
 		paths = append(paths, path)
 	}
 	return paths
+}
+
+// getManifestGenerateIncludePaths returns the paths, relative to rootPath, that a
+// config management plugin needs to generate the application manifests, based on
+// the manifest generate paths annotation. Returns nil when the annotation is
+// empty, as rootPath is then the whole repository and there is nothing to narrow
+// down.
+func getManifestGenerateIncludePaths(q *apiclient.ManifestRequest, appPath, rootPath, repoPath string) ([]string, error) {
+	paths := getPaths(q, appPath, repoPath)
+	if len(paths) == 0 {
+		return nil, nil
+	}
+
+	// The application path is always needed, it is the plugin working directory.
+	var includePaths []string
+	seen := make(map[string]bool, len(paths)+1)
+	for _, path := range append([]string{appPath}, paths...) {
+		relPath, err := files.RelativePath(path, rootPath)
+		if err != nil {
+			return nil, fmt.Errorf("error building relative path for %q under %q: %w", path, rootPath, err)
+		}
+		if seen[relPath] {
+			continue
+		}
+		seen[relPath] = true
+		includePaths = append(includePaths, relPath)
+	}
+	return includePaths, nil
 }
