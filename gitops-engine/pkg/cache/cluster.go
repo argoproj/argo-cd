@@ -766,7 +766,10 @@ func (c *clusterCache) listResources(ctx context.Context, resClient dynamic.Reso
 func (c *clusterCache) loadInitialState(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string, lock bool) (string, error) {
 	var items []*Resource
 	resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
-		return listPager.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
+		// Use the WithAlloc variant: newResource may retain the object (as Resource.Resource, or via the
+		// Info returned by the OnPopulateResourceInfoHandler). Plain EachListItem yields &list.Items[i],
+		// so retaining one item keeps the page's whole backing array, and every manifest in it, reachable.
+		return listPager.EachListItemWithAlloc(ctx, metav1.ListOptions{LabelSelector: api.LabelSelector}, func(obj runtime.Object) error {
 			if un, ok := obj.(*unstructured.Unstructured); !ok {
 				return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
 			} else {
@@ -807,6 +810,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 
 		w, err := watchutil.NewRetryWatcherWithContext(ctx, resourceVersion, &cache.ListWatch{
 			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+				options.LabelSelector = api.LabelSelector
 				res, err := resClient.Watch(ctx, options)
 				if apierrors.IsNotFound(err) {
 					c.stopWatching(api.GroupKind, ns)
@@ -880,6 +884,7 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 								Version:      v.Name,
 								ShortNames:   crd.Spec.Names.ShortNames,
 							},
+							LabelSelector: c.settings.ResourcesFilter.GetLabelSelector(crd.Spec.Group, crd.Spec.Names.Kind, c.config.Host),
 						})
 					}
 
@@ -1184,7 +1189,10 @@ func (c *clusterCache) sync() (err error) {
 
 		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
 			resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
-				return listPager.EachListItem(context.Background(), metav1.ListOptions{}, func(obj runtime.Object) error {
+				// Use the WithAlloc variant: newResource may retain the object (as Resource.Resource, or via the
+				// Info returned by the OnPopulateResourceInfoHandler). Plain EachListItem yields &list.Items[i],
+				// so retaining one item keeps the page's whole backing array, and every manifest in it, reachable.
+				return listPager.EachListItemWithAlloc(ctx, metav1.ListOptions{LabelSelector: api.LabelSelector}, func(obj runtime.Object) error {
 					if un, ok := obj.(*unstructured.Unstructured); !ok {
 						return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
 					} else {

@@ -1,0 +1,16 @@
+# Freshly created Database the operator has not reconciled yet: no status
+# subresource at all, so the health check reports Progressing.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  creationTimestamp: "2026-09-02T12:00:00Z"
+  generation: 1
+  name: database-example
+  namespace: default
+spec:
+  cluster:
+    name: cluster-example
+  databaseReclaimPolicy: retain
+  ensure: present
+  name: app
+  owner: app

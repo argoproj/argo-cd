@@ -15,7 +15,10 @@ import {
     appRBACName,
     ComparisonStatusIcon,
     getAppDrySource,
+    getAppHydrateToSource,
     getAppHydratorSyncSource,
+    getApplicationDetailsContainerClass,
+    hydrationStatusMessage,
     getAppOperationState,
     getAppSpecDefaultSource,
     getHydratorSyncSourceRepoURL,
@@ -1045,6 +1048,59 @@ describe('getAppHydratorSyncSource', () => {
     });
 });
 
+describe('getAppHydrateToSource', () => {
+    it('uses hydrateTo.targetBranch when set', () => {
+        expect(
+            getAppHydrateToSource({
+                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main', path: 'in'},
+                syncSource: {repoURL: 'https://github.com/example/hydrated.git', targetBranch: 'env/test', path: 'out'},
+                hydrateTo: {targetBranch: 'env/test-hydrate'}
+            })
+        ).toEqual({
+            repoURL: 'https://github.com/example/hydrated.git',
+            targetRevision: 'env/test-hydrate',
+            path: 'out'
+        });
+    });
+
+    it('falls back to the sync source branch when hydrateTo is unset', () => {
+        expect(
+            getAppHydrateToSource({
+                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main', path: 'in'},
+                syncSource: {targetBranch: 'env/test', path: 'out'}
+            })
+        ).toEqual({
+            repoURL: 'https://github.com/example/dry.git',
+            targetRevision: 'env/test',
+            path: 'out'
+        });
+    });
+});
+
+describe('hydrationStatusMessage', () => {
+    it('shows hydrateTo as the destination while hydrating', () => {
+        const html = renderMarkup(
+            hydrationStatusMessage({
+                status: {
+                    sourceHydrator: {
+                        currentOperation: {
+                            phase: 'Hydrating',
+                            sourceHydrator: {
+                                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main'},
+                                syncSource: {targetBranch: 'env/test', path: 'out'},
+                                hydrateTo: {targetBranch: 'env/test-hydrate'}
+                            }
+                        }
+                    }
+                }
+            } as Application)
+        );
+        expect(html).toContain('env/test-hydrate');
+        expect(html).not.toContain('env/test)');
+        expect(html).not.toMatch(/>env\/test</);
+    });
+});
+
 describe('nameConfirmationError', () => {
     const emptyMsg = 'Enter the resource name to confirm the deletion';
     const mismatchMsg = 'Resource name does not match';
@@ -1092,5 +1148,19 @@ describe('getAppSpecDefaultSource', () => {
             targetRevision: 'env/test',
             path: 'out'
         });
+    });
+});
+
+describe('getApplicationDetailsContainerClass', () => {
+    it('keeps the static application-details class and adds a prefixed per-application class', () => {
+        expect(getApplicationDetailsContainerClass('guestbook')).toBe('application-details user-app-guestbook');
+    });
+
+    it('prefixes the per-application class so an app named after a component class does not collide (#24220)', () => {
+        const classes = getApplicationDetailsContainerClass('login').split(' ');
+        // the per-application hook is present, but namespaced...
+        expect(classes).toContain('user-app-login');
+        // ...and must NOT emit a bare `login` class that would pull in the login page's `.login` styles.
+        expect(classes).not.toContain('login');
     });
 });
