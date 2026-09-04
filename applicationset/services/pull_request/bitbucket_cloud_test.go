@@ -43,6 +43,9 @@ func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) 
 						}
 					]
 				}`)
+		case "/repositories/OWNER/REPO/commit/1a8dd249c04a":
+			// commit reachability check — 200 so the PR is not filtered out
+			_, err = io.WriteString(w, `{"hash": "1a8dd249c04a"}`)
 		default:
 			t.Fail()
 		}
@@ -63,21 +66,21 @@ func TestParseUrlEmptyUrl(t *testing.T) {
 
 func TestInvalidBaseUrlBasicAuthCloud(t *testing.T) {
 	t.Parallel()
-	_, err := NewBitbucketCloudServiceBasicAuth("http:// example.org", "user", "password", "OWNER", "REPO")
+	_, err := NewBitbucketCloudServiceBasicAuth("http:// example.org", "user", "password", "OWNER", "REPO", nil)
 
 	require.Error(t, err)
 }
 
 func TestInvalidBaseUrlBearerTokenCloud(t *testing.T) {
 	t.Parallel()
-	_, err := NewBitbucketCloudServiceBearerToken("http:// example.org", "TOKEN", "OWNER", "REPO")
+	_, err := NewBitbucketCloudServiceBearerToken("http:// example.org", "TOKEN", "OWNER", "REPO", nil)
 
 	require.Error(t, err)
 }
 
 func TestInvalidBaseUrlNoAuthCloud(t *testing.T) {
 	t.Parallel()
-	_, err := NewBitbucketCloudServiceNoAuth("http:// example.org", "OWNER", "REPO")
+	_, err := NewBitbucketCloudServiceNoAuth("http:// example.org", "OWNER", "REPO", nil)
 
 	require.Error(t, err)
 }
@@ -89,7 +92,7 @@ func TestListPullRequestBearerTokenCloud(t *testing.T) {
 		defaultHandlerCloud(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketCloudServiceBearerToken(ts.URL, "TOKEN", "OWNER", "REPO")
+	svc, err := NewBitbucketCloudServiceBearerToken(ts.URL, "TOKEN", "OWNER", "REPO", nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -108,7 +111,7 @@ func TestListPullRequestNoAuthCloud(t *testing.T) {
 		defaultHandlerCloud(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -127,7 +130,7 @@ func TestListPullRequestBasicAuthCloud(t *testing.T) {
 		defaultHandlerCloud(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketCloudServiceBasicAuth(ts.URL, "user", "password", "OWNER", "REPO")
+	svc, err := NewBitbucketCloudServiceBasicAuth(ts.URL, "user", "password", "OWNER", "REPO", nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -211,6 +214,8 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 					}
 				]
 			}`, r.Host)
+		case "/repositories/OWNER/REPO/commit/1a8dd249c04a", "/repositories/OWNER/REPO/commit/4cf807e67a6d", "/repositories/OWNER/REPO/commit/6344d9623e3b", "/repositories/OWNER/REPO/commit/4a8dd249c04a", "/repositories/OWNER/REPO/commit/2a8dd249c04a":
+			w.WriteHeader(http.StatusOK)
 		default:
 			t.Fail()
 		}
@@ -219,7 +224,7 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -253,7 +258,7 @@ func TestListResponseErrorCloud(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer ts.Close()
-	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	_, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.Error(t, err)
 }
@@ -278,7 +283,7 @@ func TestListResponseMalformedCloud(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	_, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.Error(t, err)
 }
@@ -303,7 +308,7 @@ func TestListResponseMalformedValuesCloud(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	_, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.Error(t, err)
 }
@@ -328,7 +333,7 @@ func TestListResponseEmptyCloud(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -422,6 +427,8 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 					}
 				]
 			}`, r.Host)
+		case "/repositories/OWNER/REPO/commit/1a8dd249c04a", "/repositories/OWNER/REPO/commit/4cf807e67a6d", "/repositories/OWNER/REPO/commit/6344d9623e3b", "/repositories/OWNER/REPO/commit/4a8dd249c04a", "/repositories/OWNER/REPO/commit/2a8dd249c04a":
+			w.WriteHeader(http.StatusOK)
 		default:
 			t.Fail()
 		}
@@ -431,7 +438,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 	}))
 	defer ts.Close()
 	regexp := `feature-1[\d]{2}`
-	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
@@ -458,7 +465,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 	}, *pullRequests[1])
 
 	regexp = `.*2$`
-	svc, err = NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, err = NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	require.NoError(t, err)
 	pullRequests, err = ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
@@ -477,7 +484,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 	}, *pullRequests[0])
 
 	regexp = `[\d{2}`
-	svc, err = NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, err = NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	require.NoError(t, err)
 	_, err = ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
@@ -520,7 +527,7 @@ func TestBitbucketCloudListReturnsRepositoryNotFoundError(t *testing.T) {
 		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
 	})
 
-	svc, err := NewBitbucketCloudServiceNoAuth(server.URL, "nonexistent", "nonexistent")
+	svc, err := NewBitbucketCloudServiceNoAuth(server.URL, "nonexistent", "nonexistent", nil)
 	require.NoError(t, err)
 
 	prs, err := svc.List(t.Context())
@@ -531,4 +538,87 @@ func TestBitbucketCloudListReturnsRepositoryNotFoundError(t *testing.T) {
 	// Should return RepositoryNotFoundError
 	require.Error(t, err)
 	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
+}
+
+func TestBitbucketCloudListMergesHintWithAPI(t *testing.T) {
+	// A hinted PR not yet visible in the API is appended to the API result.
+	// A hinted PR that IS already in the API result is deduped (not doubled).
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	mux.HandleFunc("/repositories/myorg/myrepo/pullrequests/", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"values": [
+			{"id": 1, "title": "existing PR", "state": "OPEN",
+			 "source": {"branch": {"name": "feat/existing"}, "commit": {"hash": "aaa111"}},
+			 "destination": {"branch": {"name": "main"}},
+			 "author": {"nickname": "alice"}}
+		]}`))
+	})
+	mux.HandleFunc("/repositories/myorg/myrepo/commit/", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	hints := &PRHintStore{}
+	// PR 42: new, not in API yet — should be appended.
+	// PR 1:  already in API — should not be duplicated.
+	hints.Set("myorg", "myrepo", []*PullRequest{
+		{Number: 42, Title: "feat: new PR", Branch: "feat/new", TargetBranch: "main", HeadSHA: "bbb222"},
+		{Number: 1, Title: "existing PR", Branch: "feat/existing", TargetBranch: "main", HeadSHA: "aaa111"},
+	})
+
+	svc, err := NewBitbucketCloudServiceNoAuth(server.URL, "myorg", "myrepo", hints)
+	require.NoError(t, err)
+
+	prs, err := svc.List(t.Context())
+	require.NoError(t, err)
+	require.Len(t, prs, 2, "should have API PR + hinted PR, deduplicated")
+	numbers := []int64{prs[0].Number, prs[1].Number}
+	assert.Contains(t, numbers, int64(1))
+	assert.Contains(t, numbers, int64(42))
+
+	// Second call: hint consumed, only API result returned.
+	prs2, err := svc.List(t.Context())
+	require.NoError(t, err)
+	require.Len(t, prs2, 1)
+	assert.Equal(t, int64(1), prs2[0].Number)
+}
+
+func TestBitbucketCloudListSkipsUnreachableCommit(t *testing.T) {
+	// PR whose head SHA returns 404 from the commit API should be skipped;
+	// PR with a reachable SHA should be returned.
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	mux.HandleFunc("/repositories/OWNER/REPO/pullrequests/", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"values": [
+			{"id": 1, "title": "reachable PR", "state": "OPEN",
+			 "source": {"branch": {"name": "feat/a"}, "commit": {"hash": "aabbcc"}},
+			 "destination": {"branch": {"name": "main"}},
+			 "author": {"nickname": "alice"}},
+			{"id": 2, "title": "deleted-branch PR", "state": "OPEN",
+			 "source": {"branch": {"name": "feat/gone"}, "commit": {"hash": "deadbeef"}},
+			 "destination": {"branch": {"name": "main"}},
+			 "author": {"nickname": "bob"}}
+		]}`))
+	})
+	// Reachable commit returns 200.
+	mux.HandleFunc("/repositories/OWNER/REPO/commit/aabbcc", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"hash": "aabbcc"}`))
+	})
+	// Unreachable commit returns 404.
+	mux.HandleFunc("/repositories/OWNER/REPO/commit/deadbeef", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
+
+	svc, err := NewBitbucketCloudServiceNoAuth(server.URL, "OWNER", "REPO", nil)
+	require.NoError(t, err)
+
+	prs, err := svc.List(t.Context())
+	require.NoError(t, err)
+	require.Len(t, prs, 1)
+	assert.Equal(t, int64(1), prs[0].Number)
+	assert.Equal(t, "aabbcc", prs[0].HeadSHA)
 }

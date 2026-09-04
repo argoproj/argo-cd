@@ -17,6 +17,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
+	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
 	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider"
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -44,6 +45,10 @@ type SCMConfig struct {
 	tokenRefStrictMode     bool
 	scmProxyURL            string
 	scmNoProxy             string
+	// PRHints is a one-shot store populated by the webhook handler from the
+	// Bitbucket Cloud pullrequest:created/updated payload, bypassing the
+	// eventually-consistent list API for the triggering reconcile.
+	PRHints *pullrequest.PRHintStore
 }
 
 func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, enableGitHubAPIMetrics bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool, opts ...SCMConfigOpts) SCMConfig {
@@ -54,6 +59,7 @@ func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMP
 		enableGitHubAPIMetrics: enableGitHubAPIMetrics,
 		GitHubApps:             gitHubApps,
 		tokenRefStrictMode:     tokenRefStrictMode,
+		PRHints:                &pullrequest.PRHintStore{},
 	}
 
 	for _, opt := range opts {
@@ -241,13 +247,30 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			return nil, fmt.Errorf("error initializing Azure Devops service: %w", err)
 		}
 	case providerConfig.Bitbucket != nil:
-		appPassword, err := utils.GetSecretRef(ctx, g.client, providerConfig.Bitbucket.AppPasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
-		if err != nil {
-			return nil, fmt.Errorf("error fetching Bitbucket cloud appPassword: %w", err)
+		var scmError error
+		switch {
+		case providerConfig.Bitbucket.BearerToken != nil && providerConfig.Bitbucket.AppPasswordRef != nil:
+			return nil, errors.New("bitbucket scm provider bearerToken and appPasswordRef are mutually exclusive")
+		case providerConfig.Bitbucket.BearerToken != nil:
+			token, err := utils.GetSecretRef(ctx, g.client, providerConfig.Bitbucket.BearerToken.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
+			if err != nil {
+				return nil, fmt.Errorf("error fetching Bitbucket cloud bearer token: %w", err)
+			}
+			provider, scmError = scm_provider.NewBitBucketCloudProviderBearerToken(providerConfig.Bitbucket.Owner, token, providerConfig.Bitbucket.AllBranches)
+		case providerConfig.Bitbucket.AppPasswordRef != nil:
+			if providerConfig.Bitbucket.User == "" {
+				return nil, errors.New("bitbucket scm provider requires user when using appPasswordRef")
+			}
+			appPassword, err := utils.GetSecretRef(ctx, g.client, providerConfig.Bitbucket.AppPasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
+			if err != nil {
+				return nil, fmt.Errorf("error fetching Bitbucket cloud appPassword: %w", err)
+			}
+			provider, scmError = scm_provider.NewBitBucketCloudProvider(providerConfig.Bitbucket.Owner, providerConfig.Bitbucket.User, appPassword, providerConfig.Bitbucket.AllBranches)
+		default:
+			return nil, errors.New("bitbucket scm provider requires either bearerToken or appPasswordRef")
 		}
-		provider, err = scm_provider.NewBitBucketCloudProvider(providerConfig.Bitbucket.Owner, providerConfig.Bitbucket.User, appPassword, providerConfig.Bitbucket.AllBranches)
-		if err != nil {
-			return nil, fmt.Errorf("error initializing Bitbucket cloud service: %w", err)
+		if scmError != nil {
+			return nil, fmt.Errorf("error initializing Bitbucket cloud service: %w", scmError)
 		}
 	case providerConfig.AWSCodeCommit != nil:
 		var awsErr error
