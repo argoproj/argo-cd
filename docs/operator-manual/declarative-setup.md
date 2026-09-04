@@ -401,6 +401,16 @@ The following keys are valid to refer to credential secrets:
 * `githubAppEnterpriseBaseUrl` refers to the base api URL for GitHub Enterprise (e.g. `https://ghe.example.com/api/v3`)
 * `tlsClientCertData` and `tlsClientCertKey` refer to secrets where a TLS client certificate (`tlsClientCertData`) and the corresponding private key `tlsClientCertKey` are stored for accessing GitHub Enterprise if custom certificates are used.
 
+#### Azure Service Principal repositories
+
+* `azureServicePrincipalClientID` or `azureServicePrincipalClientId` refers to the client ID.
+* `azureServicePrincipalTenantID` or `azureServicePrincipalTenantId` refers to the tenant ID.
+* `azureServicePrincipalClientSecret` refers to the client secret.
+* `azureActiveDirectoryEndpoint` optionally specifies the Microsoft Entra authority endpoint.
+
+> [!NOTE]
+> If both forms of a client or tenant ID key have values, the uppercase-`ID` form takes precedence.
+
 #### Helm Chart repositories
 
 See the [Helm](#helm) section for the properties that apply to Helm repositories and charts sourced from OCI registries.
@@ -1405,12 +1415,43 @@ kind: ConfigMap
 The `resource.inclusions` and `resource.exclusions` might be used together. The final list of resources includes group/kinds specified in `resource.inclusions` minus group/kinds
 specified in `resource.exclusions` setting.
 
+## Filtering resources with a label selector
+
+While `resource.inclusions` and `resource.exclusions` work at the group/kind level, the `resource.selectors` setting
+narrows down which *objects* of a group/kind Argo CD watches. The selector is sent to the Kubernetes API server as part
+of the list/watch call, so the filtered out objects never reach Argo CD:
+
+```yaml
+apiVersion: v1
+data:
+  resource.selectors: |
+    - apiGroups:
+      - ""
+      kinds:
+      - Pod
+      clusters:
+      - https://192.168.0.20
+      selector: "!argocd.argoproj.io/instance"
+kind: ConfigMap
+```
+
+The `resource.selectors` node is a list of objects. Each object can have:
+
+* `apiGroups` A list of globs to match the API group.
+* `kinds` A list of kinds to match. Can be `"*"` to match all.
+* `clusters` A list of globs to match the cluster URL.
+* `selector` A [label selector](https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#label-selectors)
+  in its string form, e.g. `tier=backend`, `tier in (backend,frontend)` or `!tier`.
+
+If `apiGroups`, `kinds` and `clusters` all match, the selector is applied when listing and watching that resource. The
+example above makes Argo CD watch, in cluster `https://192.168.0.20`, only the Pods that do not have the
+`argocd.argoproj.io/instance` label. Omitting `apiGroups`, `kinds` or `clusters` matches all of them, so a rule with only
+a `selector` applies the selector to every watched resource.
+
 Notes:
 
-* Quote globs in your YAML to avoid parsing errors.
-* Invalid globs result in the whole rule being ignored.
-* If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
-* Some excluded objects may already be in the controller cache. A restart of the controller will be necessary to remove them from the Application View.
+* Selectors of all the matching rules are ANDed together.
+* An invalid selector is rejected when the config map is loaded.
 
 ## Mask sensitive Annotations on Secrets
 

@@ -32839,6 +32839,19 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
+    app.kubernetes.io/component: application-controller
+    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-application-controller
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: argocd-application-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
     app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
     app.kubernetes.io/part-of: argocd
@@ -33343,6 +33356,42 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.status.max.resources.count
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BUCKET_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.bucket.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BUCKET_QPS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.bucket.qps
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BASE_DELAY_NS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.basedelay.ns
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_MAX_DELAY_NS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.maxdelay.ns
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BACKOFF_FACTOR
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.backoff.factor
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_FAILURE_COOLDOWN_NS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.wq.cooldown.ns
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest

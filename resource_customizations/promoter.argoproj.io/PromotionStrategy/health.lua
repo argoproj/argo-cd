@@ -70,7 +70,7 @@ local function getProposedDrySha(env)
 end
 
 -- Make sure there's a fully-populated status for both active and proposed commits in all environments. If anything is
--- missing or empty, return a Progressing status.
+-- missing or empty, return a Progressing status while waiting for hydration.
 for _, env in ipairs(obj.status.environments) do
     if not env.active or not env.active.dry or not env.active.dry.sha or env.active.dry.sha == "" then
         hs.status = "Progressing"
@@ -130,7 +130,7 @@ for _, env in ipairs(obj.status.environments) do
             end
         end
 
-        hs.status = "Progressing"
+        hs.status = "Healthy"
         hs.message =
             "Promotion in progress for environment '" .. env.branch ..
             "' from '" .. getShortSha(env.active.dry.sha) ..
