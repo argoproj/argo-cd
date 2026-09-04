@@ -23374,6 +23374,9 @@ spec:
             type: object
           status:
             properties:
+              abandonedCount:
+                format: int64
+                type: integer
               applicationStatus:
                 items:
                   properties:
@@ -23434,6 +23437,8 @@ spec:
               resources:
                 items:
                   properties:
+                    abandoned:
+                      type: boolean
                     group:
                       type: string
                     health:

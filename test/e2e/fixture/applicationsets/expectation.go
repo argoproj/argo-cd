@@ -99,6 +99,24 @@ func ApplicationSetHasHealthStatus(expectedHealthStatus health.HealthStatusCode)
 	}
 }
 
+// ApplicationSetHasAbandonedCount checks whether the ApplicationSet reports the expected number of
+// owned-but-no-longer-generated Applications in its status.
+func ApplicationSetHasAbandonedCount(expectedAbandonedCount int64) Expectation {
+	return func(c *Consequences) (state, string) {
+		// retrieve the application set
+		foundApplicationSet := c.applicationSet(c.context.GetName())
+		if foundApplicationSet == nil {
+			return pending, fmt.Sprintf("application set '%s' not found", c.context.GetName())
+		}
+
+		if foundApplicationSet.Status.AbandonedCount != expectedAbandonedCount {
+			return pending, fmt.Sprintf("application set abandoned count is %d, expected %d",
+				foundApplicationSet.Status.AbandonedCount, expectedAbandonedCount)
+		}
+		return succeeded, fmt.Sprintf("application set has expected abandoned count %d", expectedAbandonedCount)
+	}
+}
+
 // ApplicationSetHasConditions checks whether each of the 'expectedConditions' exist in the ApplicationSet status, and are
 // equivalent to provided values.
 func ApplicationSetHasConditions(expectedConditions []v1alpha1.ApplicationSetCondition) Expectation {

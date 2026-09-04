@@ -4,7 +4,16 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-func BuildResourceStatus(statusMap map[string]argov1alpha1.ResourceStatus, apps []argov1alpha1.Application) map[string]argov1alpha1.ResourceStatus {
+// BuildResourceStatus builds the resource status entries for the live Applications owned by the
+// ApplicationSet. Applications that are owned but no longer generated (for example left behind
+// after a generator change under the create-only or create-update applicationsSync policies, or
+// not yet deleted under the delete-capable policies) are marked as Abandoned.
+func BuildResourceStatus(statusMap map[string]argov1alpha1.ResourceStatus, apps []argov1alpha1.Application, generatedApps []argov1alpha1.Application) map[string]argov1alpha1.ResourceStatus {
+	generated := make(map[string]bool, len(generatedApps))
+	for _, app := range generatedApps {
+		generated[app.Name] = true
+	}
+
 	appMap := map[string]argov1alpha1.Application{}
 	for _, app := range apps {
 		appMap[app.Name] = app
@@ -18,6 +27,9 @@ func BuildResourceStatus(statusMap map[string]argov1alpha1.ResourceStatus, apps 
 		status.Namespace = app.Namespace
 		status.Status = app.Status.Sync.Status
 		status.Health = &argov1alpha1.HealthStatus{Status: app.Status.Health.Status}
+		// An Application that is already being deleted is being reaped, not abandoned; without this
+		// the delete-capable policies would briefly report routine scale-downs as abandoned Applications.
+		status.Abandoned = !generated[app.Name] && app.DeletionTimestamp == nil
 
 		statusMap[app.Name] = status
 	}

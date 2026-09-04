@@ -310,7 +310,8 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 		}
 
 		statusMap := appsetstatus.GetResourceStatusMap(appset)
-		statusMap = appsetstatus.BuildResourceStatus(statusMap, apps)
+		// Dry-run works purely on the generated Applications, so none of them are abandoned.
+		statusMap = appsetstatus.BuildResourceStatus(statusMap, apps, apps)
 
 		statuses := []v1alpha1.ResourceStatus{}
 		for _, status := range statusMap {

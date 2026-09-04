@@ -3848,9 +3848,29 @@ func TestUpdateResourceStatus(t *testing.T) {
 		name                    string
 		appSet                  v1alpha1.ApplicationSet
 		apps                    []v1alpha1.Application
+		generatedApps           []v1alpha1.Application
 		expectedResources       []v1alpha1.ResourceStatus
+		expectedAbandonedCount  int64
 		maxResourcesStatusCount int
 	}{
+		{
+			name: "counts abandoned applications even when truncated out of the resources status",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Resources: []v1alpha1.ResourceStatus{},
+				},
+			},
+			apps:          generateNHealthyApps(2),
+			generatedApps: []v1alpha1.Application{{Name: "app0"}},
+			// app1 is abandoned and truncated out of the resources status, but still counted.
+			expectedResources:       generateNAppResourceStatuses(1),
+			expectedAbandonedCount:  1,
+			maxResourcesStatusCount: 1,
+		},
 		{
 			name: "handles an empty application list",
 			appSet: v1alpha1.ApplicationSet{
@@ -3866,7 +3886,8 @@ func TestUpdateResourceStatus(t *testing.T) {
 			expectedResources: nil,
 		},
 		{
-			name: "adds status if no existing statuses",
+			name:          "adds status if no existing statuses",
+			generatedApps: []v1alpha1.Application{{Name: "app1"}},
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -3900,7 +3921,8 @@ func TestUpdateResourceStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "handles an applicationset with existing and up-to-date status",
+			name:          "handles an applicationset with existing and up-to-date status",
+			generatedApps: []v1alpha1.Application{{Name: "app1"}},
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -3942,7 +3964,8 @@ func TestUpdateResourceStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "updates an applicationset with existing and out of date status",
+			name:          "updates an applicationset with existing and out of date status",
+			generatedApps: []v1alpha1.Application{{Name: "app1"}},
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -4008,7 +4031,8 @@ func TestUpdateResourceStatus(t *testing.T) {
 			expectedResources: nil,
 		},
 		{
-			name: "truncates resources status list to",
+			name:          "truncates resources status list to",
+			generatedApps: []v1alpha1.Application{{Name: "app1"}, {Name: "app2"}},
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -4090,10 +4114,11 @@ func TestUpdateResourceStatus(t *testing.T) {
 				MaxResourcesStatusCount: cc.maxResourcesStatusCount,
 			}
 
-			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
+			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, cc.generatedApps)
 
 			require.NoError(t, err, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedResources, cc.appSet.Status.Resources, "expected resources did not match actual")
+			assert.Equal(t, cc.expectedAbandonedCount, cc.appSet.Status.AbandonedCount, "expected abandoned count did not match actual")
 		})
 	}
 }
@@ -4178,13 +4203,13 @@ func TestResourceStatusAreOrdered(t *testing.T) {
 				Metrics:       metrics,
 			}
 
-			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
+			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, cc.apps)
 			require.NoError(t, err, "expected no errors, but errors occurred")
 
-			err = r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
+			err = r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, cc.apps)
 			require.NoError(t, err, "expected no errors, but errors occurred")
 
-			err = r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
+			err = r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, cc.apps)
 			require.NoError(t, err, "expected no errors, but errors occurred")
 
 			assert.Equal(t, cc.expectedResources, cc.appSet.Status.Resources, "expected resources did not match actual")

@@ -403,7 +403,9 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
 	}
-	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications)
+	// Compare against generatedApplications rather than validApps so that generated-but-invalid
+	// applications are not reported as abandoned.
+	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications, generatedApplications)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to update resources status for application set: %w", err)
 	}
@@ -1115,13 +1117,19 @@ func (r *ApplicationSetReconciler) migrateStatus(ctx context.Context, appset *ar
 	return nil
 }
 
-func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, apps []argov1alpha1.Application) error {
+func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, apps []argov1alpha1.Application, generatedApps []argov1alpha1.Application) error {
 	statusMap := status.GetResourceStatusMap(appset)
-	statusMap = status.BuildResourceStatus(statusMap, apps)
+	statusMap = status.BuildResourceStatus(statusMap, apps, generatedApps)
 
 	statuses := []argov1alpha1.ResourceStatus{}
+	// Count abandoned Applications before truncation so the count stays correct even when their
+	// entries do not fit into the truncated resource status list.
+	abandonedCount := int64(0)
 	for _, status := range statusMap {
 		statuses = append(statuses, status)
+		if status.Abandoned {
+			abandonedCount++
+		}
 	}
 	sort.Slice(statuses, func(i, j int) bool {
 		return statuses[i].Name < statuses[j].Name
@@ -1133,6 +1141,7 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 	}
 	appset.Status.Resources = statuses
 	appset.Status.ResourcesCount = resourcesCount
+	appset.Status.AbandonedCount = abandonedCount
 	// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
@@ -1146,6 +1155,7 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 
 		updatedAppset.Status.Resources = appset.Status.Resources
 		updatedAppset.Status.ResourcesCount = resourcesCount
+		updatedAppset.Status.AbandonedCount = abandonedCount
 
 		// Update the newly fetched object with new status resources
 		err := r.Client.Status().Update(ctx, updatedAppset)
