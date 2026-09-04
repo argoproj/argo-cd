@@ -256,6 +256,7 @@ export interface DrySource {
 export interface SyncSource {
     targetBranch: string;
     path: string;
+    repoURL?: string;
 }
 
 export interface HydrateTo {
