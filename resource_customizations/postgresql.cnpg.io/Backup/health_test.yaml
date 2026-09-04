@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "Backup completed"
+    inputPath: testdata/completed.yaml
+  - healthStatus:
+      status: Progressing
+      message: "running"
+    inputPath: testdata/running.yaml
+  - healthStatus:
+      status: Degraded
+      message: "unable to execute pg_basebackup: exit status 1"
+    inputPath: testdata/failed.yaml
