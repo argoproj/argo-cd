@@ -9,7 +9,7 @@
 > [published security advisories](https://github.com/argoproj/argo-cd/security/advisories).
 
 As a deployment tool, Argo CD needs to have production access which makes security a very important topic.
-The Argoproj team takes security very seriously and continuously working on improving it. Learn more about security
+The Argoproj team takes security very seriously and is continuously working on improving it. Learn more about security
 related features in [Security](./operator-manual/security.md) section.
 
 ## Overview of past and current issues
@@ -115,7 +115,7 @@ Argo CD uses the `argocd-server` pod name (ex: `argocd-server-55594fbdb9-ptsf5`)
 
 Kubernetes users able to list pods in the argo namespace are able to retrieve the default password.
 
-Additionally, In most installations, [the Pod name contains a random "trail" of characters](https://github.com/kubernetes/kubernetes/blob/dda530cfb74b157f1d17b97818aa128a9db8e711/staging/src/k8s.io/apiserver/pkg/storage/names/generate.go#L37).
+Additionally, in most installations, [the Pod name contains a random "trail" of characters](https://github.com/kubernetes/kubernetes/blob/dda530cfb74b157f1d17b97818aa128a9db8e711/staging/src/k8s.io/apiserver/pkg/storage/names/generate.go#L37).
 These characters are generated using [a time-seeded PRNG](https://github.com/kubernetes/apimachinery/blob/master/pkg/util/rand/rand.go#L26) and not a CSPRNG.
 An attacker could use this information in an attempt to deduce the state of the internal PRNG, aiding bruteforce attacks.
 

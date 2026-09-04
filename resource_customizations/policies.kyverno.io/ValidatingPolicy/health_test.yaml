@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for ValidatingPolicy status"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: "webhook configured"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "WebhookConfigured: webhook configuration failed"
+  inputPath: testdata/degraded.yaml

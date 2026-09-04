@@ -52,12 +52,10 @@ func Test_secretToCluster(t *testing.T) {
 	labels := map[string]string{"key1": "val1"}
 	annotations := map[string]string{"key2": "val2"}
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        "mycluster",
-			Namespace:   fakeNamespace,
-			Labels:      labels,
-			Annotations: annotations,
-		},
+		Name:        "mycluster",
+		Namespace:   fakeNamespace,
+		Labels:      labels,
+		Annotations: annotations,
 		Data: map[string][]byte{
 			"name":   []byte("test"),
 			"server": []byte("http://mycluster"),
@@ -79,11 +77,9 @@ func Test_secretToCluster(t *testing.T) {
 
 func Test_secretToCluster_LastAppliedConfigurationDropped(t *testing.T) {
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        "mycluster",
-			Namespace:   fakeNamespace,
-			Annotations: map[string]string{corev1.LastAppliedConfigAnnotation: "val2"},
-		},
+		Name:        "mycluster",
+		Namespace:   fakeNamespace,
+		Annotations: map[string]string{corev1.LastAppliedConfigAnnotation: "val2"},
 		Data: map[string][]byte{
 			"name":   []byte("test"),
 			"server": []byte("http://mycluster"),
@@ -134,10 +130,8 @@ func TestClusterToSecret_LastAppliedConfigurationRejected(t *testing.T) {
 
 func Test_secretToCluster_NoConfig(t *testing.T) {
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: fakeNamespace,
-		},
+		Name:      "mycluster",
+		Namespace: fakeNamespace,
 		Data: map[string][]byte{
 			"name":   []byte("test"),
 			"server": []byte("http://mycluster"),
@@ -155,10 +149,8 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 
 func Test_secretToCluster_InvalidConfig(t *testing.T) {
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: fakeNamespace,
-		},
+		Name:      "mycluster",
+		Namespace: fakeNamespace,
 		Data: map[string][]byte{
 			"name":   []byte("test"),
 			"server": []byte("http://mycluster"),
@@ -172,12 +164,10 @@ func Test_secretToCluster_InvalidConfig(t *testing.T) {
 
 func TestUpdateCluster(t *testing.T) {
 	kubeclientset := fake.NewClientset(&corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "mycluster",
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("http://mycluster"),
@@ -202,12 +192,10 @@ func TestUpdateCluster(t *testing.T) {
 
 func TestDeleteUnknownCluster(t *testing.T) {
 	kubeclientset := fake.NewClientset(&corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "mycluster",
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("http://mycluster"),
@@ -221,22 +209,18 @@ func TestDeleteUnknownCluster(t *testing.T) {
 
 func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 	argoCDConfigMapWithInClusterServerAddressDisabled := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{"cluster.inClusterEnabled": "false"},
 	}
 	argoCDSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDSecretName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDSecretName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string][]byte{
 			"admin.password":   nil,
@@ -298,32 +282,26 @@ func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster,
 
 func TestGetCluster(t *testing.T) {
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{},
 	}
 	argoCDConfigMapWithInClusterServerAddressDisabled := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{"cluster.inClusterEnabled": "false"},
 	}
 	argoCDSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDSecretName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDSecretName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string][]byte{
 			"admin.password":   nil,
@@ -331,12 +309,10 @@ func TestGetCluster(t *testing.T) {
 		},
 	}
 	secretForServerWithInClusterAddr := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster1",
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "mycluster1",
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte(v1alpha1.KubernetesInternalAPIServerAddr),
@@ -345,12 +321,10 @@ func TestGetCluster(t *testing.T) {
 	}
 
 	secretForServerWithExternalClusterAddr := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster2",
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "mycluster2",
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("http://mycluster2"),
@@ -430,32 +404,26 @@ func TestGetCluster(t *testing.T) {
 
 func TestListClusters(t *testing.T) {
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{},
 	}
 	argoCDConfigMapWithInClusterServerAddressDisabled := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{"cluster.inClusterEnabled": "false"},
 	}
 	argoCDSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDSecretName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDSecretName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string][]byte{
 			"admin.password":   nil,
@@ -463,12 +431,10 @@ func TestListClusters(t *testing.T) {
 		},
 	}
 	secretForServerWithInClusterAddr := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster1",
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "mycluster1",
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte(v1alpha1.KubernetesInternalAPIServerAddr),
@@ -477,12 +443,10 @@ func TestListClusters(t *testing.T) {
 	}
 
 	secretForServerWithExternalClusterAddr := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster2",
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "mycluster2",
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("http://mycluster2"),
@@ -491,10 +455,8 @@ func TestListClusters(t *testing.T) {
 	}
 
 	invalidSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster3",
-			Namespace: fakeNamespace,
-		},
+		Name:      "mycluster3",
+		Namespace: fakeNamespace,
 		Data: map[string][]byte{
 			"name":   []byte("test"),
 			"server": []byte("http://mycluster3"),
@@ -556,22 +518,18 @@ func TestListClusters(t *testing.T) {
 
 func TestGetClusterServersByName(t *testing.T) {
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{},
 	}
 	argoCDSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDSecretName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDSecretName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string][]byte{
 			"admin.password":   nil,
@@ -579,25 +537,21 @@ func TestGetClusterServersByName(t *testing.T) {
 		},
 	}
 	argoCDConfigMapWithInClusterServerAddressDisabled := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{"cluster.inClusterEnabled": "false"},
 	}
 	argoCDSecretInClusterConfigured := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-cluster-secret",
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
-			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-			},
+		Name:      "my-cluster-secret",
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+		},
+		Annotations: map[string]string{
+			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
 		},
 		Data: map[string][]byte{
 			"name":   []byte("in-cluster-renamed"),
@@ -608,15 +562,13 @@ func TestGetClusterServersByName(t *testing.T) {
 
 	t.Run("returns the server name", func(t *testing.T) {
 		argoCDClusterSecret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "my-cluster-secret",
-				Namespace: fakeNamespace,
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-				},
-				Annotations: map[string]string{
-					common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-				},
+			Name:      "my-cluster-secret",
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
 			},
 			Data: map[string][]byte{
 				"name":   []byte("my-cluster-name"),
@@ -663,24 +615,20 @@ func TestGetClusterServersByName(t *testing.T) {
 
 func TestGetClusterServersByName_IsInClusterEnabledLazyLoad(t *testing.T) {
 	argoCDSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDSecretName,
-			Namespace: fakeNamespace,
-			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
-		},
+		Name:      common.ArgoCDSecretName,
+		Namespace: fakeNamespace,
+		Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
 		Data: map[string][]byte{
 			"admin.password":   nil,
 			"server.secretkey": nil,
 		},
 	}
 	prodSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-cluster-secret",
-			Namespace: fakeNamespace,
-			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
-			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-			},
+		Name:      "my-cluster-secret",
+		Namespace: fakeNamespace,
+		Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+		Annotations: map[string]string{
+			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
 		},
 		Data: map[string][]byte{
 			"name":   []byte("prod"),
@@ -727,22 +675,18 @@ func TestGetClusterServersByName_IsInClusterEnabledLazyLoad(t *testing.T) {
 
 func TestCreateCluster_MissingServerSecretKey(t *testing.T) {
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{},
 	}
 	argoCDSecretWithoutSecretKey := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDSecretName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDSecretName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string][]byte{
 			"admin.password": nil,
@@ -775,12 +719,10 @@ func TestCreateCluster_MissingServerSecretKey(t *testing.T) {
 
 	t.Run("in-cluster creation rejected when explicitly disabled even with missing server.secretkey", func(t *testing.T) {
 		argoCDConfigMapWithInClusterDisabled := &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDConfigMapName,
-				Namespace: fakeNamespace,
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string]string{"cluster.inClusterEnabled": "false"},
 		}
@@ -799,22 +741,18 @@ func TestCreateCluster_MissingServerSecretKey(t *testing.T) {
 
 func TestListClusters_MissingServerSecretKey(t *testing.T) {
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{},
 	}
 	argoCDSecretWithoutSecretKey := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDSecretName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDSecretName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string][]byte{
 			"admin.password": nil,
@@ -823,12 +761,10 @@ func TestListClusters_MissingServerSecretKey(t *testing.T) {
 
 	t.Run("lists clusters including implicit in-cluster when server.secretkey is missing", func(t *testing.T) {
 		externalClusterSecret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "mycluster",
-				Namespace: fakeNamespace,
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-				},
+			Name:      "mycluster",
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 			},
 			Data: map[string][]byte{
 				"server": []byte("https://my-external-cluster"),
@@ -847,22 +783,18 @@ func TestListClusters_MissingServerSecretKey(t *testing.T) {
 
 func TestGetClusterServersByName_MissingServerSecretKey(t *testing.T) {
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{},
 	}
 	argoCDSecretWithoutSecretKey := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDSecretName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDSecretName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string][]byte{
 			"admin.password": nil,
@@ -885,12 +817,10 @@ func TestGetClusterServersByName_MissingServerSecretKey(t *testing.T) {
 // before the fix it would cause a panic from concurrent map iteration and map write
 func TestClusterRaceConditionClusterSecrets(t *testing.T) {
 	clusterSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: "default",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "mycluster",
+		Namespace: "default",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte("http://mycluster"),
@@ -899,22 +829,18 @@ func TestClusterRaceConditionClusterSecrets(t *testing.T) {
 	}
 	kubeClient := fake.NewClientset(
 		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDConfigMapName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string]string{},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDSecretName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string][]byte{
 				"admin.password":   nil,

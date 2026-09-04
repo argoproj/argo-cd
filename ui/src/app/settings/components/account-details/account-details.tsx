@@ -1,6 +1,6 @@
 import {ErrorNotification, FormField, NotificationType} from 'argo-ui';
 import * as React from 'react';
-import {Form, Text} from 'react-form';
+import {Form, Text} from 'argo-ui';
 import {RouteComponentProps} from 'react-router';
 
 import {DataLoader, Page, Timestamp} from '../../../shared/components';
@@ -15,7 +15,7 @@ require('./account-details.scss');
 export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
     const ctx = React.useContext(Context);
     const [newToken, setNewToken] = React.useState(null);
-    const tokensLoaderRef = React.useRef<DataLoader>();
+    const tokensLoaderRef = React.useRef<DataLoader | null>(null);
     return (
         <Page
             title={props.match.params.name}

@@ -88,6 +88,15 @@ func TestGetGitCreds(t *testing.T) {
 			expected: git.NewGoogleCloudCreds("gcp-key", nil),
 		},
 		{
+			name: "Azure Service Principal credentials",
+			repo: &Repository{
+				AzureServicePrincipalClientId:     "client-id",
+				AzureServicePrincipalClientSecret: "client-secret",
+				AzureServicePrincipalTenantId:     "tenant-id",
+			},
+			expected: git.NewAzureServicePrincipalCreds("tenant-id", "client-id", "client-secret", nil),
+		},
+		{
 			name:     "No credentials",
 			repo:     &Repository{},
 			expected: git.NopCreds{},
@@ -130,30 +139,33 @@ func TestGetGitCreds_GitHubApp_InstallationNotFound(t *testing.T) {
 
 func TestSanitizedRepository(t *testing.T) {
 	repo := &Repository{
-		Repo:                       "https://github.com/argoproj/argo-cd.git",
-		Type:                       "git",
-		Name:                       "argo-cd",
-		Username:                   "admin",
-		Password:                   "super-secret-password",
-		SSHPrivateKey:              "-----BEGIN RSA PRIVATE KEY-----",
-		BearerToken:                "eyJhbGciOiJIUzI1NiJ9",
-		TLSClientCertData:          "cert-data",
-		TLSClientCertKey:           "cert-key",
-		GCPServiceAccountKey:       "gcp-key",
-		GithubAppPrivateKey:        "github-app-key",
-		Insecure:                   true,
-		EnableLFS:                  true,
-		EnableOCI:                  true,
-		Proxy:                      "http://proxy:8080",
-		NoProxy:                    "localhost",
-		Project:                    "default",
-		ForceHttpBasicAuth:         true,
-		InheritedCreds:             true,
-		GithubAppId:                12345,
-		GithubAppInstallationId:    67890,
-		GitHubAppEnterpriseBaseURL: "https://ghe.example.com/api/v3",
-		UseAzureWorkloadIdentity:   true,
-		Depth:                      1,
+		Repo:                              "https://github.com/argoproj/argo-cd.git",
+		Type:                              "git",
+		Name:                              "argo-cd",
+		Username:                          "admin",
+		Password:                          "super-secret-password",
+		SSHPrivateKey:                     "-----BEGIN RSA PRIVATE KEY-----",
+		BearerToken:                       "eyJhbGciOiJIUzI1NiJ9",
+		TLSClientCertData:                 "cert-data",
+		TLSClientCertKey:                  "cert-key",
+		GCPServiceAccountKey:              "gcp-key",
+		GithubAppPrivateKey:               "github-app-key",
+		Insecure:                          true,
+		EnableLFS:                         true,
+		EnableOCI:                         true,
+		Proxy:                             "http://proxy:8080",
+		NoProxy:                           "localhost",
+		Project:                           "default",
+		ForceHttpBasicAuth:                true,
+		InheritedCreds:                    true,
+		GithubAppId:                       12345,
+		GithubAppInstallationId:           67890,
+		GitHubAppEnterpriseBaseURL:        "https://ghe.example.com/api/v3",
+		UseAzureWorkloadIdentity:          true,
+		AzureServicePrincipalClientId:     "client-id",
+		AzureServicePrincipalClientSecret: "client-secret",
+		AzureServicePrincipalTenantId:     "tenant-id",
+		Depth:                             1,
 	}
 
 	sanitized := repo.Sanitized()
@@ -162,6 +174,7 @@ func TestSanitizedRepository(t *testing.T) {
 	assert.Equal(t, repo.Repo, sanitized.Repo)
 	assert.Equal(t, repo.Type, sanitized.Type)
 	assert.Equal(t, repo.Name, sanitized.Name)
+	assert.Equal(t, repo.Username, sanitized.Username)
 	assert.True(t, sanitized.Insecure)
 	assert.Equal(t, repo.EnableLFS, sanitized.EnableLFS)
 	assert.Equal(t, repo.EnableOCI, sanitized.EnableOCI)
@@ -174,10 +187,11 @@ func TestSanitizedRepository(t *testing.T) {
 	assert.Equal(t, repo.GithubAppInstallationId, sanitized.GithubAppInstallationId)
 	assert.Equal(t, repo.GitHubAppEnterpriseBaseURL, sanitized.GitHubAppEnterpriseBaseURL)
 	assert.Equal(t, repo.UseAzureWorkloadIdentity, sanitized.UseAzureWorkloadIdentity)
+	assert.Equal(t, repo.AzureServicePrincipalClientId, sanitized.AzureServicePrincipalClientId)
+	assert.Equal(t, repo.AzureServicePrincipalTenantId, sanitized.AzureServicePrincipalTenantId)
 	assert.Equal(t, repo.Depth, sanitized.Depth)
 
 	// Sensitive fields must be stripped
-	assert.Empty(t, sanitized.Username)
 	assert.Empty(t, sanitized.Password)
 	assert.Empty(t, sanitized.SSHPrivateKey)
 	assert.Empty(t, sanitized.BearerToken)
@@ -185,6 +199,7 @@ func TestSanitizedRepository(t *testing.T) {
 	assert.Empty(t, sanitized.TLSClientCertKey)
 	assert.Empty(t, sanitized.GCPServiceAccountKey)
 	assert.Empty(t, sanitized.GithubAppPrivateKey)
+	assert.Empty(t, sanitized.AzureServicePrincipalClientSecret)
 }
 
 func TestSanitizedRepositoryPreservesDepthZero(t *testing.T) {
@@ -220,4 +235,54 @@ func TestGetGitCreds_GitHubApp_OrgExtractionFails(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to extract organization")
 	assert.Contains(t, err.Error(), "invalid-url-format")
+}
+
+func TestRepository_Normalize(t *testing.T) {
+	tests := []struct {
+		name     string
+		repo     Repository
+		wantType string
+	}{
+		{
+			name:     "OCI URL with empty type defaults to oci",
+			repo:     Repository{Repo: "oci://example.com/foo"},
+			wantType: "oci",
+		},
+		{
+			name:     "HTTPS URL with empty type defaults to git",
+			repo:     Repository{Repo: "https://example.com/foo/bar.git"},
+			wantType: "git",
+		},
+		{
+			name:     "SSH URL with empty type defaults to git",
+			repo:     Repository{Repo: "ssh://git@example.com/foo.git"},
+			wantType: "git",
+		},
+		{
+			name:     "Explicit git type is preserved on HTTPS URL",
+			repo:     Repository{Repo: "https://example.com/foo/bar.git", Type: "git"},
+			wantType: "git",
+		},
+		{
+			name:     "Explicit git type is preserved on SSH URL",
+			repo:     Repository{Repo: "ssh://git@example.com/foo.git", Type: "git"},
+			wantType: "git",
+		},
+		{
+			name:     "Explicit helm type is preserved on HTTPS URL",
+			repo:     Repository{Repo: "https://charts.example.com", Type: "helm"},
+			wantType: "helm",
+		},
+		{
+			name:     "Explicit oci type is preserved on OCI URL",
+			repo:     Repository{Repo: "oci://example.com/foo", Type: "oci"},
+			wantType: "oci",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.repo.Normalize()
+			assert.Equal(t, tt.wantType, got.Type)
+		})
+	}
 }

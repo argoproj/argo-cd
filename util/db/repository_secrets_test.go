@@ -140,12 +140,10 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 	repoSecrets := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   testNamespace,
-				Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", ""),
-				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-			},
+			Namespace:   testNamespace,
+			Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", ""),
+			Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+			Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			Data: map[string][]byte{
 				"name":     []byte("ArgoCD"),
 				"url":      []byte("git@github.com:argoproj/argo-cd.git"),
@@ -154,12 +152,10 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   testNamespace,
-				Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", "testProject"),
-				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-			},
+			Namespace:   testNamespace,
+			Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", "testProject"),
+			Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+			Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			Data: map[string][]byte{
 				"name":     []byte("Scoped ArgoCD"),
 				"url":      []byte("git@github.com:argoproj/argo-cd.git"),
@@ -169,11 +165,9 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: testNamespace,
-				Name:      "user-managed",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-			},
+			Namespace: testNamespace,
+			Name:      "user-managed",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			Data: map[string][]byte{
 				"name":     []byte("UserManagedRepo"),
 				"url":      []byte("git@github.com:argoproj/argoproj.git"),
@@ -182,11 +176,9 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: testNamespace,
-				Name:      "other-user-managed",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-			},
+			Namespace: testNamespace,
+			Name:      "other-user-managed",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			Data: map[string][]byte{
 				"name":     []byte("Scoped UserManagedRepo"),
 				"url":      []byte("git@github.com:argoproj/argoproj.git"),
@@ -242,12 +234,10 @@ func TestSecretsRepositoryBackend_GetRepository(t *testing.T) {
 func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 	repoSecrets := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   testNamespace,
-				Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", ""),
-				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-			},
+			Namespace:   testNamespace,
+			Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", ""),
+			Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+			Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			Data: map[string][]byte{
 				"name":     []byte("ArgoCD"),
 				"url":      []byte("git@github.com:argoproj/argo-cd.git"),
@@ -256,11 +246,9 @@ func TestSecretsRepositoryBackend_ListRepositories(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: testNamespace,
-				Name:      "user-managed",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-			},
+			Namespace: testNamespace,
+			Name:      "user-managed",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			Data: map[string][]byte{
 				"name":     []byte("UserManagedRepo"),
 				"url":      []byte("git@github.com:argoproj/argoproj.git"),
@@ -336,12 +324,10 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 	newSecretName := RepoURLToSecretName(repoSecretPrefix, newRepository.Repo, "")
 	repoSecrets := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   testNamespace,
-				Name:        managedSecretName,
-				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-			},
+			Namespace:   testNamespace,
+			Name:        managedSecretName,
+			Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+			Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			Data: map[string][]byte{
 				"name":     []byte(managedRepository.Name),
 				"url":      []byte(managedRepository.Repo),
@@ -350,12 +336,10 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   testNamespace,
-				Name:        managedProjectSecretName,
-				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-			},
+			Namespace:   testNamespace,
+			Name:        managedProjectSecretName,
+			Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+			Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			Data: map[string][]byte{
 				"name":     []byte(managedProjectRepository.Name),
 				"url":      []byte(managedProjectRepository.Repo),
@@ -365,11 +349,9 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: testNamespace,
-				Name:      "user-managed",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-			},
+			Namespace: testNamespace,
+			Name:      "user-managed",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			Data: map[string][]byte{
 				"name":     []byte(userProvidedRepository.Name),
 				"url":      []byte(userProvidedRepository.Repo),
@@ -378,11 +360,9 @@ func TestSecretsRepositoryBackend_UpdateRepository(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: testNamespace,
-				Name:      "user-managed-scoped",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-			},
+			Namespace: testNamespace,
+			Name:      "user-managed-scoped",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			Data: map[string][]byte{
 				"name":     []byte(userProvidedProjectRepository.Name),
 				"url":      []byte(userProvidedProjectRepository.Repo),
@@ -459,12 +439,10 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 	managedScopedSecretName := RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", "someProject")
 	repoSecrets := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   testNamespace,
-				Name:        managedSecretName,
-				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-			},
+			Namespace:   testNamespace,
+			Name:        managedSecretName,
+			Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+			Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			Data: map[string][]byte{
 				"name":     []byte("ArgoCD"),
 				"url":      []byte("git@github.com:argoproj/argo-cd.git"),
@@ -473,12 +451,10 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   testNamespace,
-				Name:        managedScopedSecretName,
-				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-			},
+			Namespace:   testNamespace,
+			Name:        managedScopedSecretName,
+			Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+			Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			Data: map[string][]byte{
 				"name":     []byte("ArgoCD"),
 				"url":      []byte("git@github.com:argoproj/argo-cd.git"),
@@ -488,11 +464,9 @@ func TestSecretsRepositoryBackend_DeleteRepository(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: testNamespace,
-				Name:      "user-managed",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-			},
+			Namespace: testNamespace,
+			Name:      "user-managed",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 			Data: map[string][]byte{
 				"name":     []byte("UserManagedRepo"),
 				"url":      []byte("git@github.com:argoproj/argoproj.git"),
@@ -623,12 +597,10 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 	repoCredSecrets := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   testNamespace,
-				Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj", ""),
-				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
-			},
+			Namespace:   testNamespace,
+			Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj", ""),
+			Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+			Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			Data: map[string][]byte{
 				"url":      []byte("git@github.com:argoproj"),
 				"username": []byte("someUsername"),
@@ -636,11 +608,9 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: testNamespace,
-				Name:      "user-managed",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
-			},
+			Namespace: testNamespace,
+			Name:      "user-managed",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			Data: map[string][]byte{
 				"url":      []byte("git@gitlab.com"),
 				"username": []byte("someOtherUsername"),
@@ -648,11 +618,9 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: testNamespace,
-				Name:      "proxy-repo",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
-			},
+			Namespace: testNamespace,
+			Name:      "proxy-repo",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			Data: map[string][]byte{
 				"url":      []byte("git@gitlab.com"),
 				"username": []byte("someOtherUsername"),
@@ -694,12 +662,10 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 func TestSecretsRepositoryBackend_ListRepoCreds(t *testing.T) {
 	repoCredSecrets := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   testNamespace,
-				Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj", ""),
-				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
-			},
+			Namespace:   testNamespace,
+			Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj", ""),
+			Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+			Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			Data: map[string][]byte{
 				"url":      []byte("git@github.com:argoproj"),
 				"username": []byte("someUsername"),
@@ -707,11 +673,9 @@ func TestSecretsRepositoryBackend_ListRepoCreds(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: testNamespace,
-				Name:      "user-managed",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
-			},
+			Namespace: testNamespace,
+			Name:      "user-managed",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			Data: map[string][]byte{
 				"url":      []byte("git@gitlab.com"),
 				"username": []byte("someOtherUsername"),
@@ -755,12 +719,10 @@ func TestSecretsRepositoryBackend_UpdateRepoCreds(t *testing.T) {
 	newCredsName := RepoURLToSecretName(credSecretPrefix, newCreds.URL, "")
 	repoCredSecrets := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   testNamespace,
-				Name:        managedCredsName,
-				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
-			},
+			Namespace:   testNamespace,
+			Name:        managedCredsName,
+			Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+			Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			Data: map[string][]byte{
 				"url":      []byte(managedCreds.URL),
 				"username": []byte(managedCreds.Username),
@@ -768,11 +730,9 @@ func TestSecretsRepositoryBackend_UpdateRepoCreds(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: testNamespace,
-				Name:      "user-managed",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
-			},
+			Namespace: testNamespace,
+			Name:      "user-managed",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			Data: map[string][]byte{
 				"url":      []byte(userProvidedCreds.URL),
 				"username": []byte(userProvidedCreds.Username),
@@ -824,12 +784,10 @@ func TestSecretsRepositoryBackend_DeleteRepoCreds(t *testing.T) {
 	managedSecretName := RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", "")
 	repoSecrets := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   testNamespace,
-				Name:        managedSecretName,
-				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
-			},
+			Namespace:   testNamespace,
+			Name:        managedSecretName,
+			Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+			Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			Data: map[string][]byte{
 				"url":      []byte("git@github.com:argoproj"),
 				"username": []byte("someUsername"),
@@ -837,11 +795,9 @@ func TestSecretsRepositoryBackend_DeleteRepoCreds(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: testNamespace,
-				Name:      "user-managed",
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
-			},
+			Namespace: testNamespace,
+			Name:      "user-managed",
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			Data: map[string][]byte{
 				"url":      []byte("git@gitlab.com"),
 				"username": []byte("someOtherUsername"),
@@ -875,12 +831,10 @@ func TestSecretsRepositoryBackend_DeleteRepoCreds(t *testing.T) {
 func TestSecretsRepositoryBackend_GetAllHelmRepoCreds(t *testing.T) {
 	repoCredSecrets := []runtime.Object{
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   testNamespace,
-				Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj", ""),
-				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
-			},
+			Namespace:   testNamespace,
+			Name:        RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj", ""),
+			Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+			Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			Data: map[string][]byte{
 				"url":      []byte("git@github.com:argoproj"),
 				"username": []byte("someUsername"),
@@ -889,12 +843,10 @@ func TestSecretsRepositoryBackend_GetAllHelmRepoCreds(t *testing.T) {
 			},
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   testNamespace,
-				Name:        RepoURLToSecretName(repoSecretPrefix, "git@gitlab.com", ""),
-				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
-				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
-			},
+			Namespace:   testNamespace,
+			Name:        RepoURLToSecretName(repoSecretPrefix, "git@gitlab.com", ""),
+			Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+			Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds},
 			Data: map[string][]byte{
 				"url":      []byte("git@gitlab.com"),
 				"username": []byte("someOtherUsername"),
@@ -1000,12 +952,10 @@ func TestRepoWriteCredsToSecret(t *testing.T) {
 func TestRaceConditionInRepoCredsOperations(t *testing.T) {
 	// Create a single shared secret that will be accessed concurrently
 	sharedSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", ""),
-			Namespace: testNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds,
-			},
+		Name:      RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", ""),
+		Namespace: testNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds,
 		},
 		Data: map[string][]byte{
 			"url":      []byte("git@github.com:argoproj/argo-cd.git"),
@@ -1081,12 +1031,10 @@ func TestRaceConditionInRepoCredsOperations(t *testing.T) {
 func TestRaceConditionInRepositoryOperations(t *testing.T) {
 	// Create a single shared secret that will be accessed concurrently
 	sharedSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", ""),
-			Namespace: testNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
-			},
+		Name:      RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", ""),
+		Namespace: testNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
 		},
 		Data: map[string][]byte{
 			"url":      []byte("git@github.com:argoproj/argo-cd.git"),
@@ -1203,6 +1151,71 @@ func TestCreateReadAndWriteSecretForSameURL(t *testing.T) {
 	writeSecret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), writeSecretName, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, common.LabelValueSecretTypeRepositoryWrite, writeSecret.Labels[common.LabelKeySecretType])
+}
+
+func TestRepositoryToSecret(t *testing.T) {
+	clientset := getClientset()
+	testee := &secretsRepositoryBackend{db: &db{
+		ns:            testNamespace,
+		kubeclientset: clientset,
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+	}}
+	s := &corev1.Secret{}
+	repo := &appsv1.Repository{
+		Name:                             "Name",
+		Repo:                             "git@github.com:argoproj/argo-cd.git",
+		Username:                         "Username",
+		Password:                         "Password",
+		SSHPrivateKey:                    "SSHPrivateKey",
+		InsecureIgnoreHostKey:            true,
+		Insecure:                         true,
+		EnableLFS:                        true,
+		EnableOCI:                        true,
+		InsecureOCIForceHttp:             true,
+		TLSClientCertData:                "TLSClientCertData",
+		TLSClientCertKey:                 "TLSClientCertKey",
+		Type:                             "Type",
+		GithubAppPrivateKey:              "GithubAppPrivateKey",
+		GithubAppId:                      123,
+		GithubAppInstallationId:          456,
+		GitHubAppEnterpriseBaseURL:       "GitHubAppEnterpriseBaseURL",
+		Proxy:                            "Proxy",
+		NoProxy:                          "NoProxy",
+		Project:                          "Project",
+		GCPServiceAccountKey:             "GCPServiceAccountKey",
+		ForceHttpBasicAuth:               true,
+		UseAzureWorkloadIdentity:         true,
+		Depth:                            1,
+		WebhookManifestCacheWarmDisabled: true,
+	}
+	s = testee.repositoryToSecret(repo, s)
+	assert.Equal(t, []byte(repo.Name), s.Data["name"])
+	assert.Equal(t, []byte(repo.Repo), s.Data["url"])
+	assert.Equal(t, []byte(repo.Username), s.Data["username"])
+	assert.Equal(t, []byte(repo.Password), s.Data["password"])
+	assert.Equal(t, []byte(repo.SSHPrivateKey), s.Data["sshPrivateKey"])
+	assert.Equal(t, []byte(strconv.FormatBool(repo.InsecureIgnoreHostKey)), s.Data["insecureIgnoreHostKey"])
+	assert.Equal(t, []byte(strconv.FormatBool(repo.Insecure)), s.Data["insecure"])
+	assert.Equal(t, []byte(strconv.FormatBool(repo.EnableLFS)), s.Data["enableLfs"])
+	assert.Equal(t, []byte(strconv.FormatBool(repo.EnableOCI)), s.Data["enableOCI"])
+	assert.Equal(t, []byte(strconv.FormatBool(repo.InsecureOCIForceHttp)), s.Data["insecureOCIForceHttp"])
+	assert.Equal(t, []byte(repo.TLSClientCertData), s.Data["tlsClientCertData"])
+	assert.Equal(t, []byte(repo.TLSClientCertKey), s.Data["tlsClientCertKey"])
+	assert.Equal(t, []byte(repo.Type), s.Data["type"])
+	assert.Equal(t, []byte(repo.GithubAppPrivateKey), s.Data["githubAppPrivateKey"])
+	assert.Equal(t, []byte(strconv.FormatInt(repo.GithubAppId, 10)), s.Data["githubAppID"])
+	assert.Equal(t, []byte(strconv.FormatInt(repo.GithubAppInstallationId, 10)), s.Data["githubAppInstallationID"])
+	assert.Equal(t, []byte(repo.GitHubAppEnterpriseBaseURL), s.Data["githubAppEnterpriseBaseUrl"])
+	assert.Equal(t, []byte(repo.Proxy), s.Data["proxy"])
+	assert.Equal(t, []byte(repo.NoProxy), s.Data["noProxy"])
+	assert.Equal(t, []byte(repo.Project), s.Data["project"])
+	assert.Equal(t, []byte(repo.GCPServiceAccountKey), s.Data["gcpServiceAccountKey"])
+	assert.Equal(t, []byte(strconv.FormatBool(repo.ForceHttpBasicAuth)), s.Data["forceHttpBasicAuth"])
+	assert.Equal(t, []byte(strconv.FormatBool(repo.UseAzureWorkloadIdentity)), s.Data["useAzureWorkloadIdentity"])
+	assert.Equal(t, []byte(strconv.FormatInt(repo.Depth, 10)), s.Data["depth"])
+	assert.Equal(t, []byte(strconv.FormatBool(repo.WebhookManifestCacheWarmDisabled)), s.Data["webhookManifestCacheWarmDisabled"])
+	assert.Equal(t, map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD}, s.Annotations)
+	assert.Equal(t, map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository}, s.Labels)
 }
 
 func TestCreateReadAndWriteRepoCredsSecretForSameURL(t *testing.T) {

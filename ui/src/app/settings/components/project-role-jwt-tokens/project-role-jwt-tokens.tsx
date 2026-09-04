@@ -1,6 +1,6 @@
 import {FormField, NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {Form, FormApi, Text} from 'react-form';
+import {Form, FormApi, Text} from 'argo-ui';
 
 import {Consumer, ContextApis} from '../../../shared/context';
 import {JwtToken} from '../../../shared/models';
@@ -164,7 +164,7 @@ async function deleteJWTTokens(props: ProjectRoleJWTTokensProps, ctx: any, token
     }
 }
 
-function renderJWTRow(props: ProjectRoleJWTTokensProps, ctx: ContextApis, jwToken: JwtToken): React.ReactFragment {
+function renderJWTRow(props: ProjectRoleJWTTokensProps, ctx: ContextApis, jwToken: JwtToken) {
     const issuedAt = new Date(jwToken.iat * 1000).toISOString();
     const expiresAt = jwToken.exp == null ? 'Never' : new Date(jwToken.exp * 1000).toISOString();
     const isExpired = jwToken.exp && jwToken.exp < Date.now() / 1000;

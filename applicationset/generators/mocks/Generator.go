@@ -76,7 +76,7 @@ type Generator_GenerateParams_Call struct {
 //   - appSetGenerator *v1alpha1.ApplicationSetGenerator
 //   - applicationSetInfo *v1alpha1.ApplicationSet
 //   - client1 client.Client
-func (_e *Generator_Expecter) GenerateParams(appSetGenerator interface{}, applicationSetInfo interface{}, client1 interface{}) *Generator_GenerateParams_Call {
+func (_e *Generator_Expecter) GenerateParams(appSetGenerator any, applicationSetInfo any, client1 any) *Generator_GenerateParams_Call {
 	return &Generator_GenerateParams_Call{Call: _e.mock.On("GenerateParams", appSetGenerator, applicationSetInfo, client1)}
 }
 
@@ -103,8 +103,8 @@ func (_c *Generator_GenerateParams_Call) Run(run func(appSetGenerator *v1alpha1.
 	return _c
 }
 
-func (_c *Generator_GenerateParams_Call) Return(stringToVs []map[string]any, err error) *Generator_GenerateParams_Call {
-	_c.Call.Return(stringToVs, err)
+func (_c *Generator_GenerateParams_Call) Return(stringToAnyMoqParams []map[string]any, err error) *Generator_GenerateParams_Call {
+	_c.Call.Return(stringToAnyMoqParams, err)
 	return _c
 }
 
@@ -137,7 +137,7 @@ type Generator_GetRequeueAfter_Call struct {
 
 // GetRequeueAfter is a helper method to define mock.On call
 //   - appSetGenerator *v1alpha1.ApplicationSetGenerator
-func (_e *Generator_Expecter) GetRequeueAfter(appSetGenerator interface{}) *Generator_GetRequeueAfter_Call {
+func (_e *Generator_Expecter) GetRequeueAfter(appSetGenerator any) *Generator_GetRequeueAfter_Call {
 	return &Generator_GetRequeueAfter_Call{Call: _e.mock.On("GetRequeueAfter", appSetGenerator)}
 }
 
@@ -190,7 +190,7 @@ type Generator_GetTemplate_Call struct {
 
 // GetTemplate is a helper method to define mock.On call
 //   - appSetGenerator *v1alpha1.ApplicationSetGenerator
-func (_e *Generator_Expecter) GetTemplate(appSetGenerator interface{}) *Generator_GetTemplate_Call {
+func (_e *Generator_Expecter) GetTemplate(appSetGenerator any) *Generator_GetTemplate_Call {
 	return &Generator_GetTemplate_Call{Call: _e.mock.On("GetTemplate", appSetGenerator)}
 }
 

@@ -37,6 +37,16 @@ export interface GoogleCloudSourceCreds {
     gcpServiceAccountKey: string;
 }
 
+export interface AzureServicePrincipalCreds {
+    url: string;
+    azureActiveDirectoryEndpoint: string;
+    azureServicePrincipalClientId: string;
+    azureServicePrincipalClientSecret: string;
+    azureServicePrincipalTenantId: string;
+    proxy: string;
+    noProxy: string;
+}
+
 export class RepoCredsService {
     public list(): Promise<models.RepoCreds[]> {
         return requests
@@ -102,6 +112,20 @@ export class RepoCredsService {
     }
 
     public createGoogleCloudSourceWrite(creds: GoogleCloudSourceCreds): Promise<models.RepoCreds> {
+        return requests
+            .post('/write-repocreds')
+            .send(creds)
+            .then(res => res.body as models.RepoCreds);
+    }
+
+    public createAzureServicePrincipal(creds: AzureServicePrincipalCreds): Promise<models.RepoCreds> {
+        return requests
+            .post('/repocreds')
+            .send(creds)
+            .then(res => res.body as models.RepoCreds);
+    }
+
+    public createAzureServicePrincipalWrite(creds: AzureServicePrincipalCreds): Promise<models.RepoCreds> {
         return requests
             .post('/write-repocreds')
             .send(creds)

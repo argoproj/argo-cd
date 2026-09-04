@@ -1,6 +1,6 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:25.10@sha256:4a9232cc47bf99defcc8860ef6222c99773330367fcecbf21ba2edb0b810a31e
+ARG BASE_IMAGE=docker.io/library/ubuntu:26.04@sha256:f3d28607ddd78734bb7f71f117f3c6706c666b8b76cbff7c9ff6e5718d46ff64
 
-FROM docker.io/library/golang:1.26.1@sha256:595c7847cff97c9a9e76f015083c481d26078f961c9c8dca3923132f51fe12f1 AS go
+FROM docker.io/library/golang:1.27.1@sha256:f773aa2679c165b2d4ccf04c1de9ef5f34c0e4fd7008b3c449d4cdc47d83af55 AS go
 
 RUN go install github.com/mattn/goreman@latest && \
     go install github.com/kisielk/godepgraph@latest
@@ -8,13 +8,17 @@ RUN go install github.com/mattn/goreman@latest && \
 FROM $BASE_IMAGE
 
 ENV DEBIAN_FRONTEND=noninteractive
+
+# renovate: datasource=deb depName=git registryUrl=https://archive.ubuntu.com/ubuntu?suite=resolute&components=main,security&binaryArch=amd64
+ARG GIT_APT_VERSION=1:2.53.0-1ubuntu1
+
 RUN  apt-get update && apt-get install --no-install-recommends -y \
     ca-certificates \
     curl \
     openssh-server \
     nginx \
     fcgiwrap \
-    git \
+    git=${GIT_APT_VERSION} \
     git-lfs \
     gpg \
     make \
