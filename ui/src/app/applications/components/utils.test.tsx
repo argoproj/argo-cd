@@ -27,8 +27,11 @@ import {
     HealthStatusIcon,
     nameConfirmationError,
     OperationState,
+    deletePopup,
     ResourceResultIcon
 } from './utils';
+import {NotificationType} from 'argo-ui';
+import {services} from '../../shared/services';
 
 const zero = new Date(0).toISOString();
 
@@ -1162,5 +1165,134 @@ describe('getApplicationDetailsContainerClass', () => {
         expect(classes).toContain('user-app-login');
         // ...and must NOT emit a bare `login` class that would pull in the login page's `.login` styles.
         expect(classes).not.toContain('login');
+    });
+});
+
+describe('deletePopup', () => {
+    const application = {
+        kind: 'Application',
+        metadata: {
+            name: 'test-app',
+            namespace: 'default'
+        }
+    } as Application;
+
+    const resource = {
+        kind: 'Deployment',
+        name: 'test-deployment',
+        namespace: 'default',
+        group: 'apps',
+        version: 'v1'
+    } as any;
+
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    it('shows a success notification and closes on 404 (already deleted)', async () => {
+        const notifications = {show: jest.fn()};
+        let submit: any;
+
+        const ctx = {
+            notifications,
+            popup: {
+                prompt: jest.fn((_title: any, _content: any, options: any) => {
+                    submit = options.submit;
+                })
+            }
+        } as any;
+
+        jest.spyOn(services.applications, 'deleteResource').mockRejectedValueOnce({status: 404});
+
+        await deletePopup(ctx, resource, application, true, []);
+
+        const close = jest.fn();
+
+        await submit({}, {}, close);
+
+        expect(notifications.show).toHaveBeenCalledWith({
+            content: 'Resource already deleted',
+            type: NotificationType.Success
+        });
+        expect(close).toHaveBeenCalled();
+    });
+
+    it('shows an error notification on non-404 failures', async () => {
+        const notifications = {show: jest.fn()};
+        let submit: any;
+
+        const ctx = {
+            notifications,
+            popup: {
+                prompt: jest.fn((_title: any, _content: any, options: any) => {
+                    submit = options.submit;
+                })
+            }
+        } as any;
+
+        jest.spyOn(services.applications, 'deleteResource').mockRejectedValueOnce({status: 500});
+
+        await deletePopup(ctx, resource, application, true, []);
+
+        const close = jest.fn();
+
+        await submit({}, {}, close);
+
+        expect(notifications.show).toHaveBeenCalledWith(
+            expect.objectContaining({
+                type: NotificationType.Error
+            })
+        );
+        expect(close).not.toHaveBeenCalled();
+    });
+});
+
+describe('deletePopup for unmanaged Pods', () => {
+    const application = {
+        kind: 'Application',
+        metadata: {
+            name: 'test-app',
+            namespace: 'default'
+        }
+    } as Application;
+
+    const pod = {
+        kind: 'Pod',
+        name: 'test-pod',
+        namespace: 'default',
+        group: '',
+        version: 'v1'
+    } as any;
+
+    afterEach(() => {
+        jest.restoreAllMocks();
+    });
+
+    it('treats a 404 as already-deleted success', async () => {
+        const notifications = {show: jest.fn()};
+        let submit: any;
+
+        const ctx = {
+            notifications,
+            popup: {
+                prompt: jest.fn((_title: any, _content: any, options: any) => {
+                    submit = options.submit;
+                })
+            }
+        } as any;
+
+        jest.spyOn(services.applications, 'deleteResource').mockRejectedValueOnce({status: 404});
+
+        await deletePopup(ctx, pod, application, false, []);
+
+        const close = jest.fn();
+
+        await submit({force: false}, {}, close);
+
+        expect(notifications.show).toHaveBeenCalledWith({
+            content: 'Resource already deleted',
+            type: NotificationType.Success
+        });
+        expect(close).toHaveBeenCalled();
     });
 });

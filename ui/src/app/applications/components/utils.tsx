@@ -450,6 +450,16 @@ const deletePodAction = async (ctx: ContextApis, pod: appModels.ResourceNode, ap
                     await services.applications.deleteResource(app.metadata.name, app.metadata.namespace, pod, !!vals.force, false);
                     close();
                 } catch (e) {
+                    // A 404 means the resource is already gone, so treat the deletion as successful.
+                    if (e.status === 404) {
+                        ctx.notifications.show({
+                            content: 'Resource already deleted',
+                            type: NotificationType.Success
+                        });
+                        close();
+                        return;
+                    }
+
                     ctx.notifications.show({
                         content: <ErrorNotification title='Unable to delete resource' e={e} />,
                         type: NotificationType.Error
@@ -632,17 +642,37 @@ export const deletePopup = async (
                 const orphan = deleteOptions.option === 'orphan';
                 try {
                     await services.applications.deleteResource(application.metadata.name, application.metadata.namespace, resource, !!force, !!orphan);
-                    if (appChanged) {
-                        const objectListKind = isApp(application) ? 'application' : 'applicationset';
-                        appChanged.next(await services.applications.get(application.metadata.name, application.metadata.namespace, objectListKind));
-                    }
-                    close();
                 } catch (e) {
+                    // A 404 means the resource is already gone, so treat the deletion as successful.
+                    if (e.status === 404) {
+                        ctx.notifications.show({
+                            content: 'Resource already deleted',
+                            type: NotificationType.Success
+                        });
+                        close();
+                        return;
+                    }
+
                     ctx.notifications.show({
                         content: <ErrorNotification title='Unable to delete resource' e={e} />,
                         type: NotificationType.Error
                     });
+                    return;
                 }
+
+                if (appChanged) {
+                    try {
+                        const objectListKind = isApp(application) ? 'application' : 'applicationset';
+                        appChanged.next(await services.applications.get(application.metadata.name, application.metadata.namespace, objectListKind));
+                    } catch (e) {
+                        ctx.notifications.show({
+                            content: <ErrorNotification title='Unable to delete resource' e={e} />,
+                            type: NotificationType.Error
+                        });
+                        return;
+                    }
+                }
+                close();
             }
         },
         {name: 'argo-icon-warning', color: 'warning'},
