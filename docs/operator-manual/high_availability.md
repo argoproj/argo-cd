@@ -38,6 +38,24 @@ the appropriate tool.
   and might fail. To avoid failed syncs use the `ARGOCD_GIT_ATTEMPTS_COUNT` environment variable to retry failed
   requests.
 
+* For repositories with very large ref advertisements, enable `--git-ls-remote-optimized` to resolve `HEAD`, branches,
+  and tags with protocol v2 server-side narrowing. For each optimized cache refresh, one cache-lock owner runs
+  `git -c protocol.version=2 ls-remote --heads --tags` and a targeted
+  `git -c protocol.version=2 fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0 <repository> HEAD` from a
+  temporary bare repository.
+  The results are stored together, so concurrent `HEAD` requests share the same two-query cache fill. The dry-run fetch
+  uses a bounded set of `HEAD`-related ref prefixes with protocol v2 servers. Because Git still transfers a pack during
+  a dry-run, `--depth=1` prevents full-history transfer and `--filter=tree:0` omits trees and blobs when the server
+  supports object filtering. The temporary repository is removed after the query. If either optimized query fails,
+  Argo CD uses the default go-git resolver as a last resort. Unsupported refs, such as
+  `refs/pull/<pr-number>/head`, continue to use the default resolver directly. See
+  [Use Fully Qualified Git References](#use-fully-qualified-git-references) for related `targetRevision` guidance.
+
+  > [!NOTE]
+  > `--git-ls-remote-optimized` is a global repo-server flag. Configure it consistently across all repo-server replicas.
+  > During a rolling update, the optimized and default resolvers use separate cache entries, so mutable refs might briefly
+  > resolve from snapshots captured at different times.
+
 * `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default
   that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With
   Kustomize remote bases, or in case a Helm chart gets changed without bumping its version number, the expected
