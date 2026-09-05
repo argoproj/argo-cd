@@ -1941,6 +1941,100 @@ func TestSync_HooksDeletedAfterSyncSucceeded(t *testing.T) {
 	assert.True(t, apierrors.IsNotFound(err))
 }
 
+func TestSync_HookFinalizerRemovedWhenLiveObjMissingFromCache(t *testing.T) {
+	// A completed hook with the HookSucceeded delete policy still exists in the cluster,
+	// but its live object is temporarily missing from the reconciliation cache.
+	// The finalizer must still be removed and the delete policy applied, instead of
+	// silently reporting success and leaking the hook finalizer.
+	hook1 := newHook("hook-1", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookSucceeded)
+
+	syncCtx := newTestSyncCtx(nil,
+		WithInitialState(synccommon.OperationRunning, "", []synccommon.ResourceSyncResult{{
+			ResourceKey: kube.GetResourceKey(hook1),
+			HookPhase:   synccommon.OperationSucceeded,
+			Status:      synccommon.ResultCodeSynced,
+			SyncPhase:   synccommon.SyncPhasePreSync,
+			Order:       0,
+		}},
+			metav1.Now(),
+		))
+	// the hook still exists in the cluster, with the hook finalizer
+	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), hook1)
+	syncCtx.dynamicIf = fakeDynamicClient
+	updatedCount := 0
+	fakeDynamicClient.PrependReactor("update", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+		// Removing the finalizers
+		updatedCount++
+		return false, nil, nil
+	})
+	deletedCount := 0
+	fakeDynamicClient.PrependReactor("delete", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+		deletedCount++
+		return false, nil, nil
+	})
+	// the live object is missing from the reconciliation cache
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil},
+		Target: []*unstructured.Unstructured{hook1},
+	})
+	syncCtx.hooks = []*unstructured.Unstructured{hook1}
+
+	syncCtx.Sync(context.Background())
+	phase, message, _ := syncCtx.GetState()
+
+	assert.Equal(t, synccommon.OperationSucceeded, phase)
+	assert.Equal(t, "successfully synced (no more tasks)", message)
+	assert.Equal(t, 1, updatedCount, "expected the hook finalizer to be removed despite the cache miss")
+	assert.Equal(t, 1, deletedCount, "expected the HookSucceeded delete policy to be applied despite the cache miss")
+
+	_, err := syncCtx.getResource(context.Background(), &syncTask{liveObj: hook1})
+	require.Error(t, err, "Expected resource to be deleted")
+	assert.True(t, apierrors.IsNotFound(err))
+}
+
+func TestSync_HookFinalizerRemovalNoopWhenHookIsGone(t *testing.T) {
+	// A completed hook is missing from the reconciliation cache AND genuinely deleted
+	// from the cluster: the sync must still succeed without erroring.
+	hook1 := newHook("hook-1", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookSucceeded)
+
+	syncCtx := newTestSyncCtx(nil,
+		WithInitialState(synccommon.OperationRunning, "", []synccommon.ResourceSyncResult{{
+			ResourceKey: kube.GetResourceKey(hook1),
+			HookPhase:   synccommon.OperationSucceeded,
+			Status:      synccommon.ResultCodeSynced,
+			SyncPhase:   synccommon.SyncPhasePreSync,
+			Order:       0,
+		}},
+			metav1.Now(),
+		))
+	// the hook does NOT exist in the cluster
+	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
+	syncCtx.dynamicIf = fakeDynamicClient
+	updatedCount := 0
+	fakeDynamicClient.PrependReactor("update", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+		updatedCount++
+		return false, nil, nil
+	})
+	deletedCount := 0
+	fakeDynamicClient.PrependReactor("delete", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+		deletedCount++
+		return false, nil, nil
+	})
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil},
+		Target: []*unstructured.Unstructured{hook1},
+	})
+	syncCtx.hooks = []*unstructured.Unstructured{hook1}
+
+	syncCtx.Sync(context.Background())
+	phase, message, _ := syncCtx.GetState()
+
+	assert.Equal(t, synccommon.OperationSucceeded, phase)
+	assert.Equal(t, "successfully synced (no more tasks)", message)
+	assert.Equal(t, 0, updatedCount)
+	assert.Equal(t, 0, deletedCount)
+}
+
 func TestSync_HooksDeletedAfterSyncFailed(t *testing.T) {
 	hook1 := newHook("hook-1", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook2 := newHook("hook-2", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookFailed)
