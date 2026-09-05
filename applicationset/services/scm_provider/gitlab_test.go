@@ -1905,7 +1905,7 @@ func gitlabBranchPaginationHandler(t *testing.T, secondPageStatus int) func(http
 				{"name": "master", "commit": {"id": "8898d7999fc99dd0fd578650b58b244fc63f6b58"}},
 				{"name": "release", "commit": {"id": "1e0e4d3f0e6a1b2c3d4e5f60718293a4b5c6d7e8"}}
 			]`)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		case "2":
 			if secondPageStatus != http.StatusOK {
 				w.WriteHeader(secondPageStatus)
@@ -1915,16 +1915,17 @@ func gitlabBranchPaginationHandler(t *testing.T, secondPageStatus int) func(http
 			_, err := io.WriteString(w, `[
 				{"name": "feature", "commit": {"id": "2f1e3d4c5b6a798877665544332211009988aabb"}}
 			]`)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
 	}
 }
 
-// A 404 part way through the branch listing must not be reported as an empty-but-successful
-// result. The ApplicationSet reconciler prunes Applications for branches missing from a
-// successful listing, so silently dropping the collected pages deletes live Applications.
+// A 404 anywhere in the branch listing, on the first page or a later one, must not be reported
+// as an empty or partial but successful result. The ApplicationSet reconciler prunes
+// Applications for branches missing from a successful listing, so treating a lost or denied
+// project as "no branches" would delete live Applications.
 func TestGitlabListBranchesPagination(t *testing.T) {
 	t.Parallel()
 
@@ -1960,11 +1961,11 @@ func TestGitlabListBranchesPagination(t *testing.T) {
 
 		repos, err := host.GetBranches(t.Context(), repo)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "received 404 requesting page 2 after collecting 2 branches")
+		assert.Contains(t, err.Error(), "page 2")
 		assert.Nil(t, repos)
 	})
 
-	t.Run("reports no branches when the first page 404s", func(t *testing.T) {
+	t.Run("returns an error when the first page 404s", func(t *testing.T) {
 		t.Parallel()
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -1975,7 +1976,8 @@ func TestGitlabListBranchesPagination(t *testing.T) {
 		require.NoError(t, err)
 
 		repos, err := host.GetBranches(t.Context(), repo)
-		require.NoError(t, err)
-		assert.Empty(t, repos)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "page 1")
+		assert.Nil(t, repos)
 	})
 }
