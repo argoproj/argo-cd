@@ -1,5 +1,6 @@
 import * as React from 'react';
 import * as renderer from 'react-test-renderer';
+import {renderToStaticMarkup} from 'react-dom/server';
 import {
     Application,
     HealthStatus,
@@ -13,6 +14,8 @@ import {
 import * as jsYaml from 'js-yaml';
 import {
     ComparisonStatusIcon,
+    getAppHydrateToSource,
+    hydrationStatusMessage,
     getAppOperationState,
     getOperationType,
     getPodStateReason,
@@ -22,6 +25,10 @@ import {
 } from './utils';
 
 const zero = new Date(0).toISOString();
+
+function renderMarkup(element: React.ReactElement) {
+    return renderToStaticMarkup(element);
+}
 
 test('getAppOperationState.DeletionTimestamp', () => {
     const state = getAppOperationState({metadata: {deletionTimestamp: zero}} as Application);
@@ -891,5 +898,58 @@ status:
         const {reason} = getPodStateReason(pod as State);
 
         expect(reason).toBe('SchedulingGated');
+    });
+});
+
+describe('getAppHydrateToSource', () => {
+    it('uses hydrateTo.targetBranch when set', () => {
+        expect(
+            getAppHydrateToSource({
+                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main', path: 'in'},
+                syncSource: {targetBranch: 'env/test', path: 'out'},
+                hydrateTo: {targetBranch: 'env/test-hydrate'}
+            })
+        ).toEqual({
+            repoURL: 'https://github.com/example/dry.git',
+            targetRevision: 'env/test-hydrate',
+            path: 'out'
+        });
+    });
+
+    it('falls back to the sync source branch when hydrateTo is unset', () => {
+        expect(
+            getAppHydrateToSource({
+                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main', path: 'in'},
+                syncSource: {targetBranch: 'env/test', path: 'out'}
+            })
+        ).toEqual({
+            repoURL: 'https://github.com/example/dry.git',
+            targetRevision: 'env/test',
+            path: 'out'
+        });
+    });
+});
+
+describe('hydrationStatusMessage', () => {
+    it('shows hydrateTo as the destination while hydrating', () => {
+        const html = renderMarkup(
+            hydrationStatusMessage({
+                status: {
+                    sourceHydrator: {
+                        currentOperation: {
+                            phase: 'Hydrating',
+                            sourceHydrator: {
+                                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main'},
+                                syncSource: {targetBranch: 'env/test', path: 'out'},
+                                hydrateTo: {targetBranch: 'env/test-hydrate'}
+                            }
+                        }
+                    }
+                }
+            } as Application)
+        );
+        expect(html).toContain('env/test-hydrate');
+        expect(html).not.toContain('env/test)');
+        expect(html).not.toMatch(/>env\/test</);
     });
 });
