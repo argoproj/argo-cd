@@ -1683,7 +1683,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				state.Phase = synccommon.OperationRunning
 				state.FinishedAt = &now
 				state.RetryCount++
-				state.Message = fmt.Sprintf("%s. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.Format(time.Kitchen))
+				state.Message = fmt.Sprintf("%s. Retrying attempt #%d in %s (at %s).", state.Message, state.RetryCount, retryAt.Sub(now.Time).Round(time.Second), retryAt.UTC().Format(time.RFC3339))
 			}
 		} else {
 			if terminating && terminatingCause != "" {
