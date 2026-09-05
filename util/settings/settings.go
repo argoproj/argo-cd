@@ -1715,7 +1715,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	if settings.OIDCConfigRAW == "" {
 		settings.DexAuthConnectorID = getDexAuthConnectorID(argoCDCM.Data)
 	}
-	if err := ValidateOIDCConfig(settings.OIDCConfigRAW); err != nil {
+	if err := validateOIDCConfigWithSecrets(settings.OIDCConfigRAW, settings.Secrets); err != nil {
 		log.Warnf("Failed to validate OIDC config: %v", err)
 	}
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
@@ -2165,6 +2165,25 @@ func ValidateOIDCConfig(configStr string) error {
 		if err := ValidateAzureGraphAPIEndpoint(settings.Azure.GraphAPIEndpoint); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func validateOIDCConfigWithSecrets(configStr string, secrets map[string]string) error {
+	configMap := map[string]any{}
+	if err := yaml.Unmarshal([]byte(configStr), &configMap); err != nil {
+		return err
+	}
+
+	configMap = ReplaceMapSecrets(configMap, secrets)
+
+	resolvedConfig, err := yaml.Marshal(configMap)
+	if err != nil {
+		return errors.New("failed to marshal config after replacing secrets")
+	}
+
+	if err := ValidateOIDCConfig(string(resolvedConfig)); err != nil {
+		return errors.New("invalid OIDC config")
 	}
 	return nil
 }

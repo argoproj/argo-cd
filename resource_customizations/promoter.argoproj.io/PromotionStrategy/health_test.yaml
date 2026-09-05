@@ -32,7 +32,7 @@ tests:
     message: "The proposed commit DRY SHA is missing or empty in environment 'dev'."
   inputPath: testdata/proposed-dry-sha-missing.yaml
 - healthStatus:
-    status: Progressing
+    status: Healthy
     message: "Promotion in progress for environment 'dev' from 'abc1234' to 'def5678': 1 pending, 0 successful, 1 failed. Pending commit statuses: test-pending. Failed commit statuses: test-failed. Hydrator has processed dry commit 'def5678'. "
   inputPath: testdata/progressing-failed-pending.yaml
 - healthStatus:
@@ -48,7 +48,7 @@ tests:
     message: "Promotion strategy reconciliation failed (ChangeTransferPolicyNotReady): ChangeTransferPolicy \"strategy-environments-qal-usw2-27894e05\" is not Ready because \"ReconciliationError\": Reconciliation failed: failed to calculate ChangeTransferPolicy status: failed to get SHAs for proposed branch \"environments/qal-usw2-next\": exit status 128: fatal: 'origin/environments/qal-usw2-next' is not a commit and a branch 'environments/qal-usw2-next' cannot be created from it"
   inputPath: testdata/missing-sha-and-not-ready.yaml
 - healthStatus:
-    status: Progressing
+    status: Healthy
     message: "Promotion in progress for environment 'dev' from 'abc1234' to 'old1111': 0 pending, 0 successful, 0 failed. Hydrator has processed dry commit 'new9999'. "
   inputPath: testdata/proposed-note-dry-sha-preferred.yaml
 - healthStatus:
