@@ -1298,3 +1298,156 @@ func TestCreateReadAndWriteRepoCredsSecretForSameURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, common.LabelValueSecretTypeRepoCredsWrite, writeSecret.Labels[common.LabelKeySecretType])
 }
+
+func TestSecretsRepositoryBackend_GetRepositoryForSource(t *testing.T) {
+	repoSecrets := []runtime.Object{
+		// Same URL+project, typed as git.
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace:   testNamespace,
+				Name:        RepoURLToSecretName(repoSecretPrefix, "https://example.com/repo.git", "proj"),
+				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			},
+			Data: map[string][]byte{
+				"name":    []byte("GitRepo"),
+				"url":     []byte("https://example.com/repo.git"),
+				"project": []byte("proj"),
+				"type":    []byte("git"),
+			},
+		},
+		// Same URL+project, typed as helm; the helm entry must win for helm callers.
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      RepoURLToSecretName(repoSecretPrefix, "https://example.com/repo-helm.git", "proj"),
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			},
+			Data: map[string][]byte{
+				"name":    []byte("HelmRepo"),
+				"url":     []byte("https://example.com/repo.git"),
+				"project": []byte("proj"),
+				"type":    []byte("helm"),
+			},
+		},
+		// Fallback helm credential with empty project so helm sources outside "proj" still resolve.
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      RepoURLToSecretName(repoSecretPrefix, "https://example.com/repo-fallback-helm.git", ""),
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			},
+			Data: map[string][]byte{
+				"name": []byte("FallbackHelmRepo"),
+				"url":  []byte("https://example.com/repo.git"),
+				"type": []byte("helm"),
+			},
+		},
+	}
+
+	clientset := getClientset(repoSecrets...)
+	testee := &secretsRepositoryBackend{db: &db{
+		ns:            testNamespace,
+		kubeclientset: clientset,
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+	}}
+
+	helmSource := &appsv1.ApplicationSource{RepoURL: "https://example.com/repo.git", Chart: "mychart"}
+	gitSource := &appsv1.ApplicationSource{RepoURL: "https://example.com/repo.git"}
+
+	// 1. Helm callers resolve the helm-typed secret.
+	repo, err := testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "proj", helmSource)
+	require.NoError(t, err)
+	require.NotNil(t, repo)
+	assert.Equal(t, "HelmRepo", repo.Name)
+	assert.Equal(t, "helm", repo.Type)
+
+	// 2. Git callers resolve the git-typed secret.
+	repo, err = testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "proj", gitSource)
+	require.NoError(t, err)
+	require.NotNil(t, repo)
+	assert.Equal(t, "GitRepo", repo.Name)
+	assert.Equal(t, "git", repo.Type)
+
+	// 3. Nil source preserves the legacy behaviour: a URL+project candidate wins.
+	// Secret listing order is undefined, so the tie is broken on secret name;
+	// "GitRepo" is stored under the lower-sorting name of the two.
+	repo, err = testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "proj", nil)
+	require.NoError(t, err)
+	require.NotNil(t, repo)
+	assert.Equal(t, "GitRepo", repo.Name)
+
+	// 4. Request an OCI source: no candidate matches, so the tie-break applies
+	// again. Repeat it to catch any dependence on secret listing order.
+	ociSource := &appsv1.ApplicationSource{RepoURL: "oci://example.com/repo.git"}
+	for range 20 {
+		repo, err = testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "proj", ociSource)
+		require.NoError(t, err)
+		require.NotNil(t, repo)
+		require.Equal(t, "GitRepo", repo.Name)
+	}
+
+	// 5. An unknown project falls back to the project-less helm credential and honours type.
+	repo, err = testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "other-project", helmSource)
+	require.NoError(t, err)
+	require.NotNil(t, repo)
+	assert.Equal(t, "FallbackHelmRepo", repo.Name)
+}
+
+// TestSecretsRepositoryBackend_GetRepositoryForSourceIsDeterministic pins the
+// resolution order when a repo URL has several candidate secrets and none
+// matches the requested source type. Secrets reach the backend in client-go
+// indexer order, which is map-backed and varies per call, so without an
+// explicit ordering the "first match" fallback returns an arbitrary credential
+// and this assertion fails intermittently.
+func TestSecretsRepositoryBackend_GetRepositoryForSourceIsDeterministic(t *testing.T) {
+	repoSecrets := []runtime.Object{
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      RepoURLToSecretName(repoSecretPrefix, "https://example.com/repo.git", "proj"),
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			},
+			Data: map[string][]byte{
+				"name":    []byte("GitRepo"),
+				"url":     []byte("https://example.com/repo.git"),
+				"project": []byte("proj"),
+				"type":    []byte("git"),
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      RepoURLToSecretName(repoSecretPrefix, "https://example.com/repo-helm.git", "proj"),
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			},
+			Data: map[string][]byte{
+				"name":    []byte("HelmRepo"),
+				"url":     []byte("https://example.com/repo.git"),
+				"project": []byte("proj"),
+				"type":    []byte("helm"),
+			},
+		},
+	}
+
+	clientset := getClientset(repoSecrets...)
+	testee := &secretsRepositoryBackend{db: &db{
+		ns:            testNamespace,
+		kubeclientset: clientset,
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+	}}
+
+	// No candidate is typed "oci", so every call takes the ambiguous fallback.
+	ociSource := &appsv1.ApplicationSource{RepoURL: "oci://example.com/repo.git"}
+
+	first, err := testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "proj", ociSource)
+	require.NoError(t, err)
+	require.NotNil(t, first)
+
+	for i := range 25 {
+		repo, err := testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "proj", ociSource)
+		require.NoError(t, err)
+		require.NotNil(t, repo)
+		assert.Equal(t, first.Name, repo.Name, "credential selection changed on call %d; fallback must be deterministic", i+1)
+	}
+}
