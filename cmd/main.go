@@ -21,6 +21,7 @@ import (
 	apiserver "github.com/argoproj/argo-cd/v3/cmd/argocd-server/commands"
 	cli "github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/v3/common"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/log"
 )
 
@@ -42,11 +43,15 @@ func main() {
 	}
 
 	isArgocdCLI := false
+	// The interactive CLI only, unlike isArgocdCLI, which also covers the cmp-server and the
+	// ask-pass/k8s-auth helpers.
+	isInteractiveCLI := false
 
 	switch binaryName {
 	case common.CommandCLI:
 		command = cli.NewCommand()
 		isArgocdCLI = true
+		isInteractiveCLI = true
 	case common.CommandServer:
 		command = apiserver.NewCommand()
 	case common.CommandApplicationController:
@@ -74,6 +79,14 @@ func main() {
 		// "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe" are also valid binary names
 		command = cli.NewCommand()
 		isArgocdCLI = true
+		isInteractiveCLI = true
+	}
+
+	if isInteractiveCLI {
+		// A terminal delivers Ctrl-C to its whole foreground process group, so commands the CLI spawns
+		// - helm and kustomize, via `app diff --local` - have to stay in it. See
+		// exec.DisableProcessGroupIsolation.
+		executil.DisableProcessGroupIsolation()
 	}
 
 	if isArgocdCLI {

@@ -39,6 +39,11 @@ var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/cmpserver/plugin")
 // enough time before the client times out to send a meaningful error message.
 const cmpTimeoutBuffer = 100 * time.Millisecond
 
+// pluginCleanupTimeout bounds the whole SIGTERM-then-SIGKILL sequence for a cancelled plugin command's
+// process group, see exec.TerminateGroupOnCancel. The SIGKILL lands halfway through, so this is twice
+// the cleanup window plugins had before - keeping it at 5s here would have halved it to 2.5s.
+const pluginCleanupTimeout = 10 * time.Second
+
 // Service implements ConfigManagementPluginService interface
 type Service struct {
 	initConstants CMPServerInitConstants
@@ -104,8 +109,11 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	// Make sure the command is killed immediately on timeout. https://stackoverflow.com/a/38133948/684776
-	cmd.SysProcAttr = newSysProcAttr(true)
+	// os/exec would SIGKILL the plugin alone on cancellation, orphaning whatever it spawned. Signal
+	// the whole group instead, from cmd.Cancel: os/exec runs it before Wait returns, so the plugin -
+	// and with it the group ID - is still around, which a goroutine racing the reap cannot promise.
+	// Also puts the command in its own process group.
+	stopEscalation := argoexec.TerminateGroupOnCancel(cmd, pluginCleanupTimeout)
 
 	start := time.Now()
 	err = cmd.Start()
@@ -113,22 +121,8 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		return "", err
 	}
 
-	go func() {
-		<-ctx.Done()
-		// Kill by group ID to make sure child processes are killed. The - tells `kill` that it's a group ID.
-		// Since we didn't set Pgid in SysProcAttr, the group ID is the same as the process ID. https://pkg.go.dev/syscall#SysProcAttr
-
-		// Sending a TERM signal first to allow any potential cleanup if needed, and then sending a KILL signal
-		_ = sysCallTerm(-cmd.Process.Pid)
-
-		// modify cleanup timeout to allow process to cleanup
-		cleanupTimeout := 5 * time.Second
-		time.Sleep(cleanupTimeout)
-
-		_ = sysCallKill(-cmd.Process.Pid)
-	}()
-
 	err = cmd.Wait()
+	stopEscalation()
 
 	duration := time.Since(start)
 	output := stdout.String()
