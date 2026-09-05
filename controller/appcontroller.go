@@ -1596,6 +1596,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		switch {
 		case state.Phase == synccommon.OperationTerminating:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
+			// state.Message may just be a leftover sync message: the Terminate UI/API action
+			// only sets Phase to Terminating, it does not update Message. Only use it as the
+			// terminating cause when it matches the size-limit fallback message from setOperationState.
+			if isSizeLimitTerminationCause(state.Message) {
+				terminatingCause = state.Message
+			}
 		case ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)):
 			state.Phase = synccommon.OperationTerminating
 			state.Message = "operation is terminating due to timeout"
@@ -1749,11 +1755,17 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		return
 	}
 
+	var nonRetryableError error
 	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
 		_, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.JSONPatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierrors.IsNotFound(err) {
+				return nil
+			}
+
+			if isOperationStatePayloadTooLargeError(err) {
+				nonRetryableError = err
 				return nil
 			}
 			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
@@ -1764,38 +1776,204 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		return nil
 	})
 
+	if nonRetryableError != nil {
+		// Base the fallback on the state we tried to persist, not the old
+		// app.Status.OperationState, so fields set in this reconcile (Operation, FinishedAt)
+		// are not lost.
+		fallbackStatus := state.DeepCopy()
+		fallbackStatus.Phase = synccommon.OperationError
+		fallbackStatus.Message = nonRetryableError.Error()
+
+		// alreadyTerminating is true once we've already asked the operation to terminate
+		// (below) and are back here because even the terminated state was too large to
+		// persist. In that case we give up and finalize as an error instead of terminating
+		// again, which would otherwise loop forever.
+		alreadyTerminating := app.Status.OperationState != nil && app.Status.OperationState.Phase == synccommon.OperationTerminating
+
+		if isOperationStatePayloadTooLargeError(nonRetryableError) {
+			sizeLimitMessage := operationStateSizeLimitMessagePrefix + " and could not be persisted. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application. error: " + nonRetryableError.Error()
+
+			if !alreadyTerminating {
+				// Request termination instead of jumping straight to an error state, so the next
+				// reconcile drives the operation through the normal Terminating path (same as the
+				// "Terminate" UI/API action) and cleans up any in-flight hooks before we give up.
+				logCtx.WithError(nonRetryableError).Warn("Application operation status exceeds the Kubernetes resource size limit; requesting operation termination")
+				fallbackStatus.Phase = synccommon.OperationTerminating
+			} else {
+				logCtx.WithError(nonRetryableError).Warn("Application operation status still exceeds the Kubernetes resource size limit after termination; falling back to operation error")
+				fallbackStatus.Phase = synccommon.OperationError
+			}
+			fallbackStatus.Message = sizeLimitMessage
+
+			// Drop resources so the fallback patch, itself doesn't hit the same size limit.
+			if fallbackStatus.SyncResult != nil {
+				fallbackStatus.SyncResult.Resources = nil
+			}
+		}
+
+		if fallbackStatus.Phase.Completed() && fallbackStatus.FinishedAt == nil {
+			now := metav1.Now()
+			fallbackStatus.FinishedAt = &now
+		}
+
+		fallbackPatch := map[string]any{
+			"status": map[string]any{
+				"operationState": fallbackStatus,
+			},
+		}
+		if fallbackStatus.Phase.Completed() {
+			// Mirrors the completed-phase handling above: once the operation has reached a
+			// terminal phase, clear the requested operation so the controller doesn't
+			// immediately re-attempt the same sync and hit the same size failure again.
+			fallbackPatch["operation"] = nil
+		}
+
+		fallbackPatchJSON, err := json.Marshal(fallbackPatch)
+		if err != nil {
+			logCtx.WithError(err).Error("Error marshaling fallback patch")
+			return
+		}
+
+		if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, fallbackPatchJSON, metav1.PatchOptions{}); fbErr != nil {
+			if !isOperationStatePayloadTooLargeError(fbErr) {
+				logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
+				return
+			}
+			// The fallback itself is still too large (e.g. the attempted operation carries large
+			// local manifests). Give up preserving any of the attempted operation and persist the
+			// smallest possible terminal state so the requested operation is cleared and the
+			// controller stops looping.
+			logCtx.WithError(fbErr).Warn("Fallback operation status still exceeds the Kubernetes resource size limit; persisting minimal terminal state")
+			minimalFinishedAt := fallbackStatus.FinishedAt
+			if minimalFinishedAt == nil {
+				now := metav1.Now()
+				minimalFinishedAt = &now
+			}
+			minimalStatus := &appv1.OperationState{
+				Phase:      synccommon.OperationError,
+				Message:    operationStateSizeLimitMessagePrefix + " and could not be persisted, even after dropping sync results. error: " + fbErr.Error(),
+				StartedAt:  fallbackStatus.StartedAt,
+				FinishedAt: minimalFinishedAt,
+			}
+			// Build the patch body by hand instead of marshaling minimalStatus directly: syncResult
+			// and retryCount use `omitempty`, so a merge patch built from the struct would omit them
+			// entirely and, under RFC 7396 merge semantics, leave any stale large syncResult already
+			// on the server untouched - defeating the point of this minimal patch.
+			minimalPatchJSON, mErr := json.Marshal(map[string]any{
+				"status": map[string]any{
+					"operationState": map[string]any{
+						"phase":      minimalStatus.Phase,
+						"message":    minimalStatus.Message,
+						"startedAt":  minimalStatus.StartedAt,
+						"finishedAt": minimalStatus.FinishedAt,
+						"syncResult": nil,
+						"retryCount": nil,
+					},
+				},
+				"operation": nil,
+			})
+			if mErr != nil {
+				logCtx.WithError(mErr).Error("Error marshaling minimal fallback patch")
+				return
+			}
+			if _, mfbErr := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, minimalPatchJSON, metav1.PatchOptions{}); mfbErr != nil {
+				logCtx.WithError(mfbErr).Error("Error persisting minimal fallback status")
+				return
+			}
+			ctrl.recordOperationCompletion(ctx, app, logCtx, minimalStatus)
+			return
+		}
+		// This fallback patch skips the normal completion path below, so emit the completion
+		// event and sync metrics here when it finalizes the operation (the alreadyTerminating
+		// case, which settles on OperationError instead of Terminating). Without this, a
+		// completed operation would be missing from completion events, failure counters, and
+		// duration metrics.
+		if fallbackStatus.Phase.Completed() {
+			ctrl.recordOperationCompletion(ctx, app, logCtx, fallbackStatus)
+		}
+		return
+	}
+
 	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
 	if state.Phase.Completed() {
-		eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
-		var messages []string
-		if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
-			messages = []string{"Partial sync operation"}
-		} else {
-			messages = []string{"Sync operation"}
-		}
-		if state.SyncResult != nil {
-			messages = append(messages, "to", state.SyncResult.Revision)
-		}
-		if state.Phase.Successful() {
-			eventInfo.Type = corev1.EventTypeNormal
-			messages = append(messages, "succeeded")
-		} else {
-			eventInfo.Type = corev1.EventTypeWarning
-			messages = append(messages, "failed:", state.Message)
-		}
-		ctrl.logAppEvent(ctx, app, eventInfo, strings.Join(messages, " "))
-
-		destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, ctrl.db)
-		if err != nil {
-			logCtx.WithError(err).Warn("Unable to get destination cluster, setting dest_server label to empty string in sync metric")
-		}
-		destServer := ""
-		if destCluster != nil {
-			destServer = destCluster.Server
-		}
-		ctrl.metricsServer.IncSync(app, destServer, state)
-		ctrl.metricsServer.IncAppSyncDuration(app, destServer, state)
+		ctrl.recordOperationCompletion(ctx, app, logCtx, state)
 	}
+}
+
+// recordOperationCompletion emits the completion event and sync/duration metrics for a
+// finalized operation state. It is called from the normal completion path and from the
+// too-large-request fallback path once that path reaches a terminal phase.
+func (ctrl *ApplicationController) recordOperationCompletion(ctx context.Context, app *appv1.Application, logCtx *log.Entry, state *appv1.OperationState) {
+	eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
+	var messages []string
+	if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
+		messages = []string{"Partial sync operation"}
+	} else {
+		messages = []string{"Sync operation"}
+	}
+	if state.SyncResult != nil {
+		messages = append(messages, "to", state.SyncResult.Revision)
+	}
+	if state.Phase.Successful() {
+		eventInfo.Type = corev1.EventTypeNormal
+		messages = append(messages, "succeeded")
+	} else {
+		eventInfo.Type = corev1.EventTypeWarning
+		messages = append(messages, "failed:", state.Message)
+	}
+	ctrl.logAppEvent(ctx, app, eventInfo, strings.Join(messages, " "))
+
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, ctrl.db)
+	if err != nil {
+		logCtx.WithError(err).Warn("Unable to get destination cluster, setting dest_server label to empty string in sync metric")
+	}
+	destServer := ""
+	if destCluster != nil {
+		destServer = destCluster.Server
+	}
+	ctrl.metricsServer.IncSync(app, destServer, state)
+	ctrl.metricsServer.IncAppSyncDuration(app, destServer, state)
+}
+
+// operationStateSizeLimitMessagePrefix marks the fallback message set when an operation is
+// forced into Terminating because its state exceeds the Kubernetes resource size limit. It
+// lets processRequestedAppOperation tell this known cause apart from a leftover message
+// (e.g. the last sync status), which the Terminate UI/API action does not overwrite.
+const operationStateSizeLimitMessagePrefix = "Operation state patch exceeds the Kubernetes resource size limit"
+
+// isSizeLimitTerminationCause reports whether message is the fallback message set when an
+// operation moved to Terminating because its state exceeded the Kubernetes resource size
+// limit. Only this cause should be surfaced as "triggered by"; other preserved messages are
+// not termination reasons.
+func isSizeLimitTerminationCause(message string) bool {
+	return strings.HasPrefix(message, operationStateSizeLimitMessagePrefix)
+}
+
+// isOperationStatePayloadTooLargeError returns true when the patch was rejected because the
+// payload exceeds the allowed size. This covers two paths:
+//   - HTTP 413 from the kube-apiserver (StatusReasonRequestEntityTooLarge)
+//   - gRPC ResourceExhausted from etcd, forwarded as a 500 whose message contains the gRPC
+//     error string (e.g. "rpc error: code = ResourceExhausted desc = trying to send message
+//     larger than max"). status.FromError won't decode it because the error was already
+//     unwrapped through the REST layer, so we fall back to string matching.
+//   - etcdserver: request is too large
+func isOperationStatePayloadTooLargeError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if apierrors.IsRequestEntityTooLargeError(err) {
+		return true
+	}
+
+	if strings.Contains(err.Error(), "etcdserver: request is too large") {
+		return true
+	}
+
+	if strings.Contains(err.Error(), "rpc error: code = ResourceExhausted desc = trying to send message larger than max") {
+		return true
+	}
+
+	return false
 }
 
 // writeBackToInformer writes a just recently updated App back into the informer cache.
