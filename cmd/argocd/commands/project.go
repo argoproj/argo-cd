@@ -977,20 +977,20 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, sourceIntegrity, formatOrphanedResources(p), destinationServiceAccounts)
 }
 
-func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Repository, scopedClusters []*v1alpha1.Cluster) {
+func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Repository, scopedClusters []*v1alpha1.Cluster, outWriter io.Writer) {
 	const printProjFmtStr = "%-29s%s\n"
 
-	fmt.Printf(printProjFmtStr, "Name:", p.Name)
-	fmt.Printf(printProjFmtStr, "Description:", p.Spec.Description)
+	fmt.Fprintf(outWriter, printProjFmtStr, "Name:", p.Name)
+	fmt.Fprintf(outWriter, printProjFmtStr, "Description:", p.Spec.Description)
 
 	// Print destinations
 	dest0 := "<none>"
 	if len(p.Spec.Destinations) > 0 {
 		dest0 = fmt.Sprintf("%s,%s", p.Spec.Destinations[0].Server, p.Spec.Destinations[0].Namespace)
 	}
-	fmt.Printf(printProjFmtStr, "Destinations:", dest0)
+	fmt.Fprintf(outWriter, printProjFmtStr, "Destinations:", dest0)
 	for i := 1; i < len(p.Spec.Destinations); i++ {
-		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s,%s", p.Spec.Destinations[i].Server, p.Spec.Destinations[i].Namespace))
+		fmt.Fprintf(outWriter, printProjFmtStr, "", fmt.Sprintf("%s,%s", p.Spec.Destinations[i].Server, p.Spec.Destinations[i].Namespace))
 	}
 
 	// Print sources
@@ -998,9 +998,9 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 	if len(p.Spec.SourceRepos) > 0 {
 		src0 = p.Spec.SourceRepos[0]
 	}
-	fmt.Printf(printProjFmtStr, "Repositories:", src0)
+	fmt.Fprintf(outWriter, printProjFmtStr, "Repositories:", src0)
 	for i := 1; i < len(p.Spec.SourceRepos); i++ {
-		fmt.Printf(printProjFmtStr, "", p.Spec.SourceRepos[i])
+		fmt.Fprintf(outWriter, printProjFmtStr, "", p.Spec.SourceRepos[i])
 	}
 
 	// Print source namespaces
@@ -1008,9 +1008,9 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 	if len(p.Spec.SourceNamespaces) > 0 {
 		ns0 = p.Spec.SourceNamespaces[0]
 	}
-	fmt.Printf(printProjFmtStr, "Source Namespaces:", ns0)
+	fmt.Fprintf(outWriter, printProjFmtStr, "Source Namespaces:", ns0)
 	for i := 1; i < len(p.Spec.SourceNamespaces); i++ {
-		fmt.Printf(printProjFmtStr, "", p.Spec.SourceNamespaces[i])
+		fmt.Fprintf(outWriter, printProjFmtStr, "", p.Spec.SourceNamespaces[i])
 	}
 
 	// Print scoped repositories
@@ -1018,9 +1018,9 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 	if len(scopedRepositories) > 0 {
 		scr0 = scopedRepositories[0].Repo
 	}
-	fmt.Printf(printProjFmtStr, "Scoped Repositories:", scr0)
+	fmt.Fprintf(outWriter, printProjFmtStr, "Scoped Repositories:", scr0)
 	for i := 1; i < len(scopedRepositories); i++ {
-		fmt.Printf(printProjFmtStr, "", scopedRepositories[i].Repo)
+		fmt.Fprintf(outWriter, printProjFmtStr, "", scopedRepositories[i].Repo)
 	}
 
 	// Print allowed cluster resources
@@ -1028,9 +1028,9 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 	if len(p.Spec.ClusterResourceWhitelist) > 0 {
 		cwl0 = fmt.Sprintf("%s/%s", p.Spec.ClusterResourceWhitelist[0].Group, p.Spec.ClusterResourceWhitelist[0].Kind)
 	}
-	fmt.Printf(printProjFmtStr, "Allowed Cluster Resources:", cwl0)
+	fmt.Fprintf(outWriter, printProjFmtStr, "Allowed Cluster Resources:", cwl0)
 	for i := 1; i < len(p.Spec.ClusterResourceWhitelist); i++ {
-		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.ClusterResourceWhitelist[i].Group, p.Spec.ClusterResourceWhitelist[i].Kind))
+		fmt.Fprintf(outWriter, printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.ClusterResourceWhitelist[i].Group, p.Spec.ClusterResourceWhitelist[i].Kind))
 	}
 
 	// Print scoped clusters
@@ -1038,9 +1038,9 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 	if len(scopedClusters) > 0 {
 		scc0 = scopedClusters[0].Server
 	}
-	fmt.Printf(printProjFmtStr, "Scoped Clusters:", scc0)
+	fmt.Fprintf(outWriter, printProjFmtStr, "Scoped Clusters:", scc0)
 	for i := 1; i < len(scopedClusters); i++ {
-		fmt.Printf(printProjFmtStr, "", scopedClusters[i].Server)
+		fmt.Fprintf(outWriter, printProjFmtStr, "", scopedClusters[i].Server)
 	}
 
 	// Print denied namespaced resources
@@ -1048,23 +1048,19 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 	if len(p.Spec.NamespaceResourceBlacklist) > 0 {
 		rbl0 = fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[0].Group, p.Spec.NamespaceResourceBlacklist[0].Kind)
 	}
-	fmt.Printf(printProjFmtStr, "Denied Namespaced Resources:", rbl0)
+	fmt.Fprintf(outWriter, printProjFmtStr, "Denied Namespaced Resources:", rbl0)
 	for i := 1; i < len(p.Spec.NamespaceResourceBlacklist); i++ {
-		fmt.Printf(printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[i].Group, p.Spec.NamespaceResourceBlacklist[i].Kind))
+		fmt.Fprintf(outWriter, printProjFmtStr, "", fmt.Sprintf("%s/%s", p.Spec.NamespaceResourceBlacklist[i].Group, p.Spec.NamespaceResourceBlacklist[i].Kind))
 	}
 
 	// Print required signature keys
-	signatureKeysStr := "<none>"
-	if len(p.Spec.SignatureKeys) > 0 { // nolint:staticcheck
-		kids := make([]string, 0)
-		for _, key := range p.Spec.SignatureKeys { // nolint:staticcheck
-			kids = append(kids, key.KeyID)
-		}
-		signatureKeysStr = strings.Join(kids, ", ")
+	sourceIntegrityStr := "<none>"
+	if sourceIntegrityMethods := p.EffectiveSourceIntegrity().ConfiguredMethods(); len(sourceIntegrityMethods) > 0 {
+		sourceIntegrityStr = strings.Join(sourceIntegrityMethods, ", ")
 	}
-	fmt.Printf(printProjFmtStr, "Signature keys:", signatureKeysStr)
+	fmt.Fprintf(outWriter, printProjFmtStr, "Source integrity:", sourceIntegrityStr)
 
-	fmt.Printf(printProjFmtStr, "Orphaned Resources:", formatOrphanedResources(p))
+	fmt.Fprintf(outWriter, printProjFmtStr, "Orphaned Resources:", formatOrphanedResources(p))
 }
 
 // NewProjectGetCommand returns a new instance of an `argocd proj get` command
@@ -1096,7 +1092,7 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				err := PrintResource(detailedProject.Project, output)
 				errors.CheckError(err)
 			case "wide", "":
-				printProject(detailedProject.Project, detailedProject.Repositories, detailedProject.Clusters)
+				printProject(detailedProject.Project, detailedProject.Repositories, detailedProject.Clusters, c.OutOrStdout())
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
@@ -1107,7 +1103,7 @@ func NewProjectGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 }
 
 func getProject(ctx context.Context, c *cobra.Command, clientOpts *argocdclient.ClientOptions, projName string) *projectpkg.DetailedProjectsResponse {
-	conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDieWithContext(ctx)
+	conn, projIf := newProjectClient(clientOpts, c)
 	defer utilio.Close(conn)
 	detailedProject, err := projIf.GetDetailedProject(ctx, &projectpkg.ProjectQuery{Name: projName})
 	errors.CheckError(err)
