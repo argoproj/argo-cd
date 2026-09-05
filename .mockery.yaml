@@ -86,6 +86,9 @@ packages:
   github.com/argoproj/argo-cd/v3/util/workloadidentity:
     interfaces:
       TokenProvider: {}
+  github.com/argoproj/argo-cd/v3/util/configbus:
+    interfaces:
+      Provider: {}
   github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache:
     interfaces:
       ClusterCache: {}
