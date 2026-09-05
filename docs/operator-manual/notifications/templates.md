@@ -114,7 +114,7 @@ See corresponding service [documentation](services/overview.md) for more informa
 ## Change the timezone
 
 To change the timezone used when formatting time values in notifications, see
-[Configuring the local timezone](#configuring-the-local-timezone).
+[Configuring the local timezone](#change-the-timezone).
 
 ## Functions
 
