@@ -152,6 +152,7 @@ func (db *db) watchSecrets(ctx context.Context,
 	handleAddEvent func(secret *corev1.Secret),
 	handleModEvent func(oldSecret *corev1.Secret, newSecret *corev1.Secret),
 	handleDeleteEvent func(secret *corev1.Secret),
+	onInformerSynced func(),
 ) {
 	secretListOptions := func(options *metav1.ListOptions) {
 		labelSelector := fields.ParseSelectorOrDie(common.LabelKeySecretType + "=" + secretType)
@@ -167,11 +168,23 @@ func (db *db) watchSecrets(ctx context.Context,
 	}
 
 	log.Info("Starting secretInformer for", secretType)
+	informerStopped := make(chan struct{})
 	go func() {
+		defer close(informerStopped)
 		clusterSecretInformer.Run(ctx.Done())
 		log.Info("secretInformer for", secretType, "cancelled")
 	}()
+
+	if !cache.WaitForCacheSync(ctx.Done(), clusterSecretInformer.HasSynced) {
+		<-informerStopped
+		return
+	}
+	if onInformerSynced != nil {
+		onInformerSynced()
+	}
+
 	<-ctx.Done()
+	<-informerStopped
 }
 
 // URIToSecretName hashes an uri address to the secret name using a formula.

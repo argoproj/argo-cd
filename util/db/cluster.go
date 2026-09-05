@@ -164,8 +164,9 @@ func (db *db) WatchClusters(ctx context.Context,
 		if err != nil {
 			return fmt.Errorf("could not get local cluster: %w", err)
 		}
-		handleAddEvent(localCls)
 	}
+
+	initialLocalCls := localCls
 
 	db.watchSecrets(
 		ctx,
@@ -213,6 +214,17 @@ func (db *db) WatchClusters(ctx context.Context,
 				localCls = newLocalCls
 			} else {
 				handleDeleteEvent(string(secret.Data["server"]))
+			}
+		},
+
+		// Emit the initial in-cluster event only once the secret informer's cache has
+		// synced. The watch is established at this point, so any cluster mutation a
+		// consumer performs in response to this event is guaranteed to be observed
+		// rather than racing the establishment of the watch.
+		// For ref: https://github.com/argoproj/argo-cd/issues/4755.
+		func() {
+			if inClusterEnabled {
+				handleAddEvent(initialLocalCls)
 			}
 		},
 	)
