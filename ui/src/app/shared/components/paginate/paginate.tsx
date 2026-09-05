@@ -133,7 +133,7 @@ export interface SortOption<T> {
 export interface PaginateProps<T> {
     page: number;
     onPageChange: (page: number) => any;
-    children: (data: T[]) => React.ReactNode;
+    children: (data: T[], useVirtualScrolling?: boolean) => React.ReactNode;
     data: T[];
     emptyState?: () => React.ReactNode;
     preferencesKey?: string;
@@ -313,10 +313,13 @@ function PaginateContent<T>({
         );
     }
 
+    const useVirtualScrolling = pageSize === -1;
+    const paginatedData = useVirtualScrolling ? sortedData : sortedData.slice(pageSize * currentPage, pageSize * (currentPage + 1));
+
     return (
         <React.Fragment>
             <div className='paginate'>{paginator()}</div>
-            {sortedData.length === 0 && emptyState ? emptyState() : children(pageSize === -1 ? sortedData : sortedData.slice(pageSize * currentPage, pageSize * (currentPage + 1)))}
+            {sortedData.length === 0 && emptyState ? emptyState() : children(paginatedData, useVirtualScrolling)}
             <div className='paginate'>{pageCount > 1 && paginator()}</div>
         </React.Fragment>
     );

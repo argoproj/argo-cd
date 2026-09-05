@@ -1,5 +1,30 @@
 @import 'node_modules/argo-ui/src/styles/config';
 
+// Virtualized tiles use react-virtualized Grid — not CSS grid.
+// Higher specificity so this wins over `.applications-tiles { display: grid }` below.
+.applications-tiles.applications-tiles--virtualized {
+    display: block;
+    width: 100%;
+    padding: 0;
+    // Grid owns scrolling; clip so AutoSizer doesn't grow with the full list.
+    overflow: hidden;
+
+    .applications-tiles__virtual-cell {
+        // Containing block for absolute header/action buttons on the tile.
+        position: relative;
+        overflow: visible;
+    }
+
+    .ReactVirtualized__Grid {
+        // Extra guard against subpixel horizontal overflow from floor() column math.
+        overflow-x: hidden !important;
+
+        &:focus {
+            outline: none;
+        }
+    }
+}
+
 .applications-tiles {
     display: grid;
     gap: 24px;
