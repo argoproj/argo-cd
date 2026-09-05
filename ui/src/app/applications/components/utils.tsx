@@ -14,7 +14,6 @@ import {ResourceTreeNode} from './application-resource-tree/application-resource
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
-import {ApplicationSource} from '../../shared/models';
 
 require('./utils.scss');
 
@@ -974,14 +973,10 @@ export function syncStatusMessage(app: appModels.Application) {
 }
 
 export function hydrationStatusMessage(app: appModels.Application) {
-    const drySource = app.status.sourceHydrator.currentOperation.sourceHydrator.drySource;
+    const sourceHydrator = app.status.sourceHydrator.currentOperation.sourceHydrator;
+    const drySource = sourceHydrator.drySource;
     const dryCommit = app.status.sourceHydrator.currentOperation.drySHA;
-    const syncSource: ApplicationSource = {
-        repoURL: drySource.repoURL,
-        targetRevision:
-            app.status.sourceHydrator.currentOperation.sourceHydrator.hydrateTo?.targetBranch || app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.targetBranch,
-        path: app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.path
-    };
+    const hydrateToSource = getAppHydrateToSource(sourceHydrator);
     const hydratedCommit = app.status.sourceHydrator.currentOperation.hydratedSHA || '';
 
     switch (app.status.sourceHydrator.currentOperation.phase) {
@@ -994,8 +989,8 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     </Revision>
                     <br />
                     to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={hydratedCommit}>
-                        {syncSource.targetRevision + ' (' + hydratedCommit.substr(0, 7) + ')'}
+                    <Revision repoUrl={hydrateToSource.repoURL} revision={hydratedCommit}>
+                        {hydrateToSource.targetRevision + ' (' + hydratedCommit.substr(0, 7) + ')'}
                     </Revision>
                 </span>
             );
@@ -1008,8 +1003,8 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     </Revision>
                     <br />
                     to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
-                        {syncSource.targetRevision}
+                    <Revision repoUrl={hydrateToSource.repoURL} revision={hydrateToSource.targetRevision}>
+                        {hydrateToSource.targetRevision}
                     </Revision>
                 </span>
             );
@@ -1023,8 +1018,8 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     </Revision>
                     <br />
                     to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
-                        {syncSource.targetRevision}
+                    <Revision repoUrl={hydrateToSource.repoURL} revision={hydrateToSource.targetRevision}>
+                        {hydrateToSource.targetRevision}
                     </Revision>
                 </span>
             );
@@ -1479,6 +1474,16 @@ export function getAppDrySource(app?: appModels.Application): appModels.Applicat
         return {repoURL, targetRevision, path};
     }
     return getAppDefaultSource(app);
+}
+
+// Destination of a hydration push: hydrateTo.targetBranch when set, otherwise the sync source branch.
+// On 3.4 the destination repo is always the dry source repo (syncSource.repoURL is 3.5+).
+export function getAppHydrateToSource(sourceHydrator?: appModels.SourceHydrator): appModels.ApplicationSource {
+    return {
+        repoURL: sourceHydrator?.drySource?.repoURL || '',
+        targetRevision: sourceHydrator?.hydrateTo?.targetBranch || sourceHydrator?.syncSource?.targetBranch || '',
+        path: sourceHydrator?.syncSource?.path || ''
+    };
 }
 
 // getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
