@@ -5552,3 +5552,440 @@ func TestRollbackRBACPermissions_ProjectScoped(t *testing.T) {
 		assert.ErrorContains(t, err, "permission denied")
 	})
 }
+
+const secondGitRepoURL = "https://github.com/other/repo.git"
+
+type repositoryFailingDB struct {
+	db.ArgoDB
+	err error
+}
+
+func (d *repositoryFailingDB) GetRepository(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+	return nil, d.err
+}
+
+func getBaseInspectAppProject(name string) *v1alpha1.AppProject {
+	return &v1alpha1.AppProject{
+		Name:      name,
+		Namespace: testNamespace,
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+}
+
+func getGpgAppProject(name string, policies ...*v1alpha1.SourceIntegrityGitPolicy) *v1alpha1.AppProject {
+	proj := getBaseInspectAppProject(name)
+	proj.Spec.SourceIntegrity = &v1alpha1.SourceIntegrity{
+		Git: &v1alpha1.SourceIntegrityGit{Policies: policies},
+	}
+	return proj
+}
+
+func getGpgGitPolicy(repoGlob string, mode v1alpha1.SourceIntegrityGitPolicyGPGMode, keys ...string) *v1alpha1.SourceIntegrityGitPolicy {
+	return &v1alpha1.SourceIntegrityGitPolicy{
+		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: repoGlob}},
+		GPG:   &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: mode, Keys: keys},
+	}
+}
+
+func getGitInspectApplicationSource(repoURL, revision string) v1alpha1.ApplicationSource {
+	return v1alpha1.ApplicationSource{
+		RepoURL:        repoURL,
+		Path:           "some/path",
+		TargetRevision: revision,
+	}
+}
+
+func getInspectGitGPGQuery(app *v1alpha1.Application) *application.InspectGitGPGSourceIntegrityQuery {
+	return &application.InspectGitGPGSourceIntegrityQuery{
+		Name:    &app.Name,
+		Project: &app.Spec.Project,
+	}
+}
+
+func newInspectGitGPGAppServer(t *testing.T, proj *v1alpha1.AppProject, app *v1alpha1.Application, mockRepo apiclient.RepoServerServiceClient) *Server {
+	t.Helper()
+	app.Spec.Project = proj.Name
+	appServer := newTestAppServer(t, app, proj)
+	if mockRepo != nil {
+		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepo}
+	}
+	return appServer
+}
+
+func getSampleInspectGitGPGRepoResponse() *apiclient.InspectGitGPGSourceIntegrityResponse {
+	return &apiclient.InspectGitGPGSourceIntegrityResponse{
+		ResolvedRevision: "resolved-sha-123",
+		Commits: []*apiclient.GitGPGCommitInfo{{
+			Revision:           "bad-commit-sha",
+			Author:             "Jane Doe <jdoe@example.com>",
+			Date:               "Fri Oct 31 14:42:39 2025 +0100",
+			Subject:            "bad commit",
+			KeyId:              "EXPIRED",
+			VerificationResult: "signed with expired key (key_id=EXPIRED)",
+		}},
+	}
+}
+
+func TestInspectGitGPGSourceIntegrity(t *testing.T) {
+	t.Run("rbac permission denied", func(t *testing.T) {
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:none")
+		}
+		app := newTestApp()
+		appServer := newTestAppServerWithEnforcerConfigure(t, f, nil, app)
+
+		_, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+
+	t.Run("repo server client creation fail", func(t *testing.T) {
+		proj := getGpgAppProject("gpg-proj-client-fail", getGpgGitPolicy("*", v1alpha1.SourceIntegrityGitPolicyGPGModeStrict, "key1"))
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Source.RepoURL = fakeRepoURL
+		})
+		appServer := newInspectGitGPGAppServer(t, proj, app, nil)
+		appServer.repoClientset = &mocks.FailingRepoClientset{Err: errors.New("boom")}
+
+		_, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		require.ErrorContains(t, err, "error creating repo server client")
+		require.ErrorContains(t, err, "boom")
+	})
+
+	t.Run("proj SourceIntegrity nil", func(t *testing.T) {
+		proj := getBaseInspectAppProject("gpg-proj-no-si")
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Source.RepoURL = fakeRepoURL
+		})
+		appServer := newInspectGitGPGAppServer(t, proj, app, mocks.NewRepoServerServiceClient(t))
+
+		_, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		require.ErrorContains(t, err, "no git source integrity configured for project gpg-proj-no-si")
+	})
+
+	t.Run("proj SourceIntegrity Git nil", func(t *testing.T) {
+		proj := getBaseInspectAppProject("gpg-proj-no-git")
+		proj.Spec.SourceIntegrity = &v1alpha1.SourceIntegrity{}
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Source.RepoURL = fakeRepoURL
+		})
+		appServer := newInspectGitGPGAppServer(t, proj, app, mocks.NewRepoServerServiceClient(t))
+
+		_, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		require.ErrorContains(t, err, "no git source integrity configured for project gpg-proj-no-git")
+	})
+
+	t.Run("single source non-git empty resp", func(t *testing.T) {
+		proj := getGpgAppProject("gpg-proj-nongit", getGpgGitPolicy("*", v1alpha1.SourceIntegrityGitPolicyGPGModeStrict, "key1"))
+
+		tests := []struct {
+			name string
+			app  *v1alpha1.Application
+		}{
+			{
+				name: "helm",
+				app: newTestApp(func(a *v1alpha1.Application) {
+					a.Spec.Source.RepoURL = "https://argoproj.github.io/argo-helm"
+					a.Spec.Source.Path = ""
+					a.Spec.Source.Chart = "argo-cd"
+				}),
+			},
+			{
+				name: "oci",
+				app: newTestApp(func(a *v1alpha1.Application) {
+					a.Spec.Source.RepoURL = "oci://example.com/charts"
+					a.Spec.Source.Path = ""
+					a.Spec.Source.Chart = "my-chart"
+				}),
+			},
+			{
+				name: "zero source",
+				app: newTestApp(func(a *v1alpha1.Application) {
+					a.Spec.Source = nil
+					a.Spec.Sources = []v1alpha1.ApplicationSource{{}}
+				}),
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				appServer := newInspectGitGPGAppServer(t, proj, tt.app, mocks.NewRepoServerServiceClient(t))
+				resp, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(tt.app))
+				require.NoError(t, err)
+				assert.Empty(t, resp.Items)
+			})
+		}
+	})
+
+	t.Run("git gpg policy selection errors", func(t *testing.T) {
+		tests := []struct {
+			name        string
+			proj        *v1alpha1.AppProject
+			repoURL     string
+			errContains string
+		}{
+			{
+				name:        "no matching policy",
+				proj:        getGpgAppProject("gpg-proj-no-policy", getGpgGitPolicy("https://other.com/*", v1alpha1.SourceIntegrityGitPolicyGPGModeStrict, "key1")),
+				repoURL:     fakeRepoURL,
+				errContains: "no matching git policy found for source " + fakeRepoURL,
+			},
+			{
+				name: "multiple matching policies",
+				proj: getGpgAppProject("gpg-proj-multi-policy",
+					getGpgGitPolicy("*", v1alpha1.SourceIntegrityGitPolicyGPGModeStrict, "key1"),
+					getGpgGitPolicy("https://git.com/*", v1alpha1.SourceIntegrityGitPolicyGPGModeStrict, "key2"),
+				),
+				repoURL:     fakeRepoURL,
+				errContains: fmt.Sprintf("multiple (2) git policies found for source %s, invalid configuration", fakeRepoURL),
+			},
+			{
+				name: "not gpg policy",
+				proj: getGpgAppProject("gpg-proj-not-gpg", &v1alpha1.SourceIntegrityGitPolicy{
+					Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "*"}},
+				}),
+				repoURL:     fakeRepoURL,
+				errContains: fmt.Sprintf("the git policy for source %s is not a gpg policy", fakeRepoURL),
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				app := newTestApp(func(a *v1alpha1.Application) {
+					a.Spec.Source.RepoURL = tt.repoURL
+				})
+				appServer := newInspectGitGPGAppServer(t, tt.proj, app, mocks.NewRepoServerServiceClient(t))
+
+				resp, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+				require.NoError(t, err)
+				require.Len(t, resp.Items, 1)
+				require.NotNil(t, resp.Items[0].ErrorMessage)
+				assert.Contains(t, *resp.Items[0].ErrorMessage, tt.errContains)
+			})
+		}
+	})
+
+	t.Run("db get repository fails", func(t *testing.T) {
+		proj := getGpgAppProject("gpg-proj-no-repo", getGpgGitPolicy("*", v1alpha1.SourceIntegrityGitPolicyGPGModeStrict, "key1"))
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Source.RepoURL = fakeRepoURL
+		})
+		mockRepo := mocks.NewRepoServerServiceClient(t)
+		appServer := newInspectGitGPGAppServer(t, proj, app, mockRepo)
+		appServer.db = &repositoryFailingDB{ArgoDB: appServer.db, err: errors.New("db lookup failed")}
+
+		_, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		require.ErrorContains(t, err, "error getting repository by URL for source")
+		require.ErrorContains(t, err, "db lookup failed")
+	})
+
+	t.Run("repoClient call fails", func(t *testing.T) {
+		proj := getGpgAppProject("gpg-proj-repo-fail", getGpgGitPolicy("*", v1alpha1.SourceIntegrityGitPolicyGPGModeStrict, "key1"))
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Source.RepoURL = fakeRepoURL
+		})
+		mockRepo := mocks.NewRepoServerServiceClient(t)
+		mockRepo.EXPECT().
+			InspectGitGPGSourceIntegrity(mock.Anything, mock.Anything).
+			Return(nil, errors.New("inspect failed"))
+		appServer := newInspectGitGPGAppServer(t, proj, app, mockRepo)
+
+		_, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		require.ErrorContains(t, err, "failed to inspect git gpg source integrity for source")
+		require.ErrorContains(t, err, "inspect failed")
+	})
+
+	t.Run("single source valid", func(t *testing.T) {
+		proj := getGpgAppProject("gpg-proj-valid", getGpgGitPolicy("*", v1alpha1.SourceIntegrityGitPolicyGPGModeHead, "key1"))
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Source.RepoURL = fakeRepoURL
+			a.Spec.Source.TargetRevision = "HEAD"
+		})
+		repoResp := getSampleInspectGitGPGRepoResponse()
+		mockRepo := mocks.NewRepoServerServiceClient(t)
+		mockRepo.EXPECT().
+			InspectGitGPGSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitGPGSourceIntegrityRequest) bool {
+				return req.Repo.Repo == fakeRepoURL &&
+					req.Revision == "HEAD" &&
+					req.Policy != nil &&
+					req.Policy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict &&
+					len(req.Policy.Keys) == 1 &&
+					req.Policy.Keys[0] == "key1"
+			})).
+			Return(repoResp, nil)
+		appServer := newInspectGitGPGAppServer(t, proj, app, mockRepo)
+
+		resp, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		require.NoError(t, err)
+		require.Len(t, resp.Items, 1)
+		item := resp.Items[0]
+		require.Nil(t, item.ErrorMessage)
+		assert.Equal(t, fakeRepoURL, *item.RepoUrl)
+		assert.Equal(t, "HEAD", *item.TargetRevision)
+		assert.Equal(t, repoResp.ResolvedRevision, *item.ResolvedRevision)
+		require.NotNil(t, item.GitGpgPolicy)
+		assert.Equal(t, v1alpha1.SourceIntegrityGitPolicyGPGModeHead, item.GitGpgPolicy.Mode)
+		require.Len(t, item.Commits, 1)
+		assert.Equal(t, repoResp.Commits[0].Revision, *item.Commits[0].Revision)
+		assert.Equal(t, repoResp.Commits[0].Author, *item.Commits[0].Author)
+		assert.Equal(t, repoResp.Commits[0].VerificationResult, *item.Commits[0].VerificationResult)
+		assert.Equal(t, repoResp.Commits[0].KeyId, *item.Commits[0].KeyId)
+		assert.Equal(t, repoResp.Commits[0].Date, *item.Commits[0].Date)
+		assert.Equal(t, repoResp.Commits[0].Subject, *item.Commits[0].Subject)
+	})
+
+	t.Run("multisource both valid git", func(t *testing.T) {
+		proj := getGpgAppProject("gpg-proj-multi-valid",
+			getGpgGitPolicy("https://git.com/*", v1alpha1.SourceIntegrityGitPolicyGPGModeStrict, "key1"),
+			getGpgGitPolicy("https://github.com/*", v1alpha1.SourceIntegrityGitPolicyGPGModeStrict, "key2"),
+		)
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Source = nil
+			a.Spec.Sources = []v1alpha1.ApplicationSource{
+				getGitInspectApplicationSource(fakeRepoURL, "HEAD"),
+				getGitInspectApplicationSource(secondGitRepoURL, "main"),
+			}
+		})
+		mockRepo := mocks.NewRepoServerServiceClient(t)
+		mockRepo.EXPECT().
+			InspectGitGPGSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitGPGSourceIntegrityRequest) bool {
+				return req.Repo.Repo == fakeRepoURL
+			})).
+			Return(&apiclient.InspectGitGPGSourceIntegrityResponse{ResolvedRevision: "sha-1"}, nil).
+			Once()
+		mockRepo.EXPECT().
+			InspectGitGPGSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitGPGSourceIntegrityRequest) bool {
+				return req.Repo.Repo == secondGitRepoURL
+			})).
+			Return(&apiclient.InspectGitGPGSourceIntegrityResponse{ResolvedRevision: "sha-2"}, nil).
+			Once()
+		appServer := newInspectGitGPGAppServer(t, proj, app, mockRepo)
+		_, err := appServer.db.CreateRepository(t.Context(), &v1alpha1.Repository{Repo: secondGitRepoURL})
+		require.NoError(t, err)
+
+		resp, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		require.NoError(t, err)
+		require.Len(t, resp.Items, 2)
+		assert.Nil(t, resp.Items[0].ErrorMessage)
+		assert.Nil(t, resp.Items[1].ErrorMessage)
+		assert.Equal(t, "sha-1", *resp.Items[0].ResolvedRevision)
+		assert.Equal(t, "sha-2", *resp.Items[1].ResolvedRevision)
+	})
+
+	t.Run("multisource helm oci git", func(t *testing.T) {
+		proj := getGpgAppProject("gpg-proj-mixed-sources", getGpgGitPolicy("*", v1alpha1.SourceIntegrityGitPolicyGPGModeStrict, "key1"))
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Source = nil
+			a.Spec.Sources = []v1alpha1.ApplicationSource{
+				{RepoURL: "https://argoproj.github.io/argo-helm", Chart: "argo-cd", TargetRevision: "1.0.0"},
+				{RepoURL: "oci://example.com/charts", Chart: "my-chart", TargetRevision: "1.0.0"},
+				getGitInspectApplicationSource(fakeRepoURL, "HEAD"),
+			}
+		})
+		mockRepo := mocks.NewRepoServerServiceClient(t)
+		mockRepo.EXPECT().
+			InspectGitGPGSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitGPGSourceIntegrityRequest) bool {
+				return req.Repo.Repo == fakeRepoURL
+			})).
+			Return(&apiclient.InspectGitGPGSourceIntegrityResponse{ResolvedRevision: "sha-git"}, nil)
+		appServer := newInspectGitGPGAppServer(t, proj, app, mockRepo)
+
+		resp, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		require.NoError(t, err)
+		require.Len(t, resp.Items, 1)
+		assert.Equal(t, fakeRepoURL, *resp.Items[0].RepoUrl)
+	})
+
+	t.Run("multisource valid and invalid policy", func(t *testing.T) {
+		proj := getGpgAppProject("gpg-proj-mixed-policy", getGpgGitPolicy("https://git.com/*", v1alpha1.SourceIntegrityGitPolicyGPGModeStrict, "key1"))
+		noPolicyURL := "https://nomatch.example.com/repo.git"
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Source = nil
+			a.Spec.Sources = []v1alpha1.ApplicationSource{
+				getGitInspectApplicationSource(fakeRepoURL, "HEAD"),
+				getGitInspectApplicationSource(noPolicyURL, "main"),
+			}
+		})
+		mockRepo := mocks.NewRepoServerServiceClient(t)
+		mockRepo.EXPECT().
+			InspectGitGPGSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitGPGSourceIntegrityRequest) bool {
+				return req.Repo.Repo == fakeRepoURL
+			})).
+			Return(&apiclient.InspectGitGPGSourceIntegrityResponse{ResolvedRevision: "sha-ok"}, nil)
+		appServer := newInspectGitGPGAppServer(t, proj, app, mockRepo)
+
+		resp, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		require.NoError(t, err)
+		require.Len(t, resp.Items, 2)
+		assert.Nil(t, resp.Items[0].ErrorMessage)
+		assert.Equal(t, "sha-ok", *resp.Items[0].ResolvedRevision)
+		require.NotNil(t, resp.Items[1].ErrorMessage)
+		assert.Contains(t, *resp.Items[1].ErrorMessage, "no matching git policy found for source")
+	})
+
+	t.Run("multisource reposerver failure aborts", func(t *testing.T) {
+		proj := getGpgAppProject("gpg-proj-abort",
+			getGpgGitPolicy("https://git.com/*", v1alpha1.SourceIntegrityGitPolicyGPGModeStrict, "key1"),
+			getGpgGitPolicy("https://github.com/*", v1alpha1.SourceIntegrityGitPolicyGPGModeStrict, "key2"),
+		)
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Source = nil
+			a.Spec.Sources = []v1alpha1.ApplicationSource{
+				getGitInspectApplicationSource(fakeRepoURL, "HEAD"),
+				getGitInspectApplicationSource(secondGitRepoURL, "main"),
+			}
+		})
+		mockRepo := mocks.NewRepoServerServiceClient(t)
+		mockRepo.EXPECT().
+			InspectGitGPGSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitGPGSourceIntegrityRequest) bool {
+				return req.Repo.Repo == fakeRepoURL
+			})).
+			Return(&apiclient.InspectGitGPGSourceIntegrityResponse{ResolvedRevision: "sha-1"}, nil).
+			Once()
+		mockRepo.EXPECT().
+			InspectGitGPGSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitGPGSourceIntegrityRequest) bool {
+				return req.Repo.Repo == secondGitRepoURL
+			})).
+			Return(nil, errors.New("second source failed")).
+			Once()
+		appServer := newInspectGitGPGAppServer(t, proj, app, mockRepo)
+		_, err := appServer.db.CreateRepository(t.Context(), &v1alpha1.Repository{Repo: secondGitRepoURL})
+		require.NoError(t, err)
+
+		_, err = appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		require.ErrorContains(t, err, "failed to inspect git gpg source integrity for source "+secondGitRepoURL)
+		require.ErrorContains(t, err, "second source failed")
+	})
+
+	t.Run("head or none mode calls reposerver with strict policy", func(t *testing.T) {
+		modes := []v1alpha1.SourceIntegrityGitPolicyGPGMode{
+			v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
+			v1alpha1.SourceIntegrityGitPolicyGPGModeNone,
+		}
+		for _, mode := range modes {
+			t.Run(string(mode), func(t *testing.T) {
+				proj := getGpgAppProject("gpg-proj-mode-"+string(mode), getGpgGitPolicy("*", mode, "key1"))
+				app := newTestApp(func(a *v1alpha1.Application) {
+					a.Spec.Source.RepoURL = fakeRepoURL
+				})
+				mockRepo := mocks.NewRepoServerServiceClient(t)
+				mockRepo.EXPECT().
+					InspectGitGPGSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitGPGSourceIntegrityRequest) bool {
+						return req.Policy != nil && req.Policy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict
+					})).
+					Return(&apiclient.InspectGitGPGSourceIntegrityResponse{ResolvedRevision: "sha"}, nil)
+				appServer := newInspectGitGPGAppServer(t, proj, app, mockRepo)
+
+				resp, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+				require.NoError(t, err)
+				require.Len(t, resp.Items, 1)
+				require.NotNil(t, resp.Items[0].GitGpgPolicy)
+				assert.Equal(t, mode, resp.Items[0].GitGpgPolicy.Mode)
+			})
+		}
+	})
+}

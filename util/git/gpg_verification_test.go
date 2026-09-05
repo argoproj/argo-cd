@@ -246,7 +246,7 @@ func Test_SignedTag(t *testing.T) {
 	assert.Equal(t, "1.0", info[0].Revision)
 	assert.Equal(t, GPGVerificationResultGood, info[0].VerificationResult)
 	assert.Equal(t, tagKeyId, info[0].SignatureKeyID)
-	assert.Equal(t, `Tagging user "<tagger@argo.io>"`, info[0].AuthorIdentity)
+	assert.Equal(t, `Tagging user <tagger@argo.io>`, info[0].AuthorIdentity)
 	assert.Contains(t, legacy, `gpg: Signature made`)
 	assert.Contains(t, legacy, tagKeyId)
 	assert.Contains(t, legacy, `gpg: Good signature from "tag gpg User <tag gpg@example.com>" [ultimate]`)
@@ -257,7 +257,7 @@ func Test_SignedTag(t *testing.T) {
 	assert.Equal(t, "2.0", info[0].Revision)
 	assert.Equal(t, GPGVerificationResultGood, info[0].VerificationResult)
 	assert.Equal(t, tagKeyId, info[0].SignatureKeyID)
-	assert.Equal(t, `Tagging user "<tagger@argo.io>"`, info[0].AuthorIdentity)
+	assert.Equal(t, `Tagging user <tagger@argo.io>`, info[0].AuthorIdentity)
 	assert.Contains(t, legacy, `gpg: Signature made`)
 	assert.Contains(t, legacy, tagKeyId)
 	assert.Contains(t, legacy, `gpg: Good signature from "tag gpg User <tag gpg@example.com>" [ultimate]`)
@@ -268,7 +268,7 @@ func Test_SignedTag(t *testing.T) {
 	assert.Equal(t, "dev", info[0].Revision)
 	assert.Equal(t, GPGVerificationResultUnsigned, info[0].VerificationResult)
 	assert.Empty(t, info[0].SignatureKeyID)
-	assert.Equal(t, `Tagging user "<tagger@argo.io>"`, info[0].AuthorIdentity)
+	assert.Equal(t, `Tagging user <tagger@argo.io>`, info[0].AuthorIdentity)
 	assert.Empty(t, legacy)
 }
 
