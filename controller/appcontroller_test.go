@@ -705,6 +705,52 @@ func TestAutoSync(t *testing.T) {
 	assert.NotNil(t, app.Operation)
 	assert.NotNil(t, app.Operation.Sync)
 	assert.False(t, app.Operation.Sync.Prune)
+	assert.Equal(t, int64(5), app.Operation.Retry.Limit)
+}
+
+func TestAutoSync_DefaultRetryLimit(t *testing.T) {
+	t.Run("uses global default retry limit from argocd-cm", func(t *testing.T) {
+		app := newFakeApp()
+		ctrl := newFakeController(t.Context(), &fakeData{
+			apps: []runtime.Object{app},
+			configMapData: map[string]string{
+				"retry.default.limit": "10",
+			},
+		}, nil)
+		syncStatus := v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeOutOfSync,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.NotNil(t, app.Operation)
+		assert.NotNil(t, app.Operation.Sync)
+		assert.Equal(t, int64(10), app.Operation.Retry.Limit)
+	})
+
+	t.Run("explicit application retry limit overrides global default", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.SyncPolicy.Retry = &v1alpha1.RetryStrategy{Limit: 3}
+		ctrl := newFakeController(t.Context(), &fakeData{
+			apps: []runtime.Object{app},
+			configMapData: map[string]string{
+				"retry.default.limit": "10",
+			},
+		}, nil)
+		syncStatus := v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeOutOfSync,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.NotNil(t, app.Operation)
+		assert.NotNil(t, app.Operation.Sync)
+		assert.Equal(t, int64(3), app.Operation.Retry.Limit)
+	})
 }
 
 func TestAutoSyncEnabledSetToTrue(t *testing.T) {

@@ -82,6 +82,51 @@ func TestGetConfigMapByName(t *testing.T) {
 	})
 }
 
+func TestGetDefaultRetryLimit(t *testing.T) {
+	t.Run("absent key returns default 5", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{})
+		limit, err := settingsManager.GetDefaultRetryLimit()
+		require.NoError(t, err)
+		assert.Equal(t, int64(5), limit)
+	})
+
+	t.Run("setting 10 returns 10", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			settingsRetryDefaultLimitKey: "10",
+		})
+		limit, err := settingsManager.GetDefaultRetryLimit()
+		require.NoError(t, err)
+		assert.Equal(t, int64(10), limit)
+	})
+
+	t.Run("setting 0 returns 0", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			settingsRetryDefaultLimitKey: "0",
+		})
+		limit, err := settingsManager.GetDefaultRetryLimit()
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), limit)
+	})
+
+	t.Run("setting -1 returns -1", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			settingsRetryDefaultLimitKey: "-1",
+		})
+		limit, err := settingsManager.GetDefaultRetryLimit()
+		require.NoError(t, err)
+		assert.Equal(t, int64(-1), limit)
+	})
+
+	t.Run("invalid non-numeric value falls back to default 5", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			settingsRetryDefaultLimitKey: "invalid",
+		})
+		limit, err := settingsManager.GetDefaultRetryLimit()
+		require.NoError(t, err)
+		assert.Equal(t, int64(5), limit)
+	})
+}
+
 func TestGetSecretByName(t *testing.T) {
 	t.Run("data is never nil", func(t *testing.T) {
 		_, settingsManager := fixtures(t.Context(), nil, func(secret *corev1.Secret) { secret.Data = nil })
@@ -3044,6 +3089,56 @@ func Test_updateSettingsFromConfigMap_DexAuthConnectorID(t *testing.T) {
 			settings := &ArgoCDSettings{}
 			updateSettingsFromConfigMap(settings, &corev1.ConfigMap{Data: tc.cmData})
 			assert.Equal(t, tc.expectedConnectorID, settings.DexAuthConnectorID)
+		})
+	}
+}
+
+func Test_updateSettingsFromConfigMap_DefaultRetryLimit(t *testing.T) {
+	tests := []struct {
+		name          string
+		cmData        map[string]string
+		expectedLimit int64
+	}{
+		{
+			name:          "absent key returns default 5",
+			cmData:        map[string]string{},
+			expectedLimit: 5,
+		},
+		{
+			name: "valid positive value returns configured limit",
+			cmData: map[string]string{
+				settingsRetryDefaultLimitKey: "10",
+			},
+			expectedLimit: 10,
+		},
+		{
+			name: "invalid non-numeric value falls back to default 5",
+			cmData: map[string]string{
+				settingsRetryDefaultLimitKey: "invalid",
+			},
+			expectedLimit: 5,
+		},
+		{
+			name: "zero value returns 0",
+			cmData: map[string]string{
+				settingsRetryDefaultLimitKey: "0",
+			},
+			expectedLimit: 0,
+		},
+		{
+			name: "negative value returns negative limit",
+			cmData: map[string]string{
+				settingsRetryDefaultLimitKey: "-2",
+			},
+			expectedLimit: -2,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			settings := &ArgoCDSettings{}
+			updateSettingsFromConfigMap(settings, &corev1.ConfigMap{Data: tc.cmData})
+			assert.Equal(t, tc.expectedLimit, settings.DefaultRetryLimit)
 		})
 	}
 }
