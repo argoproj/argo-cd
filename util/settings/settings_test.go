@@ -1055,6 +1055,52 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 	})
 }
 
+func TestValidateOIDCConfig(t *testing.T) {
+	testCases := []struct {
+		name      string
+		config    string
+		expectErr string
+	}{
+		{
+			name:   "literal URLs",
+			config: "name: Test\nissuer: https://idp.example.com\nuserInfoPath: /userinfo\nenableUserInfoGroups: true\nuserInfoCacheExpiration: 5m\nuserInfoBaseURL: https://idp.example.com",
+		},
+		{
+			name:   "secret references are skipped",
+			config: "name: Test\nissuer: $oidc-secret:issuer\nuserInfoBaseURL: $oidc-secret:userInfoBaseURL",
+		},
+		{
+			name:   "azure graph API endpoint secret reference is skipped",
+			config: "name: Test\nissuer: https://idp.example.com\nazure:\n  graphAPIEndpoint: $oidc-secret:graphAPIEndpoint",
+		},
+		{
+			name:      "invalid literal azure graph API endpoint",
+			config:    "name: Test\nissuer: https://idp.example.com\nazure:\n  graphAPIEndpoint: http://graph.microsoft.com",
+			expectErr: "must use https",
+		},
+		{
+			name:      "invalid literal issuer",
+			config:    "name: Test\nissuer: idp_internal:9999/path",
+			expectErr: "failed to parse URL",
+		},
+		{
+			name:      "issuer without scheme",
+			config:    "name: Test\nissuer: idp.example.com",
+			expectErr: "URL must include http or https protocol",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateOIDCConfig(tc.config)
+			if tc.expectErr == "" {
+				require.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tc.expectErr)
+			}
+		})
+	}
+}
+
 func TestGetOIDCConfig(t *testing.T) {
 	testCases := []struct {
 		name          string
