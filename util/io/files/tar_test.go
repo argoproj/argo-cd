@@ -244,6 +244,78 @@ func TestUntgz(t *testing.T) {
 		names := readFiles(t, destDir)
 		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
 	})
+	t.Run("resolves destination path symlinks before inbound checks", func(t *testing.T) {
+		// Models macOS where extract roots under /var resolve to /private/var.
+		// Without resolving dstPath first, in-bounds archive symlinks fail Inbound
+		// because EvalSymlinks on the link target rewrites /var to /private/var.
+
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+
+		realDest := filepath.Join(tmpDir, "real-dest")
+		require.NoError(t, os.MkdirAll(realDest, 0o755))
+
+		linkDest := filepath.Join(tmpDir, "link-dest")
+		require.NoError(t, os.Symlink(realDest, linkDest))
+
+		tgzFile := createTgz(t, getTestAppDir(t), tmpDir)
+		defer tgzFile.Close()
+
+		// when
+		err := files.Untgz(linkDest, tgzFile, math.MaxInt64, false)
+
+		// then
+		require.NoError(t, err)
+		names := readFiles(t, realDest)
+		assert.Len(t, names, 8)
+		assert.Contains(t, names, "README.md")
+		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/readme-symlink")
+		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
+	})
+	t.Run("resolves symlinks for non-existent final component", func(t *testing.T) {
+		// given
+
+		// tmpdir/link -> tmpdir/dest
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+
+		realDest := filepath.Join(tmpDir, "dest")
+		require.NoError(t, os.MkdirAll(realDest, 0o755))
+
+		linkDest := filepath.Join(tmpDir, "link")
+		require.NoError(t, os.Symlink(realDest, linkDest))
+
+		realTarget := filepath.Join(realDest, "non-existent")
+		linkTarget := filepath.Join(linkDest, "non-existent")
+
+		tgzFile := createTgz(t, getTestAppDir(t), tmpDir)
+		defer tgzFile.Close()
+
+		// when
+		err := files.Untgz(linkTarget, tgzFile, math.MaxInt64, false)
+
+		// then
+		require.NoError(t, err)
+
+		names := readFiles(t, realTarget)
+		assert.Len(t, names, 8)
+		assert.Contains(t, names, "README.md")
+		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/readme-symlink")
+		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
+
+		names = readFiles(t, linkTarget)
+		assert.Len(t, names, 8)
+		assert.Contains(t, names, "README.md")
+		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/readme-symlink")
+		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
+	})
 }
 
 // read returns a map with the filename as key. In case
