@@ -60,6 +60,9 @@ type Dependencies interface {
 		conditions []argov1alpha1.ApplicationSetCondition,
 		parametersGenerated bool,
 	) error
+
+	// IncRefreshTriggeredCount increments the metric counter when a refresh is triggered for an application
+	IncRefreshTriggeredCount(appset *argov1alpha1.ApplicationSet, step string)
 }
 
 type Manager struct {
@@ -130,7 +133,7 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 
 	// Ensure all applications are reconciled before proceeding with progressive sync
 	// Use the previous transition time to check, not the one we just set
-	allReconciled, err := m.ensureApplicationsReconciled(logCtx, &appset, applications, previousWaitingTime, refreshGracePeriodSeconds)
+	allReconciled, err := m.ensureApplicationsReconciled(logCtx, &appset, applications, previousWaitingTime, refreshGracePeriodSeconds, appStepMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to ensure applications reconciled: %w", err)
 	}
@@ -687,7 +690,7 @@ func hasPendingChanges(appStatus argov1alpha1.ApplicationSetApplicationStatus) b
 }
 
 // addRefreshAnnotationToApplications adds the refresh annotation to all Applications owned by the ApplicationSet
-func (m *Manager) addRefreshAnnotationToApplications(logCtx *log.Entry, applications []argov1alpha1.Application) error {
+func (m *Manager) addRefreshAnnotationToApplications(logCtx *log.Entry, applications []argov1alpha1.Application, appStepMap map[string]int, appset *argov1alpha1.ApplicationSet) error {
 	for _, app := range applications {
 		// Check if annotation already exists
 		if app.Annotations != nil && app.Annotations[argov1alpha1.AnnotationKeyRefresh] != "" {
@@ -701,6 +704,10 @@ func (m *Manager) addRefreshAnnotationToApplications(logCtx *log.Entry, applicat
 		if err != nil {
 			return fmt.Errorf("error adding refresh annotation to app %s: %w", app.Name, err)
 		}
+
+		step := strconv.Itoa(getAppStep(app.Name, appStepMap))
+		m.dependencies.IncRefreshTriggeredCount(appset, step)
+
 		logCtx.WithField("app", app.Name).Debug("Added refresh annotation to Application")
 	}
 	return nil
@@ -748,7 +755,7 @@ func needsReconcile(logCtx *log.Entry, app argov1alpha1.Application, sinceTime *
 // It adds refresh annotations if needed and checks if all apps have been reconciled
 // previousWaitingTime is the transition time captured before updateApplicationSetApplicationStatus ran,
 // to avoid checking against the transition time that was just set in the current reconcile loop
-func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, previousWaitingTime *metav1.Time, refreshGracePeriodSeconds int) (bool, error) {
+func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, previousWaitingTime *metav1.Time, refreshGracePeriodSeconds int, appStepMap map[string]int) (bool, error) {
 	// Use the provided previous transition time to check reconciliation status
 	// This prevents the endless loop where apps can never catch up to a transition time
 	// that was just set in the current reconcile loop
@@ -783,7 +790,7 @@ func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1
 	}
 
 	// add refresh annotations to trigger reconciliation
-	err := m.addRefreshAnnotationToApplications(logCtx, appsNeedReconcile)
+	err := m.addRefreshAnnotationToApplications(logCtx, appsNeedReconcile, appStepMap, appset)
 	if err != nil {
 		return false, fmt.Errorf("failed to add refresh annotations: %w", err)
 	}

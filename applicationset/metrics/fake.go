@@ -15,7 +15,13 @@ func NewFakeAppsetMetrics() *ApplicationsetMetrics {
 		[]string{"name", "namespace"},
 	)
 
+	refreshCounter := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "argocd_appset_app_refresh_total",
+		Help: "Counts application refresh triggered per step for progressive sync",
+	}, []string{"namespace", "name", "step"})
+
 	return &ApplicationsetMetrics{
-		reconcileHistogram: reconcileHistogram,
+		reconcileHistogram:                        reconcileHistogram,
+		progressiveSyncAppRefreshTriggeredCounter: refreshCounter,
 	}
 }
