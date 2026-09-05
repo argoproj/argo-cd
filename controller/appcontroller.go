@@ -303,7 +303,7 @@ func NewApplicationController(
 
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 
-	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, readinessHealthCheck, metricsApplicationLabels, metricsApplicationConditions, ctrl.db)
+	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessAppWithDestination, readinessHealthCheck, metricsApplicationLabels, metricsApplicationConditions)
 	if err != nil {
 		return nil, err
 	}
@@ -2746,15 +2746,24 @@ func (ctrl *ApplicationController) isAppNamespaceAllowed(app *appv1.Application)
 }
 
 func (ctrl *ApplicationController) canProcessApp(obj any) bool {
+	canProcess, _, _ := ctrl.canProcessAppWithDestination(obj)
+	return canProcess
+}
+
+// canProcessAppWithDestination is canProcessApp plus the destination server it resolved and the
+// error that stopped it resolving, so the metrics collector doesn't have to resolve it again and
+// can still report the failure. Callers on the informer path drop the error, which is why nothing
+// logs per Application event.
+func (ctrl *ApplicationController) canProcessAppWithDestination(obj any) (bool, string, error) {
 	app, ok := obj.(*appv1.Application)
 	if !ok {
-		return false
+		return false, "", nil
 	}
 
 	// Only process given app if it exists in a watched namespace, or in the
 	// control plane's namespace.
 	if !ctrl.isAppNamespaceAllowed(app) {
-		return false
+		return false, "", nil
 	}
 
 	if annotations := app.GetAnnotations(); annotations != nil {
@@ -2763,7 +2772,7 @@ func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 			if skipReconcile, err := strconv.ParseBool(skipVal); err == nil {
 				if skipReconcile {
 					logCtx.Debugf("Skipping Application reconcile based on annotation %s", common.AnnotationKeyAppSkipReconcile)
-					return false
+					return false, "", nil
 				}
 			} else {
 				logCtx.WithError(err).Debugf("Unable to determine if Application should skip reconcile based on annotation %s", common.AnnotationKeyAppSkipReconcile)
@@ -2771,11 +2780,23 @@ func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 		}
 	}
 
+	destServer, err := argo.GetDestinationServer(context.Background(), app.Spec.Destination, ctrl.db)
+	if err != nil {
+		// Destination doesn't resolve to a server: both name and server set, neither set, an
+		// unknown name, or an ambiguous one. GetDestinationCluster returns this same error
+		// unwrapped, so the collector logs exactly what it always did.
+		return ctrl.clusterSharding.IsManagedCluster(nil), "", err
+	}
+	if managed, known := ctrl.clusterSharding.IsManagedClusterByServer(destServer); known {
+		return managed, destServer, nil
+	}
+	// Nothing in the sharding cache for this server, either there is no cluster secret or the cache
+	// hasn't caught up with a new one. Fall back to the full lookup.
 	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
 	if err != nil {
-		return ctrl.clusterSharding.IsManagedCluster(nil)
+		return ctrl.clusterSharding.IsManagedCluster(nil), "", err
 	}
-	return ctrl.clusterSharding.IsManagedCluster(destCluster)
+	return ctrl.clusterSharding.IsManagedCluster(destCluster), destCluster.Server, nil
 }
 
 func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {
