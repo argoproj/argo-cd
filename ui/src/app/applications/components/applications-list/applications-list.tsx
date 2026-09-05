@@ -30,6 +30,7 @@ import './applications-list.scss';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
+const SEARCH_DEBOUNCE_TIMEOUT = 200;
 
 // The applications list/watch API supports only selected set of fields.
 // Make sure to register any new fields in the `appFields` map of `pkg/apiclient/application/forwarder_overwrite.go`.
@@ -254,7 +255,7 @@ export const ApplicationsListSearchBar = (props: {content: string; searchRegex: 
 
         debounceTimeout.current = setTimeout(() => {
             ctx.navigation.goto('.', {search: value}, {replace: true});
-        }, 200);
+        }, SEARCH_DEBOUNCE_TIMEOUT);
     };
 
     const query = new URLSearchParams(window.location.search);
@@ -308,7 +309,7 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
 
     return (
         <div className='applications-list__toolbar-controls' key='app-list-tools'>
-            <ApplicationsListSearchBar content={pref.search} searchRegex={pref.searchRegex} apps={applications} ctx={ctx} />
+            <ApplicationsListSearchBar key={pref.search} content={pref.search} searchRegex={pref.searchRegex} apps={applications} ctx={ctx} />
             <Tooltip content={pref.searchRegex ? (regexInvalid ? 'Invalid regex pattern' : 'Regex search enabled, click to switch to plain text') : 'Click to enable regex search'}>
                 <button
                     type='button'

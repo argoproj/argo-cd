@@ -100,4 +100,26 @@ describe('ApplicationsListSearchBar', () => {
         expect(navigate).toHaveBeenCalledTimes(1);
         expect(navigate).toHaveBeenCalledWith('.', {search: 'test'}, {replace: true});
     });
+
+    test('updates the search input when content changes externally', () => {
+    const navigate = jest.fn();
+
+    const SearchBarWithKey = ({content}: {content: string}) => (
+        <ApplicationsListSearchBar
+            key={content}
+            content={content}
+            searchRegex={false}
+            ctx={{navigation: {goto: navigate}} as any}
+            apps={[]}
+        />
+    );
+
+    const {rerender} = render(<SearchBarWithKey content='initial' />);
+
+    expect(screen.getByPlaceholderText('Search applications...')).toHaveValue('initial');
+
+    rerender(<SearchBarWithKey content='updated' />);
+
+    expect(screen.getByPlaceholderText('Search applications...')).toHaveValue('updated');
+});
 });
