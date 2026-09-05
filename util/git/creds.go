@@ -847,13 +847,13 @@ func NewGoogleCloudCreds(jsonData string, store CredsStore) GoogleCloudCreds {
 }
 
 // GetUserInfo returns the username and email address for the credentials, if they're available.
-// TODO: implement getting email instead of just username.
+// For service accounts, client_email is used as both.
 func (c GoogleCloudCreds) GetUserInfo(_ context.Context) (string, string, error) {
-	username, err := c.getUsername()
+	clientEmail, err := c.getUsername()
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get username from creds: %w", err)
+		return "", "", fmt.Errorf("failed to get client email from creds: %w", err)
 	}
-	return username, "", nil
+	return clientEmail, clientEmail, nil
 }
 
 func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
