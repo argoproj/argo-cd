@@ -680,7 +680,7 @@ func (c *clusterCache) startMissingWatches() error {
 				if err != nil && c.isRestrictedResource(err) {
 					keep := false
 					if c.respectRBAC == RespectRbacStrict {
-						k, permErr := c.checkPermission(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api)
+						k, permErr := c.checkPermission(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api, ns)
 						if permErr != nil {
 							return fmt.Errorf("failed to check permissions for resource %s: %w, original error=%v", api.GroupKind.String(), permErr, err.Error())
 						}
@@ -688,6 +688,20 @@ func (c *clusterCache) startMissingWatches() error {
 					}
 					// if we are not allowed to list the resource, remove it from the watch list
 					if !keep {
+						delete(c.apisMeta, api.GroupKind)
+						delete(namespacedResources, api.GroupKind)
+						return nil
+					}
+				}
+				// List may succeed while watch is denied (e.g. OpenShift basic-user
+				// grants get/list on storageclasses but not watch). In strict mode,
+				// confirm watch via SSAR before starting the informer.
+				if err == nil && c.respectRBAC == RespectRbacStrict {
+					allowed, permErr := c.isAllowed(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api, "watch", ns)
+					if permErr != nil {
+						return fmt.Errorf("failed to check watch permission for resource %s: %w", api.GroupKind.String(), permErr)
+					}
+					if !allowed {
 						delete(c.apisMeta, api.GroupKind)
 						delete(namespacedResources, api.GroupKind)
 						return nil
@@ -815,11 +829,23 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 				if apierrors.IsNotFound(err) {
 					c.stopWatching(api.GroupKind, ns)
 				}
+				if stopped, stopErr := c.stopIfWatchForbidden(ctx, api, ns, err); stopErr != nil {
+					return res, stopErr
+				} else if stopped {
+					// Cancelled via stopWatching; still return err so RetryWatcher
+					// does not treat a nil watcher as success.
+					return res, err
+				}
 				//nolint:wrapcheck // wrap outside the retry
 				return res, err
 			},
 		})
 		if err != nil {
+			if stopped, stopErr := c.stopIfWatchForbidden(ctx, api, ns, err); stopErr != nil {
+				return stopErr
+			} else if stopped {
+				return nil
+			}
 			return fmt.Errorf("failed to create resource watcher: %w", err)
 		}
 
@@ -854,8 +880,25 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 					return fmt.Errorf("watch %s on %s has closed", api.GroupKind, c.config.Host)
 				}
 
+				if event.Type == watch.Error {
+					werr := apierrors.FromObject(event.Object)
+					if stopped, stopErr := c.stopIfWatchForbidden(ctx, api, ns, werr); stopErr != nil {
+						return stopErr
+					} else if stopped {
+						return nil
+					}
+					return fmt.Errorf("watch error for %s: %v", api.GroupKind, event.Object)
+				}
+
 				obj, ok := event.Object.(*unstructured.Unstructured)
 				if !ok {
+					if werr := apierrors.FromObject(event.Object); werr != nil {
+						if stopped, stopErr := c.stopIfWatchForbidden(ctx, api, ns, werr); stopErr != nil {
+							return stopErr
+						} else if stopped {
+							return nil
+						}
+					}
 					return fmt.Errorf("failed to convert to *unstructured.Unstructured: %v", event.Object)
 				}
 
@@ -1041,13 +1084,71 @@ func (c *clusterCache) isRestrictedResource(err error) bool {
 	return c.respectRBAC != RespectRbacDisabled && (apierrors.IsForbidden(err) || apierrors.IsUnauthorized(err))
 }
 
-// checkPermission runs a self subject access review to check if the controller has permissions to list the resource
-func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface authType1.SelfSubjectAccessReviewInterface, api kube.APIResourceInfo) (keep bool, err error) {
+// stopIfWatchForbidden drops the watch when respectRBAC is on and err is a
+// forbidden/unauthorized watch. RetryWatcher does not surface that as a
+// constructor error (Watch() fails later as watch.Error), so callers must
+// invoke this from WatchFunc and from ResultChan as well.
+func (c *clusterCache) stopIfWatchForbidden(ctx context.Context, api kube.APIResourceInfo, ns string, err error) (stopped bool, retErr error) {
+	if !c.isRestrictedResource(err) {
+		return false, nil
+	}
+	keep := false
+	if c.respectRBAC == RespectRbacStrict {
+		clientset, csErr := kubernetes.NewForConfig(c.config)
+		if csErr != nil {
+			return false, fmt.Errorf("failed to create clientset while checking watch permission for %s: %w", api.GroupKind.String(), csErr)
+		}
+		k, permErr := c.isAllowed(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api, "watch", ns)
+		if permErr != nil {
+			return false, fmt.Errorf("failed to check watch permission for resource %s: %w, original error=%v", api.GroupKind.String(), permErr, err.Error())
+		}
+		keep = k
+	}
+	if keep {
+		return false, nil
+	}
+	c.stopWatching(api.GroupKind, ns)
+	c.log.Info(fmt.Sprintf("Stop watching %s: watch not permitted", api.GroupKind))
+	return true, nil
+}
+
+// verbsRequiredForWatch returns the RBAC verbs the controller needs in order
+// to maintain a cache informer for a resource. list alone is not enough:
+// without watch the informer fails and retries forever (see #28744).
+// Returned as a fresh slice so callers cannot mutate shared package state.
+func verbsRequiredForWatch() []string {
+	return []string{"list", "watch"}
+}
+
+// checkPermission runs self subject access reviews to check if the controller
+// has permissions to list and watch the resource. Both verbs are required
+// because the cache always establishes a watch after the initial list; having
+// list without watch (common on OpenShift via the basic-user ClusterRole for
+// resources like storageclasses) would otherwise leave the informer retrying
+// a forbidden watch indefinitely.
+func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface authType1.SelfSubjectAccessReviewInterface, api kube.APIResourceInfo, ns string) (keep bool, err error) {
+	for _, verb := range verbsRequiredForWatch() {
+		allowed, err := c.isAllowed(ctx, reviewInterface, api, verb, ns)
+		if err != nil {
+			return false, err
+		}
+		if !allowed {
+			// unsupported, remove from watch list
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// isAllowed reports whether the controller is allowed to perform verb on api
+// for the scopes this cache manages.
+func (c *clusterCache) isAllowed(ctx context.Context, reviewInterface authType1.SelfSubjectAccessReviewInterface, api kube.APIResourceInfo, verb, ns string) (bool, error) {
 	sar := &authorizationv1.SelfSubjectAccessReview{
 		Spec: authorizationv1.SelfSubjectAccessReviewSpec{
 			ResourceAttributes: &authorizationv1.ResourceAttributes{
 				Namespace: "*",
-				Verb:      "list", // uses list verb to check for permissions
+				Verb:      verb,
+				Group:     api.GroupVersionResource.Group,
 				Resource:  api.GroupVersionResource.Resource,
 			},
 		},
@@ -1063,12 +1164,15 @@ func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface auth
 		if resp != nil && resp.Status.Allowed {
 			return true, nil
 		}
-		// unsupported, remove from watch list
 		return false, nil
 	// if manage some namespaces and resource is namespaced
 	case len(c.namespaces) != 0 && api.Meta.Namespaced:
-		for _, ns := range c.namespaces {
-			sar.Spec.ResourceAttributes.Namespace = ns
+		nss := c.namespaces
+		if ns != "" {
+			nss = []string{ns}
+		}
+		for _, n := range nss {
+			sar.Spec.ResourceAttributes.Namespace = n
 			resp, err := reviewInterface.Create(ctx, sar, metav1.CreateOptions{})
 			if err != nil {
 				return false, fmt.Errorf("failed to create self subject access review: %w", err)
@@ -1077,10 +1181,9 @@ func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface auth
 				return true, nil
 			}
 		}
-		// unsupported, remove from watch list
 		return false, nil
 	}
-	// checkPermission follows the same logic of determining namespace/cluster resource as the processApi function
+	// isAllowed follows the same logic of determining namespace/cluster resource as the processApi function
 	// so if neither of the cases match it means the controller will not watch for it so it is safe to return true.
 	return true, nil
 }
@@ -1208,7 +1311,7 @@ func (c *clusterCache) sync() (err error) {
 				if c.isRestrictedResource(err) {
 					keep := false
 					if c.respectRBAC == RespectRbacStrict {
-						k, permErr := c.checkPermission(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api)
+						k, permErr := c.checkPermission(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api, ns)
 						if permErr != nil {
 							return fmt.Errorf("failed to check permissions for resource %s: %w, original error=%v", api.GroupKind.String(), permErr, err.Error())
 						}
@@ -1224,6 +1327,25 @@ func (c *clusterCache) sync() (err error) {
 					}
 				}
 				return fmt.Errorf("failed to load initial state of resource %s: %w", api.GroupKind.String(), err)
+			}
+
+			// List may succeed while watch is denied (e.g. OpenShift basic-user
+			// grants get/list on storageclasses but not watch). In strict mode,
+			// confirm watch via SSAR before starting the informer so we don't
+			// spam "cannot watch" retries. Normal mode relies on the watch path
+			// handling a forbidden response (see watchEvents).
+			if c.respectRBAC == RespectRbacStrict {
+				allowed, permErr := c.isAllowed(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api, "watch", ns)
+				if permErr != nil {
+					return fmt.Errorf("failed to check watch permission for resource %s: %w", api.GroupKind.String(), permErr)
+				}
+				if !allowed {
+					syncLock.Lock()
+					delete(c.apisMeta, api.GroupKind)
+					delete(c.namespacedResources, api.GroupKind)
+					syncLock.Unlock()
+					return nil
+				}
 			}
 
 			go c.watchEvents(ctx, api, resClient, ns, resourceVersion)
