@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
@@ -941,22 +942,63 @@ func Test_GenerateDexConfigYAML(t *testing.T) {
 		})
 	}
 
-	t.Run("LDAP bindPW with dollar sign is not escaped when Dex env expansion is disabled", func(t *testing.T) {
-		t.Setenv("DEX_EXPAND_ENV", "false")
-		config, err := GenerateDexConfigYAML(
-			argoCDSettings(
-				goodDexConfigLDAPWithDollarSign,
-				map[string]string{"dex.ldap.bindPW": "test$test"},
-			),
-			false,
-		)
-		require.NoError(t, err)
-		require.NotNil(t, config)
-		var dexCfg map[string]any
-		require.NoError(t, yaml.Unmarshal(config, &dexCfg))
-		connectors := dexCfg["connectors"].([]any)
-		connCfg := connectors[0].(map[string]any)["config"].(map[string]any)
-		assert.Equal(t, "test$test", connCfg["bindPW"])
+	t.Run("DEX_EXPAND_ENV values", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			envValue string
+			unset    bool
+			expected string
+		}{
+			{
+				name:     "unset",
+				unset:    true,
+				expected: "test$$test",
+			},
+			{
+				name:     "false",
+				envValue: "false",
+				expected: "test$test",
+			},
+			{
+				name:     "0",
+				envValue: "0",
+				expected: "test$test",
+			},
+			{
+				name:     "invalid value",
+				envValue: "no",
+				expected: "test$$test",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				if tt.unset {
+					t.Setenv("DEX_EXPAND_ENV", "")
+					require.NoError(t, os.Unsetenv("DEX_EXPAND_ENV"))
+				} else {
+					t.Setenv("DEX_EXPAND_ENV", tt.envValue)
+				}
+
+				config, err := GenerateDexConfigYAML(
+					argoCDSettings(
+						goodDexConfigLDAPWithDollarSign,
+						map[string]string{"dex.ldap.bindPW": "test$test"},
+					),
+					false,
+				)
+				require.NoError(t, err)
+				require.NotNil(t, config)
+
+				var dexCfg map[string]any
+				require.NoError(t, yaml.Unmarshal(config, &dexCfg))
+
+				connectors := dexCfg["connectors"].([]any)
+				connCfg := connectors[0].(map[string]any)["config"].(map[string]any)
+
+				assert.Equal(t, tt.expected, connCfg["bindPW"])
+			})
+		}
 	})
 
 	t.Run("top-level issuer is NOT escaped even if it contained a dollar sign", func(t *testing.T) {
