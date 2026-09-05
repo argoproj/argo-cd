@@ -73,6 +73,94 @@ func setAppTraceAttrs(span oteltrace.Span, app *v1alpha1.Application, extra ...a
 	}, extra...)...)
 }
 
+// setComparisonResultTraceAttrs records the final result of an application comparison. Resolved
+// revisions are attached only after manifest generation has resolved every source. Earlier return
+// paths can still contain requested refs such as HEAD or main in the sync status.
+func setComparisonResultTraceAttrs(span oteltrace.Span, result *comparisonResult) {
+	if !span.IsRecording() || result == nil || result.syncStatus == nil {
+		return
+	}
+
+	attrs := []attribute.KeyValue{
+		attribute.String("argocd.app.sync.status", string(result.syncStatus.Status)),
+		attribute.String("argocd.app.health.status", string(result.healthStatus)),
+	}
+	if result.hasResolvedRevisions {
+		attrs = appendResolvedRevisionTraceAttrs(attrs, result.syncStatus.Revision, result.syncStatus.Revisions)
+	}
+	span.SetAttributes(attrs...)
+}
+
+// setApplicationStatusTraceAttrs records an explicit Application status snapshot for paths that
+// intentionally return before comparison. A later comparison result can overwrite these
+// attributes with its final values on paths that do perform a comparison.
+func setApplicationStatusTraceAttrs(span oteltrace.Span, status *v1alpha1.ApplicationStatus) {
+	if !span.IsRecording() || status == nil {
+		return
+	}
+
+	span.SetAttributes(
+		attribute.String("argocd.app.sync.status", string(status.Sync.Status)),
+		attribute.String("argocd.app.health.status", string(status.Health.Status)),
+	)
+}
+
+// setOperationStateTraceAttrs records the state at the end of an operation queue processing
+// attempt. attemptPhase is captured before retry handling can change a failed state back to Running.
+func setOperationStateTraceAttrs(span oteltrace.Span, state *v1alpha1.OperationState, attemptPhase *synccommon.OperationPhase) {
+	if !span.IsRecording() || state == nil {
+		return
+	}
+
+	attrs := []attribute.KeyValue{
+		attribute.String("argocd.operation.phase", string(state.Phase)),
+		attribute.Int64("argocd.operation.retry_count", state.RetryCount),
+		attribute.Bool("argocd.operation.initiated_by.automated", state.Operation.InitiatedBy.Automated),
+	}
+	if attemptPhase != nil {
+		attrs = append(attrs, attribute.String("argocd.operation.attempt.phase", string(*attemptPhase)))
+	}
+	if syncOperation := state.Operation.Sync; syncOperation != nil {
+		attrs = append(attrs,
+			attribute.Bool("argocd.sync.dry_run", syncOperation.DryRun),
+			attribute.Bool("argocd.sync.prune", syncOperation.Prune),
+		)
+	}
+	span.SetAttributes(attrs...)
+}
+
+func setSyncOperationTraceAttrs(span oteltrace.Span, state *v1alpha1.OperationState) {
+	if !span.IsRecording() || state == nil || state.Operation.Sync == nil {
+		return
+	}
+
+	span.SetAttributes(
+		attribute.Bool("argocd.sync.dry_run", state.Operation.Sync.DryRun),
+		attribute.Bool("argocd.sync.prune", state.Operation.Sync.Prune),
+	)
+}
+
+func setResolvedRevisionTraceAttrs(span oteltrace.Span, revision string, revisions []string) {
+	if !span.IsRecording() {
+		return
+	}
+	span.SetAttributes(appendResolvedRevisionTraceAttrs(nil, revision, revisions)...)
+}
+
+func isFailedOperationPhase(phase synccommon.OperationPhase) bool {
+	return phase == synccommon.OperationFailed || phase == synccommon.OperationError
+}
+
+func appendResolvedRevisionTraceAttrs(attrs []attribute.KeyValue, revision string, revisions []string) []attribute.KeyValue {
+	if revision != "" {
+		return append(attrs, attribute.String("argocd.resolved_revision", revision))
+	}
+	if len(revisions) > 0 {
+		return append(attrs, attribute.StringSlice("argocd.resolved_revisions", revisions))
+	}
+	return attrs
+}
+
 type resourceInfoProviderStub struct{}
 
 func (r *resourceInfoProviderStub) IsNamespaced(_ schema.GroupKind) (bool, error) {
@@ -119,6 +207,9 @@ type comparisonResult struct {
 	hasPreDeleteHooks  bool
 	// revisionsMayHaveChanges indicates if there are any possibilities that the revisions contain changes
 	revisionsMayHaveChanges bool
+	// hasResolvedRevisions is true only when manifest generation successfully resolved every source.
+	// syncStatus can contain requested refs on earlier return paths.
+	hasResolvedRevisions bool
 }
 
 func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
@@ -679,10 +770,13 @@ func partitionTargetObjsForSync(targetObjs []*unstructured.Unstructured) (syncOb
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) (_ *comparisonResult, retErr error) {
+func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) (result *comparisonResult, retErr error) {
 	ctx, span := tracer.Start(ctx, "controller.CompareAppState")
 	setAppTraceAttrs(span, app)
-	defer func() { traceutil.EndSpan(span, retErr) }()
+	defer func() {
+		setComparisonResultTraceAttrs(span, result)
+		traceutil.EndSpan(span, retErr)
+	}()
 	ts := stats.NewTimingStats()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 
@@ -731,6 +825,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	var manifestInfos []*apiclient.ManifestResponse
 	targetNsExists := false
+	hasResolvedRevisions := false
 
 	var revisionsMayHaveChanges bool
 
@@ -764,6 +859,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 			failedToLoadObjs = true
 		} else {
 			m.repoErrorCache.Delete(app.Name)
+			hasResolvedRevisions = true
 		}
 	} else {
 		// Prevent applying local manifests for now when source integrity is enforced
@@ -1170,6 +1266,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		hasPostDeleteHooks:      hasPostDeleteHooks,
 		hasPreDeleteHooks:       hasPreDeleteHooks,
 		revisionsMayHaveChanges: revisionsMayHaveChanges,
+		hasResolvedRevisions:    hasResolvedRevisions,
 	}
 
 	if hasMultipleSources {

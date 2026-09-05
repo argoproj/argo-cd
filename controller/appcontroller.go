@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubemeta"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
 	otel_codes "go.opentelemetry.io/otel/codes"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
@@ -103,6 +104,79 @@ const (
 	// Skip comparison and only refresh application resources tree
 	ComparisonWithNothing CompareWith = 0
 )
+
+func comparisonLevelTraceValue(level CompareWith) string {
+	switch level {
+	case ComparisonWithNothing:
+		return "nothing"
+	case CompareWithRecent:
+		return "recent"
+	case CompareWithLatest:
+		return "latest"
+	case CompareWithLatestForceResolve:
+		return "latest_force_resolve"
+	default:
+		return "unknown"
+	}
+}
+
+func operationReconciliationCause(app *appv1.Application) string {
+	if app == nil {
+		return "unknown"
+	}
+	if isOperationInProgress(app) {
+		state := app.Status.OperationState
+		if state != nil && state.Phase == synccommon.OperationRunning && state.FinishedAt != nil {
+			return "retry"
+		}
+		if state != nil && state.Phase == synccommon.OperationTerminating {
+			return "termination"
+		}
+		return "resume"
+	}
+	if app.Operation != nil && app.Operation.InitiatedBy.Automated {
+		return "auto_sync"
+	}
+	return "manual"
+}
+
+func operationReconciliationOutcome(state *appv1.OperationState, attemptPhase *synccommon.OperationPhase, requeuedForRetry bool) string {
+	if requeuedForRetry {
+		return "retry_wait"
+	}
+	phase := synccommon.OperationPhase("")
+	if attemptPhase != nil {
+		phase = *attemptPhase
+	} else if state != nil {
+		phase = state.Phase
+	}
+	switch phase {
+	case synccommon.OperationSucceeded:
+		return "succeeded"
+	case synccommon.OperationFailed, synccommon.OperationError:
+		return "error"
+	case synccommon.OperationRunning:
+		return "progressing"
+	case synccommon.OperationTerminating:
+		return "terminating"
+	default:
+		return "unknown"
+	}
+}
+
+func refreshReconciliationOutcome(origStatus, finalStatus *appv1.ApplicationStatus, failed bool) (string, bool) {
+	if failed || origStatus == nil || finalStatus == nil {
+		return "error", false
+	}
+	// SyncStatus contains the observed revision(s) and ComparedTo inputs, but no timestamps. Comparing
+	// it as a value catches a new release even when both snapshots remain Synced. ReconciledAt is
+	// intentionally excluded so periodic refreshes can still be classified as no_change.
+	statusChanged := !reflect.DeepEqual(origStatus.Sync, finalStatus.Sync) || origStatus.Health.Status != finalStatus.Health.Status
+	if statusChanged {
+		return "state_changed", true
+	}
+	return "no_change", false
+}
 
 func init() {
 	settings_util.ConfigureGoClientFeatures()
@@ -1607,7 +1681,9 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	ctx := context.Background()
 	ctx, span := tracer.Start(ctx, "controller.Operation")
 	setAppTraceAttrs(span, app)
+	span.SetAttributes(attribute.String("argocd.reconciliation.cause", operationReconciliationCause(app)))
 	var state *appv1.OperationState
+	var attemptPhase *synccommon.OperationPhase
 	// requeuedForRetry marks the retry-backoff early return, where no sync work is
 	// performed this cycle and the app is only rescheduled for a future retry.
 	requeuedForRetry := false
@@ -1615,8 +1691,16 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	// finalized state. The operation reports failure via state.Phase (not a return value), so map
 	// a terminal failed phase onto the span status; panics are handled by the recovery defer.
 	defer func() {
-		if state != nil && state.Phase.Failed() {
-			span.SetStatus(otel_codes.Error, state.Message)
+		setOperationStateTraceAttrs(span, state, attemptPhase)
+		span.SetAttributes(attribute.String("argocd.reconciliation.outcome", operationReconciliationOutcome(state, attemptPhase, requeuedForRetry)))
+		attemptFailed := attemptPhase != nil && isFailedOperationPhase(*attemptPhase)
+		stateFailed := state != nil && isFailedOperationPhase(state.Phase)
+		if attemptFailed || stateFailed {
+			description := ""
+			if state != nil {
+				description = state.Message
+			}
+			span.SetStatus(otel_codes.Error, description)
 		}
 		span.End()
 	}()
@@ -1625,7 +1709,9 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		if r := recover(); r != nil {
 			logCtx.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
 			span.SetStatus(otel_codes.Error, fmt.Sprintf("%v", r))
-			state.Phase = synccommon.OperationError
+			phase := synccommon.OperationError
+			attemptPhase = &phase
+			state.Phase = phase
 			if rerr, ok := r.(error); ok {
 				span.RecordError(rerr)
 				state.Message = rerr.Error()
@@ -1749,6 +1835,8 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		state.Phase = synccommon.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
 	}
+	phase := state.Phase
+	attemptPhase = &phase
 	ts.AddCheckpoint("sync_app_state_ms")
 
 	switch state.Phase {
@@ -2165,9 +2253,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		log.WithField("appkey", appKey).Warn("Key in index is not an application")
 		return processNext
 	}
-	// needRefreshAppStatus only reads the application, so the informer's copy answers it and the
+	// needRefreshAppStatusWithCause only reads the application, so the informer's copy answers it and the
 	// queue items that need no refresh never pay for a copy.
-	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout, ctrl.statusHardRefreshTimeout)
+	needRefresh, refreshType, comparisonLevel, reconciliationCause := ctrl.needRefreshAppStatusWithCause(origApp, ctrl.statusRefreshTimeout, ctrl.statusHardRefreshTimeout)
 
 	if !needRefresh {
 		return processNext
@@ -2186,7 +2274,42 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	ctx := context.Background()
 	ctx, span := tracer.Start(ctx, "controller.Refresh")
 	setAppTraceAttrs(span, origApp)
-	defer span.End()
+	span.SetAttributes(
+		attribute.String("argocd.refresh.type", string(refreshType)),
+		attribute.String("argocd.refresh.comparison_level", comparisonLevelTraceValue(comparisonLevel)),
+		attribute.String("argocd.reconciliation.cause", reconciliationCause),
+	)
+	var compareResult *comparisonResult
+	var statusFallback *appv1.ApplicationStatus
+	reconciliationFailed := false
+	defer func() {
+		recovered := recover()
+		if recovered != nil {
+			reconciliationFailed = true
+			span.SetStatus(otel_codes.Error, fmt.Sprintf("%v", recovered))
+			if recoveredErr, ok := recovered.(error); ok {
+				span.RecordError(recoveredErr)
+			}
+		}
+		setApplicationStatusTraceAttrs(span, statusFallback)
+		setComparisonResultTraceAttrs(span, compareResult)
+		finalStatus := &app.Status
+		if statusFallback != nil {
+			finalStatus = statusFallback
+		}
+		outcome, statusChanged := refreshReconciliationOutcome(&origApp.Status, finalStatus, reconciliationFailed)
+		span.SetAttributes(
+			attribute.String("argocd.reconciliation.outcome", outcome),
+			attribute.Bool("argocd.reconciliation.status_changed", statusChanged),
+		)
+		if reconciliationFailed && recovered == nil {
+			span.SetStatus(otel_codes.Error, "reconciliation failed")
+		}
+		span.End()
+		if recovered != nil {
+			panic(recovered)
+		}
+	}()
 
 	startTime := time.Now()
 	ts := stats.NewTimingStats()
@@ -2216,13 +2339,18 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		if destCluster, err = argo.GetDestinationCluster(ctx, app.Spec.Destination, ctrl.db); err == nil {
 			managedResources := make([]*appv1.ResourceDiff, 0)
 			if err := ctrl.cache.GetAppManagedResources(app.InstanceName(ctrl.namespace), &managedResources); err == nil {
+				statusFallback = &app.Status
 				var tree *appv1.ApplicationTree
 				if tree, err = ctrl.getResourceTree(destCluster, app, managedResources); err == nil {
 					app.Status.Summary = tree.GetSummary(app)
 					if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), tree); err != nil {
+						reconciliationFailed = true
 						logCtx.WithError(err).Error("Failed to cache resources tree")
 						return processNext
 					}
+				} else {
+					reconciliationFailed = true
+					logCtx.WithError(err).Error("Failed to build resources tree")
 				}
 
 				patchDuration = ctrl.persistReconciliationStatus(ctx, origApp, &app.Status)
@@ -2240,6 +2368,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
 		app.Status.Health.Message = ""
+		statusFallback = &app.Status
 		patchDuration = ctrl.persistReconciliationStatus(ctx, origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
@@ -2254,6 +2383,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	destCluster, err = argo.GetDestinationCluster(ctx, app.Spec.Destination, ctrl.db)
 	if err != nil {
+		reconciliationFailed = true
 		logCtx.WithError(err).Error("Failed to get destination cluster")
 		// exit the reconciliation. ctrl.refreshAppConditions should have caught the error
 		return processNext
@@ -2295,11 +2425,14 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	// CompareAppState writes conditions into app.Status, so swap rather than copy.
 	persistedReconciledAt := app.Status.ReconciledAt
 	app.Status.ReconciledAt = ctrl.statusWithEffectiveReconciledAt(app).ReconciledAt
-	compareResult, err := ctrl.appStateManager.CompareAppState(ctx, app, project, revisions, sources, refreshType == appv1.RefreshTypeHard, comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources)
+	compareResult, err = ctrl.appStateManager.CompareAppState(ctx, app, project, revisions, sources, refreshType == appv1.RefreshTypeHard, comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources)
 	app.Status.ReconciledAt = persistedReconciledAt
 
 	ts.AddCheckpoint("compare_app_state_ms")
 
+	if err != nil {
+		reconciliationFailed = true
+	}
 	if stderrors.Is(err, ErrCompareStateRepo) {
 		logCtx.WithError(err).Warn("Ignoring temporary failed attempt to compare app state against repo")
 		return processNext // short circuit if git error is encountered
@@ -2475,8 +2608,16 @@ func currentSourceEqualsSyncedSource(app *appv1.Application) bool {
 // Additionally, it returns whether full refresh was requested or not.
 // If full refresh is requested then target and live state should be reconciled, else only live state tree should be updated.
 func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, statusRefreshTimeout, statusHardRefreshTimeout time.Duration) (bool, appv1.RefreshType, CompareWith) {
+	needRefresh, refreshType, compareWith, _ := ctrl.needRefreshAppStatusWithCause(app, statusRefreshTimeout, statusHardRefreshTimeout)
+	return needRefresh, refreshType, compareWith
+}
+
+// needRefreshAppStatusWithCause returns a stable, low-cardinality cause for tracing in addition
+// to the existing refresh decision. The detailed log reason remains local to the controller log.
+func (ctrl *ApplicationController) needRefreshAppStatusWithCause(app *appv1.Application, statusRefreshTimeout, statusHardRefreshTimeout time.Duration) (bool, appv1.RefreshType, CompareWith, string) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	var reason string
+	var cause string
 	compareWith := CompareWithLatest
 	refreshType := appv1.RefreshTypeNormal
 
@@ -2488,9 +2629,11 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		// user requested app refresh.
 		refreshType = requestedType
 		reason = fmt.Sprintf("%s refresh requested", refreshType)
+		cause = "explicit_request"
 	} else {
 		if !currentSourceEqualsSyncedSource(app) {
 			reason = "spec.source differs"
+			cause = "source_changed"
 			compareWith = CompareWithLatestForceResolve
 			if app.Spec.HasMultipleSources() {
 				reason = "at least one of the spec.sources differs"
@@ -2516,24 +2659,31 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 			if hardExpired {
 				reason = fmt.Sprintf("comparison expired, requesting hard refresh. reconciledAt: %v, expiry: %v", reconciledAtStr, statusHardRefreshTimeout)
 				refreshType = appv1.RefreshTypeHard
+				cause = "hard_refresh_expired"
+			} else {
+				cause = "refresh_expired"
 			}
 		} else if !reflect.DeepEqual(app.Spec.Destination, app.Status.Sync.ComparedTo.Destination) {
 			reason = "spec.destination differs"
+			cause = "destination_changed"
 		} else if app.HasChangedManagedNamespaceMetadata() {
 			reason = "spec.syncPolicy.managedNamespaceMetadata differs"
+			cause = "managed_namespace_metadata_changed"
 		} else if !app.Spec.IgnoreDifferences.Equals(app.Status.Sync.ComparedTo.IgnoreDifferences) {
 			reason = "spec.ignoreDifferences differs"
+			cause = "ignore_differences_changed"
 		} else if requested, level := ctrl.isRefreshRequested(app.QualifiedName()); requested {
 			compareWith = level
 			reason = "controller refresh requested"
+			cause = "controller_request"
 		}
 	}
 
 	if reason != "" {
 		logCtx.Infof("Refreshing app status (%s), level (%d)", reason, compareWith)
-		return true, refreshType, compareWith
+		return true, refreshType, compareWith, cause
 	}
-	return false, refreshType, compareWith
+	return false, refreshType, compareWith, ""
 }
 
 // noteReconciled records in memory that the named app was reconciled at t. No-op

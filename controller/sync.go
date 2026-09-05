@@ -163,7 +163,16 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 	// SyncAppState is void; it signals failure through state.Phase rather than a return value, so
 	// map a terminal failed phase onto the span status at exit (mirroring traceutil.EndSpan).
 	defer func() {
-		if state.Phase.Failed() {
+		setSyncOperationTraceAttrs(span, state)
+		if recovered := recover(); recovered != nil {
+			span.SetStatus(otel_codes.Error, fmt.Sprintf("%v", recovered))
+			if recoveredErr, ok := recovered.(error); ok {
+				span.RecordError(recoveredErr)
+			}
+			span.End()
+			panic(recovered)
+		}
+		if state != nil && isFailedOperationPhase(state.Phase) {
 			span.SetStatus(otel_codes.Error, state.Message)
 		}
 		span.End()
@@ -222,6 +231,9 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 	// what we should be syncing to when resuming operations.
 	state.SyncResult.Revision = compareResult.syncStatus.Revision
 	state.SyncResult.Revisions = compareResult.syncStatus.Revisions
+	if compareResult.hasResolvedRevisions {
+		setResolvedRevisionTraceAttrs(span, state.SyncResult.Revision, state.SyncResult.Revisions)
+	}
 
 	// validates if it should fail the sync on that revision if it finds shared resources
 	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
