@@ -795,9 +795,9 @@ entries:
 	require.Error(t, err)
 	assert.Nil(t, prov)
 	assert.Empty(t, chartFilename)
-	assert.ErrorIs(t, err, ErrProvenanceNotFound)
-	assert.Contains(t, err.Error(), "failed to fetch provenance")
-	assert.Contains(t, err.Error(), "2 URL(s)")
+	require.ErrorIs(t, err, ErrProvenanceNotFound)
+	require.ErrorContains(t, err, "failed to fetch provenance")
+	require.ErrorContains(t, err, "2 URL(s)")
 }
 
 func TestFetchProvenance_TransientError(t *testing.T) {
@@ -824,8 +824,8 @@ entries:
 	require.Error(t, err)
 	assert.Nil(t, prov)
 	assert.Empty(t, chartFilename)
-	assert.NotErrorIs(t, err, ErrProvenanceNotFound)
-	assert.Contains(t, err.Error(), "failed to fetch provenance")
+	require.NotErrorIs(t, err, ErrProvenanceNotFound)
+	require.ErrorContains(t, err, "failed to fetch provenance")
 }
 
 func TestFetchProvenance_Success(t *testing.T) {

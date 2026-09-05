@@ -6411,8 +6411,8 @@ func TestHelmSourceIntegrity_GetChartTgzPathFails(t *testing.T) {
 	res, err := service.GenerateManifest(t.Context(), request)
 	require.Error(t, err)
 	assert.Nil(t, res)
-	assert.Contains(t, err.Error(), "helm provenance verification")
-	assert.Contains(t, err.Error(), "chart tgz not cached")
+	require.ErrorContains(t, err, "helm provenance verification")
+	require.ErrorContains(t, err, "chart tgz not cached")
 }
 
 func TestHelmSourceIntegrity_FetchProvenanceFails(t *testing.T) {
@@ -6448,8 +6448,8 @@ func TestHelmSourceIntegrity_FetchProvenanceFails(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, res.SourceIntegrityResult)
 	require.Error(t, res.SourceIntegrityResult.AsError())
-	assert.Contains(t, res.SourceIntegrityResult.AsError().Error(), "could not access chart for provenance verification")
-	assert.Contains(t, res.SourceIntegrityResult.AsError().Error(), "helm chart provenance not found")
+	require.ErrorContains(t, res.SourceIntegrityResult.AsError(), "could not access chart for provenance verification")
+	require.ErrorContains(t, res.SourceIntegrityResult.AsError(), "helm chart provenance not found")
 }
 
 func TestHelmSourceIntegrity_FetchProvenanceTransientFails(t *testing.T) {
@@ -6484,8 +6484,8 @@ func TestHelmSourceIntegrity_FetchProvenanceTransientFails(t *testing.T) {
 	res, err := service.GenerateManifest(t.Context(), request)
 	require.Error(t, err)
 	assert.Nil(t, res)
-	assert.Contains(t, err.Error(), "helm provenance verification")
-	assert.Contains(t, err.Error(), "502")
+	require.ErrorContains(t, err, "helm provenance verification")
+	require.ErrorContains(t, err, "502")
 }
 
 func TestGetHelmRepos_InsecureOCIForceHttpPropagatedFromRepo(t *testing.T) {
