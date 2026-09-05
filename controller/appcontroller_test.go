@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	"github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -88,6 +89,9 @@ type fakeData struct {
 	// persistResourceHealth controls whether managed resource health is stored
 	// inline on the Application. When nil it defaults to true.
 	persistResourceHealth *bool
+	// reconciledAtHeartbeat bounds how stale the persisted status.reconciledAt may
+	// become. Zero writes it on every full reconciliation.
+	reconciledAtHeartbeat time.Duration
 }
 
 type MockKubectl struct {
@@ -235,6 +239,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		appResyncPeriod,
 		time.Hour,
 		time.Second,
+		data.reconciledAtHeartbeat,
 		time.Minute,
 		nil,
 		0,
@@ -2346,6 +2351,371 @@ func TestUpdateReconciledAt(t *testing.T) {
 	})
 }
 
+// Expiry must be judged on what the controller did, not on what it last wrote
+// down, or a skipped write leaves the app looking perpetually expired.
+func TestStatusWithEffectiveReconciledAt(t *testing.T) {
+	now := time.Now().UTC()
+	app := &v1alpha1.Application{}
+	app.Name, app.Namespace = "app", "argocd"
+
+	t.Run("no in-memory record leaves status untouched", func(t *testing.T) {
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtHeartbeat: 10 * time.Minute}
+		persisted := metav1.NewTime(now.Add(-time.Hour))
+		app.Status.ReconciledAt = &persisted
+		got := ctrl.statusWithEffectiveReconciledAt(app)
+		require.NotNil(t, got.ReconciledAt)
+		assert.Equal(t, persisted.Time, got.ReconciledAt.Time)
+	})
+
+	t.Run("in-memory record wins when newer than persisted", func(t *testing.T) {
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtHeartbeat: 10 * time.Minute}
+		persisted := metav1.NewTime(now.Add(-time.Hour))
+		app.Status.ReconciledAt = &persisted
+		ctrl.noteReconciled(app.QualifiedName(), now)
+
+		got := ctrl.statusWithEffectiveReconciledAt(app)
+		require.NotNil(t, got.ReconciledAt)
+		assert.Equal(t, now.Unix(), got.ReconciledAt.Unix(),
+			"expiry must be judged against the in-memory reconcile time")
+
+		// The app object itself must not be mutated as a side effect.
+		assert.Equal(t, persisted.Time, app.Status.ReconciledAt.Time)
+
+		// With a 2m refresh timeout it must no longer look expired.
+		soft, _ := comparisonExpiry(got, 2*time.Minute, 0)
+		assert.False(t, soft, "app reconciled just now must not be soft-expired")
+	})
+
+	t.Run("stale in-memory record does not mask a newer persisted value", func(t *testing.T) {
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtHeartbeat: 10 * time.Minute}
+		persisted := metav1.NewTime(now)
+		app.Status.ReconciledAt = &persisted
+		ctrl.noteReconciled(app.QualifiedName(), now.Add(-time.Hour))
+		got := ctrl.statusWithEffectiveReconciledAt(app)
+		assert.Equal(t, now.Unix(), got.ReconciledAt.Unix())
+	})
+
+	t.Run("forgetReconciled drops the entry", func(t *testing.T) {
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtHeartbeat: 10 * time.Minute}
+		ctrl.noteReconciled("argocd/app", now)
+		ctrl.forgetReconciled("argocd/app")
+		assert.Empty(t, ctrl.lastReconciledAt)
+	})
+
+	// With the heartbeat off, a failed status write must still soft-expire on the
+	// next resync, so the in-memory record must not be kept or consulted.
+	t.Run("heartbeat disabled ignores the in-memory record entirely", func(t *testing.T) {
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}}
+		persisted := metav1.NewTime(now.Add(-time.Hour))
+		app.Status.ReconciledAt = &persisted
+		ctrl.noteReconciled(app.QualifiedName(), now)
+
+		assert.Empty(t, ctrl.lastReconciledAt, "nothing reads the map when the heartbeat is off")
+		got := ctrl.statusWithEffectiveReconciledAt(app)
+		require.NotNil(t, got.ReconciledAt)
+		assert.Equal(t, persisted.Time, got.ReconciledAt.Time)
+		soft, _ := comparisonExpiry(got, 2*time.Minute, 0)
+		assert.True(t, soft, "an app whose persisted reconciledAt is an hour old must still soft-expire")
+	})
+}
+
+func TestShouldPersistReconciledAt(t *testing.T) {
+	now := time.Now().UTC()
+
+	finished := func(at time.Time) *v1alpha1.OperationState {
+		return &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded, FinishedAt: ptrTime(at)}
+	}
+
+	testCases := map[string]struct {
+		heartbeat time.Duration
+		persisted *metav1.Time
+		opState   *v1alpha1.OperationState
+		expected  bool
+	}{
+		"never reconciled is always persisted": {
+			heartbeat: 10 * time.Minute, persisted: nil, expected: true,
+		},
+		"fresh value is not rewritten": {
+			heartbeat: 10 * time.Minute,
+			persisted: ptrTime(now.Add(-1 * time.Minute)),
+			expected:  false,
+		},
+		"value older than the heartbeat is refreshed": {
+			heartbeat: 10 * time.Minute,
+			persisted: ptrTime(now.Add(-11 * time.Minute)),
+			expected:  true,
+		},
+		"heartbeat disabled preserves historical always-write behaviour": {
+			heartbeat: 0,
+			persisted: ptrTime(now.Add(-1 * time.Second)),
+			expected:  true,
+		},
+		// `argocd app wait`, notifications and progressive sync read
+		// "reconciledAt after finishedAt" as "the post-sync reconcile ran".
+		"value trailing the last operation is refreshed": {
+			heartbeat: 10 * time.Minute,
+			persisted: ptrTime(now.Add(-1 * time.Minute)),
+			opState:   finished(now.Add(-2 * time.Second)),
+			expected:  true,
+		},
+		"value already past the last operation is not rewritten": {
+			heartbeat: 10 * time.Minute,
+			persisted: ptrTime(now.Add(-1 * time.Minute)),
+			opState:   finished(now.Add(-5 * time.Minute)),
+			expected:  false,
+		},
+		"a running operation does not force a write": {
+			heartbeat: 10 * time.Minute,
+			persisted: ptrTime(now.Add(-1 * time.Minute)),
+			opState:   &v1alpha1.OperationState{Phase: synccommon.OperationRunning},
+			expected:  false,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			ctrl := &ApplicationController{reconciledAtHeartbeat: tc.heartbeat}
+			status := v1alpha1.ApplicationStatus{ReconciledAt: tc.persisted, OperationState: tc.opState}
+			assert.Equal(t, tc.expected, ctrl.shouldPersistReconciledAt(status, now))
+		})
+	}
+}
+
+func ptrTime(t time.Time) *metav1.Time {
+	mt := metav1.NewTime(t)
+	return &mt
+}
+
+// The point of the change: with a heartbeat configured, a full reconciliation
+// that changes nothing else must not write status at all.
+func TestReconciledAtHeartbeatSuppressesNoOpWrite(t *testing.T) {
+	app := newFakeApp()
+	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Second))
+	healthAt := metav1.NewTime(time.Now().Add(-1 * time.Hour))
+	// Seed the state a completed reconciliation leaves behind, so this pass has
+	// nothing to report. Anything missing here shows up in the patch below.
+	app.Status = v1alpha1.ApplicationStatus{
+		ReconciledAt:        &reconciledAt,
+		ControllerNamespace: test.FakeArgoCDNamespace,
+		Health: v1alpha1.AppHealthStatus{
+			Status:             health.HealthStatusHealthy,
+			LastTransitionTime: &healthAt,
+		},
+		Sync: v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeSynced,
+			Revision: "abc123",
+			ComparedTo: v1alpha1.ComparedTo{
+				Source: app.Spec.GetSource(), Destination: app.Spec.Destination,
+				IgnoreDifferences: app.Spec.IgnoreDifferences,
+			},
+		},
+	}
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		// Opt in: reconciledAt need only be refreshed every 10 minutes.
+		reconciledAtHeartbeat: 10 * time.Minute,
+	}, nil)
+
+	key, _ := cache.MetaNamespaceKeyFunc(app)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	receivedPatch := map[string]any{}
+	patched := false
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			patched = true
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
+	ctrl.appRefreshQueue.AddRateLimited(key)
+	ctrl.processAppRefreshQueueItem()
+
+	_, present, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
+	require.NoError(t, err)
+	assert.False(t, present, "reconciledAt must not be rewritten while within the heartbeat window")
+	assert.False(t, patched, "a no-op reconciliation must not patch the Application at all, got: %v", receivedPatch)
+
+	// The reconcile must still be recorded, or the app looks perpetually expired.
+	ctrl.lastReconciledAtMutex.RLock()
+	_, noted := ctrl.lastReconciledAt[app.QualifiedName()]
+	ctrl.lastReconciledAtMutex.RUnlock()
+	assert.True(t, noted, "reconcile time must be tracked in memory")
+}
+
+// The counterweight: however fresh the persisted value is, it must be rewritten
+// while it trails finishedAt, or `argocd app wait`, notifications and
+// progressive sync stall for a whole heartbeat window after every sync.
+func TestReconciledAtPersistedAfterOperation(t *testing.T) {
+	app := newFakeApp()
+	// The post-sync reconcile runs seconds after the sync, so on staleness grounds
+	// alone this write would be skipped.
+	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Minute))
+	finishedAt := metav1.NewTime(time.Now().Add(-2 * time.Second))
+	healthAt := metav1.NewTime(time.Now().Add(-1 * time.Hour))
+	app.Status = v1alpha1.ApplicationStatus{
+		ReconciledAt:        &reconciledAt,
+		ControllerNamespace: test.FakeArgoCDNamespace,
+		OperationState: &v1alpha1.OperationState{
+			Phase:      synccommon.OperationSucceeded,
+			FinishedAt: &finishedAt,
+		},
+		Health: v1alpha1.AppHealthStatus{
+			Status:             health.HealthStatusHealthy,
+			LastTransitionTime: &healthAt,
+		},
+		Sync: v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeSynced,
+			Revision: "abc123",
+			ComparedTo: v1alpha1.ComparedTo{
+				Source: app.Spec.GetSource(), Destination: app.Spec.Destination,
+				IgnoreDifferences: app.Spec.IgnoreDifferences,
+			},
+		},
+	}
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs:       make(map[kube.ResourceKey]*unstructured.Unstructured),
+		reconciledAtHeartbeat: 10 * time.Minute,
+	}, nil)
+
+	key, _ := cache.MetaNamespaceKeyFunc(app)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	receivedPatch := map[string]any{}
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
+	ctrl.appRefreshQueue.AddRateLimited(key)
+	ctrl.processAppRefreshQueueItem()
+
+	patchedReconciledAt, present, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
+	require.NoError(t, err)
+	require.True(t, present, "reconciledAt must be written while it trails finishedAt, got patch: %v", receivedPatch)
+	parsed, err := time.Parse(time.RFC3339, patchedReconciledAt)
+	require.NoError(t, err)
+	assert.True(t, parsed.After(finishedAt.Time),
+		"persisted reconciledAt %v must overtake finishedAt %v", parsed, finishedAt.Time)
+}
+
+// The log must report the time the decision was made against, plus the value in
+// the CR when the heartbeat has let the two drift apart.
+func TestNeedRefreshAppStatusLogsEffectiveReconciledAt(t *testing.T) {
+	newApp := func() *v1alpha1.Application {
+		app := newFakeApp()
+		persisted := metav1.NewTime(time.Now().Add(-1 * time.Hour))
+		app.Status.ReconciledAt = &persisted
+		app.Status.Sync = v1alpha1.SyncStatus{ComparedTo: v1alpha1.ComparedTo{
+			Source: app.Spec.GetSource(), Destination: app.Spec.Destination,
+			IgnoreDifferences: app.Spec.IgnoreDifferences,
+		}}
+		return app
+	}
+	inMemory := time.Now().Add(-30 * time.Minute)
+
+	t.Run("heartbeat configured reports both times", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		defer hook.Reset()
+		app := newApp()
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtHeartbeat: 10 * time.Minute}
+		ctrl.noteReconciled(app.QualifiedName(), inMemory)
+
+		needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 10*time.Minute, time.Hour)
+		require.True(t, needRefresh)
+
+		entry := hook.LastEntry()
+		require.NotNil(t, entry)
+		effective := metav1.NewTime(inMemory)
+		assert.Contains(t, entry.Message, effective.String(),
+			"the log must show the time the expiry decision was made against")
+		assert.Contains(t, entry.Message, "persisted: "+app.Status.ReconciledAt.String(),
+			"the lagging persisted value must be shown alongside it")
+	})
+
+	t.Run("heartbeat disabled reports the persisted time alone", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		defer hook.Reset()
+		app := newApp()
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}}
+
+		needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 10*time.Minute, time.Hour)
+		require.True(t, needRefresh)
+
+		entry := hook.LastEntry()
+		require.NotNil(t, entry)
+		assert.Contains(t, entry.Message, app.Status.ReconciledAt.String())
+		assert.NotContains(t, entry.Message, "persisted:", "there is nothing to disambiguate")
+	})
+}
+
+// An app can be resharded away or have reconciliation disabled without a delete
+// event, so every path must drop its in-memory reconcile time.
+func TestForgetReconciledWhenAppLeavesThisReplica(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps:                  []runtime.Object{app, &defaultProj},
+		managedLiveObjs:       map[kube.ResourceKey]*unstructured.Unstructured{},
+		reconciledAtHeartbeat: 10 * time.Minute,
+	}, nil)
+	handlers := ctrl.applicationEventHandlerFuncs()
+
+	noted := func() bool {
+		ctrl.lastReconciledAtMutex.RLock()
+		defer ctrl.lastReconciledAtMutex.RUnlock()
+		_, ok := ctrl.lastReconciledAt[app.QualifiedName()]
+		return ok
+	}
+
+	// An app this replica no longer owns: events keep arriving, canProcessApp
+	// rejects it.
+	unowned := app.DeepCopy()
+	unowned.Annotations = map[string]string{common.AnnotationKeyAppSkipReconcile: "true"}
+	require.False(t, ctrl.canProcessApp(unowned))
+
+	t.Run("on update", func(t *testing.T) {
+		ctrl.noteReconciled(app.QualifiedName(), time.Now())
+		require.True(t, noted())
+		handlers.UpdateFunc(app, unowned)
+		assert.False(t, noted(), "an app this replica no longer processes must not be retained")
+	})
+
+	t.Run("on delete", func(t *testing.T) {
+		ctrl.noteReconciled(app.QualifiedName(), time.Now())
+		require.True(t, noted())
+		handlers.DeleteFunc(unowned)
+		assert.False(t, noted(), "the delete handler must forget the app before the ownership check")
+	})
+
+	t.Run("on delete of an owned app", func(t *testing.T) {
+		ctrl.noteReconciled(app.QualifiedName(), time.Now())
+		require.True(t, noted())
+		handlers.DeleteFunc(app)
+		assert.False(t, noted())
+	})
+}
+
 func TestUpdateHealthStatus(t *testing.T) {
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
 		APIVersion: "apps/v1",
@@ -2672,7 +3042,7 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 		mockRepoClientset, mockCommitClientset,
 		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
 		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
-		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
+		time.Minute, time.Hour, time.Second, 0, time.Minute, nil, 0, 10*time.Second,
 		common.DefaultPortArgoCDMetrics, 0,
 		[]string{}, []string{}, []string{},
 		0, true, nil, nil, nil, false, false,
@@ -2735,7 +3105,7 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 		mockRepoClientset, mockCommitClientset,
 		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
 		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
-		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
+		time.Minute, time.Hour, time.Second, 0, time.Minute, nil, 0, 10*time.Second,
 		common.DefaultPortArgoCDMetrics, 0,
 		[]string{}, []string{}, []string{},
 		0, true, nil, nil, nil, false, false,
