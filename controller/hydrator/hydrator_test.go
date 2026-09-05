@@ -29,6 +29,10 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
+func allowHydrationPhaseEvents(d *mocks.Dependencies) {
+	d.EXPECT().LogHydrationPhaseEvent(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+}
+
 var message = `testn
 Argocd-reference-commit-repourl: https://github.com/test/argocd-example-apps
 Argocd-reference-commit-author: Argocd-reference-commit-author
@@ -750,6 +754,7 @@ func TestProcessAppHydrateQueueItem_HydrationNotNeeded_NoRevisionChanges(t *test
 func TestProcessHydrationQueueItem_ValidationFails(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	allowHydrationPhaseEvents(d)
 	app1 := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating)
 	app2 := setTestAppPhase(newTestApp("test-app-2"), v1alpha1.HydrateOperationPhaseHydrating)
 	hydrationKey := getHydrationQueueKey(app1)
@@ -792,6 +797,7 @@ func TestProcessHydrationQueueItem_ValidationFails(t *testing.T) {
 func TestProcessHydrationQueueItem_HydrateFails_AppSpecificError(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	allowHydrationPhaseEvents(d)
 	app1 := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating)
 	app2 := newTestApp("test-app-2")
 	app2.Spec.SourceHydrator.SyncSource.Path = "something/else"
@@ -838,6 +844,7 @@ func TestProcessHydrationQueueItem_HydrateFails_AppSpecificError(t *testing.T) {
 func TestProcessHydrationQueueItem_HydrateFails_CommonError(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	allowHydrationPhaseEvents(d)
 	r := mocks.NewRepoGetter(t)
 	app1 := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating)
 	app2 := newTestApp("test-app-2")
@@ -887,6 +894,7 @@ func TestProcessHydrationQueueItem_HydrateFails_CommonError(t *testing.T) {
 func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	allowHydrationPhaseEvents(d)
 	r := mocks.NewRepoGetter(t)
 	rc := reposervermocks.NewRepoServerServiceClient(t)
 	cc := commitservermocks.NewCommitServiceClient(t)
@@ -937,6 +945,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 func TestProcessHydrationQueueItem_SuccessfulHydration_DestinationRepoCredentials(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	allowHydrationPhaseEvents(d)
 	r := mocks.NewRepoGetter(t)
 	rc := reposervermocks.NewRepoServerServiceClient(t)
 	cc := commitservermocks.NewCommitServiceClient(t)
@@ -1714,6 +1723,7 @@ func expectSuccessfulHydratePipeline(d *mocks.Dependencies, r *mocks.RepoGetter,
 func TestProcessHydrationQueueItem_MarksAllAppsHydratingThenHydrated(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	allowHydrationPhaseEvents(d)
 	r := mocks.NewRepoGetter(t)
 	rc := reposervermocks.NewRepoServerServiceClient(t)
 	cc := commitservermocks.NewCommitServiceClient(t)
@@ -1768,6 +1778,7 @@ func TestProcessHydrationQueueItem_MarksAllAppsHydratingThenHydrated(t *testing.
 func TestProcessHydrationQueueItem_MarksHydratingBeforeValidation(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	allowHydrationPhaseEvents(d)
 
 	app := newTestApp("fresh-app")
 	require.Nil(t, app.Status.SourceHydrator.CurrentOperation)
@@ -1804,6 +1815,7 @@ func TestProcessHydrationQueueItem_MarksHydratingBeforeValidation(t *testing.T) 
 func TestProcessHydrationQueueItem_CommitsCompletePathSet(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	allowHydrationPhaseEvents(d)
 	r := mocks.NewRepoGetter(t)
 	rc := reposervermocks.NewRepoServerServiceClient(t)
 	cc := commitservermocks.NewCommitServiceClient(t)
@@ -1857,6 +1869,7 @@ func TestProcessHydrationQueueItem_LargeGroupAllAppsPersisted(t *testing.T) {
 	const totalApps = 20
 
 	d := mocks.NewDependencies(t)
+	allowHydrationPhaseEvents(d)
 	r := mocks.NewRepoGetter(t)
 	rc := reposervermocks.NewRepoServerServiceClient(t)
 	cc := commitservermocks.NewCommitServiceClient(t)
