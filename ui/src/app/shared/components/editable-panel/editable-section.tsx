@@ -1,12 +1,13 @@
 import {ErrorNotification, NotificationType} from 'argo-ui';
 import * as React from 'react';
-import {useState, useRef, useEffect, Fragment, useCallback} from 'react';
-import type {FormApi, FormState} from 'argo-ui';
+import {useState, Fragment, useCallback} from 'react';
+import type {FormApi} from 'argo-ui';
 import {Form} from 'argo-ui';
 import {ContextApis} from '../../context';
 import {EditablePanelItem} from './editable-panel';
 import {Spinner} from '../spinner';
 import {helpTip} from '../../../applications/components/utils';
+import {useAutoSaveForm} from './use-auto-save-form';
 
 export interface EditableSectionProps<T> {
     title?: string | React.ReactNode;
@@ -50,24 +51,7 @@ function EditableSection<T extends {} = {}>({
 }: EditableSectionProps<T>) {
     const [isEditing, setIsEditing] = useState<boolean>(!!noReadonlyMode);
     const [isSaving, setIsSaving] = useState<boolean>(false);
-    const formApiRef = useRef<FormApi | null>(null);
-    const prevValuesRef = useRef<T>(values);
-
-    useEffect(() => {
-        if (formApiRef.current && JSON.stringify(prevValuesRef.current) !== JSON.stringify(values) && noReadonlyMode) {
-            formApiRef.current.setAllValues(values);
-        }
-        prevValuesRef.current = values;
-    }, [values, noReadonlyMode]);
-
-    const onFormDidUpdate = useCallback(
-        async (form: FormState) => {
-            if (noReadonlyMode && save) {
-                await save(form.values as any, {});
-            }
-        },
-        [noReadonlyMode, save]
-    );
+    const {formApiRef, onFormDidUpdate} = useAutoSaveForm(values, noReadonlyMode, save);
 
     const onFormSubmit = useCallback<<K extends T>(data: K) => Promise<void>>(
         async input => {
