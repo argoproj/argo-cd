@@ -21,7 +21,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
@@ -159,7 +158,7 @@ var (
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string, db db.ArgoDB) (*MetricsServer, error) {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter AppFilter, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string) (*MetricsServer, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -185,7 +184,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	}
 
 	mux := http.NewServeMux()
-	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions, db)
+	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions)
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
@@ -354,29 +353,32 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 	return nil
 }
 
+// AppFilter reports whether an Application should be exported, and returns the destination server
+// it resolved on the way. Resolving isn't free, so the collector reuses this instead of resolving
+// again. destServer is empty when the destination doesn't resolve to a known cluster.
+type AppFilter func(obj any) (keep bool, destServer string)
+
 type appCollector struct {
 	store         applister.ApplicationLister
-	appFilter     func(obj any) bool
+	appFilter     AppFilter
 	appLabels     []string
 	appConditions []string
-	db            db.ArgoDB
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter AppFilter, appLabels []string, appConditions []string) prometheus.Collector {
 	return &appCollector{
 		store:         appLister,
 		appFilter:     appFilter,
 		appLabels:     appLabels,
 		appConditions: appConditions,
-		db:            db,
 	}
 }
 
 // NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) *prometheus.Registry {
+func NewAppRegistry(appLister applister.ApplicationLister, appFilter AppFilter, appLabels []string, appConditions []string) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, db))
+	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions))
 	return registry
 }
 
@@ -399,16 +401,9 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	for _, app := range apps {
-		if !c.appFilter(app) {
+		keep, destServer := c.appFilter(app)
+		if !keep {
 			continue
-		}
-		destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, c.db)
-		if err != nil {
-			log.Warnf("Failed to get destination cluster for application %s: %v", app.Name, err)
-		}
-		destServer := ""
-		if destCluster != nil {
-			destServer = destCluster.Server
 		}
 		c.collectApps(ch, app, destServer)
 	}

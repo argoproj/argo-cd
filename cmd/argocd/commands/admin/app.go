@@ -388,11 +388,11 @@ func reconcileApplications(
 
 	appLister := appInformerFactory.Argoproj().V1alpha1().Applications().Lister()
 	projLister := appInformerFactory.Argoproj().V1alpha1().AppProjects().Lister()
-	server, err := metrics.NewMetricsServer("", appLister, func(_ any) bool {
-		return true
+	server, err := metrics.NewMetricsServer("", appLister, func(_ any) (bool, string) {
+		return true, ""
 	}, func(_ *http.Request) error {
 		return nil
-	}, []string{}, []string{}, argoDB)
+	}, []string{}, []string{})
 	if err != nil {
 		return nil, fmt.Errorf("error starting new metrics server: %w", err)
 	}
