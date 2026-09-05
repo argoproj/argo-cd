@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/webapi"
@@ -44,15 +45,31 @@ func TestListPullRequest(t *testing.T) {
 		},
 	}
 
-	args := git.GetPullRequestsByProjectArgs{
-		Project:        &teamProject,
-		SearchCriteria: &git.GitPullRequestSearchCriteria{},
-	}
-
+	repoID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
 	gitClientMock := &azureMock.Client{}
 	clientFactoryMock := &mocks.AzureDevOpsClientFactory{}
 	clientFactoryMock.EXPECT().GetClient(mock.Anything).Return(gitClientMock, nil)
-	gitClientMock.EXPECT().GetPullRequestsByProject(mock.Anything, args).Return(&pullRequestMock, nil)
+
+	repository := git.GitRepository{
+		Id:   &repoID,
+		Name: &repoName,
+	}
+
+	gitClientMock.EXPECT().GetRepository(mock.Anything, git.GetRepositoryArgs{
+		Project:      &teamProject,
+		RepositoryId: &repoName,
+	}).
+		Return(&repository, nil)
+	gitClientMock.EXPECT().
+		GetPullRequestsByProject(mock.Anything, git.GetPullRequestsByProjectArgs{
+			Project: &teamProject,
+			SearchCriteria: &git.GitPullRequestSearchCriteria{
+				RepositoryId: &repoID,
+			},
+			Skip: new(0),
+			Top:  new(100),
+		}).
+		Return(&pullRequestMock, nil)
 
 	provider := AzureDevOpsService{
 		clientFactory: clientFactoryMock,
@@ -70,6 +87,208 @@ func TestListPullRequest(t *testing.T) {
 	assert.Equal(t, "feat(123)", list[0].Title)
 	assert.Equal(t, int64(prID), list[0].Number)
 	assert.Equal(t, uniqueName, list[0].Author)
+}
+
+func TestAzureDevOpsListPullRequestPagination(t *testing.T) {
+	t.Parallel()
+
+	teamProject := "myorg_project"
+	repoName := "myorg_project_repo"
+	repoID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+
+	firstPage := make([]git.GitPullRequest, 100)
+	for i := range firstPage {
+		prID := i + 1
+		firstPage[i] = git.GitPullRequest{
+			PullRequestId: &prID,
+			Title:         new("first-page"),
+			SourceRefName: new("refs/heads/feature"),
+			TargetRefName: new("refs/heads/main"),
+			LastMergeSourceCommit: &git.GitCommitRef{
+				CommitId: new("first-page-sha"),
+			},
+			Repository: &git.GitRepository{
+				Name: &repoName,
+			},
+			CreatedBy: &webapi.IdentityRef{
+				UniqueName: new("user@example.com"),
+			},
+		}
+	}
+
+	secondPage := []git.GitPullRequest{
+		{
+			PullRequestId: new(101),
+			Title:         new("second-page"),
+			SourceRefName: new("refs/heads/feature-101"),
+			TargetRefName: new("refs/heads/main"),
+			LastMergeSourceCommit: &git.GitCommitRef{
+				CommitId: new("second-page-sha"),
+			},
+			Repository: &git.GitRepository{
+				Name: &repoName,
+			},
+			CreatedBy: &webapi.IdentityRef{
+				UniqueName: new("user@example.com"),
+			},
+		},
+	}
+
+	gitClientMock := &azureMock.Client{}
+	clientFactoryMock := &mocks.AzureDevOpsClientFactory{}
+
+	clientFactoryMock.EXPECT().
+		GetClient(mock.Anything).
+		Return(gitClientMock, nil)
+
+	repository := git.GitRepository{
+		Id:   &repoID,
+		Name: &repoName,
+	}
+
+	gitClientMock.EXPECT().
+		GetRepository(mock.Anything, git.GetRepositoryArgs{
+			Project:      &teamProject,
+			RepositoryId: &repoName,
+		}).
+		Return(&repository, nil)
+
+	firstSkip := 0
+	secondSkip := 100
+	top := 100
+	gitClientMock.EXPECT().
+		GetPullRequestsByProject(mock.Anything, git.GetPullRequestsByProjectArgs{
+			Project: &teamProject,
+			SearchCriteria: &git.GitPullRequestSearchCriteria{
+				RepositoryId: &repoID,
+			},
+			Skip: &firstSkip,
+			Top:  &top,
+		}).
+		Return(&firstPage, nil)
+
+	gitClientMock.EXPECT().
+		GetPullRequestsByProject(mock.Anything, git.GetPullRequestsByProjectArgs{
+			Project: &teamProject,
+			SearchCriteria: &git.GitPullRequestSearchCriteria{
+				RepositoryId: &repoID,
+			},
+			Skip: &secondSkip,
+			Top:  &top,
+		}).
+		Return(&secondPage, nil)
+
+	provider := AzureDevOpsService{
+		clientFactory: clientFactoryMock,
+		project:       teamProject,
+		repo:          repoName,
+	}
+
+	pullRequests, err := provider.List(t.Context())
+
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 101)
+	assert.Equal(t, int64(1), pullRequests[0].Number)
+	assert.Equal(t, int64(101), pullRequests[100].Number)
+}
+
+func TestListPullRequestFiltersByRepository(t *testing.T) {
+	t.Parallel()
+
+	teamProject := "myorg_project"
+	repoName := "myorg_project_repo"
+	repoID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
+
+	targetPRID := 1
+	targetTitle := "target repository PR"
+	targetSourceRef := "refs/heads/feature-target"
+	targetTargetRef := "refs/heads/main"
+	targetCommitID := "target-commit"
+	targetRepoName := repoName
+	targetAuthor := "user@example.com"
+
+	otherPRID := 2
+	otherTitle := "other repository PR"
+	otherSourceRef := "refs/heads/feature-other"
+	otherTargetRef := "refs/heads/main"
+	otherCommitID := "other-commit"
+	otherRepoName := "another_repo"
+	otherAuthor := "other@example.com"
+
+	pullRequests := []git.GitPullRequest{
+		{
+			PullRequestId: &targetPRID,
+			Title:         &targetTitle,
+			SourceRefName: &targetSourceRef,
+			TargetRefName: &targetTargetRef,
+			LastMergeSourceCommit: &git.GitCommitRef{
+				CommitId: &targetCommitID,
+			},
+			Repository: &git.GitRepository{
+				Name: &targetRepoName,
+			},
+			CreatedBy: &webapi.IdentityRef{
+				UniqueName: &targetAuthor,
+			},
+		},
+		{
+			PullRequestId: &otherPRID,
+			Title:         &otherTitle,
+			SourceRefName: &otherSourceRef,
+			TargetRefName: &otherTargetRef,
+			LastMergeSourceCommit: &git.GitCommitRef{
+				CommitId: &otherCommitID,
+			},
+			Repository: &git.GitRepository{
+				Name: &otherRepoName,
+			},
+			CreatedBy: &webapi.IdentityRef{
+				UniqueName: &otherAuthor,
+			},
+		},
+	}
+
+	gitClientMock := &azureMock.Client{}
+	clientFactoryMock := &mocks.AzureDevOpsClientFactory{}
+
+	clientFactoryMock.EXPECT().GetClient(mock.Anything).Return(gitClientMock, nil)
+
+	repository := git.GitRepository{
+		Id:   &repoID,
+		Name: &repoName,
+	}
+
+	gitClientMock.EXPECT().GetRepository(mock.Anything, git.GetRepositoryArgs{
+		Project:      &teamProject,
+		RepositoryId: &repoName,
+	}).
+		Return(&repository, nil)
+
+	skip := 0
+	top := 100
+	gitClientMock.EXPECT().
+		GetPullRequestsByProject(mock.Anything, git.GetPullRequestsByProjectArgs{
+			Project: &teamProject,
+			SearchCriteria: &git.GitPullRequestSearchCriteria{
+				RepositoryId: &repoID,
+			},
+			Skip: &skip,
+			Top:  &top,
+		}).
+		Return(&pullRequests, nil)
+
+	provider := AzureDevOpsService{
+		clientFactory: clientFactoryMock,
+		project:       teamProject,
+		repo:          repoName,
+	}
+
+	prs, err := provider.List(t.Context())
+
+	require.NoError(t, err)
+	require.Len(t, prs, 1)
+	assert.Equal(t, int64(targetPRID), prs[0].Number)
+	assert.Equal(t, targetTitle, prs[0].Title)
 }
 
 func TestConvertLabes(t *testing.T) {
@@ -203,34 +422,33 @@ func TestBuildURL(t *testing.T) {
 
 func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
 	t.Parallel()
-	args := git.GetPullRequestsByProjectArgs{
-		Project:        new("nonexistent"),
-		SearchCriteria: &git.GitPullRequestSearchCriteria{},
-	}
 
-	pullRequestMock := []git.GitPullRequest{}
+	project := "nonexistent"
 
 	gitClientMock := &azureMock.Client{}
 	clientFactoryMock := &mocks.AzureDevOpsClientFactory{}
-	clientFactoryMock.EXPECT().GetClient(mock.Anything).Return(gitClientMock, nil)
 
-	// Mock the GetPullRequestsByProject to return an error containing "404"
-	gitClientMock.EXPECT().GetPullRequestsByProject(mock.Anything, args).Return(&pullRequestMock,
-		errors.New("The following project does not exist:"))
+	clientFactoryMock.EXPECT().
+		GetClient(mock.Anything).
+		Return(gitClientMock, nil)
+
+	gitClientMock.EXPECT().
+		GetRepository(mock.Anything, git.GetRepositoryArgs{
+			Project:      &project,
+			RepositoryId: new("nonexistent"),
+		}).
+		Return(nil, errors.New("The following project does not exist:"))
 
 	provider := AzureDevOpsService{
 		clientFactory: clientFactoryMock,
-		project:       "nonexistent",
+		project:       project,
 		repo:          "nonexistent",
 		labels:        nil,
 	}
 
 	prs, err := provider.List(t.Context())
 
-	// Should return empty pull requests list
 	assert.Empty(t, prs)
-
-	// Should return RepositoryNotFoundError
 	require.Error(t, err)
 	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }
