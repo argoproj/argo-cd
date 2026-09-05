@@ -111,7 +111,7 @@ func (v *ValidationIssues) formatEmptyStepsMessage() string {
 	return fmt.Sprintf("Steps %v have no applications matching their criteria", stepNums)
 }
 
-// getConditionMessage formats condition message for the first validation Issue found. If appset has multiple vaildation issues, condition message only reports one of highest priority
+// getConditionMessage formats condition message for the first validation Issue found. If appset has multiple validation issues, condition message only reports one of highest priority
 func (v *ValidationIssues) getConditionMessage() string {
 	var rolloutMessage string
 	switch {

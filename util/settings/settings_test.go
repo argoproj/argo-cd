@@ -149,6 +149,7 @@ func TestGetResourceFilter(t *testing.T) {
 	data := map[string]string{
 		"resource.exclusions": "\n  - apiGroups: [\"group1\"]\n    kinds: [\"kind1\"]\n    clusters: [\"cluster1\"]\n",
 		"resource.inclusions": "\n  - apiGroups: [\"group2\"]\n    kinds: [\"kind2\"]\n    clusters: [\"cluster2\"]\n",
+		"resource.selectors":  "\n  - apiGroups: [\"group3\"]\n    kinds: [\"kind3\"]\n    clusters: [\"cluster3\"]\n    selector: \"foo=bar,!baz\"\n",
 	}
 	_, settingsManager := fixtures(t.Context(), data)
 	filter, err := settingsManager.GetResourcesFilter()
@@ -156,7 +157,28 @@ func TestGetResourceFilter(t *testing.T) {
 	assert.Equal(t, &ResourcesFilter{
 		ResourceExclusions: []FilteredResource{{APIGroups: []string{"group1"}, Kinds: []string{"kind1"}, Clusters: []string{"cluster1"}}},
 		ResourceInclusions: []FilteredResource{{APIGroups: []string{"group2"}, Kinds: []string{"kind2"}, Clusters: []string{"cluster2"}}},
+		ResourceSelectors:  []FilteredResource{{APIGroups: []string{"group3"}, Kinds: []string{"kind3"}, Clusters: []string{"cluster3"}, Selector: "foo=bar,!baz"}},
 	}, filter)
+}
+
+// the e2e fixture marshals an empty ResourceSelectors list into the config map, make sure it parses
+func TestGetResourceFilterNullSelectors(t *testing.T) {
+	data := map[string]string{
+		"resource.selectors": "null\n",
+	}
+	_, settingsManager := fixtures(t.Context(), data)
+	filter, err := settingsManager.GetResourcesFilter()
+	require.NoError(t, err)
+	assert.Empty(t, filter.ResourceSelectors)
+}
+
+func TestGetResourceFilterInvalidSelector(t *testing.T) {
+	data := map[string]string{
+		"resource.selectors": "\n  - kinds: [\"Pod\"]\n    selector: \"foo=~bar\"\n",
+	}
+	_, settingsManager := fixtures(t.Context(), data)
+	_, err := settingsManager.GetResourcesFilter()
+	require.ErrorContains(t, err, "error parsing resource selector")
 }
 
 func TestInClusterServerAddressEnabled(t *testing.T) {
@@ -1691,6 +1713,46 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 	oidcConfig := settings.OIDCConfig()
 	assert.Equal(t, "https://dev-123456.oktapreview.com", oidcConfig.Issuer)
 	assert.Equal(t, "deadbeef", oidcConfig.ClientSecret)
+}
+
+func TestValidateOIDCConfigWithSecrets(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  string
+		secrets map[string]string
+		wantErr bool
+	}{
+		{
+			name: "valid secret issuer",
+			config: `name: Test
+issuer: $oidc-secret:issuer
+clientID: test
+clientSecret: test`,
+			secrets: map[string]string{
+				"oidc-secret:issuer": "https://example.com",
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid literal issuer",
+			config: `name: Test
+issuer: ://invalid.example.com
+clientID: test
+clientSecret: test`,
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateOIDCConfigWithSecrets(tc.config, tc.secrets)
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestGetEnableManifestGeneration(t *testing.T) {

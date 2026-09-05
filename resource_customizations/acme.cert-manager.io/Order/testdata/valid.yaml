@@ -1,0 +1,13 @@
+apiVersion: acme.cert-manager.io/v1
+kind: Order
+metadata:
+  name: example-tls-order
+  namespace: default
+spec:
+  request: LS0tLS1CRUdJTi==
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+status:
+  state: valid
+  url: https://acme-v02.api.letsencrypt.org/acme/order/123/456

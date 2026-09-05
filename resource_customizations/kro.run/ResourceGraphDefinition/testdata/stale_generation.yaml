@@ -1,0 +1,45 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: application
+  generation: 4
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: Application
+status:
+  state: Active
+  lastIssuedRevision: 1
+  topologicalOrder:
+    - deployment
+  conditions:
+    - type: GraphRevisionsResolved
+      status: "True"
+      reason: Resolved
+      message: "revision 1 compiled and active"
+      lastTransitionTime: "2026-07-15T22:57:09Z"
+      observedGeneration: 3
+    - type: KindReady
+      status: "True"
+      reason: Ready
+      message: "kind Application has been accepted and ready"
+      lastTransitionTime: "2026-07-15T22:57:09Z"
+      observedGeneration: 3
+    - type: ControllerReady
+      status: "True"
+      reason: Running
+      message: "controller is running"
+      lastTransitionTime: "2026-07-15T22:57:10Z"
+      observedGeneration: 3
+    - type: GraphAccepted
+      status: "True"
+      reason: Valid
+      message: "resource graph and schema are valid"
+      lastTransitionTime: "2026-07-15T23:01:10Z"
+      observedGeneration: 3
+    - type: Ready
+      status: "True"
+      reason: Ready
+      message: ""
+      lastTransitionTime: "2026-07-15T23:01:10Z"
+      observedGeneration: 3
