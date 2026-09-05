@@ -7,7 +7,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -26,10 +25,8 @@ func newFakeProj() *argoappv1.AppProject {
 	jwtTokenByRole["my-role"] = argoappv1.JWTTokens{Items: []argoappv1.JWTToken{{IssuedAt: 1234}}}
 
 	return &argoappv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-proj",
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      "my-proj",
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: argoappv1.AppProjectSpec{
 			Roles: []argoappv1.ProjectRole{
 				{

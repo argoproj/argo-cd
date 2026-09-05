@@ -4,5 +4,6 @@ kind: Kustomization
 resources:
 - ../application-controller-roles
 - argocd-application-controller-statefulset.yaml
+- argocd-application-controller-service.yaml
 - argocd-metrics.yaml
 - argocd-application-controller-network-policy.yaml

@@ -1,8 +1,6 @@
 package v1alpha1
 
 import (
-	"bytes"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,7 +23,6 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
-	"github.com/cespare/xxhash/v2"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -41,8 +38,10 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/client-go/transport"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v3/util/hash"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -1303,6 +1302,9 @@ type SuccessfulHydrateOperation struct {
 type HydrateOperationPhase string
 
 const (
+	// HydrateOperationPhaseUnknown indicates that the hydration phase could not be reliably determined.
+	// For now this is only used in metrics, not in the CR status.
+	HydrateOperationPhaseUnknown   HydrateOperationPhase = "Unknown"
 	HydrateOperationPhaseHydrating HydrateOperationPhase = "Hydrating"
 	HydrateOperationPhaseFailed    HydrateOperationPhase = "Failed"
 	HydrateOperationPhaseHydrated  HydrateOperationPhase = "Hydrated"
@@ -1593,7 +1595,7 @@ func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (t
 	// Formula: timeToWait = duration * factor^retry_number
 	// Note that timeToWait should equal to duration for the first retry attempt.
 	// When timeToWait is more than maxDuration retry should be performed at maxDuration.
-	timeToWait := float64(duration) * (math.Pow(float64(factor), float64(retryCounts)))
+	timeToWait := float64(duration) * math.Pow(float64(factor), float64(retryCounts))
 	if maxDuration > 0 {
 		timeToWait = math.Min(float64(maxDuration), timeToWait)
 	}
@@ -2356,6 +2358,8 @@ type Cluster struct {
 	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,12,opt,name=labels"`
 	// Annotations for cluster secret metadata
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
+	// ConfigHash is an opaque value which tracks changes to the desired configuration of a Cluster
+	ConfigHash *uint64 `json:"configHash,omitempty" protobuf:"bytes,14,opt,name=configHash"`
 
 	// The embedded metav1.ObjectMeta field is purely here to please the informer when converting from a v1.Secret to a Cluster.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
@@ -2376,6 +2380,7 @@ func (c *Cluster) Sanitized() *Cluster {
 		ClusterResources:   c.ClusterResources,
 		Info:               c.Info,
 		RefreshRequestedAt: c.RefreshRequestedAt,
+		ConfigHash:         c.ConfigHash,
 		Config: ClusterConfig{
 			AWSAuthConfig:      c.Config.AWSAuthConfig,
 			ProxyUrl:           c.Config.ProxyUrl,
@@ -2429,6 +2434,25 @@ func (c *Cluster) Equals(other *Cluster) bool {
 	}
 
 	return reflect.DeepEqual(c.Config, other.Config)
+}
+
+func (c *Cluster) HashIdentity(defaultValue uint64) uint64 {
+	// Include only fields which are static identifiers or represent the desired state of the Cluster
+	// Note: ID is excluded as it has json:"-" tag and is not marshaled
+
+	cluster := Cluster{
+		Server: c.Server,
+		Name:   c.Name,
+		Config: c.Config,
+	}
+
+	result, err := hash.JsonObjectHash(cluster)
+	if err != nil {
+		log.Warnf("failed to encode cluster %s for hashing. returning default value: %d", c.Server, defaultValue)
+		return defaultValue
+	}
+
+	return result
 }
 
 // ClusterInfo contains information about the cluster
@@ -2710,6 +2734,7 @@ var validActions = map[string]bool{
 	rbac.ActionDelete:   true,
 	rbac.ActionSync:     true,
 	rbac.ActionOverride: true,
+	rbac.ActionRollback: true,
 	"*":                 true,
 }
 
@@ -2923,10 +2948,10 @@ type ClusterResourceRestrictionItem struct {
 }
 
 // SyncWindows is a collection of sync windows in this project
-type SyncWindows []*SyncWindow
+type SyncWindows []*InlineSyncWindow
 
-// SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
-type SyncWindow struct {
+// InlineSyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
+type InlineSyncWindow struct {
 	// Kind defines if the window allows or blocks syncs
 	Kind string `json:"kind,omitempty" protobuf:"bytes,1,opt,name=kind"`
 	// Schedule is the time the window will begin, specified in cron format
@@ -2953,7 +2978,7 @@ type SyncWindow struct {
 	SyncOverrun bool `json:"syncOverrun,omitempty" protobuf:"bytes,11,opt,name=syncOverrun"`
 }
 
-// HasWindows returns true if SyncWindows has one or more SyncWindow
+// HasWindows returns true if SyncWindows has one or more InlineSyncWindow
 func (w *SyncWindows) HasWindows() bool {
 	return w != nil && len(*w) > 0
 }
@@ -3037,7 +3062,7 @@ func (w *SyncWindows) inactiveAllows(currentTime time.Time) (*SyncWindows, error
 	return nil, nil
 }
 
-func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
+func (w *InlineSyncWindow) scheduleOffsetByTimeZone() time.Duration {
 	loc, err := time.LoadLocation(w.TimeZone)
 	if err != nil {
 		log.Warnf("Invalid time zone %s specified. Using UTC as default time zone", w.TimeZone)
@@ -3053,7 +3078,7 @@ func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []
 		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
 
-	window := &SyncWindow{
+	window := &InlineSyncWindow{
 		Kind:           knd,
 		Schedule:       sch,
 		Duration:       dur,
@@ -3370,12 +3395,12 @@ func (w *SyncWindows) canSyncAtTime(isManual bool, checkTime time.Time) (bool, e
 }
 
 // Active returns true if the sync window is currently active
-func (w SyncWindow) Active() (bool, error) {
+func (w InlineSyncWindow) Active() (bool, error) {
 	return w.active(time.Now())
 }
 
-func (w SyncWindow) active(currentTime time.Time) (bool, error) {
-	// If SyncWindow.Active() is called outside of a UTC locale, it should be
+func (w InlineSyncWindow) active(currentTime time.Time) (bool, error) {
+	// If InlineSyncWindow.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before search
 	currentTime = currentTime.UTC()
 
@@ -3397,7 +3422,7 @@ func (w SyncWindow) active(currentTime time.Time) (bool, error) {
 }
 
 // Update updates a sync window's settings with the given parameter
-func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string, description string) error {
+func (w *InlineSyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string, description string) error {
 	if s == "" && d == "" && len(a) == 0 && len(n) == 0 && len(c) == 0 && description == "" {
 		return errors.New("cannot update: require one or more of schedule, duration, application, namespace, cluster or description")
 	}
@@ -3434,7 +3459,7 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 }
 
 // Validate checks whether a sync window has valid configuration. The error returned indicates any problems that has been found.
-func (w *SyncWindow) Validate() error {
+func (w *InlineSyncWindow) Validate() error {
 	// Default timeZone to UTC if timeZone is not specified
 	if w.TimeZone == "" {
 		w.TimeZone = "UTC"
@@ -3464,10 +3489,10 @@ func (w *SyncWindow) Validate() error {
 	return nil
 }
 
-func (w *SyncWindow) HashIdentity() (uint64, error) {
+func (w *InlineSyncWindow) HashIdentity() (uint64, error) {
 	// Create a copy of the window with only the core identity fields
 	// Excluding ManualSync and Description as they are behavioral/metadata fields
-	identityWindow := SyncWindow{
+	identityWindow := InlineSyncWindow{
 		Kind:           w.Kind,
 		Schedule:       w.Schedule,
 		Duration:       w.Duration,
@@ -3479,13 +3504,12 @@ func (w *SyncWindow) HashIdentity() (uint64, error) {
 		// ManualSync and Description are excluded as they don't affect window identity
 	}
 
-	var windowBuffer bytes.Buffer
-	enc := gob.NewEncoder(&windowBuffer)
-	err := enc.Encode(identityWindow)
+	result, err := hash.GobObjectHash(identityWindow)
 	if err != nil {
 		return 0, fmt.Errorf("failed to encode sync window for hashing: %w", err)
 	}
-	return xxhash.Sum64(windowBuffer.Bytes()), nil
+
+	return result, nil
 }
 
 // DestinationClusters returns a list of cluster URLs allowed as destination in an AppProject
@@ -3939,17 +3963,38 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	config.AuthProvider = nil
 	config.ExecProvider = nil
 
-	// Set server-side timeout
-	config.Timeout = K8sServerSideTimeout
-
+	// config.Timeout sets both the client-side HTTP timeout and the server-side timeout.
+	// We keep config.Timeout as 0 and use a transport wrapper to explicitly pass the timeout parameters to the API server to honor it.
+	config.Timeout = 0
 	config.Transport = tr
+	// HTTPWrappersForConfig already applied the existing wrapper to tr. Clear it
+	// before adding Argo CD wrappers so client-go does not apply it a second time.
+	config.WrapTransport = nil
+	if K8sServerSideTimeout > 0 {
+		appendTransportWrapper(config, utilhttp.WithServerSideTimeout(K8sServerSideTimeout))
+	}
 	maxRetries := env.ParseInt64FromEnv(utilhttp.EnvRetryMax, 0, 1, math.MaxInt64)
 	if maxRetries > 0 {
 		backoffDurationMS := env.ParseInt64FromEnv(utilhttp.EnvRetryBaseBackoff, 100, 1, math.MaxInt64)
 		backoffDuration := time.Duration(backoffDurationMS) * time.Millisecond
-		config.WrapTransport = utilhttp.WithRetry(maxRetries, backoffDuration)
+		// Retry is intentionally the outer wrapper so each attempt receives the
+		// server-side timeout query parameter.
+		appendTransportWrapper(config, utilhttp.WithRetry(maxRetries, backoffDuration))
 	}
 	return nil
+}
+
+func appendTransportWrapper(config *rest.Config, wrapper transport.WrapperFunc) {
+	if wrapper == nil {
+		return
+	}
+	previous := config.WrapTransport
+	config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
+		if previous != nil {
+			rt = previous(rt)
+		}
+		return wrapper(rt)
+	}
 }
 
 // ParseProxyUrl returns a parsed url and verifies that schema is correct
@@ -3966,8 +4011,7 @@ func ParseProxyUrl(proxyUrl string) (*url.URL, error) { //nolint:revive //FIXME(
 	return u, nil
 }
 
-// RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
-func (c *Cluster) RawRestConfig() (*rest.Config, error) {
+func (c *Cluster) rawRestConfig() (*rest.Config, error) {
 	var config *rest.Config
 	var err error
 
@@ -4075,15 +4119,27 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 		config.Proxy = http.ProxyURL(u)
 	}
 	config.DisableCompression = c.Config.DisableCompression
-	config.Timeout = K8sServerSideTimeout
+	config.Timeout = 0
 	config.QPS = K8sClientConfigQPS
 	config.Burst = K8sClientConfigBurst
 	return config, nil
 }
 
+// RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
+func (c *Cluster) RawRestConfig() (*rest.Config, error) {
+	config, err := c.rawRestConfig()
+	if err != nil {
+		return nil, err
+	}
+	if K8sServerSideTimeout > 0 {
+		appendTransportWrapper(config, utilhttp.WithServerSideTimeout(K8sServerSideTimeout))
+	}
+	return config, nil
+}
+
 // RESTConfig returns a go-client REST config from cluster with tuned throttling and HTTP client settings.
 func (c *Cluster) RESTConfig() (*rest.Config, error) {
-	config, err := c.RawRestConfig()
+	config, err := c.rawRestConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
 	}

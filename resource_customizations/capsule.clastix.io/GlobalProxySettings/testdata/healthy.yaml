@@ -1,0 +1,22 @@
+apiVersion: capsule.clastix.io/v1beta1
+kind: GlobalProxySettings
+metadata:
+  name: global-proxy
+  generation: 1
+spec:
+  subjects:
+    - name: cluster-admin-group
+      kind: Group
+      proxySettings:
+        - kind: Nodes
+          operations:
+            - List
+            - Get
+status:
+  observedGeneration: 1
+  conditions:
+    - type: Ready
+      status: "True"
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: Global proxy rules have been successfully applied
+      reason: Ready
