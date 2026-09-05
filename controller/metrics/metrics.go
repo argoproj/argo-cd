@@ -240,6 +240,17 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	return metricsServer, nil
 }
 
+// Gatherers returns the same set of metrics served at the /metrics endpoint:
+// the application controller registry plus the controller-runtime registry
+// (workqueue, process and Go runtime metrics). It is used to bridge these
+// metrics into the OTLP metric pipeline, which keeps them as separate gatherers.
+func (m *MetricsServer) Gatherers() prometheus.Gatherers {
+	return prometheus.Gatherers{
+		m.registry,
+		ctrlmetrics.Registry,
+	}
+}
+
 func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo, db db.ArgoDB, clusterLabels []string) {
 	collector := NewClusterCollector(ctx, source, db.ListClusters, clusterLabels)
 	m.registry.MustRegister(collector)

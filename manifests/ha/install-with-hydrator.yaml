@@ -34252,6 +34252,18 @@ spec:
               key: otlp.sample.ratio
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_METRICS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.metrics.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_METRICS_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.metrics.interval
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
           valueFrom:
             configMapKeyRef:
@@ -34835,6 +34847,18 @@ spec:
               key: otlp.sample.ratio
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_OTLP_METRICS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.metrics.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_OTLP_METRICS_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.metrics.interval
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -35366,6 +35390,18 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.sample.ratio
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_METRICS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.metrics.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_METRICS_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.metrics.interval
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
