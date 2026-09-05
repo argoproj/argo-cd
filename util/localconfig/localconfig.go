@@ -45,8 +45,8 @@ type Server struct {
 	GRPCWeb bool `json:"grpc-web,omitempty"`
 	// GRPCWebRootPath indicates to connect to the server using gRPC Web protocol with this root path
 	GRPCWebRootPath string `json:"grpc-web-root-path"`
-	// CACertificateAuthorityData is the base64 string of a PEM encoded certificate
-	// TODO: not yet implemented
+	// CACertificateAuthorityData is the base64 string of a PEM encoded certificate authority
+	// used to verify the Argo CD server's TLS certificate
 	CACertificateAuthorityData string `json:"certificate-authority-data,omitempty"`
 	// ClientCertificateData is the base64 string of a PEM encoded certificate used to authenticate the client
 	ClientCertificateData string `json:"client-certificate-data,omitempty"`
