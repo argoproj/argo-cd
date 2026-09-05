@@ -108,6 +108,43 @@ metadata:
 *Note: Please report any issues that forced you to disable the
 Server-Side Diff feature*
 
+### Local diff with server-side generation
+
+`argocd app diff` supports a `--local` flag that compares a local directory against the live state. When combined with `--server-side-generate`, the CLI uploads the local source to the repo-server for manifest generation instead of running generation locally — this is useful in CI pipelines or when the local environment lacks the required tools (e.g. Helm plugins, Kustomize components).
+
+```bash
+argocd app diff my-app --local ./path --server-side-generate
+```
+
+**Controlling which files are uploaded with `--local-include`**
+
+By default, the CLI sends files matching `*.yaml`, `*.yml`, `*.json`, `*.tpl`, and `Chart.lock`. You can override this with `--local-include`:
+
+- Patterns **without** a path separator (e.g. `*.yaml`, `*.tpl`) match on the **filename alone**, regardless of directory depth.
+- Patterns **with** a path separator (e.g. `charts/**`) match against the **relative path** and support `**` to span multiple directory levels.
+
+> [!WARNING]
+> `--local-include` **replaces** the default set entirely. Re-specify any defaults you want to keep alongside your custom patterns.
+
+> [!NOTE]
+> Kustomize apps that reference non-YAML source files in `configMapGenerator` or `secretGenerator` (e.g. `*.env`, `*.properties`) must add those patterns explicitly — no generic default covers all possible filenames and extensions.
+
+Examples:
+
+```bash
+# Include all files under charts/ (e.g. when charts/ contains non-YAML assets)
+argocd app diff my-app --local ./path --server-side-generate \
+  --local-include "*.yaml" --local-include "*.yml" --local-include "*.json" \
+  --local-include "*.tpl" --local-include "Chart.lock" \
+  --local-include "charts/**"
+
+# Add non-YAML Kustomize source files (e.g. configMapGenerator env files)
+argocd app diff my-app --local ./path --server-side-generate \
+  --local-include "*.yaml" --local-include "*.yml" --local-include "*.json" \
+  --local-include "*.tpl" --local-include "Chart.lock" \
+  --local-include "*.env"
+```
+
 ### Mutation Webhooks
 
 Server-Side Diff does not include changes made by mutation webhooks by
