@@ -3,6 +3,7 @@ package progressivesync
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	log "github.com/sirupsen/logrus"
@@ -87,6 +88,11 @@ func (regressionDeps) SetAppSetApplicationStatus(_ context.Context, _ *log.Entry
 
 func (regressionDeps) SetApplicationSetStatusCondition(_ context.Context, _ *argov1alpha1.ApplicationSet, _ []argov1alpha1.ApplicationSetCondition, _ bool) error {
 	return nil
+}
+
+func (regressionDeps) ObserveRolloutDuration(_ *argov1alpha1.ApplicationSet, _ time.Duration) {}
+
+func (regressionDeps) ObserveStepCompletionDuration(_ *argov1alpha1.ApplicationSet, _ string, _ time.Duration) {
 }
 
 func regressionManager(t *testing.T, appSet *argov1alpha1.ApplicationSet) *Manager {
