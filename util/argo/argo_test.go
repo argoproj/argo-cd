@@ -1403,6 +1403,44 @@ func TestFilterByNameP(t *testing.T) {
 	})
 }
 
+func TestFilterByNamesP(t *testing.T) {
+	t.Parallel()
+	apps := []*argoappv1.Application{
+		{
+			Name: "foo",
+		},
+		{
+			Name: "bar",
+		},
+	}
+
+	t.Run("Empty names returns all apps", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(apps, nil)
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Single matching name", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(apps, []string{"foo"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "foo", res[0].Name)
+	})
+
+	t.Run("Multiple matching names", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(apps, []string{"foo", "bar"})
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Non-matching name is ignored", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(apps, []string{"foo", "does-not-exist"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "foo", res[0].Name)
+	})
+}
+
 func TestFilterByCluster(t *testing.T) {
 	t.Parallel()
 	apps := []argoappv1.Application{

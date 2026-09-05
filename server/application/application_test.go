@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	googlegrpc "google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -99,6 +100,23 @@ func (b broadcasterMock) Subscribe(ch chan *v1alpha1.ApplicationWatchEvent, _ ..
 func (broadcasterMock) OnAdd(any, bool)   {}
 func (broadcasterMock) OnUpdate(any, any) {}
 func (broadcasterMock) OnDelete(any)      {}
+
+// mockApplicationWatchServer captures the applications sent through a Watch stream. The embedded
+// grpc.ServerStream is never used because Watch only calls Context and Send, both overridden here.
+type mockApplicationWatchServer struct {
+	googlegrpc.ServerStream
+	ctx  context.Context
+	sent []*v1alpha1.ApplicationWatchEvent
+}
+
+func (m *mockApplicationWatchServer) Send(event *v1alpha1.ApplicationWatchEvent) error {
+	m.sent = append(m.sent, event)
+	return nil
+}
+
+func (m *mockApplicationWatchServer) Context() context.Context {
+	return m.ctx
+}
 
 func fakeRepo() *v1alpha1.Repository {
 	return &v1alpha1.Repository{
@@ -1309,6 +1327,66 @@ func TestListAppWithProjects(t *testing.T) {
 			assert.Equal(t, "test-project1", app.Spec.Project)
 		}
 	})
+}
+
+func TestListAppWithNames(t *testing.T) {
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App1"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App2"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App3"
+	}))
+
+	t.Run("List all apps", func(t *testing.T) {
+		appQuery := application.ApplicationQuery{}
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		assert.Len(t, appList.Items, 3)
+	})
+
+	t.Run("List apps with names filter set", func(t *testing.T) {
+		appQuery := application.ApplicationQuery{Names: []string{"App1", "App3"}}
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		assert.Len(t, appList.Items, 2)
+		for _, app := range appList.Items {
+			assert.Contains(t, []string{"App1", "App3"}, app.Name)
+		}
+	})
+
+	t.Run("List apps with empty names filter returns all apps", func(t *testing.T) {
+		appQuery := application.ApplicationQuery{Names: []string{}}
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		assert.Len(t, appList.Items, 3)
+	})
+}
+
+func TestWatchAppsWithNamesFilter(t *testing.T) {
+	matchApp := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "match-app"
+	})
+	otherApp := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "other-app"
+	})
+	appServer := newTestAppServer(t, matchApp, otherApp)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel immediately so Watch returns after emitting the initial ADDED events for the existing
+	// applications instead of blocking on the broadcaster loop.
+	cancel()
+	ws := &mockApplicationWatchServer{ctx: ctx}
+
+	err := appServer.Watch(&application.ApplicationQuery{Names: []string{"match-app"}}, ws)
+	require.NoError(t, err)
+
+	// The initial send loop always emits the matching application, and the names filter must never
+	// let a non-matching application through.
+	require.NotEmpty(t, ws.sent)
+	for _, event := range ws.sent {
+		assert.Equal(t, "match-app", event.Application.Name)
+	}
 }
 
 func TestListApps(t *testing.T) {
@@ -3685,8 +3763,24 @@ func TestIsApplicationPermitted(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
 		projects := map[string]bool{"test-app": false}
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, "test", "default", projects, *testApp)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, "test", "default", projects, nil, *testApp)
 		assert.False(t, permitted)
+	})
+
+	t.Run("Application name not in names filter", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		names := map[string]bool{"some-other-app": true}
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, names, *testApp)
+		assert.False(t, permitted)
+	})
+
+	t.Run("Application name in names filter", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		names := map[string]bool{testApp.Name: true}
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, names, *testApp)
+		assert.True(t, permitted)
 	})
 
 	t.Run("Version is incorrect", func(t *testing.T) {
@@ -3694,7 +3788,7 @@ func TestIsApplicationPermitted(t *testing.T) {
 		appServer := newTestAppServer(t, testApp)
 		minVersion := 100000
 		testApp.ResourceVersion = strconv.Itoa(minVersion - 1)
-		permitted := appServer.isApplicationPermitted(labels.Everything(), minVersion, nil, "test", "default", nil, *testApp)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), minVersion, nil, "test", "default", nil, nil, *testApp)
 		assert.False(t, permitted)
 	})
 
@@ -3702,14 +3796,14 @@ func TestIsApplicationPermitted(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
 		appName := "test"
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, appName, "default", nil, *testApp)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, appName, "default", nil, nil, *testApp)
 		assert.False(t, permitted)
 	})
 
 	t.Run("Application namespace is incorrect", func(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, "demo", nil, *testApp)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, "demo", nil, nil, *testApp)
 		assert.False(t, permitted)
 	})
 
@@ -3718,7 +3812,7 @@ func TestIsApplicationPermitted(t *testing.T) {
 		appServer := newTestAppServer(t, testApp)
 		appServer.ns = "server-ns"
 		appServer.enabledNamespaces = []string{"demo"}
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, nil, *testApp)
 		assert.False(t, permitted)
 	})
 
@@ -3727,7 +3821,7 @@ func TestIsApplicationPermitted(t *testing.T) {
 		appServer := newTestAppServer(t, testApp)
 		appServer.ns = "server-ns"
 		appServer.enabledNamespaces = []string{testApp.Namespace}
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, nil, *testApp)
 		assert.True(t, permitted)
 	})
 }

@@ -131,6 +131,26 @@ func FilterByProjectsP(apps []*argoappv1.Application, projects []string) []*argo
 	return items
 }
 
+// FilterByNamesP returns applications whose name is contained in the provided set of names.
+// It is used by the UI favorites filter to restrict the list to a client-selected subset of applications.
+func FilterByNamesP(apps []*argoappv1.Application, names []string) []*argoappv1.Application {
+	if len(names) == 0 {
+		return apps
+	}
+	namesMap := make(map[string]bool)
+	for i := range names {
+		namesMap[names[i]] = true
+	}
+	items := []*argoappv1.Application{}
+	for i := range apps {
+		a := apps[i]
+		if namesMap[a.Name] {
+			items = append(items, a)
+		}
+	}
+	return items
+}
+
 // FilterAppSetsByProjects returns applications which belongs to the specified project
 func FilterAppSetsByProjects(appsets []argoappv1.ApplicationSet, projects []string) []argoappv1.ApplicationSet {
 	if len(projects) == 0 {
