@@ -1765,6 +1765,25 @@ func (s *Server) GetOCIMetadata(ctx context.Context, q *application.RevisionMeta
 // version ID. If the version ID is not found, we return an error. If the source index is out of bounds for whichever
 // source we choose (configured sources or sources for a specific version), we return an error.
 func getAppSourceBySourceIndexAndVersionId(a *v1alpha1.Application, sourceIndexMaybe *int32, versionIdMaybe *int32) (v1alpha1.ApplicationSource, error) {
+	// Start by assuming we want the first source.
+	sourceIndex := 0
+
+	// If the user specified a source index, use that instead.
+	if sourceIndexMaybe != nil {
+		sourceIndex = int(*sourceIndexMaybe)
+	}
+
+	// A negative index is only meaningful for source hydrator apps, where it refers to the dry source. The dry
+	// source is not tracked in the app's revision history (RevisionHistory only ever records the sync source), so
+	// always resolve it from the current spec, regardless of whether a version ID was requested. Otherwise, a
+	// negative index would incorrectly be looked up against the sync source's repo.
+	if sourceIndex < 0 {
+		if a.Spec.SourceHydrator == nil {
+			return v1alpha1.ApplicationSource{}, fmt.Errorf("source index %d not found because there are only %d sources", sourceIndex, len(a.Spec.GetSources()))
+		}
+		return a.Spec.SourceHydrator.GetDrySource(), nil
+	}
+
 	// Start with all the app's configured sources.
 	sources := a.Spec.GetSources()
 
@@ -1778,18 +1797,11 @@ func getAppSourceBySourceIndexAndVersionId(a *v1alpha1.Application, sourceIndexM
 		}
 	}
 
-	// Start by assuming we want the first source.
-	sourceIndex := 0
-
-	// If the user specified a source index, use that instead.
-	if sourceIndexMaybe != nil {
-		sourceIndex = int(*sourceIndexMaybe)
-		if sourceIndex >= len(sources) {
-			if len(sources) == 1 {
-				return v1alpha1.ApplicationSource{}, fmt.Errorf("source index %d not found because there is only 1 source", sourceIndex)
-			}
-			return v1alpha1.ApplicationSource{}, fmt.Errorf("source index %d not found because there are only %d sources", sourceIndex, len(sources))
+	if sourceIndex >= len(sources) {
+		if len(sources) == 1 {
+			return v1alpha1.ApplicationSource{}, fmt.Errorf("source index %d not found because there is only 1 source", sourceIndex)
 		}
+		return v1alpha1.ApplicationSource{}, fmt.Errorf("source index %d not found because there are only %d sources", sourceIndex, len(sources))
 	}
 
 	source := sources[sourceIndex]
