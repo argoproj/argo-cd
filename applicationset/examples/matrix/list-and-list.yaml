@@ -33,7 +33,7 @@ spec:
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: '{{.path.path}}'
+        path: 'applicationset/examples/list-generator/guestbook/{{.cluster}}'
       destination:
         server: '{{.url}}'
-        namespace: '{{.path.basename}}'
+        namespace: '{{.cluster}}-guestbook'
