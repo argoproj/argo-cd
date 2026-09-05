@@ -81,6 +81,7 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 				HeadSHA:      *pull.Head.SHA,
 				Labels:       getGithubPRLabelNames(pull.Labels),
 				Author:       *pull.User.Login,
+				Draft:        pull.GetDraft(),
 			})
 		}
 		if resp.NextPage == 0 {

@@ -57,6 +57,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 				"assignee": null,
 				"assignees": null,
 				"state": "open",
+				"draft": true,
 				"is_locked": false,
 				"comments": 0,
 				"html_url": "https://gitea.com/test-argocd/pr-test/pulls/1",
@@ -312,6 +313,7 @@ func TestGiteaList(t *testing.T) {
 	assert.Equal(t, "main", prs[0].TargetBranch)
 	assert.Equal(t, "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f", prs[0].HeadSHA)
 	assert.Equal(t, "graytshirt", prs[0].Author)
+	assert.True(t, prs[0].Draft)
 }
 
 func TestGetGiteaPRLabelNames(t *testing.T) {

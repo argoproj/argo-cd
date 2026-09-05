@@ -90,6 +90,46 @@ func TestGetGitHubPRLabelNames(t *testing.T) {
 	}
 }
 
+func TestGitHubListDraft(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	path := "/api/v3/repos/test/repo/pulls"
+	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`[
+			{
+				"number": 1,
+				"title": "Draft pull request",
+				"draft": true,
+				"head": {"ref": "draft", "sha": "draft-sha"},
+				"base": {"ref": "main"},
+				"user": {"login": "draft-author"},
+				"labels": []
+			},
+			{
+				"number": 2,
+				"title": "Ready pull request",
+				"draft": false,
+				"head": {"ref": "ready", "sha": "ready-sha"},
+				"base": {"ref": "main"},
+				"user": {"login": "ready-author"},
+				"labels": []
+			}
+		]`))
+	})
+
+	svc, err := NewGithubService("", server.URL, "test", "repo", []string{}, nil)
+	require.NoError(t, err)
+
+	prs, err := svc.List(t.Context())
+	require.NoError(t, err)
+	require.Len(t, prs, 2)
+	assert.True(t, prs[0].Draft)
+	assert.False(t, prs[1].Draft)
+}
+
 func TestGitHubListReturnsRepositoryNotFoundError(t *testing.T) {
 	t.Parallel()
 	mux := http.NewServeMux()

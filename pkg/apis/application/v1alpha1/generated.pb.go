@@ -13114,6 +13114,16 @@ func (m *PullRequestGeneratorFilter) MarshalToSizedBuffer(dAtA []byte) (int, err
 	_ = i
 	var l int
 	_ = l
+	if m.IgnoreDraft != nil {
+		i--
+		if *m.IgnoreDraft {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x20
+	}
 	if m.TitleMatch != nil {
 		i -= len(*m.TitleMatch)
 		copy(dAtA[i:], *m.TitleMatch)
@@ -19646,6 +19656,9 @@ func (m *PullRequestGeneratorFilter) Size() (n int) {
 		l = len(*m.TitleMatch)
 		n += 1 + l + sovGenerated(uint64(l))
 	}
+	if m.IgnoreDraft != nil {
+		n += 2
+	}
 	return n
 }
 
@@ -23019,6 +23032,7 @@ func (this *PullRequestGeneratorFilter) String() string {
 		`BranchMatch:` + valueToStringGenerated(this.BranchMatch) + `,`,
 		`TargetBranchMatch:` + valueToStringGenerated(this.TargetBranchMatch) + `,`,
 		`TitleMatch:` + valueToStringGenerated(this.TitleMatch) + `,`,
+		`IgnoreDraft:` + valueToStringGenerated(this.IgnoreDraft) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -47182,6 +47196,27 @@ func (m *PullRequestGeneratorFilter) Unmarshal(dAtA []byte) error {
 			s := string(dAtA[iNdEx:postIndex])
 			m.TitleMatch = &s
 			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field IgnoreDraft", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.IgnoreDraft = &b
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])

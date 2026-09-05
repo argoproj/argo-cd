@@ -352,11 +352,14 @@ spec:
   generators:
   - pullRequest:
       # ...
-      # Include any pull request branch ending with "argocd" 
-      # and pull request title starting with "feat:". (optional)
+      # Include any pull request branch ending with "argocd", 
+      # pull request title starting with "feat:", and exclude drafts. (optional)
+      # Conditions within one filter entry are ANDed; separate filter entries
+      # are ORed, so these must stay in a single entry to combine as intended.
       filters:
       - branchMatch: ".*-argocd"
-      - titleMatch: "^feat:"
+        titleMatch: "^feat:"
+        ignoreDraft: true
   template:
   # ...
 ```
@@ -364,6 +367,7 @@ spec:
 * `branchMatch`: A regexp matched against source branch names.
 * `targetBranchMatch`: A regexp matched against target branch names.
 * `titleMatch`: A regexp matched against Pull Request title. 
+* `ignoreDraft`: A boolean indicating whether draft pull requests should be excluded. Currently supported by GitHub, GitLab, and Gitea.
 
 [GitHub](#github) and [GitLab](#gitlab) also support a `labels` filter.
 

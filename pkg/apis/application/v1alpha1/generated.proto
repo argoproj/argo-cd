@@ -1818,6 +1818,8 @@ message PullRequestGeneratorFilter {
   optional string targetBranchMatch = 2;
 
   optional string titleMatch = 3;
+
+  optional bool ignoreDraft = 4;
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
