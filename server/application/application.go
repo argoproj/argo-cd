@@ -1452,6 +1452,22 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Ap
 	return config, nil
 }
 
+// getControlPlaneClusterConfig returns the REST config for the cluster Argo CD itself is running on,
+// for resources which are always stored on the control plane regardless of an Application's
+// spec.destination.
+//
+// This goes through Cluster.RESTConfig() rather than calling rest.InClusterConfig() directly so that
+// ARGOCD_FAKE_IN_CLUSTER keeps working for core/headless mode, and so that the config picks up the
+// same defaults (QPS, timeouts, retries) as every other REST config in the codebase.
+func getControlPlaneClusterConfig() (*rest.Config, error) {
+	controlPlaneCluster := v1alpha1.Cluster{Server: v1alpha1.KubernetesInternalAPIServerAddr}
+	config, err := controlPlaneCluster.RESTConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error getting control plane cluster REST config: %w", err)
+	}
+	return config, nil
+}
+
 // getCachedAppState loads the cached state and trigger app refresh if cache is missing
 func (s *Server) getCachedAppState(ctx context.Context, a *v1alpha1.Application, getFromCache func() error) error {
 	err := getFromCache()
@@ -2598,8 +2614,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 
 func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacRequest string, q *application.ApplicationResourceRequest) (obj *unstructured.Unstructured, res *v1alpha1.ResourceNode, app *v1alpha1.Application, config *rest.Config, err error) {
 	if q.GetKind() == applicationType.ApplicationKind && q.GetGroup() == applicationType.Group && q.GetName() == q.GetResourceName() {
-		var p *v1alpha1.AppProject
-		app, p, err = s.getApplicationEnforceRBACInformer(ctx, rbacRequest, q.GetProject(), q.GetAppNamespace(), q.GetName())
+		app, _, err = s.getApplicationEnforceRBACInformer(ctx, rbacRequest, q.GetProject(), q.GetAppNamespace(), q.GetName())
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
@@ -2612,9 +2627,15 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
-		config, err = s.getApplicationClusterConfig(ctx, app, p)
+		// Unlike the branch below, which resolves a live resource on the destination cluster, the
+		// object returned here is the Application itself. Applications are always stored on the
+		// control plane cluster, which usually does not even have the Application CRD installed,
+		// so the destination cluster config must not be used. Destination impersonation does not
+		// apply either: a destination service account only exists on the destination cluster.
+		// Access remains governed by the Argo CD RBAC check above.
+		config, err = getControlPlaneClusterConfig()
 		if err != nil {
-			return nil, nil, nil, nil, fmt.Errorf("error getting application cluster config: %w", err)
+			return nil, nil, nil, nil, err
 		}
 		obj, err = kube.ToUnstructured(app)
 	} else {
@@ -2735,6 +2756,30 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 		return nil, err
 	}
 
+	// createConfig is the cluster that resources created by the action are written to. It must be the
+	// destination cluster, because verifyResourcePermitted below authorizes those resources against
+	// destCluster; creating them anywhere else would let destination permissions authorize writes to
+	// another cluster.
+	//
+	// For an action on a live resource, config is already the destination cluster, so there is
+	// nothing to do. For an action on the Application itself, config is the control plane cluster
+	// (that is where an Application is stored), so the destination config has to be resolved
+	// separately here — control plane for the Application patch, destination for what it creates.
+	// Despite its name, getApplicationClusterConfig returns the config of the cluster the Application
+	// deploys to, not the one it is stored on.
+	//
+	// That resolution applies destination impersonation and fails when enforcement finds no matching
+	// service account, so it is skipped unless the action actually creates something. Otherwise a
+	// patch-only action such as toggle-auto-sync would be rejected over a destination service
+	// account it never uses.
+	createConfig := config
+	if res == nil && actionCreatesResources(newObjects) {
+		createConfig, err = s.getApplicationClusterConfig(ctx, a, proj)
+		if err != nil {
+			return nil, fmt.Errorf("error getting application cluster config: %w", err)
+		}
+	}
+
 	// First, make sure all the returned resources are permitted, for each operation.
 	// Also perform create with dry-runs for all create-operation resources.
 	// This is performed separately to reduce the risk of only some of the resources being successfully created later.
@@ -2748,7 +2793,7 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 		}
 		if impactedResource.K8SOperation == lua.CreateOperation {
 			createOptions := metav1.CreateOptions{DryRun: []string{"All"}}
-			_, err := s.kubectl.CreateResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj, createOptions)
+			_, err := s.kubectl.CreateResource(ctx, createConfig, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj, createOptions)
 			if err != nil {
 				return nil, err
 			}
@@ -2775,7 +2820,7 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 				return nil, err
 			}
 		case lua.CreateOperation:
-			_, err := s.createResource(ctx, config, newObj)
+			_, err := s.createResource(ctx, createConfig, newObj)
 			if err != nil {
 				return nil, err
 			}
@@ -2832,6 +2877,14 @@ func (s *Server) patchResource(ctx context.Context, config *rest.Config, liveObj
 		}
 	}
 	return &application.ApplicationResponse{}, nil
+}
+
+// actionCreatesResources reports whether a resource action returned at least one resource to create,
+// as opposed to only patching the resource the action was run on.
+func actionCreatesResources(newObjects []lua.ImpactedResource) bool {
+	return slices.ContainsFunc(newObjects, func(r lua.ImpactedResource) bool {
+		return r.K8SOperation == lua.CreateOperation
+	})
 }
 
 func (s *Server) verifyResourcePermitted(ctx context.Context, destCluster *v1alpha1.Cluster, proj *v1alpha1.AppProject, obj *unstructured.Unstructured) error {
