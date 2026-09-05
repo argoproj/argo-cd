@@ -179,6 +179,120 @@ status:
     status: Healthy
 `
 
+const fakeAppHydratorHydrated = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hydrator-hydrated
+  namespace: argocd
+spec:
+  destination:
+    namespace: dummy-namespace
+    name: cluster1
+  project: important-project
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps.git
+      targetRevision: HEAD
+      path: guestbook
+    syncSource:
+      targetBranch: env/test
+      path: guestbook
+status:
+  sync:
+    status: Synced
+  health:
+    status: Healthy
+  sourceHydrator:
+    currentOperation:
+      phase: Hydrated
+`
+
+const fakeAppHydratorHydrating = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hydrator-hydrating
+  namespace: argocd
+spec:
+  destination:
+    namespace: dummy-namespace
+    name: cluster1
+  project: important-project
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps.git
+      targetRevision: HEAD
+      path: guestbook
+    syncSource:
+      targetBranch: env/test
+      path: guestbook
+status:
+  sync:
+    status: Synced
+  health:
+    status: Healthy
+  sourceHydrator:
+    currentOperation:
+      phase: Hydrating
+`
+
+const fakeAppHydratorFailed = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hydrator-failed
+  namespace: argocd
+spec:
+  destination:
+    namespace: dummy-namespace
+    name: cluster1
+  project: important-project
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps.git
+      targetRevision: HEAD
+      path: guestbook
+    syncSource:
+      targetBranch: env/test
+      path: guestbook
+status:
+  sync:
+    status: Synced
+  health:
+    status: Healthy
+  sourceHydrator:
+    currentOperation:
+      phase: Failed
+`
+
+const fakeAppHydratorUnknown = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hydrator-unknown
+  namespace: argocd
+spec:
+  destination:
+    namespace: dummy-namespace
+    name: cluster1
+  project: important-project
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps.git
+      targetRevision: HEAD
+      path: guestbook
+    syncSource:
+      targetBranch: env/test
+      path: guestbook
+status:
+  sync:
+    status: Synced
+  health:
+    status: Healthy
+  sourceHydrator: {}
+`
+
 const fakeAppOperationRunning = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -388,9 +502,9 @@ func TestMetrics(t *testing.T) {
 			responseContains: `
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app-3",namespace="argocd",operation="delete",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
-argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
-argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app-2",namespace="argocd",operation="sync",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",hydrator_status="",name="my-app-3",namespace="argocd",operation="delete",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",hydrator_status="",name="my-app",namespace="argocd",operation="",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",hydrator_status="",name="my-app-2",namespace="argocd",operation="sync",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
 `,
 		},
 		{
@@ -398,7 +512,7 @@ argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_se
 			responseContains: `
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",phase="",project="default",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",hydrator_status="",name="my-app",namespace="argocd",operation="",phase="",project="default",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
 `,
 		},
 	}
@@ -413,19 +527,19 @@ func TestMetricsOperationPhase(t *testing.T) {
 		{
 			applications: []string{fakeAppOperationRunning},
 			responseContains: `
-argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Progressing",name="my-app",namespace="argocd",operation="sync",phase="Running",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Progressing",hydrator_status="",name="my-app",namespace="argocd",operation="sync",phase="Running",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
 `,
 		},
 		{
 			applications: []string{fakeAppOperationFinished},
 			responseContains: `
-argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",phase="Succeeded",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",hydrator_status="",name="my-app",namespace="argocd",operation="",phase="Succeeded",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
 `,
 		},
 		{
 			applications: []string{fakeAppOperationFailed},
 			responseContains: `
-argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app",namespace="argocd",operation="",phase="Failed",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",hydrator_status="",name="my-app",namespace="argocd",operation="",phase="Failed",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
 `,
 		},
 	}
@@ -433,6 +547,22 @@ argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_s
 	for _, combination := range combinations {
 		testApp(t, combination.applications, combination.responseContains)
 	}
+}
+
+func TestMetricsHydratorStatus(t *testing.T) {
+	testApp(t, []string{
+		fakeAppHydratorHydrated,
+		fakeAppHydratorHydrating,
+		fakeAppHydratorFailed,
+		fakeAppHydratorUnknown,
+	}, `
+# HELP argocd_app_info Information about application.
+# TYPE argocd_app_info gauge
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",hydrator_status="Failed",name="hydrator-failed",namespace="argocd",operation="",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",hydrator_status="Hydrated",name="hydrator-hydrated",namespace="argocd",operation="",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",hydrator_status="Hydrating",name="hydrator-hydrating",namespace="argocd",operation="",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",hydrator_status="Unknown",name="hydrator-unknown",namespace="argocd",operation="",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+`)
 }
 
 func TestMetricLabels(t *testing.T) {

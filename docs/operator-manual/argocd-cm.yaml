@@ -54,6 +54,11 @@ data:
   # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/user-management/index.md#sso
   # https://dexidp.io/docs/connectors/
   dex.config: |
+    # Optional: configure Dex storage backend to persist sessions and signing keys
+    storage:
+      type: kubernetes
+      config:
+        inCluster: true
     web:
       tlsMinVersion: "1.2"
     connectors:

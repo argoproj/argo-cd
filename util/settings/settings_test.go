@@ -1760,6 +1760,46 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 	assert.Equal(t, "deadbeef", oidcConfig.ClientSecret)
 }
 
+func TestValidateOIDCConfigWithSecrets(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  string
+		secrets map[string]string
+		wantErr bool
+	}{
+		{
+			name: "valid secret issuer",
+			config: `name: Test
+issuer: $oidc-secret:issuer
+clientID: test
+clientSecret: test`,
+			secrets: map[string]string{
+				"oidc-secret:issuer": "https://example.com",
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid literal issuer",
+			config: `name: Test
+issuer: ://invalid.example.com
+clientID: test
+clientSecret: test`,
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateOIDCConfigWithSecrets(tc.config, tc.secrets)
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestGetEnableManifestGeneration(t *testing.T) {
 	testCases := []struct {
 		name    string

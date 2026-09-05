@@ -136,7 +136,44 @@ func TestWithSignalContextUnregistersAfterFirstSignal(t *testing.T) {
 		return
 	}
 
-	subprocess := exec.CommandContext(t.Context(), os.Args[0], "-test.run="+t.Name(), "-test.timeout=30s")
+	requireKilledBySIGINT(t)
+}
+
+// Unregistration must not depend on the signal arriving first: once the context is done for any reason,
+// signals fall through to the default behaviour. Otherwise a handler still draining after a parent
+// cancellation swallows Ctrl+C (the channel buffer fills and further signals are dropped).
+func TestWithSignalContextUnregistersAfterParentCancel(t *testing.T) {
+	if os.Getenv("TEST_BLOCKING_HANDLER") == "1" {
+		parentCtx, cancelParent := context.WithCancel(t.Context())
+		defer cancelParent()
+
+		command := &cobra.Command{}
+		command.SetContext(parentCtx)
+
+		WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
+			cancelParent()
+			<-c.Context().Done()
+
+			// The wrapper unregisters slightly after the context is canceled, so keep signalling until the
+			// default handler takes over and kills us.
+			for {
+				_ = syscall.Kill(syscall.Getpid(), syscall.SIGINT)
+				time.Sleep(10 * time.Millisecond)
+			}
+		})(command, nil)
+
+		return
+	}
+
+	requireKilledBySIGINT(t)
+}
+
+// requireKilledBySIGINT re-runs the calling test in a subprocess with TEST_BLOCKING_HANDLER set and asserts
+// that it was killed by SIGINT rather than exiting on its own.
+func requireKilledBySIGINT(t *testing.T) {
+	t.Helper()
+
+	subprocess := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^"+t.Name()+"$", "-test.timeout=30s")
 	subprocess.Env = append(os.Environ(), "TEST_BLOCKING_HANDLER=1")
 
 	exitErr := &exec.ExitError{}
