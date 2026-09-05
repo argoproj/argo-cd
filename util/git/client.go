@@ -1317,6 +1317,16 @@ func evaluateGpgSignStatus(cmdErr error, tagGpgOut string) (result GPGVerificati
 }
 
 func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision string, deep bool) ([]RevisionSignatureInfo, string, error) {
+	if deep {
+		shallow, err := m.isShallowRepo(ctx)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed listing signatures: %w", err)
+		}
+		if shallow {
+			return nil, "", errors.New("shallow repository lacks history required for deep signature verification, use full clone")
+		}
+	}
+
 	legacyVerification := ""
 
 	// Resolve eventual semantic tag constraint before annotated tag detection
@@ -1809,6 +1819,16 @@ func (m *nativeGitClient) HasFileChanged(ctx context.Context, filePath string) (
 	}
 	// always return the actual wrapped error
 	return false, fmt.Errorf("git diff failed: %w", err)
+}
+
+// isShallowRepo returns true if the repository is shallow
+func (m *nativeGitClient) isShallowRepo(ctx context.Context) (bool, error) {
+	out, err := m.runCmd(ctx, "rev-parse", "--is-shallow-repository")
+	if err != nil {
+		return false, fmt.Errorf("failed to check if repository is shallow: %w", err)
+	}
+
+	return strings.TrimSpace(out) == "true", nil
 }
 
 // cmdWithGPG creates git Cmd with a GPG-enabled environment

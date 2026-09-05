@@ -2,6 +2,7 @@ package sourceintegrity
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -663,4 +664,20 @@ gpg: Good signature from "%s" [ultimate]`, "Wed Feb 26 23:22:34 2020 CET", ret[0
 			assert.Empty(t, logger.GetEntries())
 		})
 	}
+}
+
+func TestGPGStrictShallowRepoFails(t *testing.T) {
+	const revision = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().LsSignatures(mock.Anything, revision, true).Return(nil, "", errors.New("shallow repository lacks history required for deep signature listing"))
+
+	policy := &v1alpha1.SourceIntegrityGitPolicyGPG{
+		Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+		Keys: []string{"1234ABCD1234ABCD"},
+	}
+
+	_, _, err := verify(t.Context(), policy, gitClient, revision)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "shallow repository lacks history required for deep signature listing")
 }
