@@ -30,6 +30,7 @@ import './applications-list.scss';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
+const SEARCH_DEBOUNCE_TIMEOUT = 200;
 
 // The applications list/watch API supports only selected set of fields.
 // Make sure to register any new fields in the `appFields` map of `pkg/apiclient/application/forwarder_overwrite.go`.
@@ -230,17 +231,40 @@ function tryJsonParse(input: string) {
     }
 }
 
-const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; apps: models.Application[]}) => {
+export const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; apps: models.Application[]}) => {
     const {content, searchRegex, ctx, apps} = props;
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
+
+    const [search, setSearch] = React.useState(content || '');
+    const debounceTimeout = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+    React.useEffect(() => {
+        return () => {
+            if (debounceTimeout.current) {
+                clearTimeout(debounceTimeout.current);
+            }
+        };
+    }, []);
+
+    const handleSearchChange = (value: string) => {
+        setSearch(value);
+
+        if (debounceTimeout.current) {
+            clearTimeout(debounceTimeout.current);
+        }
+
+        debounceTimeout.current = setTimeout(() => {
+            ctx.navigation.goto('.', {search: value}, {replace: true});
+        }, SEARCH_DEBOUNCE_TIMEOUT);
+    };
 
     const query = new URLSearchParams(window.location.search);
     const appInput = tryJsonParse(query.get('new'));
 
     return (
         <SearchBar
-            value={content || ''}
-            onChange={value => ctx.navigation.goto('.', {search: value}, {replace: true})}
+            value={search}
+            onChange={handleSearchChange}
             placeholder={searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search applications...'}
             disableKeyboardShortcuts={!!appInput}
             regexEnabled={searchRegex}
@@ -285,7 +309,7 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
 
     return (
         <div className='applications-list__toolbar-controls' key='app-list-tools'>
-            <ApplicationsListSearchBar content={pref.search} searchRegex={pref.searchRegex} apps={applications} ctx={ctx} />
+            <ApplicationsListSearchBar key={pref.search} content={pref.search} searchRegex={pref.searchRegex} apps={applications} ctx={ctx} />
             <Tooltip content={pref.searchRegex ? (regexInvalid ? 'Invalid regex pattern' : 'Regex search enabled, click to switch to plain text') : 'Click to enable regex search'}>
                 <button
                     type='button'
