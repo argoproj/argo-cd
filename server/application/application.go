@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"math"
+	"net/http"
 	"reflect"
 	"slices"
 	"sort"
@@ -3244,4 +3245,150 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		Items:    responseDiffs,
 		Modified: &modified,
 	}, nil
+}
+
+// ApplicationManagedResources represents the response item for a single application's managed resources
+type ApplicationManagedResources struct {
+	ApplicationName string                   `json:"applicationName"` // namespace/name qualified ID
+	Items           []*v1alpha1.ResourceDiff `json:"items"`
+}
+
+// BatchManagedResourcesResponse is the response for the batch managed resources endpoint
+type BatchManagedResourcesResponse struct {
+	Items []ApplicationManagedResources `json:"items"`
+}
+
+// parseAppInstanceId extracts namespace and name from a qualified application ID
+// Format: "namespace/name" or just "name" (legacy format)
+func parseAppInstanceId(id string) (namespace, name string) {
+	parts := strings.SplitN(id, "/", 2)
+	if len(parts) == 2 {
+		return parts[0], parts[1]
+	}
+	return "", parts[0] // Legacy format: just the name
+}
+
+func (s *Server) BatchManagedResourcesHandler(w http.ResponseWriter, r *http.Request) {
+	selector, err := labels.Parse(r.URL.Query().Get("selector"))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("invalid selector: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	var apps []*v1alpha1.Application
+	appNamespace := r.URL.Query().Get("appNamespace")
+	if appNamespace == "" {
+		apps, err = s.appLister.List(selector)
+	} else {
+		apps, err = s.appLister.Applications(appNamespace).List(selector)
+	}
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to list applications: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	names := r.URL.Query()["applicationNames"]
+	if len(names) == 1 && strings.Contains(names[0], ",") {
+		names = strings.Split(names[0], ",")
+	}
+
+	// Support both legacy format (just names) and new qualified format (namespace/name)
+	// This allows backward compatibility while supporting namespace-qualified IDs
+	if len(names) > 0 {
+		// Build a map of namespace -> set of names for efficient lookup
+		nsNameMap := make(map[string]map[string]bool)
+		var legacyNames []string // Names without namespace (backward compatibility)
+
+		for _, appId := range names {
+			if appId == "" {
+				continue
+			}
+			ns, name := parseAppInstanceId(appId)
+			if ns == "" {
+				// Legacy format: just the name
+				legacyNames = append(legacyNames, name)
+			} else {
+				// New qualified format: namespace/name
+				if nsNameMap[ns] == nil {
+					nsNameMap[ns] = make(map[string]bool)
+				}
+				nsNameMap[ns][name] = true
+			}
+		}
+
+		var filtered []*v1alpha1.Application
+		for _, a := range apps {
+			// Check legacy format (name only)
+			if len(legacyNames) > 0 {
+				for _, legacyName := range legacyNames {
+					if a.Name == legacyName {
+						filtered = append(filtered, a)
+						break
+					}
+				}
+				continue
+			}
+			// Check qualified format (namespace/name)
+			if nameSet, ok := nsNameMap[a.Namespace]; ok {
+				if nameSet[a.Name] {
+					filtered = append(filtered, a)
+				}
+			}
+		}
+		apps = filtered
+	}
+
+	project := r.URL.Query().Get("project")
+	if project != "" {
+		apps = argo.FilterByProjectsP(apps, []string{project})
+	}
+
+	ctx := r.Context()
+	claims := ctx.Value("claims")
+
+	var authorizedApps []*v1alpha1.Application
+	for _, a := range apps {
+		if !s.isNamespaceEnabled(a.Namespace) {
+			continue
+		}
+		if s.enf.Enforce(claims, rbac.ResourceApplications, rbac.ActionGet, a.RBACName(s.ns)) {
+			authorizedApps = append(authorizedApps, a)
+		}
+	}
+
+	resp := BatchManagedResourcesResponse{
+		Items: []ApplicationManagedResources{},
+	}
+
+	for _, a := range authorizedApps {
+		if a.Status.Sync.Status != v1alpha1.SyncStatusCodeOutOfSync {
+			continue
+		}
+
+		var items []*v1alpha1.ResourceDiff
+		err = s.getCachedAppState(ctx, a, func() error {
+			return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &items)
+		})
+		if err != nil {
+			log.Warnf("failed to get cached app managed resources for %s: %v", a.Name, err)
+			continue
+		}
+
+		var filteredItems []*v1alpha1.ResourceDiff
+		for _, item := range items {
+			if !item.Hook {
+				filteredItems = append(filteredItems, item)
+			}
+		}
+
+		resp.Items = append(resp.Items, ApplicationManagedResources{
+			ApplicationName: a.Namespace + "/" + a.Name, // Return qualified ID
+			Items:           filteredItems,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Errorf("failed to encode batch managed resources response: %v", err)
+	}
 }

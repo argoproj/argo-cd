@@ -319,6 +319,22 @@ message ManagedResourcesResponse {
 	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff items = 1;
 }
 
+message BatchManagedResourcesRequest {
+	repeated string applicationNames = 1;
+	optional string project = 2;
+	optional string selector = 3;
+	optional string appNamespace = 4;
+}
+
+message ApplicationManagedResourcesResponse {
+	required string applicationName = 1;
+	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff items = 2;
+}
+
+message BatchManagedResourcesResponse {
+	repeated ApplicationManagedResourcesResponse items = 1;
+}
+
 message ApplicationServerSideDiffQuery {
 	required string appName = 1;
 	optional string appNamespace = 2;
@@ -454,6 +470,11 @@ service ApplicationService {
 	// ManagedResources returns list of managed resources
 	rpc ManagedResources(ResourcesQuery) returns (ManagedResourcesResponse) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/managed-resources";
+	}
+
+	// BatchManagedResources returns list of managed resources for multiple applications
+	rpc BatchManagedResources(BatchManagedResourcesRequest) returns (BatchManagedResourcesResponse) {
+		option (google.api.http).get = "/api/v1/applications/managed-resources";
 	}
 
 	// ServerSideDiff performs server-side diff calculation using dry-run apply
