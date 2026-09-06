@@ -2909,7 +2909,9 @@ func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (
 	}
 	opts = append(opts,
 		git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer)),
-		git.WithBuiltinGitConfig(s.initConstants.EnableBuiltinGitConfig))
+		git.WithBuiltinGitConfig(s.initConstants.EnableBuiltinGitConfig),
+		git.WithDepth(repo.Depth),
+	)
 	return s.newGitClient(repo.Repo, repoPath, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.EnableLFS, repo.Proxy, repo.NoProxy, opts...)
 }
 
@@ -3044,7 +3046,7 @@ func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, 
 	if depth > 0 {
 		for _, revision := range targetRevisions {
 			if !gitClient.IsRevisionPresent(ctx, revision) {
-				if err := gitClient.Fetch(ctx, revision, depth); err != nil {
+				if err := gitClient.Fetch(ctx, revision); err != nil {
 					return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
 				}
 			}
@@ -3052,7 +3054,7 @@ func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, 
 		return nil
 	}
 	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-	err := gitClient.Fetch(ctx, "", 0)
+	err := gitClient.Fetch(ctx, "")
 	if err != nil {
 		return err
 	}
@@ -3063,7 +3065,7 @@ func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, 
 			log.Infof("Failed to fetch revision %s: %v", revision, err)
 			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
 
-			if err := gitClient.Fetch(ctx, revision, 0); err != nil {
+			if err := gitClient.Fetch(ctx, revision); err != nil {
 				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
 			}
 		}
@@ -3086,10 +3088,10 @@ func checkoutRevision(ctx context.Context, gitClient git.Client, revision string
 	// Fetching can be skipped if the revision is already present locally.
 	if !revisionPresent {
 		if depth > 0 {
-			err = gitClient.Fetch(ctx, revision, depth)
+			err = gitClient.Fetch(ctx, revision)
 		} else {
 			// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-			err = gitClient.Fetch(ctx, "", depth)
+			err = gitClient.Fetch(ctx, "")
 		}
 
 		if err != nil {
@@ -3103,7 +3105,7 @@ func checkoutRevision(ctx context.Context, gitClient git.Client, revision string
 		// for the given revision, try explicitly fetching it.
 		log.Infof("Failed to checkout revision %s: %v", revision, err)
 		log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
-		err = gitClient.Fetch(ctx, revision, depth)
+		err = gitClient.Fetch(ctx, revision)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
