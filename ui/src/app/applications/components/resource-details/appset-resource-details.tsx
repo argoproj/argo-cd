@@ -73,9 +73,14 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                                 <SummaryItem title='ANNOTATIONS'>
                                     {Object.keys(appSet.metadata.annotations || {}).length > 0 ? (
                                         <Expandable height={48}>
-                                            {Object.entries(appSet.metadata.annotations || {})
-                                                .map(([k, v]) => `${k}=${v}`)
-                                                .join(' ')}
+                                            <div className='resource-details__annotations'>
+                                                {Object.entries(appSet.metadata.annotations || {}).map(([k, v]) => (
+                                                    <div className='resource-details__annotation' key={k}>
+                                                        <span className='resource-details__annotation-key'>{k}</span>
+                                                        <span className='resource-details__annotation-value'>{v}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </Expandable>
                                     ) : (
                                         ''

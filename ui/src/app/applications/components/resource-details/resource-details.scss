@@ -19,6 +19,30 @@
     }
 }
 
+.resource-details {
+    &__annotations {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    &__annotation {
+        display: flex;
+        flex-wrap: wrap;
+        word-break: break-all;
+
+        &-key {
+            font-weight: 500;
+            margin-right: 4px;
+
+            &::after {
+                content: '=';
+                margin-left: 4px;
+            }
+        }
+    }
+}
+
 .appset-resource-node-preview__synced-icon {
     margin-right: 6px;
     color: $argo-success-color;

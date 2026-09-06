@@ -21,6 +21,28 @@
         margin-right: 2px;
     }
 
+    &__annotations {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    &__annotation {
+        display: flex;
+        flex-wrap: wrap;
+        word-break: break-all;
+
+        &-key {
+            font-weight: 500;
+            margin-right: 4px;
+
+            &::after {
+                content: '=';
+                margin-left: 4px;
+            }
+        }
+    }
+
     &__sort-icon {
         cursor: pointer;
         position: absolute;

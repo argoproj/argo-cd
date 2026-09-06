@@ -112,9 +112,14 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             title: 'ANNOTATIONS',
             view: (
                 <Expandable height={48}>
-                    {Object.keys(app.metadata.annotations || {})
-                        .map(annotation => `${annotation}=${app.metadata.annotations[annotation]}`)
-                        .join(' ')}
+                    <div className='application-summary__annotations'>
+                        {Object.keys(app.metadata.annotations || {}).map(annotation => (
+                            <div className='application-summary__annotation' key={annotation}>
+                                <span className='application-summary__annotation-key'>{annotation}</span>
+                                <span className='application-summary__annotation-value'>{app.metadata.annotations[annotation]}</span>
+                            </div>
+                        ))}
+                    </div>
                 </Expandable>
             ),
             edit: (formApi: FormApi) => <EditAnnotations formApi={formApi} app={app} />
