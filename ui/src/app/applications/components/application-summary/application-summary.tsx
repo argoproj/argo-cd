@@ -60,6 +60,20 @@ function processPath(path: string) {
     return '';
 }
 
+function formatAnnotationValue(value: string) {
+    const trimmed = value.trim();
+
+    try {
+        if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+            return JSON.stringify(JSON.parse(trimmed), null, 2);
+        }
+    } catch {
+        // Ignore invalid JSON and return original value
+    }
+
+    return value;
+}
+
 export interface ApplicationSummaryProps {
     app: models.Application;
     updateApp: (app: models.Application, query: {validate?: boolean}) => Promise<any>;
@@ -112,9 +126,11 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             title: 'ANNOTATIONS',
             view: (
                 <Expandable height={48}>
-                    {Object.keys(app.metadata.annotations || {})
-                        .map(annotation => `${annotation}=${app.metadata.annotations[annotation]}`)
-                        .join(' ')}
+                    <pre style={{whiteSpace: 'pre-wrap', margin: 0}}>
+                        {Object.keys(app.metadata.annotations || {})
+                            .map(annotation => `${annotation}=${formatAnnotationValue(app.metadata.annotations[annotation])}`)
+                            .join('\n\n')}
+                    </pre>
                 </Expandable>
             ),
             edit: (formApi: FormApi) => <EditAnnotations formApi={formApi} app={app} />
