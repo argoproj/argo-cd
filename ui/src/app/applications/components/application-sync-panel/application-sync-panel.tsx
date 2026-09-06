@@ -17,6 +17,7 @@ import {
     PRUNE_SOME_WARNING
 } from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
+import {RevisionFormField} from '../revision-form-field/revision-form-field';
 
 import './application-sync-panel.scss';
 
@@ -30,6 +31,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
     const syncStrategy = {} as models.SyncStrategy;
     const [isPending, setPending] = React.useState(false);
     const source = getAppDefaultSource(application);
+    const repoType = source?.repoURL?.startsWith('oci://') ? 'oci' : source && Object.prototype.hasOwnProperty.call(source, 'chart') ? 'helm' : 'git';
 
     return (
         <Consumer>
@@ -252,7 +254,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         Synchronizing application manifests from <a href={source.repoURL}>{source.repoURL}</a>
                                     </h6>
                                     <div className='argo-form-row'>
-                                        <FormField formApi={formApi} label='Revision' field='revision' component={Text} />
+                                        <RevisionFormField formApi={formApi} repoURL={source.repoURL} repoType={repoType} fieldValue='revision' />
                                     </div>
 
                                     <div className='argo-form-row'>
