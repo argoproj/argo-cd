@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -24,7 +25,17 @@ var (
 	timeout      time.Duration
 	fatalTimeout time.Duration
 	Unredacted   = Redact(nil)
+	// ansiEscapeRegex matches ANSI escape sequences (CSI-style, e.g. "\x1b[1;31m")
+	// produced by tools that assume a color-capable terminal. These bytes render
+	// as garbage like "^[[1;31m" in the UI, so they are stripped from captured
+	// command output before it is surfaced in errors or logs. See issue #4770.
+	ansiEscapeRegex = regexp.MustCompile(`\x1b\[[0-9;?]*[a-zA-Z]`)
 )
+
+// StripAnsi removes ANSI escape sequences from s.
+func StripAnsi(s string) string {
+	return ansiEscapeRegex.ReplaceAllString(s, "")
+}
 
 type ExecRunOpts struct {
 	// Redactor redacts tokens from the output
@@ -241,9 +252,9 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 				// now original cmd should exit immediately after SIGKILL
 				<-done
 				// return error with a marker indicating that cmd exited only after fatal SIGKILL
-				output := stdout.String()
+				output := StripAnsi(stdout.String())
 				if opts.CaptureStderr {
-					output += stderr.String()
+					output += StripAnsi(stderr.String())
 				}
 				logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
 				err = newCmdError(redactor(args), fmt.Errorf("fatal timeout after %v", timeout+fatalTimeout), "")
@@ -252,9 +263,9 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			}
 		}
 		// either did not wait for timeout or cmd did respect SIGTERM
-		output := stdout.String()
+		output := StripAnsi(stdout.String())
 		if opts.CaptureStderr {
-			output += stderr.String()
+			output += StripAnsi(stderr.String())
 		}
 		logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
 		err = newCmdError(redactor(args), fmt.Errorf("timeout after %v", timeout), "")
@@ -262,12 +273,13 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		return strings.TrimSuffix(output, "\n"), err
 	case err := <-done:
 		if err != nil {
-			output := stdout.String()
+			stderrStr := StripAnsi(stderr.String())
+			output := StripAnsi(stdout.String())
 			if opts.CaptureStderr {
-				output += stderr.String()
+				output += stderrStr
 			}
 			logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
-			err := newCmdError(redactor(args), errors.New(redactor(err.Error())), strings.TrimSpace(redactor(stderr.String())))
+			err := newCmdError(redactor(args), errors.New(redactor(err.Error())), strings.TrimSpace(redactor(stderrStr)))
 			if !opts.SkipErrorLogging {
 				logCtx.Error(err.Error())
 			}
