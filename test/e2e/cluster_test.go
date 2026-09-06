@@ -3,6 +3,7 @@ package e2e
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"testing"
 	"time"
 
@@ -22,8 +23,9 @@ func TestClusterList(t *testing.T) {
 	defer fixture.RecordTestRun(t)
 
 	last := ""
-	expected := fmt.Sprintf(`SERVER                          NAME        VERSION  STATUS      MESSAGE  PROJECT
-https://kubernetes.default.svc  in-cluster  %v  Successful           `, fixture.GetVersions(t).ServerVersion.String())
+	expectedRegexStr := fmt.Sprintf("^SERVER +NAME +VERSION +STATUS +MESSAGE +PROJECT\nhttps://kubernetes\\.default\\.svc +in-cluster +%v +Successful *$",
+		regexp.QuoteMeta(fixture.GetVersions(t).ServerVersion.String()))
+	expectedRegexp := regexp.MustCompile(expectedRegexStr)
 
 	ctx := clusterFixture.Given(t)
 	ctx.Project(fixture.ProjectName)
@@ -36,6 +38,7 @@ https://kubernetes.default.svc  in-cluster  %v  Successful           `, fixture.
 		CreateApp()
 
 	tries := 25
+	matches := false
 	for i := 0; i <= tries; i++ {
 		clusterFixture.GivenWithSameState(ctx).
 			When().
@@ -44,14 +47,15 @@ https://kubernetes.default.svc  in-cluster  %v  Successful           `, fixture.
 			AndCLIOutput(func(output string, _ error) {
 				last = output
 			})
-		if expected == last {
+		matches = expectedRegexp.MatchString(last)
+		if matches {
 			break
 		} else if i < tries {
 			// We retry with a simple backoff
 			time.Sleep(time.Duration(i+1) * 100 * time.Millisecond)
 		}
 	}
-	assert.Equal(t, expected, last)
+	assert.True(t, matches)
 }
 
 func TestClusterAdd(t *testing.T) {
