@@ -334,12 +334,76 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		syncedRefSources = argo.GetSyncedRefSources(refSources, sources, app.Status.Sync.Revisions)
 	}
 
+	resolvedRevisions := make([]string, len(sources))
+	sourceRepos := make([]*v1alpha1.Repository, len(sources))
 	revisionsMayHaveChanges := false
+
+	// Resolve all revisions before generating manifests.
 	for i, source := range sources {
 		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
 		}
+
 		revision := revisions[i]
+
+		resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(
+			ctx,
+			app,
+			source,
+			i,
+			revision,
+			refSources,
+			syncedRefSources,
+			noRevisionCache,
+			trackingMethod,
+			appLabelKey,
+			installationID,
+			serverVersion,
+			apiVersions,
+			proj,
+			repoClient,
+			sourceIntegrity,
+		)
+		if err != nil {
+			return nil, nil, false, fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
+		}
+
+		if hasChanges {
+			revisionsMayHaveChanges = true
+		}
+
+		repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
+		if err != nil {
+			return nil, nil, false, fmt.Errorf("failed to get repo %q: %w", git.SanitizeRepoURL(source.RepoURL), err)
+		}
+		sourceRepos[i] = repo
+
+		if revision != "" && resolvedRevision == revision && !source.IsRef() {
+			resp, resolveErr := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
+				Repo:              repo,
+				App:               app,
+				AmbiguousRevision: revision,
+				SourceIndex:       int64(i),
+				NoRevisionCache:   noRevisionCache,
+			})
+			if resolveErr != nil {
+				return nil, nil, false, fmt.Errorf("failed to resolve revision for source %d of %d: %w", i+1, len(sources), resolveErr)
+			}
+			if resp == nil || resp.Revision == "" {
+				return nil, nil, false, fmt.Errorf("failed to resolve revision for source %d of %d: empty resolved revision", i+1, len(sources))
+			}
+
+			resolvedRevision = resp.Revision
+		}
+
+		resolvedRevisions[i] = resolvedRevision
+		revisions[i] = resolvedRevision
+	}
+
+	// Generate manifests using the already-resolved revisions.
+	for i, source := range sources {
+		revision := resolvedRevisions[i]
+		revisions[i] = revision
 
 		// Per-source span so the repo-server hop is attributed: a multi-source app otherwise
 		// produces one parent span plus N anonymous GenerateManifest RPC spans with nothing
@@ -357,21 +421,6 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		if err := func() (retErr error) {
 			defer func() { traceutil.EndSpan(srcSpan, retErr) }()
 
-			// Use evaluateRevisionChanges to check for changes and get resolved revision
-			resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(srcCtx, app, source, i, revision, refSources, syncedRefSources, noRevisionCache, trackingMethod, appLabelKey, installationID, serverVersion, apiVersions, proj, repoClient, sourceIntegrity)
-			if err != nil {
-				return fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
-			}
-
-			if hasChanges {
-				revisionsMayHaveChanges = true
-			}
-
-			// Use the resolved revision from evaluateRevisionChanges
-			revision = resolvedRevision
-			revisions[i] = resolvedRevision
-			srcSpan.SetAttributes(attribute.String("argocd.resolved_revision", revision))
-
 			appNamespace := app.Spec.Destination.Namespace
 
 			repos := permittedHelmRepos
@@ -386,10 +435,11 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 				helmRepoCreds = append(helmRepoCreds, permittedOCICredentials...)
 			}
 
-			repo, err := m.db.GetRepository(srcCtx, source.RepoURL, proj.Name)
-			if err != nil {
-				return fmt.Errorf("failed to get repo %q: %w", git.SanitizeRepoURL(source.RepoURL), err)
-			}
+			repo := sourceRepos[i]
+
+			revision = resolvedRevisions[i]
+			revisions[i] = revision
+			srcSpan.SetAttributes(attribute.String("argocd.resolved_revision", revision))
 
 			log.Debugf("Generating Manifest for source %s revision %s", source, revision)
 			manifestInfo, err := repoClient.GenerateManifest(srcCtx, &apiclient.ManifestRequest{
@@ -747,6 +797,11 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		targetObjs, manifestInfos, revisionsMayHaveChanges, err = m.GetRepoObjs(ctx, app, sources, appLabelKey, revisions, noCache, noRevisionCache, project.EffectiveSourceIntegrity(), project, true)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
+			if hasMultipleSources {
+				syncStatus.Revisions = revisions
+			} else if len(revisions) > 0 {
+				syncStatus.Revision = revisions[0]
+			}
 			msg := "Failed to load target state: " + err.Error()
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			if firstSeen, ok := m.repoErrorCache.Load(app.Name); ok {
@@ -1111,10 +1166,12 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	syncStatus.Status = syncCode
 
 	// Update the initial revision to the resolved manifest SHA
-	if hasMultipleSources {
-		syncStatus.Revisions = manifestRevisions
-	} else if len(manifestRevisions) > 0 {
-		syncStatus.Revision = manifestRevisions[0]
+	if !failedToLoadObjs {
+		if hasMultipleSources {
+			syncStatus.Revisions = manifestRevisions
+		} else if len(manifestRevisions) > 0 {
+			syncStatus.Revision = manifestRevisions[0]
+		}
 	}
 
 	ts.AddCheckpoint("sync_ms")
