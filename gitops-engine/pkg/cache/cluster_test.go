@@ -2903,6 +2903,24 @@ func TestNewResource_CompressionDisabled_StoresRaw(t *testing.T) {
 	assert.Empty(t, res.compressedManifest)
 }
 
+func TestNewResource_CompressionFailure_FallsBackToRaw(t *testing.T) {
+	t.Parallel()
+	un := &unstructured.Unstructured{Object: map[string]any{"unsupported": func() {}}}
+	cluster := newClusterWithOptions(t,
+		[]UpdateSettingsFunc{
+			SetManifestCompressionEnabled(true),
+			SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (any, bool) {
+				return nil, true
+			}),
+		},
+	)
+
+	res := cluster.newResource(un)
+	assert.True(t, res.HasManifest())
+	assert.Same(t, un, res.Resource)
+	assert.Empty(t, res.compressedManifest)
+}
+
 func TestGetManagedLiveObjs_CompressionEnabled(t *testing.T) {
 	t.Parallel()
 	cluster := newClusterWithOptions(t,

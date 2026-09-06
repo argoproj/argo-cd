@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"sync"
 
 	jsoniter "github.com/json-iterator/go"
@@ -275,7 +276,7 @@ func (noneCompressor) compress(data []byte) ([]byte, error)   { return data, nil
 func (noneCompressor) decompress(data []byte) ([]byte, error) { return data, nil }
 
 // normalizeManifestValue normalizes msgpack-decoded values to match
-// unstructured.Unstructured expectations: integer types become float64,
+// unstructured.Unstructured expectations: integers become int64 where possible,
 // and map[any]any becomes map[string]any.
 func normalizeManifestValue(obj map[string]any) {
 	for k, v := range obj {
@@ -300,16 +301,22 @@ func normalizeValue(v any) any {
 		}
 		return val
 	case uint64:
+		if val <= math.MaxInt64 {
+			return int64(val)
+		}
 		return float64(val)
 	case int64:
-		return float64(val)
+		return val
 	case uint32:
-		return float64(val)
+		return int64(val)
 	case int32:
-		return float64(val)
+		return int64(val)
 	case int:
-		return float64(val)
+		return int64(val)
 	case uint:
+		if uint64(val) <= math.MaxInt64 {
+			return int64(val)
+		}
 		return float64(val)
 	default:
 		return v

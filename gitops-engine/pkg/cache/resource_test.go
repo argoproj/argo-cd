@@ -96,6 +96,7 @@ func TestCompressedManifest_MsgPackWithIntegerValues(t *testing.T) {
 		"spec": map[string]any{
 			"replicas":    int64(3),
 			"minReplicas": int64(1),
+			"largeValue":  int64(9007199254740993),
 			"nested": map[string]any{
 				"count": int64(42),
 			},
@@ -110,15 +111,45 @@ func TestCompressedManifest_MsgPackWithIntegerValues(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got)
 
-	replicas, found, err := unstructured.NestedFloat64(got.Object, "spec", "replicas")
+	replicas, found, err := unstructured.NestedInt64(got.Object, "spec", "replicas")
 	require.NoError(t, err)
 	assert.True(t, found)
-	assert.Equal(t, float64(3), replicas)
+	assert.Equal(t, int64(3), replicas)
 
-	count, found, err := unstructured.NestedFloat64(got.Object, "spec", "nested", "count")
+	count, found, err := unstructured.NestedInt64(got.Object, "spec", "nested", "count")
 	require.NoError(t, err)
 	assert.True(t, found)
-	assert.Equal(t, float64(42), count)
+	assert.Equal(t, int64(42), count)
+
+	largeValue, found, err := unstructured.NestedInt64(got.Object, "spec", "largeValue")
+	require.NoError(t, err)
+	assert.True(t, found)
+	assert.Equal(t, int64(9007199254740993), largeValue)
+}
+
+func TestManifestCodec_UnknownTypes(t *testing.T) {
+	_, err := serializeManifestObject(nil, "unknown")
+	require.ErrorContains(t, err, "unknown storage type")
+
+	_, err = deserializeManifestObject(nil, "unknown")
+	require.ErrorContains(t, err, "unknown storage type")
+
+	_, err = compressManifestData(nil, "unknown")
+	require.ErrorContains(t, err, "unknown compression type")
+
+	_, err = decompressManifestData(nil, "unknown")
+	require.ErrorContains(t, err, "unknown compression type")
+}
+
+func TestCompressedManifest_CorruptData(t *testing.T) {
+	r := &Resource{
+		compressedManifest:  []byte("not a gzip stream"),
+		manifestStorage:     ManifestStorageJSON,
+		manifestCompression: ManifestCompressionGZipBestSpeed,
+	}
+
+	_, err := r.GetManifest()
+	require.ErrorContains(t, err, "failed to decompress manifest")
 }
 
 func TestCompressedManifest_AllCodecs(t *testing.T) {
