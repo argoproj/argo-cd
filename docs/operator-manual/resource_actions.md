@@ -236,6 +236,13 @@ See the [Deployment actions discovery script](https://github.com/argoproj/argo-c
 
 The [resource scale actions](../user-guide/scale_application_resources.md) documentation shows how this function behaves in the UI.
 
+## Audit Events
+
+Successful resource actions emit Kubernetes audit events with reason `ResourceActionRan` on both the
+Application (in the Argo CD namespace) and the target resource (on the destination cluster). See
+[Auditing](security.md#resource-action-audit-events) for details, including required RBAC and
+`--enable-k8s-event` configuration.
+
 ## Contributing a Custom Resource Action
 
 A resource action can be bundled into Argo CD. Custom resource action scripts are located in the `resource_customizations` directory of [https://github.com/argoproj/argo-cd](https://github.com/argoproj/argo-cd). Each contributed custom action needs to have a Lua script for discovery and a Lua script for the actual action logic. It also needs to have testdata and expected K8s resource manifests, which represent the outcome of performing the action.
