@@ -327,7 +327,7 @@ func NewApplicationController(
 		return nil, err
 	}
 
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts, syncWindowLister, syncWindowInformer.HasSynced)
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts, syncWindowLister)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -989,16 +989,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 
 	errors.CheckError(ctrl.stateCache.Init())
 
-	cacheSyncs := []cache.InformerSynced{ctrl.appInformer.HasSynced, ctrl.projInformer.HasSynced}
-	// Only block on the SyncWindow cache when the CRD is actually installed. Waiting
-	// unconditionally would hang controller startup forever on clusters without the CRD (its
-	// informer can never sync). When the CRD is present, awaiting it closes the fail-open gap
-	// where CRD-based deny windows would not be enforced until the cache catches up.
-	if ctrl.syncWindowCRDInstalled() {
-		cacheSyncs = append(cacheSyncs, ctrl.syncWindowInformer.HasSynced)
-	} else {
-		log.Info("SyncWindow CRD not installed; skipping its cache sync")
-	}
+	cacheSyncs := []cache.InformerSynced{ctrl.appInformer.HasSynced, ctrl.projInformer.HasSynced, ctrl.syncWindowInformer.HasSynced}
 
 	if !cache.WaitForCacheSync(ctx.Done(), cacheSyncs...) {
 		log.Error("Timed out waiting for caches to sync")
@@ -2541,45 +2532,23 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	return patchDuration
 }
 
-// syncWindowCRDInstalled reports whether the SyncWindow CRD is registered in the API server.
-// It is used to decide whether to block controller startup on the SyncWindow informer cache:
-// waiting for a cache that can never sync (CRD absent) would hang startup indefinitely.
-func (ctrl *ApplicationController) syncWindowCRDInstalled() bool {
-	groupVersion := appv1.SchemeGroupVersion.String()
-	resources, err := ctrl.applicationClientset.Discovery().ServerResourcesForGroupVersion(groupVersion)
-	if err != nil {
-		log.WithError(err).Warnf("Unable to discover resources for %s; assuming SyncWindow CRD is not installed", groupVersion)
-		return false
-	}
-	for _, r := range resources.APIResources {
-		if r.Name == application.SyncWindowPlural {
-			return true
-		}
-	}
-	return false
-}
-
 // syncWindowPreventsAutoSync checks if sync windows (both inline and CRD-based) prevent auto-sync.
 func (ctrl *ApplicationController) syncWindowPreventsAutoSync(app *appv1.Application, project *appv1.AppProject) (bool, error) {
 	var filteredWindows, directWindows appv1.SyncWindows
-	if ctrl.syncWindowLister != nil && ctrl.syncWindowInformer.HasSynced() {
-		resolver := syncwindow.NewResolver(ctrl.syncWindowLister, ctrl.namespace)
-
-		if len(project.Spec.SyncWindowRefs) > 0 {
-			windows, err := resolver.ResolveProjectRefs(project.Spec.SyncWindowRefs)
-			if err != nil {
-				log.WithError(err).Warn("Failed to resolve some project sync window refs")
-			}
-			filteredWindows = append(filteredWindows, windows...)
+	resolver := syncwindow.NewResolver(ctrl.syncWindowLister, ctrl.namespace)
+	if len(project.Spec.SyncWindowRefs) > 0 {
+		windows, err := resolver.ResolveProjectRefs(project.Spec.SyncWindowRefs)
+		if err != nil {
+			log.WithError(err).Warn("Failed to resolve some project sync window refs")
 		}
-
-		if len(app.Spec.SyncWindowRefs) > 0 {
-			windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs)
-			if err != nil {
-				log.WithError(err).Warn("Failed to resolve some app sync window refs")
-			}
-			directWindows = append(directWindows, windows...)
+		filteredWindows = append(filteredWindows, windows...)
+	}
+	if len(app.Spec.SyncWindowRefs) > 0 {
+		windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs)
+		if err != nil {
+			log.WithError(err).Warn("Failed to resolve some app sync window refs")
 		}
+		directWindows = append(directWindows, windows...)
 	}
 	// Auto-sync decision path: no operation has started yet, so pass isManual=false
 	// and operationStartTime=nil. status.OperationState here reflects a *previous*

@@ -149,7 +149,6 @@ type appStateManager struct {
 	serverSideDiff        bool
 	ignoreNormalizerOpts  normalizers.IgnoreNormalizerOpts
 	syncWindowLister      applisters.SyncWindowLister
-	syncWindowCacheReady  func() bool
 }
 
 // EvaluateAppRevisionsChanges checks if any source revisions have changes without generating manifests.
@@ -1322,7 +1321,6 @@ func NewAppStateManager(
 	serverSideDiff bool,
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 	syncWindowLister applisters.SyncWindowLister,
-	syncWindowCacheReady func() bool,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache:        liveStateCache,
@@ -1342,7 +1340,6 @@ func NewAppStateManager(
 		serverSideDiff:        serverSideDiff,
 		ignoreNormalizerOpts:  ignoreNormalizerOpts,
 		syncWindowLister:      syncWindowLister,
-		syncWindowCacheReady:  syncWindowCacheReady,
 	}
 }
 

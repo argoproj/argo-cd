@@ -91,6 +91,9 @@ func (r *Resolver) ResolveAppRefs(refs []v1alpha1.SyncWindowRef) (v1alpha1.SyncW
 
 // resolveRef resolves a single SyncWindowRef to a list of SyncWindow objects.
 func (r *Resolver) resolveRef(ref v1alpha1.SyncWindowRef) ([]*v1alpha1.SyncWindow, error) {
+	if r.lister == nil {
+		return nil, nil
+	}
 	if ref.Name != "" && ref.Selector != nil {
 		return nil, errors.New("sync window ref cannot specify both name and selector")
 	}

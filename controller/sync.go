@@ -768,9 +768,6 @@ func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject
 // resolveSyncWindowCRDRefs resolves SyncWindow CRD references from the app and project.
 // It returns two sets: filtered windows (need Matches() against the app) and direct windows (apply unconditionally).
 func (m *appStateManager) resolveSyncWindowCRDRefs(app *v1alpha1.Application, proj *v1alpha1.AppProject) (filtered v1alpha1.SyncWindows, direct v1alpha1.SyncWindows) {
-	if m.syncWindowLister == nil || (m.syncWindowCacheReady != nil && !m.syncWindowCacheReady()) {
-		return nil, nil
-	}
 	resolver := syncwindow.NewResolver(m.syncWindowLister, m.namespace)
 
 	if len(proj.Spec.SyncWindowRefs) > 0 {
