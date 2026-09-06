@@ -351,17 +351,24 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 					return nil, nil, nil, fmt.Errorf("failed to open the repo folder: %w", err)
 				}
 
+				kustomizationFileValidNames := []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}
+			component:
 				for _, c := range opts.Components {
-					resolvedPath, err := filepath.Rel(k.repoRoot, filepath.Join(k.path, c))
+					componentDir, err := filepath.Rel(k.repoRoot, filepath.Join(k.path, c))
 					if err != nil {
 						return nil, nil, nil, fmt.Errorf("kustomize components path failed: %w", err)
 					}
-					_, err = root.Stat(resolvedPath)
-					if err != nil {
-						log.Debugf("%s component directory does not exist", resolvedPath)
-						continue
+					for _, kustomizationFile := range kustomizationFileValidNames {
+						kustomization, err := root.Stat(filepath.Join(componentDir, kustomizationFile))
+						if err == nil && kustomization.Mode().IsRegular() {
+							foundComponents = append(foundComponents, c)
+							log.Infof("Adding component '%s' to kustomization.yaml", c)
+							break component
+						}
 					}
-					foundComponents = append(foundComponents, c)
+					log.Infof("Ignoring component '%s': directory does not exist or unable to find one of %s",
+						componentDir,
+						strings.Join(kustomizationFileValidNames, ", "))
 				}
 			}
 
