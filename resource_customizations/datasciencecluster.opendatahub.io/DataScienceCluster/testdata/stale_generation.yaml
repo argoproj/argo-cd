@@ -1,0 +1,18 @@
+apiVersion: datasciencecluster.opendatahub.io/v1
+kind: DataScienceCluster
+metadata:
+  name: default-dsc
+  namespace: opendatahub
+  generation: 2
+spec:
+  components:
+    dashboard:
+      managementState: Managed
+status:
+  phase: Ready
+  observedGeneration: 1
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Ready
+      message: "All components are ready"
