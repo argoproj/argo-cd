@@ -369,7 +369,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
   # Show application parameters and overrides for a source named "test"
   argocd app get my-app --show-params --source-name test
 
-  # Refresh application data when retrieving
+  # Refresh application data when retrieving (does not bypass manifest cache; use --hard-refresh for that)
   argocd app get my-app --refresh
 
   # Perform a hard refresh, including refreshing application data and target manifests cache
@@ -507,7 +507,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().BoolVar(&showOperation, "show-operation", false, "Show application operation")
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show application parameters and overrides")
-	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
+	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving (does not bypass manifest cache; use --hard-refresh for that)")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only get application from namespace")
 	command.Flags().IntVar(&sourcePosition, "source-position", -1, "Position of the source from the list of sources of the app. Counting starts at 1.")
@@ -2809,6 +2809,8 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 		local           string
 		localRepoRoot   string
 		appNamespace    string
+		refresh         bool
+		hardRefresh     bool
 	)
 	command := &cobra.Command{
 		Use:   "manifests APPNAME",
@@ -2860,6 +2862,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
 				Name:         &appName,
 				AppNamespace: &appNs,
+				Refresh:      getRefreshType(refresh, hardRefresh),
 			})
 			errors.CheckError(err)
 
@@ -2905,6 +2908,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 						Revision:        new(revision),
 						Revisions:       revisions,
 						SourcePositions: sourcePositions,
+						NoCache:         &hardRefresh,
 					}
 					res, err := appIf.GetManifests(ctx, &q)
 					errors.CheckError(err)
@@ -2919,6 +2923,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 						Name:         &appName,
 						AppNamespace: &appNs,
 						Revision:     new(revision),
+						NoCache:      &hardRefresh,
 					}
 					res, err := appIf.GetManifests(ctx, &q)
 					errors.CheckError(err)
@@ -2956,6 +2961,8 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
 	command.Flags().StringVar(&local, "local", "", "If set, show locally-generated manifests. Value is the absolute path to app manifests within the manifest repo. Example: '/home/username/apps/env/app-1'.")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", ".", "Path to the local repository root. Used together with --local allows setting the repository root. Example: '/home/username/apps'.")
+	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving (does not bypass manifest cache; use --hard-refresh for that)")
+	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
 	return command
 }
 
