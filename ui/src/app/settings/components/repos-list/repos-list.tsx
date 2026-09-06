@@ -47,6 +47,15 @@ const repoToUnified = (repo: models.Repository, isWriteFlag: boolean): UnifiedRe
 
 const credToUnified = (cred: models.RepoCreds, isWriteFlag: boolean): UnifiedRepo => (isWriteFlag ? {writeCred: cred} : {readCred: cred});
 
+// A credential template has no connection state at all - it's not a repo that
+// can be reachable or not, so showing the bare '-' used for a real repo's
+// not-yet-checked status reads as broken/missing information instead.
+export const CredentialTemplateStatus = () => (
+    <span>
+        <i className='fa fa-key' /> Credential template
+    </span>
+);
+
 interface NewSSHRepoParams {
     type: string;
     name: string;
@@ -947,6 +956,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                                                 <>
                                                                                     <ConnectionStateIcon state={connectionState} /> {connectionState.status}
                                                                                 </>
+                                                                            ) : isTemplate(repo) ? (
+                                                                                <CredentialTemplateStatus />
                                                                             ) : (
                                                                                 <span>-</span>
                                                                             )}
