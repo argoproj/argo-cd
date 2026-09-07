@@ -490,9 +490,6 @@ func init() {
 	knownTypes["core/v1/PodStatus"] = func() any {
 		return &corev1.PodStatus{}
 	}
-	knownTypes["core/v1/PodStatusResult"] = func() any {
-		return &corev1.PodStatusResult{}
-	}
 	knownTypes["core/v1/PodTemplate"] = func() any {
 		return &corev1.PodTemplate{}
 	}

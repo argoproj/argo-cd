@@ -160,7 +160,6 @@ core/v1/PodSecurityContext
 core/v1/PodSignature
 core/v1/PodSpec
 core/v1/PodStatus
-core/v1/PodStatusResult
 core/v1/PodTemplate
 core/v1/PodTemplateList
 core/v1/PodTemplateSpec
