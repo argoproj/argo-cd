@@ -48,7 +48,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/go-logr/logr v1.4.4
 	github.com/go-openapi/loads v0.25.2
-	github.com/go-openapi/runtime/server-middleware v0.33.1
+	github.com/go-openapi/runtime/server-middleware v0.33.2
 	github.com/go-playground/webhooks/v6 v6.4.0
 	github.com/go-redis/cache/v9 v9.0.0
 	github.com/gobwas/glob v1.0.0
