@@ -55,7 +55,7 @@ func TestClusterList(t *testing.T) {
 			time.Sleep(time.Duration(i+1) * 100 * time.Millisecond)
 		}
 	}
-	assert.True(t, matches)
+	assert.Regexp(t, expectedRegexp, last)
 }
 
 func TestClusterAdd(t *testing.T) {
