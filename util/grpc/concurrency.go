@@ -29,7 +29,7 @@ func report(fn reportActiveFunc, active int64) {
 // reportActive may be nil, in which case no value is reported.
 func ConcurrencyLimiterUnaryServerInterceptor(maxConcurrentRequests int64, reportActive reportActiveFunc) grpc.UnaryServerInterceptor {
 	var active atomic.Int64
-	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		current := active.Add(1)
 		if maxConcurrentRequests > 0 && current > maxConcurrentRequests {
 			report(reportActive, active.Add(-1))
@@ -48,7 +48,7 @@ func ConcurrencyLimiterUnaryServerInterceptor(maxConcurrentRequests int64, repor
 // same concurrency tracking and limiting behaviour as ConcurrencyLimiterUnaryServerInterceptor.
 func ConcurrencyLimiterStreamServerInterceptor(maxConcurrentRequests int64, reportActive reportActiveFunc) grpc.StreamServerInterceptor {
 	var active atomic.Int64
-	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	return func(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		current := active.Add(1)
 		if maxConcurrentRequests > 0 && current > maxConcurrentRequests {
 			report(reportActive, active.Add(-1))
