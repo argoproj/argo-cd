@@ -2964,14 +2964,15 @@ func TestProcessRequestedAppOperation_FailedRetryMessageTime(t *testing.T) {
 	require.NotNil(t, patchedApp.Status.OperationState)
 	message := patchedApp.Status.OperationState.Message
 
-	// The relative delta tells the user how long the wait actually is, without any clock arithmetic.
-	assert.Contains(t, message, "Retrying attempt #1 in 2m0s (at ")
+	assert.Contains(t, message, "Retrying attempt #1 at ")
 
-	// The absolute time must be unambiguous, so it can't be mistaken for the reader's local time.
-	match := regexp.MustCompile(`\(at ([^)]+)\)`).FindStringSubmatch(message)
+	// The retry time is absolute rather than relative, because the message is persisted once and
+	// never rewritten until the next attempt fails, so a relative delta would go stale on the object.
+	match := regexp.MustCompile(`Retrying attempt #1 at (\S+)\.`).FindStringSubmatch(message)
 	require.Len(t, match, 2)
 	retryAt, err := time.Parse(time.RFC3339, match[1])
 	require.NoError(t, err)
+	// RFC3339 in UTC, so the time can't be mistaken for the reader's local time.
 	assert.Equal(t, time.UTC, retryAt.Location())
 	assert.WithinDuration(t, start.Add(2*time.Minute), retryAt, time.Minute)
 }
