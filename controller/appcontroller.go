@@ -2241,11 +2241,17 @@ func (ctrl *ApplicationController) refreshAppConditions(ctx context.Context, app
 
 // normalizeApplication normalizes an application.spec and additionally persists updates if it changed
 func (ctrl *ApplicationController) normalizeApplication(app *appv1.Application) {
-	orig := app.DeepCopy()
+	origSpec := app.Spec.DeepCopy()
 	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 
-	patch, modified, err := diff.CreateTwoWayMergePatch(orig, app, appv1.Application{})
+	// Only the spec can differ, so the patch is built from the spec alone rather than from the
+	// whole application. status.resources and status.history would otherwise be marshaled twice
+	// on every refresh.
+	patch, modified, err := diff.CreateTwoWayMergePatch(
+		appv1.Application{Spec: *origSpec},
+		appv1.Application{Spec: app.Spec},
+		appv1.Application{})
 
 	if err != nil {
 		logCtx.WithError(err).Error("error constructing app spec patch")

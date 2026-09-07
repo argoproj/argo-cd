@@ -8,9 +8,11 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 )
 
 // newSyncedFakeApp returns an app that needs no refresh, with resourceCount entries
@@ -54,5 +56,30 @@ func BenchmarkProcessAppRefreshQueueItem_NoRefresh(b *testing.B) {
 	for b.Loop() {
 		ctrl.appRefreshQueue.Add(key)
 		ctrl.processAppRefreshQueueItem()
+	}
+}
+
+func BenchmarkNormalizeApplication(b *testing.B) {
+	app := newSyncedFakeApp(500)
+	proj := defaultProj.DeepCopy()
+	ctrl := newFakeController(b.Context(), &fakeData{apps: []runtime.Object{app, proj}}, nil)
+
+	patches := 0
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+		patches++
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	b.ReportAllocs()
+	for b.Loop() {
+		ctrl.normalizeApplication(app)
+	}
+	b.StopTimer()
+
+	// The spec is already normalized, so the benchmark measures the comparison rather than the patch.
+	if patches > 0 {
+		b.Fatalf("expected no patches, got %d", patches)
 	}
 }

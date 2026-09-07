@@ -1766,6 +1766,51 @@ func TestNormalizeApplication(t *testing.T) {
 	}
 }
 
+// TestNormalizeApplicationPatchesSpecOnly covers a spec that normalizes and one that is already
+// normalized, on an application carrying a large status.
+func TestNormalizeApplicationPatchesSpecOnly(t *testing.T) {
+	testCases := []struct {
+		name          string
+		project       string
+		expectedPatch string
+	}{
+		{
+			name:          "missing project is normalized",
+			project:       "",
+			expectedPatch: `{"spec":{"project":"default"}}`,
+		},
+		{
+			name:    "normalized spec is not patched",
+			project: "default",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			app := newSyncedFakeApp(500)
+			app.Spec.Project = tc.project
+			proj := defaultProj.DeepCopy()
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, proj}}, nil)
+
+			var patches []string
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			fakeAppCs.ReactionChain = nil
+			fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+				patches = append(patches, string(action.(kubetesting.PatchAction).GetPatch()))
+				return true, &v1alpha1.Application{}, nil
+			})
+
+			ctrl.normalizeApplication(app)
+
+			if tc.expectedPatch == "" {
+				assert.Empty(t, patches)
+				return
+			}
+			assert.Equal(t, []string{tc.expectedPatch}, patches)
+		})
+	}
+}
+
 func TestHandleAppUpdated(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
