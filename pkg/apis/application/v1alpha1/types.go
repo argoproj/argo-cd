@@ -99,6 +99,9 @@ type ApplicationSpec struct {
 
 	// SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.
 	SourceHydrator *SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,9,opt,name=sourceHydrator"`
+
+	// Description contains a free-text summary of the application, shown alongside its name in the UI
+	Description string `json:"description,omitempty" protobuf:"bytes,10,opt,name=description"`
 }
 
 type IgnoreDifferences []ResourceIgnoreDifferences

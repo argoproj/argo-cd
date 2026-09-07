@@ -721,6 +721,9 @@ message ApplicationSpec {
 
   // SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.
   optional SourceHydrator sourceHydrator = 9;
+
+  // Description contains a free-text summary of the application, shown alongside its name in the UI
+  optional string description = 10;
 }
 
 // ApplicationStatus contains status information for the application

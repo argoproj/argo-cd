@@ -1008,6 +1008,10 @@ spec:
               link to repository with application definition and additional parameters
               link definition revision.
             properties:
+              description:
+                description: Description contains a free-text summary of the application,
+                  shown alongside its name in the UI
+                type: string
               destination:
                 description: Destination is a reference to the target Kubernetes server
                   and namespace

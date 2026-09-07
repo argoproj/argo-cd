@@ -84,7 +84,18 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                     <div className='row'>
                         <div className={(app.status.summary?.externalURLs?.length > 0 ? 'columns small-10' : 'columns small-11') + ' applications-tiles__title-col'}>
                             <i className={'icon argo-icon-' + (source?.chart != null ? 'helm' : isOci ? 'oci applications-tiles__item__small' : 'git')} />
-                            <Tooltip content={AppUtils.appInstanceName(app)}>
+                            <Tooltip
+                                content={
+                                    app.spec.description ? (
+                                        <>
+                                            {AppUtils.appInstanceName(app)}
+                                            <br />
+                                            {app.spec.description}
+                                        </>
+                                    ) : (
+                                        AppUtils.appInstanceName(app)
+                                    )
+                                }>
                                 <span className='applications-list__title'>{AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}</span>
                             </Tooltip>
                             <NoticeIcon annotations={app.metadata.annotations} />
@@ -102,6 +113,16 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                             </div>
                             <div className='columns applications-tiles__field-value'>{app.spec.project}</div>
                         </div>
+
+                        {/* Description row */}
+                        {app.spec.description && (
+                            <div className='row applications-tiles__field-row'>
+                                <div className='columns applications-tiles__field-label' title='Description:'>
+                                    Description:
+                                </div>
+                                <div className='columns applications-tiles__field-value'>{app.spec.description}</div>
+                            </div>
+                        )}
 
                         {/* Labels row */}
                         <div className='row applications-tiles__field-row'>

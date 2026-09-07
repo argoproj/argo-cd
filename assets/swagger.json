@@ -1528,11 +1528,10 @@
         }
       },
       "post": {
-        "description": "Deprecated: use RunResourceActionV2 instead. This version does not support resource action parameters but is\nmaintained for backward compatibility. It will be removed in a future release.",
         "tags": [
           "ApplicationService"
         ],
-        "summary": "RunResourceAction runs a resource action",
+        "summary": "RunResourceAction runs a resource action\r\n\r\nDeprecated: use RunResourceActionV2 instead. This version does not support resource action parameters but is\r\nmaintained for backward compatibility. It will be removed in a future release.",
         "operationId": "ApplicationService_RunResourceAction",
         "parameters": [
           {
@@ -5822,7 +5821,7 @@
       }
     },
     "eventsEvent": {
-      "description": "Event mirrors corev1.Event and exposes the fields consumed by the Argo CD\nAPI and UI. Event is a report of an event somewhere in the cluster. Events\nhave a limited retention time and triggers and messages may evolve with\ntime. Event consumers should not rely on the timing of an event with a\ngiven Reason reflecting a consistent underlying trigger, or the continued\nexistence of events with that Reason. Events should be treated as\ninformative, best-effort, supplemental data.",
+      "description": "Event mirrors corev1.Event and exposes the fields consumed by the Argo CD\r\nAPI and UI. Event is a report of an event somewhere in the cluster. Events\r\nhave a limited retention time and triggers and messages may evolve with\r\ntime. Event consumers should not rely on the timing of an event with a\r\ngiven Reason reflecting a consistent underlying trigger, or the continued\r\nexistence of events with that Reason. Events should be treated as\r\ninformative, best-effort, supplemental data.",
       "type": "object",
       "properties": {
         "action": {
@@ -5854,14 +5853,14 @@
           "$ref": "#/definitions/v1ObjectMeta"
         },
         "reason": {
-          "description": "This should be a short, machine understandable string that gives the\nreason for the transition into the object's current status.",
+          "description": "This should be a short, machine understandable string that gives the\r\nreason for the transition into the object's current status.",
           "type": "string"
         },
         "related": {
           "$ref": "#/definitions/eventsObjectReference"
         },
         "reportingComponent": {
-          "description": "Name of the controller that emitted this Event, e.g.\n`kubernetes.io/kubelet`.",
+          "description": "Name of the controller that emitted this Event, e.g.\r\n`kubernetes.io/kubelet`.",
           "type": "string"
         },
         "reportingInstance": {
@@ -5875,13 +5874,13 @@
           "$ref": "#/definitions/eventsEventSource"
         },
         "type": {
-          "description": "Type of this event (Normal, Warning), new types could be added in the\nfuture.",
+          "description": "Type of this event (Normal, Warning), new types could be added in the\r\nfuture.",
           "type": "string"
         }
       }
     },
     "eventsEventList": {
-      "description": "EventList is a list of Argo CD Event messages. It mirrors corev1.EventList\nfield-for-field but is defined in Argo CD's apiclient package to avoid\npulling Kubernetes protobuf types into the public gRPC surface.",
+      "description": "EventList is a list of Argo CD Event messages. It mirrors corev1.EventList\r\nfield-for-field but is defined in Argo CD's apiclient package to avoid\r\npulling Kubernetes protobuf types into the public gRPC surface.",
       "type": "object",
       "properties": {
         "items": {
@@ -5897,7 +5896,7 @@
       }
     },
     "eventsEventSeries": {
-      "description": "EventSeries contain information on series of events, i.e. thing that was/is\nhappening continuously for some time.",
+      "description": "EventSeries contain information on series of events, i.e. thing that was/is\r\nhappening continuously for some time.",
       "type": "object",
       "properties": {
         "count": {
@@ -5925,7 +5924,7 @@
       }
     },
     "eventsObjectReference": {
-      "description": "ObjectReference contains enough information to let you inspect or modify\nthe referred object.",
+      "description": "ObjectReference contains enough information to let you inspect or modify\r\nthe referred object.",
       "type": "object",
       "properties": {
         "apiVersion": {
@@ -5933,7 +5932,7 @@
           "type": "string"
         },
         "fieldPath": {
-          "description": "If referring to a piece of an object instead of an entire object, this\nstring should contain a valid JSON/Go field access statement, such as\ndesiredState.manifest.containers[2]. For example, if the object reference\nis to a container within a pod, this would take on a value like:\n\"spec.containers{name}\" (where \"name\" refers to the name of the container\nthat triggered the event) or if no container name is specified\n\"spec.containers[2]\" (container with index 2 in this pod).",
+          "description": "If referring to a piece of an object instead of an entire object, this\r\nstring should contain a valid JSON/Go field access statement, such as\r\ndesiredState.manifest.containers[2]. For example, if the object reference\r\nis to a container within a pod, this would take on a value like:\r\n\"spec.containers{name}\" (where \"name\" refers to the name of the container\r\nthat triggered the event) or if no container name is specified\r\n\"spec.containers[2]\" (container with index 2 in this pod).",
           "type": "string"
         },
         "kind": {
@@ -6325,11 +6324,11 @@
           }
         },
         "collectionType": {
-          "description": "collectionType is the type of value this parameter holds - either a single value (a string) or a collection\n(array or map). If collectionType is set, only the field with that type will be used. If collectionType is not\nset, `string` is the default. If collectionType is set to an invalid value, a validation error is thrown.",
+          "description": "collectionType is the type of value this parameter holds - either a single value (a string) or a collection\r\n(array or map). If collectionType is set, only the field with that type will be used. If collectionType is not\r\nset, `string` is the default. If collectionType is set to an invalid value, a validation error is thrown.",
           "type": "string"
         },
         "itemType": {
-          "description": "itemType determines the primitive data type represented by the parameter. Parameters are always encoded as\nstrings, but this field lets them be interpreted as other primitive types.",
+          "description": "itemType determines the primitive data type represented by the parameter. Parameters are always encoded as\r\nstrings, but this field lets them be interpreted as other primitive types.",
           "type": "string"
         },
         "map": {
@@ -7941,6 +7940,10 @@
       "description": "ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.",
       "type": "object",
       "properties": {
+        "description": {
+          "type": "string",
+          "title": "Description contains a free-text summary of the application, shown alongside its name in the UI"
+        },
         "destination": {
           "$ref": "#/definitions/v1alpha1ApplicationDestination"
         },

@@ -359,6 +359,7 @@ export interface ApplicationSpec {
     ignoreDifferences?: ResourceIgnoreDifferences[];
     info?: Info[];
     revisionHistoryLimit?: number;
+    description?: string;
 }
 
 export interface ResourceIgnoreDifferences {

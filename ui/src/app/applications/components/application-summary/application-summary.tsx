@@ -102,6 +102,11 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             )
         },
         {
+            title: 'DESCRIPTION',
+            view: app.spec.description,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.description' component={Text} />
+        },
+        {
             title: 'LABELS',
             view: Object.keys(app.metadata.labels || {})
                 .map(label => `${label}=${app.metadata.labels[label]}`)

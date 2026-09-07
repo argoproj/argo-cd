@@ -115,6 +115,12 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                                 <Moment fromNow={true} ago={true}>
                                                     {app.metadata.creationTimestamp}
                                                 </Moment>
+                                                {app.spec.description && (
+                                                    <>
+                                                        <br />
+                                                        {app.spec.description}
+                                                    </>
+                                                )}
                                             </>
                                         }>
                                         <a className='applications-list__table-row-name' href={appLink.href} onClick={appLink.onClick} tabIndex={-1}>

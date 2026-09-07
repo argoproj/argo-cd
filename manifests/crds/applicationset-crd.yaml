@@ -92,6 +92,8 @@ spec:
                               type: object
                             spec:
                               properties:
+                                description:
+                                  type: string
                                 destination:
                                   properties:
                                     name:
@@ -1012,6 +1014,8 @@ spec:
                               type: object
                             spec:
                               properties:
+                                description:
+                                  type: string
                                 destination:
                                   properties:
                                     name:
@@ -1933,6 +1937,8 @@ spec:
                               type: object
                             spec:
                               properties:
+                                description:
+                                  type: string
                                 destination:
                                   properties:
                                     name:
@@ -2832,6 +2838,8 @@ spec:
                               type: object
                             spec:
                               properties:
+                                description:
+                                  type: string
                                 destination:
                                   properties:
                                     name:
@@ -3756,6 +3764,8 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          description:
+                                            type: string
                                           destination:
                                             properties:
                                               name:
@@ -4676,6 +4686,8 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          description:
+                                            type: string
                                           destination:
                                             properties:
                                               name:
@@ -5597,6 +5609,8 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          description:
+                                            type: string
                                           destination:
                                             properties:
                                               name:
@@ -6496,6 +6510,8 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          description:
+                                            type: string
                                           destination:
                                             properties:
                                               name:
@@ -7403,6 +7419,8 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          description:
+                                            type: string
                                           destination:
                                             properties:
                                               name:
@@ -8537,6 +8555,8 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          description:
+                                            type: string
                                           destination:
                                             properties:
                                               name:
@@ -9668,6 +9688,8 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          description:
+                                            type: string
                                           destination:
                                             properties:
                                               name:
@@ -10584,6 +10606,8 @@ spec:
                               type: object
                             spec:
                               properties:
+                                description:
+                                  type: string
                                 destination:
                                   properties:
                                     name:
@@ -11510,6 +11534,8 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          description:
+                                            type: string
                                           destination:
                                             properties:
                                               name:
@@ -12430,6 +12456,8 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          description:
+                                            type: string
                                           destination:
                                             properties:
                                               name:
@@ -13351,6 +13379,8 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          description:
+                                            type: string
                                           destination:
                                             properties:
                                               name:
@@ -14250,6 +14280,8 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          description:
+                                            type: string
                                           destination:
                                             properties:
                                               name:
@@ -15157,6 +15189,8 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          description:
+                                            type: string
                                           destination:
                                             properties:
                                               name:
@@ -16291,6 +16325,8 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          description:
+                                            type: string
                                           destination:
                                             properties:
                                               name:
@@ -17422,6 +17458,8 @@ spec:
                                         type: object
                                       spec:
                                         properties:
+                                          description:
+                                            type: string
                                           destination:
                                             properties:
                                               name:
@@ -18342,6 +18380,8 @@ spec:
                               type: object
                             spec:
                               properties:
+                                description:
+                                  type: string
                                 destination:
                                   properties:
                                     name:
@@ -19248,6 +19288,8 @@ spec:
                               type: object
                             spec:
                               properties:
+                                description:
+                                  type: string
                                 destination:
                                   properties:
                                     name:
@@ -20382,6 +20424,8 @@ spec:
                               type: object
                             spec:
                               properties:
+                                description:
+                                  type: string
                                 destination:
                                   properties:
                                     name:
@@ -21513,6 +21557,8 @@ spec:
                               type: object
                             spec:
                               properties:
+                                description:
+                                  type: string
                                 destination:
                                   properties:
                                     name:
@@ -22506,6 +22552,8 @@ spec:
                     type: object
                   spec:
                     properties:
+                      description:
+                        type: string
                       destination:
                         properties:
                           name:
