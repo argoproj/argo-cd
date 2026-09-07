@@ -17,6 +17,9 @@ spec:
   # The project the application belongs to.
   project: default
 
+  # Optional free-text summary of the application, shown alongside its name in the UI.
+  description: Guestbook example application
+
   # Source of the application manifests
   source:
     repoURL: https://github.com/argoproj/argocd-example-apps.git  # Can point to either a Helm chart repo or a git repo.
