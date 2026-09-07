@@ -95,4 +95,16 @@ var (
 
 	//go:embed ssd-configmap-predicted-live.json
 	ConfigMapPredictedLiveJSONSSD string
+
+	//go:embed lac-configmap-config.yaml
+	LastAppliedConfigMapConfigYAML string
+
+	//go:embed lac-configmap-live.yaml
+	LastAppliedConfigMapLiveYAML string
+
+	//go:embed lac-configmap-predicted-live-with-annotation.json
+	LastAppliedConfigMapPredictedLiveWithAnnotationJSON string
+
+	//go:embed lac-configmap-predicted-live-without-annotation.json
+	LastAppliedConfigMapPredictedLiveWithoutAnnotationJSON string
 )

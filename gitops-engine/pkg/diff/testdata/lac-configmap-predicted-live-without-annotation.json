@@ -1,0 +1,23 @@
+{
+  "apiVersion": "v1",
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "probe-cm",
+    "namespace": "default",
+    "uid": "6f1f9f4e-2c9a-4d55-9b0e-9d0f0c1a2b3c",
+    "resourceVersion": "12345",
+    "creationTimestamp": "2026-02-25T00:20:45Z",
+    "labels": { "app": "probe" },
+    "managedFields": [
+      {
+        "apiVersion": "v1",
+        "fieldsType": "FieldsV1",
+        "fieldsV1": { "f:data": { ".": {}, "f:key": {} } },
+        "manager": "argocd-controller",
+        "operation": "Apply",
+        "time": "2026-02-25T00:30:00Z"
+      }
+    ]
+  },
+  "data": { "key": "value" }
+}

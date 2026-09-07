@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: probe-cm
+  namespace: default
+  uid: 6f1f9f4e-2c9a-4d55-9b0e-9d0f0c1a2b3c
+  resourceVersion: "12345"
+  creationTimestamp: "2026-02-25T00:20:45Z"
+  labels:
+    app: probe
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: '{"apiVersion":"v1","data":{"key":"value"},"kind":"ConfigMap","metadata":{"annotations":{},"labels":{"app":"probe"},"name":"probe-cm","namespace":"default"}}'
+  managedFields:
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:data:
+          .: {}
+          f:key: {}
+        f:metadata:
+          f:labels:
+            .: {}
+            f:app: {}
+      manager: argocd-controller
+      operation: Apply
+      time: "2026-02-25T00:20:45Z"
+    - apiVersion: v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        f:metadata:
+          f:annotations:
+            f:kubectl.kubernetes.io/last-applied-configuration: {}
+      manager: kubectl-client-side-apply
+      operation: Update
+      time: "2026-02-25T00:25:11Z"
+data:
+  key: value

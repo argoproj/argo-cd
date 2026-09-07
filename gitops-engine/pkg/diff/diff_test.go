@@ -2553,3 +2553,170 @@ spec:
 	assert.NotNil(t, result)
 	assert.True(t, result.Modified, "different config and live should show as modified")
 }
+
+// TestLastAppliedConfigDoesNotCauseSpuriousDiff asserts that the
+// kubectl.kubernetes.io/last-applied-configuration annotation never contributes
+// to a diff, whichever strategy calculates it.
+//
+// It runs one fixture — identical desired and live state, with the annotation
+// present only on live — through all three strategies and asserts that none of
+// them reports a difference. The same fixture covers the other server-populated
+// metadata that only ever appears on live: resourceVersion, uid and managedFields.
+func TestLastAppliedConfigDoesNotCauseSpuriousDiff(t *testing.T) {
+	t.Parallel()
+
+	t.Run("client-side three-way diff", func(t *testing.T) {
+		t.Parallel()
+		config := StrToUnstructured(testdata.LastAppliedConfigMapConfigYAML)
+		live := StrToUnstructured(testdata.LastAppliedConfigMapLiveYAML)
+
+		result := diff(t, config, live, diffOptionsForTest()...)
+
+		require.NotNil(t, result)
+		if !assert.False(t, result.Modified, "client-side three-way diff reported a difference") {
+			ascii, err := printDiff(t.Context(), result)
+			require.NoError(t, err)
+			t.Log(ascii)
+		}
+	})
+
+	t.Run("server-side diff, annotation retained by dry-run", func(t *testing.T) {
+		t.Parallel()
+		config := StrToUnstructured(testdata.LastAppliedConfigMapConfigYAML)
+		live := StrToUnstructured(testdata.LastAppliedConfigMapLiveYAML)
+		opts := lastAppliedServerSideDiffOpts(t, testdata.LastAppliedConfigMapPredictedLiveWithAnnotationJSON)
+
+		result, err := serverSideDiff(t.Context(), config, live, opts...)
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		if !assert.False(t, result.Modified, "server-side diff reported a difference") {
+			ascii, err := printDiff(t.Context(), result)
+			require.NoError(t, err)
+			t.Log(ascii)
+		}
+	})
+
+	// serverSideDiff strips the annotation from both sides with
+	// RemoveNestedField (diff.go:186-195), which deletes the key but leaves the
+	// enclosing map behind. live therefore ends up with "annotations": {} while
+	// predictedLive, which never had an annotations map at all, ends up with no
+	// annotations key. {} != absent, so the byte comparison reports a
+	// difference and the resource would be reported OutOfSync with an empty diff
+	// hunk. removeLastAppliedConfigAnnotation drops the emptied map so both sides stay equal.
+	t.Run("server-side diff, annotation dropped by dry-run", func(t *testing.T) {
+		t.Parallel()
+		config := StrToUnstructured(testdata.LastAppliedConfigMapConfigYAML)
+		live := StrToUnstructured(testdata.LastAppliedConfigMapLiveYAML)
+		opts := lastAppliedServerSideDiffOpts(t, testdata.LastAppliedConfigMapPredictedLiveWithoutAnnotationJSON)
+
+		result, err := serverSideDiff(t.Context(), config, live, opts...)
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		if !assert.False(t, result.Modified, "server-side diff reported a difference") {
+			ascii, err := printDiff(t.Context(), result)
+			require.NoError(t, err)
+			t.Log(ascii)
+		}
+	})
+
+	t.Run("structured merge diff", func(t *testing.T) {
+		t.Parallel()
+		config := StrToUnstructured(testdata.LastAppliedConfigMapConfigYAML)
+		live := StrToUnstructured(testdata.LastAppliedConfigMapLiveYAML)
+
+		result, err := StructuredMergeDiff(config, live, buildGVKParser(t), "argocd-controller")
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		if !assert.False(t, result.Modified, "structured merge diff reported a difference") {
+			ascii, err := printDiff(t.Context(), result)
+			require.NoError(t, err)
+			t.Log(ascii)
+		}
+	})
+}
+
+func lastAppliedServerSideDiffOpts(t *testing.T, predictedLive string) []Option {
+	t.Helper()
+	manager := "argocd-controller"
+	dryRunner := mocks.NewServerSideDryRunner(t)
+	dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+		Return(predictedLive, nil)
+	return []Option{
+		WithGVKParser(buildGVKParser(t)),
+		WithManager(manager),
+		WithServerSideDryRunner(dryRunner),
+		WithLogr(textlogger.NewLogger(textlogger.NewConfig())),
+	}
+}
+
+func TestRemoveLastAppliedConfigAnnotation(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		metadata map[string]any
+		expected map[string]any
+	}{
+		{
+			name: "removes the annotation and keeps siblings",
+			metadata: map[string]any{"annotations": map[string]any{
+				AnnotationLastAppliedConfig: "{}",
+				"keep":                      "me",
+			}},
+			expected: map[string]any{"annotations": map[string]any{"keep": "me"}},
+		},
+		{
+			name: "removes the annotations map when it becomes empty",
+			metadata: map[string]any{"annotations": map[string]any{
+				AnnotationLastAppliedConfig: "{}",
+			}},
+			expected: map[string]any{},
+		},
+		{
+			name:     "removes an already empty annotations map",
+			metadata: map[string]any{"annotations": map[string]any{}},
+			expected: map[string]any{},
+		},
+		{
+			name:     "removes a nil annotations map",
+			metadata: map[string]any{"annotations": nil},
+			expected: map[string]any{},
+		},
+		{
+			name:     "leaves an object without annotations untouched",
+			metadata: map[string]any{"name": "cm"},
+			expected: map[string]any{"name": "cm"},
+		},
+		{
+			name:     "leaves other annotations untouched when the key is absent",
+			metadata: map[string]any{"annotations": map[string]any{"keep": "me"}},
+			expected: map[string]any{"annotations": map[string]any{"keep": "me"}},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			un := &unstructured.Unstructured{Object: map[string]any{"metadata": tc.metadata}}
+
+			removeLastAppliedConfigAnnotation(un)
+
+			assert.Equal(t, tc.expected, un.Object["metadata"])
+		})
+	}
+
+	t.Run("tolerates an object with no metadata", func(t *testing.T) {
+		t.Parallel()
+		un := &unstructured.Unstructured{Object: map[string]any{"kind": "ConfigMap"}}
+		removeLastAppliedConfigAnnotation(un)
+		assert.Equal(t, map[string]any{"kind": "ConfigMap"}, un.Object)
+	})
+
+	t.Run("tolerates a nil object", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() { removeLastAppliedConfigAnnotation(nil) })
+	})
+}
