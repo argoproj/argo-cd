@@ -29,6 +29,7 @@ argocd-repo-server [flags]
       --logformat string                               Set the logging format. One of: json|text (default "json")
       --loglevel string                                Set the logging level. One of: debug|info|warn|error (default "info")
       --max-combined-directory-manifests-size string   Max combined size of manifest files in a directory-type Application (default "10M")
+      --max-concurrent-grpc-requests int               Maximum number of concurrent gRPC requests the repo server will handle. Requests exceeding this limit are rejected with ResourceExhausted so clients can retry on a different replica, enabling graceful scale-out. 0 means no limit.
       --metrics-address string                         Listen on given address for metrics (default "0.0.0.0")
       --metrics-port int                               Start metrics server on given port (default 8084)
       --oci-layer-media-types strings                  Comma separated list of allowed media types for OCI media types. This only accounts for media types within layers. (default [application/vnd.oci.image.layer.v1.tar,application/vnd.oci.image.layer.v1.tar+gzip,application/vnd.cncf.helm.chart.content.v1.tar+gzip])
@@ -37,6 +38,7 @@ argocd-repo-server [flags]
       --otlp-attrs strings                             List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
       --otlp-headers stringToString                    List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
       --otlp-insecure                                  OpenTelemetry collector insecure mode (default true)
+      --parallelism-limit-fail-fast                    When true, manifest generation requests that exceed --parallelismlimit are rejected immediately with ResourceExhausted instead of queuing until a slot is free, so clients can retry on a different replica (graceful scale-out). Defaults to false, which preserves the previous blocking behaviour.
       --parallelismlimit int                           Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
       --plugin-tar-exclude stringArray                 Globs to filter when sending tarballs to plugins.
       --plugin-use-manifest-generate-paths             Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.

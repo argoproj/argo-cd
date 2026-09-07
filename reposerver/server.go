@@ -65,16 +65,19 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	metricsServer.PrometheusRegistry.MustRegister(serverMetrics)
 
 	serverLog := log.NewEntry(log.StandardLogger())
+	// The concurrency limiter is placed after the logging and metrics interceptors so that
+	// requests rejected with ResourceExhausted are still logged and counted, and before the
+	// recovery interceptor so the latter continues to wrap the actual handler.
 	streamInterceptors := []grpc.StreamServerInterceptor{
-		grpc_util.ConcurrencyLimiterStreamServerInterceptor(maxConcurrentGRPCRequests, metricsServer),
 		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
 		serverMetrics.StreamServerInterceptor(),
+		grpc_util.ConcurrencyLimiterStreamServerInterceptor(maxConcurrentGRPCRequests, metricsServer.SetActiveGRPCRequests),
 		recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(serverLog))),
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
-		grpc_util.ConcurrencyLimiterUnaryServerInterceptor(maxConcurrentGRPCRequests, metricsServer),
 		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
 		serverMetrics.UnaryServerInterceptor(),
+		grpc_util.ConcurrencyLimiterUnaryServerInterceptor(maxConcurrentGRPCRequests, metricsServer.SetActiveGRPCRequests),
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(serverLog))),
 		grpc_util.ErrorSanitizerUnaryServerInterceptor(),
 	}

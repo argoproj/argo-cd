@@ -17,54 +17,48 @@ import (
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 )
 
-// mockTracker is a simple ActiveRequestsTracker for testing.
-type mockTracker struct {
+// gaugeRecorder captures the most recent active count reported by the interceptor, mimicking a
+// metric gauge driven by the limiter's own counter.
+type gaugeRecorder struct {
 	active atomic.Int64
 }
 
-func (m *mockTracker) IncActiveGRPCRequests() { m.active.Add(1) }
-func (m *mockTracker) DecActiveGRPCRequests() { m.active.Add(-1) }
+func (g *gaugeRecorder) set(active int64) { g.active.Store(active) }
 
 // nopUnaryHandler is a gRPC unary handler that succeeds immediately.
-var nopUnaryHandler grpc.UnaryHandler = func(ctx context.Context, req any) (any, error) {
+var nopUnaryHandler grpc.UnaryHandler = func(_ context.Context, _ any) (any, error) {
 	return nil, nil
 }
 
-// slowUnaryHandler is a gRPC unary handler that blocks until ctx is done.
-var slowUnaryHandler grpc.UnaryHandler = func(ctx context.Context, req any) (any, error) {
-	<-ctx.Done()
-	return nil, ctx.Err()
-}
-
 func TestConcurrencyLimiterUnaryServerInterceptor_NoLimit(t *testing.T) {
-	tracker := &mockTracker{}
-	interceptor := grpc_util.ConcurrencyLimiterUnaryServerInterceptor(0, tracker)
+	rec := &gaugeRecorder{}
+	interceptor := grpc_util.ConcurrencyLimiterUnaryServerInterceptor(0, rec.set)
 
 	// Without a limit, requests should always succeed.
 	for i := range 20 {
 		_, err := interceptor(t.Context(), i, nil, nopUnaryHandler)
 		require.NoError(t, err)
 	}
-	// Tracker should be back at zero after all requests complete.
-	assert.EqualValues(t, 0, tracker.active.Load())
+	// Reported active count should be back at zero after all requests complete.
+	assert.EqualValues(t, 0, rec.active.Load())
 }
 
 func TestConcurrencyLimiterUnaryServerInterceptor_WithinLimit(t *testing.T) {
 	const limit = 5
-	tracker := &mockTracker{}
-	interceptor := grpc_util.ConcurrencyLimiterUnaryServerInterceptor(limit, tracker)
+	rec := &gaugeRecorder{}
+	interceptor := grpc_util.ConcurrencyLimiterUnaryServerInterceptor(limit, rec.set)
 
 	for i := range int(limit) {
 		_, err := interceptor(t.Context(), i, nil, nopUnaryHandler)
 		require.NoError(t, err)
 	}
-	assert.EqualValues(t, 0, tracker.active.Load())
+	assert.EqualValues(t, 0, rec.active.Load())
 }
 
 func TestConcurrencyLimiterUnaryServerInterceptor_ExceedLimit(t *testing.T) {
 	const limit = 2
-	tracker := &mockTracker{}
-	interceptor := grpc_util.ConcurrencyLimiterUnaryServerInterceptor(limit, tracker)
+	rec := &gaugeRecorder{}
+	interceptor := grpc_util.ConcurrencyLimiterUnaryServerInterceptor(limit, rec.set)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -95,23 +89,23 @@ func TestConcurrencyLimiterUnaryServerInterceptor_ExceedLimit(t *testing.T) {
 	released.Add(-int(limit))
 }
 
-func TestConcurrencyLimiterUnaryServerInterceptor_TrackerCalledCorrectly(t *testing.T) {
-	tracker := &mockTracker{}
-	interceptor := grpc_util.ConcurrencyLimiterUnaryServerInterceptor(0, tracker) // no limit, only tracking
+func TestConcurrencyLimiterUnaryServerInterceptor_ActiveReportedCorrectly(t *testing.T) {
+	rec := &gaugeRecorder{}
+	interceptor := grpc_util.ConcurrencyLimiterUnaryServerInterceptor(0, rec.set) // no limit, only tracking
 
 	var activeAtHandler atomic.Int64
 	_, err := interceptor(t.Context(), nil, nil, func(_ context.Context, _ any) (any, error) {
-		activeAtHandler.Store(tracker.active.Load())
+		activeAtHandler.Store(rec.active.Load())
 		return nil, nil
 	})
 	require.NoError(t, err)
-	assert.EqualValues(t, 1, activeAtHandler.Load(), "tracker should show 1 active request inside the handler")
-	assert.EqualValues(t, 0, tracker.active.Load(), "tracker should return to 0 after the handler completes")
+	assert.EqualValues(t, 1, activeAtHandler.Load(), "reported active count should be 1 inside the handler")
+	assert.EqualValues(t, 0, rec.active.Load(), "reported active count should return to 0 after the handler completes")
 }
 
-func TestConcurrencyLimiterUnaryServerInterceptor_NilTracker(t *testing.T) {
+func TestConcurrencyLimiterUnaryServerInterceptor_NilReporter(t *testing.T) {
 	interceptor := grpc_util.ConcurrencyLimiterUnaryServerInterceptor(5, nil)
-	// Should not panic when tracker is nil.
+	// Should not panic when the reporter is nil.
 	_, err := interceptor(t.Context(), nil, nil, nopUnaryHandler)
 	require.NoError(t, err)
 }
@@ -120,8 +114,8 @@ func TestConcurrencyLimiterUnaryServerInterceptor_NilTracker(t *testing.T) {
 
 func TestConcurrencyLimiterStreamServerInterceptor_ExceedLimit(t *testing.T) {
 	const limit = 1
-	tracker := &mockTracker{}
-	interceptor := grpc_util.ConcurrencyLimiterStreamServerInterceptor(limit, tracker)
+	rec := &gaugeRecorder{}
+	interceptor := grpc_util.ConcurrencyLimiterStreamServerInterceptor(limit, rec.set)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -150,18 +144,18 @@ func TestConcurrencyLimiterStreamServerInterceptor_ExceedLimit(t *testing.T) {
 	released.Done()
 }
 
-func TestConcurrencyLimiterStreamServerInterceptor_TrackerCalledCorrectly(t *testing.T) {
-	tracker := &mockTracker{}
-	interceptor := grpc_util.ConcurrencyLimiterStreamServerInterceptor(0, tracker)
+func TestConcurrencyLimiterStreamServerInterceptor_ActiveReportedCorrectly(t *testing.T) {
+	rec := &gaugeRecorder{}
+	interceptor := grpc_util.ConcurrencyLimiterStreamServerInterceptor(0, rec.set)
 
 	var activeAtHandler atomic.Int64
 	err := interceptor(nil, &mockServerStream{ctx: t.Context()}, nil, func(_ any, _ grpc.ServerStream) error {
-		activeAtHandler.Store(tracker.active.Load())
+		activeAtHandler.Store(rec.active.Load())
 		return nil
 	})
 	require.NoError(t, err)
 	assert.EqualValues(t, 1, activeAtHandler.Load())
-	assert.EqualValues(t, 0, tracker.active.Load())
+	assert.EqualValues(t, 0, rec.active.Load())
 }
 
 // mockServerStream implements grpc.ServerStream minimally.
@@ -172,18 +166,19 @@ type mockServerStream struct {
 func (m *mockServerStream) SetHeader(metadata.MD) error  { return nil }
 func (m *mockServerStream) SendHeader(metadata.MD) error { return nil }
 func (m *mockServerStream) SetTrailer(metadata.MD)       {}
-func (m *mockServerStream) Context() context.Context { return m.ctx }
-func (m *mockServerStream) SendMsg(any) error        { return nil }
-func (m *mockServerStream) RecvMsg(any) error        { return nil }
+func (m *mockServerStream) Context() context.Context     { return m.ctx }
+func (m *mockServerStream) SendMsg(any) error            { return nil }
+func (m *mockServerStream) RecvMsg(any) error            { return nil }
 
 // Ensure the mock satisfies the interface at compile time.
 var _ grpc.ServerStream = (*mockServerStream)(nil)
 
-// --- Regression: rejected requests should not count against active gauge ---
+// --- Regression: a rejected request must not leave the reported active count inflated, and the
+// limiter's counter must never drift from the reported gauge value. ---
 func TestConcurrencyLimiterUnaryServerInterceptor_RejectedRequestNotCounted(t *testing.T) {
 	const limit = 1
-	tracker := &mockTracker{}
-	interceptor := grpc_util.ConcurrencyLimiterUnaryServerInterceptor(limit, tracker)
+	rec := &gaugeRecorder{}
+	interceptor := grpc_util.ConcurrencyLimiterUnaryServerInterceptor(limit, rec.set)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
@@ -200,11 +195,11 @@ func TestConcurrencyLimiterUnaryServerInterceptor_RejectedRequestNotCounted(t *t
 	}()
 	<-started // the first request holds the slot
 
-	// Second request is rejected – tracker should still be 1 (held by first).
+	// Second request is rejected – reported active count should still be 1 (held by first).
 	_, err := interceptor(t.Context(), nil, nil, nopUnaryHandler)
 	require.Error(t, err)
 	assert.Equal(t, codes.ResourceExhausted, status.Code(err))
-	assert.EqualValues(t, 1, tracker.active.Load(), "active count should be 1 (held by first request)")
+	assert.EqualValues(t, 1, rec.active.Load(), "active count should be 1 (held by first request)")
 
 	close(release) // unblock first request
 }

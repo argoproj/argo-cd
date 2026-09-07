@@ -272,12 +272,9 @@ func (m *MetricsServer) IncOCITestRepoFailCounter(repo string) {
 	m.ociTestRepoFailCounter.WithLabelValues(repo).Inc()
 }
 
-// IncActiveGRPCRequests increments the count of active gRPC requests being handled by the repo server.
-func (m *MetricsServer) IncActiveGRPCRequests() {
-	m.activeGRPCRequestsGauge.Inc()
-}
-
-// DecActiveGRPCRequests decrements the count of active gRPC requests being handled by the repo server.
-func (m *MetricsServer) DecActiveGRPCRequests() {
-	m.activeGRPCRequestsGauge.Dec()
+// SetActiveGRPCRequests sets the number of active gRPC requests currently being handled by the
+// repo server. The value is supplied by the concurrency limiter so that this gauge and the
+// limiter's own counter never drift apart.
+func (m *MetricsServer) SetActiveGRPCRequests(active int64) {
+	m.activeGRPCRequestsGauge.Set(float64(active))
 }
