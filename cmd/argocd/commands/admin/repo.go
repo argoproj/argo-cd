@@ -169,16 +169,12 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			argoCDCM := &corev1.ConfigMap{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ConfigMap",
-					APIVersion: "v1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      common.ArgoCDConfigMapName,
-					Namespace: ArgoCDNamespace,
-					Labels: map[string]string{
-						"app.kubernetes.io/part-of": "argocd",
-					},
+				Kind:       "ConfigMap",
+				APIVersion: "v1",
+				Name:       common.ArgoCDConfigMapName,
+				Namespace:  ArgoCDNamespace,
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
 				},
 			}
 			kubeClientset := fake.NewClientset(argoCDCM)

@@ -252,7 +252,7 @@ func (sharding *ClusterSharding) UpdateApp(a *v1alpha1.Application) {
 	}
 }
 
-// GetAppDistribution should be not be called from a DestributionFunction because
+// GetAppDistribution should be not be called from a DistributionFunction because
 // it could cause a deadlock when updateDistribution is called.
 func (sharding *ClusterSharding) GetAppDistribution() map[string]int {
 	sharding.lock.RLock()

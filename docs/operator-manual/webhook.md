@@ -63,6 +63,7 @@ provider's webhook secret configured in step 1.
 | Gogs            | `webhook.gogs.secret`            |
 | Azure DevOps    | `webhook.azuredevops.username`   |
 |                 | `webhook.azuredevops.password`   |
+| Harbor          | `webhook.harbor.secret`          |
 
 Edit the Argo CD Kubernetes secret:
 
@@ -210,3 +211,91 @@ For example, these `repoURL` values all match a webhook event for `ghcr.io/myorg
 - `oci://ghcr.io/myorg/myimage`
 - `oci://GHCR.IO/MyOrg/MyImage`
 - `oci://ghcr.io/myorg/myimage/`
+
+### Harbor
+
+[Harbor](https://goharbor.io/) is a CNCF open-source OCI-compliant registry that supports sending webhook events when artifacts are pushed. Argo CD can be configured to receive these events and instantly refresh applications backed by OCI artifacts stored in Harbor.
+
+> [!NOTE]
+> Harbor does not send a distinctive request header to identify webhook events, unlike GitHub which sends `X-GitHub-Event`.
+> Authentication is performed via a configurable **Authorization** header value that you set in both Harbor's webhook
+> configuration and in the ArgoCD secret. Configuring the secret (`webhook.harbor.secret`) is **required** for Harbor webhook support.
+
+> [!WARNING]
+> Harbor's Authorization header is a static bearer token, which is weaker than HMAC-based signing used by GitHub/GitLab.
+> Unlike HMAC, a captured token can be replayed indefinitely and does not provide payload integrity guarantees.
+> To reduce risk:
+>
+> - **Always use HTTPS** between Harbor and Argo CD so the token cannot be intercepted in transit.
+> - **Use a strong, randomly generated secret** (e.g. `openssl rand -hex 32`).
+> - **Rotate the secret periodically** by updating both `webhook.harbor.secret` in `argocd-secret` and the Auth Header in Harbor's webhook configuration.
+> - **Restrict network access** to the `/api/webhook` endpoint at the network/firewall level so only your Harbor instance can reach it.
+
+#### Configure the Webhook Secret
+
+In `argocd-secret`, set the Harbor webhook secret. This value must match the **Auth Header** you configure in Harbor's webhook settings:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+  namespace: argocd
+type: Opaque
+stringData:
+  webhook.harbor.secret: <your-harbor-auth-header-value>
+```
+
+#### Configure the Webhook in Harbor
+
+1. Log in to the Harbor portal with project administrator privileges.
+2. Navigate to your **Project** → **Webhooks** → **Add Webhook**.
+3. Select notify type **HTTP**.
+4. Select payload format **Default**.
+5. Enable the **Artifact pushed** event type.
+6. Set **Endpoint URL** to `https://<argocd-server>/api/webhook`.
+7. Set **Auth Header** to the same value you configured in `webhook.harbor.secret`.
+8. Click **Add** to save the webhook.
+
+> [!NOTE]
+> Argo CD only acts on `PUSH_ARTIFACT` events (artifact push). Other events such as `PULL_ARTIFACT`,
+> `DELETE_ARTIFACT`, and scan events are ignored. Push events for resources that have no tag
+> (digest-only pushes) are also ignored.
+
+#### Example Application
+
+When an OCI artifact is pushed to Harbor, Argo CD refreshes Applications with a matching `repoURL`:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  source:
+    repoURL: oci://harbor.example.com/myproject
+    targetRevision: v1.0.0
+    chart: mychart
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+The `targetRevision` field supports exact tags as well as semver constraints (e.g. `^1.0.0`, `>=1.2.0`). See the [GHCR semver constraint table](#example-application) for details and examples.
+
+## Application Annotations Used by Webhooks
+
+A webhook event triggers a refresh by setting the `argocd.argoproj.io/refresh` annotation on each matching
+Application (and, for Applications using the [source hydrator](../user-guide/source-hydrator.md), the
+`argocd.argoproj.io/hydrate` annotation as well). The application controller removes these annotations once it
+has finished processing the refresh. See [Annotations and Labels](../user-guide/annotations-and-labels.md) for
+the full list of values these annotations can take.
+
+Each refresh request also sets a companion `argocd.argoproj.io/refresh-timestamp` (and, for hydration,
+`argocd.argoproj.io/hydrate-timestamp`) annotation to a unique timestamp. Before removing the `refresh`/`hydrate`
+annotation, the controller checks that this timestamp still matches the value it observed when the refresh
+started. If another webhook event (or any other refresh trigger) arrived for the same Application while the
+first refresh was still being processed, the timestamp will have changed, so the controller leaves the
+annotations in place and processes the new request instead of dropping it. Without this check, a refresh
+request that arrives while a previous one for the same Application is still being reconciled could otherwise be
+silently lost until the next periodic poll or a manual refresh.

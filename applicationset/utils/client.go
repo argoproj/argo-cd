@@ -89,6 +89,8 @@ func (c *cacheSyncingClient) retrieveStore(ctx context.Context, obj client.Objec
 func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() error, obj client.Object, deleteObj bool) error {
 	// Execute the operation first; on success sync the informer cache. If it returns NotFound, also attempt to evict any stale entry from the cache.
 	var opErr error
+	// gone records that the API server confirmed the object no longer exists.
+	gone := false
 	if err := op(); err != nil {
 		// A NotFound means the object is already gone from the API server. Fall through to
 		// evict any stale entry from the informer cache below, otherwise a lingering
@@ -102,9 +104,20 @@ func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() err
 			opErr = err
 		}
 		deleteObj = true
+		gone = true
 	}
 	// sync cache for applications only
 	if _, ok := obj.(*application.Application); !ok {
+		return opErr
+	}
+	// A successful Delete only removes the object outright when nothing holds it back: if it
+	// carries finalizers the API server merely stamps deletionTimestamp and the object lives on.
+	// Evicting the entry here would make cache-backed reads report the object as already gone
+	// while it is still terminating, so a caller waiting for teardown to finish concludes
+	// prematurely that it is done. Leave the entry and let the informer's own MODIFIED/DELETED
+	// events converge it. A NotFound is different: there the object really is absent, so any
+	// stale entry must still be evicted.
+	if deleteObj && !gone && len(obj.GetFinalizers()) > 0 {
 		return opErr
 	}
 

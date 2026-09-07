@@ -4,7 +4,6 @@ $applications-list-label-min: 5.75rem;
 $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
 
 .applications-table {
-
     .argo-table-list__row {
         line-height: 26px;
         padding-top: 4px;
@@ -46,22 +45,6 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
             color: inherit;
             text-decoration: none;
         }
-
-        // CellLink anchors wrap Source / Labels / Destination cell content. They're
-        // visually identical to the divs they replace (the overlay anchor provides
-        // the visual link semantics); block + min-width:0 preserves the prior
-        // flex/truncation behaviour of those cells.
-        .applications-list__table-row__cell-link {
-            display: block;
-            min-width: 0;
-            color: inherit;
-            text-decoration: none;
-
-            &:hover, &:focus, &:visited, &:active {
-                color: inherit;
-                text-decoration: none;
-            }
-        }
     }
 
     .applications-list__table-row__overlay-link {
@@ -71,7 +54,9 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
         color: inherit;
         text-decoration: none;
 
-        &:hover, &:visited, &:active {
+        &:hover,
+        &:visited,
+        &:active {
             color: inherit;
             text-decoration: none;
         }
@@ -95,6 +80,7 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
 
     .applications-list__table-row button.managed-by-url-invalid {
         color: #f4c030;
+        cursor: not-allowed;
 
         &:hover {
             color: #f4c030;
@@ -116,11 +102,6 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
             padding: 0;
             margin: 0;
             line-height: 1;
-        }
-
-        .applications-list__external-links-icon-container {
-            display: inline-block;
-            margin-left: 0.125rem;
         }
     }
 
@@ -149,6 +130,49 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+
+    .applications-list__name-value {
+        display: flex;
+        align-items: center;
+
+        .applications-list__table-row-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .applications-list__external-links-icon-container {
+            flex-shrink: 0;
+            margin-left: 0.5em;
+        }
+
+        .application-notice-icon,
+        .applications-list__open-app-button {
+            flex-shrink: 0;
+        }
+
+        .applications-list__open-app-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 0.5em;
+            padding: 0;
+            border: 0;
+            background: none;
+            color: inherit;
+            cursor: pointer;
+            line-height: 1;
+
+            &:hover {
+                color: $argo-color-teal-5;
+            }
+
+            i {
+                font-size: 14px;
+            }
+        }
     }
 
     .applications-list__meta-value.applications-table-source {

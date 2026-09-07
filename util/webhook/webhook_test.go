@@ -125,6 +125,16 @@ func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespac
 	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &argoSettings, objects...)
 }
 
+type fakeProjectNamespaceLister struct {
+	argov1.AppProjectNamespaceLister
+	namespace string
+	clientset *appclientset.Clientset
+}
+
+func (f *fakeProjectNamespaceLister) Get(name string) (*v1alpha1.AppProject, error) {
+	return f.clientset.ArgoprojV1alpha1().AppProjects(f.namespace).Get(context.Background(), name, metav1.GetOptions{})
+}
+
 type fakeAppsLister struct {
 	argov1.ApplicationLister
 	argov1.ApplicationNamespaceLister
@@ -166,7 +176,7 @@ func newMockHandler(reactor *reactorDef, applicationNamespaces []string, maxPayl
 		1*time.Minute,
 		1*time.Minute,
 		10*time.Second,
-	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB, maxPayloadSize, 0, 10)
+	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB, maxPayloadSize, 0, 10, &fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"})
 }
 
 func TestGitHubCommitEvent(t *testing.T) {
@@ -217,10 +227,8 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 
 	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{"end-to-end-tests", "app-team-*"},
 		&v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "app-to-refresh-in-default-namespace",
-				Namespace: "argocd",
-			},
+			Name:      "app-to-refresh-in-default-namespace",
+			Namespace: "argocd",
 			Spec: v1alpha1.ApplicationSpec{
 				Sources: v1alpha1.ApplicationSources{
 					{
@@ -230,10 +238,8 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 				},
 			},
 		}, &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "app-to-ignore",
-				Namespace: "kube-system",
-			},
+			Name:      "app-to-ignore",
+			Namespace: "kube-system",
 			Spec: v1alpha1.ApplicationSpec{
 				Sources: v1alpha1.ApplicationSources{
 					{
@@ -243,10 +249,8 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 				},
 			},
 		}, &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "app-to-refresh-in-exact-match-namespace",
-				Namespace: "end-to-end-tests",
-			},
+			Name:      "app-to-refresh-in-exact-match-namespace",
+			Namespace: "end-to-end-tests",
 			Spec: v1alpha1.ApplicationSpec{
 				Sources: v1alpha1.ApplicationSources{
 					{
@@ -256,10 +260,8 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 				},
 			},
 		}, &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "app-to-refresh-in-globbed-namespace",
-				Namespace: "app-team-two",
-			},
+			Name:      "app-to-refresh-in-globbed-namespace",
+			Namespace: "app-team-two",
 			Spec: v1alpha1.ApplicationSpec{
 				Sources: v1alpha1.ApplicationSources{
 					{
@@ -778,10 +780,8 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "single source without annotation - always refreshes",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-				},
+				Name:      "test-app",
+				Namespace: "argocd",
 				Spec: v1alpha1.ApplicationSpec{
 					Sources: v1alpha1.ApplicationSources{
 						{
@@ -800,12 +800,10 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "single source with annotation - matching file triggers refresh",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": "deploy",
-					},
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					Sources: v1alpha1.ApplicationSources{
@@ -825,12 +823,10 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "single source with annotation - non-matching file updates cache",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": "manifests",
-					},
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "manifests",
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					Sources: v1alpha1.ApplicationSources{
@@ -850,12 +846,10 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "single source with multiple paths annotation - matching subpath triggers refresh",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": "manifests;dev/deploy;other/path",
-					},
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "manifests;dev/deploy;other/path",
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					Sources: v1alpha1.ApplicationSources{
@@ -875,10 +869,8 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "multi-source without annotation - always refreshes",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-				},
+				Name:      "test-app",
+				Namespace: "argocd",
 				Spec: v1alpha1.ApplicationSpec{
 					Sources: v1alpha1.ApplicationSources{
 						{
@@ -902,12 +894,10 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "multi-source with annotation - matching file triggers refresh",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": "components",
-					},
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "components",
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					Sources: v1alpha1.ApplicationSources{
@@ -932,10 +922,8 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "source hydrator sync source without annotation - refreshes when sync path matches",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-				},
+				Name:      "test-app",
+				Namespace: "argocd",
 				Spec: v1alpha1.ApplicationSpec{
 					SourceHydrator: &v1alpha1.SourceHydrator{
 						DrySource: v1alpha1.DrySource{
@@ -958,10 +946,8 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "source hydrator dry source without annotation - always refreshes and hydrates",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-				},
+				Name:      "test-app",
+				Namespace: "argocd",
 				Spec: v1alpha1.ApplicationSpec{
 					SourceHydrator: &v1alpha1.SourceHydrator{
 						DrySource: v1alpha1.DrySource{
@@ -984,12 +970,10 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "source hydrator sync source with annotation - refresh only",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": "deploy",
-					},
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					SourceHydrator: &v1alpha1.SourceHydrator{
@@ -1013,12 +997,10 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "source hydrator dry source with annotation - refresh and hydrate",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": "deploy",
-					},
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					SourceHydrator: &v1alpha1.SourceHydrator{
@@ -1042,12 +1024,10 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "source hydrator dry source with annotation - non-matching file updates cache",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": "deploy",
-					},
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					SourceHydrator: &v1alpha1.SourceHydrator{
@@ -1106,7 +1086,7 @@ func TestHandleEvent(t *testing.T) {
 					source = &ttc.app.Spec.Sources[0]
 				}
 				if source != nil {
-					setupTestCache(t, repoCache, ttc.app.Name, source, []string{"test-manifest"})
+					setupTestCache(t, repoCache, ttc.app.Name, source, nil, []string{"test-manifest"})
 				}
 			}
 
@@ -1160,6 +1140,7 @@ func TestHandleEvent(t *testing.T) {
 				int64(50)*1024*1024,
 				0,
 				10,
+				&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 			)
 
 			// Create payload with the changed file
@@ -1198,19 +1179,220 @@ func TestHandleEvent(t *testing.T) {
 					// Verify cache was updated with afterSHA
 					clusterInfo := &mockClusterInfo{}
 					var afterManifests cache.CachedManifestResponse
-					err := repoCache.GetManifests(cache.ManifestKey{
-						Revision:    testAfterSHA,
-						AppSource:   source,
-						RefSources:  nil,
-						ClusterInfo: clusterInfo,
-						AppLabelKey: testAppLabelKey,
-						AppName:     ttc.app.Name,
-					}, &afterManifests)
+					key := cache.NewManifestKey(testAfterSHA, source, nil, "", "", testAppLabelKey, ttc.app.Name, "", nil, clusterInfo, nil)
+					err := repoCache.GetManifests(key, &afterManifests)
 					require.NoError(t, err, "cache should be updated with afterSHA")
 					if err == nil {
 						assert.Equal(t, testAfterSHA, afterManifests.ManifestResponse.Revision, "cached revision should match afterSHA")
 					}
 				}
+			}
+		})
+	}
+}
+
+func Test_storePreviouslyCachedManifests(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name         string
+		app          *v1alpha1.Application
+		project      *v1alpha1.AppProject
+		seedCache    bool // seed the cache with manifests for the previous revision
+		cacheUpdated bool // cache should be updated with the new revision
+		errExpected  bool
+	}{
+		{
+			name: "single source with source integrity",
+			app: &v1alpha1.Application{
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/test/repo",
+						TargetRevision: "main",
+					},
+				},
+			},
+			project: &v1alpha1.AppProject{
+				Name:      "default",
+				Namespace: "argocd",
+				Spec: v1alpha1.AppProjectSpec{
+					SourceRepos: []string{"*"},
+					Destinations: []v1alpha1.ApplicationDestination{
+						{
+							Server:    "*",
+							Namespace: "*",
+						},
+					},
+					SourceIntegrity: &v1alpha1.SourceIntegrity{
+						Git: &v1alpha1.SourceIntegrityGit{
+							Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+								GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+									Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+									Keys: []string{"4AEE18F83AFDEB23"},
+								},
+							}},
+						},
+					},
+				},
+			},
+			seedCache:    true,
+			cacheUpdated: true,
+			errExpected:  false,
+		},
+		{
+			name: "single source rename cache miss is not an error",
+			app: &v1alpha1.Application{
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/test/repo",
+						TargetRevision: "main",
+					},
+				},
+			},
+			project: &v1alpha1.AppProject{
+				Name:      "default",
+				Namespace: "argocd",
+				Spec: v1alpha1.AppProjectSpec{
+					SourceRepos: []string{"*"},
+					Destinations: []v1alpha1.ApplicationDestination{
+						{
+							Server:    "*",
+							Namespace: "*",
+						},
+					},
+				},
+			},
+			seedCache:    false,
+			cacheUpdated: false,
+			errExpected:  false,
+		},
+		{
+			name: "error not support refSourceCommitSHAs",
+			app: &v1alpha1.Application{
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/test/repo",
+							TargetRevision: "main",
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								ValueFiles: []string{"$myref/test.yaml"},
+							},
+						},
+						{
+							RepoURL:        "https://github.com/test/repo",
+							TargetRevision: "main",
+							Ref:            "myref",
+						},
+					},
+				},
+			},
+			cacheUpdated: false,
+			errExpected:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			mockDB := mocks.ArgoDB{}
+
+			inMemoryCache := cacheutil.NewInMemoryCache(1 * time.Hour)
+			cacheClient := cacheutil.NewCache(inMemoryCache)
+			serverCache := servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute)
+			repoCache := cache.NewCache(cacheClient, 1*time.Minute, 1*time.Minute, 10*time.Second)
+
+			var source *v1alpha1.ApplicationSource
+			if tt.app.Spec.Source != nil {
+				source = tt.app.Spec.Source
+			} else if tt.app.Spec.Sources != nil {
+				source = &tt.app.Spec.Sources[0]
+			}
+
+			if tt.app.Spec.Destination.Server == "" {
+				tt.app.Spec.Destination.Server = testClusterURL
+			}
+
+			if tt.project == nil {
+				tt.project = &v1alpha1.AppProject{}
+			}
+
+			mockDB.EXPECT().GetCluster(mock.Anything, testClusterURL).Return(&v1alpha1.Cluster{
+				Server: testClusterURL,
+				Info: v1alpha1.ClusterInfo{
+					ServerVersion:   "1.28.0",
+					ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful},
+					APIVersions:     []string{},
+				},
+			}, nil).Maybe()
+
+			appClientset := appclientset.NewSimpleClientset(tt.app, tt.project)
+
+			err := serverCache.SetClusterInfo(testClusterURL, &v1alpha1.ClusterInfo{
+				ServerVersion:   "1.28.0",
+				ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful},
+				APIVersions:     []string{},
+			})
+			require.NoError(t, err)
+
+			mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
+			mockDB.EXPECT().GetRepository(mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{}, nil).Maybe()
+
+			h := NewHandler(
+				"argocd",
+				[]string{},
+				10,
+				5,
+				appClientset,
+				&fakeAppsLister{clientset: appClientset},
+				&settings.ArgoCDSettings{},
+				&fakeSettingsSrc{},
+				repoCache,
+				serverCache,
+				&mockDB,
+				int64(50)*1024*1024,
+				2*time.Second,
+				100, // High threshold - won't be exceeded
+				&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
+			)
+
+			if tt.seedCache {
+				setupTestCache(t, repoCache, tt.app.Name, source, tt.project.EffectiveSourceIntegrity(), []string{"test-manifest"})
+			}
+			logger, _ := test.NewNullLogger()
+			logCtx := logger.WithField("application", tt.app.Name)
+			err = h.storePreviouslyCachedManifests(logCtx, tt.app, changeInfo{shaBefore: testBeforeSHA, shaAfter: testAfterSHA}, "", testAppLabelKey, "", *source)
+
+			if tt.errExpected {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tt.cacheUpdated {
+				clusterInfo := &mockClusterInfo{}
+				var sourceIntegrity *v1alpha1.SourceIntegrity
+				if tt.project != nil {
+					sourceIntegrity = tt.project.EffectiveSourceIntegrity()
+				}
+				key := cache.NewManifestKey(testAfterSHA, source, nil, "", "", testAppLabelKey, tt.app.Name, "", sourceIntegrity, clusterInfo, nil)
+				err = repoCache.GetManifests(key, &cache.CachedManifestResponse{})
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -1702,7 +1884,7 @@ func verifyAnnotations(t *testing.T, patchData []byte, expectRefresh bool, expec
 }
 
 // setupTestCache is a helper that creates and populates a test cache
-func setupTestCache(t *testing.T, repoCache *cache.Cache, appName string, source *v1alpha1.ApplicationSource, manifests []string) {
+func setupTestCache(t *testing.T, repoCache *cache.Cache, appName string, source *v1alpha1.ApplicationSource, sourceIntegrity *v1alpha1.SourceIntegrity, manifests []string) {
 	t.Helper()
 	clusterInfo := &mockClusterInfo{}
 	dummyManifests := &cache.CachedManifestResponse{
@@ -1713,23 +1895,15 @@ func setupTestCache(t *testing.T, repoCache *cache.Cache, appName string, source
 			Server:    testClusterURL,
 		},
 	}
-	err := repoCache.SetManifests(cache.ManifestKey{
-		Revision:    testBeforeSHA,
-		AppSource:   source,
-		RefSources:  nil,
-		ClusterInfo: clusterInfo,
-		AppLabelKey: testAppLabelKey,
-		AppName:     appName,
-	}, dummyManifests)
+	key := cache.NewManifestKey(testBeforeSHA, source, make(map[string]*v1alpha1.RefTarget), "", "", testAppLabelKey, appName, "", sourceIntegrity, clusterInfo, nil)
+	err := repoCache.SetManifests(key, dummyManifests)
 	require.NoError(t, err)
 }
 
 func TestWebhookRefreshWithJitter(t *testing.T) {
 	app := v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "argocd",
-		},
+		Name:      "test-app",
+		Namespace: "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Source: &v1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/test/repo",
@@ -1771,6 +1945,7 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 			int64(50)*1024*1024,
 			2*time.Second,
 			10,
+			&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 		)
 
 		req := &appRefreshRequest{
@@ -1811,6 +1986,7 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 			int64(50)*1024*1024,
 			2*time.Second,
 			100, // High threshold - won't be exceeded
+			&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 		)
 
 		req := &appRefreshRequest{
@@ -1830,10 +2006,8 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 
 func TestProcessAppRefresh(t *testing.T) {
 	app := v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "argocd",
-		},
+		Name:      "test-app",
+		Namespace: "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Source: &v1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/test/repo",

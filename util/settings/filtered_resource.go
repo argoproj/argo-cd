@@ -6,6 +6,10 @@ type FilteredResource struct {
 	APIGroups []string `json:"apiGroups,omitempty"`
 	Kinds     []string `json:"kinds,omitempty"`
 	Clusters  []string `json:"clusters,omitempty"`
+	// Selector narrows the filter down to the resources whose labels match the selector. The value
+	// is a label selector in its string form, e.g. `foo=bar,!baz`, and is passed as is to the
+	// list/watch calls. An empty selector matches every resource.
+	Selector string `json:"selector,omitempty"`
 }
 
 func (r FilteredResource) matchGroup(apiGroup string) bool {

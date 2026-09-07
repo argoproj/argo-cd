@@ -365,9 +365,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -666,9 +664,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{
@@ -1041,9 +1037,7 @@ cluster:
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -1383,9 +1377,7 @@ env: testing
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -1720,9 +1712,7 @@ env: testing
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -1951,9 +1941,7 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{
@@ -2306,9 +2294,7 @@ cluster:
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{

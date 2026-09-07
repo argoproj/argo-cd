@@ -37,6 +37,7 @@ argocd app set APPNAME [flags]
       --dest-name string                           K8s cluster Name (e.g. minikube)
       --dest-namespace string                      K8s target namespace
       --dest-server string                         K8s cluster URL (e.g. https://kubernetes.default.svc)
+      --directory-disable-extension-filter         Disable the built-in file-extension filter so that include/exclude patterns can match files with custom extensions (e.g. *.yaml.sealed). By default (false), only files with a .yaml, .yml, .json, or .jsonnet extension are considered manifests
       --directory-exclude string                   Set glob expression used to exclude files from application source path
       --directory-include string                   Set glob expression used to include files from application source path
       --directory-recurse                          Recurse directory
