@@ -1848,12 +1848,14 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		log.WithField("appkey", appKey).Warn("Key in index is not an application")
 		return processNext
 	}
-	origApp = origApp.DeepCopy()
+	// needRefreshAppStatus only reads the application, so the informer's copy answers it and the
+	// queue items that need no refresh never pay for a copy.
 	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout, ctrl.statusHardRefreshTimeout)
 
 	if !needRefresh {
 		return processNext
 	}
+	origApp = origApp.DeepCopy()
 	app := origApp.DeepCopy()
 	logCtx := log.WithFields(applog.GetAppLogFields(app)).WithFields(log.Fields{
 		"comparison-level": comparisonLevel,

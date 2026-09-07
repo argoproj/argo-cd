@@ -2223,6 +2223,64 @@ func TestNeedRefreshAppStatusZeroTimeout(t *testing.T) {
 	assert.False(t, needRefresh, "timeout 0 should disable automatic expiry-based refresh")
 }
 
+// TestNeedRefreshAppStatusDoesNotModifyApp covers the refresh decision across an app that is up to
+// date, one whose comparison expired, and one with the refresh annotation. processAppRefreshQueueItem
+// hands the informer's application to needRefreshAppStatus, so none of them may be modified.
+func TestNeedRefreshAppStatusDoesNotModifyApp(t *testing.T) {
+	syncedApp := newFakeApp()
+	syncedApp.Status.Sync = v1alpha1.SyncStatus{
+		Status: v1alpha1.SyncStatusCodeSynced,
+		ComparedTo: v1alpha1.ComparedTo{
+			Destination:       syncedApp.Spec.Destination,
+			IgnoreDifferences: syncedApp.Spec.IgnoreDifferences,
+			Source:            syncedApp.Spec.GetSource(),
+		},
+	}
+	now := metav1.Now()
+	syncedApp.Status.ReconciledAt = &now
+
+	expiredApp := syncedApp.DeepCopy()
+	past := metav1.NewTime(time.Now().UTC().Add(-2 * time.Hour))
+	expiredApp.Status.ReconciledAt = &past
+
+	annotatedApp := syncedApp.DeepCopy()
+	annotatedApp.Annotations = map[string]string{v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal)}
+
+	testCases := []struct {
+		name          string
+		app           *v1alpha1.Application
+		expectRefresh bool
+	}{
+		{
+			name:          "up to date app",
+			app:           syncedApp,
+			expectRefresh: false,
+		},
+		{
+			name:          "expired comparison",
+			app:           expiredApp,
+			expectRefresh: true,
+		},
+		{
+			name:          "refresh annotation",
+			app:           annotatedApp,
+			expectRefresh: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{}}, nil)
+			before := tc.app.DeepCopy()
+
+			needRefresh, _, _ := ctrl.needRefreshAppStatus(tc.app, 1*time.Hour, 2*time.Hour)
+
+			assert.Equal(t, tc.expectRefresh, needRefresh)
+			assert.Equal(t, before, tc.app)
+		})
+	}
+}
+
 func TestRefreshAppConditions(t *testing.T) {
 	defaultProj := v1alpha1.AppProject{
 		Name:      "default",
