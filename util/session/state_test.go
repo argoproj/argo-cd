@@ -34,6 +34,8 @@ func TestUserStateStorage_ResyncDuration(t *testing.T) {
 	defer closer()
 
 	t.Run("defaults when unset", func(t *testing.T) {
+		// Set explicitly rather than relying on the variable being absent from the ambient environment.
+		t.Setenv(envRevokedTokenResyncDuration, "")
 		assert.Equal(t, defaultRevokedTokenResyncDuration, NewUserStateStorage(redis).resyncDuration)
 	})
 
@@ -42,9 +44,20 @@ func TestUserStateStorage_ResyncDuration(t *testing.T) {
 		assert.Equal(t, 5*time.Minute, NewUserStateStorage(redis).resyncDuration)
 	})
 
-	t.Run("falls back to the default when out of range", func(t *testing.T) {
+	t.Run("honours the maximum", func(t *testing.T) {
+		t.Setenv(envRevokedTokenResyncDuration, "1h")
+		assert.Equal(t, time.Hour, NewUserStateStorage(redis).resyncDuration)
+	})
+
+	t.Run("falls back to the default below the minimum", func(t *testing.T) {
 		// Below the minimum, so it would increase the load the resync places on Redis.
 		t.Setenv(envRevokedTokenResyncDuration, "1s")
+		assert.Equal(t, defaultRevokedTokenResyncDuration, NewUserStateStorage(redis).resyncDuration)
+	})
+
+	t.Run("falls back to the default above the maximum", func(t *testing.T) {
+		// Above the maximum, so it would widen the missed-revocation recovery window beyond the documented cap.
+		t.Setenv(envRevokedTokenResyncDuration, "2h")
 		assert.Equal(t, defaultRevokedTokenResyncDuration, NewUserStateStorage(redis).resyncDuration)
 	})
 
