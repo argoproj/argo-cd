@@ -2608,3 +2608,81 @@ func TestServerPopulatedMetadataStrippedFromBothSides(t *testing.T) {
 		assertStripped(t, result)
 	})
 }
+
+func TestRemoveServerPopulatedMetadata(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		metadata map[string]any
+		expected map[string]any
+	}{
+		{
+			name: "removes managedFields and resourceVersion",
+			metadata: map[string]any{
+				"name":            "cm",
+				"managedFields":   []any{map[string]any{"manager": "argocd-controller"}},
+				"resourceVersion": "12345",
+			},
+			expected: map[string]any{"name": "cm"},
+		},
+		{
+			name: "removes the annotation and keeps siblings",
+			metadata: map[string]any{"annotations": map[string]any{
+				AnnotationLastAppliedConfig: "{}",
+				"keep":                      "me",
+			}},
+			expected: map[string]any{"annotations": map[string]any{"keep": "me"}},
+		},
+		{
+			name: "removes the annotations map when the annotation was the only entry",
+			metadata: map[string]any{"annotations": map[string]any{
+				AnnotationLastAppliedConfig: "{}",
+			}},
+			expected: map[string]any{},
+		},
+		{
+			name:     "removes an already empty annotations map",
+			metadata: map[string]any{"annotations": map[string]any{}},
+			expected: map[string]any{},
+		},
+		{
+			name:     "removes a nil annotations map",
+			metadata: map[string]any{"annotations": nil},
+			expected: map[string]any{},
+		},
+		{
+			name:     "leaves an object without annotations untouched",
+			metadata: map[string]any{"name": "cm"},
+			expected: map[string]any{"name": "cm"},
+		},
+		{
+			name:     "leaves other annotations untouched when the annotation is absent",
+			metadata: map[string]any{"annotations": map[string]any{"keep": "me"}},
+			expected: map[string]any{"annotations": map[string]any{"keep": "me"}},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			un := &unstructured.Unstructured{Object: map[string]any{"metadata": tc.metadata}}
+
+			removeServerPopulatedMetadata(un)
+
+			assert.Equal(t, tc.expected, un.Object["metadata"])
+		})
+	}
+
+	t.Run("tolerates an object with no metadata", func(t *testing.T) {
+		t.Parallel()
+		un := &unstructured.Unstructured{Object: map[string]any{"kind": "ConfigMap"}}
+		removeServerPopulatedMetadata(un)
+		assert.Equal(t, map[string]any{"kind": "ConfigMap"}, un.Object)
+	})
+
+	t.Run("tolerates a nil object", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() { removeServerPopulatedMetadata(nil) })
+	})
+}

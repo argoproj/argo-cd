@@ -732,8 +732,13 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 	orig = removeNamespaceAnnotation(orig)
 	config = removeNamespaceAnnotation(config)
 
-	// predictedLive is derived from live by applying the merge patch, so
-	// stripping live here keeps both sides of the comparison symmetric.
+	// All three inputs feed the merge patch, so the metadata that must never
+	// participate in a diff has to be removed from each of them. Stripping only
+	// live would let config's copy of these fields leak into predictedLive.
+	orig = orig.DeepCopy()
+	removeServerPopulatedMetadata(orig)
+	config = config.DeepCopy()
+	removeServerPopulatedMetadata(config)
 	live = live.DeepCopy()
 	removeServerPopulatedMetadata(live)
 
@@ -796,15 +801,39 @@ func removeNamespaceAnnotation(orig *unstructured.Unstructured) *unstructured.Un
 }
 
 // removeServerPopulatedMetadata removes the metadata that is populated by the API server
-// and must never participate in a diff. It is applied symmetrically to both sides of every comparison
-// so that a field present only on the live object cannot surface as a difference.
+// and must never participate in a diff. It is applied to every object taking part in a
+// comparison so that a field present on only one of them cannot surface as a difference.
+//
+// The annotations map is dropped once the last-applied-configuration annotation has been
+// removed from it and nothing else remains. Removing only the key would leave
+// "annotations": {} behind, and buildDiffResult compares the sides byte-for-byte, where an
+// empty map is not equal to an absent one.
 func removeServerPopulatedMetadata(un *unstructured.Unstructured) {
 	if un == nil {
 		return
 	}
 	unstructured.RemoveNestedField(un.Object, "metadata", "managedFields")
 	unstructured.RemoveNestedField(un.Object, "metadata", "resourceVersion")
-	unstructured.RemoveNestedField(un.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+
+	metadata, ok := un.Object["metadata"].(map[string]any)
+	if !ok {
+		return
+	}
+	annotationsIf, ok := metadata["annotations"]
+	if !ok {
+		return
+	}
+	annotations, ok := annotationsIf.(map[string]any)
+	if !ok {
+		// A nil or otherwise unusable annotations map carries no annotations, so
+		// drop it to keep every side of the comparison symmetric.
+		delete(metadata, "annotations")
+		return
+	}
+	delete(annotations, AnnotationLastAppliedConfig)
+	if len(annotations) == 0 {
+		delete(metadata, "annotations")
+	}
 }
 
 // StatefulSet requires special handling since it embeds PersistentVolumeClaim resource.
