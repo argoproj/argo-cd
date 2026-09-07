@@ -11,3 +11,35 @@ tests:
       status: Degraded
       message: "ActivePackageRevision UnhealthyPackageRevision"
     inputPath: testdata/provider_degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Resource is up-to-date."
+    inputPath: testdata/environmentconfig_healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Resource is up-to-date."
+    inputPath: testdata/imageconfig_healthy.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Provisioning ..."
+    inputPath: testdata/compositeresourcedefinition_progressing.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Resource is up-to-date."
+    inputPath: testdata/compositeresourcedefinition_healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Resource is up-to-date."
+    inputPath: testdata/clusterproviderconfigusage_healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Resource is in use."
+    inputPath: testdata/clusterproviderconfig_withusers_healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Resource is up-to-date."
+    inputPath: testdata/storeconfig_healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Resource is up-to-date."
+    inputPath: testdata/providerconfig_emptyconditions_healthy.yaml

@@ -4,21 +4,23 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
-	argocdcommon "github.com/argoproj/argo-cd/v3/common"
-
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/rest"
+
+	argocdcommon "github.com/argoproj/argo-cd/v3/common"
+	utilhttp "github.com/argoproj/argo-cd/v3/util/http"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -5144,6 +5146,165 @@ func TestSanitized(t *testing.T) {
 	}, cluster.Sanitized())
 }
 
+func TestCluster_HashIdentity(t *testing.T) {
+	t.Run("valid cluster produces non-zero hash", func(t *testing.T) {
+		cluster := &Cluster{
+			ID:     "cluster-123",
+			Server: "https://example.com:6443",
+			Name:   "production-cluster",
+			Config: ClusterConfig{
+				TLSClientConfig: TLSClientConfig{
+					Insecure: true,
+				},
+			},
+		}
+		hash := cluster.HashIdentity(0)
+		require.NotZero(t, hash, "hash should not be zero")
+	})
+
+	t.Run("minimal cluster produces hash", func(t *testing.T) {
+		cluster := &Cluster{
+			Server: "https://minimal.example.com",
+		}
+		hash := cluster.HashIdentity(0)
+		require.NotZero(t, hash)
+	})
+
+	t.Run("empty cluster produces hash", func(t *testing.T) {
+		cluster := &Cluster{}
+		hash := cluster.HashIdentity(0)
+		require.NotZero(t, hash)
+	})
+
+	t.Run("deterministic - same cluster produces same hash", func(t *testing.T) {
+		cluster := &Cluster{
+			ID:     "test-id",
+			Server: "https://test.example.com",
+			Name:   "test-cluster",
+			Config: ClusterConfig{
+				BearerToken: "token123",
+			},
+		}
+		hash1 := cluster.HashIdentity(0)
+		hash2 := cluster.HashIdentity(0)
+		assert.Equal(t, hash1, hash2, "identical clusters should produce identical hashes")
+	})
+
+	t.Run("different ID produces same hash", func(t *testing.T) {
+		// ID has json:"-" tag so it's excluded from JSON marshaling,
+		// therefore it doesn't affect the hash identity
+		base := &Cluster{
+			ID:     "same-id",
+			Server: "https://same.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		different := &Cluster{
+			ID:     "different-id",
+			Server: "https://same.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
+		assert.Equal(t, hash1, hash2, "ID should not affect hash since it has json:\"-\" tag")
+	})
+
+	t.Run("different Server produces different hash", func(t *testing.T) {
+		base := &Cluster{
+			ID:     "same-id",
+			Server: "https://same.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		different := &Cluster{
+			ID:     "same-id",
+			Server: "https://different.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
+		assert.NotEqual(t, hash1, hash2)
+	})
+
+	t.Run("different Name produces different hash", func(t *testing.T) {
+		base := &Cluster{
+			ID:     "same-id",
+			Server: "https://same.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		different := &Cluster{
+			ID:     "same-id",
+			Server: "https://same.example.com",
+			Name:   "different-name",
+			Config: ClusterConfig{},
+		}
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
+		assert.NotEqual(t, hash1, hash2)
+	})
+
+	t.Run("non-identity fields do not affect hash", func(t *testing.T) {
+		cluster1 := &Cluster{
+			ID:         "test-id",
+			Server:     "https://test.example.com",
+			Name:       "test-cluster",
+			Namespaces: []string{"ns1", "ns2"},
+			Project:    "project1",
+			Labels:     map[string]string{"env": "prod"},
+			Info: ClusterInfo{
+				ServerVersion:     "v1.28.0",
+				ApplicationsCount: 5,
+			},
+			Config: ClusterConfig{
+				BearerToken: "token123",
+			},
+		}
+		cluster2 := &Cluster{
+			ID:         "test-id",
+			Server:     "https://test.example.com",
+			Name:       "test-cluster",
+			Namespaces: []string{"ns3"},
+			Project:    "project2",
+			Labels:     map[string]string{"env": "dev"},
+			Info: ClusterInfo{
+				ServerVersion:     "v1.30.0",
+				ApplicationsCount: 10,
+			},
+			Config: ClusterConfig{
+				BearerToken: "token123",
+			},
+		}
+		hash1 := cluster1.HashIdentity(0)
+		hash2 := cluster2.HashIdentity(0)
+		assert.Equal(t, hash1, hash2, "clusters with same identity fields but different non-identity fields should have same hash")
+	})
+
+	t.Run("different Config produces different hash", func(t *testing.T) {
+		base := &Cluster{
+			ID:     "test-id",
+			Server: "https://test.example.com",
+			Name:   "test-cluster",
+			Config: ClusterConfig{
+				BearerToken: "token1",
+			},
+		}
+		different := &Cluster{
+			ID:     "test-id",
+			Server: "https://test.example.com",
+			Name:   "test-cluster",
+			Config: ClusterConfig{
+				BearerToken: "token2",
+			},
+		}
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
+		assert.NotEqual(t, hash1, hash2)
+	})
+}
+
 func TestSourceHydrator_Equals(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -6221,4 +6382,112 @@ func TestGetDrySource_PreservesAllFields(t *testing.T) {
 			}
 		})
 	}
+}
+
+type roundTripperFunc func(req *http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func TestClusterRESTConfigsApplyK8sRequestTimeoutWithTransportWrapper(t *testing.T) {
+	originalTimeout := K8sServerSideTimeout
+	K8sServerSideTimeout = time.Minute
+	t.Cleanup(func() {
+		K8sServerSideTimeout = originalTimeout
+	})
+
+	cluster := &Cluster{Server: "https://kubernetes.example"}
+
+	rawConfig, err := cluster.RawRestConfig()
+	require.NoError(t, err)
+	assert.Zero(t, rawConfig.Timeout)
+	assert.NotNil(t, rawConfig.WrapTransport)
+
+	config, err := cluster.RESTConfig()
+	require.NoError(t, err)
+	assert.Zero(t, config.Timeout)
+	assert.NotNil(t, config.WrapTransport)
+}
+
+func TestSetK8SConfigDefaultsDoesNotApplyExistingTransportWrapperTwice(t *testing.T) {
+	originalTimeout := K8sServerSideTimeout
+	K8sServerSideTimeout = time.Minute
+	t.Cleanup(func() {
+		K8sServerSideTimeout = originalTimeout
+	})
+
+	wrapCount := 0
+	config := &rest.Config{
+		Host: "https://kubernetes.example",
+		WrapTransport: func(rt http.RoundTripper) http.RoundTripper {
+			wrapCount++
+			return rt
+		},
+	}
+
+	require.NoError(t, SetK8SConfigDefaults(config))
+	assert.Equal(t, 1, wrapCount)
+	require.NotNil(t, config.WrapTransport)
+
+	config.WrapTransport(config.Transport)
+	assert.Equal(t, 1, wrapCount)
+}
+
+func TestSetK8SConfigDefaultsAddsServerSideTimeoutQuery(t *testing.T) {
+	originalTimeout := K8sServerSideTimeout
+	K8sServerSideTimeout = time.Minute
+	t.Cleanup(func() {
+		K8sServerSideTimeout = originalTimeout
+	})
+
+	config := &rest.Config{Host: "https://kubernetes.example/services/gateway/proxy/urn:cluster/"}
+	require.NoError(t, SetK8SConfigDefaults(config))
+	require.NotNil(t, config.WrapTransport)
+
+	var receivedRequest *http.Request
+	wrapped := config.WrapTransport(roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		receivedRequest = req
+		return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+	}))
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, config.Host+"api/v1/pods", http.NoBody)
+	require.NoError(t, err)
+	resp, err := wrapped.RoundTrip(req)
+	require.NoError(t, err)
+	require.NotNil(t, receivedRequest)
+	assert.Equal(t, "1m0s", receivedRequest.URL.Query().Get("timeout"))
+	_, hasDeadline := receivedRequest.Context().Deadline()
+	assert.False(t, hasDeadline)
+	require.NoError(t, resp.Body.Close())
+}
+
+func TestSetK8SConfigDefaultsAddsServerSideTimeoutToEveryRetryAttempt(t *testing.T) {
+	originalTimeout := K8sServerSideTimeout
+	K8sServerSideTimeout = 10 * time.Millisecond
+	t.Cleanup(func() {
+		K8sServerSideTimeout = originalTimeout
+	})
+	t.Setenv(utilhttp.EnvRetryMax, "1")
+	t.Setenv(utilhttp.EnvRetryBaseBackoff, "1")
+
+	config := &rest.Config{Host: "https://kubernetes.example"}
+	require.NoError(t, SetK8SConfigDefaults(config))
+	require.NotNil(t, config.WrapTransport)
+
+	var receivedTimeouts []string
+	wrapped := config.WrapTransport(roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		receivedTimeouts = append(receivedTimeouts, req.URL.Query().Get("timeout"))
+		if len(receivedTimeouts) == 1 {
+			return &http.Response{StatusCode: http.StatusInternalServerError, Body: http.NoBody}, nil
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+	}))
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://kubernetes.example/api/v1/pods", http.NoBody)
+	require.NoError(t, err)
+	resp, err := wrapped.RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, []string{"10ms", "10ms"}, receivedTimeouts)
+	assert.NoError(t, req.Context().Err())
 }
