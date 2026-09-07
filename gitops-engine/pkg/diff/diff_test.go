@@ -2553,3 +2553,58 @@ spec:
 	assert.NotNil(t, result)
 	assert.True(t, result.Modified, "different config and live should show as modified")
 }
+
+func TestServerPopulatedMetadataStrippedFromBothSides(t *testing.T) {
+	t.Parallel()
+
+	assertStripped := func(t *testing.T, result *DiffResult) {
+		t.Helper()
+		for side, b := range map[string][]byte{
+			"PredictedLive":  result.PredictedLive,
+			"NormalizedLive": result.NormalizedLive,
+		} {
+			obj := make(map[string]any)
+			require.NoError(t, yaml.Unmarshal(b, &obj))
+			un := &unstructured.Unstructured{Object: obj}
+			assert.NotContains(t, un.GetAnnotations(), AnnotationLastAppliedConfig, "%s retained the last-applied-configuration annotation", side)
+			assert.Empty(t, un.GetManagedFields(), "%s retained managedFields", side)
+			assert.Empty(t, un.GetResourceVersion(), "%s retained resourceVersion", side)
+		}
+	}
+	config := func() *unstructured.Unstructured {
+		return StrToUnstructured(testdata.LastAppliedConfigMapConfigYAML)
+	}
+	live := func() *unstructured.Unstructured {
+		return StrToUnstructured(testdata.LastAppliedConfigMapLiveYAML)
+	}
+
+	t.Run("client-side three-way diff", func(t *testing.T) {
+		t.Parallel()
+		assertStripped(t, diff(t, config(), live(), diffOptionsForTest()...))
+	})
+
+	t.Run("server-side diff", func(t *testing.T) {
+		t.Parallel()
+		manager := "argocd-controller"
+		dryRunner := mocks.NewServerSideDryRunner(t)
+		dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+			Return(testdata.LastAppliedConfigMapPredictedLiveJSON, nil)
+
+		result, err := serverSideDiff(t.Context(), config(), live(),
+			WithGVKParser(buildGVKParser(t)),
+			WithManager(manager),
+			WithServerSideDryRunner(dryRunner),
+			WithLogr(textlogger.NewLogger(textlogger.NewConfig())),
+		)
+
+		require.NoError(t, err)
+		assertStripped(t, result)
+	})
+
+	t.Run("structured merge diff", func(t *testing.T) {
+		t.Parallel()
+		result, err := StructuredMergeDiff(config(), live(), buildGVKParser(t), "argocd-controller")
+		require.NoError(t, err)
+		assertStripped(t, result)
+	})
+}
