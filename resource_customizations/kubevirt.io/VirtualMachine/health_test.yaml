@@ -8,9 +8,9 @@ tests:
     message: "Running"
   inputPath: testdata/healthy_ready.yaml  
 - healthStatus:
-    status: Suspended
-    message: "Stopped"
-  inputPath: testdata/suspended_stopped.yaml
+    status: Healthy
+    message: "Stopped as declared"
+  inputPath: testdata/healthy_stopped.yaml
 - healthStatus:
     status: Progressing
     message: "Starting"
@@ -19,3 +19,19 @@ tests:
     status: Suspended
     message: "Paused"
   inputPath: testdata/suspended_paused.yaml
+- healthStatus:
+    status: Healthy
+    message: "Stopped as declared"
+  inputPath: testdata/healthy_halted_runstrategy.yaml
+- healthStatus:
+    status: Healthy
+    message: "Stopped as declared"
+  inputPath: testdata/healthy_stopped_nostatus.yaml
+- healthStatus:
+    status: Progressing
+    message: "Stopping"
+  inputPath: testdata/progressing_stopping.yaml
+- healthStatus:
+    status: Suspended
+    message: "Stopped"
+  inputPath: testdata/suspended_manual_stopped.yaml
