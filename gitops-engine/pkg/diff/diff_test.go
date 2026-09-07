@@ -2557,11 +2557,6 @@ spec:
 // TestLastAppliedConfigDoesNotCauseSpuriousDiff asserts that the
 // kubectl.kubernetes.io/last-applied-configuration annotation never contributes
 // to a diff, whichever strategy calculates it.
-//
-// It runs one fixture — identical desired and live state, with the annotation
-// present only on live — through all three strategies and asserts that none of
-// them reports a difference. The same fixture covers the other server-populated
-// metadata that only ever appears on live: resourceVersion, uid and managedFields.
 func TestLastAppliedConfigDoesNotCauseSpuriousDiff(t *testing.T) {
 	t.Parallel()
 
