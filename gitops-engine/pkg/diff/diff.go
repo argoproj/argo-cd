@@ -189,12 +189,12 @@ func serverSideDiff(ctx context.Context, config, live *unstructured.Unstructured
 	Normalize(predictedLive, opts...)
 	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "managedFields")
 	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "resourceVersion")
-	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+	removeLastAppliedConfigAnnotation(predictedLive)
 
 	Normalize(live, opts...)
 	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
 	unstructured.RemoveNestedField(live.Object, "metadata", "resourceVersion")
-	unstructured.RemoveNestedField(live.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+	removeLastAppliedConfigAnnotation(live)
 
 	predictedLiveBytes, err := json.Marshal(predictedLive)
 	if err != nil {
@@ -521,7 +521,7 @@ func normalizeTypedValue(tv *typed.TypedValue) ([]byte, error) {
 		return nil, fmt.Errorf("error converting result typedValue: expected map got %T", ru)
 	}
 	resultUn := &unstructured.Unstructured{Object: r}
-	unstructured.RemoveNestedField(resultUn.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+	removeLastAppliedConfigAnnotation(resultUn)
 
 	resultBytes, err := json.Marshal(resultUn)
 	if err != nil {
@@ -761,6 +761,42 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 	}
 
 	return buildDiffResult(predictedLiveBytes, liveBytes), nil
+}
+
+// removeLastAppliedConfigAnnotation removes the last-applied-configuration
+// annotation from the object, along with the enclosing annotations map if that
+// was the only annotation present.
+//
+// Removing just the key is not enough: it leaves "annotations": {} behind, and
+// an empty map is not equal to an absent one during the byte-level comparison
+// performed by buildDiffResult. A resource whose only annotation is stripped on
+// one side of a diff but was never present on the other would therefore be
+// reported as modified, with a diff containing nothing but the empty map.
+//
+// The object is modified in place.
+func removeLastAppliedConfigAnnotation(un *unstructured.Unstructured) {
+	if un == nil {
+		return
+	}
+	metadata, ok := un.Object["metadata"].(map[string]any)
+	if !ok {
+		return
+	}
+	annotationsIf, ok := metadata["annotations"]
+	if !ok {
+		return
+	}
+	annotations, ok := annotationsIf.(map[string]any)
+	if !ok {
+		// A nil or otherwise unusable annotations map carries no annotations,
+		// so drop it to keep both sides of a comparison symmetric.
+		delete(metadata, "annotations")
+		return
+	}
+	delete(annotations, AnnotationLastAppliedConfig)
+	if len(annotations) == 0 {
+		delete(metadata, "annotations")
+	}
 }
 
 // removeNamespaceAnnotation remove the namespace and an empty annotation map from the metadata.
