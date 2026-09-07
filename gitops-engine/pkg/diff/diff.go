@@ -187,14 +187,10 @@ func serverSideDiff(ctx context.Context, config, live *unstructured.Unstructured
 	predictedLive = remarshal(predictedLive, o)
 
 	Normalize(predictedLive, opts...)
-	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "managedFields")
-	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "resourceVersion")
-	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+	removeServerPopulatedMetadata(predictedLive)
 
 	Normalize(live, opts...)
-	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
-	unstructured.RemoveNestedField(live.Object, "metadata", "resourceVersion")
-	unstructured.RemoveNestedField(live.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+	removeServerPopulatedMetadata(live)
 
 	predictedLiveBytes, err := json.Marshal(predictedLive)
 	if err != nil {
@@ -444,7 +440,11 @@ func structuredMergeDiff(p *SMDParams) (*DiffResult, error) {
 
 	// When mergedLive is nil it means that there is no change
 	if mergedLive == nil {
-		liveBytes, err := json.Marshal(p.live)
+		// This branch bypasses normalizeTypedValue, so the metadata that must
+		// never appear in a diff has to be removed here as well.
+		normalizedLive := p.live.DeepCopy()
+		removeServerPopulatedMetadata(normalizedLive)
+		liveBytes, err := json.Marshal(normalizedLive)
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling live resource: %w", err)
 		}
@@ -512,7 +512,7 @@ func buildManagerInfoForApply(manager string) (string, error) {
 }
 
 // normalizeTypedValue will prepare the given tv so it can be used in diffs by:
-// - removing last-applied-configuration annotation
+// - removing the metadata that must never participate in a diff
 // - applying default values
 func normalizeTypedValue(tv *typed.TypedValue) ([]byte, error) {
 	ru := tv.AsValue().Unstructured()
@@ -521,7 +521,7 @@ func normalizeTypedValue(tv *typed.TypedValue) ([]byte, error) {
 		return nil, fmt.Errorf("error converting result typedValue: expected map got %T", ru)
 	}
 	resultUn := &unstructured.Unstructured{Object: r}
-	unstructured.RemoveNestedField(resultUn.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+	removeServerPopulatedMetadata(resultUn)
 
 	resultBytes, err := json.Marshal(resultUn)
 	if err != nil {
@@ -732,6 +732,11 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 	orig = removeNamespaceAnnotation(orig)
 	config = removeNamespaceAnnotation(config)
 
+	// predictedLive is derived from live by applying the merge patch, so
+	// stripping live here keeps both sides of the comparison symmetric.
+	live = live.DeepCopy()
+	removeServerPopulatedMetadata(live)
+
 	// 1. calculate a 3-way merge patch
 	patchBytes, newVersionedObject, err := threeWayMergePatch(orig, config, live)
 	if err != nil {
@@ -788,6 +793,18 @@ func removeNamespaceAnnotation(orig *unstructured.Unstructured) *unstructured.Un
 		}
 	}
 	return orig
+}
+
+// removeServerPopulatedMetadata removes the metadata that is populated by the API server
+// and must never participate in a diff. It is applied symmetrically to both sides of every comparison
+// so that a field present only on the live object cannot surface as a difference.
+func removeServerPopulatedMetadata(un *unstructured.Unstructured) {
+	if un == nil {
+		return
+	}
+	unstructured.RemoveNestedField(un.Object, "metadata", "managedFields")
+	unstructured.RemoveNestedField(un.Object, "metadata", "resourceVersion")
+	unstructured.RemoveNestedField(un.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
 }
 
 // StatefulSet requires special handling since it embeds PersistentVolumeClaim resource.
