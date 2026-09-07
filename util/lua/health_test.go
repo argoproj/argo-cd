@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -18,8 +18,8 @@ type TestStructure struct {
 }
 
 type IndividualTest struct {
-	InputPath    string              `yaml:"inputPath"`
-	HealthStatus health.HealthStatus `yaml:"healthStatus"`
+	InputPath    string               `yaml:"inputPath"`
+	HealthStatus *health.HealthStatus `yaml:"healthStatus"`
 }
 
 func getObj(t *testing.T, path string) *unstructured.Unstructured {
@@ -56,7 +56,7 @@ func TestLuaHealthScript(t *testing.T) {
 				require.NoError(t, err)
 				result, err := vm.ExecuteHealthLua(obj, script)
 				require.NoError(t, err)
-				assert.Equal(t, &test.HealthStatus, result)
+				assert.Equal(t, test.HealthStatus, result)
 			})
 		}
 		return nil

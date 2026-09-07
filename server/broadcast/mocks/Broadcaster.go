@@ -36,8 +36,8 @@ func (_m *Broadcaster[E]) EXPECT() *Broadcaster_Expecter[E] {
 }
 
 // OnAdd provides a mock function for the type Broadcaster
-func (_mock *Broadcaster[E]) OnAdd(v any, b bool) {
-	_mock.Called(v, b)
+func (_mock *Broadcaster[E]) OnAdd(anyMoqParam any, b bool) {
+	_mock.Called(anyMoqParam, b)
 	return
 }
 
@@ -47,13 +47,13 @@ type Broadcaster_OnAdd_Call[E any] struct {
 }
 
 // OnAdd is a helper method to define mock.On call
-//   - v any
+//   - anyMoqParam any
 //   - b bool
-func (_e *Broadcaster_Expecter[E]) OnAdd(v interface{}, b interface{}) *Broadcaster_OnAdd_Call[E] {
-	return &Broadcaster_OnAdd_Call[E]{Call: _e.mock.On("OnAdd", v, b)}
+func (_e *Broadcaster_Expecter[E]) OnAdd(anyMoqParam any, b any) *Broadcaster_OnAdd_Call[E] {
+	return &Broadcaster_OnAdd_Call[E]{Call: _e.mock.On("OnAdd", anyMoqParam, b)}
 }
 
-func (_c *Broadcaster_OnAdd_Call[E]) Run(run func(v any, b bool)) *Broadcaster_OnAdd_Call[E] {
+func (_c *Broadcaster_OnAdd_Call[E]) Run(run func(anyMoqParam any, b bool)) *Broadcaster_OnAdd_Call[E] {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 any
 		if args[0] != nil {
@@ -76,14 +76,14 @@ func (_c *Broadcaster_OnAdd_Call[E]) Return() *Broadcaster_OnAdd_Call[E] {
 	return _c
 }
 
-func (_c *Broadcaster_OnAdd_Call[E]) RunAndReturn(run func(v any, b bool)) *Broadcaster_OnAdd_Call[E] {
+func (_c *Broadcaster_OnAdd_Call[E]) RunAndReturn(run func(anyMoqParam any, b bool)) *Broadcaster_OnAdd_Call[E] {
 	_c.Run(run)
 	return _c
 }
 
 // OnDelete provides a mock function for the type Broadcaster
-func (_mock *Broadcaster[E]) OnDelete(v any) {
-	_mock.Called(v)
+func (_mock *Broadcaster[E]) OnDelete(anyMoqParam any) {
+	_mock.Called(anyMoqParam)
 	return
 }
 
@@ -93,12 +93,12 @@ type Broadcaster_OnDelete_Call[E any] struct {
 }
 
 // OnDelete is a helper method to define mock.On call
-//   - v any
-func (_e *Broadcaster_Expecter[E]) OnDelete(v interface{}) *Broadcaster_OnDelete_Call[E] {
-	return &Broadcaster_OnDelete_Call[E]{Call: _e.mock.On("OnDelete", v)}
+//   - anyMoqParam any
+func (_e *Broadcaster_Expecter[E]) OnDelete(anyMoqParam any) *Broadcaster_OnDelete_Call[E] {
+	return &Broadcaster_OnDelete_Call[E]{Call: _e.mock.On("OnDelete", anyMoqParam)}
 }
 
-func (_c *Broadcaster_OnDelete_Call[E]) Run(run func(v any)) *Broadcaster_OnDelete_Call[E] {
+func (_c *Broadcaster_OnDelete_Call[E]) Run(run func(anyMoqParam any)) *Broadcaster_OnDelete_Call[E] {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 any
 		if args[0] != nil {
@@ -116,14 +116,14 @@ func (_c *Broadcaster_OnDelete_Call[E]) Return() *Broadcaster_OnDelete_Call[E] {
 	return _c
 }
 
-func (_c *Broadcaster_OnDelete_Call[E]) RunAndReturn(run func(v any)) *Broadcaster_OnDelete_Call[E] {
+func (_c *Broadcaster_OnDelete_Call[E]) RunAndReturn(run func(anyMoqParam any)) *Broadcaster_OnDelete_Call[E] {
 	_c.Run(run)
 	return _c
 }
 
 // OnUpdate provides a mock function for the type Broadcaster
-func (_mock *Broadcaster[E]) OnUpdate(v any, v1 any) {
-	_mock.Called(v, v1)
+func (_mock *Broadcaster[E]) OnUpdate(anyMoqParam any, anyMoqParam1 any) {
+	_mock.Called(anyMoqParam, anyMoqParam1)
 	return
 }
 
@@ -133,13 +133,13 @@ type Broadcaster_OnUpdate_Call[E any] struct {
 }
 
 // OnUpdate is a helper method to define mock.On call
-//   - v any
-//   - v1 any
-func (_e *Broadcaster_Expecter[E]) OnUpdate(v interface{}, v1 interface{}) *Broadcaster_OnUpdate_Call[E] {
-	return &Broadcaster_OnUpdate_Call[E]{Call: _e.mock.On("OnUpdate", v, v1)}
+//   - anyMoqParam any
+//   - anyMoqParam1 any
+func (_e *Broadcaster_Expecter[E]) OnUpdate(anyMoqParam any, anyMoqParam1 any) *Broadcaster_OnUpdate_Call[E] {
+	return &Broadcaster_OnUpdate_Call[E]{Call: _e.mock.On("OnUpdate", anyMoqParam, anyMoqParam1)}
 }
 
-func (_c *Broadcaster_OnUpdate_Call[E]) Run(run func(v any, v1 any)) *Broadcaster_OnUpdate_Call[E] {
+func (_c *Broadcaster_OnUpdate_Call[E]) Run(run func(anyMoqParam any, anyMoqParam1 any)) *Broadcaster_OnUpdate_Call[E] {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 any
 		if args[0] != nil {
@@ -162,7 +162,7 @@ func (_c *Broadcaster_OnUpdate_Call[E]) Return() *Broadcaster_OnUpdate_Call[E] {
 	return _c
 }
 
-func (_c *Broadcaster_OnUpdate_Call[E]) RunAndReturn(run func(v any, v1 any)) *Broadcaster_OnUpdate_Call[E] {
+func (_c *Broadcaster_OnUpdate_Call[E]) RunAndReturn(run func(anyMoqParam any, anyMoqParam1 any)) *Broadcaster_OnUpdate_Call[E] {
 	_c.Run(run)
 	return _c
 }
@@ -170,11 +170,11 @@ func (_c *Broadcaster_OnUpdate_Call[E]) RunAndReturn(run func(v any, v1 any)) *B
 // Subscribe provides a mock function for the type Broadcaster
 func (_mock *Broadcaster[E]) Subscribe(ch chan *E, filters ...func(event *E) bool) func() {
 	// func(event *E) bool
-	_va := make([]interface{}, len(filters))
+	_va := make([]any, len(filters))
 	for _i := range filters {
 		_va[_i] = filters[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ch)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -202,9 +202,9 @@ type Broadcaster_Subscribe_Call[E any] struct {
 // Subscribe is a helper method to define mock.On call
 //   - ch chan *E
 //   - filters ...func(event *E) bool
-func (_e *Broadcaster_Expecter[E]) Subscribe(ch interface{}, filters ...interface{}) *Broadcaster_Subscribe_Call[E] {
+func (_e *Broadcaster_Expecter[E]) Subscribe(ch any, filters ...any) *Broadcaster_Subscribe_Call[E] {
 	return &Broadcaster_Subscribe_Call[E]{Call: _e.mock.On("Subscribe",
-		append([]interface{}{ch}, filters...)...)}
+		append([]any{ch}, filters...)...)}
 }
 
 func (_c *Broadcaster_Subscribe_Call[E]) Run(run func(ch chan *E, filters ...func(event *E) bool)) *Broadcaster_Subscribe_Call[E] {

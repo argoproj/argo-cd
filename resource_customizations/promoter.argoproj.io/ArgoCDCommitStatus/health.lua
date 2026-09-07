@@ -1,3 +1,5 @@
+-- CRD spec: https://gitops-promoter.readthedocs.io/en/latest/crd-specs/#argocdcommitstatus
+
 local hs = {}
 hs.status = "Progressing"
 hs.message = "Initializing Argo CD commit status"

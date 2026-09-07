@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-map
+  labels:
+    # Charts commonly render the instance label themselves (e.g. Helm's
+    # standard app.kubernetes.io/instance label set to the release name).
+    app.kubernetes.io/instance: my-release
+data:
+  foo: bar

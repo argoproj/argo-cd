@@ -15,6 +15,7 @@ import (
 // FIXME: there's a race in RunCommand that causes the test to fail when -race is enabled. The race is in the timeout
 // handling, which shares bytes buffers between the exec goroutine and the timeout handler code.
 func TestRunCommandTimeout(t *testing.T) {
+	t.Parallel()
 	hook := test.NewGlobal()
 	log.SetLevel(log.DebugLevel)
 	defer log.SetLevel(log.InfoLevel)

@@ -74,7 +74,7 @@ type RepoCredsDB_GetRepoCredsBySecretName_Call struct {
 // GetRepoCredsBySecretName is a helper method to define mock.On call
 //   - context1 context.Context
 //   - secretName string
-func (_e *RepoCredsDB_Expecter) GetRepoCredsBySecretName(context1 interface{}, secretName interface{}) *RepoCredsDB_GetRepoCredsBySecretName_Call {
+func (_e *RepoCredsDB_Expecter) GetRepoCredsBySecretName(context1 any, secretName any) *RepoCredsDB_GetRepoCredsBySecretName_Call {
 	return &RepoCredsDB_GetRepoCredsBySecretName_Call{Call: _e.mock.On("GetRepoCredsBySecretName", context1, secretName)}
 }
 

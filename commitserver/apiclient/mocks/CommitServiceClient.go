@@ -42,11 +42,11 @@ func (_m *CommitServiceClient) EXPECT() *CommitServiceClient_Expecter {
 // CommitHydratedManifests provides a mock function for the type CommitServiceClient
 func (_mock *CommitServiceClient) CommitHydratedManifests(ctx context.Context, in *apiclient.CommitHydratedManifestsRequest, opts ...grpc.CallOption) (*apiclient.CommitHydratedManifestsResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -84,9 +84,9 @@ type CommitServiceClient_CommitHydratedManifests_Call struct {
 //   - ctx context.Context
 //   - in *apiclient.CommitHydratedManifestsRequest
 //   - opts ...grpc.CallOption
-func (_e *CommitServiceClient_Expecter) CommitHydratedManifests(ctx interface{}, in interface{}, opts ...interface{}) *CommitServiceClient_CommitHydratedManifests_Call {
+func (_e *CommitServiceClient_Expecter) CommitHydratedManifests(ctx any, in any, opts ...any) *CommitServiceClient_CommitHydratedManifests_Call {
 	return &CommitServiceClient_CommitHydratedManifests_Call{Call: _e.mock.On("CommitHydratedManifests",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *CommitServiceClient_CommitHydratedManifests_Call) Run(run func(ctx context.Context, in *apiclient.CommitHydratedManifestsRequest, opts ...grpc.CallOption)) *CommitServiceClient_CommitHydratedManifests_Call {

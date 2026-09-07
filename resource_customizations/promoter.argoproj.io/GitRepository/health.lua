@@ -1,3 +1,20 @@
+-- CRD spec: https://gitops-promoter.readthedocs.io/en/latest/crd-specs/#gitrepository
+-- Promoter finalizers: https://gitops-promoter.readthedocs.io/en/latest/debugging/finalizers/
+
+local function formatDeletingWithFinalizers(base, finalizers, catalog)
+    if not finalizers then
+        return base
+    end
+    local parts = { base }
+    for _, f in ipairs(finalizers) do
+        local e = catalog[f]
+        if e then
+            table.insert(parts, f .. ": " .. e.wait .. " Risk if removed manually: " .. e.risk)
+        end
+    end
+    return table.concat(parts, " ")
+end
+
 local hs = {}
 hs.status = "Progressing"
 hs.message = "Initializing Git repository"
@@ -6,7 +23,16 @@ hs.message = "Initializing Git repository"
 
 if obj.metadata.deletionTimestamp then
     hs.status = "Progressing"
-    hs.message = "GitRepository is being deleted"
+    hs.message = formatDeletingWithFinalizers(
+        "GitRepository is being deleted.",
+        obj.metadata.finalizers,
+        {
+            ["gitrepository.promoter.argoproj.io/finalizer"] = {
+                wait = "Waiting until no non-deleting PullRequests still reference this repository.",
+                risk = "repository metadata may be removed while promotions still depend on it.",
+            },
+        }
+    )
     return hs
 end
 

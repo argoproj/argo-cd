@@ -244,6 +244,9 @@ func init() {
 	knownTypes["core/v1/ImageVolumeSource"] = func() any {
 		return &corev1.ImageVolumeSource{}
 	}
+	knownTypes["core/v1/ImageVolumeStatus"] = func() any {
+		return &corev1.ImageVolumeStatus{}
+	}
 	knownTypes["core/v1/KeyToPath"] = func() any {
 		return &corev1.KeyToPath{}
 	}
@@ -312,6 +315,9 @@ func init() {
 	}
 	knownTypes["core/v1/NodeAffinity"] = func() any {
 		return &corev1.NodeAffinity{}
+	}
+	knownTypes["core/v1/NodeAllocatableResourceClaimStatus"] = func() any {
+		return &corev1.NodeAllocatableResourceClaimStatus{}
 	}
 	knownTypes["core/v1/NodeCondition"] = func() any {
 		return &corev1.NodeCondition{}
@@ -468,6 +474,9 @@ func init() {
 	}
 	knownTypes["core/v1/PodSchedulingGate"] = func() any {
 		return &corev1.PodSchedulingGate{}
+	}
+	knownTypes["core/v1/PodSchedulingGroup"] = func() any {
+		return &corev1.PodSchedulingGroup{}
 	}
 	knownTypes["core/v1/PodSecurityContext"] = func() any {
 		return &corev1.PodSecurityContext{}
@@ -708,6 +717,9 @@ func init() {
 	}
 	knownTypes["core/v1/VolumeSource"] = func() any {
 		return &corev1.VolumeSource{}
+	}
+	knownTypes["core/v1/VolumeStatus"] = func() any {
+		return &corev1.VolumeStatus{}
 	}
 	knownTypes["core/v1/VsphereVirtualDiskVolumeSource"] = func() any {
 		return &corev1.VsphereVirtualDiskVolumeSource{}

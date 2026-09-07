@@ -16,6 +16,8 @@ coverage.out
 test-results
 .scannerwork
 .scratch
+# pnpm SBOM helper (hack/generate-ui-pnpm-sbom.sh) download cache — remove this line when that script is deleted.
+hack/.cache/
 node_modules/
 .kube/
 ./test/cmp/*.sock
@@ -35,3 +37,4 @@ cmd/argocd-server/argocd-server
 
 # ignore generated `.argocd-helm-dep-up` marker file; this should not be committed to git
 reposerver/repository/testdata/**/.argocd-helm-dep-up
+.claude

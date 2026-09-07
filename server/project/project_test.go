@@ -41,53 +41,43 @@ var testEnableEventList = argo.DefaultEnableEventList()
 
 func TestProjectServer(t *testing.T) {
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "argocd-cm",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Namespace: testNamespace,
+		Name:      "argocd-cm",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: testNamespace,
-		},
+		Name:      "argocd-secret",
+		Namespace: testNamespace,
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),
 		},
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster-1",
-			Namespace: testNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "cluster-1",
+		Namespace: testNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"name":   []byte("server1"),
 			"server": []byte("https://server1"),
 		},
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster-2",
-			Namespace: testNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "cluster-2",
+		Namespace: testNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"name":   []byte("server2"),
 			"server": []byte("https://server2"),
 		},
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster-3",
-			Namespace: testNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "cluster-3",
+		Namespace: testNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"name":   []byte("server3"),
@@ -97,7 +87,7 @@ func TestProjectServer(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, testNamespace)
 	enforcer := newEnforcer(kubeclientset)
 	existingProj := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: testNamespace},
+		Name: "test", Namespace: testNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			Destinations: []v1alpha1.ApplicationDestination{
 				{Namespace: "ns1", Server: "https://server1"},
@@ -107,8 +97,8 @@ func TestProjectServer(t *testing.T) {
 		},
 	}
 	existingApp := v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-		Spec:       v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server3"}},
+		Name: "test", Namespace: "default",
+		Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server3"}},
 	}
 
 	policyTemplate := "p, proj:%s:%s, applications, %s, %s/%s, %s"
@@ -199,8 +189,8 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestRemoveDestinationSuccessful", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-			Spec:       v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server3"}},
+			Name: "test", Namespace: "default",
+			Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server3"}},
 		}
 
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -216,8 +206,8 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestRemoveDestinationUsedByApp", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-			Spec:       v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns1", Server: "https://server1"}},
+			Name: "test", Namespace: "default",
+			Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns1", Server: "https://server1"}},
 		}
 
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -236,8 +226,8 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestRemoveSourceSuccessful", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-			Spec:       v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Server: "https://server1"}, Source: &v1alpha1.ApplicationSource{}, Project: "test"},
+			Name: "test", Namespace: "default",
+			Spec: v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Server: "https://server1"}, Source: &v1alpha1.ApplicationSource{}, Project: "test"},
 		}
 
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -253,8 +243,8 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestRemoveSourceUsedByApp", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-			Spec:       v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Name: "server1"}, Project: "test", Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
+			Name: "test", Namespace: "default",
+			Spec: v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Name: "server1"}, Project: "test", Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
 		}
 
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -275,8 +265,8 @@ func TestProjectServer(t *testing.T) {
 		proj := existingProj.DeepCopy()
 		proj.Spec.SourceRepos = []string{"https://github.com/argoproj/argo-cd.git", "https://github.com/argoproj/*"}
 		existingApp := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-			Spec:       v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Server: "https://server1"}, Project: "test", Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
+			Name: "test", Namespace: "default",
+			Spec: v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Server: "https://server1"}, Project: "test", Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
 		}
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
@@ -297,7 +287,7 @@ func TestProjectServer(t *testing.T) {
 			{Namespace: "org1-*", Server: "https://server1"},
 		}
 		existingApp := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+			Name: "test", Namespace: "default",
 			Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{
 				Server:    "https://server1",
 				Namespace: "org1-team1",
@@ -330,8 +320,8 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestDeleteDefaultProjectFailure", func(t *testing.T) {
 		defaultProj := v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
-			Spec:       v1alpha1.AppProjectSpec{},
+			Name: "default", Namespace: "default",
+			Spec: v1alpha1.AppProjectSpec{},
 		}
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&defaultProj), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
@@ -343,8 +333,8 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestDeleteProjectReferencedByApp", func(t *testing.T) {
 		existingApp := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
-			Spec:       v1alpha1.ApplicationSpec{Project: "test"},
+			Name: "test", Namespace: "default",
+			Spec: v1alpha1.ApplicationSpec{Project: "test"},
 		}
 
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -705,7 +695,7 @@ p, role:admin, projects, update, *, allow`)
 		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
 		projectWithSyncWindows := existingProj.DeepCopy()
 		projectWithSyncWindows.Spec.SyncWindows = v1alpha1.SyncWindows{}
-		win := &v1alpha1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
+		win := &v1alpha1.InlineSyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
 		projectWithSyncWindows.Spec.SyncWindows = append(projectWithSyncWindows.Spec.SyncWindows, win)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
@@ -718,7 +708,7 @@ p, role:admin, projects, update, *, allow`)
 		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
 		projectWithSyncWindows := existingProj.DeepCopy()
 		projectWithSyncWindows.Spec.SyncWindows = v1alpha1.SyncWindows{}
-		win := &v1alpha1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
+		win := &v1alpha1.InlineSyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
 		projectWithSyncWindows.Spec.SyncWindows = append(projectWithSyncWindows.Spec.SyncWindows, win)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
@@ -736,7 +726,7 @@ p, role:admin, projects, update, *, allow`)
 
 		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
 		projectWithSyncWindows := existingProj.DeepCopy()
-		win := &v1alpha1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
+		win := &v1alpha1.InlineSyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
 		projectWithSyncWindows.Spec.SyncWindows = append(projectWithSyncWindows.Spec.SyncWindows, win)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
@@ -752,13 +742,13 @@ p, role:admin, projects, update, *, allow`)
 
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		invalidApp := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-invalid", Namespace: "default"},
-			Spec:       v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server4"}},
+			Name: "test-invalid", Namespace: "default",
+			Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server4"}},
 		}
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithAppWithInvalidCluster, &invalidApp), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 
 		// Add sync window
-		syncWindow := v1alpha1.SyncWindow{
+		syncWindow := v1alpha1.InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     "* * * * *",
 			Duration:     "1h",
@@ -782,4 +772,165 @@ func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {
 		return true
 	})
 	return enforcer
+}
+
+func TestListEvents(t *testing.T) {
+	t.Parallel()
+	existingProj := &v1alpha1.AppProject{
+		Name:      "test-project",
+		Namespace: testNamespace,
+		UID:       "test-project-uid",
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+
+	t.Run("ListEvents returns empty list for project without events", func(t *testing.T) {
+		t.Parallel()
+		kubeclientset := fake.NewClientset(&corev1.ConfigMap{
+			Namespace: testNamespace,
+			Name:      "argocd-cm",
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		}, &corev1.Secret{
+			Name: "argocd-secret", Namespace: testNamespace,
+			Data: map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
+		})
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, testNamespace)
+		enforcer := newEnforcer(kubeclientset)
+		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
+		argoDB := db.NewDB(testNamespace, settingsMgr, kubeclientset)
+
+		projInformer := informer.NewSharedInformerFactory(apps.NewSimpleClientset(existingProj), 0).Argoproj().V1alpha1().AppProjects().Informer()
+		go projInformer.Run(t.Context().Done())
+		k8scache.WaitForCacheSync(t.Context().Done(), projInformer.HasSynced)
+
+		projectServer := NewServer(testNamespace, kubeclientset, apps.NewSimpleClientset(existingProj), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+
+		res, err := projectServer.ListEvents(t.Context(), &project.ProjectQuery{Name: existingProj.Name})
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		assert.Empty(t, res.Items, "items should be empty when no events exist")
+	})
+
+	t.Run("ListEvents returns events for project", func(t *testing.T) {
+		// Create events associated with the project
+		t.Parallel()
+		event1 := &corev1.Event{
+			Name:      "test-event-1",
+			Namespace: testNamespace,
+			InvolvedObject: corev1.ObjectReference{
+				Name:      existingProj.Name,
+				Namespace: existingProj.Namespace,
+				UID:       existingProj.UID,
+			},
+			Reason:  "ProjectCreated",
+			Message: "Project was created",
+			Type:    corev1.EventTypeNormal,
+		}
+		event2 := &corev1.Event{
+			Name:      "test-event-2",
+			Namespace: testNamespace,
+			InvolvedObject: corev1.ObjectReference{
+				Name:      existingProj.Name,
+				Namespace: existingProj.Namespace,
+				UID:       existingProj.UID,
+			},
+			Reason:  "ProjectUpdated",
+			Message: "Project was updated",
+			Type:    corev1.EventTypeNormal,
+		}
+
+		kubeclientset := fake.NewClientset(&corev1.ConfigMap{
+			Namespace: testNamespace,
+			Name:      "argocd-cm",
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		}, &corev1.Secret{
+			Name: "argocd-secret", Namespace: testNamespace,
+			Data: map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
+		}, event1, event2)
+
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, testNamespace)
+		enforcer := newEnforcer(kubeclientset)
+		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
+		argoDB := db.NewDB(testNamespace, settingsMgr, kubeclientset)
+
+		projInformer := informer.NewSharedInformerFactory(apps.NewSimpleClientset(existingProj), 0).Argoproj().V1alpha1().AppProjects().Informer()
+		go projInformer.Run(t.Context().Done())
+		k8scache.WaitForCacheSync(t.Context().Done(), projInformer.HasSynced)
+
+		projectServer := NewServer(testNamespace, kubeclientset, apps.NewSimpleClientset(existingProj), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+
+		res, err := projectServer.ListEvents(t.Context(), &project.ProjectQuery{Name: existingProj.Name})
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		assert.Len(t, res.Items, 2, "should have 2 events")
+
+		eventNames := make([]string, 0, len(res.Items))
+		for _, item := range res.Items {
+			eventNames = append(eventNames, item.Metadata.Name)
+			assert.NotEmpty(t, item.Reason)
+			assert.NotEmpty(t, item.Message)
+		}
+		assert.Contains(t, eventNames, "test-event-1")
+		assert.Contains(t, eventNames, "test-event-2")
+	})
+
+	t.Run("ListEvents returns error for non-existent project", func(t *testing.T) {
+		t.Parallel()
+		kubeclientset := fake.NewClientset(&corev1.ConfigMap{
+			Namespace: testNamespace,
+			Name:      "argocd-cm",
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		}, &corev1.Secret{
+			Name: "argocd-secret", Namespace: testNamespace,
+			Data: map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
+		})
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, testNamespace)
+		enforcer := newEnforcer(kubeclientset)
+		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
+		argoDB := db.NewDB(testNamespace, settingsMgr, kubeclientset)
+
+		projInformer := informer.NewSharedInformerFactory(apps.NewSimpleClientset(existingProj), 0).Argoproj().V1alpha1().AppProjects().Informer()
+		go projInformer.Run(t.Context().Done())
+		k8scache.WaitForCacheSync(t.Context().Done(), projInformer.HasSynced)
+
+		projectServer := NewServer(testNamespace, kubeclientset, apps.NewSimpleClientset(existingProj), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+
+		_, err := projectServer.ListEvents(t.Context(), &project.ProjectQuery{Name: "non-existent"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("ListEvents denied without permission", func(t *testing.T) {
+		t.Parallel()
+		kubeclientset := fake.NewClientset(&corev1.ConfigMap{
+			Namespace: testNamespace,
+			Name:      "argocd-cm",
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		}, &corev1.Secret{
+			Name: "argocd-secret", Namespace: testNamespace,
+			Data: map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
+		})
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, testNamespace)
+		enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
+		_ = enforcer.SetBuiltinPolicy(`p, *, *, *, *, deny`)
+		enforcer.SetClaimsEnforcerFunc(nil)
+		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
+		argoDB := db.NewDB(testNamespace, settingsMgr, kubeclientset)
+
+		projInformer := informer.NewSharedInformerFactory(apps.NewSimpleClientset(existingProj), 0).Argoproj().V1alpha1().AppProjects().Informer()
+		go projInformer.Run(t.Context().Done())
+		k8scache.WaitForCacheSync(t.Context().Done(), projInformer.HasSynced)
+
+		projectServer := NewServer(testNamespace, kubeclientset, apps.NewSimpleClientset(existingProj), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+
+		//nolint:staticcheck
+		ctx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"groups": []string{"my-group"}})
+		_, err := projectServer.ListEvents(ctx, &project.ProjectQuery{Name: existingProj.Name})
+		require.Error(t, err)
+		statusErr, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.PermissionDenied, statusErr.Code())
+	})
 }

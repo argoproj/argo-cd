@@ -75,7 +75,7 @@ type ClusterServiceServer_Create_Call struct {
 // Create is a helper method to define mock.On call
 //   - context1 context.Context
 //   - clusterCreateRequest *cluster.ClusterCreateRequest
-func (_e *ClusterServiceServer_Expecter) Create(context1 interface{}, clusterCreateRequest interface{}) *ClusterServiceServer_Create_Call {
+func (_e *ClusterServiceServer_Expecter) Create(context1 any, clusterCreateRequest any) *ClusterServiceServer_Create_Call {
 	return &ClusterServiceServer_Create_Call{Call: _e.mock.On("Create", context1, clusterCreateRequest)}
 }
 
@@ -143,7 +143,7 @@ type ClusterServiceServer_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - context1 context.Context
 //   - clusterQuery *cluster.ClusterQuery
-func (_e *ClusterServiceServer_Expecter) Delete(context1 interface{}, clusterQuery interface{}) *ClusterServiceServer_Delete_Call {
+func (_e *ClusterServiceServer_Expecter) Delete(context1 any, clusterQuery any) *ClusterServiceServer_Delete_Call {
 	return &ClusterServiceServer_Delete_Call{Call: _e.mock.On("Delete", context1, clusterQuery)}
 }
 
@@ -211,7 +211,7 @@ type ClusterServiceServer_Get_Call struct {
 // Get is a helper method to define mock.On call
 //   - context1 context.Context
 //   - clusterQuery *cluster.ClusterQuery
-func (_e *ClusterServiceServer_Expecter) Get(context1 interface{}, clusterQuery interface{}) *ClusterServiceServer_Get_Call {
+func (_e *ClusterServiceServer_Expecter) Get(context1 any, clusterQuery any) *ClusterServiceServer_Get_Call {
 	return &ClusterServiceServer_Get_Call{Call: _e.mock.On("Get", context1, clusterQuery)}
 }
 
@@ -279,7 +279,7 @@ type ClusterServiceServer_InvalidateCache_Call struct {
 // InvalidateCache is a helper method to define mock.On call
 //   - context1 context.Context
 //   - clusterQuery *cluster.ClusterQuery
-func (_e *ClusterServiceServer_Expecter) InvalidateCache(context1 interface{}, clusterQuery interface{}) *ClusterServiceServer_InvalidateCache_Call {
+func (_e *ClusterServiceServer_Expecter) InvalidateCache(context1 any, clusterQuery any) *ClusterServiceServer_InvalidateCache_Call {
 	return &ClusterServiceServer_InvalidateCache_Call{Call: _e.mock.On("InvalidateCache", context1, clusterQuery)}
 }
 
@@ -347,7 +347,7 @@ type ClusterServiceServer_List_Call struct {
 // List is a helper method to define mock.On call
 //   - context1 context.Context
 //   - clusterQuery *cluster.ClusterQuery
-func (_e *ClusterServiceServer_Expecter) List(context1 interface{}, clusterQuery interface{}) *ClusterServiceServer_List_Call {
+func (_e *ClusterServiceServer_Expecter) List(context1 any, clusterQuery any) *ClusterServiceServer_List_Call {
 	return &ClusterServiceServer_List_Call{Call: _e.mock.On("List", context1, clusterQuery)}
 }
 
@@ -415,7 +415,7 @@ type ClusterServiceServer_RotateAuth_Call struct {
 // RotateAuth is a helper method to define mock.On call
 //   - context1 context.Context
 //   - clusterQuery *cluster.ClusterQuery
-func (_e *ClusterServiceServer_Expecter) RotateAuth(context1 interface{}, clusterQuery interface{}) *ClusterServiceServer_RotateAuth_Call {
+func (_e *ClusterServiceServer_Expecter) RotateAuth(context1 any, clusterQuery any) *ClusterServiceServer_RotateAuth_Call {
 	return &ClusterServiceServer_RotateAuth_Call{Call: _e.mock.On("RotateAuth", context1, clusterQuery)}
 }
 
@@ -483,7 +483,7 @@ type ClusterServiceServer_Update_Call struct {
 // Update is a helper method to define mock.On call
 //   - context1 context.Context
 //   - clusterUpdateRequest *cluster.ClusterUpdateRequest
-func (_e *ClusterServiceServer_Expecter) Update(context1 interface{}, clusterUpdateRequest interface{}) *ClusterServiceServer_Update_Call {
+func (_e *ClusterServiceServer_Expecter) Update(context1 any, clusterUpdateRequest any) *ClusterServiceServer_Update_Call {
 	return &ClusterServiceServer_Update_Call{Call: _e.mock.On("Update", context1, clusterUpdateRequest)}
 }
 
