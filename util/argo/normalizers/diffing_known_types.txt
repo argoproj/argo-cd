@@ -59,6 +59,7 @@ core/v1/Event
 core/v1/EventList
 core/v1/EventSeries
 core/v1/EventSource
+core/v1/EvictionResponder
 core/v1/ExecAction
 core/v1/FCVolumeSource
 core/v1/FileKeySelector
@@ -102,6 +103,8 @@ core/v1/NamespaceStatus
 core/v1/Node
 core/v1/NodeAddress
 core/v1/NodeAffinity
+core/v1/NodeAllocatableMappedResources
+core/v1/NodeAllocatableOverheadResources
 core/v1/NodeAllocatableResourceClaimStatus
 core/v1/NodeCondition
 core/v1/NodeConfigSource
@@ -109,6 +112,7 @@ core/v1/NodeConfigStatus
 core/v1/NodeDaemonEndpoints
 core/v1/NodeFeatures
 core/v1/NodeList
+core/v1/NodePodPreemptionPolicy
 core/v1/NodeProxyOptions
 core/v1/NodeRuntimeHandler
 core/v1/NodeRuntimeHandlerFeatures
@@ -163,6 +167,7 @@ core/v1/PodStatus
 core/v1/PodTemplate
 core/v1/PodTemplateList
 core/v1/PodTemplateSpec
+core/v1/PodVolumeHealth
 core/v1/PortStatus
 core/v1/PortworxVolumeSource
 core/v1/Preconditions
@@ -229,6 +234,8 @@ core/v1/TypedLocalObjectReference
 core/v1/TypedObjectReference
 core/v1/Volume
 core/v1/VolumeDevice
+core/v1/VolumeHealthCondition
+core/v1/VolumeHealthStatus
 core/v1/VolumeMount
 core/v1/VolumeMountStatus
 core/v1/VolumeNodeAffinity

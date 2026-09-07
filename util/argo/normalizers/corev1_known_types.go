@@ -187,6 +187,9 @@ func init() {
 	knownTypes["core/v1/EventSource"] = func() any {
 		return &corev1.EventSource{}
 	}
+	knownTypes["core/v1/EvictionResponder"] = func() any {
+		return &corev1.EvictionResponder{}
+	}
 	knownTypes["core/v1/ExecAction"] = func() any {
 		return &corev1.ExecAction{}
 	}
@@ -316,6 +319,12 @@ func init() {
 	knownTypes["core/v1/NodeAffinity"] = func() any {
 		return &corev1.NodeAffinity{}
 	}
+	knownTypes["core/v1/NodeAllocatableMappedResources"] = func() any {
+		return &corev1.NodeAllocatableMappedResources{}
+	}
+	knownTypes["core/v1/NodeAllocatableOverheadResources"] = func() any {
+		return &corev1.NodeAllocatableOverheadResources{}
+	}
 	knownTypes["core/v1/NodeAllocatableResourceClaimStatus"] = func() any {
 		return &corev1.NodeAllocatableResourceClaimStatus{}
 	}
@@ -336,6 +345,9 @@ func init() {
 	}
 	knownTypes["core/v1/NodeList"] = func() any {
 		return &corev1.NodeList{}
+	}
+	knownTypes["core/v1/NodePodPreemptionPolicy"] = func() any {
+		return &corev1.NodePodPreemptionPolicy{}
 	}
 	knownTypes["core/v1/NodeProxyOptions"] = func() any {
 		return &corev1.NodeProxyOptions{}
@@ -498,6 +510,9 @@ func init() {
 	}
 	knownTypes["core/v1/PodTemplateSpec"] = func() any {
 		return &corev1.PodTemplateSpec{}
+	}
+	knownTypes["core/v1/PodVolumeHealth"] = func() any {
+		return &corev1.PodVolumeHealth{}
 	}
 	knownTypes["core/v1/PortStatus"] = func() any {
 		return &corev1.PortStatus{}
@@ -696,6 +711,12 @@ func init() {
 	}
 	knownTypes["core/v1/VolumeDevice"] = func() any {
 		return &corev1.VolumeDevice{}
+	}
+	knownTypes["core/v1/VolumeHealthCondition"] = func() any {
+		return &corev1.VolumeHealthCondition{}
+	}
+	knownTypes["core/v1/VolumeHealthStatus"] = func() any {
+		return &corev1.VolumeHealthStatus{}
 	}
 	knownTypes["core/v1/VolumeMount"] = func() any {
 		return &corev1.VolumeMount{}
