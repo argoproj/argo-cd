@@ -687,8 +687,8 @@ func TestClusterEventHandler(t *testing.T) {
 				},
 			},
 			expectedRequests: []reconcile.Request{
-				{NamespacedName: types.NamespacedName{Namespace: "argocd", Name: "prod-appset"}},
-				{NamespacedName: types.NamespacedName{Namespace: "argocd", Name: "stage-appset"}},
+				{Namespace: "argocd", Name: "prod-appset"},
+				{Namespace: "argocd", Name: "stage-appset"},
 			},
 		},
 	}
