@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var flags map[string]string
+var flags map[string][]string
 
 func init() {
 	err := LoadFlags()
@@ -21,7 +21,7 @@ func init() {
 }
 
 func LoadFlags() error {
-	flags = make(map[string]string)
+	flags = make(map[string][]string)
 
 	opts, err := shellquote.Split(os.Getenv("ARGOCD_OPTS"))
 	if err != nil {
@@ -33,29 +33,26 @@ func LoadFlags() error {
 		switch {
 		case strings.HasPrefix(opt, "--"):
 			if key != "" {
-				flags[key] = "true"
+				flags[key] = append(flags[key], "true")
 			}
 			key = strings.TrimPrefix(opt, "--")
+			// pkg shellquota doesn't recognize `=` so that the opts in format `foo=bar` could not work.
+			// issue ref: https://github.com/argoproj/argo-cd/issues/6822
+			if strings.Contains(key, "=") {
+				kv := strings.SplitN(key, "=", 2)
+				actualKey, actualValue := kv[0], kv[1]
+				flags[actualKey] = append(flags[actualKey], actualValue)
+				key = ""
+			}
 		case key != "":
-			flags[key] = opt
+			flags[key] = append(flags[key], opt)
 			key = ""
 		default:
 			return errors.New("ARGOCD_OPTS invalid at '" + opt + "'")
 		}
 	}
 	if key != "" {
-		flags[key] = "true"
-	}
-	// pkg shellquota doesn't recognize `=` so that the opts in format `foo=bar` could not work.
-	// issue ref: https://github.com/argoproj/argo-cd/issues/6822
-	for k, v := range flags {
-		if strings.Contains(k, "=") && v == "true" {
-			kv := strings.SplitN(k, "=", 2)
-			actualKey, actualValue := kv[0], kv[1]
-			if _, ok := flags[actualKey]; !ok {
-				flags[actualKey] = actualValue
-			}
-		}
+		flags[key] = append(flags[key], "true")
 	}
 	return nil
 }
@@ -63,7 +60,7 @@ func LoadFlags() error {
 func GetFlag(key, fallback string) string {
 	val, ok := flags[key]
 	if ok {
-		return val
+		return val[len(val)-1]
 	}
 	return fallback
 }
@@ -78,7 +75,7 @@ func GetIntFlag(key string, fallback int) int {
 		return fallback
 	}
 
-	v, err := strconv.Atoi(val)
+	v, err := strconv.Atoi(val[len(val)-1])
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -86,19 +83,26 @@ func GetIntFlag(key string, fallback int) int {
 }
 
 func GetStringSliceFlag(key string, fallback []string) []string {
-	val, ok := flags[key]
+	vals, ok := flags[key]
 	if !ok {
 		return fallback
 	}
 
-	if val == "" {
+	var result []string
+	for _, val := range vals {
+		if val == "" {
+			continue
+		}
+		stringReader := strings.NewReader(val)
+		csvReader := csv.NewReader(stringReader)
+		v, err := csvReader.Read()
+		if err != nil {
+			log.Fatal(err)
+		}
+		result = append(result, v...)
+	}
+	if len(result) == 0 && vals[len(vals)-1] == "" {
 		return []string{}
 	}
-	stringReader := strings.NewReader(val)
-	csvReader := csv.NewReader(stringReader)
-	v, err := csvReader.Read()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return v
+	return result
 }
