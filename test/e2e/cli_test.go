@@ -60,6 +60,29 @@ func TestCliAppCommand(t *testing.T) {
 		})
 }
 
+// TestCliAppWaitMaxPendingResources verifies that the --max-pending-resources flag
+// correctly truncates the timeout output for the wait command.
+func TestCliAppWaitMaxPendingResources(t *testing.T) {
+	ctx := Given(t)
+	ctx.Path("guestbook").
+		When().
+		CreateApp().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(_ *Application) {
+			// Intentionally force a timeout on a new app that hasn't synced
+			_, err := RunCli("app", "wait", ctx.AppName(), "--timeout", "1", "--max-pending-resources", "1")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "timed out (1s) waiting for app")
+			assert.Contains(t, err.Error(), "more")
+
+			_, err2 := RunCli("app", "wait", ctx.AppName(), "--timeout", "1", "--max-pending-resources", "0")
+			require.Error(t, err2)
+			assert.Contains(t, err2.Error(), "timed out (1s) waiting for app")
+			assert.NotContains(t, err2.Error(), "more")
+		})
+}
+
 // TestNormalArgoCDCommandsExecuteOverPluginsWithSameName verifies that normal Argo CD CLI commands
 // take precedence over plugins with the same name when both exist in the path.
 func TestNormalArgoCDCommandsExecuteOverPluginsWithSameName(t *testing.T) {
