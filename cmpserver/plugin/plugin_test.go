@@ -14,7 +14,9 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -715,6 +717,7 @@ type MockMatchRepositoryStream struct {
 	metadataRequest *apiclient.AppStreamRequest
 	fileRequest     *apiclient.AppStreamRequest
 	response        *apiclient.RepositoryResponse
+	ctx             context.Context
 }
 
 func NewMockMatchRepositoryStream(repoPath, appPath string, env []string) (*MockMatchRepositoryStream, error) {
@@ -755,6 +758,9 @@ func (m *MockMatchRepositoryStream) Recv() (*apiclient.AppStreamRequest, error) 
 }
 
 func (m *MockMatchRepositoryStream) Context() context.Context {
+	if m.ctx != nil {
+		return m.ctx
+	}
 	return context.Background()
 }
 
@@ -775,6 +781,66 @@ func TestService_MatchRepository(t *testing.T) {
 	})
 
 	t.Run("unsupported app", func(t *testing.T) {
+		t.Parallel()
+		s, err := NewMockMatchRepositoryStream("./testdata/ksonnet", "./testdata/ksonnet", nil)
+		require.NoError(t, err)
+		err = service.matchRepositoryGeneric(s)
+		require.NoError(t, err)
+		require.NotNil(t, s.response)
+		assert.False(t, s.response.IsSupported)
+	})
+}
+
+// A discovery check that was cancelled or timed out must reach the repo-server as such,
+// rather than as codes.Unknown. Otherwise the repo-server cannot tell it apart from a plugin
+// answering that it does not support the repository, and falls back to the native generators.
+// See https://github.com/argoproj/argo-cd/issues/24004.
+func TestService_MatchRepository_DiscoveryNotCompleted(t *testing.T) {
+	t.Parallel()
+
+	// fileName-based discovery, the path reported in the issue.
+	service, err := newService("./testdata/filename-discovery/config")
+	require.NoError(t, err)
+
+	t.Run("cancelled context", func(t *testing.T) {
+		t.Parallel()
+		s, err := NewMockMatchRepositoryStream("./testdata/kustomize", "./testdata/kustomize", nil)
+		require.NoError(t, err)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		s.ctx = ctx
+
+		err = service.matchRepositoryGeneric(s)
+		require.Error(t, err)
+		assert.Equal(t, codes.Canceled, status.Code(err))
+		assert.Nil(t, s.response)
+	})
+
+	t.Run("exceeded deadline", func(t *testing.T) {
+		t.Parallel()
+		s, err := NewMockMatchRepositoryStream("./testdata/kustomize", "./testdata/kustomize", nil)
+		require.NoError(t, err)
+		ctx, cancel := context.WithDeadline(t.Context(), time.Now().Add(-time.Second))
+		defer cancel()
+		s.ctx = ctx
+
+		err = service.matchRepositoryGeneric(s)
+		require.Error(t, err)
+		assert.Equal(t, codes.DeadlineExceeded, status.Code(err))
+		assert.Nil(t, s.response)
+	})
+
+	t.Run("supported app is unaffected", func(t *testing.T) {
+		t.Parallel()
+		s, err := NewMockMatchRepositoryStream("./testdata/kustomize", "./testdata/kustomize", nil)
+		require.NoError(t, err)
+		err = service.matchRepositoryGeneric(s)
+		require.NoError(t, err)
+		require.NotNil(t, s.response)
+		assert.True(t, s.response.IsSupported)
+	})
+
+	t.Run("unsupported app is unaffected", func(t *testing.T) {
 		t.Parallel()
 		s, err := NewMockMatchRepositoryStream("./testdata/ksonnet", "./testdata/ksonnet", nil)
 		require.NoError(t, err)

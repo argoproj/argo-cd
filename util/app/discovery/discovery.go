@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -155,7 +156,10 @@ func matchRepositoryCMP(ctx context.Context, appPath, repoPath string, client pl
 	}
 
 	err = cmp.SendRepoStream(ctx, appPath, repoPath, matchRepoStream, env, tarExcludedGlobs)
-	if err != nil {
+	// io.EOF means the server ended the stream before we finished sending. The reason is only
+	// available from CloseAndRecv, so do not report the EOF itself: it would hide the status
+	// code the server sent, and a cancelled discovery check would look like any other failure.
+	if err != nil && !errors.Is(err, io.EOF) {
 		return false, false, fmt.Errorf("error sending stream: %w", err)
 	}
 	resp, err := matchRepoStream.CloseAndRecv()

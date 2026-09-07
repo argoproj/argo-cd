@@ -147,6 +147,35 @@ func TestAppType_PluginCheckCanceled(t *testing.T) {
 	assert.Empty(t, appType)
 }
 
+// matchRepositoryPluginServer is discovery-configured (as a fileName-based plugin is), so the
+// repo-server gets past the pre-flight check and fails inside the MatchRepository stream.
+type matchRepositoryPluginServer struct {
+	pluginclient.UnimplementedConfigManagementPluginServiceServer
+	code codes.Code
+}
+
+func (s *matchRepositoryPluginServer) CheckPluginConfiguration(_ context.Context, _ *emptypb.Empty) (*pluginclient.CheckPluginConfigurationResponse, error) {
+	return &pluginclient.CheckPluginConfigurationResponse{IsDiscoveryConfigured: true}, nil
+}
+
+func (s *matchRepositoryPluginServer) MatchRepository(_ pluginclient.ConfigManagementPluginService_MatchRepositoryServer) error {
+	return status.Error(s.code, "discovery did not complete")
+}
+
+// A discovery check that never completed must not be reported as the Directory type, whichever
+// step of the check failed.
+func TestAppType_MatchRepositoryNotCompleted(t *testing.T) {
+	for _, code := range []codes.Code{codes.Canceled, codes.DeadlineExceeded, codes.Unavailable} {
+		t.Run(code.String(), func(t *testing.T) {
+			startPluginServer(t, &matchRepositoryPluginServer{code: code})
+
+			appType, err := AppType(t.Context(), "./testdata", "./testdata", map[string]bool{}, []string{}, []string{})
+			require.Error(t, err)
+			assert.Empty(t, appType)
+		})
+	}
+}
+
 func TestIsDiscoveryIncompleteError(t *testing.T) {
 	t.Parallel()
 

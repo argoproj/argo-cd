@@ -31,6 +31,8 @@ import (
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/mattn/go-zglob"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/cmpserver/plugin")
@@ -306,6 +308,22 @@ func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService
 	return s.matchRepositoryGeneric(stream)
 }
 
+// discoveryStatusError gives a discovery failure caused by a cancelled context or an expired
+// deadline the matching gRPC status code. Without it the error crosses the wire as
+// codes.Unknown, and the repo-server cannot tell a discovery check that never completed from
+// a plugin answering that it does not support the repository - so it falls back to the native
+// generators and caches the result. See https://github.com/argoproj/argo-cd/issues/24004.
+func discoveryStatusError(err error) error {
+	switch {
+	case errors.Is(err, context.Canceled):
+		return status.Error(codes.Canceled, err.Error())
+	case errors.Is(err, context.DeadlineExceeded):
+		return status.Error(codes.DeadlineExceeded, err.Error())
+	default:
+		return err
+	}
+}
+
 func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
@@ -318,12 +336,12 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 
 	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir, s.initConstants.PluginConfig.Spec.PreserveFileMode)
 	if err != nil {
-		return fmt.Errorf("match repository error receiving stream: %w", err)
+		return discoveryStatusError(fmt.Errorf("match repository error receiving stream: %w", err))
 	}
 
 	isSupported, isDiscoveryEnabled, err := s.matchRepository(bufferedCtx, workDir, metadata.GetEnv(), metadata.GetAppRelPath())
 	if err != nil {
-		return fmt.Errorf("match repository error: %w", err)
+		return discoveryStatusError(fmt.Errorf("match repository error: %w", err))
 	}
 	repoResponse := &apiclient.RepositoryResponse{IsSupported: isSupported, IsDiscoveryEnabled: isDiscoveryEnabled}
 

@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: filename-discovery
+spec:
+  version: v1.0
+  generate:
+    command: [sh, -c]
+    args:
+    - |
+      cat kustomization.yaml
+  discover:
+    fileName: kustomization.yaml
