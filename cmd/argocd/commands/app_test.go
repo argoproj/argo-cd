@@ -1832,6 +1832,7 @@ func testApp(name, project string, labels map[string]string, annotations map[str
 }
 
 func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
+	var maxPendingResources int
 	acdClient := &customAcdClient{&fakeAcdClient{}}
 	ctx := t.Context()
 	var selectResource []*v1alpha1.SyncOperationResource
@@ -1845,7 +1846,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 
 	output, err := captureOutput(
 		func() error {
-			_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+			_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json", maxPendingResources)
 			return nil
 		},
 	)
@@ -1853,7 +1854,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	assert.True(t, json.Valid([]byte(output)))
 
 	output, err = captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "yaml")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "yaml", maxPendingResources)
 		return nil
 	})
 
@@ -1862,7 +1863,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	require.NoError(t, err)
 
 	output, _ = captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "", maxPendingResources)
 		return nil
 	})
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
@@ -1919,6 +1920,7 @@ apps   Deployment  default    test           Synced  Healthy
 }
 
 func TestWaitOnApplicationStatus_JSON_YAML_WideOutput_With_Timeout(t *testing.T) {
+	var maxPendingResources int
 	acdClient := &customAcdClient{&fakeAcdClient{simulateTimeout: 15}}
 	ctx := t.Context()
 	var selectResource []*v1alpha1.SyncOperationResource
@@ -1931,7 +1933,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput_With_Timeout(t *testing.T)
 	watch = getWatchOpts(watch)
 
 	output, _ := captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 5, watch, selectResource, "")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 5, watch, selectResource, "", maxPendingResources)
 		return nil
 	})
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
@@ -2125,6 +2127,7 @@ func TestCheckAppWaitConditions(t *testing.T) {
 // the requested conditions, instead of hanging on the watch stream until timeout.
 // Regression test for https://github.com/argoproj/argo-cd/issues/12211.
 func TestWaitOnApplicationStatus_ReturnsImmediatelyWhenAlreadyInDesiredState(t *testing.T) {
+	var maxPendingResources int
 	// simulateTimeout controls how long the fake watch blocks before emitting an
 	// event. If the fix is removed, waitOnApplicationStatus would block for this
 	// long before observing the readiness condition; with the fix it returns
@@ -2139,7 +2142,7 @@ func TestWaitOnApplicationStatus_ReturnsImmediatelyWhenAlreadyInDesiredState(t *
 	}
 
 	start := time.Now()
-	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json", maxPendingResources)
 	elapsed := time.Since(start)
 
 	require.NoError(t, err)
@@ -2151,11 +2154,12 @@ func TestWaitOnApplicationStatus_ReturnsImmediatelyWhenAlreadyInDesiredState(t *
 // instead consumes the watch for the Deleted event — the Get can only return
 // an existing application, so its state cannot satisfy the delete condition.
 func TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn(t *testing.T) {
+	var maxPendingResources int
 	acdClient := &deleteAcdClient{fakeAcdClient: &fakeAcdClient{}}
 	ctx := t.Context()
 	watch := watchOpts{delete: true}
 
-	app, opState, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "")
+	app, opState, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "", maxPendingResources)
 	require.NoError(t, err)
 	assert.Nil(t, app)
 	assert.Nil(t, opState)
@@ -2166,11 +2170,12 @@ func TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn(t *testing.T) {
 // early return is skipped, and a subsequent event carries the desired state.
 // Covers the helper call and readiness return inside the watch loop.
 func TestWaitOnApplicationStatus_ReturnsFromWatchLoopWhenEventSatisfiesConditions(t *testing.T) {
+	var maxPendingResources int
 	acdClient := &readyEventAcdClient{fakeAcdClient: &fakeAcdClient{}}
 	ctx := t.Context()
 	watch := watchOpts{sync: true, health: true}
 
-	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "json")
+	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "json", maxPendingResources)
 	require.NoError(t, err)
 	// The function returns via the readiness path inside the watch loop.
 	// The returned app may be re-fetched by printFinalStatus so we only
