@@ -4,6 +4,7 @@ import {createRoot, Root} from 'react-dom/client';
 import {EMPTY, of} from 'rxjs';
 import {LogEntry} from '../../../shared/models';
 import {PodsLogsViewer} from './pod-logs-viewer';
+import {PodHighlightButton} from './pod-logs-highlight-button';
 
 const mockGetContainerLogs = jest.fn();
 const mockCopyLogsButton = jest.fn();
@@ -50,7 +51,6 @@ jest.mock('./download-logs-button', () => ({DownloadLogsButton: () => null}));
 jest.mock('./container-selector', () => ({ContainerSelector: () => null}));
 jest.mock('./follow-toggle-button', () => ({FollowToggleButton: () => null}));
 jest.mock('./show-previous-logs-toggle-button', () => ({ShowPreviousLogsToggleButton: () => null}));
-jest.mock('./pod-logs-highlight-button', () => ({PodHighlightButton: () => null}));
 jest.mock('./timestamps-toggle-button', () => ({TimestampsToggleButton: () => null}));
 jest.mock('./dark-mode-toggle-button', () => ({DarkModeToggleButton: () => null}));
 jest.mock('./fullscreen-button', () => ({FullscreenButton: () => null}));
@@ -160,5 +160,65 @@ describe('PodsLogsViewer clear logs button', () => {
         const disabledClearButton = getClearButton();
         expect(disabledClearButton).toHaveClass('disabled');
         expect(mockCopyLogsButton).toHaveBeenLastCalledWith(logsFixture);
+    });
+});
+
+describe('PodHighlightButton disabled state', () => {
+    let container: HTMLDivElement;
+    let root: Root;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        container = document.createElement('div');
+        document.body.appendChild(container);
+        root = createRoot(container);
+    });
+
+    afterEach(() => {
+        act(() => {
+            root.unmount();
+        });
+        container.remove();
+    });
+
+    it('shows disabled button with informative tooltip when there is only one pod', () => {
+        const mockSetSelectedPod = jest.fn();
+        act(() => {
+            root.render(
+                React.createElement(PodHighlightButton, {
+                    selectedPod: null,
+                    setSelectedPod: mockSetSelectedPod,
+                    pods: ['single-pod'],
+                    darkMode: false
+                })
+            );
+        });
+
+        const button = container.querySelector('button');
+        expect(button).toBeTruthy();
+        expect(button).toHaveClass('disabled');
+        // Check that the tooltip mentions multiple pods
+        expect(container.querySelector('[data-tooltip-content]')?.getAttribute('data-tooltip-content'))
+            .toContain('multiple pods');
+    });
+
+    it('shows enabled button with instruction tooltip when there are multiple pods', () => {
+        const mockSetSelectedPod = jest.fn();
+        act(() => {
+            root.render(
+                React.createElement(PodHighlightButton, {
+                    selectedPod: null,
+                    setSelectedPod: mockSetSelectedPod,
+                    pods: ['pod1', 'pod2', 'pod3'],
+                    darkMode: false
+                })
+            );
+        });
+
+        const button = container.querySelector('button');
+        expect(button).toBeTruthy();
+        expect(button).not.toBeDisabled();
+        expect(container.querySelector('[data-tooltip-content]')?.getAttribute('data-tooltip-content'))
+            .toContain('Select a pod');
     });
 });
