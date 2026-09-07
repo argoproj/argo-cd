@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -2962,6 +2963,39 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	assert.Equal(t, synccommon.OperationRunning, patchedApp.Status.OperationState.Phase)
 	assert.Contains(t, patchedApp.Status.OperationState.Message, "Failed to load application project: error getting app project \"invalid-project\": appproject.argoproj.io \"invalid-project\" not found. Retrying attempt #1")
 	assert.EqualValues(t, 1, patchedApp.Status.OperationState.RetryCount)
+}
+
+func TestProcessRequestedAppOperation_FailedRetryMessageTime(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "invalid-project"
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+		Retry: v1alpha1.RetryStrategy{
+			Limit:   1,
+			Backoff: &v1alpha1.Backoff{Duration: "2m", MaxDuration: "1h"},
+		},
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	start := time.Now()
+
+	ctrl.processRequestedAppOperation(app)
+
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	message := patchedApp.Status.OperationState.Message
+
+	assert.Contains(t, message, "Retrying attempt #1 at ")
+
+	// The retry time is absolute rather than relative, because the message is persisted once and
+	// never rewritten until the next attempt fails, so a relative delta would go stale on the object.
+	match := regexp.MustCompile(`Retrying attempt #1 at (\S+)\.`).FindStringSubmatch(message)
+	require.Len(t, match, 2)
+	retryAt, err := time.Parse(time.RFC3339, match[1])
+	require.NoError(t, err)
+	// RFC3339 in UTC, so the time can't be mistaken for the reader's local time.
+	assert.Equal(t, time.UTC, retryAt.Location())
+	assert.WithinDuration(t, start.Add(2*time.Minute), retryAt, time.Minute)
 }
 
 func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
