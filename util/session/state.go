@@ -9,12 +9,23 @@ import (
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/v3/util/env"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 const (
 	revokedTokenPrefix = "revoked-token|"
 	newRevokedTokenKey = "new-revoked-token"
+
+	// defaultRevokedTokenResyncDuration is how often the full set of revoked tokens is reloaded from Redis.
+	defaultRevokedTokenResyncDuration = 15 * time.Second
+
+	// envRevokedTokenResyncDuration is the environment variable used to override the resync interval. Each resync
+	// performs a full keyspace SCAN, so its cost grows with the size of the Redis keyspace (which is dominated by the
+	// manifest cache, not by revoked tokens) and with the number of argocd-server replicas. Installations with a large
+	// cache and few revocations can raise this to cut that overhead. Revocations are still propagated immediately via
+	// pub/sub; the resync only bootstraps freshly started replicas and recovers from missed messages.
+	envRevokedTokenResyncDuration = "ARGOCD_SESSION_REVOKED_TOKEN_RESYNC_DURATION"
 )
 
 type userStateStorage struct {
@@ -33,8 +44,14 @@ func NewUserStateStorage(redis *redis.Client) *userStateStorage {
 		attempts:            map[string]LoginAttempts{},
 		revokedTokens:       map[string]bool{},
 		recentRevokedTokens: map[string]bool{},
-		resyncDuration:      time.Second * 15,
-		redis:               redis,
+		// The minimum is the default, so this can only ever reduce the load the resync places on Redis.
+		resyncDuration: env.ParseDurationFromEnv(
+			envRevokedTokenResyncDuration,
+			defaultRevokedTokenResyncDuration,
+			defaultRevokedTokenResyncDuration,
+			time.Hour,
+		),
+		redis: redis,
 	}
 }
 

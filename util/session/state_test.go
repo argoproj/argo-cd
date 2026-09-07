@@ -28,3 +28,28 @@ func TestUserStateStorage_LoadRevokedTokens(t *testing.T) {
 
 	assert.True(t, storage.IsTokenRevoked("abc"))
 }
+
+func TestUserStateStorage_ResyncDuration(t *testing.T) {
+	redis, closer := test.NewInMemoryRedis()
+	defer closer()
+
+	t.Run("defaults when unset", func(t *testing.T) {
+		assert.Equal(t, defaultRevokedTokenResyncDuration, NewUserStateStorage(redis).resyncDuration)
+	})
+
+	t.Run("honours a valid override", func(t *testing.T) {
+		t.Setenv(envRevokedTokenResyncDuration, "5m")
+		assert.Equal(t, 5*time.Minute, NewUserStateStorage(redis).resyncDuration)
+	})
+
+	t.Run("falls back to the default when out of range", func(t *testing.T) {
+		// Below the minimum, so it would increase the load the resync places on Redis.
+		t.Setenv(envRevokedTokenResyncDuration, "1s")
+		assert.Equal(t, defaultRevokedTokenResyncDuration, NewUserStateStorage(redis).resyncDuration)
+	})
+
+	t.Run("falls back to the default when unparseable", func(t *testing.T) {
+		t.Setenv(envRevokedTokenResyncDuration, "not-a-duration")
+		assert.Equal(t, defaultRevokedTokenResyncDuration, NewUserStateStorage(redis).resyncDuration)
+	})
+}

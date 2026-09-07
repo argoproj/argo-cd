@@ -127,6 +127,24 @@ cache. Default: 1000
 * `ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT`: Limits max number of concurrent login requests.
 If set to 0 then limit is disabled. Default: 50.
 
+### Revoked token resync
+
+Logging out of the UI revokes that session's token. Revocations are broadcast to all `argocd-server`
+replicas over Redis pub/sub immediately, and each replica additionally reloads the full set of revoked
+tokens on a timer. That reload performs a full-keyspace `SCAN`, so its cost grows with the total size of
+the Redis keyspace — normally dominated by the manifest cache rather than by revoked tokens — and with the
+number of `argocd-server` replicas.
+
+* `ARGOCD_SESSION_REVOKED_TOKEN_RESYNC_DURATION`: How often each `argocd-server` replica reloads the full
+set of revoked tokens from Redis. Accepts any Go duration string (for example `5m`), between 15s and 1h.
+Values outside that range, or that cannot be parsed, are ignored in favour of the default. Default: 15s.
+
+Raising this reduces the Redis CPU spent on `SCAN` proportionally, and is worth doing on installations
+with a large Redis keyspace and few token revocations. Because the resync only bootstraps freshly started
+replicas and recovers from missed pub/sub messages, the trade-off is a longer worst-case window in which a
+replica that started, or that missed a message, during the interval may still accept a token that was
+revoked by logout.
+
 ## SSO
 
 There are two ways that SSO can be configured:
