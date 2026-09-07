@@ -193,14 +193,10 @@ func serverSideDiff(ctx context.Context, config, live *unstructured.Unstructured
 	predictedLive = remarshal(predictedLive, o)
 
 	Normalize(predictedLive, opts...)
-	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "managedFields")
-	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "resourceVersion")
-	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+	removeServerPopulatedMetadata(predictedLive)
 
 	Normalize(live, opts...)
-	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
-	unstructured.RemoveNestedField(live.Object, "metadata", "resourceVersion")
-	unstructured.RemoveNestedField(live.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+	removeServerPopulatedMetadata(live)
 
 	predictedLiveBytes, err := json.Marshal(predictedLive)
 	if err != nil {
@@ -557,6 +553,11 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 	orig = removeNamespaceAnnotation(orig)
 	config = removeNamespaceAnnotation(config)
 
+	// predictedLive is derived from live by applying the merge patch, so
+	// stripping live here keeps both sides of the comparison symmetric.
+	live = live.DeepCopy()
+	removeServerPopulatedMetadata(live)
+
 	// 1. calculate a 3-way merge patch
 	patchBytes, newVersionedObject, err := threeWayMergePatch(orig, config, live)
 	if err != nil {
@@ -613,6 +614,18 @@ func removeNamespaceAnnotation(orig *unstructured.Unstructured) *unstructured.Un
 		}
 	}
 	return orig
+}
+
+// removeServerPopulatedMetadata removes the metadata that is populated by the API server
+// and must never participate in a diff. It is applied symmetrically to both sides of every comparison
+// so that a field present only on the live object cannot surface as a difference.
+func removeServerPopulatedMetadata(un *unstructured.Unstructured) {
+	if un == nil {
+		return
+	}
+	unstructured.RemoveNestedField(un.Object, "metadata", "managedFields")
+	unstructured.RemoveNestedField(un.Object, "metadata", "resourceVersion")
+	unstructured.RemoveNestedField(un.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
 }
 
 // StatefulSet requires special handling since it embeds PersistentVolumeClaim resource.
