@@ -728,3 +728,48 @@ spec:
 		Expect(podWithoutFinalizer("complete-delete-on-create")).
 		Expect(podWithoutFinalizer("complete-delete-on-failed"))
 }
+
+// TestTerminateDoesNotReportLeftoverMessageAsCause is an e2e regression test for the
+// termination-message filtering in processRequestedAppOperation: `argocd app terminate-op`
+// only flips OperationState.Phase to Terminating, it does not touch OperationState.Message.
+// The message left over from the in-progress sync (e.g. "one or more tasks are running") must
+// not be reported as the termination "cause" once the operation actually finishes terminating.
+func TestTerminateDoesNotReportLeftoverMessageAsCause(t *testing.T) {
+	sleepyHook := `
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+  name: sleepy
+spec:
+  containers:
+    - command: [ "/bin/sh", "-c", "--" ]
+      args: [ "sleep 300" ]
+      image: "quay.io/argoprojlabs/argocd-e2e-container:0.1"
+      imagePullPolicy: IfNotPresent
+      name: main
+  restartPolicy: Never`
+
+	Given(t).
+		Path("hook").
+		Async(true).
+		When().
+		AddFile("sleepy.yaml", sleepyHook).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationRunning)).
+		// This is the leftover message that must not survive as a termination cause below.
+		Expect(OperationMessageContains("one or more tasks are running")).
+		When().
+		TerminateOp().
+		Then().
+		Expect(OperationPhaseIs(OperationFailed)).
+		And(func(app *Application) {
+			message := app.Status.OperationState.Message
+			assert.Equal(t, "Operation terminated", message)
+			assert.NotContains(t, message, "triggered by")
+			assert.NotContains(t, message, "one or more tasks are running")
+		})
+}
