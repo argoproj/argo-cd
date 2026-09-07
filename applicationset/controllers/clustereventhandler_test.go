@@ -221,10 +221,8 @@ func TestClusterEventHandler(t *testing.T) {
 			name: "a cluster generator with matching labels should produce a request",
 			items: []argov1alpha1.ApplicationSet{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-app-set",
-						Namespace: "argocd",
-					},
+					Name:      "my-app-set",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -260,10 +258,8 @@ func TestClusterEventHandler(t *testing.T) {
 			name: "a cluster generator with non matching labels should not produce a request",
 			items: []argov1alpha1.ApplicationSet{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-app-set",
-						Namespace: "argocd",
-					},
+					Name:      "my-app-set",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -621,10 +617,8 @@ func TestClusterEventHandler(t *testing.T) {
 			name: "when a cluster secret label changes from stage to prod, both stage and prod appsets should reconcile but not dev",
 			items: []argov1alpha1.ApplicationSet{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "dev-appset",
-						Namespace: "argocd",
-					},
+					Name:      "dev-appset",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{{
 							Clusters: &argov1alpha1.ClusterGenerator{
@@ -636,10 +630,8 @@ func TestClusterEventHandler(t *testing.T) {
 					},
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "stage-appset",
-						Namespace: "argocd",
-					},
+					Name:      "stage-appset",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{{
 							Clusters: &argov1alpha1.ClusterGenerator{
@@ -651,10 +643,8 @@ func TestClusterEventHandler(t *testing.T) {
 					},
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "prod-appset",
-						Namespace: "argocd",
-					},
+					Name:      "prod-appset",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{{
 							Clusters: &argov1alpha1.ClusterGenerator{
@@ -677,13 +667,11 @@ func TestClusterEventHandler(t *testing.T) {
 				},
 			},
 			secretOld: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "argocd",
-					Name:      "my-secret",
-					Labels: map[string]string{
-						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
-						"env":                         "stage",
-					},
+				Namespace: "argocd",
+				Name:      "my-secret",
+				Labels: map[string]string{
+					argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+					"env":                         "stage",
 				},
 			},
 			expectedRequests: []reconcile.Request{
