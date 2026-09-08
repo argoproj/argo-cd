@@ -9,12 +9,14 @@ import (
 	"strings"
 
 	"github.com/ktrysmt/go-bitbucket"
+	log "github.com/sirupsen/logrus"
 )
 
 type BitbucketCloudService struct {
 	client         *bitbucket.Client
 	owner          string
 	repositorySlug string
+	hints          *PRHintStore
 }
 
 type BitbucketCloudPullRequest struct {
@@ -75,7 +77,7 @@ func parseURL(uri string) (*url.URL, error) {
 	return url, nil
 }
 
-func NewBitbucketCloudServiceBasicAuth(baseURL, username, password, owner, repositorySlug string) (PullRequestService, error) {
+func NewBitbucketCloudServiceBasicAuth(baseURL, username, password, owner, repositorySlug string, hints *PRHintStore) (PullRequestService, error) {
 	url, err := parseURL(baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %w", baseURL, owner, repositorySlug, err)
@@ -91,10 +93,11 @@ func NewBitbucketCloudServiceBasicAuth(baseURL, username, password, owner, repos
 		client:         bitbucketClient,
 		owner:          owner,
 		repositorySlug: repositorySlug,
+		hints:          hints,
 	}, nil
 }
 
-func NewBitbucketCloudServiceBearerToken(baseURL, bearerToken, owner, repositorySlug string) (PullRequestService, error) {
+func NewBitbucketCloudServiceBearerToken(baseURL, bearerToken, owner, repositorySlug string, hints *PRHintStore) (PullRequestService, error) {
 	url, err := parseURL(baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %w", baseURL, owner, repositorySlug, err)
@@ -106,15 +109,52 @@ func NewBitbucketCloudServiceBearerToken(baseURL, bearerToken, owner, repository
 	}
 	bitbucketClient.SetApiBaseURL(*url)
 
-	return &BitbucketCloudService{client: bitbucketClient, owner: owner, repositorySlug: repositorySlug}, nil
+	return &BitbucketCloudService{client: bitbucketClient, owner: owner, repositorySlug: repositorySlug, hints: hints}, nil
 }
 
-func NewBitbucketCloudServiceNoAuth(baseURL, owner, repositorySlug string) (PullRequestService, error) {
+func NewBitbucketCloudServiceNoAuth(baseURL, owner, repositorySlug string, hints *PRHintStore) (PullRequestService, error) {
 	// There is currently no method to explicitly not require auth
-	return NewBitbucketCloudServiceBearerToken(baseURL, "", owner, repositorySlug)
+	return NewBitbucketCloudServiceBearerToken(baseURL, "", owner, repositorySlug, hints)
+}
+
+// listBranchNames returns live branch names; refs are strongly consistent unlike commit objects.
+func (b *BitbucketCloudService) listBranchNames() (map[string]struct{}, error) {
+	names := map[string]struct{}{}
+	for page := 1; ; page++ {
+		resp, err := b.client.Repositories.Repository.ListBranches(&bitbucket.RepositoryBranchOptions{
+			Owner:    b.owner,
+			RepoSlug: b.repositorySlug,
+			Pagelen:  100,
+			PageNum:  page,
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, br := range resp.Branches {
+			names[br.Name] = struct{}{}
+		}
+		if resp.Next == "" {
+			break
+		}
+	}
+	return names, nil
 }
 
 func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) {
+	// Drain hints before the API call so they are consumed regardless of API outcome.
+	var hinted []*PullRequest
+	if b.hints != nil {
+		hinted = b.hints.Take(b.owner, b.repositorySlug)
+	}
+
+	// Fetch live branches once; PRs whose source branch is gone are skipped.
+	// Fail-open on listing error: a transient API failure should not block previews.
+	branches, err := b.listBranchNames()
+	if err != nil {
+		log.WithError(err).Warnf("could not list branches for %s/%s; skipping deleted-branch filter", b.owner, b.repositorySlug)
+		branches = nil
+	}
+
 	opts := &bitbucket.PullRequestsOptions{
 		Owner:    b.owner,
 		RepoSlug: b.repositorySlug,
@@ -155,6 +195,17 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 	}
 
 	for _, pull := range pulls {
+		if branches != nil {
+			if _, ok := branches[pull.Source.Branch.Name]; !ok {
+				log.WithFields(log.Fields{
+					"owner":  b.owner,
+					"repo":   b.repositorySlug,
+					"pr":     pull.ID,
+					"branch": pull.Source.Branch.Name,
+				}).Warn("skipping PR: source branch deleted")
+				continue
+			}
+		}
 		pullRequests = append(pullRequests, &PullRequest{
 			Number:       int64(pull.ID),
 			Title:        pull.Title,
@@ -163,6 +214,26 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 			HeadSHA:      pull.Source.Commit.Hash,
 			Author:       pull.Author.Nickname,
 		})
+	}
+
+	// Merge hinted PRs not yet visible in the API (eventual-consistency lag).
+	// Apply the same branch filter so a stale hint for a deleted branch is dropped.
+	if len(hinted) > 0 {
+		seen := make(map[int64]struct{}, len(pullRequests))
+		for _, pr := range pullRequests {
+			seen[pr.Number] = struct{}{}
+		}
+		for _, pr := range hinted {
+			if _, exists := seen[pr.Number]; exists {
+				continue
+			}
+			if branches != nil {
+				if _, ok := branches[pr.Branch]; !ok {
+					continue
+				}
+			}
+			pullRequests = append(pullRequests, pr)
+		}
 	}
 
 	return pullRequests, nil
