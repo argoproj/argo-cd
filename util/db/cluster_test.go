@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -11,7 +12,10 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -237,7 +241,51 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 	require.Error(t, err)
 }
 
-func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster)) (completed bool) {
+type watchNotifyingClientSet struct {
+	kubernetes.Interface
+	watchStarted chan struct{}
+	once         sync.Once
+}
+
+func newWatchNotifyingClientSet(clientSet kubernetes.Interface) *watchNotifyingClientSet {
+	return &watchNotifyingClientSet{Interface: clientSet, watchStarted: make(chan struct{})}
+}
+
+func (c *watchNotifyingClientSet) CoreV1() corev1client.CoreV1Interface {
+	return &watchNotifyingCoreV1{CoreV1Interface: c.Interface.CoreV1(), clientSet: c}
+}
+
+// waitForSecretWatch blocks until a secret watch has been established or the context is done.
+func (c *watchNotifyingClientSet) waitForSecretWatch(ctx context.Context) {
+	select {
+	case <-c.watchStarted:
+	case <-ctx.Done():
+	}
+}
+
+type watchNotifyingCoreV1 struct {
+	corev1client.CoreV1Interface
+	clientSet *watchNotifyingClientSet
+}
+
+func (c *watchNotifyingCoreV1) Secrets(namespace string) corev1client.SecretInterface {
+	return &watchNotifyingSecrets{SecretInterface: c.CoreV1Interface.Secrets(namespace), clientSet: c.clientSet}
+}
+
+type watchNotifyingSecrets struct {
+	corev1client.SecretInterface
+	clientSet *watchNotifyingClientSet
+}
+
+func (s *watchNotifyingSecrets) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+	w, err := s.SecretInterface.Watch(ctx, opts)
+	if err == nil {
+		s.clientSet.once.Do(func() { close(s.clientSet.watchStarted) })
+	}
+	return w, err
+}
+
+func runWatchTest(t *testing.T, clientset *watchNotifyingClientSet, db ArgoDB, actions []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster)) (completed bool) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -246,9 +294,16 @@ func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster,
 
 	allDone := make(chan bool, 1)
 
+	firstEvent := true
 	doNext := func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
 		if len(actions) == 0 {
 			assert.Fail(t, "Unexpected event")
+			return
+		}
+		if firstEvent {
+			firstEvent = false
+		} else {
+			clientset.waitForSecretWatch(ctx)
 		}
 		next := actions[0]
 		next(old, new)
