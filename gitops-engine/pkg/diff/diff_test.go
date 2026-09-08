@@ -541,31 +541,34 @@ func TestDiffResourceWithInvalidField(t *testing.T) {
 }
 
 func TestRemoveNamespaceAnnotation(t *testing.T) {
-	obj := removeNamespaceAnnotation(&unstructured.Unstructured{Object: map[string]any{
+	obj := &unstructured.Unstructured{Object: map[string]any{
 		"metadata": map[string]any{
 			"name":      "test",
 			"namespace": "default",
 		},
-	}})
+	}}
+	removeNamespaceAnnotation(obj)
 	assert.Empty(t, obj.GetNamespace())
 
-	obj = removeNamespaceAnnotation(&unstructured.Unstructured{Object: map[string]any{
+	obj = &unstructured.Unstructured{Object: map[string]any{
 		"metadata": map[string]any{
 			"name":        "test",
 			"namespace":   "default",
 			"annotations": make(map[string]any),
 		},
-	}})
+	}}
+	removeNamespaceAnnotation(obj)
 	assert.Empty(t, obj.GetNamespace())
 	assert.Nil(t, obj.GetAnnotations())
 
-	obj = removeNamespaceAnnotation(&unstructured.Unstructured{Object: map[string]any{
+	obj = &unstructured.Unstructured{Object: map[string]any{
 		"metadata": map[string]any{
 			"name":        "test",
 			"namespace":   "default",
 			"annotations": "wrong value",
 		},
-	}})
+	}}
+	removeNamespaceAnnotation(obj)
 	assert.Empty(t, obj.GetNamespace())
 	val, _, _ := unstructured.NestedString(obj.Object, "metadata", "annotations")
 	assert.Equal(t, "wrong value", val)

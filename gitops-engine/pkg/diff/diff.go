@@ -284,7 +284,6 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 
 	// Apply the predicted live state to the live state to get a diff without mutation webhook fields
 	typedPredictedLive, err = typedLive.Merge(typedPredictedLive)
-
 	if err != nil {
 		return nil, fmt.Errorf("error applying predicted live to live state: %w", err)
 	}
@@ -553,7 +552,9 @@ func buildDiffResult(predictedBytes []byte, liveBytes []byte) *DiffResult {
 // TwoWayDiff performs a three-way diff and uses specified config as a recently applied config
 func TwoWayDiff(config, live *unstructured.Unstructured) (*DiffResult, error) {
 	if live != nil && config != nil {
-		return ThreeWayDiff(config, config.DeepCopy(), live)
+		// ThreeWayDiff copies each of its inputs before mutating them, so the
+		// same config can be passed as both the last-applied and desired state.
+		return ThreeWayDiff(config, config, live)
 	}
 	return handleResourceCreateOrDeleteDiff(config, live)
 }
@@ -729,16 +730,17 @@ func patchDefaultValues(objBytes []byte, obj runtime.Object) ([]byte, error) {
 // last-applied-configuration annotation in the diff.
 // Inputs are assumed to be stripped of type information
 func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, error) {
-	orig = removeNamespaceAnnotation(orig)
-	config = removeNamespaceAnnotation(config)
-
 	// All three inputs feed the merge patch, so the metadata that must never
 	// participate in a diff has to be removed from each of them. Stripping only
 	// live would let config's copy of these fields leak into predictedLive.
 	orig = orig.DeepCopy()
+	removeNamespaceAnnotation(orig)
 	removeServerPopulatedMetadata(orig)
+
 	config = config.DeepCopy()
+	removeNamespaceAnnotation(config)
 	removeServerPopulatedMetadata(config)
+
 	live = live.DeepCopy()
 	removeServerPopulatedMetadata(live)
 
@@ -777,10 +779,16 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 // The namespace field is present in live (namespaced) objects, but not necessarily present in
 // config or last-applied. This results in a diff which we don't care about. We delete the two so
 // that the diff is more relevant.
-func removeNamespaceAnnotation(orig *unstructured.Unstructured) *unstructured.Unstructured {
-	orig = orig.DeepCopy()
-	if metadataIf, ok := orig.Object["metadata"]; ok {
-		metadata := metadataIf.(map[string]any)
+// It mutates the given object in place; the caller owns making a copy first.
+func removeNamespaceAnnotation(un *unstructured.Unstructured) {
+	if un == nil {
+		return
+	}
+	if metadataIf, ok := un.Object["metadata"]; ok {
+		metadata, ok := metadataIf.(map[string]any)
+		if !ok {
+			return
+		}
 		delete(metadata, "namespace")
 		if annotationsIf, ok := metadata["annotations"]; ok {
 			shouldDelete := false
@@ -797,7 +805,6 @@ func removeNamespaceAnnotation(orig *unstructured.Unstructured) *unstructured.Un
 			}
 		}
 	}
-	return orig
 }
 
 // removeServerPopulatedMetadata removes the metadata that is populated by the API server
@@ -812,13 +819,14 @@ func removeServerPopulatedMetadata(un *unstructured.Unstructured) {
 	if un == nil {
 		return
 	}
-	unstructured.RemoveNestedField(un.Object, "metadata", "managedFields")
-	unstructured.RemoveNestedField(un.Object, "metadata", "resourceVersion")
 
 	metadata, ok := un.Object["metadata"].(map[string]any)
 	if !ok {
 		return
 	}
+	unstructured.RemoveNestedField(un.Object, "metadata", "managedFields")
+	unstructured.RemoveNestedField(un.Object, "metadata", "resourceVersion")
+
 	annotationsIf, ok := metadata["annotations"]
 	if !ok {
 		return
