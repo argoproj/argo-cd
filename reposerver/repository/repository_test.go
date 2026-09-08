@@ -6366,3 +6366,47 @@ func TestGetHelmRepos_InsecureOCIForceHttpPropagatedFromRepoCreds(t *testing.T) 
 	require.Len(t, helmRepos, 1)
 	assert.True(t, helmRepos[0].InsecureOCIForceHttp)
 }
+
+func TestGenerateManifests_TrackingLabelOnCRDs(t *testing.T) {
+	tests := []struct {
+		name                      string
+		enableTrackingLabelOnCRDs bool
+		shouldHaveLabel           bool
+	}{
+		{
+			name:                      "enable tracking label on CRDs",
+			enableTrackingLabelOnCRDs: true,
+			shouldHaveLabel:           true,
+		},
+		{
+			name:                      "label should not be on CRDs when disabled",
+			enableTrackingLabelOnCRDs: false,
+			shouldHaveLabel:           false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			src := v1alpha1.ApplicationSource{Path: "."}
+			q := apiclient.ManifestRequest{
+				Repo:               &v1alpha1.Repository{},
+				ApplicationSource:  &src,
+				AppLabelKey:        "test",
+				AppName:            "crd-tracking",
+				ProjectName:        "something",
+				ProjectSourceRepos: []string{"*"},
+			}
+
+			res, err := GenerateManifests(t.Context(), "./testdata/crd-tracking", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil, WithTrackingLabelOnCRDs(tt.enableTrackingLabelOnCRDs))
+			require.NoError(t, err)
+
+			obj := unstructured.Unstructured{}
+			err = json.Unmarshal([]byte(res.Manifests[0]), &obj)
+			require.NoError(t, err)
+
+			annotations := obj.GetAnnotations()
+			_, exists := annotations[common.AnnotationKeyAppInstance]
+			require.Equal(t, tt.shouldHaveLabel, exists, "unexpected AnnotationKeyAppInstance presence on CRD manifest")
+		})
+	}
+}

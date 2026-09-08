@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	fakedisco "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/dynamic/fake"
@@ -67,6 +68,17 @@ func newTestSyncCtx(getResourceFunc *func(ctx context.Context, config *rest.Conf
 		opt(&sc)
 	}
 	return &sc
+}
+
+func NewCustomResourceDefinitionWithTracking(annotation, label bool) *unstructured.Unstructured {
+	crd := testingutils.NewCustomResourceDefinition()
+	if annotation {
+		crd.SetAnnotations(map[string]string{"argocd.argoproj.io/tracking-id": "value"})
+	}
+	if label {
+		crd.SetLabels(map[string]string{"app.kubernetes.io/instance": "value"})
+	}
+	return crd
 }
 
 // make sure Validate means we don't validate
@@ -2326,6 +2338,48 @@ func TestPruneLast(t *testing.T) {
 	})
 }
 
+func TestPruneCRDsAreNotDeleted(t *testing.T) {
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.appAnnotationKey = "argocd.argoproj.io/tracking-id"
+	syncCtx.appLabelKey = "app.kubernetes.io/instance"
+
+	crd := NewCustomResourceDefinitionWithTracking(true, true)
+
+	syncCtx.defaultPruneOption = new("true")
+	syncCtx.prune = true
+
+	mockKubectl := &kubetest.MockKubectlCmd{
+		Commands: map[string]kubetest.KubectlOutput{
+			crd.GetName(): {
+				Output: "Error on delete call for crd because it should not be called...",
+				Err:    errors.New("DELETE SHOULD NOT BE CALLED"),
+			},
+		},
+	}
+
+	patchResourceCalled := false
+	mockKubectl = mockKubectl.WithPatchResourceFunc(func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patch []byte, _ ...string) (*unstructured.Unstructured, error) {
+		patchResourceCalled = true
+		return nil, nil
+	})
+
+	syncCtx.kubectl = mockKubectl
+
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{crd},
+		Target: []*unstructured.Unstructured{nil},
+	})
+
+	syncCtx.Sync(context.TODO())
+	syncCtx.Sync(context.TODO())
+	phase, _, resources := syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationSucceeded, phase)
+	assert.Len(t, resources, 1)
+	assert.Equal(t, synccommon.ResultCodePruned, resources[0].Status)
+	assert.Equal(t, "pruned (orphaned CRD)", resources[0].Message)
+	assert.True(t, patchResourceCalled)
+}
+
 func diffResultList() *diff.DiffResultList {
 	pod1 := testingutils.NewPod()
 	pod1.SetName("pod-1")
@@ -3328,4 +3382,45 @@ func TestTerminate_Hooks_Error(t *testing.T) {
 	assert.Equal(t, kube.GetResourceKey(hook1), results[0].ResourceKey)
 	assert.Equal(t, synccommon.OperationError, results[0].HookPhase)
 	assert.Contains(t, results[0].Message, "update failed")
+}
+
+func TestBuildRemoveTrackingJSONPatch(t *testing.T) {
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.appAnnotationKey = "argocd.argoproj.io/tracking-id"
+	syncCtx.appLabelKey = "app.kubernetes.io/instance"
+
+	tests := []struct {
+		name          string
+		obj           *unstructured.Unstructured
+		expectedBytes []byte
+	}{
+		{
+			name:          "removes both tracking annotation and label",
+			obj:           NewCustomResourceDefinitionWithTracking(true, true),
+			expectedBytes: []byte("[{\"op\":\"remove\",\"path\":\"/metadata/labels/app.kubernetes.io~1instance\"},{\"op\":\"remove\",\"path\":\"/metadata/annotations/argocd.argoproj.io~1tracking-id\"}]"),
+		},
+		{
+			name:          "remove only annotation",
+			obj:           NewCustomResourceDefinitionWithTracking(true, false),
+			expectedBytes: []byte("[{\"op\":\"remove\",\"path\":\"/metadata/annotations/argocd.argoproj.io~1tracking-id\"}]"),
+		},
+		{
+			name:          "remove only label",
+			obj:           NewCustomResourceDefinitionWithTracking(false, true),
+			expectedBytes: []byte("[{\"op\":\"remove\",\"path\":\"/metadata/labels/app.kubernetes.io~1instance\"}]"),
+		},
+		{
+			name:          "empty patch if no annotation or label",
+			obj:           testingutils.NewCustomResourceDefinition(),
+			expectedBytes: []byte("[]"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			patch, err := syncCtx.buildRemoveTrackingJSONPatch(tt.obj)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedBytes, patch)
+		})
+	}
 }

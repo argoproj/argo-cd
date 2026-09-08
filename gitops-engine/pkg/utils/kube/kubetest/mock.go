@@ -34,6 +34,7 @@ type MockKubectlCmd struct {
 
 	convertToVersionFunc           *func(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	getResourceFunc                *func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
+	patchResourceFunc              *func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patch []byte, _ ...string) (*unstructured.Unstructured, error)
 	loadOpenAPISchemaFunc          *func(config *rest.Config) (openapi.Resources, *managedfields.GvkParser, error)
 	manageServerSideDiffDryRunFunc *func(config *rest.Config) (diff.KubeApplier, func(), error)
 }
@@ -44,9 +45,15 @@ func (k *MockKubectlCmd) WithConvertToVersionFunc(convertToVersionFunc func(*uns
 	return k
 }
 
-// WithGetResourceFunc overrides the default ConvertToVersion behavior.
-func (k *MockKubectlCmd) WithGetResourceFunc(getResourcefunc func(context.Context, *rest.Config, schema.GroupVersionKind, string, string) (*unstructured.Unstructured, error)) *MockKubectlCmd {
-	k.getResourceFunc = &getResourcefunc
+// WithGetResourceFunc overrides the default GetResource behavior.
+func (k *MockKubectlCmd) WithGetResourceFunc(getResourceFunc func(context.Context, *rest.Config, schema.GroupVersionKind, string, string) (*unstructured.Unstructured, error)) *MockKubectlCmd {
+	k.getResourceFunc = &getResourceFunc
+	return k
+}
+
+// WithPatchResourceFunc overrides the default PatchResource behavior.
+func (k *MockKubectlCmd) WithPatchResourceFunc(patchResourceFunc func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patch []byte, _ ...string) (*unstructured.Unstructured, error)) *MockKubectlCmd {
+	k.patchResourceFunc = &patchResourceFunc
 	return k
 }
 
@@ -78,7 +85,10 @@ func (k *MockKubectlCmd) GetResource(ctx context.Context, config *rest.Config, g
 	return nil, nil
 }
 
-func (k *MockKubectlCmd) PatchResource(_ context.Context, _ *rest.Config, _ schema.GroupVersionKind, _ string, _ string, _ types.PatchType, _ []byte, _ ...string) (*unstructured.Unstructured, error) {
+func (k *MockKubectlCmd) PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patch []byte, _ ...string) (*unstructured.Unstructured, error) {
+	if k.patchResourceFunc != nil {
+		return (*k.patchResourceFunc)(ctx, config, gvk, name, namespace, patchType, patch)
+	}
 	return nil, nil
 }
 
