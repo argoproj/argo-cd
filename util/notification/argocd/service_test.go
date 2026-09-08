@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	dynfake "k8s.io/client-go/dynamic/fake"
@@ -34,10 +33,8 @@ func newTestService(t *testing.T, objects ...runtime.Object) (*argoCDService, *d
 func TestGetAppProject(t *testing.T) {
 	t.Parallel()
 	appProject := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-project",
-			Namespace: "default",
-		},
+		Name:      "my-project",
+		Namespace: "default",
 		Spec: v1alpha1.AppProjectSpec{
 			Description: "test project",
 		},
@@ -55,10 +52,8 @@ func TestGetAppProject(t *testing.T) {
 	t.Run("defaults to 'default' project when name is empty", func(t *testing.T) {
 		t.Parallel()
 		defaultProject := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "default",
-			},
+			Name:      "default",
+			Namespace: "default",
 		}
 		svc, _ := newTestService(t, defaultProject)
 		result, err := svc.GetAppProject(t.Context(), "")

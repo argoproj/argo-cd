@@ -630,23 +630,19 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			errors.CheckError(err)
 			// Seed a minimal in-memory Argo CD environment so settings retrieval succeeds
 			argoCDCM := &corev1.ConfigMap{
-				TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      common.ArgoCDConfigMapName,
-					Namespace: ArgoCDNamespace,
-					Labels: map[string]string{
-						"app.kubernetes.io/part-of": "argocd",
-					},
+				Kind: "ConfigMap", APIVersion: "v1",
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: ArgoCDNamespace,
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
 				},
 			}
 			argoCDSecret := &corev1.Secret{
-				TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      common.ArgoCDSecretName,
-					Namespace: ArgoCDNamespace,
-					Labels: map[string]string{
-						"app.kubernetes.io/part-of": "argocd",
-					},
+				Kind: "Secret", APIVersion: "v1",
+				Name:      common.ArgoCDSecretName,
+				Namespace: ArgoCDNamespace,
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
 				},
 				Data: map[string][]byte{
 					"server.secretkey": []byte("test"),

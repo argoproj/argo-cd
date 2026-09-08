@@ -45,22 +45,18 @@ func TestClusterSecretUpdater(t *testing.T) {
 	}
 
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{},
 	}
 	argoCDSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDSecretName,
-			Namespace: fakeNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDSecretName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string][]byte{
 			"admin.password":   nil,
@@ -107,29 +103,23 @@ func TestGetUpdatedClusterInfo_AppCount(t *testing.T) {
 	const clusterName = "prod"
 
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: fakeNamespace,
-			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
-		},
-		Data: map[string]string{},
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: fakeNamespace,
+		Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		Data:      map[string]string{},
 	}
 	argoCDSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDSecretName,
-			Namespace: fakeNamespace,
-			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
-		},
-		Data: map[string][]byte{"admin.password": nil, "server.secretkey": nil},
+		Name:      common.ArgoCDSecretName,
+		Namespace: fakeNamespace,
+		Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		Data:      map[string][]byte{"admin.password": nil, "server.secretkey": nil},
 	}
 	clusterSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "prod-cluster",
-			Namespace: fakeNamespace,
-			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
-			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-			},
+		Name:      "prod-cluster",
+		Namespace: fakeNamespace,
+		Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+		Annotations: map[string]string{
+			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
 		},
 		Data: map[string][]byte{
 			"name":   []byte(clusterName),
@@ -162,30 +152,24 @@ func TestGetUpdatedClusterInfo_AmbiguousName(t *testing.T) {
 	const clusterName = "prod"
 
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: fakeNamespace,
-			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
-		},
-		Data: map[string]string{},
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: fakeNamespace,
+		Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		Data:      map[string]string{},
 	}
 	argoCDSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDSecretName,
-			Namespace: fakeNamespace,
-			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
-		},
-		Data: map[string][]byte{"admin.password": nil, "server.secretkey": nil},
+		Name:      common.ArgoCDSecretName,
+		Namespace: fakeNamespace,
+		Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		Data:      map[string][]byte{"admin.password": nil, "server.secretkey": nil},
 	}
 	makeClusterSecret := func(secretName, server string) *corev1.Secret {
 		return &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secretName,
-				Namespace: fakeNamespace,
-				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
-				Annotations: map[string]string{
-					common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-				},
+			Name:      secretName,
+			Namespace: fakeNamespace,
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
 			},
 			Data: map[string][]byte{
 				"name":   []byte(clusterName),

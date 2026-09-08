@@ -34,15 +34,11 @@ func randStr(t *testing.T) string {
 func TestSimpleGitDirectoryGenerator(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -140,15 +136,11 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -252,15 +244,11 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 	)
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -349,15 +337,11 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 	)
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -447,15 +431,11 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 func TestSimpleGitFilesGenerator(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -558,15 +538,11 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 	project := "gpg"
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: project,
 				Source: &v1alpha1.ApplicationSource{
@@ -594,9 +570,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 		AddFile("test.yaml", randStr(t)).
 		// Create a GitGenerator-based ApplicationSet
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-git-generator",
-			},
+			Name: "simple-git-generator",
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
@@ -660,15 +634,11 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 	project := "gpg"
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: project,
 				Source: &v1alpha1.ApplicationSource{
@@ -753,15 +723,11 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -975,15 +941,11 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 func TestGitGeneratorPrivateRepo(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -1049,15 +1011,11 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -1123,15 +1081,11 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 func TestSimpleGitGeneratorPrivateRepoWithNoRepo(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -1195,15 +1149,11 @@ func TestSimpleGitGeneratorPrivateRepoWithNoRepo(t *testing.T) {
 func TestSimpleGitGeneratorPrivateRepoWithMatchingProject(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -1266,15 +1216,11 @@ func TestSimpleGitGeneratorPrivateRepoWithMatchingProject(t *testing.T) {
 func TestSimpleGitGeneratorPrivateRepoWithMismatchingProject(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -1339,15 +1285,11 @@ func TestSimpleGitGeneratorPrivateRepoWithMismatchingProject(t *testing.T) {
 func TestGitGeneratorPrivateRepoWithTemplatedProject(t *testing.T) {
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -1423,15 +1365,11 @@ func TestGitGeneratorPrivateRepoWithTemplatedProjectAndProjectScopedRepo(t *test
 
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       name,
-				Namespace:  fixture.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       name,
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{

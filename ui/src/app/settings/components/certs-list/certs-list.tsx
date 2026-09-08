@@ -256,7 +256,7 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                                                                 <div className='columns small-3'>
                                                                     {cert.certType} {cert.certSubType}
                                                                 </div>
-                                                                <div className='columns small-5'>
+                                                                <div className='columns small-5' title={cert.certInfo}>
                                                                     {cert.certInfo}
                                                                     <ActionMenu
                                                                         items={[

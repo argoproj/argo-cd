@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -44,9 +45,9 @@ func newSecretManagedResource(name string, targetData, liveData map[string][]byt
 			return nil
 		}
 		return kube.MustToUnstructured(&corev1.Secret{
-			TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: kube.SecretKind},
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
-			Data:       data,
+			APIVersion: "v1", Kind: kube.SecretKind,
+			Name: name, Namespace: "default",
+			Data: data,
 		})
 	}
 	return managedResource{
@@ -519,6 +520,74 @@ func TestCompareAppStateMissing(t *testing.T) {
 	assert.Empty(t, app.Status.Conditions)
 }
 
+// TestCompareAppStateResourceSelector tests that a managed resource filtered out by a configured
+// resource selector is reported with an ExcludedResourceWarning, as it will never have a live state
+func TestCompareAppStateResourceSelector(t *testing.T) {
+	labeledPodManifest := `{"apiVersion":"v1","kind":"Pod","metadata":{"name":"my-pod","labels":{"app":"my-app"}}}`
+
+	compare := func(t *testing.T, manifest string, selector string) (*comparisonResult, *v1alpha1.Application) {
+		t.Helper()
+		app := newFakeApp()
+		data := fakeData{
+			apps: []runtime.Object{app},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{manifest},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+			configMapData: map[string]string{
+				"resource.selectors": fmt.Sprintf("- kinds: [\"Pod\"]\n  selector: %q\n", selector),
+			},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, false, false, nil, false)
+		require.NoError(t, err)
+		return compRes, app
+	}
+
+	t.Run("resource not matching the selector is reported", func(t *testing.T) {
+		// PodManifest has no labels, so it does not match
+		compRes, app := compare(t, PodManifest, "app=my-app")
+
+		require.Len(t, app.Status.Conditions, 1)
+		assert.Equal(t, v1alpha1.ApplicationConditionExcludedResourceWarning, app.Status.Conditions[0].Type)
+		assert.Contains(t, app.Status.Conditions[0].Message, `Resource /Pod my-pod does not match the resource selector "app=my-app" in the settings`)
+		// the resource stays managed, it is only unwatched
+		assert.Len(t, compRes.resources, 1)
+		assert.Len(t, compRes.managedResources, 1)
+	})
+
+	t.Run("resource matching the selector is not reported", func(t *testing.T) {
+		compRes, app := compare(t, labeledPodManifest, "app=my-app")
+
+		assert.Empty(t, app.Status.Conditions)
+		assert.Len(t, compRes.resources, 1)
+	})
+
+	t.Run("selector of another kind is ignored", func(t *testing.T) {
+		app := newFakeApp()
+		data := fakeData{
+			apps: []runtime.Object{app},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{PodManifest},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+			configMapData: map[string]string{
+				"resource.selectors": "- kinds: [\"Service\"]\n  selector: \"app=my-app\"\n",
+			},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		_, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, false, false, nil, false)
+		require.NoError(t, err)
+		assert.Empty(t, app.Status.Conditions)
+	})
+}
+
 // TestCompareAppStateExtra tests when there is an extra object in live but not defined in git
 func TestCompareAppStateExtra(t *testing.T) {
 	pod := NewPod()
@@ -975,10 +1044,8 @@ func TestCompareAppStateManagedNamespaceMetadataWithLiveNsDoesNotGetPruned(t *te
 }
 
 var defaultProj = v1alpha1.AppProject{
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "default",
-		Namespace: test.FakeArgoCDNamespace,
-	},
+	Name:      "default",
+	Namespace: test.FakeArgoCDNamespace,
 	Spec: v1alpha1.AppProjectSpec{
 		SourceRepos: []string{"*"},
 		Destinations: []v1alpha1.ApplicationDestination{
@@ -1022,14 +1089,10 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 func TestSetHealth(t *testing.T) {
 	app := newFakeApp()
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "demo",
+		Namespace:  "default",
 	})
 	ctrl := newFakeController(t.Context(), &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
@@ -1058,14 +1121,10 @@ func TestPreserveStatusTimestamp(t *testing.T) {
 	timestamp := metav1.Now()
 	app := newFakeAppWithHealthAndTime(health.HealthStatusHealthy, timestamp)
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "demo",
+		Namespace:  "default",
 	})
 	ctrl := newFakeController(t.Context(), &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
@@ -1094,14 +1153,10 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	app := newFakeApp()
 	unstructuredApp := kube.MustToUnstructured(app)
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "demo",
+		Namespace:  "default",
 	})
 	ctrl := newFakeController(t.Context(), &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
@@ -1294,10 +1349,8 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 }
 
 var projWithSourceIntegrity = v1alpha1.AppProject{
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "default",
-		Namespace: test.FakeArgoCDNamespace,
-	},
+	Name:      "default",
+	Namespace: test.FakeArgoCDNamespace,
 	Spec: v1alpha1.AppProjectSpec{
 		SourceRepos: []string{"*"},
 		Destinations: []v1alpha1.ApplicationDestination{
@@ -1507,94 +1560,66 @@ func TestIsLiveResourceManaged(t *testing.T) {
 	t.Parallel()
 
 	managedObj := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap1",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap1",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
 		},
 	})
 	managedObjWithLabel := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap1",
-			Namespace: "default",
-			Labels: map[string]string{
-				common.LabelKeyAppInstance: "guestbook",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap1",
+		Namespace:  "default",
+		Labels: map[string]string{
+			common.LabelKeyAppInstance: "guestbook",
 		},
 	})
 	unmanagedObjWrongName := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap2",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap2",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
 		},
 	})
 	unmanagedObjWrongKind := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap2",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:/Service:default/configmap2",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap2",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:/Service:default/configmap2",
 		},
 	})
 	unmanagedObjWrongGroup := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap2",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:apps/ConfigMap:default/configmap2",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap2",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:apps/ConfigMap:default/configmap2",
 		},
 	})
 	unmanagedObjWrongNamespace := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap2",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:fakens/configmap2",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap2",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:fakens/configmap2",
 		},
 	})
 	managedWrongAPIGroup := kube.MustToUnstructured(&networkingv1.Ingress{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "networking.k8s.io/v1",
-			Kind:       "Ingress",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "some-ingress",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:extensions/Ingress:default/some-ingress",
-			},
+		APIVersion: "networking.k8s.io/v1",
+		Kind:       "Ingress",
+		Name:       "some-ingress",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:extensions/Ingress:default/some-ingress",
 		},
 	})
 	ctrl := newFakeController(t.Context(), &fakeData{
@@ -1722,10 +1747,8 @@ func TestUseDiffCache(t *testing.T) {
 
 	app := func(namespace string, revision string, refresh bool, a *v1alpha1.Application) *v1alpha1.Application {
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "httpbin",
-				Namespace: namespace,
-			},
+			Name:      "httpbin",
+			Namespace: namespace,
 			Spec: v1alpha1.ApplicationSpec{
 				Source: new(source()),
 				Destination: v1alpha1.ApplicationDestination{
@@ -2029,10 +2052,8 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 
 func Test_NormalizeTargetObjects_ClusterScopeTracking(t *testing.T) {
 	obj := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "test",
-		},
+		Name:      "test",
+		Namespace: "test",
 	})
 	c := &cachemocks.ClusterCache{}
 	c.EXPECT().IsNamespaced(mock.Anything).Return(false, nil)
@@ -2052,37 +2073,25 @@ func Test_NormalizeTargetObjects_Deduplication(t *testing.T) {
 	// Create three cluster-scoped objects with the same Group/Kind/Name
 	// Using cluster-scoped to work with resourceInfoProviderStub
 	obj1 := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "my-cluster-role",
-		},
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Name:       "my-cluster-role",
 		Rules: []rbacv1.PolicyRule{
 			{Verbs: []string{"get"}, Resources: []string{"pods"}},
 		},
 	})
 	obj2 := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "my-cluster-role",
-		},
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Name:       "my-cluster-role",
 		Rules: []rbacv1.PolicyRule{
 			{Verbs: []string{"list"}, Resources: []string{"pods"}},
 		},
 	})
 	obj3 := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "my-cluster-role",
-		},
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Name:       "my-cluster-role",
 		Rules: []rbacv1.PolicyRule{
 			{Verbs: []string{"watch"}, Resources: []string{"pods"}},
 		},
@@ -2119,24 +2128,16 @@ func Test_NormalizeTargetObjects_Deduplication(t *testing.T) {
 func Test_NormalizeTargetObjects_GenerateName(t *testing.T) {
 	// Create two objects with the same generateName
 	obj1 := kube.MustToUnstructured(&corev1.Pod{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Pod",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "test-pod-",
-			Namespace:    "default",
-		},
+		APIVersion:   "v1",
+		Kind:         "Pod",
+		GenerateName: "test-pod-",
+		Namespace:    "default",
 	})
 	obj2 := kube.MustToUnstructured(&corev1.Pod{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Pod",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "test-pod-",
-			Namespace:    "default",
-		},
+		APIVersion:   "v1",
+		Kind:         "Pod",
+		GenerateName: "test-pod-",
+		Namespace:    "default",
 	})
 
 	result, conditions, err := NormalizeTargetObjects(
@@ -2157,10 +2158,8 @@ func Test_NormalizeTargetObjects_GenerateName(t *testing.T) {
 func Test_NormalizeTargetObjects_NamespacedResourceWithTracking(t *testing.T) {
 	// Create a namespaced resource without namespace set
 	obj := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "my-config",
 			// No namespace specified

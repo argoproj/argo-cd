@@ -675,10 +675,8 @@ func TestEncodeX509KeyPair_InvalidRSAKey(t *testing.T) {
 		// Create an RSA key with invalid parameters that will fail Validate()
 		t.Parallel()
 		invalidKey := &rsa.PrivateKey{
-			PublicKey: rsa.PublicKey{
-				N: big.NewInt(1), // Too small modulus, will fail validation
-				E: 65537,
-			},
+			N: big.NewInt(1), // Too small modulus, will fail validation
+			E: 65537,
 			D: big.NewInt(1), // Invalid private exponent
 		}
 		cert := tls.Certificate{
@@ -693,10 +691,8 @@ func TestEncodeX509KeyPair_InvalidRSAKey(t *testing.T) {
 	t.Run("RSA private key with inconsistent parameters", func(t *testing.T) {
 		t.Parallel()
 		invalidKey := &rsa.PrivateKey{
-			PublicKey: rsa.PublicKey{
-				N: big.NewInt(35),
-				E: 65537,
-			},
+			N: big.NewInt(35),
+			E: 65537,
 			D: big.NewInt(99999),
 		}
 		cert := tls.Certificate{

@@ -4,21 +4,23 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
-	argocdcommon "github.com/argoproj/argo-cd/v3/common"
-
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/rest"
+
+	argocdcommon "github.com/argoproj/argo-cd/v3/common"
+	utilhttp "github.com/argoproj/argo-cd/v3/util/http"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -50,6 +52,18 @@ func TestAppProject_IsSourcePermitted(t *testing.T) {
 		projSources: []string{"https://gitlab.com/group/*/*/*"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: true,
 	}, {
 		projSources: []string{"https://gitlab.com/group/**"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: true,
+	}, {
+		// Domain-level wildcard: ** should match all repos under github.com
+		projSources: []string{"https://github.com/**"}, appSource: "https://github.com/argoproj/argocd-example-apps.git", isPermitted: true,
+	}, {
+		// Domain-level wildcard: ** should match nested org paths
+		projSources: []string{"https://github.com/**"}, appSource: "https://github.com/some-org/some-repo.git", isPermitted: true,
+	}, {
+		// Domain-level wildcard with **: should NOT match different domains
+		projSources: []string{"https://github.com/**"}, appSource: "https://gitlab.com/group/repo.git", isPermitted: false,
+	}, {
+		// Single-level wildcard: * should NOT match multi-level paths after domain
+		projSources: []string{"https://github.com/*"}, appSource: "https://github.com/argoproj/test.git", isPermitted: false,
 	}}
 
 	for _, data := range testData {
@@ -85,6 +99,15 @@ func TestAppProject_IsNegatedSourcePermitted(t *testing.T) {
 		projSources: []string{"!https://gitlab.com/group/*/*/*"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: false,
 	}, {
 		projSources: []string{"!https://gitlab.com/group/**"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: false,
+	}, {
+		// Negated domain-level wildcard: deny all GitHub repos
+		projSources: []string{"!https://github.com/**"}, appSource: "https://github.com/argoproj/test.git", isPermitted: false,
+	}, {
+		// Combined patterns: allow all except GitHub
+		projSources: []string{"*", "!https://github.com/**"}, appSource: "https://github.com/argoproj/test.git", isPermitted: false,
+	}, {
+		// Combined patterns: allow all except GitHub, but GitLab should work
+		projSources: []string{"*", "!https://github.com/**"}, appSource: "https://gitlab.com/group/repo.git", isPermitted: true,
 	}, {
 		projSources: []string{"*"}, appSource: "https://github.com/argoproj/test.git", isPermitted: true,
 	}, {
@@ -395,6 +418,24 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 		}},
 		appDest:     ApplicationDestination{Server: "https://other-test-server", Namespace: "other"},
 		isPermitted: true,
+	}, {
+		// Name deny pattern should NOT apply when namespace doesn't match (regression test for operator precedence fix)
+		projDest: []ApplicationDestination{{
+			Name: "*", Namespace: "*",
+		}, {
+			Name: "!bad", Namespace: "other",
+		}},
+		appDest:     ApplicationDestination{Name: "bad", Namespace: "test"},
+		isPermitted: true,
+	}, {
+		// Name deny pattern should apply when namespace matches
+		projDest: []ApplicationDestination{{
+			Name: "*", Namespace: "*",
+		}, {
+			Name: "!bad", Namespace: "test",
+		}},
+		appDest:     ApplicationDestination{Name: "bad", Namespace: "test"},
+		isPermitted: false,
 	}}
 
 	for _, data := range testData {
@@ -699,8 +740,8 @@ func TestAppProject_RemoveGroupFromRole(t *testing.T) {
 
 func newTestProject() *AppProject {
 	p := AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "my-proj"},
-		Spec:       AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}, Destinations: []ApplicationDestination{{}}},
+		Name: "my-proj",
+		Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}, Destinations: []ApplicationDestination{{}}},
 	}
 	return &p
 }
@@ -2491,7 +2532,7 @@ func TestAppProject_EffectiveSourceIntegrity(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			appProj := &AppProject{Spec: tt.spec, ObjectMeta: metav1.ObjectMeta{Name: "sut"}}
+			appProj := &AppProject{Spec: tt.spec, Name: "sut"}
 			assert.Equal(t, tt.expected, appProj.EffectiveSourceIntegrity())
 		})
 	}
@@ -3437,7 +3478,7 @@ func newTestProjectWithSyncWindowsAndOperator() *AppProject {
 
 func newTestApp() *Application {
 	a := &Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-app"},
+		Name: "test-app",
 		Spec: ApplicationSpec{
 			Destination: ApplicationDestination{
 				Namespace: "default",
@@ -3840,15 +3881,13 @@ func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
 
 func TestUnSetCascadedDeletion(t *testing.T) {
 	a := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test",
-			Finalizers: []string{
-				"alpha",
-				ForegroundPropagationPolicyFinalizer,
-				"beta",
-				BackgroundPropagationPolicyFinalizer,
-				"gamma",
-			},
+		Name: "test",
+		Finalizers: []string{
+			"alpha",
+			ForegroundPropagationPolicyFinalizer,
+			"beta",
+			BackgroundPropagationPolicyFinalizer,
+			"gamma",
 		},
 	}
 	a.UnSetCascadedDeletion()
@@ -4129,60 +4168,44 @@ func TestGetCAPath(t *testing.T) {
 
 func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 	app1 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app1",
-			Namespace: "argocd",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app1",
+		Namespace: "argocd",
+		Spec:      ApplicationSpec{},
 	}
 	app2 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "some-ns",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "some-ns",
+		Spec:      ApplicationSpec{},
 	}
 	app3 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "",
+		Spec:      ApplicationSpec{},
 	}
 	app4 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "other-ns",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "other-ns",
+		Spec:      ApplicationSpec{},
 	}
 	app5 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "some-ns1",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "some-ns1",
+		Spec:      ApplicationSpec{},
 	}
 	app6 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "some-ns2",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "some-ns2",
+		Spec:      ApplicationSpec{},
 	}
 	app7 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "someotherns",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "someotherns",
+		Spec:      ApplicationSpec{},
 	}
 	t.Run("App in same namespace as controller", func(t *testing.T) {
 		proj := &AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
+			Name:      "default",
+			Namespace: "argocd",
 			Spec: AppProjectSpec{
 				SourceNamespaces: []string{"other-ns"},
 			},
@@ -4196,10 +4219,8 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 	})
 	t.Run("App not permitted when sourceNamespaces is empty", func(t *testing.T) {
 		proj := &AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
+			Name:      "default",
+			Namespace: "argocd",
 			Spec: AppProjectSpec{
 				SourceNamespaces: []string{},
 			},
@@ -4212,10 +4233,8 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 
 	t.Run("App permitted when sourceNamespaces has app namespace", func(t *testing.T) {
 		proj := &AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
+			Name:      "default",
+			Namespace: "argocd",
 			Spec: AppProjectSpec{
 				SourceNamespaces: []string{"some-ns"},
 			},
@@ -4228,10 +4247,8 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 
 	t.Run("App permitted by glob pattern", func(t *testing.T) {
 		proj := &AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
+			Name:      "default",
+			Namespace: "argocd",
 			Spec: AppProjectSpec{
 				SourceNamespaces: []string{"some-*"},
 			},
@@ -4248,10 +4265,8 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 func Test_RBACName(t *testing.T) {
 	testApp := func(namespace, project string) *Application {
 		return &Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-app",
-				Namespace: namespace,
-			},
+			Name:      "test-app",
+			Namespace: namespace,
 			Spec: ApplicationSpec{
 				Project: project,
 			},
@@ -4304,7 +4319,7 @@ func TestGetAppOfAppSummary(t *testing.T) {
 	app := newTestApp()
 	standardTree := &ApplicationTree{
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "any-service", Kind: "Service"}},
+			{Name: "any-service", Kind: "Service"},
 		},
 	}
 
@@ -4315,8 +4330,8 @@ func TestGetAppOfAppSummary(t *testing.T) {
 
 	appOfAppsTree := &ApplicationTree{
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "children-app", Kind: "Application", Group: "argoproj.io"}},
-			{ResourceRef: ResourceRef{Name: "any-service", Kind: "Service", Group: ""}},
+			{Name: "children-app", Kind: "Application", Group: "argoproj.io"},
+			{Name: "any-service", Kind: "Service", Group: ""},
 		},
 	}
 	summary = appOfAppsTree.GetSummary(app)
@@ -4687,10 +4702,10 @@ func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
 func TestApplicationTree_GetShards(t *testing.T) {
 	tree := &ApplicationTree{
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
+			{Name: "node 1"}, {Name: "node 2"}, {Name: "node 3"},
 		},
 		OrphanedNodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
+			{Name: "orph-node 1"}, {Name: "orph-node 2"}, {Name: "orph-node 3"},
 		},
 		Hosts: []HostInfo{
 			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
@@ -4702,15 +4717,15 @@ func TestApplicationTree_GetShards(t *testing.T) {
 	require.Equal(t, &ApplicationTree{
 		ShardsCount: 5,
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
+			{Name: "node 1"}, {Name: "node 2"},
 		},
 	}, shards[0])
 	require.Equal(t, &ApplicationTree{
-		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
+		Nodes:         []ResourceNode{{Name: "node 3"}},
+		OrphanedNodes: []ResourceNode{{Name: "orph-node 1"}},
 	}, shards[1])
 	require.Equal(t, &ApplicationTree{
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
+		OrphanedNodes: []ResourceNode{{Name: "orph-node 2"}, {Name: "orph-node 3"}},
 	}, shards[2])
 	require.Equal(t, &ApplicationTree{
 		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
@@ -4725,15 +4740,15 @@ func TestApplicationTree_Merge(t *testing.T) {
 	tree.Merge(&ApplicationTree{
 		ShardsCount: 5,
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
+			{Name: "node 1"}, {Name: "node 2"},
 		},
 	})
 	tree.Merge(&ApplicationTree{
-		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
+		Nodes:         []ResourceNode{{Name: "node 3"}},
+		OrphanedNodes: []ResourceNode{{Name: "orph-node 1"}},
 	})
 	tree.Merge(&ApplicationTree{
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
+		OrphanedNodes: []ResourceNode{{Name: "orph-node 2"}, {Name: "orph-node 3"}},
 	})
 	tree.Merge(&ApplicationTree{
 		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
@@ -4743,10 +4758,10 @@ func TestApplicationTree_Merge(t *testing.T) {
 	})
 	require.Equal(t, &ApplicationTree{
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
+			{Name: "node 1"}, {Name: "node 2"}, {Name: "node 3"},
 		},
 		OrphanedNodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
+			{Name: "orph-node 1"}, {Name: "orph-node 2"}, {Name: "orph-node 3"},
 		},
 		Hosts: []HostInfo{
 			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
@@ -5150,6 +5165,165 @@ func TestSanitized(t *testing.T) {
 			},
 		},
 	}, cluster.Sanitized())
+}
+
+func TestCluster_HashIdentity(t *testing.T) {
+	t.Run("valid cluster produces non-zero hash", func(t *testing.T) {
+		cluster := &Cluster{
+			ID:     "cluster-123",
+			Server: "https://example.com:6443",
+			Name:   "production-cluster",
+			Config: ClusterConfig{
+				TLSClientConfig: TLSClientConfig{
+					Insecure: true,
+				},
+			},
+		}
+		hash := cluster.HashIdentity(0)
+		require.NotZero(t, hash, "hash should not be zero")
+	})
+
+	t.Run("minimal cluster produces hash", func(t *testing.T) {
+		cluster := &Cluster{
+			Server: "https://minimal.example.com",
+		}
+		hash := cluster.HashIdentity(0)
+		require.NotZero(t, hash)
+	})
+
+	t.Run("empty cluster produces hash", func(t *testing.T) {
+		cluster := &Cluster{}
+		hash := cluster.HashIdentity(0)
+		require.NotZero(t, hash)
+	})
+
+	t.Run("deterministic - same cluster produces same hash", func(t *testing.T) {
+		cluster := &Cluster{
+			ID:     "test-id",
+			Server: "https://test.example.com",
+			Name:   "test-cluster",
+			Config: ClusterConfig{
+				BearerToken: "token123",
+			},
+		}
+		hash1 := cluster.HashIdentity(0)
+		hash2 := cluster.HashIdentity(0)
+		assert.Equal(t, hash1, hash2, "identical clusters should produce identical hashes")
+	})
+
+	t.Run("different ID produces same hash", func(t *testing.T) {
+		// ID has json:"-" tag so it's excluded from JSON marshaling,
+		// therefore it doesn't affect the hash identity
+		base := &Cluster{
+			ID:     "same-id",
+			Server: "https://same.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		different := &Cluster{
+			ID:     "different-id",
+			Server: "https://same.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
+		assert.Equal(t, hash1, hash2, "ID should not affect hash since it has json:\"-\" tag")
+	})
+
+	t.Run("different Server produces different hash", func(t *testing.T) {
+		base := &Cluster{
+			ID:     "same-id",
+			Server: "https://same.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		different := &Cluster{
+			ID:     "same-id",
+			Server: "https://different.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
+		assert.NotEqual(t, hash1, hash2)
+	})
+
+	t.Run("different Name produces different hash", func(t *testing.T) {
+		base := &Cluster{
+			ID:     "same-id",
+			Server: "https://same.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		different := &Cluster{
+			ID:     "same-id",
+			Server: "https://same.example.com",
+			Name:   "different-name",
+			Config: ClusterConfig{},
+		}
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
+		assert.NotEqual(t, hash1, hash2)
+	})
+
+	t.Run("non-identity fields do not affect hash", func(t *testing.T) {
+		cluster1 := &Cluster{
+			ID:         "test-id",
+			Server:     "https://test.example.com",
+			Name:       "test-cluster",
+			Namespaces: []string{"ns1", "ns2"},
+			Project:    "project1",
+			Labels:     map[string]string{"env": "prod"},
+			Info: ClusterInfo{
+				ServerVersion:     "v1.28.0",
+				ApplicationsCount: 5,
+			},
+			Config: ClusterConfig{
+				BearerToken: "token123",
+			},
+		}
+		cluster2 := &Cluster{
+			ID:         "test-id",
+			Server:     "https://test.example.com",
+			Name:       "test-cluster",
+			Namespaces: []string{"ns3"},
+			Project:    "project2",
+			Labels:     map[string]string{"env": "dev"},
+			Info: ClusterInfo{
+				ServerVersion:     "v1.30.0",
+				ApplicationsCount: 10,
+			},
+			Config: ClusterConfig{
+				BearerToken: "token123",
+			},
+		}
+		hash1 := cluster1.HashIdentity(0)
+		hash2 := cluster2.HashIdentity(0)
+		assert.Equal(t, hash1, hash2, "clusters with same identity fields but different non-identity fields should have same hash")
+	})
+
+	t.Run("different Config produces different hash", func(t *testing.T) {
+		base := &Cluster{
+			ID:     "test-id",
+			Server: "https://test.example.com",
+			Name:   "test-cluster",
+			Config: ClusterConfig{
+				BearerToken: "token1",
+			},
+		}
+		different := &Cluster{
+			ID:     "test-id",
+			Server: "https://test.example.com",
+			Name:   "test-cluster",
+			Config: ClusterConfig{
+				BearerToken: "token2",
+			},
+		}
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
+		assert.NotEqual(t, hash1, hash2)
+	})
 }
 
 func TestSourceHydrator_Equals(t *testing.T) {
@@ -6229,4 +6403,112 @@ func TestGetDrySource_PreservesAllFields(t *testing.T) {
 			}
 		})
 	}
+}
+
+type roundTripperFunc func(req *http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func TestClusterRESTConfigsApplyK8sRequestTimeoutWithTransportWrapper(t *testing.T) {
+	originalTimeout := K8sServerSideTimeout
+	K8sServerSideTimeout = time.Minute
+	t.Cleanup(func() {
+		K8sServerSideTimeout = originalTimeout
+	})
+
+	cluster := &Cluster{Server: "https://kubernetes.example"}
+
+	rawConfig, err := cluster.RawRestConfig()
+	require.NoError(t, err)
+	assert.Zero(t, rawConfig.Timeout)
+	assert.NotNil(t, rawConfig.WrapTransport)
+
+	config, err := cluster.RESTConfig()
+	require.NoError(t, err)
+	assert.Zero(t, config.Timeout)
+	assert.NotNil(t, config.WrapTransport)
+}
+
+func TestSetK8SConfigDefaultsDoesNotApplyExistingTransportWrapperTwice(t *testing.T) {
+	originalTimeout := K8sServerSideTimeout
+	K8sServerSideTimeout = time.Minute
+	t.Cleanup(func() {
+		K8sServerSideTimeout = originalTimeout
+	})
+
+	wrapCount := 0
+	config := &rest.Config{
+		Host: "https://kubernetes.example",
+		WrapTransport: func(rt http.RoundTripper) http.RoundTripper {
+			wrapCount++
+			return rt
+		},
+	}
+
+	require.NoError(t, SetK8SConfigDefaults(config))
+	assert.Equal(t, 1, wrapCount)
+	require.NotNil(t, config.WrapTransport)
+
+	config.WrapTransport(config.Transport)
+	assert.Equal(t, 1, wrapCount)
+}
+
+func TestSetK8SConfigDefaultsAddsServerSideTimeoutQuery(t *testing.T) {
+	originalTimeout := K8sServerSideTimeout
+	K8sServerSideTimeout = time.Minute
+	t.Cleanup(func() {
+		K8sServerSideTimeout = originalTimeout
+	})
+
+	config := &rest.Config{Host: "https://kubernetes.example/services/gateway/proxy/urn:cluster/"}
+	require.NoError(t, SetK8SConfigDefaults(config))
+	require.NotNil(t, config.WrapTransport)
+
+	var receivedRequest *http.Request
+	wrapped := config.WrapTransport(roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		receivedRequest = req
+		return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+	}))
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, config.Host+"api/v1/pods", http.NoBody)
+	require.NoError(t, err)
+	resp, err := wrapped.RoundTrip(req)
+	require.NoError(t, err)
+	require.NotNil(t, receivedRequest)
+	assert.Equal(t, "1m0s", receivedRequest.URL.Query().Get("timeout"))
+	_, hasDeadline := receivedRequest.Context().Deadline()
+	assert.False(t, hasDeadline)
+	require.NoError(t, resp.Body.Close())
+}
+
+func TestSetK8SConfigDefaultsAddsServerSideTimeoutToEveryRetryAttempt(t *testing.T) {
+	originalTimeout := K8sServerSideTimeout
+	K8sServerSideTimeout = 10 * time.Millisecond
+	t.Cleanup(func() {
+		K8sServerSideTimeout = originalTimeout
+	})
+	t.Setenv(utilhttp.EnvRetryMax, "1")
+	t.Setenv(utilhttp.EnvRetryBaseBackoff, "1")
+
+	config := &rest.Config{Host: "https://kubernetes.example"}
+	require.NoError(t, SetK8SConfigDefaults(config))
+	require.NotNil(t, config.WrapTransport)
+
+	var receivedTimeouts []string
+	wrapped := config.WrapTransport(roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		receivedTimeouts = append(receivedTimeouts, req.URL.Query().Get("timeout"))
+		if len(receivedTimeouts) == 1 {
+			return &http.Response{StatusCode: http.StatusInternalServerError, Body: http.NoBody}, nil
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+	}))
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://kubernetes.example/api/v1/pods", http.NoBody)
+	require.NoError(t, err)
+	resp, err := wrapped.RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, []string{"10ms", "10ms"}, receivedTimeouts)
+	assert.NoError(t, req.Context().Err())
 }
