@@ -248,6 +248,10 @@ const (
 	// Skip reconcile when the value is "true" or any other string values that can be strconv.ParseBool() to be true.
 	AnnotationKeyAppSkipReconcile = "argocd.argoproj.io/skip-reconcile"
 
+	// AnnotationKeyIgnoreDifferences allows resources to specify JSON pointers to ignore during diff computation.
+	// The value should be a comma-separated list of JSON pointer paths (e.g., "/spec/replicas,/metadata/labels/version").
+	AnnotationKeyIgnoreDifferences = "argocd.argoproj.io/ignore-differences"
+
 	// LabelKeyComponentRepoServer is the label key to identify the component as repo-server
 	LabelKeyComponentRepoServer = "app.kubernetes.io/component"
 	// LabelValueComponentRepoServer is the label value for the repo-server component
