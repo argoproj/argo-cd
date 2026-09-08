@@ -211,14 +211,31 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 title: 'MANIFEST',
                 key: 'manifest',
                 content: (
-                    <YamlEditor
-                        minHeight={800}
-                        input={application.spec}
-                        onSave={async patch => {
-                            const spec = JSON.parse(JSON.stringify(application.spec));
-                            return services.applications.updateSpec(application.metadata.name, application.metadata.namespace, jsonMergePatch.apply(spec, JSON.parse(patch)));
-                        }}
-                    />
+                    <div className='application-manifest'>
+                        <div className='white-box'>
+                            <div className='white-box__details'>
+                                <p>Application Spec</p>
+                                <YamlEditor
+                                    minHeight={800}
+                                    input={application.spec}
+                                    onSave={async patch => {
+                                        const spec = JSON.parse(JSON.stringify(application.spec));
+                                        return services.applications.updateSpec(
+                                            application.metadata.name,
+                                            application.metadata.namespace,
+                                            jsonMergePatch.apply(spec, JSON.parse(patch))
+                                        );
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        <div className='white-box' style={{marginTop: '15px'}}>
+                            <div className='white-box__details'>
+                                <p>Status</p>
+                                <YamlEditor minHeight={800} input={application.status} hideModeButtons={true} />
+                            </div>
+                        </div>
+                    </div>
                 )
             }
         ];
