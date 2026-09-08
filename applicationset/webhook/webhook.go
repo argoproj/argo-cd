@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
+	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
@@ -45,6 +46,7 @@ type WebhookHandler struct {
 	client      client.Client
 	generators  map[string]generators.Generator
 	queue       chan any
+	prHints     *pullrequest.PRHintStore
 }
 
 type gitGeneratorInfo struct {
@@ -104,6 +106,17 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 		return nil, fmt.Errorf("unable to init Bitbucket webhook: %w", err)
 	}
 
+	// Extract the shared PRHintStore from the PullRequest generator so the webhook
+	// handler can inject PR data from the payload, bypassing the eventually-consistent
+	// Bitbucket Cloud list API on webhook-triggered reconciles.
+	var prHints *pullrequest.PRHintStore
+	type prHintProvider interface {
+		GetPRHints() *pullrequest.PRHintStore
+	}
+	if p, ok := generators["PullRequest"].(prHintProvider); ok {
+		prHints = p.GetPRHints()
+	}
+
 	webhookHandler := &WebhookHandler{
 		github:      githubHandler,
 		gitlab:      gitlabHandler,
@@ -112,6 +125,7 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 		client:      client,
 		generators:  generators,
 		queue:       make(chan any, payloadQueueSize),
+		prHints:     prHints,
 	}
 
 	webhookHandler.startWorkerPool(webhookParallelism)
@@ -134,7 +148,56 @@ func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
 	}
 }
 
+// injectBitbucketPRHint seeds the PRHintStore with the PR from the webhook payload so that
+// List() can return it immediately without waiting for Bitbucket's eventually-consistent
+// list API (typically 2–6 min lag after PR creation). Only fires on created/updated events.
+func (h *WebhookHandler) injectBitbucketPRHint(payload any) {
+	if h.prHints == nil {
+		return
+	}
+	type prFields struct {
+		repo      bitbucket.Repository
+		id        int64
+		title     string
+		srcBranch string
+		dstBranch string
+		srcHash   string
+		author    string
+	}
+	var f prFields
+	switch p := payload.(type) {
+	case bitbucket.PullRequestCreatedPayload:
+		f = prFields{
+			p.Repository, p.PullRequest.ID, p.PullRequest.Title,
+			p.PullRequest.Source.Branch.Name, p.PullRequest.Destination.Branch.Name,
+			p.PullRequest.Source.Commit.Hash, p.PullRequest.Author.NickName,
+		}
+	case bitbucket.PullRequestUpdatedPayload:
+		f = prFields{
+			p.Repository, p.PullRequest.ID, p.PullRequest.Title,
+			p.PullRequest.Source.Branch.Name, p.PullRequest.Destination.Branch.Name,
+			p.PullRequest.Source.Commit.Hash, p.PullRequest.Author.NickName,
+		}
+	default:
+		return
+	}
+	info := bitbucketPRInfo(f.repo)
+	if info.Owner == "" || info.Repo == "" {
+		return
+	}
+	h.prHints.Set(info.Owner, info.Repo, []*pullrequest.PullRequest{{
+		Number:       f.id,
+		Title:        f.title,
+		Branch:       f.srcBranch,
+		TargetBranch: f.dstBranch,
+		HeadSHA:      f.srcHash,
+		Author:       f.author,
+	}})
+}
+
 func (h *WebhookHandler) HandleEvent(payload any) {
+	h.injectBitbucketPRHint(payload)
+
 	gitGenInfo := getGitGeneratorInfo(payload)
 	prGenInfo := getPRGeneratorInfo(payload)
 	if gitGenInfo == nil && prGenInfo == nil {
