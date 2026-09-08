@@ -30,7 +30,7 @@ func gitlabSCMMockHandler(t *testing.T, group string, projectID int, secondPageS
 		case projectsPath:
 			w.Header().Set("X-Page", "1")
 			w.Header().Set("X-Total-Pages", "1")
-			_, err := io.WriteString(w, fmt.Sprintf(`[{
+			_, err := fmt.Fprintf(w, `[{
 				"id": %d,
 				"path": "argo-cd",
 				"default_branch": "master",
@@ -38,7 +38,7 @@ func gitlabSCMMockHandler(t *testing.T, group string, projectID int, secondPageS
 				"http_url_to_repo": "https://gitlab.com/%s/argo-cd.git",
 				"namespace": {"full_path": "%s"},
 				"topics": []
-			}]`, projectID, group, group, group))
+			}]`, projectID, group, group, group)
 			require.NoError(t, err)
 		case branchesPath:
 			switch r.URL.Query().Get("page") {
