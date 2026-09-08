@@ -1,3 +1,4 @@
+//nolint:staticcheck // SA1019: notification service not yet on configbus.Provider
 package service
 
 import (

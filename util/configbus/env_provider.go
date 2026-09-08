@@ -1,5 +1,13 @@
 package configbus
 
+import (
+	"context"
+	"math"
+	"time"
+
+	"github.com/argoproj/argo-cd/v3/util/env"
+)
+
 // EnvProvider resolves process environment variables. Unowned field getters
 // return ErrNotConfigured via the embedded empty ChainProvider.
 type EnvProvider struct {
@@ -16,3 +24,7 @@ func NewEnvProvider() *EnvProvider {
 
 // Ensure EnvProvider implements Provider.
 var _ Provider = (*EnvProvider)(nil)
+
+func (p *EnvProvider) GitRequestTimeout(_ context.Context) (time.Duration, error) {
+	return env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64), nil
+}
