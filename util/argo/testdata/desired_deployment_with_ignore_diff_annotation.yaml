@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+      argocd.argoproj.io/ignore-differences-json-pointers : "/spec/replicas"
+  name: test-deployment
+  namespace: default
+spec:
+  replicas: 3
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      labels:
+        app: test
+    spec:
+      containers:
+        - image: 'quay.io/argoprojlabs/argocd-e2e-container:0.1'
+          name: test-container
+          ports:
+            - containerPort: 80

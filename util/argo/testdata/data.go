@@ -9,6 +9,9 @@ var (
 	//go:embed desired_deployment.yaml
 	DesiredDeploymentYaml string
 
+	//go:embed desired_deployment_with_ignore_diff_annotation.yaml
+	DesiredDeploymentAnnotationYaml string
+
 	//go:embed live_validating_webhook.yaml
 	LiveValidatingWebhookYaml string
 

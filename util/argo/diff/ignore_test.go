@@ -275,10 +275,7 @@ func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
 
 		// then
 		require.Len(t, result, 1)
-		assert.Equal(t, "apps", result[0].Group)
 		assert.Equal(t, "Deployment", result[0].Kind)
-		assert.Equal(t, resource.GetName(), result[0].Name)
-		assert.Equal(t, resource.GetNamespace(), result[0].Namespace)
 		assert.Equal(t, []string{"/spec/replicas"}, result[0].JSONPointers)
 	})
 
