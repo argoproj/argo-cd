@@ -361,13 +361,18 @@ func TestSyncSuccessfully_Multistep(t *testing.T) {
 }
 
 func TestSyncSuccessfully_MultistepSkipHealthCheck(t *testing.T) {
-	newTest := func(t *testing.T, skipHealthCheck bool) *syncContext {
+	// targetSkip and liveSkip control whether the desired and the live wave-0 Service carry the option.
+	newTest := func(t *testing.T, targetSkip, liveSkip bool) *syncContext {
 		t.Helper()
 		newSvc := testingutils.NewService()
 		newSvc.SetNamespace(testingutils.FakeArgoCDNamespace)
 		testingutils.Annotate(newSvc, synccommon.AnnotationSyncWave, "0")
-		if skipHealthCheck {
+		liveSvc := newSvc.DeepCopy()
+		if targetSkip {
 			testingutils.Annotate(newSvc, synccommon.AnnotationSyncOptions, synccommon.SyncOptionSkipHealthCheck)
+		}
+		if liveSkip {
+			testingutils.Annotate(liveSvc, synccommon.AnnotationSyncOptions, synccommon.SyncOptionSkipHealthCheck)
 		}
 
 		newSvc2 := testingutils.NewService()
@@ -386,7 +391,7 @@ func TestSyncSuccessfully_MultistepSkipHealthCheck(t *testing.T) {
 			Target: []*unstructured.Unstructured{newSvc, newSvc2},
 		})
 
-		syncCtx.Sync(context.Background())
+		syncCtx.Sync(t.Context())
 		phase, message, resources := syncCtx.GetState()
 		require.Equal(t, synccommon.OperationRunning, phase)
 		require.Equal(t, "waiting for healthy state of /Service/my-service", message)
@@ -394,15 +399,24 @@ func TestSyncSuccessfully_MultistepSkipHealthCheck(t *testing.T) {
 
 		// Update the live resources for the next sync
 		syncCtx.resources = groupResources(ReconciliationResult{
-			Live:   []*unstructured.Unstructured{newSvc, nil},
+			Live:   []*unstructured.Unstructured{liveSvc, nil},
 			Target: []*unstructured.Unstructured{newSvc, newSvc2},
 		})
 		return syncCtx
 	}
 
 	t.Run("without SkipHealthCheck the next wave waits for healthy", func(t *testing.T) {
-		syncCtx := newTest(t, false)
-		syncCtx.Sync(context.Background())
+		syncCtx := newTest(t, false, false)
+		syncCtx.Sync(t.Context())
+		phase, message, resources := syncCtx.GetState()
+		assert.Equal(t, synccommon.OperationRunning, phase)
+		assert.Equal(t, "waiting for healthy state of /Service/my-service", message)
+		assert.Len(t, resources, 1)
+	})
+
+	t.Run("SkipHealthCheck removed from the desired state takes effect in the same sync", func(t *testing.T) {
+		syncCtx := newTest(t, false, true)
+		syncCtx.Sync(t.Context())
 		phase, message, resources := syncCtx.GetState()
 		assert.Equal(t, synccommon.OperationRunning, phase)
 		assert.Equal(t, "waiting for healthy state of /Service/my-service", message)
@@ -410,8 +424,8 @@ func TestSyncSuccessfully_MultistepSkipHealthCheck(t *testing.T) {
 	})
 
 	t.Run("with SkipHealthCheck the next wave proceeds", func(t *testing.T) {
-		syncCtx := newTest(t, true)
-		syncCtx.Sync(context.Background())
+		syncCtx := newTest(t, true, false)
+		syncCtx.Sync(t.Context())
 		phase, message, resources := syncCtx.GetState()
 		assert.Equal(t, synccommon.OperationSucceeded, phase)
 		assert.Equal(t, "successfully synced (all tasks run)", message)

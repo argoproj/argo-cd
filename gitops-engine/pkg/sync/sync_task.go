@@ -66,10 +66,10 @@ func (t *syncTask) wave() int {
 }
 
 // skipHealthCheck returns true if the resource is considered synced as soon as it is applied,
-// without waiting for it to become healthy
+// without waiting for it to become healthy. Only the desired state is consulted, so removing
+// the option from the manifest takes effect in the same sync.
 func (t *syncTask) skipHealthCheck() bool {
-	return (t.targetObj != nil && resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionSkipHealthCheck)) ||
-		(t.liveObj != nil && resourceutil.HasAnnotationOption(t.liveObj, common.AnnotationSyncOptions, common.SyncOptionSkipHealthCheck))
+	return t.targetObj != nil && resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionSkipHealthCheck)
 }
 
 func (t *syncTask) isHook() bool {
