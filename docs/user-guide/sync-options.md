@@ -431,6 +431,28 @@ spec:
 
 The example above shows how an Argo CD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieved by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
 
+## Skip Health Check During Sync
+
+When an application uses [sync phases or waves](sync-waves.md), Argo CD waits for every resource in a wave to become
+`Healthy` before it applies the next wave. A resource that never becomes healthy (for example a `DaemonSet` that cannot be
+scheduled on every node) blocks all later waves, and the sync operation stays `Running`.
+
+To consider a resource successfully synced as soon as it has been applied, without waiting for it to become healthy,
+use the following annotation:
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: SkipHealthCheck=true
+```
+
+The health of the resource is still assessed and displayed, and it still contributes to the health of the application.
+To also exclude the resource from the application health, use the
+[`argocd.argoproj.io/ignore-healthcheck`](../operator-manual/health.md#ignoring-child-resource-health-check-in-applications)
+annotation.
+
+This option has no effect on [resource hooks](resource_hooks.md), whose completion is derived from their health.
+
 ## Create Namespace
 
 ```yaml

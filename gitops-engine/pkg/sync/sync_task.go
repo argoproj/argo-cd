@@ -9,6 +9,7 @@ import (
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/syncwaves"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 )
@@ -62,6 +63,13 @@ func (t *syncTask) wave() int {
 		return *t.waveOverride
 	}
 	return syncwaves.Wave(t.obj())
+}
+
+// skipHealthCheck returns true if the resource is considered synced as soon as it is applied,
+// without waiting for it to become healthy
+func (t *syncTask) skipHealthCheck() bool {
+	return (t.targetObj != nil && resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionSkipHealthCheck)) ||
+		(t.liveObj != nil && resourceutil.HasAnnotationOption(t.liveObj, common.AnnotationSyncOptions, common.SyncOptionSkipHealthCheck))
 }
 
 func (t *syncTask) isHook() bool {
