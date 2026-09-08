@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "Restore completed"
+    inputPath: testdata/completed.yaml
+  - healthStatus:
+      status: Progressing
+      message: "InProgress"
+    inputPath: testdata/inprogress.yaml
+  - healthStatus:
+      status: Degraded
+      message: "encountered errors during restore"
+    inputPath: testdata/failed.yaml
