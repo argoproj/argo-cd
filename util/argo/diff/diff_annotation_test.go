@@ -281,7 +281,7 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 	t.Run("handles resource with empty group (core resources)", func(t *testing.T) {
 		desired := &unstructured.Unstructured{
 			Object: map[string]interface{}{
-				"apiVersion": "v1",  // No group!
+				"apiVersion": "v1", // No group!
 				"kind":       "Service",
 				"metadata": map[string]interface{}{
 					"annotations": map[string]interface{}{

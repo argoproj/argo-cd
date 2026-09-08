@@ -234,6 +234,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 }
 
 func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
+	t.Parallel()
 	newDeployment := func() *unstructured.Unstructured {
 		return &unstructured.Unstructured{
 			Object: map[string]interface{}{
@@ -382,6 +383,7 @@ func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
 }
 
 func TestMergeResourceIgnoreDifferences(t *testing.T) {
+	t.Parallel()
 	t.Run("merges application and resource-level ignores", func(t *testing.T) {
 		// given
 		t.Parallel()
