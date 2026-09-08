@@ -482,7 +482,9 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericiooptions.I
 
 	o.Namespace = obj.GetNamespace()
 	o.DeleteOptions.Filenames = []string{fileName}
-	o.DeleteOptions.ForceDeletion = force
+	// kubectl rejects --force together with --server-side; conflicts are already
+	// forced via --force-conflicts, so the force flag has no meaning under SSA.
+	o.DeleteOptions.ForceDeletion = force && !serverSideApply
 	o.ForceConflicts = serverSideApply
 
 	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
