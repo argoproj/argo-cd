@@ -98,14 +98,26 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 	if !filepath.IsAbs(dstPath) {
 		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
 	}
-	// Make sure the destination path is resolved to the real path
-	// so that the inbound checks using EvalSymlinks compare the same path.
-	resolvedPath, err := resolveSymlinks(dstPath)
+	tr := tar.NewReader(r)
+
+	// os.OpenRoot fails if the directory does not exist, make sure it exists
+	if err := os.MkdirAll(dstPath, 0o755); err != nil {
+		return fmt.Errorf("error creating destination path %s: %w", dstPath, err)
+	}
+
+	// os.Root operations handle inbound checks for files, symlink targets still need a separate check
+	dstRoot, err := os.OpenRoot(dstPath)
+	if err != nil {
+		return fmt.Errorf("error opening root directory %s: %w", dstPath, err)
+	}
+	defer dstRoot.Close()
+
+	// Resolve symlinks in dstPath so Inbound compares canonical paths.
+	resolvedDstPath, err := filepath.EvalSymlinks(dstPath)
 	if err != nil {
 		return fmt.Errorf("error evaluating symlinks for %s: %w", dstPath, err)
 	}
-	dstPath = resolvedPath
-	tr := tar.NewReader(r)
+	dstPath = resolvedDstPath
 
 	for {
 		header, err := tr.Next()
@@ -119,11 +131,8 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 			continue
 		}
 
-		target := filepath.Join(dstPath, header.Name)
-		// Sanity check to protect against zip-slip
-		if !Inbound(target, dstPath) {
-			return fmt.Errorf("illegal filepath in archive: %s", target)
-		}
+		// Cleaning beforehand should have performance benefits for the os.Root API operations https://go.dev/blog/osroot#performance
+		header.Name = filepath.Clean(header.Name)
 
 		switch header.Typeflag {
 		case tar.TypeDir:
@@ -131,13 +140,25 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 			if preserveFileMode {
 				mode = os.FileMode(header.Mode)
 			}
-			err := os.MkdirAll(target, mode)
+			err := dstRoot.MkdirAll(header.Name, mode)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
 		case tar.TypeSymlink:
-			// Sanity check to protect against symlink exploit
-			linkTarget := filepath.Join(filepath.Dir(target), header.Linkname)
+			header.Linkname = filepath.Clean(header.Linkname)
+
+			baseDir := filepath.Dir(header.Name)
+
+			err := dstRoot.MkdirAll(baseDir, 0o755)
+			if err != nil {
+				return fmt.Errorf("error creating nested folders: %w", err)
+			}
+
+			// Check that the symlink target does not point outside of dstRoot
+			// os.Root API does NOT do inbound checks for the 'oldname' in dstRoot.Symlink(oldname, newname)
+			symlinkBaseDir := filepath.Dir(filepath.Join(dstPath, header.Name))
+
+			linkTarget := filepath.Join(symlinkBaseDir, header.Linkname)
 			realLinkTarget, err := filepath.EvalSymlinks(linkTarget)
 			if os.IsNotExist(err) {
 				realLinkTarget = linkTarget
@@ -151,12 +172,12 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 			// Relativizing all symlink targets because path.CheckOutOfBoundsSymlinks disallows any absolute symlinks
 			// and it makes more sense semantically to view symlinks in archives as relative.
 			// Inbound ensures that we never allow symlinks that break out of the target directory.
-			realLinkTarget, err = filepath.Rel(filepath.Dir(target), realLinkTarget)
+			realLinkTarget, err = filepath.Rel(symlinkBaseDir, realLinkTarget)
 			if err != nil {
 				return fmt.Errorf("error relativizing link target: %w", err)
 			}
 
-			err = os.Symlink(realLinkTarget, target)
+			err = dstRoot.Symlink(realLinkTarget, header.Name) // validates that header.Name is inside dstRoot
 			if err != nil {
 				return fmt.Errorf("error creating symlink: %w", err)
 			}
@@ -166,14 +187,14 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 				mode = os.FileMode(header.Mode)
 			}
 
-			err := os.MkdirAll(filepath.Dir(target), 0o755)
+			err := dstRoot.MkdirAll(filepath.Dir(header.Name), 0o755)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
 
-			f, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, mode)
+			f, err := dstRoot.OpenFile(header.Name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, mode)
 			if err != nil {
-				return fmt.Errorf("error creating file %q: %w", target, err)
+				return fmt.Errorf("error creating file %q: %w", header.Name, err)
 			}
 			w := bufio.NewWriter(f)
 			if _, err := io.Copy(w, tr); err != nil {
@@ -288,39 +309,4 @@ func supportedFileMode(fi os.FileInfo) bool {
 		return true
 	}
 	return false
-}
-
-// resolveSymlinks returns path with symlinks in existing path components resolved.
-// If the final component does not exist yet, ancestors are still resolved so the
-// returned path is suitable for Inbound checks against EvalSymlinks'd targets.
-func resolveSymlinks(path string) (string, error) {
-	// Clean the path to make sure it has no trailing slashes which would cause
-	// the last component to get duplicated in the resolved path if it does not
-	// exist yet (e.g. /foo/bar/baz/ -> /foo/bar/baz/baz).
-	path = filepath.Clean(path)
-	resolved, err := filepath.EvalSymlinks(path)
-	if err == nil {
-		return resolved, nil
-	}
-	if !os.IsNotExist(err) {
-		return "", err
-	}
-
-	missing := make([]string, 0, 4)
-	current := path
-	for {
-		missing = append([]string{filepath.Base(current)}, missing...)
-		parent := filepath.Dir(current)
-		if parent == current {
-			return "", err
-		}
-		resolvedParent, parentErr := filepath.EvalSymlinks(parent)
-		if parentErr == nil {
-			return filepath.Join(append([]string{resolvedParent}, missing...)...), nil
-		}
-		if !os.IsNotExist(parentErr) {
-			return "", parentErr
-		}
-		current = parent
-	}
 }

@@ -348,10 +348,10 @@ func TestUntgz(t *testing.T) {
 				err := files.Untgz(destDir, bytes.NewReader(tar), math.MaxInt64, false)
 				require.Error(t, err)
 				// when run with tarinsecurepath=0 (Makefile does this), the error message is "insecure file path" from tar reader Next()
-				// when run without (e.g. directly go test) the error is from the Inbound check
+				// when run without (e.g. directly go test) the error is from the os.Root API
 				assert.True(t,
 					strings.Contains(err.Error(), "insecure file path") ||
-						strings.Contains(err.Error(), "illegal filepath in archive"),
+						strings.Contains(err.Error(), "path escapes from parent"),
 					"unexpected error: %s", err.Error())
 			})
 		}
