@@ -27,6 +27,10 @@ func (f *noopSettings) IsExcludedResource(_, _, _ string) bool {
 	return false
 }
 
+func (f *noopSettings) GetLabelSelector(_, _, _ string) string {
+	return ""
+}
+
 // Settings caching customizations
 type Settings struct {
 	// ResourceHealthOverride contains health assessment overrides

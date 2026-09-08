@@ -575,8 +575,13 @@ func SetResourceFilter(filters settings.ResourcesFilter) error {
 		if err != nil {
 			return err
 		}
+		selectors, err := yaml.Marshal(filters.ResourceSelectors)
+		if err != nil {
+			return err
+		}
 		cm.Data["resource.exclusions"] = string(exclusions)
 		cm.Data["resource.inclusions"] = string(inclusions)
+		cm.Data["resource.selectors"] = string(selectors)
 		return nil
 	})
 }

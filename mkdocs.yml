@@ -8,6 +8,7 @@ extra_javascript:
 - assets/versions.js
 markdown_extensions:
 - markdown_include.include
+- attr_list
 - codehilite:
     css_class: highlight
 - admonition
