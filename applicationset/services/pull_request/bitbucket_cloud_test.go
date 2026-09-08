@@ -43,6 +43,8 @@ func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) 
 						}
 					]
 				}`)
+		case "/repositories/OWNER/REPO/refs/branches?page=1&pagelen=100":
+			_, err = io.WriteString(w, `{"values":[{"name":"feature/foo-bar","target":{"hash":"1a8dd249c04a"}}],"next":""}`)
 		default:
 			t.Fail()
 		}
@@ -63,21 +65,21 @@ func TestParseUrlEmptyUrl(t *testing.T) {
 
 func TestInvalidBaseUrlBasicAuthCloud(t *testing.T) {
 	t.Parallel()
-	_, err := NewBitbucketCloudServiceBasicAuth("http:// example.org", "user", "password", "OWNER", "REPO")
+	_, err := NewBitbucketCloudServiceBasicAuth("http:// example.org", "user", "password", "OWNER", "REPO", nil)
 
 	require.Error(t, err)
 }
 
 func TestInvalidBaseUrlBearerTokenCloud(t *testing.T) {
 	t.Parallel()
-	_, err := NewBitbucketCloudServiceBearerToken("http:// example.org", "TOKEN", "OWNER", "REPO")
+	_, err := NewBitbucketCloudServiceBearerToken("http:// example.org", "TOKEN", "OWNER", "REPO", nil)
 
 	require.Error(t, err)
 }
 
 func TestInvalidBaseUrlNoAuthCloud(t *testing.T) {
 	t.Parallel()
-	_, err := NewBitbucketCloudServiceNoAuth("http:// example.org", "OWNER", "REPO")
+	_, err := NewBitbucketCloudServiceNoAuth("http:// example.org", "OWNER", "REPO", nil)
 
 	require.Error(t, err)
 }
@@ -89,7 +91,7 @@ func TestListPullRequestBearerTokenCloud(t *testing.T) {
 		defaultHandlerCloud(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketCloudServiceBearerToken(ts.URL, "TOKEN", "OWNER", "REPO")
+	svc, err := NewBitbucketCloudServiceBearerToken(ts.URL, "TOKEN", "OWNER", "REPO", nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -108,7 +110,7 @@ func TestListPullRequestNoAuthCloud(t *testing.T) {
 		defaultHandlerCloud(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -127,7 +129,7 @@ func TestListPullRequestBasicAuthCloud(t *testing.T) {
 		defaultHandlerCloud(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketCloudServiceBasicAuth(ts.URL, "user", "password", "OWNER", "REPO")
+	svc, err := NewBitbucketCloudServiceBasicAuth(ts.URL, "user", "password", "OWNER", "REPO", nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -211,6 +213,8 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 					}
 				]
 			}`, r.Host)
+		case "/repositories/OWNER/REPO/refs/branches?page=1&pagelen=100":
+			_, _ = io.WriteString(w, `{"values":[{"name":"feature-101"},{"name":"feature-102"},{"name":"feature-103"},{"name":"feature-200"},{"name":"feature/foo-bar"}],"next":""}`)
 		default:
 			t.Fail()
 		}
@@ -219,7 +223,7 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -253,7 +257,7 @@ func TestListResponseErrorCloud(t *testing.T) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer ts.Close()
-	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	_, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.Error(t, err)
 }
@@ -273,12 +277,14 @@ func TestListResponseMalformedCloud(t *testing.T) {
 			if err != nil {
 				t.Fail()
 			}
+		case "/repositories/OWNER/REPO/refs/branches?page=1&pagelen=100":
+			_, _ = io.WriteString(w, `{"values":[{"name":"feature-101"},{"name":"feature-102"},{"name":"feature-103"},{"name":"feature-200"},{"name":"feature/foo-bar"}],"next":""}`)
 		default:
 			t.Fail()
 		}
 	}))
 	defer ts.Close()
-	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	_, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.Error(t, err)
 }
@@ -298,12 +304,14 @@ func TestListResponseMalformedValuesCloud(t *testing.T) {
 			if err != nil {
 				t.Fail()
 			}
+		case "/repositories/OWNER/REPO/refs/branches?page=1&pagelen=100":
+			_, _ = io.WriteString(w, `{"values":[{"name":"feature-101"},{"name":"feature-102"},{"name":"feature-103"},{"name":"feature-200"},{"name":"feature/foo-bar"}],"next":""}`)
 		default:
 			t.Fail()
 		}
 	}))
 	defer ts.Close()
-	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	_, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.Error(t, err)
 }
@@ -323,12 +331,14 @@ func TestListResponseEmptyCloud(t *testing.T) {
 			if err != nil {
 				t.Fail()
 			}
+		case "/repositories/OWNER/REPO/refs/branches?page=1&pagelen=100":
+			_, _ = io.WriteString(w, `{"values":[{"name":"feature-101"},{"name":"feature-102"},{"name":"feature-103"},{"name":"feature-200"},{"name":"feature/foo-bar"}],"next":""}`)
 		default:
 			t.Fail()
 		}
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -392,6 +402,8 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 					}
 				]
 			}`, r.Host)
+		case "/repositories/OWNER/REPO/refs/branches?page=1&pagelen=100":
+			_, err = io.WriteString(w, `{"values":[{"name":"feature-101"},{"name":"feature-102"},{"name":"feature-200"}],"next":""}`)
 		case "/repositories/OWNER/REPO/pullrequests/?pagelen=1&page=2":
 			_, err = fmt.Fprintf(w, `{
 				"size": 2,
@@ -431,7 +443,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 	}))
 	defer ts.Close()
 	regexp := `feature-1[\d]{2}`
-	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
@@ -458,7 +470,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 	}, *pullRequests[1])
 
 	regexp = `.*2$`
-	svc, err = NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, err = NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	require.NoError(t, err)
 	pullRequests, err = ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
@@ -477,7 +489,7 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 	}, *pullRequests[0])
 
 	regexp = `[\d{2}`
-	svc, err = NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
+	svc, err = NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO", nil)
 	require.NoError(t, err)
 	_, err = ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
@@ -520,7 +532,7 @@ func TestBitbucketCloudListReturnsRepositoryNotFoundError(t *testing.T) {
 		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
 	})
 
-	svc, err := NewBitbucketCloudServiceNoAuth(server.URL, "nonexistent", "nonexistent")
+	svc, err := NewBitbucketCloudServiceNoAuth(server.URL, "nonexistent", "nonexistent", nil)
 	require.NoError(t, err)
 
 	prs, err := svc.List(t.Context())
