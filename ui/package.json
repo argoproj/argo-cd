@@ -122,7 +122,7 @@
     "ts-jest": "^29.4.12",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.60.1",
-    "webpack": "^5.105.4",
+    "webpack": "^5.110.3",
     "webpack-cli": "^7.2.3",
     "webpack-dev-server": "^5.2.6"
   }
