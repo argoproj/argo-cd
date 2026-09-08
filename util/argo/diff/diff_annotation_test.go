@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
-	testutil "github.com/argoproj/argo-cd/v3/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	testutil "github.com/argoproj/argo-cd/v3/test"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -22,32 +23,32 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 		// given
 		t.Parallel()
 		desired := &unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apps/v1",
 				"kind":       "Deployment",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "test-deployment",
 					"namespace": "default",
-					"annotations": map[string]interface{}{
+					"annotations": map[string]any{
 						common.AnnotationKeyIgnoreDifferences: "/spec/replicas",
 					},
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"replicas": int64(3),
-					"selector": map[string]interface{}{
-						"matchLabels": map[string]interface{}{
+					"selector": map[string]any{
+						"matchLabels": map[string]any{
 							"app": "test",
 						},
 					},
-					"template": map[string]interface{}{
-						"metadata": map[string]interface{}{
-							"labels": map[string]interface{}{
+					"template": map[string]any{
+						"metadata": map[string]any{
+							"labels": map[string]any{
 								"app": "test",
 							},
 						},
-						"spec": map[string]interface{}{
-							"containers": []interface{}{
-								map[string]interface{}{
+						"spec": map[string]any{
+							"containers": []any{
+								map[string]any{
 									"name":  "nginx",
 									"image": "nginx:1.14.2",
 								},
@@ -81,36 +82,36 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 		// given
 		t.Parallel()
 		desired := &unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apps/v1",
 				"kind":       "Deployment",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "test-deployment",
 					"namespace": "default",
-					"annotations": map[string]interface{}{
+					"annotations": map[string]any{
 						common.AnnotationKeyIgnoreDifferences: "/spec/replicas,/metadata/labels/version",
 					},
-					"labels": map[string]interface{}{
+					"labels": map[string]any{
 						"app":     "test",
 						"version": "1.0",
 					},
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"replicas": int64(3),
-					"selector": map[string]interface{}{
-						"matchLabels": map[string]interface{}{
+					"selector": map[string]any{
+						"matchLabels": map[string]any{
 							"app": "test",
 						},
 					},
-					"template": map[string]interface{}{
-						"metadata": map[string]interface{}{
-							"labels": map[string]interface{}{
+					"template": map[string]any{
+						"metadata": map[string]any{
+							"labels": map[string]any{
 								"app": "test",
 							},
 						},
-						"spec": map[string]interface{}{
-							"containers": []interface{}{
-								map[string]interface{}{
+						"spec": map[string]any{
+							"containers": []any{
+								map[string]any{
 									"name":  "nginx",
 									"image": "nginx:1.14.2",
 								},
@@ -144,37 +145,37 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 		// given
 		t.Parallel()
 		desired := &unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apps/v1",
 				"kind":       "Deployment",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "test-deployment",
 					"namespace": "default",
-					"annotations": map[string]interface{}{
+					"annotations": map[string]any{
 						// Annotation ignores replicas
 						common.AnnotationKeyIgnoreDifferences: "/spec/replicas",
 					},
-					"labels": map[string]interface{}{
+					"labels": map[string]any{
 						"app":     "test",
 						"version": "1.0",
 					},
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"replicas": int64(3),
-					"selector": map[string]interface{}{
-						"matchLabels": map[string]interface{}{
+					"selector": map[string]any{
+						"matchLabels": map[string]any{
 							"app": "test",
 						},
 					},
-					"template": map[string]interface{}{
-						"metadata": map[string]interface{}{
-							"labels": map[string]interface{}{
+					"template": map[string]any{
+						"metadata": map[string]any{
+							"labels": map[string]any{
 								"app": "test",
 							},
 						},
-						"spec": map[string]interface{}{
-							"containers": []interface{}{
-								map[string]interface{}{
+						"spec": map[string]any{
+							"containers": []any{
+								map[string]any{
 									"name":  "nginx",
 									"image": "nginx:1.14.2",
 								},
@@ -218,32 +219,32 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 		// given
 		t.Parallel()
 		desired := &unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apps/v1",
 				"kind":       "Deployment",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "test-deployment",
 					"namespace": "default",
-					"annotations": map[string]interface{}{
+					"annotations": map[string]any{
 						common.AnnotationKeyIgnoreDifferences: "/spec/replicas",
 					},
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"replicas": int64(3),
-					"selector": map[string]interface{}{
-						"matchLabels": map[string]interface{}{
+					"selector": map[string]any{
+						"matchLabels": map[string]any{
 							"app": "test",
 						},
 					},
-					"template": map[string]interface{}{
-						"metadata": map[string]interface{}{
-							"labels": map[string]interface{}{
+					"template": map[string]any{
+						"metadata": map[string]any{
+							"labels": map[string]any{
 								"app": "test",
 							},
 						},
-						"spec": map[string]interface{}{
-							"containers": []interface{}{
-								map[string]interface{}{
+						"spec": map[string]any{
+							"containers": []any{
+								map[string]any{
 									"name":  "nginx",
 									"image": "nginx:1.14.2",
 								},
@@ -258,7 +259,7 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 		// Change image (not covered by the annotation)
 		containers, _, _ := unstructured.NestedSlice(live.Object, "spec", "template", "spec", "containers")
 		if len(containers) > 0 {
-			container := containers[0].(map[string]interface{})
+			container := containers[0].(map[string]any)
 			container["image"] = "nginx:1.15.0"
 			_ = unstructured.SetNestedSlice(live.Object, containers, "spec", "template", "spec", "containers")
 		}
@@ -280,11 +281,11 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 
 	t.Run("handles resource with empty group (core resources)", func(t *testing.T) {
 		desired := &unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "v1", // No group!
 				"kind":       "Service",
-				"metadata": map[string]interface{}{
-					"annotations": map[string]interface{}{
+				"metadata": map[string]any{
+					"annotations": map[string]any{
 						common.AnnotationKeyIgnoreDifferences: "/spec/clusterIP",
 					},
 				},
@@ -313,32 +314,32 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 	t.Run("annotation with invalid JSON pointer - annotation is ignored", func(t *testing.T) {
 		t.Parallel()
 		desired := &unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apps/v1",
 				"kind":       "Deployment",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "test-deployment",
 					"namespace": "default",
-					"annotations": map[string]interface{}{
+					"annotations": map[string]any{
 						common.AnnotationKeyIgnoreDifferences: "spec/replicas",
 					},
 				},
-				"spec": map[string]interface{}{
+				"spec": map[string]any{
 					"replicas": int64(3),
-					"selector": map[string]interface{}{
-						"matchLabels": map[string]interface{}{
+					"selector": map[string]any{
+						"matchLabels": map[string]any{
 							"app": "test",
 						},
 					},
-					"template": map[string]interface{}{
-						"metadata": map[string]interface{}{
-							"labels": map[string]interface{}{
+					"template": map[string]any{
+						"metadata": map[string]any{
+							"labels": map[string]any{
 								"app": "test",
 							},
 						},
-						"spec": map[string]interface{}{
-							"containers": []interface{}{
-								map[string]interface{}{
+						"spec": map[string]any{
+							"containers": []any{
+								map[string]any{
 									"name":  "nginx",
 									"image": "nginx:1.14.2",
 								},

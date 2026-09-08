@@ -237,10 +237,10 @@ func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
 	t.Parallel()
 	newDeployment := func() *unstructured.Unstructured {
 		return &unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "apps/v1",
 				"kind":       "Deployment",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "test-deployment",
 					"namespace": "default",
 				},
@@ -250,10 +250,10 @@ func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
 
 	newService := func() *unstructured.Unstructured {
 		return &unstructured.Unstructured{
-			Object: map[string]interface{}{
+			Object: map[string]any{
 				"apiVersion": "v1",
 				"kind":       "Service",
-				"metadata": map[string]interface{}{
+				"metadata": map[string]any{
 					"name":      "test-service",
 					"namespace": "default",
 				},
