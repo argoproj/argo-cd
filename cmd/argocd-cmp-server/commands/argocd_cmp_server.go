@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/reaper"
 	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 )
 
@@ -40,6 +41,15 @@ func NewCommand() *cobra.Command {
 
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
+
+			// As the entrypoint of a CMP sidecar container, argocd-cmp-server
+			// runs as PID 1 and inherits init's duty to reap orphaned child
+			// processes. Without this, children forked by plugin tooling that
+			// outlive their parent stay zombies forever and eventually
+			// exhaust the container's pids cgroup.
+			if reaper.StartIfPID1(ctx) {
+				log.Info("Running as PID 1; reaping orphaned zombie child processes")
+			}
 
 			// Recover from panic and log the error using the configured logger instead of the default.
 			defer func() {
