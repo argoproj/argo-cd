@@ -346,6 +346,9 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 		if err != nil {
 			return err
 		}
+		if validate {
+			createOptions.ValidationDirective = metav1.FieldValidationStrict
+		}
 		command := &cobra.Command{}
 		saveConfig := false
 		command.Flags().BoolVar(&saveConfig, "save-config", false, "")
