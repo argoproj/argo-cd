@@ -1767,6 +1767,51 @@ func TestNormalizeApplication(t *testing.T) {
 	}
 }
 
+// TestNormalizeApplicationPatchesSpecOnly covers a spec that normalizes and one that is already
+// normalized, on an application carrying a large status.
+func TestNormalizeApplicationPatchesSpecOnly(t *testing.T) {
+	testCases := []struct {
+		name          string
+		project       string
+		expectedPatch string
+	}{
+		{
+			name:          "missing project is normalized",
+			project:       "",
+			expectedPatch: `{"spec":{"project":"default"}}`,
+		},
+		{
+			name:    "normalized spec is not patched",
+			project: "default",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			app := newSyncedFakeApp(500)
+			app.Spec.Project = tc.project
+			proj := defaultProj.DeepCopy()
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, proj}}, nil)
+
+			var patches []string
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			fakeAppCs.ReactionChain = nil
+			fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+				patches = append(patches, string(action.(kubetesting.PatchAction).GetPatch()))
+				return true, &v1alpha1.Application{}, nil
+			})
+
+			ctrl.normalizeApplication(app)
+
+			if tc.expectedPatch == "" {
+				assert.Empty(t, patches)
+				return
+			}
+			assert.Equal(t, []string{tc.expectedPatch}, patches)
+		})
+	}
+}
+
 func TestHandleAppUpdated(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
@@ -2222,6 +2267,64 @@ func TestNeedRefreshAppStatusZeroTimeout(t *testing.T) {
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 	needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 0, 0)
 	assert.False(t, needRefresh, "timeout 0 should disable automatic expiry-based refresh")
+}
+
+// TestNeedRefreshAppStatusDoesNotModifyApp covers the refresh decision across an app that is up to
+// date, one whose comparison expired, and one with the refresh annotation. processAppRefreshQueueItem
+// hands the informer's application to needRefreshAppStatus, so none of them may be modified.
+func TestNeedRefreshAppStatusDoesNotModifyApp(t *testing.T) {
+	syncedApp := newFakeApp()
+	syncedApp.Status.Sync = v1alpha1.SyncStatus{
+		Status: v1alpha1.SyncStatusCodeSynced,
+		ComparedTo: v1alpha1.ComparedTo{
+			Destination:       syncedApp.Spec.Destination,
+			IgnoreDifferences: syncedApp.Spec.IgnoreDifferences,
+			Source:            syncedApp.Spec.GetSource(),
+		},
+	}
+	now := metav1.Now()
+	syncedApp.Status.ReconciledAt = &now
+
+	expiredApp := syncedApp.DeepCopy()
+	past := metav1.NewTime(time.Now().UTC().Add(-2 * time.Hour))
+	expiredApp.Status.ReconciledAt = &past
+
+	annotatedApp := syncedApp.DeepCopy()
+	annotatedApp.Annotations = map[string]string{v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal)}
+
+	testCases := []struct {
+		name          string
+		app           *v1alpha1.Application
+		expectRefresh bool
+	}{
+		{
+			name:          "up to date app",
+			app:           syncedApp,
+			expectRefresh: false,
+		},
+		{
+			name:          "expired comparison",
+			app:           expiredApp,
+			expectRefresh: true,
+		},
+		{
+			name:          "refresh annotation",
+			app:           annotatedApp,
+			expectRefresh: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{}}, nil)
+			before := tc.app.DeepCopy()
+
+			needRefresh, _, _ := ctrl.needRefreshAppStatus(tc.app, 1*time.Hour, 2*time.Hour)
+
+			assert.Equal(t, tc.expectRefresh, needRefresh)
+			assert.Equal(t, before, tc.app)
+		})
+	}
 }
 
 func TestRefreshAppConditions(t *testing.T) {
