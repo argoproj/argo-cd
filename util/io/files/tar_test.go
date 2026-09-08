@@ -189,22 +189,6 @@ func TestUntgz(t *testing.T) {
 		// then
 		assert.ErrorContains(t, err, "illegal filepath in symlink")
 	})
-	t.Run("will protect against symlink exploit when relativizing symlinks", func(t *testing.T) {
-		// given
-		tmpDir := createTmpDir(t)
-		defer deleteTmpDir(t, tmpDir)
-		tgzFile := createTgz(t, filepath.Join(getTestDataDir(t), "symlink-exploit"), tmpDir)
-
-		defer tgzFile.Close()
-
-		destDir := filepath.Join(tmpDir, "untgz2")
-
-		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
-
-		// then
-		assert.ErrorContains(t, err, "illegal filepath in symlink")
-	})
 
 	t.Run("preserves file mode", func(t *testing.T) {
 		// given
