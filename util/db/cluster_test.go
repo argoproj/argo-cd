@@ -255,11 +255,13 @@ func (c *watchNotifyingClientSet) CoreV1() corev1client.CoreV1Interface {
 	return &watchNotifyingCoreV1{CoreV1Interface: c.Interface.CoreV1(), clientSet: c}
 }
 
-// waitForSecretWatch blocks until a secret watch has been established or the context is done.
-func (c *watchNotifyingClientSet) waitForSecretWatch(ctx context.Context) {
+// waitForSecretWatch reports whether a secret watch was established before the context was done.
+func (c *watchNotifyingClientSet) waitForSecretWatch(ctx context.Context) bool {
 	select {
 	case <-c.watchStarted:
+		return true
 	case <-ctx.Done():
+		return false
 	}
 }
 
@@ -302,8 +304,8 @@ func runWatchTest(t *testing.T, clientset *watchNotifyingClientSet, db ArgoDB, a
 		}
 		if firstEvent {
 			firstEvent = false
-		} else {
-			clientset.waitForSecretWatch(ctx)
+		} else if !clientset.waitForSecretWatch(ctx) {
+			return
 		}
 		next := actions[0]
 		next(old, new)
