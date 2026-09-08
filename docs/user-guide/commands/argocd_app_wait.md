@@ -4,6 +4,12 @@
 
 Wait for an application to reach a synced and healthy state
 
+### Synopsis
+
+Wait for an application to reach a synced and healthy state.
+
+Note that the --hydrated and --operation flags evaluate the global application state. These conditions apply to the entire application and will block wait completion even if specific resources are selected with --resource.
+
 ```
 argocd app wait [APPNAME.. | -l selector] [flags]
 ```
@@ -43,8 +49,8 @@ argocd app wait [APPNAME.. | -l selector] [flags]
       --delete                 Wait for delete
       --health                 Wait for health
   -h, --help                   help for wait
-      --hydrated               Wait for hydration operations
-      --operation              Wait for pending operations
+      --hydrated               Wait for hydration operations (evaluated globally for the application)
+      --operation              Wait for pending operations (evaluated globally for the application)
   -o, --output string          Output format. One of: json|yaml|wide|tree|tree=detailed (default "wide")
       --resource stringArray   Sync only specific resources as GROUP:KIND:NAME or !GROUP:KIND:NAME. Fields may be blank and '*' can be used. This option may be specified repeatedly
   -l, --selector string        Wait for apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.

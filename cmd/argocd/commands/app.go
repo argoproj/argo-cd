@@ -1600,6 +1600,9 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command := &cobra.Command{
 		Use:   "wait [APPNAME.. | -l selector]",
 		Short: "Wait for an application to reach a synced and healthy state",
+		Long: `Wait for an application to reach a synced and healthy state.
+
+Note that the --hydrated and --operation flags evaluate the global application state. These conditions apply to the entire application and will block wait completion even if specific resources are selected with --resource.`,
 		Example: `  # Wait for an app
   argocd app wait my-app
 
@@ -1663,10 +1666,10 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&watch.suspended, "suspended", false, "Wait for suspended")
 	command.Flags().BoolVar(&watch.degraded, "degraded", false, "Wait for degraded")
 	command.Flags().BoolVar(&watch.delete, "delete", false, "Wait for delete")
-	command.Flags().BoolVar(&watch.hydrated, "hydrated", false, "Wait for hydration operations")
+	command.Flags().BoolVar(&watch.hydrated, "hydrated", false, "Wait for hydration operations (evaluated globally for the application)")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Wait for apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%[1]sKIND%[1]sNAME or %[2]sGROUP%[1]sKIND%[1]sNAME. Fields may be blank and '*' can be used. This option may be specified repeatedly", resourceFieldDelimiter, resourceExcludeIndicator))
-	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
+	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations (evaluated globally for the application)")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only wait for an application  in namespace")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
@@ -2242,8 +2245,8 @@ func groupResourceStates(app *argoappv1.Application, selectedResources []*argoap
 	return resStates
 }
 
-// check if resource health, sync and operation statuses matches watch options
-func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string, operationStatus *argoappv1.Operation, hydrationFinished bool) bool {
+// check if resource health and sync statuses matches watch options
+func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string) bool {
 	if watch.delete {
 		return false
 	}
@@ -2264,10 +2267,12 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 		}
 	}
 
-	synced := !watch.sync || syncStatus == string(argoappv1.SyncStatusCodeSynced)
-	operational := !watch.operation || operationStatus == nil
-	hydrated := !watch.hydrated || hydrationFinished
-	return synced && healthCheckPassed && operational && hydrated
+	synced := true
+	if watch.sync {
+		synced = syncStatus == string(argoappv1.SyncStatusCodeSynced)
+	}
+
+	return synced && healthCheckPassed
 }
 
 // resourceParentChild gets the latest state of the app and the latest state of the app's resource tree and then
@@ -2311,45 +2316,67 @@ func (a *AppWithLock) GetApp() *argoappv1.Application {
 	return a.app
 }
 
+// isOperationInProgress reports whether the application has a pending or
+// recently-finished operation that still needs controller reconciliation.
+func isOperationInProgress(app *argoappv1.Application) bool {
+	if app.Operation != nil {
+		// operation was just requested
+		return true
+	}
+	if app.Status.OperationState != nil {
+		if app.Status.OperationState.FinishedAt == nil {
+			// operation is not finished yet
+			return true
+		}
+		if !app.Status.OperationState.Operation.DryRun() && (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Before(app.Status.OperationState.FinishedAt)) {
+			// operation just finished but controller hasn't reconciled yet
+			return true
+		}
+	}
+	return false
+}
+
+// appHydrationFinished reports whether the app's current hydration operation
+// has completed successfully. LastSuccessfulOperation is only populated after
+// a successful hydration, so it can be nil while CurrentOperation is set.
+func appHydrationFinished(app *argoappv1.Application) bool {
+	return app.Status.SourceHydrator.CurrentOperation != nil &&
+		app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
+		app.Status.SourceHydrator.CurrentOperation.Phase == argoappv1.HydrateOperationPhaseHydrated &&
+		app.Status.SourceHydrator.CurrentOperation.SourceHydrator.DeepEquals(app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator) &&
+		app.Status.SourceHydrator.CurrentOperation.DrySHA == app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+}
+
 // checkAppWaitConditions evaluates whether an application currently matches the
 // conditions requested by `argocd app wait`. It returns whether the conditions
 // are met (ready) and whether a sync/refresh operation is still in progress.
 // It does not mutate any state — callers are responsible for any side effects
 // such as triggering a status refresh before printing the final summary.
 func checkAppWaitConditions(app *argoappv1.Application, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource) (ready, operationInProgress bool) {
-	if app.Operation != nil {
-		// if it just got requested
-		operationInProgress = true
-	} else if app.Status.OperationState != nil {
-		if app.Status.OperationState.FinishedAt == nil {
-			// if it is not finished yet
-			operationInProgress = true
-		} else if !app.Status.OperationState.Operation.DryRun() && (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Before(app.Status.OperationState.FinishedAt)) {
-			// if it is just finished and we need to wait for controller to reconcile app once after syncing
-			operationInProgress = true
-		}
-	}
+	operationInProgress = isOperationInProgress(app)
+	hydrationFinished := appHydrationFinished(app)
 
-	// LastSuccessfulOperation is only populated after a successful hydration,
-	// so it can be nil while CurrentOperation is set. Guard against the nil
-	// dereference before comparing the two.
-	hydrationFinished := app.Status.SourceHydrator.CurrentOperation != nil &&
-		app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
-		app.Status.SourceHydrator.CurrentOperation.Phase == argoappv1.HydrateOperationPhaseHydrated &&
-		app.Status.SourceHydrator.CurrentOperation.SourceHydrator.DeepEquals(app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator) &&
-		app.Status.SourceHydrator.CurrentOperation.DrySHA == app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+	if watch.delete {
+		return false, operationInProgress
+	}
+	if watch.operation && operationInProgress {
+		return false, operationInProgress
+	}
+	if watch.hydrated && !hydrationFinished {
+		return false, operationInProgress
+	}
 
 	if len(selectedResources) > 0 {
 		ready = true
 		for _, state := range getResourceStates(app, selectedResources) {
-			if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, hydrationFinished) {
+			if !checkResourceStatus(watch, state.Health, state.Status) {
 				ready = false
 				break
 			}
 		}
 	} else {
 		// Wait on the application as a whole
-		ready = checkResourceStatus(watch, string(app.Status.Health.Status), string(app.Status.Sync.Status), app.Operation, hydrationFinished)
+		ready = checkResourceStatus(watch, string(app.Status.Health.Status), string(app.Status.Sync.Status))
 	}
 
 	return ready, operationInProgress
