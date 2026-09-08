@@ -10,6 +10,7 @@ import {services, ViewPreferences} from '../../../shared/services';
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
 
 import './pod-logs-viewer.scss';
+import {ClearLogsButton} from './clear-logs-button';
 import {CopyLogsButton} from './copy-logs-button';
 import {DownloadLogsButton} from './download-logs-button';
 import {ContainerSelector} from './container-selector';
@@ -110,6 +111,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const highlight = useMemo(() => buildHighlightRegExp(filter, matchCase), [filter, matchCase]);
     const [scrollToBottom, setScrollToBottom] = useState(true);
     const [logs, setLogs] = useState<LogEntry[]>([]);
+    const [receivedLogs, setReceivedLogs] = useState<LogEntry[]>([]);
     const logsContainerRef = useRef(null);
     const uniquePods = Array.from(new Set(logs.map(log => log.podName)));
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -167,6 +169,10 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     if (prevQueryKey !== queryKey) {
         setPrevQueryKey(queryKey);
         setLogs([]);
+        setReceivedLogs([]);
+        // The highlighted pod may be absent from the new logs, and the button that clears the
+        // highlight is only shown while several pods are in view, so drop the highlight with them.
+        setSelectedPod(null);
     }
 
     useEffect(() => {
@@ -210,6 +216,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
             .subscribe(log => {
                 if (log.length) {
                     setLogs(previousLogs => previousLogs.concat(log));
+                    setReceivedLogs(previousLogs => previousLogs.concat(log));
                 }
             });
 
@@ -302,8 +309,12 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 {follow && <AutoScrollButton scrollToBottom={scrollToBottom} setScrollToBottom={setScrollToBottom} />}
                                 <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogsWithQueryParams} showPreviousLogs={previous} />
                                 <Spacer />
-                                <PodHighlightButton selectedPod={selectedPod} setSelectedPod={setSelectedPod} pods={uniquePods} darkMode={prefs.appDetails.darkMode} />
-                                <Spacer />
+                                {uniquePods.length > 1 && (
+                                    <>
+                                        <PodHighlightButton selectedPod={selectedPod} setSelectedPod={setSelectedPod} pods={uniquePods} darkMode={prefs.appDetails.darkMode} />
+                                        <Spacer />
+                                    </>
+                                )}
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
                                 <Spacer />
                                 {!follow && (
@@ -324,7 +335,8 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             </span>
                             <Spacer />
                             <span>
-                                <CopyLogsButton logs={logs} />
+                                <ClearLogsButton disabled={logs.length === 0} onClear={() => setLogs([])} />
+                                <CopyLogsButton logs={receivedLogs} />
                                 <DownloadLogsButton {...props} previous={previous} />
                                 <FullscreenButton
                                     {...props}

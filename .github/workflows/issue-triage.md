@@ -21,7 +21,12 @@ permissions:
 network: defaults
 
 # This workflow runs often, so you can use a small model to keep costs down.
-engine: copilot
+# ***** argo-cd specific: the model is pinned explicitly. The gh-aw default (claude-sonnet-4.6) is
+# not offered to the "agentic-workflows" integrator, so every run failed with
+# "The requested model is not available for integrator". *****
+engine:
+  id: copilot
+  model: claude-sonnet-5
 
 safe-outputs:
   add-labels:

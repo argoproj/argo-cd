@@ -15,8 +15,10 @@ import {
     appRBACName,
     ComparisonStatusIcon,
     getAppDrySource,
+    getAppHydrateToSource,
     getAppHydratorSyncSource,
     getApplicationDetailsContainerClass,
+    hydrationStatusMessage,
     getAppOperationState,
     getAppSpecDefaultSource,
     getHydratorSyncSourceRepoURL,
@@ -1043,6 +1045,59 @@ describe('getAppHydratorSyncSource', () => {
             targetRevision: 'env/test',
             path: 'out'
         });
+    });
+});
+
+describe('getAppHydrateToSource', () => {
+    it('uses hydrateTo.targetBranch when set', () => {
+        expect(
+            getAppHydrateToSource({
+                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main', path: 'in'},
+                syncSource: {repoURL: 'https://github.com/example/hydrated.git', targetBranch: 'env/test', path: 'out'},
+                hydrateTo: {targetBranch: 'env/test-hydrate'}
+            })
+        ).toEqual({
+            repoURL: 'https://github.com/example/hydrated.git',
+            targetRevision: 'env/test-hydrate',
+            path: 'out'
+        });
+    });
+
+    it('falls back to the sync source branch when hydrateTo is unset', () => {
+        expect(
+            getAppHydrateToSource({
+                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main', path: 'in'},
+                syncSource: {targetBranch: 'env/test', path: 'out'}
+            })
+        ).toEqual({
+            repoURL: 'https://github.com/example/dry.git',
+            targetRevision: 'env/test',
+            path: 'out'
+        });
+    });
+});
+
+describe('hydrationStatusMessage', () => {
+    it('shows hydrateTo as the destination while hydrating', () => {
+        const html = renderMarkup(
+            hydrationStatusMessage({
+                status: {
+                    sourceHydrator: {
+                        currentOperation: {
+                            phase: 'Hydrating',
+                            sourceHydrator: {
+                                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main'},
+                                syncSource: {targetBranch: 'env/test', path: 'out'},
+                                hydrateTo: {targetBranch: 'env/test-hydrate'}
+                            }
+                        }
+                    }
+                }
+            } as Application)
+        );
+        expect(html).toContain('env/test-hydrate');
+        expect(html).not.toContain('env/test)');
+        expect(html).not.toMatch(/>env\/test</);
     });
 });
 

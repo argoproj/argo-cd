@@ -1,0 +1,5 @@
+apiVersion: policies.kyverno.io/v1alpha1
+kind: ImageValidatingPolicy
+metadata:
+  name: sample-image-validating-policy
+spec: {}
