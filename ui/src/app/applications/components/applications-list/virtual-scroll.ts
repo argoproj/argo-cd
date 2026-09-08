@@ -2,6 +2,18 @@ import * as React from 'react';
 import * as models from '../../../shared/models';
 import {getAppDefaultSource, isApp} from '../utils';
 
+export interface WindowScrollerHandle {
+    updatePosition: () => void;
+}
+
+export function useWindowScrollerPosition(scrollerRef: React.RefObject<WindowScrollerHandle | null>, enabled: boolean, layoutKey: unknown): void {
+    React.useLayoutEffect(() => {
+        if (enabled) {
+            scrollerRef.current?.updatePosition();
+        }
+    }, [enabled, layoutKey, scrollerRef]);
+}
+
 /** Virtualize only when "Items per page: all" is selected and list is greater than this. */
 export const VIRTUAL_THRESHOLD = 50;
 
@@ -9,15 +21,14 @@ export const VIRTUAL_THRESHOLD = 50;
 export const TILE_OVERSCAN_ROW_COUNT = 8;
 export const TABLE_OVERSCAN_ROW_COUNT = 16;
 
-/** Keep in sync with applications-list.scss `&__virtual-viewport` min-height. */
-export const VIRTUAL_VIEWPORT_MIN_HEIGHT = 400;
-export const VIRTUAL_VIEWPORT_BOTTOM_PADDING = 16;
-
-/** Baseline table row height (px). 56 clipped real content; 60 is the measured fit. */
-export const TABLE_ROW_HEIGHT = 60;
+/**
+ * Virtual table slot heights include the 8px gap used by argo-ui table rows.
+ * The row itself needs 60px (86px with a hydrator status line).
+ */
+export const TABLE_ROW_HEIGHT = 68;
 
 /** Table row height when a source-hydrator status line is present. */
-export const TABLE_ROW_HEIGHT_WITH_HYDRATOR = 86;
+export const TABLE_ROW_HEIGHT_WITH_HYDRATOR = 94;
 
 /** Default tile height until CellMeasurer measures the cell (excludes TILE_GAP). */
 export const TILE_HEIGHT = 360;
@@ -110,80 +121,4 @@ export function appsLayoutKey(apps: models.AbstractApplication[]): string {
         hash = Math.imul(hash, 16777619);
     }
     return `${apps.length}:${hash >>> 0}`;
-}
-
-/**
- * Height from the list's top to the bottom of the window, for AutoSizer.
- * Uses a callback ref so it measures after DataLoader mounts the node.
- */
-export function useVirtualViewportHeight(enabled: boolean = true): [number, React.RefCallback<HTMLElement>] {
-    const [height, setHeight] = React.useState(VIRTUAL_VIEWPORT_MIN_HEIGHT);
-    const cleanupRef = React.useRef<(() => void) | null>(null);
-
-    const viewportRef = React.useCallback(
-        (element: HTMLElement | null) => {
-            cleanupRef.current?.();
-            cleanupRef.current = null;
-
-            if (!enabled || !element) {
-                return;
-            }
-
-            const updateHeight = () => {
-                const top = element.getBoundingClientRect().top;
-                const available = window.innerHeight - top - VIRTUAL_VIEWPORT_BOTTOM_PADDING;
-                setHeight(Math.max(VIRTUAL_VIEWPORT_MIN_HEIGHT, Math.floor(available)));
-            };
-
-            let rafId = 0;
-            const scheduleUpdate = () => {
-                if (rafId) {
-                    return;
-                }
-                rafId = requestAnimationFrame(() => {
-                    rafId = 0;
-                    updateHeight();
-                });
-            };
-
-            updateHeight();
-            const settleRaf = requestAnimationFrame(updateHeight);
-            window.addEventListener('resize', scheduleUpdate);
-            window.addEventListener('scroll', scheduleUpdate, {passive: true});
-
-            let scrollParent: HTMLElement | null = element.parentElement;
-            while (scrollParent) {
-                const overflowY = getComputedStyle(scrollParent).overflowY;
-                if (overflowY === 'auto' || overflowY === 'scroll') {
-                    break;
-                }
-                scrollParent = scrollParent.parentElement;
-            }
-            if (scrollParent) {
-                scrollParent.addEventListener('scroll', scheduleUpdate, {passive: true});
-            }
-
-            // Observe the parent — observing ourselves (we set height) can loop-warn.
-            const observer = new ResizeObserver(scheduleUpdate);
-            if (element.parentElement) {
-                observer.observe(element.parentElement);
-            }
-
-            cleanupRef.current = () => {
-                cancelAnimationFrame(settleRaf);
-                if (rafId) {
-                    cancelAnimationFrame(rafId);
-                }
-                window.removeEventListener('resize', scheduleUpdate);
-                window.removeEventListener('scroll', scheduleUpdate);
-                scrollParent?.removeEventListener('scroll', scheduleUpdate);
-                observer.disconnect();
-            };
-        },
-        [enabled]
-    );
-
-    React.useEffect(() => () => cleanupRef.current?.(), []);
-
-    return [height, viewportRef];
 }

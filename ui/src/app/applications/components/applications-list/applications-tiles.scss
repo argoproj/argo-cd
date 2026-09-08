@@ -6,7 +6,7 @@
     display: block;
     width: 100%;
     padding: 0;
-    // Grid owns scrolling; clip so AutoSizer doesn't grow with the full list.
+    // Clip subpixel horizontal overflow while WindowScroller keeps page scrolling.
     overflow: hidden;
 
     .applications-tiles__virtual-cell {

@@ -541,6 +541,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                         AppUtils.deleteApplication(appName, appNamespace, ctx)
                                                                                     }
                                                                                     useVirtualScrolling={useVirtualScrolling}
+                                                                                    statusBarVisible={healthBarPrefs.showHealthStatusBar}
                                                                                 />
                                                                             )) || (
                                                                                 <ApplicationsTable
@@ -553,6 +554,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                         AppUtils.deleteApplication(appName, appNamespace, ctx)
                                                                                     }
                                                                                     useVirtualScrolling={useVirtualScrolling}
+                                                                                    statusBarVisible={healthBarPrefs.showHealthStatusBar}
                                                                                 />
                                                                             )
                                                                         }

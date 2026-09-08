@@ -3,6 +3,7 @@ import * as React from 'react';
 import {Key, KeybindingContext, useNav} from 'argo-ui/v2';
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
 import List from 'react-virtualized/dist/commonjs/List';
+import WindowScroller from 'react-virtualized/dist/commonjs/WindowScroller';
 import type {ListRowProps} from 'react-virtualized';
 import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -11,7 +12,7 @@ import {isApp} from '../utils';
 import {services} from '../../../shared/services';
 import {ApplicationTableRow} from './application-table-row';
 import {AppSetTableRow} from './appset-table-row';
-import {appsLayoutKey, getTableRowHeight, shouldUseVirtualScroll, TABLE_OVERSCAN_ROW_COUNT, TABLE_ROW_HEIGHT, useVirtualViewportHeight} from './virtual-scroll';
+import {appsLayoutKey, getTableRowHeight, shouldUseVirtualScroll, TABLE_OVERSCAN_ROW_COUNT, TABLE_ROW_HEIGHT, useWindowScrollerPosition} from './virtual-scroll';
 
 import './applications-table.scss';
 
@@ -21,12 +22,13 @@ export const ApplicationsTable = (props: {
     refreshApplication: (appName: string, appNamespace: string) => any;
     deleteApplication: (appName: string, appNamespace: string) => any;
     useVirtualScrolling?: boolean;
+    statusBarVisible?: boolean;
 }) => {
     const [selectedApp, navApp, reset] = useNav(props.applications.length);
     const ctxh = React.useContext(Context);
     const listRef = React.useRef<List>(null);
+    const windowScrollerRef = React.useRef<WindowScroller>(null);
     const shouldVirtualize = shouldUseVirtualScroll(props.useVirtualScrolling, props.applications.length);
-    const [viewportHeight, viewportRef] = useVirtualViewportHeight(shouldVirtualize);
 
     const {registerKeybinding} = React.useContext(KeybindingContext);
 
@@ -71,6 +73,7 @@ export const ApplicationsTable = (props: {
     );
 
     const layoutKey = React.useMemo(() => (shouldVirtualize ? appsLayoutKey(props.applications) : ''), [shouldVirtualize, props.applications]);
+    useWindowScrollerPosition(windowScrollerRef, shouldVirtualize, `${layoutKey}:${!!props.statusBarVisible}`);
 
     // Recalculate row heights after sort/reorder or when a hydrator status line appears/disappears.
     React.useEffect(() => {
@@ -107,32 +110,36 @@ export const ApplicationsTable = (props: {
                                     return null;
                                 }
                                 return (
-                                    <div key={key} style={style}>
+                                    <div key={key} style={style} className='applications-table__virtual-row'>
                                         {renderRow(app, index)}
                                     </div>
                                 );
                             };
 
                             return (
-                                <div
-                                    ref={viewportRef}
-                                    className='applications-list__virtual-viewport applications-table argo-table-list argo-table-list--clickable'
-                                    style={{height: viewportHeight}}
-                                    role='list'>
-                                    <AutoSizer>
-                                        {({height, width}) => (
-                                            <List
-                                                ref={listRef}
-                                                height={height}
-                                                width={width}
-                                                rowCount={props.applications.length}
-                                                rowHeight={getRowHeight}
-                                                rowRenderer={rowRenderer}
-                                                overscanRowCount={TABLE_OVERSCAN_ROW_COUNT}
-                                                scrollingResetTimeInterval={150}
-                                            />
+                                <div className='applications-table argo-table-list argo-table-list--clickable' role='list'>
+                                    <WindowScroller ref={windowScrollerRef} updateScrollTopOnUpdatePosition={true}>
+                                        {({height, isScrolling, onChildScroll, scrollTop}) => (
+                                            <AutoSizer disableHeight={true}>
+                                                {({width}) => (
+                                                    <List
+                                                        ref={listRef}
+                                                        autoHeight={true}
+                                                        height={height}
+                                                        width={width}
+                                                        isScrolling={isScrolling}
+                                                        onScroll={onChildScroll}
+                                                        scrollTop={scrollTop}
+                                                        rowCount={props.applications.length}
+                                                        rowHeight={getRowHeight}
+                                                        rowRenderer={rowRenderer}
+                                                        overscanRowCount={TABLE_OVERSCAN_ROW_COUNT}
+                                                        scrollingResetTimeInterval={150}
+                                                    />
+                                                )}
+                                            </AutoSizer>
                                         )}
-                                    </AutoSizer>
+                                    </WindowScroller>
                                 </div>
                             );
                         }

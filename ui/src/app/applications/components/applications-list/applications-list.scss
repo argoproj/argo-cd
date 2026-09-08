@@ -182,13 +182,6 @@
     .chart {
         justify-content: space-evenly;
     }
-
-    // Explicit height container for react-virtualized AutoSizer (set inline via useVirtualViewportHeight).
-    &__virtual-viewport {
-        width: 100%;
-        min-height: 400px;
-        overflow: hidden;
-    }
 }
 i.menu_icon {
     vertical-align: middle;

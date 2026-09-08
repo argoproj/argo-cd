@@ -4,6 +4,15 @@ $applications-list-label-min: 5.75rem;
 $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
 
 .applications-table {
+    &__virtual-row {
+        box-sizing: border-box;
+        padding: 4px 0;
+
+        > .argo-table-list__row {
+            margin: 0;
+        }
+    }
+
     .argo-table-list__row {
         line-height: 26px;
         padding-top: 4px;

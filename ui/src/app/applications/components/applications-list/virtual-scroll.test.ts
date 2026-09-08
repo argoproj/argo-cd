@@ -1,4 +1,4 @@
-import {act, renderHook} from '@testing-library/react';
+import {renderHook} from '@testing-library/react';
 import {
     appsLayoutKey,
     computeColumnStride,
@@ -15,10 +15,8 @@ import {
     TILE_GAP,
     TILE_MIN_WIDTH,
     TILE_OVERSCAN_ROW_COUNT,
-    useVirtualViewportHeight,
-    VIRTUAL_THRESHOLD,
-    VIRTUAL_VIEWPORT_BOTTOM_PADDING,
-    VIRTUAL_VIEWPORT_MIN_HEIGHT
+    useWindowScrollerPosition,
+    VIRTUAL_THRESHOLD
 } from './virtual-scroll';
 import {Application} from '../../../shared/models';
 
@@ -159,110 +157,26 @@ describe('virtual-scroll', () => {
         });
     });
 
-    describe('useVirtualViewportHeight', () => {
-        let observe: jest.Mock;
-        let disconnect: jest.Mock;
-        let rafCallbacks: FrameRequestCallback[];
+    describe('useWindowScrollerPosition', () => {
+        it('updates an enabled scroller when the surrounding layout changes', () => {
+            const updatePosition = jest.fn();
+            const scrollerRef = {current: {updatePosition}};
+            const {rerender} = renderHook(
+                ({enabled, layoutKey}: {enabled: boolean; layoutKey: string}) => useWindowScrollerPosition(scrollerRef, enabled, layoutKey),
+                {initialProps: {enabled: true, layoutKey: 'header-hidden'}}
+            );
 
-        beforeEach(() => {
-            rafCallbacks = [];
-            observe = jest.fn();
-            disconnect = jest.fn();
-            (global as unknown as {ResizeObserver: unknown}).ResizeObserver = jest.fn(() => ({
-                observe,
-                unobserve: jest.fn(),
-                disconnect
-            }));
-            jest.spyOn(window, 'requestAnimationFrame').mockImplementation(cb => {
-                rafCallbacks.push(cb);
-                return rafCallbacks.length;
-            });
-            jest.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
-            Object.defineProperty(window, 'innerHeight', {configurable: true, value: 900});
-        });
+            expect(updatePosition).toHaveBeenCalledTimes(1);
 
-        afterEach(() => {
-            jest.restoreAllMocks();
-        });
+            rerender({enabled: true, layoutKey: 'header-hidden'});
+            expect(updatePosition).toHaveBeenCalledTimes(1);
 
-        const flushRaf = () => {
-            const pending = [...rafCallbacks];
-            rafCallbacks = [];
-            pending.forEach(cb => cb(0));
-        };
+            rerender({enabled: true, layoutKey: 'header-visible'});
+            expect(updatePosition).toHaveBeenCalledTimes(2);
 
-        const attachElement = (top: number) => {
-            const parent = document.createElement('div');
-            const el = document.createElement('div');
-            parent.appendChild(el);
-            document.body.appendChild(parent);
-            jest.spyOn(el, 'getBoundingClientRect').mockReturnValue({top} as DOMRect);
-            return {el, parent};
-        };
-
-        it('does not measure or observe when disabled', () => {
-            const {result} = renderHook(() => useVirtualViewportHeight(false));
-            const {el, parent} = attachElement(100);
-
-            act(() => {
-                result.current[1](el);
-            });
-
-            expect(result.current[0]).toBe(VIRTUAL_VIEWPORT_MIN_HEIGHT);
-            expect(observe).not.toHaveBeenCalled();
-            document.body.removeChild(parent);
-        });
-
-        it('measures height from the element top to the window bottom', () => {
-            const {result} = renderHook(() => useVirtualViewportHeight(true));
-            const {el, parent} = attachElement(100);
-
-            act(() => {
-                result.current[1](el);
-                flushRaf();
-            });
-
-            expect(result.current[0]).toBe(900 - 100 - VIRTUAL_VIEWPORT_BOTTOM_PADDING);
-            expect(observe).toHaveBeenCalledWith(parent);
-            document.body.removeChild(parent);
-        });
-
-        it('clamps to the minimum when available space is small', () => {
-            const {result} = renderHook(() => useVirtualViewportHeight(true));
-            const {el, parent} = attachElement(850);
-
-            act(() => {
-                result.current[1](el);
-                flushRaf();
-            });
-
-            expect(result.current[0]).toBe(VIRTUAL_VIEWPORT_MIN_HEIGHT);
-            document.body.removeChild(parent);
-        });
-
-        it('recomputes on window resize and cleans up on unmount', () => {
-            const removeSpy = jest.spyOn(window, 'removeEventListener');
-            const {result, unmount} = renderHook(() => useVirtualViewportHeight(true));
-            const {el, parent} = attachElement(200);
-
-            act(() => {
-                result.current[1](el);
-                flushRaf();
-            });
-            expect(result.current[0]).toBe(900 - 200 - VIRTUAL_VIEWPORT_BOTTOM_PADDING);
-
-            jest.spyOn(el, 'getBoundingClientRect').mockReturnValue({top: 50} as DOMRect);
-            act(() => {
-                window.dispatchEvent(new Event('resize'));
-                flushRaf();
-            });
-            expect(result.current[0]).toBe(900 - 50 - VIRTUAL_VIEWPORT_BOTTOM_PADDING);
-
-            unmount();
-            expect(disconnect).toHaveBeenCalled();
-            expect(removeSpy).toHaveBeenCalledWith('resize', expect.any(Function));
-            expect(removeSpy).toHaveBeenCalledWith('scroll', expect.any(Function));
-            document.body.removeChild(parent);
+            rerender({enabled: false, layoutKey: 'header-hidden'});
+            expect(updatePosition).toHaveBeenCalledTimes(2);
         });
     });
+
 });

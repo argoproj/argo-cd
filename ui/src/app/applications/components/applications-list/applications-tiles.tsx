@@ -4,6 +4,7 @@ import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
 import CellMeasurer, {CellMeasurerCache} from 'react-virtualized/dist/commonjs/CellMeasurer';
 import Grid from 'react-virtualized/dist/commonjs/Grid';
+import WindowScroller from 'react-virtualized/dist/commonjs/WindowScroller';
 import type {GridCellProps} from 'react-virtualized';
 import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -22,7 +23,7 @@ import {
     TILE_HEIGHT,
     TILE_MIN_WIDTH,
     TILE_OVERSCAN_ROW_COUNT,
-    useVirtualViewportHeight
+    useWindowScrollerPosition
 } from './virtual-scroll';
 
 import './applications-tiles.scss';
@@ -33,6 +34,7 @@ export interface ApplicationTilesProps {
     refreshApplication: (appName: string, appNamespace: string) => any;
     deleteApplication: (appName: string, appNamespace: string) => any;
     useVirtualScrolling?: boolean;
+    statusBarVisible?: boolean;
 }
 
 const useItemsPerContainer = (itemRef: React.RefObject<HTMLDivElement | null>, containerRef: React.RefObject<HTMLElement | null>, enabled: boolean = true): number => {
@@ -68,6 +70,7 @@ const VirtualizedTilesGrid = ({
     cellCache,
     getRowHeight,
     gridRef,
+    windowScrollerRef,
     onLayoutWidth,
     renderTile
 }: {
@@ -75,72 +78,81 @@ const VirtualizedTilesGrid = ({
     cellCache: CellMeasurerCache;
     getRowHeight: (params: {index: number}) => number;
     gridRef: React.RefObject<Grid | null>;
+    windowScrollerRef: React.RefObject<WindowScroller | null>;
     onLayoutWidth: (width: number) => void;
     renderTile: (app: models.AbstractApplication, index: number) => React.ReactNode;
 }) => (
-    <AutoSizer onResize={({width}) => onLayoutWidth(width)}>
-        {({height, width}) => {
-            const columnsPerRow = computeColumnsPerRow(width);
-            const rowCount = Math.ceil(applications.length / columnsPerRow);
-            const tileWidth = computeColumnWidth(width, columnsPerRow);
+    <WindowScroller ref={windowScrollerRef} updateScrollTopOnUpdatePosition={true}>
+        {({height, isScrolling, onChildScroll, scrollTop}) => (
+            <AutoSizer disableHeight={true} onResize={({width}) => onLayoutWidth(width)}>
+                {({width}) => {
+                    const columnsPerRow = computeColumnsPerRow(width);
+                    const rowCount = Math.ceil(applications.length / columnsPerRow);
+                    const tileWidth = computeColumnWidth(width, columnsPerRow);
 
-            const cellRenderer = ({columnIndex, key, parent, rowIndex, style}: GridCellProps) => {
-                const index = rowIndex * columnsPerRow + columnIndex;
-                if (index >= applications.length) {
-                    return null;
-                }
+                    const cellRenderer = ({columnIndex, key, parent, rowIndex, style}: GridCellProps) => {
+                        const index = rowIndex * columnsPerRow + columnIndex;
+                        if (index >= applications.length) {
+                            return null;
+                        }
 
-                const app = applications[index];
-                // Tile is content-width; the Grid column already includes the gap.
-                const cellStyle: React.CSSProperties = {
-                    ...style,
-                    width: tileWidth
-                };
+                        const app = applications[index];
+                        const cellStyle: React.CSSProperties = {
+                            ...style,
+                            width: tileWidth
+                        };
 
-                return (
-                    <CellMeasurer cache={cellCache} columnIndex={columnIndex} key={key} parent={parent} rowIndex={rowIndex}>
-                        <div style={cellStyle} className='applications-tiles__virtual-cell'>
-                            {renderTile(app, index)}
+                        return (
+                            <CellMeasurer cache={cellCache} columnIndex={columnIndex} key={key} parent={parent} rowIndex={rowIndex}>
+                                <div style={cellStyle} className='applications-tiles__virtual-cell'>
+                                    {renderTile(app, index)}
+                                </div>
+                            </CellMeasurer>
+                        );
+                    };
+
+                    return (
+                        <div role='grid' aria-rowcount={rowCount} aria-colcount={columnsPerRow} style={{width}}>
+                            <Grid
+                                ref={gridRef}
+                                autoHeight={true}
+                                deferredMeasurementCache={cellCache}
+                                height={height}
+                                width={width}
+                                isScrolling={isScrolling}
+                                onScroll={onChildScroll}
+                                scrollTop={scrollTop}
+                                columnCount={columnsPerRow}
+                                columnWidth={({index}) => computeColumnWidthForIndex(width, columnsPerRow, index)}
+                                rowCount={rowCount}
+                                rowHeight={getRowHeight}
+                                cellRenderer={cellRenderer}
+                                overscanRowCount={TILE_OVERSCAN_ROW_COUNT}
+                                scrollingResetTimeInterval={150}
+                            />
                         </div>
-                    </CellMeasurer>
-                );
-            };
-
-            return (
-                <div role='grid' aria-rowcount={rowCount} aria-colcount={columnsPerRow} style={{height, width}}>
-                    <Grid
-                        ref={gridRef}
-                        deferredMeasurementCache={cellCache}
-                        height={height}
-                        width={width}
-                        columnCount={columnsPerRow}
-                        columnWidth={({index}) => computeColumnWidthForIndex(width, columnsPerRow, index)}
-                        rowCount={rowCount}
-                        rowHeight={getRowHeight}
-                        cellRenderer={cellRenderer}
-                        overscanRowCount={TILE_OVERSCAN_ROW_COUNT}
-                        scrollingResetTimeInterval={150}
-                    />
-                </div>
-            );
-        }}
-    </AutoSizer>
+                    );
+                }}
+            </AutoSizer>
+        )}
+    </WindowScroller>
 );
 
-export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication, useVirtualScrolling}: ApplicationTilesProps) => {
+export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication, useVirtualScrolling, statusBarVisible}: ApplicationTilesProps) => {
     const [selectedApp, navApp, reset] = useNav(applications.length);
 
     const ctxh = React.useContext(Context);
     const firstTileRef = React.useRef<HTMLDivElement>(null);
     const appContainerRef = React.useRef<HTMLDivElement>(null);
     const gridRef = React.useRef<Grid>(null);
+    const windowScrollerRef = React.useRef<WindowScroller>(null);
     const [layoutWidth, setLayoutWidth] = React.useState(0);
 
     const shouldVirtualize = shouldUseVirtualScroll(useVirtualScrolling, applications.length);
-    const [viewportHeight, viewportRef] = useVirtualViewportHeight(shouldVirtualize);
     const appsPerRow = useItemsPerContainer(firstTileRef, appContainerRef, !shouldVirtualize);
     const columnsPerRow = layoutWidth > 0 ? computeColumnsPerRow(layoutWidth) : 1;
     const layoutKey = React.useMemo(() => (shouldVirtualize ? appsLayoutKey(applications) : ''), [shouldVirtualize, applications]);
+    useWindowScrollerPosition(windowScrollerRef, shouldVirtualize, `${layoutKey}:${!!statusBarVisible}`);
 
     const [cellCache] = React.useState(
         () =>
@@ -268,15 +280,13 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
 
                         if (shouldVirtualize) {
                             return (
-                                <div
-                                    ref={viewportRef}
-                                    className='applications-list__virtual-viewport applications-tiles applications-tiles--virtualized argo-table-list argo-table-list--clickable'
-                                    style={{height: viewportHeight}}>
+                                <div className='applications-tiles applications-tiles--virtualized argo-table-list argo-table-list--clickable'>
                                     <VirtualizedTilesGrid
                                         applications={applications}
                                         cellCache={cellCache}
                                         getRowHeight={getRowHeight}
                                         gridRef={gridRef}
+                                        windowScrollerRef={windowScrollerRef}
                                         onLayoutWidth={width => setLayoutWidth(prev => (prev !== width ? width : prev))}
                                         renderTile={renderTile}
                                     />
