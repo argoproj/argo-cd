@@ -111,14 +111,14 @@ func mergeIgnoreDifferences(from *IgnoreDifference, target *IgnoreDifference) {
 }
 
 // ExtractIgnoreDifferencesFromAnnotations parses resource annotations to extract ignoreDifferences rules.
-// It looks for the argocd.argoproj.io/ignore-differences annotation containing comma-separated JSON pointer paths.
+// It looks for the argocd.argoproj.io/ignore-differences-json-pointers annotation containing comma-separated JSON pointer paths.
 func ExtractIgnoreDifferencesFromAnnotations(resources []*unstructured.Unstructured) []v1alpha1.ResourceIgnoreDifferences {
 	var result []v1alpha1.ResourceIgnoreDifferences
 
 	for _, resource := range resources {
 		if resource != nil {
 			if annotations := resource.GetAnnotations(); annotations != nil {
-				ignoreDiffValue, exists := annotations[common.AnnotationKeyIgnoreDifferences]
+				ignoreDiffValue, exists := annotations[common.AnnotationKeyIgnoreDifferencesJSONPointers]
 				if exists && ignoreDiffValue != "" {
 					// Parse comma-separated JSON pointer paths
 					paths := strings.Split(ignoreDiffValue, ",")

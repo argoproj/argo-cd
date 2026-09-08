@@ -266,7 +266,7 @@ func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
 		t.Parallel()
 		resource := newDeployment()
 		resource.SetAnnotations(map[string]string{
-			"argocd.argoproj.io/ignore-differences": "/spec/replicas",
+			"argocd.argoproj.io/ignore-differences-json-pointers": "/spec/replicas",
 		})
 		resources := []*unstructured.Unstructured{resource}
 
@@ -287,7 +287,7 @@ func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
 		t.Parallel()
 		resource := newDeployment()
 		resource.SetAnnotations(map[string]string{
-			"argocd.argoproj.io/ignore-differences": "/spec/replicas,/metadata/labels/version,/spec/template/metadata/annotations",
+			"argocd.argoproj.io/ignore-differences-json-pointers": "/spec/replicas,/metadata/labels/version,/spec/template/metadata/annotations",
 		})
 		resources := []*unstructured.Unstructured{resource}
 
@@ -304,7 +304,7 @@ func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
 		t.Parallel()
 		resource := newDeployment()
 		resource.SetAnnotations(map[string]string{
-			"argocd.argoproj.io/ignore-differences": "/spec/replicas , /metadata/labels , /status",
+			"argocd.argoproj.io/ignore-differences-json-pointers": "/spec/replicas , /metadata/labels , /status",
 		})
 		resources := []*unstructured.Unstructured{resource}
 
@@ -346,7 +346,7 @@ func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
 		t.Parallel()
 		resource := newDeployment()
 		resource.SetAnnotations(map[string]string{
-			"argocd.argoproj.io/ignore-differences": "",
+			"argocd.argoproj.io/ignore-differences-json-pointers": "",
 		})
 		resources := []*unstructured.Unstructured{resource}
 
@@ -362,11 +362,11 @@ func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
 		t.Parallel()
 		deployment := newDeployment()
 		deployment.SetAnnotations(map[string]string{
-			"argocd.argoproj.io/ignore-differences": "/spec/replicas",
+			"argocd.argoproj.io/ignore-differences-json-pointers": "/spec/replicas",
 		})
 		service := newService()
 		service.SetAnnotations(map[string]string{
-			"argocd.argoproj.io/ignore-differences": "/spec/ports",
+			"argocd.argoproj.io/ignore-differences-json-pointers": "/spec/ports",
 		})
 		resources := []*unstructured.Unstructured{deployment, service}
 

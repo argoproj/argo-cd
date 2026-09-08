@@ -30,7 +30,7 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 					"name":      "test-deployment",
 					"namespace": "default",
 					"annotations": map[string]any{
-						common.AnnotationKeyIgnoreDifferences: "/spec/replicas",
+						common.AnnotationKeyIgnoreDifferencesJSONPointers: "/spec/replicas",
 					},
 				},
 				"spec": map[string]any{
@@ -89,7 +89,7 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 					"name":      "test-deployment",
 					"namespace": "default",
 					"annotations": map[string]any{
-						common.AnnotationKeyIgnoreDifferences: "/spec/replicas,/metadata/labels/version",
+						common.AnnotationKeyIgnoreDifferencesJSONPointers: "/spec/replicas,/metadata/labels/version",
 					},
 					"labels": map[string]any{
 						"app":     "test",
@@ -153,7 +153,7 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 					"namespace": "default",
 					"annotations": map[string]any{
 						// Annotation ignores replicas
-						common.AnnotationKeyIgnoreDifferences: "/spec/replicas",
+						common.AnnotationKeyIgnoreDifferencesJSONPointers: "/spec/replicas",
 					},
 					"labels": map[string]any{
 						"app":     "test",
@@ -226,7 +226,7 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 					"name":      "test-deployment",
 					"namespace": "default",
 					"annotations": map[string]any{
-						common.AnnotationKeyIgnoreDifferences: "/spec/replicas",
+						common.AnnotationKeyIgnoreDifferencesJSONPointers: "/spec/replicas",
 					},
 				},
 				"spec": map[string]any{
@@ -286,7 +286,7 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 				"kind":       "Service",
 				"metadata": map[string]any{
 					"annotations": map[string]any{
-						common.AnnotationKeyIgnoreDifferences: "/spec/clusterIP",
+						common.AnnotationKeyIgnoreDifferencesJSONPointers: "/spec/clusterIP",
 					},
 				},
 			},
@@ -321,7 +321,7 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 					"name":      "test-deployment",
 					"namespace": "default",
 					"annotations": map[string]any{
-						common.AnnotationKeyIgnoreDifferences: "spec/replicas",
+						common.AnnotationKeyIgnoreDifferencesJSONPointers: "spec/replicas",
 					},
 				},
 				"spec": map[string]any{
