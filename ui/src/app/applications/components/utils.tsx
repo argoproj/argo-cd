@@ -1019,7 +1019,7 @@ export function hydrationStatusMessage(app: appModels.Application) {
     const sourceHydrator = app.status.sourceHydrator.currentOperation.sourceHydrator;
     const drySource = sourceHydrator.drySource;
     const dryCommit = app.status.sourceHydrator.currentOperation.drySHA;
-    const syncSource = getAppHydratorSyncSource(sourceHydrator);
+    const hydrateToSource = getAppHydrateToSource(sourceHydrator);
     const hydratedCommit = app.status.sourceHydrator.currentOperation.hydratedSHA || '';
 
     switch (app.status.sourceHydrator.currentOperation.phase) {
@@ -1032,8 +1032,8 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     </Revision>
                     <br />
                     to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={hydratedCommit}>
-                        {syncSource.targetRevision + ' (' + hydratedCommit.substr(0, 7) + ')'}
+                    <Revision repoUrl={hydrateToSource.repoURL} revision={hydratedCommit}>
+                        {hydrateToSource.targetRevision + ' (' + hydratedCommit.substr(0, 7) + ')'}
                     </Revision>
                 </span>
             );
@@ -1046,8 +1046,8 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     </Revision>
                     <br />
                     to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
-                        {syncSource.targetRevision}
+                    <Revision repoUrl={hydrateToSource.repoURL} revision={hydrateToSource.targetRevision}>
+                        {hydrateToSource.targetRevision}
                     </Revision>
                 </span>
             );
@@ -1061,8 +1061,8 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     </Revision>
                     <br />
                     to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
-                        {syncSource.targetRevision}
+                    <Revision repoUrl={hydrateToSource.repoURL} revision={hydrateToSource.targetRevision}>
+                        {hydrateToSource.targetRevision}
                     </Revision>
                 </span>
             );
@@ -1540,6 +1540,15 @@ export function getAppHydratorSyncSource(sourceHydrator?: appModels.SourceHydrat
         repoURL: getHydratorSyncSourceRepoURL(sourceHydrator),
         targetRevision: sourceHydrator?.syncSource?.targetBranch || '',
         path: sourceHydrator?.syncSource?.path || ''
+    };
+}
+
+// Destination of a hydration push: hydrateTo.targetBranch when set, otherwise the sync source branch.
+export function getAppHydrateToSource(sourceHydrator?: appModels.SourceHydrator): appModels.ApplicationSource {
+    const syncSource = getAppHydratorSyncSource(sourceHydrator);
+    return {
+        ...syncSource,
+        targetRevision: sourceHydrator?.hydrateTo?.targetBranch || syncSource.targetRevision
     };
 }
 
