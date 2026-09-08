@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	appfake "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+
 	"github.com/argoproj/argo-cd/v3/applicationset/progressivesync"
 
 	log "github.com/sirupsen/logrus"
@@ -38,6 +40,7 @@ import (
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/ratelimiter"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -3639,6 +3642,9 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 
 	kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 
+	previousTransitionTime := &metav1.Time{Time: time.Now().Add(-5 * time.Minute).Truncate(time.Second)}
+	newTransitionTime := &metav1.Time{Time: time.Now().Truncate(time.Second)}
+
 	for _, cc := range []struct {
 		name                string
 		appSet              v1alpha1.ApplicationSet
@@ -3750,6 +3756,60 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 			},
 			appStatuses:         []v1alpha1.ApplicationSetApplicationStatus{},
 			expectedAppStatuses: nil,
+		},
+		{
+			name: "updates status when transition time and target revision changed while waiting",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:        "app1",
+							Message:            "revisionChangedMsg",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							Step:               "1",
+							LastTransitionTime: previousTransitionTime,
+							TargetRevisions:    []string{"revision1"},
+						},
+					},
+				},
+			},
+			// Same Status/Step/Message as the persisted status above (simulating a second
+			// revision change while the app is still Waiting), but a newer LastTransitionTime
+			// and TargetRevisions. The update must still be persisted.
+			appStatuses: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "revisionChangedMsg",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
+					Step:               "1",
+					LastTransitionTime: newTransitionTime,
+					TargetRevisions:    []string{"revision2"},
+				},
+			},
+			expectedAppStatuses: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "revisionChangedMsg",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
+					Step:               "1",
+					LastTransitionTime: newTransitionTime,
+					TargetRevisions:    []string{"revision2"},
+				},
+			},
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
@@ -4041,13 +4101,14 @@ func TestUpdateResourceStatus(t *testing.T) {
 func generateNAppResourceStatuses(n int) []v1alpha1.ResourceStatus {
 	var r []v1alpha1.ResourceStatus
 	for i := range n {
-		r = append(r, v1alpha1.ResourceStatus{
-			Name:   "app" + strconv.Itoa(i),
-			Status: v1alpha1.SyncStatusCodeSynced,
-			Health: &v1alpha1.HealthStatus{
-				Status: health.HealthStatusHealthy,
+		r = append(
+			r, v1alpha1.ResourceStatus{
+				Name:   "app" + strconv.Itoa(i),
+				Status: v1alpha1.SyncStatusCodeSynced,
+				Health: &v1alpha1.HealthStatus{
+					Status: health.HealthStatusHealthy,
+				},
 			},
-		},
 		)
 	}
 	return r
@@ -4878,7 +4939,7 @@ func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
 								},
 							},
 						},
-						DeletionOrder: ReverseDeletionOrder,
+						DeletionOrder: progressivesync.ReverseDeletionOrder,
 					},
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
@@ -4912,7 +4973,7 @@ func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
 								},
 							},
 						},
-						DeletionOrder: ReverseDeletionOrder,
+						DeletionOrder: progressivesync.ReverseDeletionOrder,
 					},
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
@@ -4943,7 +5004,7 @@ func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
 								},
 							},
 						},
-						DeletionOrder: AllAtOnceDeletionOrder,
+						DeletionOrder: progressivesync.AllAtOnceDeletionOrder,
 					},
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
@@ -5004,7 +5065,7 @@ func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
 								},
 							},
 						},
-						DeletionOrder: ReverseDeletionOrder,
+						DeletionOrder: progressivesync.ReverseDeletionOrder,
 					},
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
@@ -5023,6 +5084,9 @@ func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
 
+			// Create empty appClientSet for progressive sync manager
+			appClientSet := appfake.NewSimpleClientset()
+
 			r := ApplicationSetReconciler{
 				Client:                 client,
 				Scheme:                 scheme,
@@ -5034,7 +5098,7 @@ func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
 				Metrics:                metrics,
 				EnableProgressiveSyncs: cc.progressiveSyncEnabled,
 			}
-			r.ProgressiveSyncManager = progressivesync.NewManager(r.Client, r.Client, &r)
+			r.ProgressiveSyncManager = progressivesync.NewManager(r.Client, r.Client, appClientSet, &r)
 
 			req := ctrl.Request{
 				Namespace: cc.appSet.Namespace,
@@ -5134,6 +5198,187 @@ func TestReconcileProgressiveSyncDisabled(t *testing.T) {
 	}
 }
 
+func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	now := metav1.Now()
+	before := metav1.NewTime(now.Add(-5 * time.Minute))
+	after := metav1.NewTime(now.Add(5 * time.Minute))
+
+	tests := []struct {
+		name                string
+		appset              v1alpha1.ApplicationSet
+		applications        []v1alpha1.Application
+		desiredApplications []v1alpha1.Application
+		expectedSyncMap     map[string]bool
+	}{
+		{
+			name: "blocks sync when applications not reconciled",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values:   []string{"dev"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:        "app1",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &now,
+							Message:            "Application has pending changes, setting status to Waiting",
+							TargetRevisions:    []string{"revision1"},
+						},
+					},
+				},
+			},
+			applications: []v1alpha1.Application{
+				{
+					Name:      "app1",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"env": "dev",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &before,
+						Sync: v1alpha1.SyncStatus{
+							Revision: "revision1",
+						},
+					},
+				},
+			},
+			desiredApplications: []v1alpha1.Application{
+				{
+					Name:      "app1",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"env": "dev",
+					},
+				},
+			},
+			expectedSyncMap: map[string]bool{},
+		},
+		{
+			name: "allows sync when all applications reconciled",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values:   []string{"dev"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{},
+				},
+			},
+			applications: []v1alpha1.Application{
+				{
+					Name:      "app1",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"env": "dev",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &after,
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						Sync: v1alpha1.SyncStatus{
+							Status:   v1alpha1.SyncStatusCodeSynced,
+							Revision: "revision1",
+						},
+					},
+				},
+			},
+			desiredApplications: []v1alpha1.Application{
+				{
+					Name:      "app1",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"env": "dev",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Revision: "revision1",
+						},
+					},
+				},
+			},
+			expectedSyncMap: map[string]bool{"app1": true},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			initObjs := []crtclient.Object{&tt.appset}
+			appObjs := []runtime.Object{}
+			for i := range tt.applications {
+				initObjs = append(initObjs, &tt.applications[i])
+				appObjs = append(appObjs, &tt.applications[i])
+			}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).
+				WithStatusSubresource(&v1alpha1.ApplicationSet{}).Build()
+
+			// Create appClientSet with Application objects for RefreshApp to use
+			appClientSet := appfake.NewSimpleClientset(appObjs...)
+
+			r := ApplicationSetReconciler{
+				Client: client,
+				Scheme: scheme,
+			}
+			manager := progressivesync.NewManager(client, client, appClientSet, &r)
+
+			syncMap, err := manager.PerformProgressiveSyncs(
+				t.Context(),
+				log.NewEntry(log.StandardLogger()),
+				tt.appset,
+				tt.applications,
+				tt.desiredApplications,
+				0,
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedSyncMap, syncMap)
+		})
+	}
+}
+
 func startAndSyncInformer(t *testing.T, informer cache.SharedIndexInformer) context.CancelFunc {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
@@ -5143,4 +5388,64 @@ func startAndSyncInformer(t *testing.T, informer cache.SharedIndexInformer) cont
 		t.Fatal("Timed out waiting for caches to sync")
 	}
 	return cancel
+}
+
+func TestRateLimiterConfig(t *testing.T) {
+	t.Run("default config has expected values", func(t *testing.T) {
+		cfg := ratelimiter.GetDefaultAppRateLimiterConfig()
+		require.NotNil(t, cfg)
+		assert.Equal(t, int64(500), cfg.BucketSize)
+		assert.Equal(t, time.Millisecond, cfg.BaseDelay)
+		assert.Equal(t, time.Second, cfg.MaxDelay)
+		assert.InDelta(t, 1.5, cfg.BackoffFactor, 0.001)
+	})
+
+	t.Run("NewCustomAppControllerRateLimiter with default config", func(t *testing.T) {
+		cfg := ratelimiter.GetDefaultAppRateLimiterConfig()
+		limiter := ratelimiter.NewCustomAppControllerRateLimiter[ctrl.Request](cfg)
+		require.NotNil(t, limiter)
+		req := ctrl.Request{}
+		delay := limiter.When(req)
+		assert.GreaterOrEqual(t, delay, cfg.BaseDelay)
+	})
+
+	t.Run("NewCustomAppControllerRateLimiter with custom config", func(t *testing.T) {
+		cfg := &ratelimiter.AppControllerRateLimiterConfig{
+			BucketSize:      100,
+			BucketQPS:       50,
+			FailureCoolDown: 0,
+			BaseDelay:       5 * time.Millisecond,
+			MaxDelay:        10 * time.Second,
+			BackoffFactor:   2.0,
+		}
+		limiter := ratelimiter.NewCustomAppControllerRateLimiter[ctrl.Request](cfg)
+		require.NotNil(t, limiter)
+		req := ctrl.Request{}
+		delay := limiter.When(req)
+		assert.GreaterOrEqual(t, delay, cfg.BaseDelay)
+	})
+}
+
+func TestResolveRateLimiterConfig(t *testing.T) {
+	t.Run("nil input returns default config", func(t *testing.T) {
+		result := resolveRateLimiterConfig(nil)
+		require.NotNil(t, result)
+		expected := ratelimiter.GetDefaultAppRateLimiterConfig()
+		assert.Equal(t, expected.BucketSize, result.BucketSize)
+		assert.Equal(t, expected.BaseDelay, result.BaseDelay)
+		assert.Equal(t, expected.MaxDelay, result.MaxDelay)
+		assert.InDelta(t, expected.BackoffFactor, result.BackoffFactor, 0.001)
+	})
+
+	t.Run("non-nil input is returned as-is", func(t *testing.T) {
+		cfg := &ratelimiter.AppControllerRateLimiterConfig{
+			BucketSize:    100,
+			BucketQPS:     50,
+			BaseDelay:     5 * time.Millisecond,
+			MaxDelay:      30 * time.Second,
+			BackoffFactor: 2.0,
+		}
+		result := resolveRateLimiterConfig(cfg)
+		assert.Same(t, cfg, result)
+	})
 }

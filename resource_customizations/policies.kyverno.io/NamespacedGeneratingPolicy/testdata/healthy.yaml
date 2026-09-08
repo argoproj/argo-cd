@@ -1,0 +1,14 @@
+apiVersion: policies.kyverno.io/v1alpha1
+kind: NamespacedGeneratingPolicy
+metadata:
+  name: sample-namespaced-generating-policy
+  namespace: test-namespace
+spec: {}
+status:
+  conditionStatus:
+    ready: true
+    conditions:
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      message: Policy is ready
+      status: "True"
+      type: Admitted

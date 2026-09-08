@@ -141,7 +141,7 @@ const (
 	// SP tokens are valid for 60 minutes, so cache for 59 minutes to avoid issues with token expiration when taking the cleanup interval of 1 minute into account
 	AzureServicePrincipalCredsExpirationDuration = time.Minute * 59
 
-	// PasswordPatten is the default password patten
+	// PasswordPatten is the default password pattern
 	PasswordPatten = `^.{8,32}$`
 
 	// LegacyShardingAlgorithm is the default value for Sharding Algorithm it uses an `uid` based distribution (non-uniform)
