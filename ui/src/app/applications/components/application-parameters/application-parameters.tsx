@@ -308,6 +308,7 @@ export const ApplicationParameters = (props: {
                     <div className='settings-overview__redirect-panel__description'>
                         {[
                             appSource.path ? 'PATH=' + appSource.path : '',
+                            appSource.chart ? 'CHART=' + appSource.chart : '',
                             appSource.targetRevision ? 'REVISION=' + appSource.targetRevision : '',
                             appSource.plugin?.env?.length ? 'ENV=' + appSource.plugin.env.map(env => env.name + '=' + env.value).join(' ') : ''
                         ]

@@ -3,6 +3,7 @@ import * as React from 'react';
 
 import * as models from '../../../shared/models';
 import {Context} from '../../../shared/context';
+import {ApplicationParameters} from './application-parameters';
 
 // lodash-es ships as untransformed ESM under node_modules and is not covered by the jest
 // transform config, so map the single helper this module uses to a CJS-friendly stub.
@@ -32,23 +33,14 @@ jest.mock('argo-ui', () => {
 });
 
 // The expanded panel loads per-source repo details via services.repos.appDetails; return a
-// Plugin-type detail so gatherDetails takes the Plugin branch. (view mode never calls the
-// authService loaders, but they are stubbed defensively.)
+// Plugin-type detail so gatherDetails takes the Plugin branch.
 jest.mock('../../../shared/services', () => ({
     services: {
         repos: {
-            appDetails: () => Promise.resolve({type: 'Plugin', plugin: {}}),
-            charts: () => Promise.resolve([])
-        },
-        authService: {
-            plugins: () => Promise.resolve([]),
-            settings: () => Promise.resolve({})
+            appDetails: () => Promise.resolve({type: 'Plugin', plugin: {}})
         }
     }
 }));
-
-// eslint-disable-next-line import/first
-import {ApplicationParameters} from './application-parameters';
 
 // Paginate pulls in a view-preferences DataLoader that is irrelevant to what we assert here,
 // so replace it with a passthrough that simply renders its children for the provided data.
