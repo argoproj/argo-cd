@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 
@@ -50,7 +51,7 @@ func CreateClusterRBACObject(project string, server string) string {
 }
 
 // List returns list of clusters
-func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.ClusterList, error) {
+func (s *Server) List(ctx context.Context, q *cluster.ClusterListQuery) (*appv1.ClusterList, error) {
 	clusterList, err := s.db.ListClusters(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list clusters: %w", err)
@@ -68,6 +69,11 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 
 	// Filter clusters by server
 	filteredItems = filterClustersByServer(filteredItems, q.Server)
+
+	// Filter clusters by label selector
+	if filteredItems, err = filterClustersByLabels(filteredItems, q.Selector); err != nil {
+		return nil, fmt.Errorf("error filtering clusters by labels: %w", err)
+	}
 
 	items := make([]appv1.Cluster, 0)
 	for _, clust := range filteredItems {
@@ -138,6 +144,23 @@ func filterClustersByServer(clusters []appv1.Cluster, server string) []appv1.Clu
 		}
 	}
 	return items
+}
+
+func filterClustersByLabels(clusters []appv1.Cluster, selector string) ([]appv1.Cluster, error) {
+	if selector == "" {
+		return clusters, nil
+	}
+	ls, err := labels.Parse(selector)
+	if err != nil {
+		return nil, fmt.Errorf("invalid label selector %q: %w", selector, err)
+	}
+	items := make([]appv1.Cluster, 0)
+	for i := range clusters {
+		if ls.Matches(labels.Set(clusters[i].Labels)) {
+			items = append(items, clusters[i])
+		}
+	}
+	return items, nil
 }
 
 // Create creates a cluster

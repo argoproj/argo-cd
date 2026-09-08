@@ -38,7 +38,7 @@ var (
 )
 
 func request_ClusterService_List_0(ctx context.Context, marshaler runtime.Marshaler, client ClusterServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ClusterQuery
+	var protoReq ClusterListQuery
 	var metadata runtime.ServerMetadata
 
 	if err := req.ParseForm(); err != nil {
@@ -54,7 +54,7 @@ func request_ClusterService_List_0(ctx context.Context, marshaler runtime.Marsha
 }
 
 func local_request_ClusterService_List_0(ctx context.Context, marshaler runtime.Marshaler, server ClusterServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq ClusterQuery
+	var protoReq ClusterListQuery
 	var metadata runtime.ServerMetadata
 
 	if err := req.ParseForm(); err != nil {
