@@ -35,7 +35,7 @@
     "monaco-editor": "^0.33.0",
     "path": "^0.12.7",
     "prop-types": "^15.8.1",
-    "react": "^19.0.0",
+    "react": "^19.2.8",
     "react-diff-view": "3.3.3",
     "react-dom": "^19.0.0",
     "react-ga4": "^3.0.1",
@@ -57,7 +57,7 @@
   },
   "pnpm": {
     "overrides": {
-      "@types/react": "^19.0.0",
+      "@types/react": "^19.2.18",
       "@types/react-dom": "^19.0.0",
       "rxjs": "7.8.2",
       "dompurify": "3.4.7"
@@ -84,7 +84,7 @@
     "@types/lodash-es": "^4.17.6",
     "@types/minimatch": "^3.0.3",
     "@types/node": "^24.10.1",
-    "@types/react": "^19.0.0",
+    "@types/react": "^19.2.18",
     "@types/react-dom": "^19.0.0",
     "@types/react-helmet": "^6.1.6",
     "@types/react-paginate": "^7.1.4",
