@@ -206,7 +206,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	var allParams []map[string]any
 	for _, filePath := range filePaths {
 		// A JSON / YAML file path can contain multiple sets of parameters (ie it is an array)
-		paramsFromFileArray, err := g.generateParamsFromGitFile(filePath, fileContentMap[filePath], appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions, appSetGenerator.Git.PathParamPrefix)
+		paramsFromFileArray, err := g.generateParamsFromGitFile(filePath, appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, fileContentMap[filePath], appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions, appSetGenerator.Git.PathParamPrefix)
 		if err != nil {
 			return nil, fmt.Errorf("unable to process file '%s' from repository '%s': %w", filePath, appSetGenerator.Git.RepoURL, err)
 		}
@@ -219,7 +219,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 // generateParamsFromGitFile parses the content of a Git-tracked file and generates a slice of parameter maps.
 // The file can contain a single YAML/JSON object or an array of such objects. Depending on the useGoTemplate flag,
 // it either preserves structure for Go templating or flattens the objects for use as plain key-value parameters.
-func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, values map[string]string, useGoTemplate bool, goTemplateOptions []string, pathParamPrefix string) ([]map[string]any, error) {
+func (g *GitGenerator) generateParamsFromGitFile(filePath, repoURL, revision string, fileContent []byte, values map[string]string, useGoTemplate bool, goTemplateOptions []string, pathParamPrefix string) ([]map[string]any, error) {
 	objectsFound := []map[string]any{}
 
 	// First, we attempt to parse as a single object.
@@ -252,6 +252,8 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 			paramPath["basenameNormalized"] = utils.SanitizeName(path.Base(paramPath["path"].(string)))
 			paramPath["filenameNormalized"] = utils.SanitizeName(path.Base(paramPath["filename"].(string)))
 			paramPath["segments"] = strings.Split(paramPath["path"].(string), "/")
+			paramPath["repoURL"] = repoURL
+			paramPath["revision"] = revision
 			if pathParamPrefix != "" {
 				params[pathParamPrefix] = map[string]any{"path": paramPath}
 			} else {
@@ -274,6 +276,8 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 			params[pathParamName+".filename"] = path.Base(filePath)
 			params[pathParamName+".basenameNormalized"] = utils.SanitizeName(path.Base(params[pathParamName].(string)))
 			params[pathParamName+".filenameNormalized"] = utils.SanitizeName(path.Base(params[pathParamName+".filename"].(string)))
+			params[pathParamName+".repoURL"] = repoURL
+			params[pathParamName+".revision"] = revision
 			for k, v := range strings.Split(params[pathParamName].(string), "/") {
 				if v != "" {
 					params[pathParamName+"["+strconv.Itoa(k)+"]"] = v
@@ -336,6 +340,8 @@ func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGene
 			paramPath["basename"] = path.Base(a)
 			paramPath["basenameNormalized"] = utils.SanitizeName(path.Base(a))
 			paramPath["segments"] = strings.Split(paramPath["path"].(string), "/")
+			paramPath["repoURL"] = appSetGenerator.Git.RepoURL
+			paramPath["revision"] = appSetGenerator.Git.Revision
 			if appSetGenerator.Git.PathParamPrefix != "" {
 				params[appSetGenerator.Git.PathParamPrefix] = map[string]any{"path": paramPath}
 			} else {
@@ -349,6 +355,8 @@ func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGene
 			params[pathParamName] = a
 			params[pathParamName+".basename"] = path.Base(a)
 			params[pathParamName+".basenameNormalized"] = utils.SanitizeName(path.Base(a))
+			params[pathParamName+".repoURL"] = appSetGenerator.Git.RepoURL
+			params[pathParamName+".revision"] = appSetGenerator.Git.Revision
 			for k, v := range strings.Split(params[pathParamName].(string), "/") {
 				if v != "" {
 					params[pathParamName+"["+strconv.Itoa(k)+"]"] = v

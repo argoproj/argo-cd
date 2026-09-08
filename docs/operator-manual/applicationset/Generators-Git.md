@@ -71,6 +71,8 @@ The generator parameters are:
 - `{{index .path.segments n}}`: The directory paths within the Git repository that match the `path` wildcard, split into array elements (`n` - array index)
 - `{{.path.basename}}`: For any directory path within the Git repository that matches the `path` wildcard, the right-most path name is extracted (e.g. `/directory/directory2` would produce `directory2`).
 - `{{.path.basenameNormalized}}`: This field is the same as `path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `path.basename` of `directory_2` would produce `directory-2` here).
+- `{{.path.repoURL}}`: The `repoURL` of the Git repository configured in the generator.
+- `{{.path.revision}}`: The `revision` of the Git repository configured in the generator.
 
 > [!NOTE]
 > The right-most path name always becomes `{{.path.basename}}`. For example, for `- path: /one/two/three/four`, `{{.path.basename}}` is `four`.
@@ -338,6 +340,8 @@ In addition to the flattened key/value pairs from the configuration file, the fo
 - `{{.path.basenameNormalized}}`: This field is the same as `.path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `.path.basename` of `directory_2` would produce `directory-2` here).
 - `{{.path.filename}}`: The matched filename. e.g., `config.json` in the above example.
 - `{{.path.filenameNormalized}}`: The matched filename with unsupported characters replaced with `-`.
+- `{{.path.repoURL}}`: The `repoURL` of the Git repository configured in the generator.
+- `{{.path.revision}}`: The `revision` of the Git repository configured in the generator.
 
 > [!NOTE]
 > The right-most *directory* name always becomes `{{.path.basename}}`. For example, from `- path: /one/two/three/four/config.json`, `{{.path.basename}}` 
