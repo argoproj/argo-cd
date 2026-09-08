@@ -36,6 +36,10 @@ type Image = string
 type BuildOpts struct {
 	KubeVersion string
 	APIVersions []string
+	// HelmEnvVars holds environment variables that are passed to the
+	// kustomize process so that its child helm invocations via --enable-helm can
+	// authenticate with private OCI registries.
+	HelmEnvVars []string
 }
 
 // Kustomize provides wrapper functionality around the `kustomize` command.
@@ -160,6 +164,10 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 
 	env = append(env, environ...)
+
+	if buildOpts != nil && len(buildOpts.HelmEnvVars) > 0 {
+		env = append(env, buildOpts.HelmEnvVars...)
+	}
 
 	if opts != nil {
 		if opts.NamePrefix != "" {
@@ -412,7 +420,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 func parseKustomizeBuildOptions(ctx context.Context, k *kustomize, buildOptions string, buildOpts *BuildOpts) []string {
 	buildOptsParams := append([]string{"build", k.path}, strings.Fields(buildOptions)...)
 
-	if buildOpts != nil && !getSemverSafe(ctx, k).LessThan(semver.MustParse("v5.3.0")) && isHelmEnabled(buildOptions) {
+	if buildOpts != nil && !getSemverSafe(ctx, k).LessThan(semver.MustParse("v5.3.0")) && IsHelmEnabled(buildOptions) {
 		if buildOpts.KubeVersion != "" {
 			buildOptsParams = append(buildOptsParams, "--helm-kube-version", buildOpts.KubeVersion)
 		}
@@ -424,7 +432,8 @@ func parseKustomizeBuildOptions(ctx context.Context, k *kustomize, buildOptions 
 	return buildOptsParams
 }
 
-func isHelmEnabled(buildOptions string) bool {
+// IsHelmEnabled returns true if the given kustomize build options include --enable-helm.
+func IsHelmEnabled(buildOptions string) bool {
 	return strings.Contains(buildOptions, "--enable-helm")
 }
 
