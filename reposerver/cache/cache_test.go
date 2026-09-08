@@ -395,8 +395,8 @@ func TestGetGitReferences(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, lockOwner, "Lock owner should be empty")
 		assert.Len(t, references, 1)
-		assert.Equal(t, "test", (references)[0].Target().String())
-		assert.Equal(t, "test-repo", (references)[0].Name().String())
+		assert.Equal(t, "test", references[0].Target().String())
+		assert.Equal(t, "test-repo", references[0].Name().String())
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1})
 	})
 

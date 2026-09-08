@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -48,10 +47,8 @@ func TestGetRepoObjs(t *testing.T) {
 	source.RepoURL = "oci://example.com/argo/argo-cd"
 
 	objs, resp, err := ctrl.GetRepoObjs(t.Context(), app, source, "abc123", &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "default",
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      "default",
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos: []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{
@@ -84,7 +81,7 @@ func TestGetRepoObjs(t *testing.T) {
 // passed through to repo-server in the ManifestRequest during hydration.
 func TestGetRepoObjs_SourceIntegrity_Wiring(t *testing.T) {
 	proj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Name: "default", Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -241,10 +238,8 @@ func TestEvaluateAppRevisionsChanges(t *testing.T) {
 	drySource := app.Spec.SourceHydrator.GetDrySource()
 
 	hasChanges, resolvedRev, err := ctrl.EvaluateAppRevisionsChanges(t.Context(), app, drySource, "HEAD", &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "default",
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      "default",
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos: []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{

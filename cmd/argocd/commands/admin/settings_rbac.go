@@ -89,6 +89,7 @@ var applicationsActions = actionTraitMap{
 	rbac.ActionAction:   rbacTrait{allowPath: true},
 	rbac.ActionOverride: rbacTrait{},
 	rbac.ActionSync:     rbacTrait{},
+	rbac.ActionRollback: rbacTrait{},
 }
 
 var accountsActions = actionTraitMap{

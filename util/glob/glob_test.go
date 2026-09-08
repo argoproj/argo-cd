@@ -45,7 +45,7 @@ func matchWithCompiler(pattern, text string, compiler compileFn, separators ...r
 
 func countingCompiler() (compileFn, *int32) {
 	var compileCount int32
-	compiler := func(pattern string, separators ...rune) (extglob.Glob, error) {
+	compiler := func(pattern string, separators ...rune) (*extglob.Pattern, error) {
 		atomic.AddInt32(&compileCount, 1)
 		return extglob.Compile(pattern, separators...)
 	}
