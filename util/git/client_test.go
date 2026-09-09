@@ -247,7 +247,7 @@ func Test_nativeGitClient_cleanupOrphanedTempPackfiles(t *testing.T) {
 	root := t.TempDir()
 	packDir := filepath.Join(root, ".git", "objects", "pack")
 	require.NoError(t, os.MkdirAll(packDir, 0o755))
-	// gitCleanupGracePeriod defaults to 2 * 90s = 3m, so an hour-old file is
+	// gitCleanupGracePeriod defaults to 2 * (90s + 10s), so an hour-old file is
 	// safely stale and a just-written one is safely fresh.
 	old := time.Now().Add(-time.Hour)
 
@@ -298,6 +298,85 @@ func Test_nativeGitClient_cleanupOrphanedTempPackfiles_noPackDir(t *testing.T) {
 	// A repository whose pack directory does not exist yet must not panic or error.
 	client := &nativeGitClient{root: t.TempDir(), repoURL: "https://example.com/repo.git"}
 	assert.NotPanics(t, client.cleanupOrphanedTempPackfiles)
+}
+
+func Test_gitCleanupGracePeriod(t *testing.T) {
+	t.Run("defaults", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_TIMEOUT", "")
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "")
+		assert.Equal(t, 200*time.Second, gitCleanupGracePeriod())
+	})
+
+	t.Run("both timeouts are accounted for", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_TIMEOUT", "5s")
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "60s")
+		// git is SIGKILLed at 65s here, which 2 * ARGOCD_EXEC_TIMEOUT alone would
+		// have undershot.
+		assert.Equal(t, 130*time.Second, gitCleanupGracePeriod())
+	})
+
+	t.Run("fatal timeout falls back to its default", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_TIMEOUT", "30s")
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "")
+		assert.Equal(t, 80*time.Second, gitCleanupGracePeriod())
+	})
+
+	t.Run("disabled exec timeout does not collapse the grace period", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_TIMEOUT", "0s")
+		assert.Equal(t, gitCleanupNoTimeoutGracePeriod, gitCleanupGracePeriod())
+	})
+
+	t.Run("unparseable values fall back to defaults", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_TIMEOUT", "nonsense")
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "nonsense")
+		assert.Equal(t, 200*time.Second, gitCleanupGracePeriod())
+	})
+}
+
+func Test_nativeGitClient_cleanupOrphanedTempPackfiles_customTimeouts(t *testing.T) {
+	t.Setenv("ARGOCD_EXEC_TIMEOUT", "5s")
+	t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "60s")
+
+	root := t.TempDir()
+	packDir := filepath.Join(root, ".git", "objects", "pack")
+	require.NoError(t, os.MkdirAll(packDir, 0o755))
+
+	// git is not SIGKILLed until 65s in, so a 30s-old file can still belong to a
+	// live fetch even though it is past 2 * ARGOCD_EXEC_TIMEOUT.
+	inflight := filepath.Join(packDir, "tmp_pack_inflight")
+	require.NoError(t, os.WriteFile(inflight, []byte("partial data"), 0o644))
+	age := time.Now().Add(-30 * time.Second)
+	require.NoError(t, os.Chtimes(inflight, age, age))
+
+	client := &nativeGitClient{root: root, repoURL: "https://example.com/repo.git"}
+	client.cleanupOrphanedTempPackfiles()
+
+	assert.FileExists(t, inflight, "a temp file younger than exec timeout + fatal timeout must be preserved")
+}
+
+func Test_nativeGitClient_cleanupOrphanedTempPackfiles_timeoutDisabled(t *testing.T) {
+	t.Setenv("ARGOCD_EXEC_TIMEOUT", "0s")
+
+	root := t.TempDir()
+	packDir := filepath.Join(root, ".git", "objects", "pack")
+	require.NoError(t, os.MkdirAll(packDir, 0o755))
+
+	// Without a deadline a fetch can still be running an hour later.
+	recent := filepath.Join(packDir, "tmp_pack_recent")
+	require.NoError(t, os.WriteFile(recent, []byte("partial data"), 0o644))
+	hourOld := time.Now().Add(-time.Hour)
+	require.NoError(t, os.Chtimes(recent, hourOld, hourOld))
+
+	ancient := filepath.Join(packDir, "tmp_pack_ancient")
+	require.NoError(t, os.WriteFile(ancient, []byte("partial data"), 0o644))
+	twoDaysOld := time.Now().Add(-48 * time.Hour)
+	require.NoError(t, os.Chtimes(ancient, twoDaysOld, twoDaysOld))
+
+	client := &nativeGitClient{root: root, repoURL: "https://example.com/repo.git"}
+	client.cleanupOrphanedTempPackfiles()
+
+	assert.FileExists(t, recent, "with no exec timeout a git process may still be running, so recent temp files must be preserved")
+	assert.NoFileExists(t, ancient, "cleanup is delayed when the timeout is disabled, not disabled itself")
 }
 
 func Test_nativeGitClient_Fetch_cleansOrphanedTempPacksOnError(t *testing.T) {
