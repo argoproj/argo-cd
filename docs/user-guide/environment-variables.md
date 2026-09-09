@@ -16,3 +16,15 @@ The following environment variables can be used with `argocd` CLI:
 | `ARGOCD_REDIS_KEY_PREFIX`            | the Argo CD Redis keys prefix (default "")
 |
 | `ARGOCD_GRPC_KEEP_ALIVE_MIN`         | defines the GRPCKeepAliveEnforcementMinimum, used in the grpc.KeepaliveEnforcementPolicy. Expects a "Duration" format (default `10s`).                                                                    |
+
+## Proxy environment variables
+
+For gRPC-web connections, the `argocd` CLI honors the standard `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` environment
+variables (and their lowercase equivalents), following Go's
+[`http.ProxyFromEnvironment`](https://pkg.go.dev/net/http#ProxyFromEnvironment) rules. Connections to the API server
+use HTTPS unless `--plaintext` is given, so `HTTPS_PROXY` is normally the variable that applies. Requests to
+`localhost` and loopback addresses are never proxied, and hosts matched by `NO_PROXY` bypass the proxy.
+
+Plain gRPC connections, i.e. those made without `--grpc-web`, do not use `HTTP_PROXY`/`HTTPS_PROXY`. They only support
+a SOCKS5 proxy configured through `ALL_PROXY`. If your environment provides an HTTP proxy only, pass `--grpc-web` or
+set `ARGOCD_OPTS="--grpc-web"`.
