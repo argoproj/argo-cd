@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -121,12 +122,15 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 			}
 			return fmt.Errorf("error while iterating on tar reader: %w", err)
 		}
-		if header == nil || header.Name == "." || header.Name == "./" {
+		if header == nil {
 			continue
 		}
 
 		// Cleaning beforehand should have performance benefits for the os.Root API operations https://go.dev/blog/osroot#performance
-		header.Name = filepath.Clean(header.Name)
+		header.Name = strings.TrimPrefix(filepath.Clean(header.Name), string(filepath.Separator))
+		if header.Name == "" || header.Name == "." || header.Name == "./" {
+			continue
+		}
 
 		switch header.Typeflag {
 		case tar.TypeDir:
