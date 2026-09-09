@@ -151,18 +151,13 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 
 			// Manually check that the symlink target does not point outside of dstRoot as the os.Root API
 			// does NOT do inbound checks for the 'oldname' in dstRoot.Symlink(oldname, newname)
-			symlinkBaseDir := filepath.Dir(filepath.Join(dstPath, header.Name))
-			absoluteLinkTarget := filepath.Join(symlinkBaseDir, header.Linkname)
 
-			relativeLinkTargetFromDstPath, err := filepath.Rel(dstPath, absoluteLinkTarget)
-			if err != nil {
-				return fmt.Errorf("error relativizing link target: %w", err)
-			}
+			relativeLinkTargetFromDstPath := filepath.Join(baseDir, header.Linkname)
 
-			// Path for stat must be relative to dstPath, not symlinkBaseDiR for correct escape check
+			// Path for stat must be relative to dstPath for correct escape check
 			_, err = dstRoot.Stat(relativeLinkTargetFromDstPath)
 			if err != nil && !errors.Is(err, fs.ErrNotExist) {
-				return fmt.Errorf("error checking symlink %q target: %w", absoluteLinkTarget, err) // root escape or unexpected errors
+				return fmt.Errorf("error checking symlink %q target: %w", relativeLinkTargetFromDstPath, err) // root escape or unexpected errors
 			}
 			// fs.ErrNotExist is allowed as the target file might not be created yet
 			// the os.Root API checks the paths before other operations so getting fs.ErrNotExist means that the path is inside dstRoot
@@ -170,7 +165,7 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 			// Relativizing all symlink targets because path.CheckOutOfBoundsSymlinks disallows any absolute symlinks
 			// and it makes more sense semantically to view symlinks in archives as relative.
 			// dstRoot.Stat ensures that we never allow symlinks that break out of the target directory.
-			relativeLinkTargetFromSymlinkBaseDir, err := filepath.Rel(symlinkBaseDir, absoluteLinkTarget)
+			relativeLinkTargetFromSymlinkBaseDir, err := filepath.Rel(baseDir, relativeLinkTargetFromDstPath)
 			if err != nil {
 				return fmt.Errorf("error relativizing link target: %w", err)
 			}
