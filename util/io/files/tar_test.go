@@ -187,7 +187,7 @@ func TestUntgz(t *testing.T) {
 		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
-		assert.ErrorContains(t, err, "illegal filepath in symlink")
+		assert.ErrorContains(t, err, "path escapes from parent")
 	})
 
 	t.Run("preserves file mode", func(t *testing.T) {
@@ -401,7 +401,7 @@ func TestUntgz(t *testing.T) {
 
 		// when
 		err := files.Untgz(destDir, bytes.NewReader(tar), math.MaxInt64, false)
-		assert.ErrorContains(t, err, "illegal filepath in symlink")
+		assert.ErrorContains(t, err, "path escapes from parent")
 	})
 	t.Run("rewrites absolute linkname into in-bounds relative target", func(t *testing.T) {
 		// given
