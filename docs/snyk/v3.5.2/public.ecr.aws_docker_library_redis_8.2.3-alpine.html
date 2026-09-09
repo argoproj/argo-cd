@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="35 known vulnerabilities found in 355 vulnerable dependency paths.">
+  <meta name="description" content="43 known vulnerabilities found in 363 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">August 30th 2026, 12:37:35 am (UTC+00:00)</p>
+                <p class="timestamp">September 6th 2026, 12:38:24 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -502,8 +502,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>35</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>355 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>43</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>363 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>22</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -714,6 +714,232 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE322-OPENSSL-15993393">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Missing Release of File Descriptor or Handle after Effective Lifetime</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.22
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            util-linux/setpriv
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/redis@8.2.3-alpine and util-linux/setpriv@2.41-r9
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.3-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        util-linux/setpriv@2.41-r9
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>util-linux</code> package and not the <code>util-linux</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.22</code> relevant fixed versions and status.</em></p>
+        <p>The nsenter --join-cgroup option opens the target cgroup.procs file as root and leaves that file descriptor open across later namespace and credential changes and across execve(). Because the kernel checks later cgroup migrations using the credentials from the original open, a program run in an attacker-controlled target can inherit root&#39;s ability to move host processes between cgroups. After a privileged operator uses --join-cgroup against that target, an unprivileged user can migrate and terminate unrelated root processes.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.22</code> <code>util-linux</code> to version 2.41.6-r1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2026-78408">https://access.redhat.com/security/cve/CVE-2026-78408</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2522497">https://bugzilla.redhat.com/show_bug.cgi?id=2522497</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:63162">https://access.redhat.com/errata/RHSA-2026:63162</a></li>
+        <li><a href="https://github.com/util-linux/util-linux/security/advisories/GHSA-55fx-f4gg-cfhj">https://github.com/util-linux/util-linux/security/advisories/GHSA-55fx-f4gg-cfhj</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE322-UTILLINUX-19533452">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Detection of Error Condition Without Action</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.22
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            util-linux/setpriv
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/redis@8.2.3-alpine and util-linux/setpriv@2.41-r9
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.3-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        util-linux/setpriv@2.41-r9
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>util-linux</code> package and not the <code>util-linux</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.22</code> relevant fixed versions and status.</em></p>
+        <p>util-linux versions through 2.41.5 and 2.42.2 fail to check mount helper exit status before running post-mount hooks, allowing unprivileged users to execute privileged operations on pre-existing filesystems. Attackers can exploit X-mount.idmap or X-mount.owner hooks to clone filesystems with inherited suid bits or modify target inode permissions after a helper fails, achieving privilege escalation.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.22</code> <code>util-linux</code> to version 2.41.6-r0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/util-linux/util-linux">https://github.com/util-linux/util-linux</a></li>
+        <li><a href="https://github.com/util-linux/util-linux/blob/v2.42.2/libmount/src/context_mount.c#L476">https://github.com/util-linux/util-linux/blob/v2.42.2/libmount/src/context_mount.c#L476</a></li>
+        <li><a href="https://github.com/util-linux/util-linux/blob/v2.42.2/libmount/src/context_mount.c#L892">https://github.com/util-linux/util-linux/blob/v2.42.2/libmount/src/context_mount.c#L892</a></li>
+        <li><a href="https://github.com/util-linux/util-linux/commit/1d14676ea70003e9f5b2a6a76af0cadb1190411a">https://github.com/util-linux/util-linux/commit/1d14676ea70003e9f5b2a6a76af0cadb1190411a</a></li>
+        <li><a href="https://github.com/util-linux/util-linux/commit/a15c00a9e545aa8b9cf6ec0f888ff6c7b3eaeedc">https://github.com/util-linux/util-linux/commit/a15c00a9e545aa8b9cf6ec0f888ff6c7b3eaeedc</a></li>
+        <li><a href="https://github.com/util-linux/util-linux/commit/f57cea130839c0af8dc0525274267ae4cfd66bbf">https://github.com/util-linux/util-linux/commit/f57cea130839c0af8dc0525274267ae4cfd66bbf</a></li>
+        <li><a href="https://www.vulncheck.com/advisories/util-linux-libmount-privilege-escalation-via-failed-mount-helper">https://www.vulncheck.com/advisories/util-linux-libmount-privilege-escalation-via-failed-mount-helper</a></li>
+        <li><a href="https://github.com/util-linux/util-linux/security/advisories/GHSA-m25x-3hj9-m26f">https://github.com/util-linux/util-linux/security/advisories/GHSA-m25x-3hj9-m26f</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE322-UTILLINUX-19533454">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Time-of-check Time-of-use (TOCTOU)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.22
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            util-linux/setpriv
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/redis@8.2.3-alpine and util-linux/setpriv@2.41-r9
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.3-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        util-linux/setpriv@2.41-r9
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>util-linux</code> package and not the <code>util-linux</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.22</code> relevant fixed versions and status.</em></p>
+        <p>A flaw was found in util-linux. Restricted bind mounts take the source path from fstab but do not pin that source before the privileged mount. A local unprivileged user who can replace the authorized source or a writable ancestor can redirect SUID mount(8) to bind another host directory. If the fstab entry also sets X-mount.owner, X-mount.group, or X-mount.mode, root then changes ownership or mode on that redirected inode.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.22</code> <code>util-linux</code> to version 2.41.6-r0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2026-78410">https://access.redhat.com/security/cve/CVE-2026-78410</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2522684">https://bugzilla.redhat.com/show_bug.cgi?id=2522684</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:63162">https://access.redhat.com/errata/RHSA-2026:63162</a></li>
+        <li><a href="https://github.com/util-linux/util-linux/security/advisories/GHSA-rh77-686x-2f2m">https://github.com/util-linux/util-linux/security/advisories/GHSA-rh77-686x-2f2m</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE322-UTILLINUX-19533455">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1596,6 +1822,356 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE322-ZLIB-16078399">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Out-of-bounds Read</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.22
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            util-linux/setpriv
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/redis@8.2.3-alpine and util-linux/setpriv@2.41-r9
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.3-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        util-linux/setpriv@2.41-r9
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>util-linux</code> package and not the <code>util-linux</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.22</code> relevant fixed versions and status.</em></p>
+        <p>A flaw was found in util-linux. This vulnerability allows a heap buffer overread when processing 256-byte usernames, specifically within the <code>setpwnam()</code> function, affecting SUID (Set User ID) login-utils utilities writing to the password database.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.22</code> <code>util-linux</code> to version 2.41.6-r0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2025-14104">https://access.redhat.com/security/cve/CVE-2025-14104</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2419369">https://bugzilla.redhat.com/show_bug.cgi?id=2419369</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:1696">https://access.redhat.com/errata/RHSA-2026:1696</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:1852">https://access.redhat.com/errata/RHSA-2026:1852</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:1913">https://access.redhat.com/errata/RHSA-2026:1913</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:2485">https://access.redhat.com/errata/RHSA-2026:2485</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:2563">https://access.redhat.com/errata/RHSA-2026:2563</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:2737">https://access.redhat.com/errata/RHSA-2026:2737</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:2800">https://access.redhat.com/errata/RHSA-2026:2800</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:3406">https://access.redhat.com/errata/RHSA-2026:3406</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:4943">https://access.redhat.com/errata/RHSA-2026:4943</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:7180">https://access.redhat.com/errata/RHSA-2026:7180</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE322-UTILLINUX-19533453">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-53613</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.22
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            util-linux/setpriv
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/redis@8.2.3-alpine and util-linux/setpriv@2.41-r9
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.3-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        util-linux/setpriv@2.41-r9
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.22</code> <code>util-linux</code> to version 2.41.6-r0 or higher.</p>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE322-UTILLINUX-19533456">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-53612</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.22
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            util-linux/setpriv
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/redis@8.2.3-alpine and util-linux/setpriv@2.41-r9
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.3-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        util-linux/setpriv@2.41-r9
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.22</code> <code>util-linux</code> to version 2.41.6-r0 or higher.</p>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE322-UTILLINUX-19533458">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-53614</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.22
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            util-linux/setpriv
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/redis@8.2.3-alpine and util-linux/setpriv@2.41-r9
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.3-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        util-linux/setpriv@2.41-r9
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.22</code> <code>util-linux</code> to version 2.41.6-r0 or higher.</p>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE322-UTILLINUX-19533459">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">Time-of-check Time-of-use (TOCTOU)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.22
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            util-linux/setpriv
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/redis@8.2.3-alpine and util-linux/setpriv@2.41-r9
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/redis@8.2.3-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        util-linux/setpriv@2.41-r9
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>util-linux</code> package and not the <code>util-linux</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.22</code> relevant fixed versions and status.</em></p>
+        <p>util-linux is a random collection of Linux utilities. Prior to version 2.41.4, a TOCTOU (Time-of-Check-Time-of-Use) vulnerability has been identified in the SUID binary /usr/bin/mount from util-linux. The mount binary, when setting up loop devices, validates the source file path with user privileges via fork() + setuid() + realpath(), but subsequently re-canonicalizes and opens it with root privileges (euid=0) without verifying that the path has not been replaced between both operations. Neither O_NOFOLLOW, nor inode comparison, nor post-open fstat() are employed. This allows a local unprivileged user to replace the source file with a symlink pointing to any root-owned file or device during the race window, causing the SUID binary to open and mount it as root. Exploitation requires an /etc/fstab entry with user,loop options whose path points to a directory where the attacker has write permission, and that /usr/bin/mount has the SUID bit set (the default configuration on virtually all Linux distributions). The impact is unauthorized read access to root-protected files and block devices, including backup images, disk volumes, and any file containing a valid filesystem. This issue has been patched in version 2.41.4.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.22</code> <code>util-linux</code> to version 2.41.6-r0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/util-linux/util-linux/commit/5e390467b26a3cf3fecc04e1a0d482dff3162fc4">https://github.com/util-linux/util-linux/commit/5e390467b26a3cf3fecc04e1a0d482dff3162fc4</a></li>
+        <li><a href="https://github.com/util-linux/util-linux/releases/tag/v2.41.4">https://github.com/util-linux/util-linux/releases/tag/v2.41.4</a></li>
+        <li><a href="https://github.com/util-linux/util-linux/security/advisories/GHSA-qq4x-vfq4-9h9g">https://github.com/util-linux/util-linux/security/advisories/GHSA-qq4x-vfq4-9h9g</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE322-UTILLINUX-19533460">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -4917,6 +5493,7 @@
         <li><a href="https://access.redhat.com/errata/RHSA-2026:47737">https://access.redhat.com/errata/RHSA-2026:47737</a></li>
         <li><a href="https://access.redhat.com/errata/RHSA-2026:58563">https://access.redhat.com/errata/RHSA-2026:58563</a></li>
         <li><a href="https://access.redhat.com/errata/RHSA-2026:58981">https://access.redhat.com/errata/RHSA-2026:58981</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:59831">https://access.redhat.com/errata/RHSA-2026:59831</a></li>
         </ul>
         
               <hr/>
