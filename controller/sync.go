@@ -703,9 +703,14 @@ func restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive
 		}
 		patchedMap, patchedIsMap := patchedVal.(map[string]any)
 		normalizedLiveMap, normalizedLiveIsMap := normalizedLiveVal.(map[string]any)
-		if patchedIsMap && normalizedLiveIsMap {
-			restoreNonIgnoredFields(patchedMap, map[string]any{}, map[string]any{}, normalizedLiveMap)
+		if !patchedIsMap || !normalizedLiveIsMap {
+			// Only maps can be pruned selectively. An unequal non-map value (an
+			// array with an ignored element) is dropped as before, since its
+			// non-ignored content cannot be separated from the ignored part.
+			delete(patched, key)
+			continue
 		}
+		restoreNonIgnoredFields(patchedMap, map[string]any{}, map[string]any{}, normalizedLiveMap)
 	}
 }
 

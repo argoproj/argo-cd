@@ -103,3 +103,72 @@ func TestNormalizeTargetResourcesSecretStringData(t *testing.T) {
 	})
 }
 
+const livePodWithTolerationsYaml = `
+apiVersion: v1
+kind: Pod
+metadata:
+  name: p
+  namespace: default
+spec:
+  containers:
+    - name: app
+      image: app:1
+  tolerations:
+    - key: dedicated
+      operator: Equal
+      value: ignored
+      effect: NoSchedule
+    - key: node.kubernetes.io/not-ready
+      operator: Exists
+      effect: NoExecute
+`
+
+const targetPodWithoutTolerationsYaml = `
+apiVersion: v1
+kind: Pod
+metadata:
+  name: p
+  namespace: default
+spec:
+  containers:
+    - name: app
+      image: app:1
+`
+
+func TestNormalizeTargetResourcesLiveOnlyArray(t *testing.T) {
+	// The rendered manifest has no `spec.tolerations`; live has two and the
+	// first one is ignored. Tolerations carry no merge key, so the live patch
+	// copies the whole list into the target, which would leak the non-ignored
+	// second entry. Non-map values cannot be pruned selectively, so the list
+	// must be dropped from the apply target, as before this fix.
+	dc, err := diff.NewDiffConfigBuilder().
+		WithDiffSettings([]v1alpha1.ResourceIgnoreDifferences{{
+			Group:             "",
+			Kind:              "Pod",
+			JQPathExpressions: []string{`.spec.tolerations[0]`},
+		}}, nil, true, normalizers.IgnoreNormalizerOpts{}).
+		WithNoCache().
+		Build()
+	require.NoError(t, err)
+
+	cr := &comparisonResult{
+		reconciliationResult: sync.ReconciliationResult{
+			Live:   []*unstructured.Unstructured{test.YamlToUnstructured(livePodWithTolerationsYaml)},
+			Target: []*unstructured.Unstructured{test.YamlToUnstructured(targetPodWithoutTolerationsYaml)},
+		},
+		diffConfig: dc,
+	}
+
+	targets, err := normalizeTargetResources(nil, cr)
+	require.NoError(t, err)
+	require.Len(t, targets, 1)
+
+	_, found, err := unstructured.NestedSlice(targets[0].Object, "spec", "tolerations")
+	require.NoError(t, err)
+	assert.False(t, found, "live-only list with non-ignored entries must not be copied into the apply target")
+
+	containers, found, err := unstructured.NestedSlice(targets[0].Object, "spec", "containers")
+	require.NoError(t, err)
+	require.True(t, found)
+	assert.Len(t, containers, 1)
+}
