@@ -1,0 +1,70 @@
+name: update-blog-link.yaml
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch: {}
+jobs:
+  update-blog-link:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: '0'
+
+      - name: Determine current minor version
+        id: version
+        run: |
+            # Extract version (e.g., v3.2.1 → 3.2)
+            TAG=$(git tag --sort=-creatordate | head -n 1)
+            CLEAN=${TAG#v}
+            MINOR=$(echo "$CLEAN" | cut -d. -f1,2)
+            echo "minor=$MINOR" >> $GITHUB_OUTPUT
+
+      - name: Fetch Medium RSS feed
+        id: medium
+        run: |
+          TAG="argo-cd-${{ steps.version.outputs.minor }}"
+          FEED_URL="https://medium.com/feed/argo-project/tagged/$TAG"
+
+          echo "Checking feed: $FEED_URL"
+
+          curl -s "$FEED_URL" > feed.xml
+
+          # Extract first <link> inside <item>
+          BLOG_URL=$(xmllint --xpath "string(//item/link)" feed.xml 2>/dev/null || true)
+
+          if [ -z "$BLOG_URL" ]; then
+            echo "No post found yet. Exiting."
+            echo "blog_url=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "Found blog URL: $BLOG_URL"
+          echo "blog_url=$BLOG_URL" >> $GITHUB_OUTPUT
+
+      - name: Stop if blog does not exist yet
+        if: steps.medium.outputs.blog_url == ''
+        run: echo "Blog not available yet — skipping PR."
+
+      - name: Update .goreleaser.yaml with new blog link
+        if: steps.medium.outputs.blog_url != ''
+        run: |
+          BLOG_URL="${{ steps.medium.outputs.blog_url }}"
+
+          echo "Updating .goreleaser.yaml with blog URL: $BLOG_URL"
+
+          # Use sed to replace the blog link line
+          sed -i -E "s|(For a detailed breakdown of the key changes and improvements in this release, check out the \[official blog post\]\().*(\))|\1$BLOG_URL\2|" .goreleaser.yaml
+
+          echo "Updated .goreleaser.yaml:"
+          grep "official blog post" .goreleaser.yaml
+
+      - name: Create Pull  Request
+        if: steps.medium.outputs.blog_url != ''
+        uses: peter-evans/create-pull-request@v5
+        with:
+          commit-message: Update release notes blog link for v${{ steps.version.outputs.minor }} release
+          branch: update-blog-link-v${{ steps.version.outputs.minor }}
+          title: Update release notes blog link for v${{ steps.version.outputs.minor }} release
+          body: This PR updates the release notes blog link in `.goreleaser.yaml` for the upcoming v${{ steps.version.outputs.minor }} release.
