@@ -1923,11 +1923,13 @@ func TestGetResourceTree_IncludesDescendantPodImagesInSummary(t *testing.T) {
 		apps: []runtime.Object{app, proj},
 		hierarchyResources: map[kube.ResourceKey][]namespacedResource{
 			deploymentKey: {
-				{ResourceRef: v1alpha1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment"}},
-				{ResourceRef: v1alpha1.ResourceRef{Group: "apps", Kind: "ReplicaSet", Namespace: "default", Name: "nginx-deployment-abc123"}},
+				{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment"},
+				{Group: "apps", Kind: "ReplicaSet", Namespace: "default", Name: "nginx-deployment-abc123"},
 				{
-					ResourceRef: v1alpha1.ResourceRef{Kind: "Pod", Namespace: "default", Name: "nginx-deployment-abc123-def45"},
-					Images:      []string{"nginx:1.15.4"},
+					Kind:      "Pod",
+					Namespace: "default",
+					Name:      "nginx-deployment-abc123-def45",
+					Images:    []string{"nginx:1.15.4"},
 				},
 			},
 		},
@@ -1964,7 +1966,7 @@ func TestGetResourceTree_UsesManagedWorkloadImagesWhenTreeHasNoImages(t *testing
 		apps: []runtime.Object{app, proj},
 		hierarchyResources: map[kube.ResourceKey][]namespacedResource{
 			deploymentKey: {
-				{ResourceRef: v1alpha1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment"}},
+				{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment"},
 			},
 		},
 	}, nil)
