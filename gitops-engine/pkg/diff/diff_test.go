@@ -541,31 +541,34 @@ func TestDiffResourceWithInvalidField(t *testing.T) {
 }
 
 func TestRemoveNamespaceAnnotation(t *testing.T) {
-	obj := removeNamespaceAnnotation(&unstructured.Unstructured{Object: map[string]any{
+	obj := &unstructured.Unstructured{Object: map[string]any{
 		"metadata": map[string]any{
 			"name":      "test",
 			"namespace": "default",
 		},
-	}})
+	}}
+	removeNamespaceAnnotation(obj)
 	assert.Empty(t, obj.GetNamespace())
 
-	obj = removeNamespaceAnnotation(&unstructured.Unstructured{Object: map[string]any{
+	obj = &unstructured.Unstructured{Object: map[string]any{
 		"metadata": map[string]any{
 			"name":        "test",
 			"namespace":   "default",
 			"annotations": make(map[string]any),
 		},
-	}})
+	}}
+	removeNamespaceAnnotation(obj)
 	assert.Empty(t, obj.GetNamespace())
 	assert.Nil(t, obj.GetAnnotations())
 
-	obj = removeNamespaceAnnotation(&unstructured.Unstructured{Object: map[string]any{
+	obj = &unstructured.Unstructured{Object: map[string]any{
 		"metadata": map[string]any{
 			"name":        "test",
 			"namespace":   "default",
 			"annotations": "wrong value",
 		},
-	}})
+	}}
+	removeNamespaceAnnotation(obj)
 	assert.Empty(t, obj.GetNamespace())
 	val, _, _ := unstructured.NestedString(obj.Object, "metadata", "annotations")
 	assert.Equal(t, "wrong value", val)
@@ -2552,4 +2555,137 @@ spec:
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.True(t, result.Modified, "different config and live should show as modified")
+}
+
+func TestServerPopulatedMetadataStrippedFromBothSides(t *testing.T) {
+	t.Parallel()
+
+	assertStripped := func(t *testing.T, result *DiffResult) {
+		t.Helper()
+		for side, b := range map[string][]byte{
+			"PredictedLive":  result.PredictedLive,
+			"NormalizedLive": result.NormalizedLive,
+		} {
+			obj := make(map[string]any)
+			require.NoError(t, yaml.Unmarshal(b, &obj))
+			un := &unstructured.Unstructured{Object: obj}
+			assert.NotContains(t, un.GetAnnotations(), AnnotationLastAppliedConfig, "%s retained the last-applied-configuration annotation", side)
+			assert.Empty(t, un.GetManagedFields(), "%s retained managedFields", side)
+			assert.Empty(t, un.GetResourceVersion(), "%s retained resourceVersion", side)
+		}
+	}
+	config := func() *unstructured.Unstructured {
+		return StrToUnstructured(testdata.LastAppliedConfigMapConfigYAML)
+	}
+	live := func() *unstructured.Unstructured {
+		return StrToUnstructured(testdata.LastAppliedConfigMapLiveYAML)
+	}
+
+	t.Run("client-side three-way diff", func(t *testing.T) {
+		t.Parallel()
+		assertStripped(t, diff(t, config(), live(), diffOptionsForTest()...))
+	})
+
+	t.Run("server-side diff", func(t *testing.T) {
+		t.Parallel()
+		manager := "argocd-controller"
+		dryRunner := mocks.NewServerSideDryRunner(t)
+		dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+			Return(testdata.LastAppliedConfigMapPredictedLiveJSON, nil)
+
+		result, err := serverSideDiff(t.Context(), config(), live(),
+			WithGVKParser(buildGVKParser(t)),
+			WithManager(manager),
+			WithServerSideDryRunner(dryRunner),
+			WithLogr(textlogger.NewLogger(textlogger.NewConfig())),
+		)
+
+		require.NoError(t, err)
+		assertStripped(t, result)
+	})
+
+	t.Run("structured merge diff", func(t *testing.T) {
+		t.Parallel()
+		result, err := StructuredMergeDiff(config(), live(), buildGVKParser(t), "argocd-controller")
+		require.NoError(t, err)
+		assertStripped(t, result)
+	})
+}
+
+func TestRemoveServerPopulatedMetadata(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		metadata map[string]any
+		expected map[string]any
+	}{
+		{
+			name: "removes managedFields and resourceVersion",
+			metadata: map[string]any{
+				"name":            "cm",
+				"managedFields":   []any{map[string]any{"manager": "argocd-controller"}},
+				"resourceVersion": "12345",
+			},
+			expected: map[string]any{"name": "cm"},
+		},
+		{
+			name: "removes the annotation and keeps siblings",
+			metadata: map[string]any{"annotations": map[string]any{
+				AnnotationLastAppliedConfig: "{}",
+				"keep":                      "me",
+			}},
+			expected: map[string]any{"annotations": map[string]any{"keep": "me"}},
+		},
+		{
+			name: "removes the annotations map when the annotation was the only entry",
+			metadata: map[string]any{"annotations": map[string]any{
+				AnnotationLastAppliedConfig: "{}",
+			}},
+			expected: map[string]any{},
+		},
+		{
+			name:     "removes an already empty annotations map",
+			metadata: map[string]any{"annotations": map[string]any{}},
+			expected: map[string]any{},
+		},
+		{
+			name:     "removes a nil annotations map",
+			metadata: map[string]any{"annotations": nil},
+			expected: map[string]any{},
+		},
+		{
+			name:     "leaves an object without annotations untouched",
+			metadata: map[string]any{"name": "cm"},
+			expected: map[string]any{"name": "cm"},
+		},
+		{
+			name:     "leaves other annotations untouched when the annotation is absent",
+			metadata: map[string]any{"annotations": map[string]any{"keep": "me"}},
+			expected: map[string]any{"annotations": map[string]any{"keep": "me"}},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			un := &unstructured.Unstructured{Object: map[string]any{"metadata": tc.metadata}}
+
+			removeServerPopulatedMetadata(un)
+
+			assert.Equal(t, tc.expected, un.Object["metadata"])
+		})
+	}
+
+	t.Run("tolerates an object with no metadata", func(t *testing.T) {
+		t.Parallel()
+		un := &unstructured.Unstructured{Object: map[string]any{"kind": "ConfigMap"}}
+		removeServerPopulatedMetadata(un)
+		assert.Equal(t, map[string]any{"kind": "ConfigMap"}, un.Object)
+	})
+
+	t.Run("tolerates a nil object", func(t *testing.T) {
+		t.Parallel()
+		assert.NotPanics(t, func() { removeServerPopulatedMetadata(nil) })
+	})
 }

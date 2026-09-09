@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lac-cm
+  namespace: default
+  labels:
+    app: lac
+data:
+  key: value
