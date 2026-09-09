@@ -480,9 +480,9 @@ func TestCreateOptionsConfiguration(t *testing.T) {
 				assert.NotEmpty(t, capturedOpts.FilenameOptions.Filenames)
 				assert.NotNil(t, capturedOpts.PrintObj)
 				if tc.validate {
-					assert.Equal(t,"Strict" , capturedOpts.ValidationDirective)
+					assert.Equal(t, "Strict", capturedOpts.ValidationDirective)
 				} else {
-					assert.Equal(t,"" , capturedOpts.ValidationDirective)
+					assert.Equal(t, "Ignore", capturedOpts.ValidationDirective)
 				}
 			})
 		}
