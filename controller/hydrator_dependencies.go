@@ -104,6 +104,10 @@ func (ctrl *ApplicationController) PersistHydrationStatus(orig *appv1.Applicatio
 	ctrl.persistAppStatus(context.Background(), orig, status)
 }
 
+func (ctrl *ApplicationController) LogHydrationPhaseEvent(ctx context.Context, app *appv1.Application, eventInfo argoutil.EventInfo, message string) {
+	ctrl.logAppEvent(ctx, app, eventInfo, message)
+}
+
 func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueueKey) {
 	ctrl.hydrationQueue.AddRateLimited(key)
 }
