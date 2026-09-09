@@ -2,6 +2,7 @@ package repository
 
 import (
 	"fmt"
+	"io/fs"
 	"path/filepath"
 	"strings"
 
@@ -115,4 +116,38 @@ func getManifestGenerateIncludePaths(q *apiclient.ManifestRequest, appPath, root
 		includePaths = append(includePaths, relPath)
 	}
 	return includePaths, nil
+}
+
+// walkDirectoryTree walks a directory tree and returns relative paths to all subdirectories.
+func walkDirectoryTree(rootPath string, includeHidden bool) ([]string, error) {
+	var paths []string
+	if err := filepath.WalkDir(rootPath, func(path string, entry fs.DirEntry, fnErr error) error {
+		if fnErr != nil {
+			return fmt.Errorf("error walking the file tree: %w", fnErr)
+		}
+		if !entry.IsDir() { // Skip files: directories only
+			return nil
+		}
+
+		if !includeHidden && strings.HasPrefix(entry.Name(), ".") {
+			return filepath.SkipDir // Skip hidden directory
+		}
+
+		relativePath, err := filepath.Rel(rootPath, path)
+		if err != nil {
+			return fmt.Errorf("error constructing relative repo path: %w", err)
+		}
+
+		if relativePath == "." { // Exclude '.' from results
+			return nil
+		}
+
+		paths = append(paths, relativePath)
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return paths, nil
 }
