@@ -2,7 +2,6 @@ package files
 
 import (
 	"archive/tar"
-	"bufio"
 	"compress/gzip"
 	"errors"
 	"fmt"
@@ -189,8 +188,7 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 			if err != nil {
 				return fmt.Errorf("error creating file %q: %w", header.Name, err)
 			}
-			w := bufio.NewWriter(f)
-			if _, err := io.Copy(w, tr); err != nil {
+			if _, err := io.Copy(f, tr); err != nil {
 				f.Close()
 				return fmt.Errorf("error writing tgz file: %w", err)
 			}
