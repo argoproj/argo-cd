@@ -58,18 +58,6 @@ export function computeColumnWidthForIndex(containerWidth: number, columnsPerRow
     return tileWidth + gap;
 }
 
-export function computeColumnStride(containerWidth: number, columnsPerRow: number, gap: number = TILE_GAP): number {
-    return computeColumnWidth(containerWidth, columnsPerRow, gap) + gap;
-}
-
-export function computeGridContentWidth(containerWidth: number, columnsPerRow: number, gap: number = TILE_GAP): number {
-    let total = 0;
-    for (let i = 0; i < columnsPerRow; i++) {
-        total += computeColumnWidthForIndex(containerWidth, columnsPerRow, i, gap);
-    }
-    return total;
-}
-
 export function hasActiveHydrator(app: models.AbstractApplication): boolean {
     return isApp(app) && !!(app as models.Application).status?.sourceHydrator?.currentOperation;
 }

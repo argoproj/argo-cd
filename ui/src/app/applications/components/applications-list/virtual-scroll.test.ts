@@ -1,11 +1,9 @@
 import {renderHook} from '@testing-library/react';
 import {
     appsLayoutKey,
-    computeColumnStride,
     computeColumnWidth,
     computeColumnWidthForIndex,
     computeColumnsPerRow,
-    computeGridContentWidth,
     getTableRowHeight,
     hasActiveHydrator,
     shouldUseVirtualScroll,
@@ -68,14 +66,6 @@ describe('virtual-scroll', () => {
         });
     });
 
-    describe('computeColumnStride', () => {
-        it('is content width plus gap', () => {
-            const width = 1600;
-            const columns = 4;
-            expect(computeColumnStride(width, columns, TILE_GAP)).toBe(computeColumnWidth(width, columns, TILE_GAP) + TILE_GAP);
-        });
-    });
-
     describe('computeColumnWidthForIndex', () => {
         it('omits the trailing gap on the last column', () => {
             const width = 1200;
@@ -91,7 +81,11 @@ describe('virtual-scroll', () => {
         it('keeps total Grid content width within the container (no horizontal overflow)', () => {
             for (const width of [400, 800, 1200, 1600, 1920]) {
                 const columns = computeColumnsPerRow(width, TILE_MIN_WIDTH, TILE_GAP);
-                expect(computeGridContentWidth(width, columns, TILE_GAP)).toBeLessThanOrEqual(width);
+                let total = 0;
+                for (let i = 0; i < columns; i++) {
+                    total += computeColumnWidthForIndex(width, columns, i, TILE_GAP);
+                }
+                expect(total).toBeLessThanOrEqual(width);
             }
         });
     });
