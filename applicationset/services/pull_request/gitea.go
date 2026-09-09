@@ -3,9 +3,11 @@ package pull_request
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	"os"
+	"strconv"
 
 	"code.gitea.io/sdk/gitea"
 
@@ -20,6 +22,30 @@ type GiteaService struct {
 }
 
 var _ PullRequestService = (*GiteaService)(nil)
+
+const (
+	// giteaPageSize is the number of pull requests requested per API call. Gitea
+	// clamps the page size to its MAX_RESPONSE_ITEMS setting, so a short page
+	// does not mean the last page.
+	giteaPageSize = 50
+	// giteaMaxPages bounds the paging loop so that a server which ignores the
+	// page parameter fails loudly instead of looping forever.
+	giteaMaxPages = 1000
+)
+
+// giteaAllCollected reports whether every pull request has been collected,
+// based on the X-Total-Count header Gitea sets on its list responses. When the
+// header is absent the caller keeps paging until it gets an empty page.
+func giteaAllCollected(resp *gitea.Response, collected int) bool {
+	if resp == nil {
+		return false
+	}
+	total, err := strconv.Atoi(resp.Header.Get("X-Total-Count"))
+	if err != nil {
+		return false
+	}
+	return collected >= total
+}
 
 func NewGiteaService(token, url, owner, repo string, labels []string, insecure bool, proxyURL, noProxy string) (PullRequestService, error) {
 	if token == "" {
@@ -50,36 +76,50 @@ func NewGiteaService(token, url, owner, repo string, labels []string, insecure b
 }
 
 func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
-	opts := gitea.ListPullRequestsOptions{
-		State: gitea.StateOpen,
-	}
 	g.client.SetContext(ctx)
 	list := []*PullRequest{}
-	prs, resp, err := g.client.ListRepoPullRequests(g.owner, g.repo, opts)
-	if err != nil {
-		if resp != nil && resp.StatusCode == http.StatusNotFound {
-			// return a custom error indicating that the repository is not found,
-			// but also returning the empty result since the decision to continue or not in this case is made by the caller
-			return list, NewRepositoryNotFoundError(err)
+	fetched := 0
+	for page := 1; page <= giteaMaxPages; page++ {
+		opts := gitea.ListPullRequestsOptions{
+			ListOptions: gitea.ListOptions{
+				Page:     page,
+				PageSize: giteaPageSize,
+			},
+			State: gitea.StateOpen,
 		}
-		return nil, err
-	}
+		prs, resp, err := g.client.ListRepoPullRequests(g.owner, g.repo, opts)
+		if err != nil {
+			if resp != nil && resp.StatusCode == http.StatusNotFound {
+				// return a custom error indicating that the repository is not found,
+				// but also returning the empty result since the decision to continue or not in this case is made by the caller
+				return []*PullRequest{}, NewRepositoryNotFoundError(err)
+			}
+			return nil, err
+		}
+		if len(prs) == 0 {
+			return list, nil
+		}
+		fetched += len(prs)
 
-	for _, pr := range prs {
-		if !giteaContainLabels(g.labels, pr.Labels) {
-			continue
+		for _, pr := range prs {
+			if !giteaContainLabels(g.labels, pr.Labels) {
+				continue
+			}
+			list = append(list, &PullRequest{
+				Number:       int64(pr.Index),
+				Title:        pr.Title,
+				Branch:       pr.Head.Ref,
+				TargetBranch: pr.Base.Ref,
+				HeadSHA:      pr.Head.Sha,
+				Labels:       getGiteaPRLabelNames(pr.Labels),
+				Author:       pr.Poster.UserName,
+			})
 		}
-		list = append(list, &PullRequest{
-			Number:       int64(pr.Index),
-			Title:        pr.Title,
-			Branch:       pr.Head.Ref,
-			TargetBranch: pr.Base.Ref,
-			HeadSHA:      pr.Head.Sha,
-			Labels:       getGiteaPRLabelNames(pr.Labels),
-			Author:       pr.Poster.UserName,
-		})
+		if giteaAllCollected(resp, fetched) {
+			return list, nil
+		}
 	}
-	return list, nil
+	return nil, fmt.Errorf("gitea returned more than %d pages of pull requests for repo %q", giteaMaxPages, g.repo)
 }
 
 // containLabels returns true if gotLabels contains expectedLabels

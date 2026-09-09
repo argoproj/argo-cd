@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"os"
+	"strconv"
 
 	"code.gitea.io/sdk/gitea"
 
@@ -21,6 +22,31 @@ type GiteaProvider struct {
 }
 
 var _ SCMProviderService = &GiteaProvider{}
+
+const (
+	// giteaPageSize is the number of items requested per Gitea API call. Gitea
+	// clamps the page size to its MAX_RESPONSE_ITEMS setting, so a short page
+	// does not mean the last page.
+	giteaPageSize = 50
+	// giteaMaxPages bounds the paging loops so that a server which ignores the
+	// page parameter fails loudly instead of looping forever.
+	giteaMaxPages = 1000
+)
+
+// giteaAllCollected reports whether every item of a list endpoint has been
+// collected, based on the X-Total-Count header Gitea sets on its list
+// responses. When the header is absent the caller keeps paging until it gets an
+// empty page.
+func giteaAllCollected(resp *gitea.Response, collected int) bool {
+	if resp == nil {
+		return false
+	}
+	total, err := strconv.Atoi(resp.Header.Get("X-Total-Count"))
+	if err != nil {
+		return false
+	}
+	return collected >= total
+}
 
 func NewGiteaProvider(owner, token, url string, allBranches, insecure, excludeArchivedRepos bool, proxyURL, noProxy string) (*GiteaProvider, error) {
 	if token == "" {
@@ -47,7 +73,9 @@ func NewGiteaProvider(owner, token, url string, allBranches, insecure, excludeAr
 	}, nil
 }
 
-func (g *GiteaProvider) GetBranches(_ context.Context, repo *Repository) ([]*Repository, error) {
+func (g *GiteaProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
+	g.client.SetContext(ctx)
+
 	if !g.allBranches {
 		branch, status, err := g.client.GetRepoBranch(g.owner, repo.Repository, repo.Branch)
 		if status.StatusCode == http.StatusNotFound {
@@ -69,67 +97,120 @@ func (g *GiteaProvider) GetBranches(_ context.Context, repo *Repository) ([]*Rep
 		}, nil
 	}
 	repos := []*Repository{}
-	opts := gitea.ListRepoBranchesOptions{}
-	branches, _, err := g.client.ListRepoBranches(g.owner, repo.Repository, opts)
-	if err != nil {
-		return nil, err
-	}
-	for _, branch := range branches {
-		repos = append(repos, &Repository{
-			Organization: repo.Organization,
-			Repository:   repo.Repository,
-			Branch:       branch.Name,
-			URL:          repo.URL,
-			SHA:          branch.Commit.ID,
-			Labels:       repo.Labels,
-			RepositoryId: repo.RepositoryId,
-		})
-	}
-	return repos, nil
-}
-
-func (g *GiteaProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
-	repos := []*Repository{}
-	repoOpts := gitea.ListOrgReposOptions{}
-	giteaRepos, _, err := g.client.ListOrgRepos(g.owner, repoOpts)
-	if err != nil {
-		return nil, err
-	}
-	for _, repo := range giteaRepos {
-		var url string
-		switch cloneProtocol {
-		// Default to SSH if unspecified (i.e. if "").
-		case "", "ssh":
-			url = repo.SSHURL
-		case "https":
-			url = repo.HTMLURL
-		default:
-			return nil, fmt.Errorf("unknown clone protocol for GitHub %v", cloneProtocol)
+	for page := 1; page <= giteaMaxPages; page++ {
+		opts := gitea.ListRepoBranchesOptions{
+			ListOptions: gitea.ListOptions{
+				Page:     page,
+				PageSize: giteaPageSize,
+			},
 		}
-		labelOpts := gitea.ListLabelsOptions{}
-		giteaLabels, _, err := g.client.ListRepoLabels(g.owner, repo.Name, labelOpts)
+		branches, resp, err := g.client.ListRepoBranches(g.owner, repo.Repository, opts)
 		if err != nil {
 			return nil, err
 		}
-		labels := []string{}
+		if len(branches) == 0 {
+			return repos, nil
+		}
+		for _, branch := range branches {
+			repos = append(repos, &Repository{
+				Organization: repo.Organization,
+				Repository:   repo.Repository,
+				Branch:       branch.Name,
+				URL:          repo.URL,
+				SHA:          branch.Commit.ID,
+				Labels:       repo.Labels,
+				RepositoryId: repo.RepositoryId,
+			})
+		}
+		if giteaAllCollected(resp, len(repos)) {
+			return repos, nil
+		}
+	}
+	return nil, fmt.Errorf("gitea returned more than %d pages of branches for repo %q", giteaMaxPages, repo.Repository)
+}
+
+func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
+	g.client.SetContext(ctx)
+
+	repos := []*Repository{}
+	fetched := 0
+	for page := 1; page <= giteaMaxPages; page++ {
+		repoOpts := gitea.ListOrgReposOptions{
+			ListOptions: gitea.ListOptions{
+				Page:     page,
+				PageSize: giteaPageSize,
+			},
+		}
+		giteaRepos, resp, err := g.client.ListOrgRepos(g.owner, repoOpts)
+		if err != nil {
+			return nil, err
+		}
+		if len(giteaRepos) == 0 {
+			return repos, nil
+		}
+		fetched += len(giteaRepos)
+		for _, repo := range giteaRepos {
+			var url string
+			switch cloneProtocol {
+			// Default to SSH if unspecified (i.e. if "").
+			case "", "ssh":
+				url = repo.SSHURL
+			case "https":
+				url = repo.HTMLURL
+			default:
+				return nil, fmt.Errorf("unknown clone protocol for GitHub %v", cloneProtocol)
+			}
+			labels, err := g.listRepoLabels(repo.Name)
+			if err != nil {
+				return nil, fmt.Errorf("error listing labels for repo %q: %w", repo.Name, err)
+			}
+
+			if g.excludeArchivedRepos && repo.Archived {
+				continue
+			}
+
+			repos = append(repos, &Repository{
+				Organization: g.owner,
+				Repository:   repo.Name,
+				Branch:       repo.DefaultBranch,
+				URL:          url,
+				Labels:       labels,
+				RepositoryId: int(repo.ID),
+			})
+		}
+		if giteaAllCollected(resp, fetched) {
+			return repos, nil
+		}
+	}
+	return nil, fmt.Errorf("gitea returned more than %d pages of repositories for org %q", giteaMaxPages, g.owner)
+}
+
+// listRepoLabels returns every label defined on the given repository. The
+// caller is responsible for setting the client context.
+func (g *GiteaProvider) listRepoLabels(repo string) ([]string, error) {
+	labels := []string{}
+	for page := 1; page <= giteaMaxPages; page++ {
+		labelOpts := gitea.ListLabelsOptions{
+			ListOptions: gitea.ListOptions{
+				Page:     page,
+				PageSize: giteaPageSize,
+			},
+		}
+		giteaLabels, resp, err := g.client.ListRepoLabels(g.owner, repo, labelOpts)
+		if err != nil {
+			return nil, err
+		}
+		if len(giteaLabels) == 0 {
+			return labels, nil
+		}
 		for _, label := range giteaLabels {
 			labels = append(labels, label.Name)
 		}
-
-		if g.excludeArchivedRepos && repo.Archived {
-			continue
+		if giteaAllCollected(resp, len(labels)) {
+			return labels, nil
 		}
-
-		repos = append(repos, &Repository{
-			Organization: g.owner,
-			Repository:   repo.Name,
-			Branch:       repo.DefaultBranch,
-			URL:          url,
-			Labels:       labels,
-			RepositoryId: int(repo.ID),
-		})
 	}
-	return repos, nil
+	return nil, fmt.Errorf("gitea returned more than %d pages of labels for repo %q", giteaMaxPages, repo)
 }
 
 func (g *GiteaProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
