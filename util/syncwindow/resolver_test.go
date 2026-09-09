@@ -22,15 +22,11 @@ func newFakeLister(objects ...*v1alpha1.SyncWindow) listers.SyncWindowLister {
 
 func newSyncWindow(name, namespace string, labels map[string]string, windows []v1alpha1.SyncWindowDefinition) *v1alpha1.SyncWindow {
 	return &v1alpha1.SyncWindow{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       "SyncWindow",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Labels:    labels,
-		},
+		APIVersion: "argoproj.io/v1alpha1",
+		Kind:       "SyncWindow",
+		Name:       name,
+		Namespace:  namespace,
+		Labels:     labels,
 		Spec: v1alpha1.SyncWindowSpec{
 			Windows: windows,
 		},
