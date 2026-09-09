@@ -71,48 +71,48 @@ func newTestSyncCtx(getResourceFunc *func(ctx context.Context, config *rest.Conf
 
 // make sure Validate means we don't validate
 func TestSyncValidate(t *testing.T) {
-        testCases := []struct {
-                name string
-                replace bool
-                live bool
-		validate bool
+	testCases := []struct {
+		name        string
+		replace     bool
+		live        bool
+		validate    bool
 		expValidate bool
-        }{
-                { "noreplace, nolive, novalidate",  false, false, false, false},
-                { "noreplace, nolive, validate",    false,  false, true,  true},
-                { "noreplace, live, novalidate",    false,  true,  false, false},
-                { "noreplace, live, validate",      false,  true , true,  true},
-                { "replace,   nolive, novalidate",  true, false, false, false},
-                { "replace,   nolive, validate",    true,  false, true,  true},
-                { "replace,   live, novalidate",    true,  true,  false, false},
+	}{
+		{"noreplace, nolive, novalidate", false, false, false, false},
+		{"noreplace, nolive, validate", false, false, true, true},
+		{"noreplace, live, novalidate", false, true, false, false},
+		{"noreplace, live, validate", false, true, true, true},
+		{"replace, nolive, novalidate", true, false, false, false},
+		{"replace, nolive, validate", true, false, true, true},
+		{"replace, live, novalidate", true, true, false, false},
 		// ReplaceResource operation does not accept validate option for some reason
-                { "replace,   live, validate",      true,  true , true,  false},
-        }
-        for _, tc := range testCases {
-                t.Run(tc.name, func (t *testing.T) {
-                        syncCtx := newTestSyncCtx(nil)
-                        pod := testingutils.NewPod()
-                        pod.SetNamespace("fake-argocd-ns")
-                        var liveObj []*unstructured.Unstructured
-                        if tc.live {
-                                liveObj = []*unstructured.Unstructured{pod}
-                        } else {
-                                liveObj = []*unstructured.Unstructured{nil}
-                        }
-                        syncCtx.resources = groupResources(ReconciliationResult{
-                                Live:   liveObj,
-                                Target: []*unstructured.Unstructured{pod},
-                        })
-                        syncCtx.validate = tc.validate
-                        syncCtx.replace = tc.replace
+		{"replace, live, validate", true, true, true, false},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			syncCtx := newTestSyncCtx(nil)
+			pod := testingutils.NewPod()
+			pod.SetNamespace("fake-argocd-ns")
+			var liveObj []*unstructured.Unstructured
+			if tc.live {
+				liveObj = []*unstructured.Unstructured{pod}
+			} else {
+				liveObj = []*unstructured.Unstructured{nil}
+			}
+			syncCtx.resources = groupResources(ReconciliationResult{
+				Live:   liveObj,
+				Target: []*unstructured.Unstructured{pod},
+			})
+			syncCtx.validate = tc.validate
+			syncCtx.replace = tc.replace
 
-                        syncCtx.Sync(context.Background())
+			syncCtx.Sync(t.Context())
 
-                        // kubectl := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
-                        resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
-                        assert.Equal(t, tc.expValidate, resourceOps.GetLastValidate())
-                })
-        }
+			// kubectl := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
+			resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+			assert.Equal(t, tc.expValidate, resourceOps.GetLastValidate())
+		})
+	}
 }
 
 func TestSyncNotPermittedNamespace(t *testing.T) {

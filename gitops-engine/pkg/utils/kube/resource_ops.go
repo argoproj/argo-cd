@@ -348,6 +348,8 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 		}
 		if validate {
 			createOptions.ValidationDirective = metav1.FieldValidationStrict
+		} else {
+			createOptions.ValidationDirective = metav1.FieldValidationIgnore
 		}
 		command := &cobra.Command{}
 		saveConfig := false
