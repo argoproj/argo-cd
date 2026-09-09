@@ -131,19 +131,19 @@ If set to 0 then limit is disabled. Default: 50.
 
 Logging out of the UI revokes that session's token. Revocations are broadcast to all `argocd-server`
 replicas over Redis pub/sub immediately, and each replica additionally reloads the full set of revoked
-tokens on a timer. That reload performs a full-keyspace `SCAN`, so its cost grows with the total size of
-the Redis keyspace — normally dominated by the manifest cache rather than by revoked tokens — and with the
-number of `argocd-server` replicas.
+tokens once at startup and then on a timer. That reload performs a full-keyspace `SCAN`, so its cost grows
+with the total size of the Redis keyspace — normally dominated by the manifest cache rather than by revoked
+tokens — and with the number of `argocd-server` replicas.
 
 * `ARGOCD_SESSION_REVOKED_TOKEN_RESYNC_DURATION`: How often each `argocd-server` replica reloads the full
-set of revoked tokens from Redis. Accepts any Go duration string (for example `5m`), between 15s and 1h.
-Values outside that range, or that cannot be parsed, are ignored in favour of the default. Default: 15s.
+set of revoked tokens from Redis. Accepts any Go duration string (for example `15m`), between 15s and 1h.
+Values outside that range, or that cannot be parsed, are ignored in favour of the default. Default: 5m.
 
-Raising this reduces the Redis CPU spent on `SCAN` proportionally, and is worth doing on installations
-with a large Redis keyspace and few token revocations. Because the resync only bootstraps freshly started
-replicas and recovers from missed pub/sub messages, the trade-off is a longer worst-case window in which a
-replica that started, or that missed a message, during the interval may still accept a token that was
-revoked by logout.
+Because normal revocation latency is set by pub/sub and freshly started replicas load the set before
+serving, the timer is only a backstop against a dropped pub/sub message. Shortening it narrows the window
+in which a replica that dropped a message may still accept a revoked token, at a proportional increase in
+Redis CPU spent on `SCAN`; lengthening it does the reverse, and is worth doing on installations with a
+large Redis keyspace and few token revocations.
 
 ## SSO
 

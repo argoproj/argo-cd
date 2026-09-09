@@ -40,17 +40,22 @@ func TestUserStateStorage_ResyncDuration(t *testing.T) {
 	})
 
 	t.Run("honours a valid override", func(t *testing.T) {
-		t.Setenv(envRevokedTokenResyncDuration, "5m")
-		assert.Equal(t, 5*time.Minute, NewUserStateStorage(redis).resyncDuration)
+		t.Setenv(envRevokedTokenResyncDuration, "30m")
+		assert.Equal(t, 30*time.Minute, NewUserStateStorage(redis).resyncDuration)
+	})
+
+	t.Run("honours the minimum", func(t *testing.T) {
+		t.Setenv(envRevokedTokenResyncDuration, "15s")
+		assert.Equal(t, minRevokedTokenResyncDuration, NewUserStateStorage(redis).resyncDuration)
 	})
 
 	t.Run("honours the maximum", func(t *testing.T) {
 		t.Setenv(envRevokedTokenResyncDuration, "1h")
-		assert.Equal(t, time.Hour, NewUserStateStorage(redis).resyncDuration)
+		assert.Equal(t, maxRevokedTokenResyncDuration, NewUserStateStorage(redis).resyncDuration)
 	})
 
 	t.Run("falls back to the default below the minimum", func(t *testing.T) {
-		// Below the minimum, so it would increase the load the resync places on Redis.
+		// Below the minimum, so it would place more load on Redis than the resync ever had before it was configurable.
 		t.Setenv(envRevokedTokenResyncDuration, "1s")
 		assert.Equal(t, defaultRevokedTokenResyncDuration, NewUserStateStorage(redis).resyncDuration)
 	})
