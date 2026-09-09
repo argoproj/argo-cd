@@ -611,7 +611,7 @@ jobs:
             latest: false
         # The e2e suite is one serial package; splitting it across jobs is the only way to
         # cut its wall-clock time. Keep this in sync with ARGOCD_E2E_SHARD_COUNT below.
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     needs:
       - build-go
       - changes
