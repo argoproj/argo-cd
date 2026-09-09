@@ -33,6 +33,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend_any_changed }}
       frontend: ${{ steps.filter.outputs.frontend_any_changed }}
       docs: ${{ steps.filter.outputs.docs_any_changed }}
+      e2e: ${{ steps.filter.outputs.e2e_any_changed }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         if: ${{ vars.disable_harden_runner != 'true' }}
@@ -54,6 +55,37 @@ jobs:
               - '!**.md'
               - '!**/*.md'
               - '!docs/**'
+              - 'ui/embed.go'
+              - 'ui/dist/app/gitkeep'
+              - 'ui/dist/app/assets/images/resources/.gitkeep'
+            # The e2e suite is the backend set minus paths that provably cannot change its
+            # outcome. Keep this list conservative: a false negative here means a regression
+            # ships untested, while a false positive only costs CI time.
+            e2e:
+              - '**'
+              - '!ui/**'
+              - '!**.md'
+              - '!**/*.md'
+              - '!docs/**'
+              # Workflows other than this one never execute during the e2e job. This file is
+              # re-included below because it defines the job itself.
+              - '!.github/**'
+              - '.github/workflows/ci-build.yaml'
+              # Lua health checks and custom actions are embedded in the binary, but no test
+              # under test/e2e/ exercises them. They are fully covered by the table-driven
+              # tests in util/lua/health_test.go and util/lua/custom_actions_test.go, which
+              # walk resource_customizations/ and run every testdata case.
+              - '!resource_customizations/**'
+              # Consumed by docs generation and the notifications engine's own unit tests.
+              - '!notifications_catalog/**'
+              # Sample manifests for users; never applied by the e2e fixtures.
+              - '!examples/**'
+              # Renovate/Sonar/ownership metadata, not build or runtime inputs.
+              - '!renovate-presets/**'
+              - '!renovate.json'
+              - '!sonar-project.properties'
+              - '!CODEOWNERS'
+              - '!OWNERS'
               - 'ui/embed.go'
               - 'ui/dist/app/gitkeep'
               - 'ui/dist/app/assets/images/resources/.gitkeep'
@@ -487,7 +519,7 @@ jobs:
       - name: Get e2e code coverage
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: e2e-code-coverage
+          pattern: e2e-code-coverage-shard*
           path: e2e-code-coverage
       - name: Get unit test code coverage
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -506,8 +538,21 @@ jobs:
         # app-controller, repo-server, and commit-server report contain coverage data. The other components currently
         # don't shut down gracefully, so no coverage data is produced. Once those components are fixed, we can add
         # references to their coverage output directories.
+        # Each e2e shard uploads its own artifact, so the per-component directories appear
+        # once per shard and have to be merged before they can be converted to text.
         run: |
-          go tool covdata textfmt -i=e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server,e2e-code-coverage/app-controller,e2e-code-coverage/commit-server -o test-results/e2e-coverage.out
+          set -o pipefail
+          dirs=$(find e2e-code-coverage -mindepth 2 -maxdepth 2 -type d \
+            \( -name applicationset-controller -o -name repo-server -o -name app-controller -o -name commit-server \) \
+            | sort | paste -sd, -)
+          if [ -z "$dirs" ]; then
+            echo "no e2e coverage directories found under e2e-code-coverage/" >&2
+            exit 1
+          fi
+          echo "merging: $dirs"
+          mkdir -p e2e-code-coverage/merged
+          go tool covdata merge -pcombine -i="$dirs" -o e2e-code-coverage/merged
+          go tool covdata textfmt -i=e2e-code-coverage/merged -o test-results/e2e-coverage.out
       - name: Upload unit test coverage to codecov.io
         if: github.repository == 'argoproj/argo-cd'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
@@ -548,7 +593,7 @@ jobs:
         if: env.sonar_secret != ''
   test-e2e:
     name: Run end-to-end tests
-    if: ${{ needs.changes.outputs.backend == 'true' }}
+    if: ${{ needs.changes.outputs.e2e == 'true' }}
     runs-on: ${{ github.repository == 'argoproj/argo-cd' && 'oracle-vm-16cpu-64gb-x86-64' || 'ubuntu-24.04' }}
     strategy:
       fail-fast: false
@@ -564,6 +609,9 @@ jobs:
             latest: false
           - version: v1.34.11
             latest: false
+        # The e2e suite is one serial package; splitting it across jobs is the only way to
+        # cut its wall-clock time. Keep this in sync with ARGOCD_E2E_SHARD_COUNT below.
+        shard: [1, 2]
     needs:
       - build-go
       - changes
@@ -572,6 +620,8 @@ jobs:
       ARGOCD_E2E_K3S: 'true'
       ARGOCD_IN_CI: 'true'
       ARGOCD_E2E_APISERVER_PORT: '8088'
+      ARGOCD_E2E_SHARD: ${{ matrix.shard }}
+      ARGOCD_E2E_SHARD_COUNT: '2'
       ARGOCD_APPLICATION_NAMESPACES: 'argocd-e2e-external,argocd-e2e-external-2'
       ARGOCD_SERVER: '127.0.0.1:8088'
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -694,13 +744,13 @@ jobs:
       - name: Upload e2e coverage report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: e2e-code-coverage
+          name: e2e-code-coverage-shard${{ matrix.shard }}
           path: /tmp/coverage
         if: ${{ matrix.k3s.latest }}
       - name: Upload e2e-server logs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: e2e-server-k8s${{ matrix.k3s.version }}.log
+          name: e2e-server-k8s${{ matrix.k3s.version }}-shard${{ matrix.shard }}.log
           path: /tmp/e2e-server.log
         if: ${{ failure() }}
 
