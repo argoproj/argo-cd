@@ -2684,6 +2684,13 @@ func alreadyAttemptedSync(app *appv1.Application, desiredRevisions []string, new
 		return false, []string{}, ""
 	}
 	if app.Status.OperationState.SyncResult == nil {
+		if app.Status.OperationState.FinishedAt == nil {
+			// The operation was orphaned (e.g. the controller restarted while an
+			// operation was in progress) and never actually finished. Treat it as
+			// not-yet-attempted so that auto-sync can proceed instead of being
+			// permanently suppressed by a stale terminal phase.
+			return false, []string{}, app.Status.OperationState.Phase
+		}
 		// If the sync has completed without result, it is very likely that an error happened
 		// We don't want to resync with auto-sync indefinitely. We should have retried the configured amount of time already
 		// In this case, a manual action to restore the app may be required
