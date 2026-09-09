@@ -12,8 +12,8 @@ import (
 // on the provided DiffConfig.
 func Normalize(lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*NormalizationResult, error) {
 	// Extract annotation-based ignores from configs BEFORE normalization
-	resourceIgnores := ExtractIgnoreDifferencesFromAnnotations(configs)
-	mergedIgnores := MergeResourceIgnoreDifferences(diffConfig.Ignores(), resourceIgnores)
+	mergedIgnores := resolvedIgnores(configs, diffConfig.Ignores())
+
 	result, err := preDiffNormalize(lives, configs, diffConfig)
 	if err != nil {
 		return nil, err

@@ -3,9 +3,10 @@ package diff
 import (
 	"fmt"
 	"slices"
-	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	resourceannotation "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -110,6 +111,12 @@ func mergeIgnoreDifferences(from *IgnoreDifference, target *IgnoreDifference) {
 	}
 }
 
+func resolvedIgnores(resources []*unstructured.Unstructured, diffConfigIgnores []v1alpha1.ResourceIgnoreDifferences) []v1alpha1.ResourceIgnoreDifferences {
+	resourceIgnores := ExtractIgnoreDifferencesFromAnnotations(resources)
+	mergedIgnores := MergeResourceIgnoreDifferences(diffConfigIgnores, resourceIgnores)
+	return mergedIgnores
+}
+
 // ExtractIgnoreDifferencesFromAnnotations parses resource annotations to extract ignoreDifferences rules.
 // It looks for the argocd.argoproj.io/ignore-differences-json-pointers annotation containing comma-separated JSON pointer paths.
 func ExtractIgnoreDifferencesFromAnnotations(resources []*unstructured.Unstructured) []v1alpha1.ResourceIgnoreDifferences {
@@ -117,31 +124,18 @@ func ExtractIgnoreDifferencesFromAnnotations(resources []*unstructured.Unstructu
 
 	for _, resource := range resources {
 		if resource != nil {
-			if annotations := resource.GetAnnotations(); annotations != nil {
-				ignoreDiffValue, exists := annotations[common.AnnotationKeyIgnoreDifferencesJSONPointers]
-				if exists && ignoreDiffValue != "" {
-					// Parse comma-separated JSON pointer paths
-					paths := strings.Split(ignoreDiffValue, ",")
-					var jsonPointers []string
-					for _, path := range paths {
-						trimmed := strings.TrimSpace(path)
-						if trimmed != "" {
-							jsonPointers = append(jsonPointers, trimmed)
-						}
-					}
-					if len(jsonPointers) > 0 {
-						// Create a ResourceIgnoreDifferences entry specific to this resource
-						gvk := resource.GroupVersionKind()
-						result = append(result, v1alpha1.ResourceIgnoreDifferences{
-							Group:        gvk.Group,
-							Kind:         gvk.Kind,
-							Name:         resource.GetName(),
-							Namespace:    resource.GetNamespace(),
-							JSONPointers: jsonPointers,
-						})
-					}
-				}
+			jsonPointers := resourceannotation.GetAnnotationCSVs(resource, common.AnnotationKeyIgnoreDifferencesJSONPointers)
+			if len(jsonPointers) == 0 {
+				continue
 			}
+			gvk := resource.GroupVersionKind()
+			result = append(result, v1alpha1.ResourceIgnoreDifferences{
+				Group:        gvk.Group,
+				Kind:         gvk.Kind,
+				Name:         resource.GetName(),
+				Namespace:    resource.GetNamespace(),
+				JSONPointers: jsonPointers,
+			})
 		}
 	}
 
@@ -151,10 +145,6 @@ func ExtractIgnoreDifferencesFromAnnotations(resources []*unstructured.Unstructu
 // MergeResourceIgnoreDifferences combines application-level and resource-level ignoreDifferences.
 // Resource-level annotations are appended to the application-level rules.
 func MergeResourceIgnoreDifferences(appIgnores []v1alpha1.ResourceIgnoreDifferences, resourceIgnores []v1alpha1.ResourceIgnoreDifferences) []v1alpha1.ResourceIgnoreDifferences {
-	if len(resourceIgnores) == 0 {
-		return appIgnores
-	}
-
 	result := make([]v1alpha1.ResourceIgnoreDifferences, 0, len(appIgnores)+len(resourceIgnores))
 	result = append(result, appIgnores...)
 	result = append(result, resourceIgnores...)

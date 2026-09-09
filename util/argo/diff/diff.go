@@ -300,8 +300,7 @@ func StateDiff(ctx context.Context, live, config *unstructured.Unstructured, dif
 // the live and the config/desired states.
 func StateDiffs(ctx context.Context, lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*diff.DiffResultList, error) {
 	// Extract annotation-based ignores from configs BEFORE normalization
-	resourceIgnores := ExtractIgnoreDifferencesFromAnnotations(configs)
-	mergedIgnores := MergeResourceIgnoreDifferences(diffConfig.Ignores(), resourceIgnores)
+	mergedIgnores := resolvedIgnores(configs, diffConfig.Ignores())
 
 	normResults, err := preDiffNormalize(lives, configs, diffConfig)
 	if err != nil {
