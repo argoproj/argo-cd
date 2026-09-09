@@ -55,6 +55,9 @@ type APIResourceInfo struct {
 	GroupKind            schema.GroupKind
 	Meta                 metav1.APIResource
 	GroupVersionResource schema.GroupVersionResource
+	// LabelSelector holds the label selector that must be applied to the list/watch calls of the
+	// resource. An empty string means that every object of the resource must be listed.
+	LabelSelector string
 }
 
 type filterFunc func(apiResource *metav1.APIResource) bool
@@ -99,6 +102,7 @@ func (k *KubectlCmd) filterAPIResources(config *rest.Config, preferred bool, res
 					GroupKind:            schema.GroupKind{Group: gv.Group, Kind: apiResource.Kind},
 					Meta:                 apiResource,
 					GroupVersionResource: resource,
+					LabelSelector:        resourceFilter.GetLabelSelector(gv.Group, apiResource.Kind, config.Host),
 				}
 				apiResIfs = append(apiResIfs, apiResIf)
 			}

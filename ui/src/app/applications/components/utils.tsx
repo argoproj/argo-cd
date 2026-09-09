@@ -73,6 +73,20 @@ export function helpTip(text: string) {
     );
 }
 
+/**
+ * Builds the class list for the Application (and ApplicationSet) details container.
+ *
+ * The per-application class is a styling hook that lets operators target a specific
+ * application's page from custom CSS (see docs/operator-manual/custom-styles.md, added in #13279).
+ * It is prefixed with `user-app-` so that an application whose name matches a built-in component
+ * class cannot collide with that component's styles. For example, an application named `login`
+ * previously rendered the class `application-details login`, which pulled in the login page's
+ * `.login` styles and broke the page (issue #24220).
+ */
+export function getApplicationDetailsContainerClass(appName: string): string {
+    return `application-details user-app-${appName}`;
+}
+
 //CLassic Solid circle-notch icon
 //<!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
 //this will replace all <i> fa-spin </i> icons as they are currently misbehaving with no fix available.
@@ -1005,7 +1019,7 @@ export function hydrationStatusMessage(app: appModels.Application) {
     const sourceHydrator = app.status.sourceHydrator.currentOperation.sourceHydrator;
     const drySource = sourceHydrator.drySource;
     const dryCommit = app.status.sourceHydrator.currentOperation.drySHA;
-    const syncSource = getAppHydratorSyncSource(sourceHydrator);
+    const hydrateToSource = getAppHydrateToSource(sourceHydrator);
     const hydratedCommit = app.status.sourceHydrator.currentOperation.hydratedSHA || '';
 
     switch (app.status.sourceHydrator.currentOperation.phase) {
@@ -1018,8 +1032,8 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     </Revision>
                     <br />
                     to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={hydratedCommit}>
-                        {syncSource.targetRevision + ' (' + hydratedCommit.substr(0, 7) + ')'}
+                    <Revision repoUrl={hydrateToSource.repoURL} revision={hydratedCommit}>
+                        {hydrateToSource.targetRevision + ' (' + hydratedCommit.substr(0, 7) + ')'}
                     </Revision>
                 </span>
             );
@@ -1032,8 +1046,8 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     </Revision>
                     <br />
                     to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
-                        {syncSource.targetRevision}
+                    <Revision repoUrl={hydrateToSource.repoURL} revision={hydrateToSource.targetRevision}>
+                        {hydrateToSource.targetRevision}
                     </Revision>
                 </span>
             );
@@ -1047,8 +1061,8 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     </Revision>
                     <br />
                     to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
-                        {syncSource.targetRevision}
+                    <Revision repoUrl={hydrateToSource.repoURL} revision={hydrateToSource.targetRevision}>
+                        {hydrateToSource.targetRevision}
                     </Revision>
                 </span>
             );
@@ -1526,6 +1540,15 @@ export function getAppHydratorSyncSource(sourceHydrator?: appModels.SourceHydrat
         repoURL: getHydratorSyncSourceRepoURL(sourceHydrator),
         targetRevision: sourceHydrator?.syncSource?.targetBranch || '',
         path: sourceHydrator?.syncSource?.path || ''
+    };
+}
+
+// Destination of a hydration push: hydrateTo.targetBranch when set, otherwise the sync source branch.
+export function getAppHydrateToSource(sourceHydrator?: appModels.SourceHydrator): appModels.ApplicationSource {
+    const syncSource = getAppHydratorSyncSource(sourceHydrator);
+    return {
+        ...syncSource,
+        targetRevision: sourceHydrator?.hydrateTo?.targetBranch || syncSource.targetRevision
     };
 }
 
