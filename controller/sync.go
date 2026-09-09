@@ -680,12 +680,31 @@ func restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive
 	// original target. A key is non-ignored if it exists in normalizedLive
 	// (the normalizer did not strip it). Ignored live-only keys are kept —
 	// they were intentionally copied by the livePatch.
-	for key := range patched {
+	//
+	// A key can exist in normalizedLive and still carry ignored fields: a
+	// key-level ignore such as `.data["password"]` leaves the parent map in
+	// normalizedLive (as `{}` or with its other keys), while the original
+	// target may not have that parent at all (a Secret rendered with
+	// `stringData` has no `data`). In that case the patched value is the set
+	// of ignored live fields copied by the livePatch and must survive; only
+	// live-only children the normalizer did not touch are pruned.
+	for key, patchedVal := range patched {
 		if _, inOriginal := original[key]; inOriginal {
 			continue
 		}
-		if _, inNormalizedLive := normalizedLive[key]; inNormalizedLive {
+		normalizedLiveVal, inNormalizedLive := normalizedLive[key]
+		if !inNormalizedLive {
+			continue
+		}
+		if reflect.DeepEqual(normalizedLiveVal, patchedVal) {
+			// Untouched by the normalizer: pure replace-strategy collateral.
 			delete(patched, key)
+			continue
+		}
+		patchedMap, patchedIsMap := patchedVal.(map[string]any)
+		normalizedLiveMap, normalizedLiveIsMap := normalizedLiveVal.(map[string]any)
+		if patchedIsMap && normalizedLiveIsMap {
+			restoreNonIgnoredFields(patchedMap, map[string]any{}, map[string]any{}, normalizedLiveMap)
 		}
 	}
 }
