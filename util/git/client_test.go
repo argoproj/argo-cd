@@ -331,6 +331,27 @@ func Test_nativeGitClient_Fetch_cleansOrphanedTempPacksOnError(t *testing.T) {
 	assert.NoFileExists(t, orphanIdx, "orphaned temp index should be cleaned up after a failed fetch")
 }
 
+func Test_nativeGitClient_Fetch_sweepsOrphanedTempPacksBeforeFetching(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+
+	packDir := filepath.Join(client.Root(), ".git", "objects", "pack")
+	require.NoError(t, os.MkdirAll(packDir, 0o755))
+	old := time.Now().Add(-time.Hour)
+	orphan := filepath.Join(packDir, "tmp_pack_from_previous_run")
+	require.NoError(t, os.WriteFile(orphan, []byte("partial data"), 0o644))
+	require.NoError(t, os.Chtimes(orphan, old, old))
+
+	// Fetch succeeds here, so nothing but the sweep on the way in can remove this.
+	require.NoError(t, client.Fetch(ctx, "", 0))
+	assert.NoFileExists(t, orphan, "orphan from a previous run should be cleaned up before fetching")
+}
+
 func Test_nativeGitClient_Fetch(t *testing.T) {
 	tempDir, err := _createEmptyGitRepo(t.Context())
 	require.NoError(t, err)

@@ -622,11 +622,12 @@ func (m *nativeGitClient) IsRevisionPresent(ctx context.Context, revision string
 }
 
 // cleanupOrphanedTempPackfiles removes leftover objects/pack/tmp_{pack,idx,rev,mtimes}_* files
-// produced by a git fetch/index-pack that was killed (for example by the exec
-// timeout) before it could finalize the pack. Git treats these as garbage and
-// never prunes them itself, so without this cleanup they accumulate on every
-// failed fetch into the reused cache directory and can grow the repo-server
-// volume without bound. This is best-effort: failures are logged, not returned.
+// produced by a git fetch/index-pack that was killed (by the exec timeout, or by
+// SIGKILL on an OOMKill) before it could finalize the pack. Git treats these as
+// garbage and never prunes them itself, so without this cleanup they accumulate
+// on every failed fetch into the reused cache directory and can grow the
+// repo-server volume without bound. This is best-effort: failures are logged,
+// not returned.
 //
 // Within a single repo-server the per-repository lock (reposerver/repository/
 // lock.go) already serializes fetch/checkout per cache directory, so no
@@ -700,6 +701,9 @@ func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int6
 		done := m.OnFetch(m.repoURL)
 		defer done()
 	}
+
+	// An OOMKilled fetch never reaches the error path below, so sweep on the way in too.
+	m.cleanupOrphanedTempPackfiles()
 
 	err := m.fetch(ctx, revision, depth)
 	if err != nil {
