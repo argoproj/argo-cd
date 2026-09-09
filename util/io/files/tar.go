@@ -152,6 +152,8 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 			// Manually check that the symlink target does not point outside of dstRoot as the os.Root API
 			// does NOT do inbound checks for the 'oldname' in dstRoot.Symlink(oldname, newname)
 
+			// Always treating the link target as relative to the base directory because path.CheckOutOfBoundsSymlinks
+			// disallows any absolute symlinks and it makes more sense semantically to view symlinks in archives as relative.
 			relativeLinkTargetFromDstPath := filepath.Join(baseDir, header.Linkname)
 
 			// Path for stat must be relative to dstPath for correct escape check
@@ -162,9 +164,7 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 			// fs.ErrNotExist is allowed as the target file might not be created yet
 			// the os.Root API checks the paths before other operations so getting fs.ErrNotExist means that the path is inside dstRoot
 
-			// Relativizing all symlink targets because path.CheckOutOfBoundsSymlinks disallows any absolute symlinks
-			// and it makes more sense semantically to view symlinks in archives as relative.
-			// dstRoot.Stat ensures that we never allow symlinks that break out of the target directory.
+			// Relativizing target path to baseDir as the link points from that directory
 			relativeLinkTargetFromSymlinkBaseDir, err := filepath.Rel(baseDir, relativeLinkTargetFromDstPath)
 			if err != nil {
 				return fmt.Errorf("error relativizing link target: %w", err)
