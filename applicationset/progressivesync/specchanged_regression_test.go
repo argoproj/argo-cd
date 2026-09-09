@@ -95,7 +95,7 @@ func regressionManager(t *testing.T, appSet *argov1alpha1.ApplicationSet) *Manag
 	require.NoError(t, argov1alpha1.AddToScheme(scheme))
 
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(appSet).WithStatusSubresource(appSet).Build()
-	return NewManager(c, c, regressionDeps{})
+	return NewManager(c, c, nil, regressionDeps{})
 }
 
 // Defect 1: the status path must honour ignoreApplicationDifferences, exactly as

@@ -1,0 +1,24 @@
+# pnpm 11+ no longer reads the "pnpm" field from package.json; settings live here.
+
+overrides:
+  '@types/react': ^19.0.0
+  '@types/react-dom': ^19.0.0
+  rxjs: 7.8.2
+  dompurify: 3.4.7
+
+# pnpm 11+ errors on un-declared dependency build scripts (strictDepBuilds).
+# None of these were built under pnpm 10 either; keep them off.
+allowBuilds:
+  '@parcel/watcher': false # prebuild download, only used by watch mode
+  '@scarf/scarf': false # analytics, also disabled via scarfSettings
+  argo-ui: false # resolved as a tarball, nothing to build
+  core-js: false # funding banner
+  core-js-pure: false # funding banner
+  esbuild: false # esbuild-loader uses the JS API, not the bin shim
+
+# Don't let pnpm self-manage its version: corepack (Dockerfile, test/container)
+# and pnpm/action-setup (CI) already provision it from `packageManager`. The
+# default would add a second YAML document to pnpm-lock.yaml holding pnpm's own
+# @pnpm/exe packages, which third-party lockfile parsers (Dependabot, Snyk) do
+# not expect.
+pmOnFail: ignore

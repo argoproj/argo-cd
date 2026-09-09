@@ -1,16 +1,14 @@
 package commands
 
 import (
+	"context"
 	stderrors "errors"
 	"fmt"
 	"math"
 	"net"
 	"net/http"
-	"os"
-	"os/signal"
 	"runtime/debug"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/argoproj/pkg/v2/stats"
@@ -90,7 +88,7 @@ func NewCommand() *cobra.Command {
 		Short:             "Run ArgoCD Repository Server",
 		Long:              "ArgoCD Repository Server is an internal service which maintains a local cache of the Git repository holding the application manifests, and is responsible for generating and returning the Kubernetes manifests.  This command runs Repository Server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
-		RunE: func(c *cobra.Command, _ []string) error {
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, _ []string, _ context.CancelFunc) error {
 			ctx := c.Context()
 
 			vers := common.GetVersion()
@@ -233,12 +231,9 @@ func NewCommand() *cobra.Command {
 			stats.RegisterHeapDumper("memprofile")
 
 			// Graceful shutdown code adapted from https://gist.github.com/embano1/e0bf49d24f1cdd07cffad93097c04f0a
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 			wg := sync.WaitGroup{}
 			wg.Go(func() {
-				s := <-sigCh
-				log.Printf("got signal %v, attempting graceful shutdown", s)
+				<-ctx.Done()
 				grpc.GracefulStop()
 			})
 
@@ -251,7 +246,7 @@ func NewCommand() *cobra.Command {
 			log.Println("clean shutdown")
 
 			return nil
-		},
+		}),
 	}
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")

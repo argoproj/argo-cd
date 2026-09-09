@@ -1,0 +1,25 @@
+# First adoption: CloudNativePG's first reconcile of a brand-new Database fails
+# (e.g. the owner role has not been created yet) and will succeed on retry.
+# SetAsFailed sets applied=false but does not set observedGeneration, so the
+# current generation has never been observed. This must be Progressing, NOT
+# Degraded: Argo CD treats a Degraded non-hook resource as a failed sync, which
+# would turn this self-healing race into a failed sync.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  creationTimestamp: "2026-09-02T12:00:00Z"
+  finalizers:
+  - cnpg.io/deleteDatabase
+  generation: 1
+  name: database-example
+  namespace: default
+spec:
+  cluster:
+    name: cluster-example
+  databaseReclaimPolicy: retain
+  ensure: present
+  name: app
+  owner: app
+status:
+  applied: false
+  message: 'failed to reconcile database "app": role "app" does not exist (SQLSTATE 42704)'

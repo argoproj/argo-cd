@@ -28,7 +28,7 @@ tests:
     message: The proposed commit DRY SHA is missing or empty.
   inputPath: testdata/proposed-dry-sha-missing.yaml
 - healthStatus:
-    status: Progressing
+    status: Healthy
     message: "Promotion in progress from 'abc1234' to 'def5678': 1 pending, 0 successful, 1 failed. Pending commit statuses: test-pending. Failed commit statuses: test-failed. "
   inputPath: testdata/progressing-failed-pending.yaml
 - healthStatus:
