@@ -495,7 +495,11 @@ jobs:
 
   analyze:
     name: Process & analyze test artifacts
-    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
+    if: >-
+      ${{ !cancelled()
+          && needs.test-go.result == 'success'
+          && needs.build-ui.result == 'success'
+          && (needs.test-e2e.result == 'success' || needs.test-e2e.result == 'skipped') }}
     runs-on: ubuntu-24.04
     needs:
       - test-go
@@ -517,6 +521,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Get e2e code coverage
+        if: ${{ needs.test-e2e.result == 'success' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: e2e-code-coverage-shard*
@@ -534,6 +539,7 @@ jobs:
           go tool covdata merge -pcombine -i=test-results,test-results/gitops-engine -o test-results/merged
           go tool covdata textfmt -i=test-results/merged -o test-results/unit-coverage.out
       - name: Generate e2e test coverage profile
+        if: ${{ needs.test-e2e.result == 'success' }}
         # We generate coverage reports for all Argo CD components, but only the applicationset-controller,
         # app-controller, repo-server, and commit-server report contain coverage data. The other components currently
         # don't shut down gracefully, so no coverage data is produced. Once those components are fixed, we can add
@@ -565,7 +571,7 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload e2e test coverage to codecov.io
-        if: github.repository == 'argoproj/argo-cd'
+        if: ${{ needs.test-e2e.result == 'success' && github.repository == 'argoproj/argo-cd' }}
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
           version: v11.2.8 # https://github.com/getsentry/prevent-cli/releases/tag/v11.2.8
