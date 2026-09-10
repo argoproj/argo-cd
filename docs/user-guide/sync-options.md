@@ -431,6 +431,30 @@ spec:
 
 The example above shows how an Argo CD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieved by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
 
+In situations where individual resources need to have differences ignored independently of the application-level `spec.ignoreDifferences` configuration, the `argocd.argoproj.io/ignore-differences-json-pointers` annotation can be applied directly to the resource manifest. The Application must also have `RespectIgnoreDifferences=true` set in its sync options for the annotation to take effect:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+      - RespectIgnoreDifferences=true
+```
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    argocd.argoproj.io/ignore-differences-json-pointers: /spec/replicas,/spec/template/metadata/annotations
+```
+
+The annotation accepts a comma-separated list of [RFC6901 JSON Pointers](https://tools.ietf.org/html/rfc6901); These resource-level rules are merged with any matching entries in `spec.ignoreDifferences` at diff time.
+
+> [!NOTE]
+> This annotation only supports JSON Pointers. JQ path expressions and managed field manager exclusions are not available via this annotation; those must be configured in `spec.ignoreDifferences`.
+
 ## Create Namespace
 
 ```yaml

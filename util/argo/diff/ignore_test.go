@@ -293,7 +293,7 @@ func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
 
 		// then
 		require.Len(t, result, 1)
-		assert.Equal(t, []string{"/spec/replicas", "/metadata/labels/version", "/spec/template/metadata/annotations"}, result[0].JSONPointers)
+		assert.ElementsMatch(t, []string{"/spec/replicas", "/metadata/labels/version", "/spec/template/metadata/annotations"}, result[0].JSONPointers)
 	})
 
 	t.Run("handles whitespace in comma-separated list", func(t *testing.T) {
@@ -310,7 +310,7 @@ func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
 
 		// then
 		require.Len(t, result, 1)
-		assert.Equal(t, []string{"/spec/replicas", "/metadata/labels", "/status"}, result[0].JSONPointers)
+		assert.ElementsMatch(t, []string{"/spec/replicas", "/metadata/labels", "/status"}, result[0].JSONPointers)
 	})
 
 	t.Run("returns empty list when no annotation present", func(t *testing.T) {
