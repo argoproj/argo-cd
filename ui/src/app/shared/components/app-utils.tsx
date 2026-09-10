@@ -79,8 +79,6 @@ export const getOperationStateTitle = (app: appModels.Application): appModels.Op
                     return 'Sync failed';
                 case 'Succeeded':
                     return 'Sync OK';
-                case 'Warning':
-                    return 'Sync warning';
                 case 'Terminating':
                     return 'Terminated';
             }
@@ -99,10 +97,6 @@ export const OperationPhaseIcon = ({app, isButton}: {app: appModels.Application;
         case appModels.OperationPhases.Succeeded:
             className = `fa fa-check-circle${isButton ? ' status-button' : ''}`;
             color = COLORS.operation.success;
-            break;
-        case appModels.OperationPhases.Warning:
-            className = `fa fa-exclamation-circle${isButton ? ' status-button' : ''}`;
-            color = COLORS.operation.warning;
             break;
         case appModels.OperationPhases.Error:
             className = `fa fa-times-circle${isButton ? ' status-button' : ''}`;

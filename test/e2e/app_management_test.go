@@ -2010,6 +2010,43 @@ func TestCreateAppWithNoNameSpaceWhenRequired2(t *testing.T) {
 		})
 }
 
+func TestSyncReportsWarnings(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		Path(guestbookPath).
+		When().
+		And(func() {
+			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "label", "namespace", ctx.DeploymentNamespace(),
+				"pod-security.kubernetes.io/warn=restricted"))
+		}).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// The API server warning is kept in the resource's sync result message.
+		Expect(ResourceResultMatches(ResourceResult{
+			Group:     "apps",
+			Version:   "v1",
+			Kind:      "Deployment",
+			Namespace: ctx.DeploymentNamespace(),
+			Name:      "guestbook-ui",
+			SyncPhase: SyncPhaseSync,
+			Status:    ResultCodeSynced,
+			HookPhase: OperationRunning,
+			Message:   `Warning: would violate PodSecurity "restricted:latest"`,
+		})).
+		// The condition only identifies the warned resource and never includes the warning text.
+		Expect(Condition(ApplicationConditionSyncWarning, "The last sync completed successfully but reported warnings for 1 resource: "+
+			"apps/Deployment:"+ctx.DeploymentNamespace()+"/guestbook-ui. "+
+			"See each resource's message in the sync result for details.")).
+		And(func(app *Application) {
+			assert.Len(t, app.Status.Conditions, 1)
+			assert.NotContains(t, app.Status.Conditions[0].Message, "Warning:")
+			assert.NotContains(t, app.Status.Conditions[0].Message, "PodSecurity")
+		})
+}
+
 func TestCreateAppWithInClusterDisabled(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).

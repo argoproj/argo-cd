@@ -65,7 +65,7 @@ export interface Operation {
     initiatedBy: OperationInitiator;
 }
 
-export type OperationPhase = 'Running' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating' | 'Progressing' | 'Pending' | 'Waiting' | 'Warning';
+export type OperationPhase = 'Running' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating' | 'Progressing' | 'Pending' | 'Waiting';
 
 export const OperationPhases = {
     Running: 'Running' as OperationPhase,
@@ -75,8 +75,7 @@ export const OperationPhases = {
     Terminating: 'Terminating' as OperationPhase,
     Progressing: 'Progressing' as OperationPhase,
     Pending: 'Pending' as OperationPhase,
-    Waiting: 'Waiting' as OperationPhase,
-    Warning: 'Warning' as OperationPhase
+    Waiting: 'Waiting' as OperationPhase
 };
 
 /**
@@ -91,7 +90,7 @@ export interface OperationState {
     finishedAt: models.Time;
 }
 
-export type OperationStateTitle = 'Deleting' | 'Syncing' | 'Sync error' | 'Sync failed' | 'Sync OK' | 'Sync warning' | 'Terminated' | 'Unknown';
+export type OperationStateTitle = 'Deleting' | 'Syncing' | 'Sync error' | 'Sync failed' | 'Sync OK' | 'Terminated' | 'Unknown';
 
 export const OperationStateTitles = {
     Deleting: 'Deleting',
@@ -99,7 +98,6 @@ export const OperationStateTitles = {
     SyncError: 'Sync error',
     SyncFailed: 'Sync failed',
     SyncOK: 'Sync OK',
-    SyncWarning: 'Sync warning',
     Terminated: 'Terminated',
     Unknown: 'Unknown'
 } satisfies Record<string, OperationStateTitle>;
@@ -135,14 +133,13 @@ export interface SyncOperationResult {
     revisions: string[];
 }
 
-export type ResultCode = 'Synced' | 'SyncFailed' | 'Pruned' | 'PruneSkipped' | 'SyncedWithWarning';
+export type ResultCode = 'Synced' | 'SyncFailed' | 'Pruned' | 'PruneSkipped';
 
 export const ResultCodes = {
     Synced: 'Synced',
     SyncFailed: 'SyncFailed',
     Pruned: 'Pruned',
-    PruneSkipped: 'PruneSkipped',
-    SyncedWithWarning: 'SyncedWithWarning'
+    PruneSkipped: 'PruneSkipped'
 };
 
 export interface ResourceResult {
