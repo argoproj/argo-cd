@@ -241,16 +241,7 @@ func (k *kubectlResourceOperations) runResourceCommand(_ context.Context, obj *u
 		ErrOut: stderrBuf,
 	}
 
-	// Capture API server admission warnings into a dedicated buffer, kept separate
-	// from kubectl's own stderr. API server warnings arrive through this handler
-	// (the HTTP "Warning" response header), whereas kubectl also prints client-side
-	// warnings to stderr (for example the "missing last-applied-configuration
-	// annotation" message emitted during create-then-apply). Those notices are not
-	// API server warnings and must not be surfaced as such in the resource's sync
-	// message.
-	//
-	// JSON output (server-side diff) does not surface warnings, so no
-	// handler is created there.
+	// Keep API server warnings separate from kubectl's stderr.
 	var warningHandler rest.WarningHandler
 	if k.outputMode == outputModeLog {
 		warningHandler = rest.NewWarningWriter(warningBuf, rest.WarningWriterOptions{Deduplicate: true})
@@ -265,25 +256,19 @@ func (k *kubectlResourceOperations) runResourceCommand(_ context.Context, obj *u
 	stderr := stderrBuf.String()
 	warnings := warningBuf.String()
 
-	// Delegate to appropriate handler based on output mode
 	if k.outputMode == outputModeJSON {
 		return k.handleJSONOutput(stdout, stderr)
 	}
 	return k.handleLogOutput(stdout, warnings)
 }
 
-// warningRESTClientGetter wraps the shared RESTClientGetter so that the REST
-// configs it hands out carry a per-operation warning handler. Discovery and REST
-// mapper lookups still delegate to the embedded getter, so the (expensive) shared
-// caches are reused rather than rebuilt per operation.
+// warningRESTClientGetter attaches a per-operation warning handler to REST configs.
 type warningRESTClientGetter struct {
 	genericclioptions.RESTClientGetter
 	warningHandler rest.WarningHandler
 }
 
-// ToRESTConfig returns a copy of the shared REST config with the per-operation
-// warning handler attached. The shared config is never mutated, so concurrent
-// operations never see each other's handlers.
+// ToRESTConfig returns a copy when it needs to attach a warning handler.
 func (g *warningRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
 	config, err := g.RESTClientGetter.ToRESTConfig()
 	if err != nil {
@@ -297,16 +282,8 @@ func (g *warningRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
 	return config, nil
 }
 
-// warningClients returns the factory and REST config an operation should use
-// after runResourceCommand has chosen its per-operation warning handler. When no
-// handler is set (JSON output / Server-Side Diff), the shared factory and config
-// are returned unchanged. Otherwise, the handler is attached to both client
-// construction paths.
-//
-// The factory wraps the shared factory's RESTClientGetter (via warningRESTClientGetter)
-// instead of rebuilding one from kubeconfig, so discovery and the REST mapper stay
-// shared; only the per-request REST config carries the handler. A copied REST config
-// is returned for clients that call NewForConfig directly (e.g. the dynamic client).
+// warningClients returns clients configured with the given warning handler.
+// Discovery and REST mapper caches still come from the shared factory.
 func (k *kubectlResourceOperations) warningClients(warningHandler rest.WarningHandler) (cmdutil.Factory, *rest.Config) {
 	if warningHandler == nil {
 		return k.fact, k.config

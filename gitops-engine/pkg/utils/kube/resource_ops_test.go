@@ -606,9 +606,7 @@ func TestRealKubectlOptionsRunner_AuthReconcile_VisitorError(t *testing.T) {
 	require.ErrorIs(t, err, expectedErr)
 }
 
-// countingRESTClientGetter is a stub RESTClientGetter that records how many
-// times each method is called and returns fixed sentinels, so tests can assert
-// that a wrapper delegates (rather than rebuilds) discovery/mapper lookups.
+// countingRESTClientGetter records calls and returns fixed sentinels.
 type countingRESTClientGetter struct {
 	config          *rest.Config
 	mapper          meta.RESTMapper
@@ -640,9 +638,6 @@ func (g *countingRESTClientGetter) ToRawKubeConfigLoader() clientcmd.ClientConfi
 	return g.rawLoader
 }
 
-// TestWarningRESTClientGetter verifies the wrapper injects a copied REST config
-// carrying the warning handler, and delegates discovery/mapper/loader lookups
-// to the shared getter.
 func TestWarningRESTClientGetter(t *testing.T) {
 	t.Parallel()
 
@@ -658,15 +653,13 @@ func TestWarningRESTClientGetter(t *testing.T) {
 		assert.Equal(t, "https://example.com", cfg.Host, "copy preserves the shared config values")
 		assert.Equal(t, rest.WarningHandler(wh), cfg.WarningHandler)
 		assert.Nil(t, shared.config.WarningHandler, "the shared config must not be mutated")
+		assert.Equal(t, 1, shared.restConfigCalls, "expected one delegated REST config lookup")
 	})
 
 	t.Run("discovery and mapper lookups delegate to the shared getter", func(t *testing.T) {
 		t.Parallel()
 		shared := &countingRESTClientGetter{config: &rest.Config{}}
-		getter := &warningRESTClientGetter{
-			RESTClientGetter: shared,
-			warningHandler:   rest.NewWarningWriter(&bytes.Buffer{}, rest.WarningWriterOptions{}),
-		}
+		getter := &warningRESTClientGetter{RESTClientGetter: shared}
 
 		gotMapper, err := getter.ToRESTMapper()
 		require.NoError(t, err)
@@ -674,8 +667,6 @@ func TestWarningRESTClientGetter(t *testing.T) {
 		require.NoError(t, err)
 		gotLoader := getter.ToRawKubeConfigLoader()
 
-		// The wrapper must forward to the shared getter (reusing its caches),
-		// returning exactly what it returns, instead of building its own.
 		assert.Equal(t, shared.mapper, gotMapper)
 		assert.Equal(t, shared.discovery, gotDiscovery)
 		assert.Equal(t, shared.rawLoader, gotLoader)
@@ -685,17 +676,12 @@ func TestWarningRESTClientGetter(t *testing.T) {
 	})
 }
 
-// TestRunResourceCommandSeparatesWarningsFromStderr verifies that the per-resource
-// message returned for the UI carries API server warnings (delivered through the
-// warning handler) but not kubectl's client-side stderr.
 func TestRunResourceCommandSeparatesWarningsFromStderr(t *testing.T) {
 	t.Parallel()
 	k, _ := newTestKubectlResourceOperations(t)
 
-	// A kubectl client-side notice printed to stderr during create-then-apply.
 	const clientSideStderr = "Warning: resource clusterrolebindings/my-crb is missing the " +
 		"kubectl.kubernetes.io/last-applied-configuration annotation which is required by kubectl apply."
-	// A genuine API server warning delivered through the warning handler.
 	const serverWarning = `would violate PodSecurity "restricted"`
 
 	message, err := k.runResourceCommand(context.Background(), testingutils.NewClusterRoleBinding(),
@@ -708,10 +694,8 @@ func TestRunResourceCommandSeparatesWarningsFromStderr(t *testing.T) {
 		})
 	require.NoError(t, err)
 
-	// The API server warning is surfaced in the UI message...
 	assert.Contains(t, message, "clusterrolebinding.rbac.authorization.k8s.io/my-crb configured")
 	assert.Contains(t, message, serverWarning)
-	// ...but kubectl's client-side stderr is not.
 	assert.NotContains(t, message, "last-applied-configuration")
 }
 

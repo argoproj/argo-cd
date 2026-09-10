@@ -82,12 +82,11 @@ const (
 	OperationFailed      OperationPhase = "Failed"
 	OperationError       OperationPhase = "Error"
 	OperationSucceeded   OperationPhase = "Succeeded"
-	OperationWarning     OperationPhase = "Warning"
 )
 
 func (os OperationPhase) Completed() bool {
 	switch os {
-	case OperationFailed, OperationError, OperationSucceeded, OperationWarning:
+	case OperationFailed, OperationError, OperationSucceeded:
 		return true
 	}
 	return false
@@ -98,28 +97,20 @@ func (os OperationPhase) Running() bool {
 }
 
 func (os OperationPhase) Successful() bool {
-	// A warning is still a successful sync. The resources were applied, the API
-	// server might return advisory warnings alongside them.
-	// (e.g. Validating Admission Webhooks/Policies, deprecated API warnings)
-	return os == OperationSucceeded || os == OperationWarning
+	return os == OperationSucceeded
 }
 
 func (os OperationPhase) Failed() bool {
 	return os == OperationFailed
 }
 
-func (os OperationPhase) Warning() bool {
-	return os == OperationWarning
-}
-
 type ResultCode string
 
 const (
-	ResultCodeSynced            ResultCode = "Synced"
-	ResultCodeSyncFailed        ResultCode = "SyncFailed"
-	ResultCodePruned            ResultCode = "Pruned"
-	ResultCodePruneSkipped      ResultCode = "PruneSkipped"
-	ResultCodeSyncedWithWarning ResultCode = "SyncedWithWarning"
+	ResultCodeSynced       ResultCode = "Synced"
+	ResultCodeSyncFailed   ResultCode = "SyncFailed"
+	ResultCodePruned       ResultCode = "Pruned"
+	ResultCodePruneSkipped ResultCode = "PruneSkipped"
 )
 
 type HookType string
