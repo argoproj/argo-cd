@@ -9,7 +9,7 @@ The criteria distinguish a type of verification they perform, and to which sourc
 Each application can be a subject of multiple checks, and the sync will be enabled only when all criteria are met.
 
 > [!NOTE]
-> Source Integrity Verification is only configured through `AppProject` manifests or CLI. UI is not supported yet.
+> Source Integrity Verification is only configured through `AppProject` manifests or CLI. The UI provides a read-only view of the configured policies in **Settings** → **Projects** → *Your Project* → **Source Integrity**.
 
 > [!NOTE]
 > Signature verification is not supported for the Application Sets populated by the git generator when they have the `project` field templated.
