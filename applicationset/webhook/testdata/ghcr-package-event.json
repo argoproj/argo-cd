@@ -1,0 +1,18 @@
+{
+  "action": "published",
+  "package": {
+    "name": "image",
+    "namespace": "org",
+    "package_type": "container",
+    "owner": {
+      "login": "org"
+    },
+    "package_version": {
+      "container_metadata": {
+        "tag": {
+          "name": "1.0.0"
+        }
+      }
+    }
+  }
+}
