@@ -452,10 +452,14 @@ func TestCreateOptionsConfiguration(t *testing.T) {
 		testCases := []struct {
 			name     string
 			strategy cmdutil.DryRunStrategy
+			validate bool
 		}{
-			{"DryRunNone", cmdutil.DryRunNone},
-			{"DryRunClient", cmdutil.DryRunClient},
-			{"DryRunServer", cmdutil.DryRunServer},
+			{"DryRunNone, novalidate", cmdutil.DryRunNone, false},
+			{"DryRunClient, novalidate", cmdutil.DryRunClient, false},
+			{"DryRunServer, novalidate", cmdutil.DryRunServer, false},
+			{"DryRunNone, validate", cmdutil.DryRunNone, true},
+			{"DryRunClient, validate", cmdutil.DryRunClient, true},
+			{"DryRunServer, validate", cmdutil.DryRunServer, true},
 		}
 
 		for _, tc := range testCases {
@@ -469,12 +473,17 @@ func TestCreateOptionsConfiguration(t *testing.T) {
 				}).Return(nil)
 
 				obj := testingutils.NewPod()
-				_, err := k.CreateResource(t.Context(), obj, tc.strategy, false)
+				_, err := k.CreateResource(t.Context(), obj, tc.strategy, tc.validate)
 				require.NoError(t, err)
 
 				assert.Equal(t, tc.strategy, capturedOpts.DryRunStrategy)
 				assert.NotEmpty(t, capturedOpts.FilenameOptions.Filenames)
 				assert.NotNil(t, capturedOpts.PrintObj)
+				if tc.validate {
+					assert.Equal(t, "Strict", capturedOpts.ValidationDirective)
+				} else {
+					assert.Equal(t, "Ignore", capturedOpts.ValidationDirective)
+				}
 			})
 		}
 	})
