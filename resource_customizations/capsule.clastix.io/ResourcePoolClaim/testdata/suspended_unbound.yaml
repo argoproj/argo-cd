@@ -1,0 +1,20 @@
+apiVersion: capsule.clastix.io/v1beta2
+kind: ResourcePoolClaim
+metadata:
+  name: solar-claim
+  namespace: solar-production
+  generation: 1
+spec:
+  poolRef:
+    name: solar-pool
+  resources:
+    cpu: "2"
+    memory: 4Gi
+status:
+  observedGeneration: 1
+  conditions:
+    - type: Bound
+      status: "False"
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: Waiting for a pool to accept the claim
+      reason: Unbound
