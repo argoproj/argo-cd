@@ -275,6 +275,37 @@ func TestGetResourceHealthPendingDeletion(t *testing.T) {
 		assert.Equal(t, "Pending deletion", h.Message)
 	})
 
+	t.Run("built-in check passes through when not terminating", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.Object = map[string]any{
+			"apiVersion": "networking.k8s.io/v1",
+			"kind":       "Ingress",
+			"metadata": map[string]any{
+				"name":      "ing",
+				"namespace": "ns",
+			},
+			"status": map[string]any{
+				"loadBalancer": map[string]any{
+					"ingress": []any{map[string]any{"hostname": "x.example.com"}},
+				},
+			},
+		}
+		h, err := GetResourceHealth(&obj, nil)
+		require.NoError(t, err)
+		require.NotNil(t, h)
+		assert.Equal(t, HealthStatusHealthy, h.Status)
+	})
+
+	t.Run("health override uses default pending deletion when terminating without deletionMessage", func(t *testing.T) {
+		h, err := GetResourceHealth(terminating(), staticHealthOverride{
+			health: &HealthStatus{Status: HealthStatusProgressing, Message: "Initializing"},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, h)
+		assert.Equal(t, HealthStatusProgressing, h.Status)
+		assert.Equal(t, "Pending deletion", h.Message)
+	})
+
 	t.Run("health override uses custom deletionMessage", func(t *testing.T) {
 		h, err := GetResourceHealth(terminating(), staticHealthOverride{
 			health: &HealthStatus{
@@ -314,6 +345,21 @@ func TestGetResourceHealthPendingDeletion(t *testing.T) {
 		require.NotNil(t, h)
 		assert.Equal(t, HealthStatusProgressing, h.Status)
 		assert.Equal(t, "Pending deletion", h.Message)
+	})
+
+	t.Run("no health check returns nil when not terminating", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.Object = map[string]any{
+			"apiVersion": "widgets.example.com/v1",
+			"kind":       "Widget",
+			"metadata": map[string]any{
+				"name":      "widget",
+				"namespace": "ns",
+			},
+		}
+		h, err := GetResourceHealth(&obj, nil)
+		require.NoError(t, err)
+		assert.Nil(t, h)
 	})
 }
 
