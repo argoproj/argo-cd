@@ -10,7 +10,7 @@ approvers:
   - TBD
 
 creation-date: 2026-07-26
-last-updated: 2026-07-26
+last-updated: 2026-09-10
 ---
 
 # Expose API server warnings on Argo CD UI
@@ -23,24 +23,17 @@ Related Issues:
 
 ## Open Questions
 
-- **Should we add new `Warning` operation phase and the `SyncedWithWarning` result code?** A warning
-  does not block the change. The resource is applied successfully and the API server merely returns
-  an advisory warning alongside it. This is exactly how kubectl treats it. A warning is still a success.
-  Both new states therefore describe a "succeeded, but with a warning" outcome, so a fair question is
-  whether we need a new result code at all. We could instead keep the existing `Succeeded` phase and
-  `Synced` result code and carry the warning text only in the per-resource message. Introducing the new
-  states makes the warning a first-class, visible signal, but the application-level `Warning` phase
-  in particular has a cost. An older `argocd` CLI does not recognize it and treats it as a failed sync
-  (see the Upgrade / Downgrade Strategy section). Is the added visibility worth new states and the
-  backward-compatibility break?
-- **If we add the `Warning` operation phase, does it need a feature gate?** The phase is the only
-  part of this proposal that breaks an older client, so one option is to gate it behind a controller
-  setting that defaults to off and can flip to on in a later major version. See the Upgrade /
-  Downgrade Strategy section for the details.
-- **If we keep the result code, is `SyncedWithWarning` the right name?** It sits next to `Synced`,
-  `SyncFailed`, `Pruned`, and `PruneSkipped`. Does it read clearly alongside those, and does it
-  warrant a UI label and color that is clearly distinct from both `Synced` and `SyncFailed`?
-- **Are the changes to gitops-engine acceptable, especially how the warning handler is injected?**
+* **Is `SyncWarning` the right application condition type?** gitops-engine captures the warning
+	during the sync operation, but the controller builds Application conditions later during
+	reconciliation. Without adding a field to the Application CRD, the sync result message is the only
+	place where that signal is preserved, so the controller looks for the `Warning:` prefix there.
+	`KubeAPIWarning` was considered, but `SyncWarning` matches the sync result source and leaves room
+	for other warning sources that may use the same path later.
+* **How many resources should the condition list?** It lists up to 10 and folds the rest into a
+  count. A condition message has no length limit of its own today, but it is not unbounded either,
+  since the whole Application still has to fit within the etcd request size. The number is a
+  readability call more than a hard constraint.
+* **Are the changes to gitops-engine acceptable, especially how the warning handler is injected?**
   This proposal touches a fair amount of gitops-engine. It changes the `ResourceOperations` layer,
   `runResourceCommand`, and the per-operation client wiring. The most delicate part is how the
   per-operation `WarningHandler` reaches the kubectl command path. We wrap the shared
@@ -58,9 +51,9 @@ Validating Admission Webhook or Policy, or a deprecated API), that warning is cu
 to the application-controller log, so users never see it in the UI. This proposal surfaces those
 warnings per resource. As the application-controller creates, updates, or deletes a resource, a
 per-operation client-go `WarningHandler` records any API server warning and folds it into that
-resource's sync message. A new `SyncedWithWarning` result code marks the resource so the UI can flag
-it, and a new `Warning` operation phase aggregates this at the Application level. Both are treated as a
-successful sync, because a warning does not block the change.
+resource's sync message. The application controller then reports a `SyncWarning` application condition listing the
+resources that warned, so the UI can flag the Application. The sync stays `Succeeded` and the
+Application stays `Synced`, because a warning does not block the change.
 
 ## Motivation
 
@@ -96,12 +89,12 @@ warning to that operation command's stderr. client-go folds the captured warning
 with a `Warning:` prefix, and it is preserved, together with the normal output, as that resource's
 sync message.
 
-The Argo CD UI already displays sync results on a per-resource basis, so the warning message can be
-surfaced there as part of the result. In addition, a new result code `SyncedWithWarning` is assigned
-to messages containing `Warning:`, indicating that the sync itself succeeded even though warnings
-were emitted. For application-level aggregation, a new operation phase `Warning` is added, which is
-treated as a successful state (`Successful()` returns true). This lets users see at a glance whether
-any warnings were emitted, directly from the UI.
+The Argo CD UI already displays sync results on a per-resource basis, so the warning message is
+surfaced there as part of the result. For application level visibility the application controller adds
+a `SyncWarning` application condition listing the resources whose sync message carries a warning. Argo CD renders
+any condition type ending in `Warning` as a warning, so the existing status bar picks it up without a
+UI change. No sync status or operation phase changes, so a sync that warns still reports `Succeeded`
+and the Application still reports `Synced`.
 
 ### Use cases
 
@@ -274,24 +267,47 @@ only extra memory an operation allocates is a small stderr buffer and a shallow 
 holds even when a single Application syncs thousands of resources, or when many Applications sync at
 the same time.
 
-#### Turning captured warnings into a result code
+#### SyncWarning application condition
 
 By the time an operation returns, client-go has folded any captured warnings into its message with a
-`Warning:` prefix. `applyObject` uses that prefix to flag the resource with the new
-`SyncedWithWarning` result code, while keeping the full message (normal output plus warnings) intact:
+`Warning:` prefix, and that message is stored on the resource under
+`status.operationState.syncResult.resources`.
+
+On every reconciliation the application controller scans those messages. When a successful sync has
+any, it reports a `SyncWarning` condition.
 
 ```go
-func (sc *syncContext) applyObject(ctx context.Context, t *syncTask, dryRun, validate bool) (common.ResultCode, string) {
-	// ...
-
-	if strings.Contains(message, "Warning:") {
-		return common.ResultCodeSyncedWithWarning, message
+func syncWarningCondition(state *v1alpha1.OperationState, now metav1.Time) *v1alpha1.ApplicationCondition {
+	if state == nil || state.SyncResult == nil || !state.Phase.Successful() {
+		return nil
 	}
-	return common.ResultCodeSynced, message
+
+	warned := make([]*v1alpha1.ResourceResult, 0, len(state.SyncResult.Resources))
+	for _, res := range state.SyncResult.Resources {
+		if res != nil && strings.Contains(res.Message, syncWarningPrefix) {
+			warned = append(warned, res)
+		}
+	}
+	// ... name up to maxSyncWarningResourcesShown of them, summarise the rest as a count
 }
 ```
 
-This `SyncedWithWarning` result code is what the UI keys off to surface warnings per resource.
+The condition message would look like this.
+
+```text
+The last sync completed successfully but reported warnings for 2 resources
+apps/Deployment:default/guestbook-ui, Service:default/guestbook-ui.
+See each resource's message in the sync result for details.
+```
+
+Because `SetConditions` evaluates this type on every reconciliation, the condition disappears after
+a later successful sync completes without warnings.
+
+The condition only stores the resource list. Warning text stays on each resource result, which keeps
+the Application condition small even when many resources report warnings.
+
+No UI change is needed. Argo CD already renders condition types ending in `Warning` as warnings, so
+the UI and Argo CD CLI pick it up unchanged.
 
 #### Excluding kubectl's own client-side warnings
 
@@ -308,17 +324,17 @@ warnings this proposal is about. There are two distinct sources:
   `last-applied-configuration` annotation) and then `kubectl apply`, so apply prints
   `Warning: resource ... is missing the ... last-applied-configuration annotation ...`.
 
-##### How a client-side warning caused a false `SyncedWithWarning`
+##### False warnings from kubectl's client-side output
 
 Originally the resource operations layer folded kubectl's stdout **and** stderr into the per-resource
 message, and the warning handler wrote into that same stderr buffer. API server warnings and
-kubectl's client-side warnings therefore ended up mixed in one message. Because the result-code check
-was a plain `strings.Contains(message, "Warning:")`, a client-side warning alone was enough to flag a
-resource as `SyncedWithWarning` even though the API server never returned anything. The RBAC
+kubectl's client-side warnings therefore ended up mixed in one message. Because the check is a plain
+`strings.Contains(message, "Warning: ")`, a client-side warning alone was enough to raise the
+condition even though the API server never returned anything. The RBAC
 create-then-apply above is exactly that case. The sync succeeds cleanly, yet the resource was reported
 with a warning.
 
-##### kubectl's stderr only carries warnings, never results
+##### kubectl's stderr
 
 On a successful operation, kubectl writes only warnings to its stderr. The real result
 (`configured`, `created`, `unchanged`, the object JSON) is always written to stdout,
@@ -353,10 +369,10 @@ func (k *kubectlResourceOperations) runResourceCommand(_ context.Context, obj *u
 ```
 
 With the streams separated, the `strings.Contains(message, "Warning:")` check now only ever sees
-genuine API server warnings, so a resource is flagged `SyncedWithWarning` only when the API server
-actually returned one. The RBAC create-then-apply no longer trips it.
+genuine API server warnings, so the condition is raised only when the API server actually returned
+one. The RBAC create-then-apply no longer trips it.
 
-##### Only client-side warnings are dropped, and none is actionable today
+##### Dropping client-side warnings
 
 This is deliberately narrow. The only thing removed from the message is kubectl's client-side
 warnings, and as of today none of them is something Argo CD needs to surface. They are all about
@@ -407,55 +423,29 @@ warnings to show on every sync, enable server-side apply for the Application.
 
 ### Upgrade / Downgrade Strategy
 
-#### Older CLIs treat a `Warning` phase as a failure
+This only adds a `SyncWarning` Application condition, so the upgrade does not
+change the Application CRD schema, sync status, or operation phase.
 
-This proposal adds a new `Warning` operation phase. The server treats it as a successful state
-(`Successful()` returns true), but an older `argocd` CLI does not know about the new phase. Its
-`Successful()` check does not include `Warning`, so it reads the phase as a failure and exits with a
-non-zero status.
-
-Running `argocd app sync` from an older CLI against an updated server therefore prints the sync result
-correctly, but then exits non-zero on the final line:
-
-```text
-GROUP  KIND        NAMESPACE  NAME          STATUS  HEALTH   HOOK  MESSAGE
-       Service     default    guestbook-ui  Synced  Healthy        service/guestbook-ui created. Warning: policy warn-always-...: Warning for Service/guestbook-ui
-apps   Deployment  default    guestbook-ui  Synced  Healthy        deployment.apps/guestbook-ui created. Warning: policy warn-always-...: Warning for Deployment/guestbook-ui
-
-Operation:          Sync
-Phase:              Warning
-Message:            synced with warnings (all tasks run)
-{"level":"fatal","msg":"Operation has completed with phase: Warning","time":"2026-07-22T15:39:32+09:00"}
-```
-
-To avoid this, upgrade the `argocd` CLI to a version that matches the server. Until then, a `Warning`
-phase from a newer server will read as a failed sync on the older CLI, even though the sync itself
-succeeded.
-
-#### Gating the `Warning` phase behind a controller setting
-
-To roll the new phase out without breaking existing clients, the application-controller can expose a
-setting that gates whether an operation is allowed to report the `Warning` phase. It defaults to off,
-and a later major version can flip the default to on once clients have had time to upgrade.
-
-The setting only needs to gate the application-level `Warning` phase, because that is the sole part of
-this proposal that breaks an older client. The per-resource warning message and the
-`SyncedWithWarning` result code stay on regardless. An older CLI or UI shows them as an unknown status
-string without failing, so users still see warnings per resource even while the gate is off. With the
-gate off, an operation that has resource warnings still aggregates to `Succeeded` at the Application
-level, which keeps an older CLI working.
-
-A likely home for the setting is `argocd-cm`, for example `application.sync.warningStatus.enabled`
-defaulting to `"false"`. A more conservative option is to gate the whole feature (the warning message
-and result code included) behind the same setting, but that hides warnings entirely until the gate is
-turned on, so the feature delivers no value by default.
+After downgrade, the `SyncWarning` condition is no longer set. Users only lose the warning message
+shown through that condition.
 
 ## Drawbacks
 
 ## Alternatives
 
-Two earlier approaches were tried before the design above. Both are recorded here with the reason we
-moved on.
+Earlier approaches, with the reason each was set aside.
+
+### New sync status and operation phase
+
+One option was to expose warnings as sync state. A `SyncedWithWarning` result code would mark each
+warned resource, and a `Warning` operation phase would aggregate them at the Application level while
+still treating the sync as successful.
+
+It was set aside because it adds a new sync status and a new operation state for an outcome that is
+already `Synced` and `Succeeded`. The phase also breaks compatibility. An older `argocd` CLI does not
+include `Warning` in its `Successful()` check, so it reads a successful sync as a failure and exits
+with a non zero status. Containing that would have meant gating the phase behind a controller setting
+defaulting to off, and flipping the default only in a later major version.
 
 ### A single shared warning handler
 
