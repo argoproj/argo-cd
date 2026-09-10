@@ -28,8 +28,8 @@ const (
 	// clamps the page size to its MAX_RESPONSE_ITEMS setting, so a short page
 	// does not mean the last page.
 	giteaPageSize = 50
-	// giteaMaxPages bounds the paging loops so that a server which ignores the
-	// page parameter fails loudly instead of looping forever.
+	// giteaMaxPages bounds the paging loops so that a server which never reports
+	// the end of a list fails loudly instead of looping forever.
 	giteaMaxPages = 1000
 )
 
@@ -97,12 +97,11 @@ func (g *GiteaProvider) GetBranches(ctx context.Context, repo *Repository) ([]*R
 		}, nil
 	}
 	repos := []*Repository{}
-	for page := 1; page <= giteaMaxPages; page++ {
+	firstOfPreviousPage := ""
+	for page := 1; ; page++ {
 		opts := gitea.ListRepoBranchesOptions{
-			ListOptions: gitea.ListOptions{
-				Page:     page,
-				PageSize: giteaPageSize,
-			},
+			Page:     page,
+			PageSize: giteaPageSize,
 		}
 		branches, resp, err := g.client.ListRepoBranches(g.owner, repo.Repository, opts)
 		if err != nil {
@@ -111,6 +110,13 @@ func (g *GiteaProvider) GetBranches(ctx context.Context, repo *Repository) ([]*R
 		if len(branches) == 0 {
 			return repos, nil
 		}
+		if page > giteaMaxPages {
+			return nil, fmt.Errorf("gitea returned more than %d pages of branches for repo %q", giteaMaxPages, repo.Repository)
+		}
+		if page > 1 && branches[0].Name == firstOfPreviousPage {
+			return nil, fmt.Errorf("gitea returned the same branches on pages %d and %d for repo %q, the server is not honouring the page parameter", page-1, page, repo.Repository)
+		}
+		firstOfPreviousPage = branches[0].Name
 		for _, branch := range branches {
 			repos = append(repos, &Repository{
 				Organization: repo.Organization,
@@ -126,7 +132,6 @@ func (g *GiteaProvider) GetBranches(ctx context.Context, repo *Repository) ([]*R
 			return repos, nil
 		}
 	}
-	return nil, fmt.Errorf("gitea returned more than %d pages of branches for repo %q", giteaMaxPages, repo.Repository)
 }
 
 func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
@@ -134,12 +139,11 @@ func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]
 
 	repos := []*Repository{}
 	fetched := 0
-	for page := 1; page <= giteaMaxPages; page++ {
+	firstOfPreviousPage := int64(0)
+	for page := 1; ; page++ {
 		repoOpts := gitea.ListOrgReposOptions{
-			ListOptions: gitea.ListOptions{
-				Page:     page,
-				PageSize: giteaPageSize,
-			},
+			Page:     page,
+			PageSize: giteaPageSize,
 		}
 		giteaRepos, resp, err := g.client.ListOrgRepos(g.owner, repoOpts)
 		if err != nil {
@@ -148,8 +152,19 @@ func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]
 		if len(giteaRepos) == 0 {
 			return repos, nil
 		}
+		if page > giteaMaxPages {
+			return nil, fmt.Errorf("gitea returned more than %d pages of repositories for org %q", giteaMaxPages, g.owner)
+		}
+		if page > 1 && giteaRepos[0].ID == firstOfPreviousPage {
+			return nil, fmt.Errorf("gitea returned the same repositories on pages %d and %d for org %q, the server is not honouring the page parameter", page-1, page, g.owner)
+		}
+		firstOfPreviousPage = giteaRepos[0].ID
 		fetched += len(giteaRepos)
 		for _, repo := range giteaRepos {
+			if g.excludeArchivedRepos && repo.Archived {
+				continue
+			}
+
 			var url string
 			switch cloneProtocol {
 			// Default to SSH if unspecified (i.e. if "").
@@ -165,10 +180,6 @@ func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]
 				return nil, fmt.Errorf("error listing labels for repo %q: %w", repo.Name, err)
 			}
 
-			if g.excludeArchivedRepos && repo.Archived {
-				continue
-			}
-
 			repos = append(repos, &Repository{
 				Organization: g.owner,
 				Repository:   repo.Name,
@@ -182,19 +193,17 @@ func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]
 			return repos, nil
 		}
 	}
-	return nil, fmt.Errorf("gitea returned more than %d pages of repositories for org %q", giteaMaxPages, g.owner)
 }
 
 // listRepoLabels returns every label defined on the given repository. The
 // caller is responsible for setting the client context.
 func (g *GiteaProvider) listRepoLabels(repo string) ([]string, error) {
 	labels := []string{}
-	for page := 1; page <= giteaMaxPages; page++ {
+	firstOfPreviousPage := int64(0)
+	for page := 1; ; page++ {
 		labelOpts := gitea.ListLabelsOptions{
-			ListOptions: gitea.ListOptions{
-				Page:     page,
-				PageSize: giteaPageSize,
-			},
+			Page:     page,
+			PageSize: giteaPageSize,
 		}
 		giteaLabels, resp, err := g.client.ListRepoLabels(g.owner, repo, labelOpts)
 		if err != nil {
@@ -203,6 +212,13 @@ func (g *GiteaProvider) listRepoLabels(repo string) ([]string, error) {
 		if len(giteaLabels) == 0 {
 			return labels, nil
 		}
+		if page > giteaMaxPages {
+			return nil, fmt.Errorf("gitea returned more than %d pages of labels for repo %q", giteaMaxPages, repo)
+		}
+		if page > 1 && giteaLabels[0].ID == firstOfPreviousPage {
+			return nil, fmt.Errorf("gitea returned the same labels on pages %d and %d for repo %q, the server is not honouring the page parameter", page-1, page, repo)
+		}
+		firstOfPreviousPage = giteaLabels[0].ID
 		for _, label := range giteaLabels {
 			labels = append(labels, label.Name)
 		}
@@ -210,7 +226,6 @@ func (g *GiteaProvider) listRepoLabels(repo string) ([]string, error) {
 			return labels, nil
 		}
 	}
-	return nil, fmt.Errorf("gitea returned more than %d pages of labels for repo %q", giteaMaxPages, repo)
 }
 
 func (g *GiteaProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {

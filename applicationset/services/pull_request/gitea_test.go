@@ -496,3 +496,68 @@ func TestGiteaListPaginates(t *testing.T) {
 		})
 	}
 }
+
+// giteaEndlessPullsHandler serves a full page of pull requests for every
+// request and never sends X-Total-Count, so the client has no signal that the
+// list ended. When repeatPage is true it serves the same page every time, the
+// way a server that ignores the page parameter would.
+func giteaEndlessPullsHandler(t *testing.T, repeatPage bool) http.Handler {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/version", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"version":"1.17.0+dev-452-g1f0541780"}`)
+	})
+	mux.HandleFunc("/api/v1/repos/test-argocd/pr-test/pulls", func(w http.ResponseWriter, r *http.Request) {
+		page, limit, ok := giteaPageBounds(t, w, r, giteaPageSize)
+		if !ok {
+			return
+		}
+		if repeatPage {
+			page = 1
+		}
+
+		prs := make([]string, 0, limit)
+		for i := range limit {
+			number := (page-1)*limit + i + 1
+			prs = append(prs, fmt.Sprintf(`{
+				"number": %d,
+				"title": "pr-%d",
+				"user": {"username": "graytshirt"},
+				"state": "open",
+				"base": {"ref": "main", "sha": "72687815ccba81ef014a96201cc2e846a68789d8"},
+				"head": {"ref": "branch-%d", "sha": "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f"}
+			}`, number, number, number))
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, "["+strings.Join(prs, ",")+"]")
+	})
+	return mux
+}
+
+func TestGiteaListRejectsRepeatedPage(t *testing.T) {
+	t.Parallel()
+	ts := httptest.NewServer(giteaEndlessPullsHandler(t, true))
+	defer ts.Close()
+
+	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", nil, false, "", "")
+	require.NoError(t, err)
+
+	_, err = host.List(t.Context())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not honouring the page parameter")
+}
+
+func TestGiteaListStopsAtMaxPages(t *testing.T) {
+	t.Parallel()
+	ts := httptest.NewServer(giteaEndlessPullsHandler(t, false))
+	defer ts.Close()
+
+	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", nil, false, "", "")
+	require.NoError(t, err)
+
+	_, err = host.List(t.Context())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), fmt.Sprintf("more than %d pages", giteaMaxPages))
+}

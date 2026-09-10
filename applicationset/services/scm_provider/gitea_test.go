@@ -1074,3 +1074,35 @@ func TestGiteaGetBranchesPaginates(t *testing.T) {
 		})
 	}
 }
+
+func TestGiteaListReposRejectsRepeatedPage(t *testing.T) {
+	t.Parallel()
+	// A server that ignores the page parameter serves the first page forever.
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/version", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"version":"1.17.0+dev-452-g1f0541780"}`)
+	})
+	mux.HandleFunc("/api/v1/orgs/test-argocd/repos", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `[{
+			"id": 1,
+			"name": "repo-1",
+			"default_branch": "main",
+			"ssh_url": "git@gitea.com:test-argocd/repo-1.git"
+		}]`)
+	})
+	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `[]`)
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	provider, err := NewGiteaProvider("test-argocd", "", ts.URL, false, false, false, "", "")
+	require.NoError(t, err)
+
+	_, err = provider.ListRepos(t.Context(), "ssh")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not honouring the page parameter")
+}

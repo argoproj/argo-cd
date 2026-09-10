@@ -28,8 +28,8 @@ const (
 	// clamps the page size to its MAX_RESPONSE_ITEMS setting, so a short page
 	// does not mean the last page.
 	giteaPageSize = 50
-	// giteaMaxPages bounds the paging loop so that a server which ignores the
-	// page parameter fails loudly instead of looping forever.
+	// giteaMaxPages bounds the paging loop so that a server which never reports
+	// the end of a list fails loudly instead of looping forever.
 	giteaMaxPages = 1000
 )
 
@@ -79,13 +79,12 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 	g.client.SetContext(ctx)
 	list := []*PullRequest{}
 	fetched := 0
-	for page := 1; page <= giteaMaxPages; page++ {
+	firstOfPreviousPage := int64(0)
+	for page := 1; ; page++ {
 		opts := gitea.ListPullRequestsOptions{
-			ListOptions: gitea.ListOptions{
-				Page:     page,
-				PageSize: giteaPageSize,
-			},
-			State: gitea.StateOpen,
+			Page:     page,
+			PageSize: giteaPageSize,
+			State:    gitea.StateOpen,
 		}
 		prs, resp, err := g.client.ListRepoPullRequests(g.owner, g.repo, opts)
 		if err != nil {
@@ -99,6 +98,13 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 		if len(prs) == 0 {
 			return list, nil
 		}
+		if page > giteaMaxPages {
+			return nil, fmt.Errorf("gitea returned more than %d pages of pull requests for repo %q", giteaMaxPages, g.repo)
+		}
+		if page > 1 && prs[0].Index == firstOfPreviousPage {
+			return nil, fmt.Errorf("gitea returned the same pull requests on pages %d and %d for repo %q, the server is not honouring the page parameter", page-1, page, g.repo)
+		}
+		firstOfPreviousPage = prs[0].Index
 		fetched += len(prs)
 
 		for _, pr := range prs {
@@ -119,7 +125,6 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 			return list, nil
 		}
 	}
-	return nil, fmt.Errorf("gitea returned more than %d pages of pull requests for repo %q", giteaMaxPages, g.repo)
 }
 
 // containLabels returns true if gotLabels contains expectedLabels
