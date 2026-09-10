@@ -1,59 +1,59 @@
-Tests:
-- HealthStatus:
+tests:
+- healthStatus:
     message: Initializing git commit validation
     status: Progressing
-  InputPath: testdata/no-status.yaml
-- HealthStatus:
+  inputPath: testdata/no-status.yaml
+- healthStatus:
     message: GitCommitStatus is being deleted
     status: Progressing
-  InputPath: testdata/deleting.yaml
-- HealthStatus:
+  inputPath: testdata/deleting.yaml
+- healthStatus:
     message: Waiting for GitCommitStatus spec update to be observed
     status: Progressing
-  InputPath: testdata/observed-generation-outdated.yaml
-- HealthStatus:
+  inputPath: testdata/observed-generation-outdated.yaml
+- healthStatus:
     message: 'Git commit validation failed: Something went wrong'
     status: Degraded
-  InputPath: testdata/reconcile-error.yaml
-- HealthStatus:
+  inputPath: testdata/reconcile-error.yaml
+- healthStatus:
     message: 'Git commit validation not ready (CommitStatusesNotReady): CommitStatus
       "git-commit-check-env-dev-git-commit-check" is not Ready because "ReconciliationError":
       Failed to sync to SCM'
     status: Degraded
-  InputPath: testdata/commit-statuses-not-ready.yaml
-- HealthStatus:
+  inputPath: testdata/commit-statuses-not-ready.yaml
+- healthStatus:
     message: GitCommitStatus Ready condition is missing
     status: Progressing
-  InputPath: testdata/no-ready-condition.yaml
-- HealthStatus:
+  inputPath: testdata/no-ready-condition.yaml
+- healthStatus:
     message: 'Git commit validation status unknown (CommitStatusesNotReady): CommitStatus
       "child" Ready condition is missing'
     status: Progressing
-  InputPath: testdata/ready-unknown.yaml
-- HealthStatus:
+  inputPath: testdata/ready-unknown.yaml
+- healthStatus:
     message: Git commit validation reconciled
     status: Healthy
-  InputPath: testdata/empty-environments.yaml
-- HealthStatus:
+  inputPath: testdata/empty-environments.yaml
+- healthStatus:
     message: Git commit validation passed for 2 environment(s)
     status: Healthy
-  InputPath: testdata/all-success.yaml
-- HealthStatus:
+  inputPath: testdata/all-success.yaml
+- healthStatus:
     message: 'Git commit validation pending for branch(es): env/dev'
     status: Progressing
-  InputPath: testdata/environment-pending.yaml
-- HealthStatus:
+  inputPath: testdata/environment-pending.yaml
+- healthStatus:
     message: 'Git commit validation failed for branch(es): env/dev'
     status: Degraded
-  InputPath: testdata/environment-failure.yaml
-- HealthStatus:
+  inputPath: testdata/environment-failure.yaml
+- healthStatus:
     message: |-
       Git commit validation failed: Reconciliation failed: failed to process environments: failed to evaluate expression for branch "env/dev": failed to compile expression: failed to compile expression: type string has no method startsWith (1:16)
        | Commit.Subject.startsWith("chore:")
        | ...............^
     status: Degraded
-  InputPath: testdata/expression-compile-error.yaml
-- HealthStatus:
+  inputPath: testdata/expression-compile-error.yaml
+- healthStatus:
     message: GitCommitStatus is being deleted
     status: Progressing
-  InputPath: testdata/terminating.yaml
+  inputPath: testdata/terminating.yaml

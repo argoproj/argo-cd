@@ -1,38 +1,38 @@
-Tests:
-- HealthStatus:
+tests:
+- healthStatus:
     message: Initializing Argo CD commit status
     status: Progressing
-  InputPath: testdata/no-status.yaml
-- HealthStatus:
+  inputPath: testdata/no-status.yaml
+- healthStatus:
     message: Argo CD commit status is being deleted
     status: Progressing
-  InputPath: testdata/deleting.yaml
-- HealthStatus:
+  inputPath: testdata/deleting.yaml
+- healthStatus:
     message: Waiting for Argo CD commit status spec update to be observed
     status: Progressing
-  InputPath: testdata/observed-generation-outdated.yaml
-- HealthStatus:
+  inputPath: testdata/observed-generation-outdated.yaml
+- healthStatus:
     message: 'Argo CD commit status reconciliation failed: Something went wrong'
     status: Degraded
-  InputPath: testdata/reconcile-error.yaml
-- HealthStatus:
+  inputPath: testdata/reconcile-error.yaml
+- healthStatus:
     message: 'Argo CD commit status reconciliation failed: Failed to query Argo CD
       applications: connection timeout'
     status: Degraded
-  InputPath: testdata/non-reconciliation-error.yaml
-- HealthStatus:
+  inputPath: testdata/non-reconciliation-error.yaml
+- healthStatus:
     message: Argo CD commit status is not ready yet
     status: Progressing
-  InputPath: testdata/no-ready-condition.yaml
-- HealthStatus:
+  inputPath: testdata/no-ready-condition.yaml
+- healthStatus:
     message: Argo CD commit status has no applications configured
     status: Degraded
-  InputPath: testdata/no-applications.yaml
-- HealthStatus:
+  inputPath: testdata/no-applications.yaml
+- healthStatus:
     message: Argo CD commit status is healthy and is tracking 2 applications
     status: Healthy
-  InputPath: testdata/all-healthy.yaml
-- HealthStatus:
+  inputPath: testdata/all-healthy.yaml
+- healthStatus:
     message: Argo CD commit status is being deleted
     status: Progressing
-  InputPath: testdata/terminating.yaml
+  inputPath: testdata/terminating.yaml

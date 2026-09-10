@@ -1,42 +1,42 @@
-Tests:
-- HealthStatus:
+tests:
+- healthStatus:
     message: Initializing timed commit gate
     status: Progressing
-  InputPath: testdata/no-status.yaml
-- HealthStatus:
+  inputPath: testdata/no-status.yaml
+- healthStatus:
     message: TimedCommitStatus is being deleted
     status: Progressing
-  InputPath: testdata/deleting.yaml
-- HealthStatus:
+  inputPath: testdata/deleting.yaml
+- healthStatus:
     message: Waiting for TimedCommitStatus spec update to be observed
     status: Progressing
-  InputPath: testdata/observed-generation-outdated.yaml
-- HealthStatus:
+  inputPath: testdata/observed-generation-outdated.yaml
+- healthStatus:
     message: 'Timed commit gate failed: Reconciliation failed: PromotionStrategy not
       found'
     status: Degraded
-  InputPath: testdata/reconcile-error.yaml
-- HealthStatus:
+  inputPath: testdata/reconcile-error.yaml
+- healthStatus:
     message: TimedCommitStatus Ready condition is missing
     status: Progressing
-  InputPath: testdata/no-ready-condition.yaml
-- HealthStatus:
+  inputPath: testdata/no-ready-condition.yaml
+- healthStatus:
     message: Timed commit gate reconciled
     status: Healthy
-  InputPath: testdata/empty-environments.yaml
-- HealthStatus:
+  inputPath: testdata/empty-environments.yaml
+- healthStatus:
     message: 'Timed commit gate pending for branch(es): env/dev'
     status: Progressing
-  InputPath: testdata/environment-pending.yaml
-- HealthStatus:
+  inputPath: testdata/environment-pending.yaml
+- healthStatus:
     message: Timed commit gate satisfied for 2 environment(s)
     status: Healthy
-  InputPath: testdata/all-success.yaml
-- HealthStatus:
+  inputPath: testdata/all-success.yaml
+- healthStatus:
     message: 'Timed commit gate failed for branch(es): env/dev'
     status: Degraded
-  InputPath: testdata/environment-failure.yaml
-- HealthStatus:
+  inputPath: testdata/environment-failure.yaml
+- healthStatus:
     message: TimedCommitStatus is being deleted
     status: Progressing
-  InputPath: testdata/terminating.yaml
+  inputPath: testdata/terminating.yaml

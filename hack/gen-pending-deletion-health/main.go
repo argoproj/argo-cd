@@ -37,6 +37,12 @@ type healthTestFile struct {
 	} `yaml:"tests"`
 }
 
+type healthTestFileLegacy struct {
+	Tests []struct {
+		InputPath string `yaml:"InputPath"`
+	} `yaml:"Tests"`
+}
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -149,6 +155,8 @@ func removeTerminatingTestCase(content string) string {
 	patterns := []string{
 		"\n- healthStatus:\n    status: Progressing\n    message: \"Pending deletion; blocked by finalizers: example.com/finalizer\"\n  inputPath: testdata/terminating.yaml",
 		"\n  - healthStatus:\n      status: Progressing\n      message: \"Pending deletion; blocked by finalizers: example.com/finalizer\"\n    inputPath: testdata/terminating.yaml",
+		"\n- HealthStatus:\n    status: Progressing\n    message: \"Pending deletion; blocked by finalizers: example.com/finalizer\"\n  InputPath: testdata/terminating.yaml",
+		"\n  - HealthStatus:\n      status: Progressing\n      message: \"Pending deletion; blocked by finalizers: example.com/finalizer\"\n    InputPath: testdata/terminating.yaml",
 	}
 	for _, pattern := range patterns {
 		content = strings.ReplaceAll(content, pattern, "")
@@ -158,10 +166,18 @@ func removeTerminatingTestCase(content string) string {
 
 func hasTerminatingTestCase(content string) bool {
 	var tests healthTestFile
-	if err := yaml.Unmarshal([]byte(content), &tests); err != nil {
+	if err := yaml.Unmarshal([]byte(content), &tests); err == nil {
+		for _, test := range tests.Tests {
+			if test.InputPath == terminatingInputPath {
+				return true
+			}
+		}
+	}
+	var legacy healthTestFileLegacy
+	if err := yaml.Unmarshal([]byte(content), &legacy); err != nil {
 		return false
 	}
-	for _, test := range tests.Tests {
+	for _, test := range legacy.Tests {
 		if test.InputPath == terminatingInputPath {
 			return true
 		}
@@ -178,12 +194,17 @@ func terminatingTestCase(existingContent string) string {
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
-		if strings.HasSuffix(trimmed, "- healthStatus:") || trimmed == "- healthStatus:" {
-			if idx := strings.Index(line, "- healthStatus:"); idx > 0 {
-				listIndent = line[:idx]
-				statusIndent = listIndent + "    "
-				inputIndent = listIndent + "  "
+		for _, marker := range []string{"- healthStatus:", "- HealthStatus:"} {
+			if strings.HasSuffix(trimmed, marker) || trimmed == marker {
+				if idx := strings.Index(line, marker); idx >= 0 {
+					listIndent = line[:idx]
+					statusIndent = listIndent + "    "
+					inputIndent = listIndent + "  "
+				}
+				break
 			}
+		}
+		if listIndent != "" || strings.HasPrefix(trimmed, "- healthStatus:") || strings.HasPrefix(trimmed, "- HealthStatus:") {
 			break
 		}
 	}

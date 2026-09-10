@@ -1,42 +1,42 @@
-Tests:
-- HealthStatus:
+tests:
+- healthStatus:
     message: Initializing commit status
     status: Progressing
-  InputPath: testdata/no-status.yaml
-- HealthStatus:
+  inputPath: testdata/no-status.yaml
+- healthStatus:
     message: Commit status is being deleted
     status: Progressing
-  InputPath: testdata/deleting.yaml
-- HealthStatus:
+  inputPath: testdata/deleting.yaml
+- healthStatus:
     message: Waiting for commit status spec update to be observed
     status: Progressing
-  InputPath: testdata/observed-generation-outdated.yaml
-- HealthStatus:
+  inputPath: testdata/observed-generation-outdated.yaml
+- healthStatus:
     message: 'Commit status reconciliation failed: Something went wrong'
     status: Degraded
-  InputPath: testdata/reconcile-error.yaml
-- HealthStatus:
+  inputPath: testdata/reconcile-error.yaml
+- healthStatus:
     message: 'Commit status reconciliation failed: Failed to update commit status:
       API request failed'
     status: Degraded
-  InputPath: testdata/non-reconciliation-error.yaml
-- HealthStatus:
+  inputPath: testdata/non-reconciliation-error.yaml
+- healthStatus:
     message: Commit status is not ready yet
     status: Progressing
-  InputPath: testdata/no-ready-condition.yaml
-- HealthStatus:
+  inputPath: testdata/no-ready-condition.yaml
+- healthStatus:
     message: Commit status for commit abc1234 reports success
     status: Healthy
-  InputPath: testdata/success.yaml
-- HealthStatus:
+  inputPath: testdata/success.yaml
+- healthStatus:
     message: Commit status for commit abc1234 reports pending
     status: Healthy
-  InputPath: testdata/pending.yaml
-- HealthStatus:
+  inputPath: testdata/pending.yaml
+- healthStatus:
     message: Commit status for commit abc1234 reports failure
     status: Healthy
-  InputPath: testdata/failure.yaml
-- HealthStatus:
+  inputPath: testdata/failure.yaml
+- healthStatus:
     message: Commit status is being deleted
     status: Progressing
-  InputPath: testdata/terminating.yaml
+  inputPath: testdata/terminating.yaml

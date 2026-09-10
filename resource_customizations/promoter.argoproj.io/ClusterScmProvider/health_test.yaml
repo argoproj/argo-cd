@@ -1,38 +1,38 @@
-Tests:
-- HealthStatus:
+tests:
+- healthStatus:
     message: Initializing cluster SCM provider
     status: Progressing
-  InputPath: testdata/no-status.yaml
-- HealthStatus:
+  inputPath: testdata/no-status.yaml
+- healthStatus:
     message: 'ClusterScmProvider is being deleted. clusterscmprovider.promoter.argoproj.io/finalizer:
       Waiting until no GitRepository still references this cluster-wide SCM provider.
       Risk if removed manually: GitRepository objects can reference a provider that
       no longer exists.'
     status: Progressing
-  InputPath: testdata/deleting.yaml
-- HealthStatus:
+  inputPath: testdata/deleting.yaml
+- healthStatus:
     message: Waiting for ClusterScmProvider spec update to be observed
     status: Progressing
-  InputPath: testdata/observed-generation-outdated.yaml
-- HealthStatus:
+  inputPath: testdata/observed-generation-outdated.yaml
+- healthStatus:
     message: 'Cluster SCM provider validation failed: Reconciliation failed: invalid
       credentials'
     status: Degraded
-  InputPath: testdata/reconcile-error.yaml
-- HealthStatus:
+  inputPath: testdata/reconcile-error.yaml
+- healthStatus:
     message: ClusterScmProvider Ready condition is missing
     status: Progressing
-  InputPath: testdata/no-ready-condition.yaml
-- HealthStatus:
+  inputPath: testdata/no-ready-condition.yaml
+- healthStatus:
     message: 'Cluster SCM provider readiness unknown (ValidationPending): Probing
       SCM endpoint'
     status: Progressing
-  InputPath: testdata/ready-unknown.yaml
-- HealthStatus:
+  inputPath: testdata/ready-unknown.yaml
+- healthStatus:
     message: Cluster SCM provider is ready
     status: Healthy
-  InputPath: testdata/healthy.yaml
-- HealthStatus:
+  inputPath: testdata/healthy.yaml
+- healthStatus:
     message: ClusterScmProvider is being deleted.
     status: Progressing
-  InputPath: testdata/terminating.yaml
+  inputPath: testdata/terminating.yaml
