@@ -25,7 +25,7 @@ argocd app diff APPNAME [flags]
   -h, --help                                              help for diff
       --ignore-normalizer-jq-execution-timeout duration   Set ignore normalizer JQ execution timeout (default 1s)
       --local string                                      Compare live app to a local manifests
-      --local-include stringArray                         Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path. (default [*.yaml,*.yml,*.json])
+      --local-include stringArray                         Used with --server-side-generate, specify patterns of filenames to send. Patterns without a path separator match on the filename only (at any depth); patterns containing '/' match on the relative path and support '**' to span multiple directories (e.g. "charts/**" includes all files under charts/). NOTE: Kustomize apps that use configMapGenerator or secretGenerator with non-YAML source files (e.g. *.env, *.properties) must add those patterns explicitly via --local-include. (default [*.yaml,*.yml,*.json,*.tpl,Chart.lock])
       --local-repo-root string                            Path to the repository root. Used together with --local allows setting the repository root (default "/")
       --refresh                                           Refresh application data when retrieving
       --revision string                                   Compare live app to a particular revision

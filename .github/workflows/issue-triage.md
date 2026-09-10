@@ -26,7 +26,7 @@ network: defaults
 # "The requested model is not available for integrator". *****
 engine:
   id: copilot
-  model: claude-sonnet-4.5
+  model: gpt-5-mini
 
 safe-outputs:
   add-labels:
