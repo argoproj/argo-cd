@@ -13,6 +13,8 @@ import (
 	"code.gitea.io/sdk/gitea"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
 )
 
 func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -462,7 +464,7 @@ func giteaPageBounds(t *testing.T, w http.ResponseWriter, r *http.Request, serve
 func TestGiteaListPaginates(t *testing.T) {
 	t.Parallel()
 	// The stub caps every response at 20 items while the client asks for
-	// giteaPageSize, so a short page is not the last page.
+	// services.GiteaPageSize, so a short page is not the last page.
 	const (
 		total             = 45
 		serverMaxPageSize = 20
@@ -509,7 +511,7 @@ func giteaEndlessPullsHandler(t *testing.T, repeatPage bool) http.Handler {
 		_, _ = io.WriteString(w, `{"version":"1.17.0+dev-452-g1f0541780"}`)
 	})
 	mux.HandleFunc("/api/v1/repos/test-argocd/pr-test/pulls", func(w http.ResponseWriter, r *http.Request) {
-		page, limit, ok := giteaPageBounds(t, w, r, giteaPageSize)
+		page, limit, ok := giteaPageBounds(t, w, r, services.GiteaPageSize)
 		if !ok {
 			return
 		}
@@ -559,5 +561,5 @@ func TestGiteaListStopsAtMaxPages(t *testing.T) {
 
 	_, err = host.List(t.Context())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), fmt.Sprintf("more than %d pages", giteaMaxPages))
+	assert.Contains(t, err.Error(), fmt.Sprintf("more than %d pages", services.GiteaMaxPages))
 }

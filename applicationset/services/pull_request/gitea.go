@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"os"
-	"strconv"
 
 	"code.gitea.io/sdk/gitea"
 
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
@@ -22,30 +22,6 @@ type GiteaService struct {
 }
 
 var _ PullRequestService = (*GiteaService)(nil)
-
-const (
-	// giteaPageSize is the number of pull requests requested per API call. Gitea
-	// clamps the page size to its MAX_RESPONSE_ITEMS setting, so a short page
-	// does not mean the last page.
-	giteaPageSize = 50
-	// giteaMaxPages bounds the paging loop so that a server which never reports
-	// the end of a list fails loudly instead of looping forever.
-	giteaMaxPages = 1000
-)
-
-// giteaAllCollected reports whether every pull request has been collected,
-// based on the X-Total-Count header Gitea sets on its list responses. When the
-// header is absent the caller keeps paging until it gets an empty page.
-func giteaAllCollected(resp *gitea.Response, collected int) bool {
-	if resp == nil {
-		return false
-	}
-	total, err := strconv.Atoi(resp.Header.Get("X-Total-Count"))
-	if err != nil {
-		return false
-	}
-	return collected >= total
-}
 
 func NewGiteaService(token, url, owner, repo string, labels []string, insecure bool, proxyURL, noProxy string) (PullRequestService, error) {
 	if token == "" {
@@ -83,7 +59,7 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 	for page := 1; ; page++ {
 		opts := gitea.ListPullRequestsOptions{
 			Page:     page,
-			PageSize: giteaPageSize,
+			PageSize: services.GiteaPageSize,
 			State:    gitea.StateOpen,
 		}
 		prs, resp, err := g.client.ListRepoPullRequests(g.owner, g.repo, opts)
@@ -98,8 +74,8 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 		if len(prs) == 0 {
 			return list, nil
 		}
-		if page > giteaMaxPages {
-			return nil, fmt.Errorf("gitea returned more than %d pages of pull requests for repo %q", giteaMaxPages, g.repo)
+		if page > services.GiteaMaxPages {
+			return nil, fmt.Errorf("gitea returned more than %d pages of pull requests for repo %q", services.GiteaMaxPages, g.repo)
 		}
 		if page > 1 && prs[0].Index == firstOfPreviousPage {
 			return nil, fmt.Errorf("gitea returned the same pull requests on pages %d and %d for repo %q, the server is not honouring the page parameter", page-1, page, g.repo)
@@ -121,7 +97,7 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 				Author:       pr.Poster.UserName,
 			})
 		}
-		if giteaAllCollected(resp, fetched) {
+		if services.GiteaAllCollected(resp, fetched) {
 			return list, nil
 		}
 	}

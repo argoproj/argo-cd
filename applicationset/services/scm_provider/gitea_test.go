@@ -1018,7 +1018,7 @@ func giteaPaginatedListHandler(t *testing.T, repoCount, labelCount, branchCount,
 func TestGiteaListReposPaginates(t *testing.T) {
 	t.Parallel()
 	// The stub caps every response at 20 items while the client asks for
-	// giteaPageSize, so a short page is not the last page.
+	// services.GiteaPageSize, so a short page is not the last page.
 	const (
 		repoCount         = 45
 		labelCount        = 45
