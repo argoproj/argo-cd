@@ -1,17 +1,19 @@
 -- CRD spec: https://gitops-promoter.readthedocs.io/en/latest/crd-specs/
 
-local hs = {}
-hs.status = "Progressing"
-hs.message = "Initializing git commit validation"
-
 -- GitCommitStatus (gitops-promoter) reports per-environment validation in status.environments
 -- (branch, phase, proposedHydratedSha, targetedSha, expressionResult). It is not CommitStatus:
 -- there is no top-level status.sha / status.phase.
 
 if obj.metadata and obj.metadata.deletionTimestamp then
+    local hs = {}
+    hs.status = "Progressing"
     hs.deletionMessage = "GitCommitStatus is being deleted"
     return hs
 end
+local hs = {}
+hs.status = "Progressing"
+hs.message = "Initializing git commit validation"
+
 
 if not obj.status then
     return hs

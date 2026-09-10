@@ -17,13 +17,11 @@ local function formatDeletingWithFinalizers(base, finalizers, catalog)
     return table.concat(parts, " ")
 end
 
-local hs = {}
-hs.status = "Progressing"
-hs.message = "Initializing Git repository"
-
 -- GitRepository (gitops-promoter v1alpha1): repo reference validated via standard Ready condition.
 
 if obj.metadata and obj.metadata.deletionTimestamp then
+    local hs = {}
+    hs.status = "Progressing"
     hs.deletionMessage = formatDeletingWithFinalizers(
         "GitRepository is being deleted.",
         obj.metadata.finalizers,
@@ -36,6 +34,10 @@ if obj.metadata and obj.metadata.deletionTimestamp then
     )
     return hs
 end
+local hs = {}
+hs.status = "Progressing"
+hs.message = "Initializing Git repository"
+
 
 if not obj.status then
     return hs

@@ -5,7 +5,6 @@ tests:
   inputPath: testdata/no-status.yaml
 - healthStatus:
     status: Progressing
-    message: Initializing web request commit validation
     deletionMessage: WebRequestCommitStatus is being deleted
   inputPath: testdata/deleting.yaml
 - healthStatus:

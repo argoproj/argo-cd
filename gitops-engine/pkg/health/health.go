@@ -79,17 +79,20 @@ func pendingDeletionHealth(obj *unstructured.Unstructured, health *HealthStatus)
 	if obj.GetDeletionTimestamp() == nil || hook.HasHookFinalizer(obj) {
 		return nil
 	}
-	status := HealthStatusProgressing
+	if health != nil && health.DeletionMessage != "" {
+		// Health script overrides the default terminating health.
+		return &HealthStatus{
+			Status: health.Status
+			Message: health.DeletionMessage
+		}
+	}
+	// Fall back to default.
 	msg := "Pending deletion"
 	if finalizers := obj.GetFinalizers(); len(finalizers) > 0 {
 		msg = "Pending deletion; blocked by finalizers: " + strings.Join(finalizers, ", ")
 	}
-	if health != nil && health.DeletionMessage != "" {
-		status = health.Status
-		msg = health.DeletionMessage
-	}
 	return &HealthStatus{
-		Status:  status,
+		Status:  HealthStatusProgressing,
 		Message: msg,
 	}
 }

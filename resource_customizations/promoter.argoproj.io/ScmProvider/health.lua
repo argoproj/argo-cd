@@ -17,13 +17,11 @@ local function formatDeletingWithFinalizers(base, finalizers, catalog)
     return table.concat(parts, " ")
 end
 
-local hs = {}
-hs.status = "Progressing"
-hs.message = "Initializing SCM provider"
-
 -- ScmProvider (gitops-promoter v1alpha1): credentials / SCM API reachability via standard Ready condition.
 
 if obj.metadata and obj.metadata.deletionTimestamp then
+    local hs = {}
+    hs.status = "Progressing"
     hs.deletionMessage = formatDeletingWithFinalizers(
         "ScmProvider is being deleted.",
         obj.metadata.finalizers,
@@ -36,6 +34,10 @@ if obj.metadata and obj.metadata.deletionTimestamp then
     )
     return hs
 end
+local hs = {}
+hs.status = "Progressing"
+hs.message = "Initializing SCM provider"
+
 
 if not obj.status then
     return hs

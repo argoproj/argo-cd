@@ -17,11 +17,9 @@ local function formatDeletingWithFinalizers(base, finalizers, catalog)
     return table.concat(parts, " ")
 end
 
-local hs = {}
-hs.status = "Progressing"
-hs.message = "Initializing change transfer policy"
-
 if obj.metadata and obj.metadata.deletionTimestamp then
+    local hs = {}
+    hs.status = "Progressing"
     hs.deletionMessage = formatDeletingWithFinalizers(
         "Change transfer policy is being deleted.",
         obj.metadata.finalizers,
@@ -34,6 +32,10 @@ if obj.metadata and obj.metadata.deletionTimestamp then
     )
     return hs
 end
+local hs = {}
+hs.status = "Progressing"
+hs.message = "Initializing change transfer policy"
+
 
 -- Check if status exists
 if not obj.status then
