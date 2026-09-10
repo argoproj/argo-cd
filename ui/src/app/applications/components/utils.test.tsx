@@ -17,6 +17,8 @@ import {
     getAppDrySource,
     getAppHydrateToSource,
     getAppHydratorSyncSource,
+    getAppOfAppsParentRef,
+    getApplicationParentRef,
     getApplicationDetailsContainerClass,
     hydrationStatusMessage,
     getAppOperationState,
@@ -1162,5 +1164,108 @@ describe('getApplicationDetailsContainerClass', () => {
         expect(classes).toContain('user-app-login');
         // ...and must NOT emit a bare `login` class that would pull in the login page's `.login` styles.
         expect(classes).not.toContain('login');
+    });
+});
+
+describe('getAppOfAppsParentRef', () => {
+    const app = (metadata: any) => ({metadata: {name: 'child-app', namespace: 'argocd', ...metadata}}) as Application;
+
+    it('resolves the parent from the tracking-id annotation by default', () => {
+        const ref = getAppOfAppsParentRef(app({annotations: {'argocd.argoproj.io/tracking-id': 'parent-app:argoproj.io/Application:argocd/child-app'}}));
+        expect(ref).toEqual({name: 'parent-app'});
+    });
+
+    it('resolves the parent from the annotation for annotation+label tracking', () => {
+        const ref = getAppOfAppsParentRef(
+            app({annotations: {'argocd.argoproj.io/tracking-id': 'parent-app:argoproj.io/Application:argocd/child-app'}}),
+            undefined,
+            'annotation+label'
+        );
+        expect(ref).toEqual({name: 'parent-app'});
+    });
+
+    it('uses the instance label only when the tracking method is label', () => {
+        const ref = getAppOfAppsParentRef(app({labels: {'app.kubernetes.io/instance': 'parent-app'}}), undefined, 'label');
+        expect(ref).toEqual({name: 'parent-app'});
+    });
+
+    it('strips the namespace_ prefix from the instance label value', () => {
+        const ref = getAppOfAppsParentRef(app({labels: {'app.kubernetes.io/instance': 'other-ns_parent-app'}}), undefined, 'label');
+        expect(ref).toEqual({name: 'parent-app'});
+    });
+
+    it('strips the namespace_ prefix from the tracking-id annotation', () => {
+        const ref = getAppOfAppsParentRef(app({annotations: {'argocd.argoproj.io/tracking-id': 'other-ns_parent-app:argoproj.io/Application:argocd/child-app'}}));
+        expect(ref).toEqual({name: 'parent-app'});
+    });
+
+    it('uses a custom instance label key when provided with label tracking', () => {
+        const ref = getAppOfAppsParentRef(app({labels: {'argocd.argoproj.io/instance': 'parent-app'}}), 'argocd.argoproj.io/instance', 'label');
+        expect(ref).toEqual({name: 'parent-app'});
+    });
+
+    it('ignores the instance label when the tracking method is not label', () => {
+        const ref = getAppOfAppsParentRef(app({labels: {'app.kubernetes.io/instance': 'label-parent'}}), undefined, 'annotation');
+        expect(ref).toBeNull();
+    });
+
+    it('ignores the annotation when the tracking method is label', () => {
+        const ref = getAppOfAppsParentRef(
+            app({annotations: {'argocd.argoproj.io/tracking-id': 'annotation-parent:argoproj.io/Application:argocd/child-app'}}),
+            undefined,
+            'label'
+        );
+        expect(ref).toBeNull();
+    });
+
+    it('returns null when there is no tracking metadata', () => {
+        expect(getAppOfAppsParentRef(app({}))).toBeNull();
+    });
+
+    it('returns null when the tracking metadata refers to the application itself', () => {
+        const ref = getAppOfAppsParentRef(app({annotations: {'argocd.argoproj.io/tracking-id': 'child-app:argoproj.io/Application:argocd/child-app'}}));
+        expect(ref).toBeNull();
+    });
+});
+
+describe('getApplicationParentRef', () => {
+    it('prefers the ApplicationSet owner over app-of-apps tracking metadata', () => {
+        const app = {
+            metadata: {
+                name: 'child-app',
+                namespace: 'argocd',
+                ownerReferences: [{kind: 'ApplicationSet', name: 'my-appset'}],
+                annotations: {'argocd.argoproj.io/tracking-id': 'parent-app:argoproj.io/Application:argocd/child-app'}
+            }
+        } as unknown as Application;
+        expect(getApplicationParentRef(app)).toEqual({name: 'my-appset', namespace: 'argocd', kind: 'ApplicationSet'});
+    });
+
+    it('falls back to the app-of-apps parent Application when there is no ApplicationSet owner', () => {
+        const app = {
+            metadata: {
+                name: 'child-app',
+                namespace: 'argocd',
+                annotations: {'argocd.argoproj.io/tracking-id': 'parent-app:argoproj.io/Application:argocd/child-app'}
+            }
+        } as unknown as Application;
+        expect(getApplicationParentRef(app)).toEqual({name: 'parent-app', namespace: 'argocd', kind: 'Application'});
+    });
+
+    it('returns null when the application has no parent', () => {
+        const app = {metadata: {name: 'child-app', namespace: 'argocd'}} as unknown as Application;
+        expect(getApplicationParentRef(app)).toBeNull();
+    });
+
+    it('resolves the app-of-apps parent Application for a managed ApplicationSet', () => {
+        const appSet = {
+            kind: 'ApplicationSet',
+            metadata: {
+                name: 'child-appset',
+                namespace: 'argocd',
+                annotations: {'argocd.argoproj.io/tracking-id': 'parent-app:argoproj.io/ApplicationSet:argocd/child-appset'}
+            }
+        } as any;
+        expect(getApplicationParentRef(appSet)).toEqual({name: 'parent-app', namespace: 'argocd', kind: 'Application'});
     });
 });

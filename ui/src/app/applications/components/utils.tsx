@@ -1495,6 +1495,69 @@ export function getApplicationSetOwnerRef(application: appModels.Application) {
     return application.metadata.ownerReferences?.find(ref => ref.kind === 'ApplicationSet');
 }
 
+// Annotation set by the parent Application on resources it manages (resource tracking).
+// Format: <parentAppName>:<group>/<kind>:<namespace>/<name>
+export const AnnotationKeyAppInstance = 'argocd.argoproj.io/tracking-id';
+// Default label used for resource tracking when the tracking method is `label`.
+export const DefaultAppInstanceLabelKey = 'app.kubernetes.io/instance';
+// TrackingMethodLabel is the only tracking method that identifies managed
+// resources with the instance label instead of the tracking-id annotation.
+export const TrackingMethodLabel = 'label';
+
+// getAppOfAppsParentRef resolves the name of the parent Application that manages
+// this Application via the app-of-apps pattern. The source of truth is determined
+// by the tracking method: the instance label is only consulted when the tracking
+// method is `label`; otherwise the tracking-id annotation is used.
+// Returns null when no parent can be determined or the parent refers to itself.
+export function getAppOfAppsParentRef(application: appModels.AbstractApplication, appLabelKey?: string, trackingMethod?: string): {name: string} | null {
+    const metadata = application.metadata || ({} as appModels.AbstractApplication['metadata']);
+    // The instance name is either `<name>` or, for apps in a non-default namespace, `<namespace>_<name>`.
+    const instanceNameToAppName = (instanceName: string) => {
+        const underscoreIndex = instanceName.indexOf('_');
+        return underscoreIndex >= 0 ? instanceName.substring(underscoreIndex + 1) : instanceName;
+    };
+
+    let parentName = '';
+    if (trackingMethod === TrackingMethodLabel) {
+        const labelKey = appLabelKey || DefaultAppInstanceLabelKey;
+        const labelValue = metadata.labels?.[labelKey];
+        if (labelValue) {
+            parentName = instanceNameToAppName(labelValue);
+        }
+    } else {
+        const trackingId = metadata.annotations?.[AnnotationKeyAppInstance];
+        if (trackingId) {
+            // The instance name is the segment before the first colon.
+            parentName = instanceNameToAppName(trackingId.split(':')[0] || '');
+        }
+    }
+
+    if (!parentName || parentName === metadata.name) {
+        return null;
+    }
+    return {name: parentName};
+}
+
+// getApplicationParentRef returns a unified reference to the Application's parent,
+// which may be an ApplicationSet (via ownerReferences) or a parent Application
+// (via the app-of-apps pattern). ApplicationSet ownership takes precedence.
+export function getApplicationParentRef(
+    application: appModels.AbstractApplication,
+    appLabelKey?: string,
+    trackingMethod?: string
+): {name: string; namespace: string; kind: 'ApplicationSet' | 'Application'} | null {
+    // Only Applications carry an ApplicationSet owner reference; for an ApplicationSet this is always empty.
+    const appSetRef = getApplicationSetOwnerRef(application as appModels.Application);
+    if (appSetRef) {
+        return {name: appSetRef.name, namespace: application.metadata.namespace, kind: 'ApplicationSet'};
+    }
+    const appOfAppsRef = getAppOfAppsParentRef(application, appLabelKey, trackingMethod);
+    if (appOfAppsRef) {
+        return {name: appOfAppsRef.name, namespace: application.metadata.namespace, kind: 'Application'};
+    }
+    return null;
+}
+
 export function getAppOverridesCount(app: appModels.AbstractApplication) {
     // ApplicationSets don't have overrides
     if (!isApp(app)) {
