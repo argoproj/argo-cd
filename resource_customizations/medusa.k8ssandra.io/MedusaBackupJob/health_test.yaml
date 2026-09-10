@@ -19,4 +19,7 @@ tests:
     status: Unknown
     message: "No observedGeneration"
   inputPath: testdata/backupjob_ok_but_no_observedgeneration.yaml
-
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

@@ -19,3 +19,7 @@ tests:
     status: Suspended
     message: "Waiting for a pool to accept the claim"
   inputPath: testdata/suspended_unbound.yaml
+- healthStatus:
+    status: Progressing
+    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+  inputPath: testdata/terminating.yaml

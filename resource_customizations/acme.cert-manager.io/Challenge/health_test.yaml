@@ -11,3 +11,7 @@ tests:
       status: Degraded
       message: "Error accepting authorization: acme: authorization error for example.com: 403 urn:ietf:params:acme:error:unauthorized"
     inputPath: testdata/errored.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+    inputPath: testdata/terminating.yaml

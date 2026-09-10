@@ -11,3 +11,7 @@ tests:
       status: Degraded
       message: "unable to execute pg_basebackup: exit status 1"
     inputPath: testdata/failed.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
+    inputPath: testdata/terminating.yaml
