@@ -26,6 +26,10 @@ tests:
 - healthStatus:
     status: Healthy
     message: "Stopped as declared"
+  inputPath: testdata/healthy_stopped_noconditions.yaml
+- healthStatus:
+    status: Healthy
+    message: "Stopped as declared"
   inputPath: testdata/healthy_stopped_nostatus.yaml
 - healthStatus:
     status: Progressing

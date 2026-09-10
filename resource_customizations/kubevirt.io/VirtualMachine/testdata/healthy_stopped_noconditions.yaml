@@ -43,3 +43,11 @@ spec:
       - cloudInitNoCloud:
           userDataBase64: SGkuXG4=
         name: cloudinitdisk
+status:
+  volumeSnapshotStatuses:
+  - enabled: false
+    name: containerdisk
+    reason: Volume type has no StorageClass defined
+  - enabled: false
+    name: cloudinitdisk
+    reason: Volume type has no StorageClass defined
