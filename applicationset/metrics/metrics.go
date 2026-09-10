@@ -31,8 +31,31 @@ var (
 	)
 )
 
+// Histograms
+var (
+	progressiveSyncRolloutDurationHistogram = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "argocd_appset_progressive_sync_rollout_duration_seconds",
+			Help:    "Duration of a full progressive sync rollout across all steps in seconds.",
+			Buckets: []float64{30, 60, 120, 300, 600, 900, 1800, 3600},
+		},
+		descAppsetDefaultLabels,
+	)
+
+	progressiveSyncStepCompletionDurationHistogram = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "argocd_appset_progressive_sync_step_duration_seconds",
+			Help:    "Duration of a step to complete - all applications within this step are healthy",
+			Buckets: []float64{0.01, 0.05, 0.1, 0.2, 0.5, 1, 5, 10, 30, 60, 120},
+		},
+		[]string{"namespace", "name", "step"},
+	)
+)
+
 type ApplicationsetMetrics struct {
-	reconcileHistogram *prometheus.HistogramVec
+	reconcileHistogram                             *prometheus.HistogramVec
+	progressiveSyncRolloutDurationHistogram        *prometheus.HistogramVec
+	progressiveSyncStepCompletionDurationHistogram *prometheus.HistogramVec
 }
 
 type appsetCollector struct {
@@ -56,18 +79,30 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 
 	// Register collectors and metrics
 	metrics.Registry.MustRegister(reconcileHistogram)
+	metrics.Registry.MustRegister(progressiveSyncRolloutDurationHistogram)
+	metrics.Registry.MustRegister(progressiveSyncStepCompletionDurationHistogram)
 	metrics.Registry.MustRegister(appsetCollector)
 
 	kubectl.RegisterWithClientGo()
 	kubectl.RegisterWithPrometheus(metrics.Registry)
 
 	return ApplicationsetMetrics{
-		reconcileHistogram: reconcileHistogram,
+		reconcileHistogram:                             reconcileHistogram,
+		progressiveSyncRolloutDurationHistogram:        progressiveSyncRolloutDurationHistogram,
+		progressiveSyncStepCompletionDurationHistogram: progressiveSyncStepCompletionDurationHistogram,
 	}
 }
 
 func (m *ApplicationsetMetrics) ObserveReconcile(appset *argoappv1.ApplicationSet, duration time.Duration) {
 	m.reconcileHistogram.WithLabelValues(appset.Namespace, appset.Name).Observe(duration.Seconds())
+}
+
+func (m *ApplicationsetMetrics) ObserveRolloutDuration(appset *argoappv1.ApplicationSet, duration time.Duration) {
+	m.progressiveSyncRolloutDurationHistogram.WithLabelValues(appset.Namespace, appset.Name).Observe(duration.Seconds())
+}
+
+func (m *ApplicationsetMetrics) ObserveStepCompletionDuration(appset *argoappv1.ApplicationSet, step string, duration time.Duration) {
+	m.progressiveSyncStepCompletionDurationHistogram.WithLabelValues(appset.Namespace, appset.Name, step).Observe(duration.Seconds())
 }
 
 func newAppsetCollector(lister applisters.ApplicationSetLister, labels []string, filter func(appset *argoappv1.ApplicationSet) bool) *appsetCollector {
