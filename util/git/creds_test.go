@@ -330,8 +330,8 @@ func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 	// so counting entries there before/after creds.Environ() would be flaky.
 	argoio.TempDir = t.TempDir()
 
-	// countDev returns the number of files in the temporary directory
-	countFilesInDevShm := func() int {
+	// countFilesInArgoioTempDir returns the number of files in the argoio.TempDir
+	countFilesInArgoioTempDir := func() int {
 		entries, err := os.ReadDir(argoio.TempDir)
 		require.NoError(t, err)
 
@@ -345,14 +345,14 @@ func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 		require.NoError(t, err)
 		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, ":invalid-proxy-url")
 
-		filesInDevShmBeforeInvocation := countFilesInDevShm()
+		filesInArgoioTempDirBeforeInvocation := countFilesInArgoioTempDir()
 
 		_, _, err = creds.Environ()
 		require.Error(t, err)
 
-		filesInDevShmAfterInvocation := countFilesInDevShm()
+		filesInArgoioTempDirAfterInvocation := countFilesInArgoioTempDir()
 
-		assert.Equal(t, filesInDevShmBeforeInvocation, filesInDevShmAfterInvocation, "no temporary files should leak if the proxy url cannot be parsed")
+		assert.Equal(t, filesInArgoioTempDirBeforeInvocation, filesInArgoioTempDirAfterInvocation, "no temporary files should leak if the proxy url cannot be parsed")
 	}
 }
 
