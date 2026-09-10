@@ -2136,6 +2136,36 @@ func Test_LsSignatures_Error(t *testing.T) {
 	}
 }
 
+func Test_LsSignatures_ShallowRepo(t *testing.T) {
+	ctx := t.Context()
+	upstream, err := _createEmptyGitRepo(ctx)
+	t.Cleanup(func() {
+		os.RemoveAll(upstream)
+	})
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, upstream, "git", "commit", "--allow-empty", "-m", "second commit"))
+
+	shallowDir := t.TempDir() // cleanup already registered by t.TempDir()
+	require.NoError(t, runCmd(ctx, shallowDir, "git", "clone", "--depth=1", "file://"+upstream, "."))
+
+	client, err := NewClientExt("file://"+shallowDir, shallowDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+
+	shallowExpectedMsg := "shallow repository lacks history required for deep signature verification, use full clone"
+
+	t.Run("deep fails on shallow repo", func(t *testing.T) {
+		_, _, err := client.LsSignatures(t.Context(), "HEAD", true)
+		require.Error(t, err)
+		require.ErrorContains(t, err, shallowExpectedMsg)
+	})
+
+	t.Run("not deep does not fail on shallow repo", func(t *testing.T) {
+		_, _, err := client.LsSignatures(t.Context(), "HEAD", false)
+		require.True(t, err == nil || !strings.Contains(err.Error(), shallowExpectedMsg), "expected no error or error not containing: %s; got: %v", shallowExpectedMsg, err)
+	})
+}
+
 func Test_humanizeAuthPromptError(t *testing.T) {
 	repoURL := "https://github.com/argoproj/argo-cd.git"
 
