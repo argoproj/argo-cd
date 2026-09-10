@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -15,9 +16,28 @@ import (
 type tgz struct {
 	srcPath      string
 	inclusions   []string
+	includePaths []string
 	exclusions   []string
 	tarWriter    *tar.Writer
 	filesWritten int
+}
+
+// TarOptions configures which of the files under srcPath end up in the archive.
+// An empty TarOptions archives everything.
+type TarOptions struct {
+	// Inclusions restricts the archive to files whose base name matches one of
+	// the given filepath.Match patterns. Directories are always descended into.
+	Inclusions []string
+	// IncludePaths restricts the archive to the given paths, relative to
+	// srcPath. A path selects itself, everything below it when it is a
+	// directory, and everything matching it when it holds glob metacharacters.
+	// Directories that cannot hold a selected path are not walked at all. A
+	// symlink is selected like any other file, so callers wanting its target
+	// have to select the target too.
+	IncludePaths []string
+	// Exclusions drops files whose path relative to srcPath matches one of the
+	// given filepath.Match patterns.
+	Exclusions []string
 }
 
 // Tgz will iterate over all files found in srcPath compressing them with gzip
@@ -26,6 +46,11 @@ type tgz struct {
 // list blob if exclusions is not nil. Will include only the files matching the
 // inclusions list if inclusions is not nil.
 func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io.Writer) (int, error) {
+	return TgzWithOptions(srcPath, TarOptions{Inclusions: inclusions, Exclusions: exclusions}, writers...)
+}
+
+// TgzWithOptions behaves like Tgz, filtering the archived files as described by opts.
+func TgzWithOptions(srcPath string, opts TarOptions, writers ...io.Writer) (int, error) {
 	if _, err := os.Stat(srcPath); err != nil {
 		return 0, fmt.Errorf("error inspecting srcPath %q: %w", srcPath, err)
 	}
@@ -33,7 +58,7 @@ func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io
 	gzw := gzip.NewWriter(io.MultiWriter(writers...))
 	defer gzw.Close()
 
-	return writeFile(srcPath, inclusions, exclusions, gzw)
+	return writeFile(srcPath, opts, gzw)
 }
 
 // Tar will iterate over all files found in srcPath archiving with Tar. Will invoke every given writer while generating the tar.
@@ -41,22 +66,28 @@ func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io
 // list blob if exclusions is not nil. Will include only the files matching the
 // inclusions list if inclusions is not nil.
 func Tar(srcPath string, inclusions []string, exclusions []string, writers ...io.Writer) (int, error) {
+	return TarWithOptions(srcPath, TarOptions{Inclusions: inclusions, Exclusions: exclusions}, writers...)
+}
+
+// TarWithOptions behaves like Tar, filtering the archived files as described by opts.
+func TarWithOptions(srcPath string, opts TarOptions, writers ...io.Writer) (int, error) {
 	if _, err := os.Stat(srcPath); err != nil {
 		return 0, fmt.Errorf("error inspecting srcPath %q: %w", srcPath, err)
 	}
 
-	return writeFile(srcPath, inclusions, exclusions, io.MultiWriter(writers...))
+	return writeFile(srcPath, opts, io.MultiWriter(writers...))
 }
 
-func writeFile(srcPath string, inclusions []string, exclusions []string, writer io.Writer) (int, error) {
+func writeFile(srcPath string, opts TarOptions, writer io.Writer) (int, error) {
 	tw := tar.NewWriter(writer)
 	defer tw.Close()
 
 	t := &tgz{
-		srcPath:    srcPath,
-		inclusions: inclusions,
-		exclusions: exclusions,
-		tarWriter:  tw,
+		srcPath:      srcPath,
+		inclusions:   opts.Inclusions,
+		includePaths: cleanPaths(opts.IncludePaths),
+		exclusions:   opts.Exclusions,
+		tarWriter:    tw,
 	}
 	err := filepath.Walk(srcPath, t.tgzFile)
 	if err != nil {
@@ -184,10 +215,88 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 	return nil
 }
 
+// pathSelected reports whether relativePath, a path relative to the archive
+// root, is selected by one of the given include paths. An include path selects
+// itself, anything below it, and anything its glob matches. A glob may name a
+// directory, so it selects that whole subtree as well.
+func pathSelected(relativePath string, includePaths []string) bool {
+	pathSegments := splitPath(relativePath)
+	for _, includePath := range includePaths {
+		if includePath == "" || includePath == "." {
+			return true
+		}
+		patternSegments := splitPath(includePath)
+		if len(patternSegments) <= len(pathSegments) && segmentsMatch(patternSegments, pathSegments) {
+			return true
+		}
+	}
+	return false
+}
+
+// dirMayHoldSelected reports whether the directory at dirRel can hold anything
+// selected by includePaths, which lets the walk skip unrelated subtrees instead
+// of scanning them. The directory is walked as long as it agrees with an include
+// path down to their common depth: a shallower directory is on the way down to
+// the include path, a deeper one is inside what it selects.
+func dirMayHoldSelected(dirRel string, includePaths []string) bool {
+	if dirRel == "." {
+		return true
+	}
+	dirSegments := splitPath(dirRel)
+	for _, includePath := range includePaths {
+		if includePath == "" || includePath == "." {
+			return true
+		}
+		if segmentsMatch(splitPath(includePath), dirSegments) {
+			return true
+		}
+	}
+	return false
+}
+
+// segmentsMatch reports whether the pattern and the path agree on every segment
+// they both have, each pattern segment being a filepath.Match pattern. Matching
+// segment by segment is what filepath.Match does for a whole path, as its
+// wildcards never cross a separator, and it is also what allows a path shorter
+// than the pattern to be compared with it.
+func segmentsMatch(patternSegments, pathSegments []string) bool {
+	for i := 0; i < len(patternSegments) && i < len(pathSegments); i++ {
+		// The comparison also covers patterns filepath.Match rejects, so a path
+		// holding a metacharacter can still be selected by naming it literally.
+		if patternSegments[i] == pathSegments[i] {
+			continue
+		}
+		if matched, err := filepath.Match(patternSegments[i], pathSegments[i]); err != nil || !matched {
+			return false
+		}
+	}
+	return true
+}
+
+func splitPath(path string) []string {
+	return strings.Split(path, string(filepath.Separator))
+}
+
+// cleanPaths brings the given paths in the form the walk compares them in, so
+// that a trailing separator or a redundant element does not keep a path from
+// selecting anything. filepath.Clean leaves glob metacharacters alone.
+func cleanPaths(paths []string) []string {
+	if paths == nil {
+		return nil
+	}
+	cleaned := make([]string, 0, len(paths))
+	for _, path := range paths {
+		cleaned = append(cleaned, filepath.Clean(path))
+	}
+	return cleaned
+}
+
 // tgzFile is used as a filepath.WalkFunc implementing the logic to write
 // the given file in the tgz.tarWriter applying the exclusion pattern defined
-// in tgz.exclusions, or the inclusion pattern defined in tgz.inclusions.
-// Only regular files will be added in the tarball.
+// in tgz.exclusions, or the inclusion patterns defined in tgz.inclusions and
+// tgz.includePaths.
+// Regular files are added with their content, directories and symlinks are
+// added as header only entries, and any other file mode is skipped.
 func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	if err != nil {
 		return fmt.Errorf("error walking in %q: %w", t.srcPath, err)
@@ -200,6 +309,15 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 		return fmt.Errorf("relative path error: %w", err)
 	}
 
+	if len(t.includePaths) > 0 && relativePath != "." {
+		if fi.IsDir() {
+			if !dirMayHoldSelected(relativePath, t.includePaths) {
+				return filepath.SkipDir
+			}
+		} else if !pathSelected(relativePath, t.includePaths) {
+			return nil
+		}
+	}
 	if t.inclusions != nil && base != "." && !fi.IsDir() {
 		included := false
 		for _, inclusionPattern := range t.inclusions {

@@ -84,12 +84,118 @@ func TestReceiveApplicationStream(t *testing.T) {
 	})
 }
 
-func (m *streamMock) sendFile(ctx context.Context, t *testing.T, basedir string, sender cmp.StreamSender, env []string, excludedGlobs []string) {
+func TestSendRepoStreamWithIncludePaths(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name         string
+		includePaths []string
+		expected     []string
+		unexpected   []string
+	}{
+		{
+			name:         "will send only the included paths",
+			includePaths: []string{"applicationset/stable", "README.md"},
+			expected:     []string{"README.md", "applicationset"},
+			unexpected:   []string{"DUMMY.md", "dummy"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			t.Parallel()
+			streamMock := newStreamMock()
+			appDir := filepath.Join(getTestDataDir(t), "app")
+			workdir, err := files.CreateTempDir("")
+			require.NoError(t, err)
+			defer func() {
+				close(streamMock.messages)
+				os.RemoveAll(workdir)
+			}()
+			go streamMock.sendFile(t.Context(), t, appDir, streamMock, nil, nil, cmp.WithIncludePaths(tc.includePaths))
+
+			// when
+			metadata, err := cmp.ReceiveRepoStream(t.Context(), streamMock, workdir, false)
+
+			// then
+			require.NoError(t, err)
+			require.NotNil(t, metadata)
+			entries, err := os.ReadDir(workdir)
+			require.NoError(t, err)
+			names := []string{}
+			for _, entry := range entries {
+				names = append(names, entry.Name())
+			}
+			for _, name := range tc.expected {
+				assert.Contains(t, names, name)
+			}
+			for _, name := range tc.unexpected {
+				assert.NotContains(t, names, name)
+			}
+		})
+	}
+
+	t.Run("will send the whole subtree of an included directory", func(t *testing.T) {
+		// given
+		t.Parallel()
+		streamMock := newStreamMock()
+		appDir := filepath.Join(getTestDataDir(t), "app")
+		workdir, err := files.CreateTempDir("")
+		require.NoError(t, err)
+		defer func() {
+			close(streamMock.messages)
+			os.RemoveAll(workdir)
+		}()
+		go streamMock.sendFile(t.Context(), t, appDir, streamMock, nil, nil, cmp.WithIncludePaths([]string{"applicationset"}))
+
+		// when
+		_, err = cmp.ReceiveRepoStream(t.Context(), streamMock, workdir, false)
+
+		// then
+		require.NoError(t, err)
+		assert.FileExists(t, filepath.Join(workdir, "applicationset", "latest", "kustomization.yaml"))
+		assert.FileExists(t, filepath.Join(workdir, "applicationset", "stable", "kustomization.yaml"))
+		assert.NoFileExists(t, filepath.Join(workdir, "README.md"))
+	})
+
+	t.Run("will fail when no included path matches", func(t *testing.T) {
+		t.Parallel()
+		streamMock := newStreamMock()
+		defer close(streamMock.messages)
+		appDir := filepath.Join(getTestDataDir(t), "app")
+
+		err := cmp.SendRepoStream(t.Context(), appDir, appDir, streamMock, nil, nil, cmp.WithIncludePaths([]string{"does-not-exist"}))
+
+		require.ErrorContains(t, err, "no files to send")
+		require.ErrorContains(t, err, "does-not-exist")
+	})
+
+	t.Run("will fail when the included paths select no regular file", func(t *testing.T) {
+		// A directory of only symlinks is still a selection. Sending the rest of
+		// the tree would leak files the annotation did not name, so this fails
+		// the same way as a selection that matched nothing.
+		t.Parallel()
+		streamMock := newStreamMock()
+		defer close(streamMock.messages)
+		basedir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(basedir, "README.md"), []byte("read me"), 0o600))
+		require.NoError(t, os.Mkdir(filepath.Join(basedir, "links"), 0o700))
+		require.NoError(t, os.Symlink(filepath.Join("..", "README.md"), filepath.Join(basedir, "links", "readme-symlink")))
+
+		err := cmp.SendRepoStream(t.Context(), basedir, basedir, streamMock, nil, nil, cmp.WithIncludePaths([]string{"links"}))
+
+		require.ErrorContains(t, err, "no files to send")
+		require.ErrorContains(t, err, "links")
+	})
+}
+
+func (m *streamMock) sendFile(ctx context.Context, t *testing.T, basedir string, sender cmp.StreamSender, env []string, excludedGlobs []string, opts ...cmp.SenderOption) {
 	t.Helper()
 	defer func() {
 		m.done <- true
 	}()
-	err := cmp.SendRepoStream(ctx, basedir, basedir, sender, env, excludedGlobs)
+	err := cmp.SendRepoStream(ctx, basedir, basedir, sender, env, excludedGlobs, opts...)
 	require.NoError(t, err)
 }
 
