@@ -65,14 +65,14 @@ TestCliAppCommand 5.780
 TestCliPluginExecution 0.110
 TestCliPluginExecutionConditions 0.290
 TestCliPluginStatusCodes 0.390
-TestCliPluginStdinHandling 0.640
+TestCliPluginStdinHandling 0.320
 TestClusterAdd 1.930
 TestClusterAddAllowed 5.030
 TestClusterAddPermissionDenied 4.150
 TestClusterDelete 5.130
 TestClusterDeleteDenied 4.170
 TestClusterGeneratorWithFlatListMode 8.360
-TestClusterGeneratorWithLocalCluster 18.520
+TestClusterGeneratorWithLocalCluster 9.260
 TestClusterGet 3.350
 TestClusterList 1.990
 TestClusterListDenied 3.910
@@ -397,7 +397,7 @@ TestPreSyncHookSuccessful 13.670
 TestPreserveFileModeForCMP 4.460
 TestProgressiveSyncHealthGating 44.070
 TestProgressiveSyncMultipleAppsPerStepWithReverseDeletionOrder 13.000
-TestProgressiveSyncRefreshAnnotationOnRevisionChange 492.950
+TestProgressiveSyncRefreshAnnotationOnRevisionChange 243.810
 TestProjectCreation 2.880
 TestProjectDeletion 6.480
 TestPruneResourceFromCMP 4.740
@@ -436,7 +436,7 @@ TestSimpleClusterGeneratorDeletingCluster 8.970
 TestSimpleClusterGeneratorExternalNamespace 8.850
 TestSimpleGitDirectoryGenerator 8.510
 TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits 7.330
-TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys 11.910
+TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys 8.200
 TestSimpleGitDirectoryGeneratorGoTemplate 5.370
 TestSimpleGitFilesGenerator 7.030
 TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits 9.000

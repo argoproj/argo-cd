@@ -744,9 +744,17 @@ jobs:
             count=$((count+1))
           done
       - name: Run E2E testsuite
+        id: e2e
         run: |
           set -x
           make test-e2e-local
+          # gotestsum retries failures (--rerun-fails), so a green job can still hide a
+          # flake. Flag it so the server logs below are kept for diagnosis.
+          if [ -s rerunreport.txt ]; then
+            echo "reran=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::e2e tests were retried; see the e2e-server log artifact"
+            cat rerunreport.txt
+          fi
           goreman run stop-all || echo "goreman trouble"
           sleep 30
       - name: Upload e2e coverage report
@@ -764,11 +772,15 @@ jobs:
           path: test-results/junit.xml
         if: ${{ matrix.k3s.latest }}
       - name: Upload e2e-server logs
+        # Also kept when a test only failed on its first attempt: without this the logs
+        # for a retried-then-passed flake are discarded and it cannot be diagnosed.
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: e2e-server-k8s${{ matrix.k3s.version }}-shard${{ matrix.shard }}.log
-          path: /tmp/e2e-server.log
-        if: ${{ failure() }}
+          path: |
+            /tmp/e2e-server.log
+            rerunreport.txt
+        if: ${{ failure() || steps.e2e.outputs.reran == 'true' }}
 
   # workaround for status checks -- check this one job instead of each individual E2E job in the matrix
   # this allows us to skip the entire matrix when it doesn't need to run while still having accurate status checks
