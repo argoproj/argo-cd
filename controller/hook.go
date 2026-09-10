@@ -150,6 +150,9 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 
 	// Create hooks that don't exist yet
 	createdCnt := 0
+	// existingCnt counts hooks whose create was rejected because they already
+	// exist. That proves liveObjs is stale, so this pass must not report completion.
+	existingCnt := 0
 	for key, obj := range expectedHook {
 		// Apply app instance tracking metadata so the hook can be tracked and cleaned up.
 		// Use the same code path as regular sync resources so the configured
@@ -165,7 +168,8 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 		_, err = ctrl.kubectl.CreateResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), obj, metav1.CreateOptions{})
 		if err != nil {
 			if apierrors.IsAlreadyExists(err) {
-				logCtx.Warnf("Hook resource %s already exists, skipping", key)
+				existingCnt++
+				logCtx.Warnf("Hook resource %s already exists but is missing from the live state; waiting for the cluster cache to catch up", key)
 				continue
 			}
 			return false, err
@@ -234,6 +238,14 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 
 	if progressingHooksCount > 0 {
 		logCtx.Infof("Waiting for %d %s hooks to complete", progressingHooksCount, hookType)
+		return false, nil
+	}
+
+	// The hooks judged above are the ones liveObjs knew about, and existingCnt says
+	// it did not know about all of them. Failures and progress are still worth
+	// reporting from a partial view, but completion is not.
+	if existingCnt > 0 {
+		logCtx.Infof("Waiting for the cluster cache to observe %d existing %s hook(s)", existingCnt, hookType)
 		return false, nil
 	}
 
