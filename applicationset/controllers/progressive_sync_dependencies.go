@@ -36,3 +36,7 @@ func (r *ApplicationSetReconciler) SetApplicationSetStatusCondition(
 	// Delegate to existing controller method
 	return r.setApplicationSetStatusCondition(ctx, applicationSet, conditions, parametersGenerated)
 }
+
+func (r *ApplicationSetReconciler) IncRefreshTriggeredCount(appset *argov1alpha1.ApplicationSet, step string) {
+	r.Metrics.IncRefreshTriggeredCount(appset, step)
+}
