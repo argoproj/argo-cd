@@ -1239,7 +1239,7 @@ func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int
 		return false
 	}
 
-	if len(names) > 0 && !names[a.Name] {
+	if len(names) > 0 && !argo.MatchesNameFilter(names, a.Namespace, a.Name) {
 		return false
 	}
 
@@ -1274,10 +1274,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	for _, project := range getProjectsFromApplicationQuery(*q) {
 		projects[project] = true
 	}
-	names := map[string]bool{}
-	for _, name := range q.GetNames() {
-		names[name] = true
-	}
+	names := argo.NewNameFilter(q.GetNames())
 	claims := ws.Context().Value("claims")
 	selector, err := labels.Parse(q.GetSelector())
 	if err != nil {

@@ -133,22 +133,37 @@ func FilterByProjectsP(apps []*argoappv1.Application, projects []string) []*argo
 
 // FilterByNamesP returns applications whose name is contained in the provided set of names.
 // It is used by the UI favorites filter to restrict the list to a client-selected subset of applications.
+// Names may be namespace-qualified, see MatchesNameFilter.
 func FilterByNamesP(apps []*argoappv1.Application, names []string) []*argoappv1.Application {
 	if len(names) == 0 {
 		return apps
 	}
-	namesMap := make(map[string]bool)
-	for i := range names {
-		namesMap[names[i]] = true
-	}
+	namesMap := NewNameFilter(names)
 	items := []*argoappv1.Application{}
 	for i := range apps {
 		a := apps[i]
-		if namesMap[a.Name] {
+		if MatchesNameFilter(namesMap, a.Namespace, a.Name) {
 			items = append(items, a)
 		}
 	}
 	return items
+}
+
+// NewNameFilter turns a list of application names into a set which can be passed to MatchesNameFilter.
+func NewNameFilter(names []string) map[string]bool {
+	namesMap := make(map[string]bool, len(names))
+	for i := range names {
+		namesMap[names[i]] = true
+	}
+	return namesMap
+}
+
+// MatchesNameFilter returns true if an application is contained in the provided set of names. An entry
+// may be qualified as "namespace/name" to match only the application in that namespace, which matters
+// when apps-in-any-namespace is enabled and the same name exists in more than one namespace. Unqualified
+// entries match on name alone, regardless of the namespace the application lives in.
+func MatchesNameFilter(names map[string]bool, namespace, name string) bool {
+	return names[name] || names[namespace+"/"+name]
 }
 
 // FilterAppSetsByProjects returns applications which belongs to the specified project

@@ -26,6 +26,7 @@ export interface ApplicationTileProps {
 export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplication, refreshApplication, deleteApplication}: ApplicationTileProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
+    const isFav = AppUtils.isFavorite(favList, app);
 
     const source = getAppDefaultSource(app);
     const isOci = source?.repoURL?.startsWith('oci://');
@@ -40,12 +41,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (favList?.includes(app.metadata.name)) {
-            favList.splice(favList.indexOf(app.metadata.name), 1);
-        } else {
-            favList.push(app.metadata.name);
-        }
-        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
+        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: AppUtils.toggleFavorite(favList, app)}});
     };
 
     const handleExternalLinkClick = (e: React.MouseEvent) => {
@@ -245,13 +241,13 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                         <i className='fa fa-window-maximize' />
                     </button>
                 )}
-                <button title={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'} className='large-text-height' onClick={handleFavoriteToggle}>
+                <button title={isFav ? 'Remove Favorite' : 'Add Favorite'} className='large-text-height' onClick={handleFavoriteToggle}>
                     <i
-                        className={favList?.includes(app.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
+                        className={isFav ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
                         style={{
                             cursor: 'pointer',
                             margin: '-1px 0px 0px 0px',
-                            color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                            color: isFav ? '#FFCE25' : '#8fa4b1'
                         }}
                     />
                 </button>

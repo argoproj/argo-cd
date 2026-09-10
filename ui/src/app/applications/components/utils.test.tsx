@@ -23,9 +23,11 @@ import {
     getOperationType,
     getPodStateReason,
     HealthStatusIcon,
+    isFavorite,
     nameConfirmationError,
     OperationState,
-    ResourceResultIcon
+    ResourceResultIcon,
+    toggleFavorite
 } from './utils';
 
 const zero = new Date(0).toISOString();
@@ -1107,5 +1109,40 @@ describe('getApplicationDetailsContainerClass', () => {
         expect(classes).toContain('user-app-login');
         // ...and must NOT emit a bare `login` class that would pull in the login page's `.login` styles.
         expect(classes).not.toContain('login');
+    });
+});
+describe('favorites', () => {
+    const app = {metadata: {name: 'guestbook', namespace: 'ns1'}} as Application;
+    const sameNameOtherNamespace = {metadata: {name: 'guestbook', namespace: 'ns2'}} as Application;
+
+    it('stores favorites namespace-qualified', () => {
+        expect(toggleFavorite([], app)).toEqual(['ns1/guestbook']);
+    });
+
+    it('does not match the same name in another namespace', () => {
+        const favorites = toggleFavorite([], app);
+        expect(isFavorite(favorites, app)).toBe(true);
+        expect(isFavorite(favorites, sameNameOtherNamespace)).toBe(false);
+    });
+
+    it('removes only the favorited application', () => {
+        const favorites = toggleFavorite(toggleFavorite([], app), sameNameOtherNamespace);
+        expect(favorites).toEqual(['ns1/guestbook', 'ns2/guestbook']);
+        expect(toggleFavorite(favorites, app)).toEqual(['ns2/guestbook']);
+    });
+
+    it('keeps matching favorites stored before the list became namespace-qualified', () => {
+        expect(isFavorite(['guestbook'], app)).toBe(true);
+        expect(isFavorite(['guestbook'], sameNameOtherNamespace)).toBe(true);
+    });
+
+    it('qualifies a legacy favorite when it is toggled off and on again', () => {
+        expect(toggleFavorite(['guestbook'], app)).toEqual([]);
+        expect(toggleFavorite(toggleFavorite(['guestbook'], app), app)).toEqual(['ns1/guestbook']);
+    });
+
+    it('handles an undefined favorites list', () => {
+        expect(isFavorite(undefined, app)).toBe(false);
+        expect(toggleFavorite(undefined, app)).toEqual(['ns1/guestbook']);
     });
 });

@@ -58,7 +58,7 @@ type ApplicationQuery struct {
 	AppNamespace *string `protobuf:"bytes,7,opt,name=appNamespace" json:"appNamespace,omitempty"`
 	// the project names to restrict returned list applications (legacy name for backwards-compatibility)
 	Project []string `protobuf:"bytes,8,rep,name=project" json:"project,omitempty"`
-	// the application names to restrict returned list applications (used by the UI favorites filter)
+	// the application names to restrict returned list applications (used by the UI favorites filter). An entry may be qualified as 'namespace/name' to match only the application in that namespace
 	Names                []string `protobuf:"bytes,9,rep,name=names" json:"names,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

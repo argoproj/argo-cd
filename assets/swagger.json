@@ -288,7 +288,7 @@
               "type": "string"
             },
             "collectionFormat": "multi",
-            "description": "the application names to restrict returned list applications (used by the UI favorites filter).",
+            "description": "the application names to restrict returned list applications (used by the UI favorites filter). An entry may be qualified as 'namespace/name' to match only the application in that namespace.",
             "name": "names",
             "in": "query"
           }
@@ -687,7 +687,7 @@
               "type": "string"
             },
             "collectionFormat": "multi",
-            "description": "the application names to restrict returned list applications (used by the UI favorites filter).",
+            "description": "the application names to restrict returned list applications (used by the UI favorites filter). An entry may be qualified as 'namespace/name' to match only the application in that namespace.",
             "name": "names",
             "in": "query"
           }
@@ -4334,7 +4334,7 @@
               "type": "string"
             },
             "collectionFormat": "multi",
-            "description": "the application names to restrict returned list applications (used by the UI favorites filter).",
+            "description": "the application names to restrict returned list applications (used by the UI favorites filter). An entry may be qualified as 'namespace/name' to match only the application in that namespace.",
             "name": "names",
             "in": "query"
           }

@@ -1363,6 +1363,39 @@ func TestListAppWithNames(t *testing.T) {
 	})
 }
 
+func TestListAppWithNamespacedNames(t *testing.T) {
+	// The same application name in two namespaces, as possible with apps-in-any-namespace.
+	appServer := newTestAppServer(t, newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App1"
+	}), newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "App1"
+		app.Namespace = "argocd-1"
+	}))
+	appServer.enabledNamespaces = []string{"argocd-1"}
+
+	t.Run("List apps with a namespace qualified name returns only the app in that namespace", func(t *testing.T) {
+		appQuery := application.ApplicationQuery{Names: []string{"argocd-1/App1"}}
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		require.Len(t, appList.Items, 1)
+		assert.Equal(t, "argocd-1", appList.Items[0].Namespace)
+	})
+
+	t.Run("List apps with an unqualified name returns the app in every namespace", func(t *testing.T) {
+		appQuery := application.ApplicationQuery{Names: []string{"App1"}}
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		assert.Len(t, appList.Items, 2)
+	})
+
+	t.Run("List apps with a name qualified by an unknown namespace returns nothing", func(t *testing.T) {
+		appQuery := application.ApplicationQuery{Names: []string{"argocd-2/App1"}}
+		appList, err := appServer.List(t.Context(), &appQuery)
+		require.NoError(t, err)
+		assert.Empty(t, appList.Items)
+	})
+}
+
 func TestWatchAppsWithNamesFilter(t *testing.T) {
 	matchApp := newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "match-app"
@@ -1386,6 +1419,34 @@ func TestWatchAppsWithNamesFilter(t *testing.T) {
 	require.NotEmpty(t, ws.sent)
 	for _, event := range ws.sent {
 		assert.Equal(t, "match-app", event.Application.Name)
+	}
+}
+
+func TestWatchAppsWithNamespacedNamesFilter(t *testing.T) {
+	// The same application name in two namespaces, as possible with apps-in-any-namespace.
+	matchApp := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "match-app"
+		app.Namespace = "argocd-1"
+	})
+	otherApp := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "match-app"
+	})
+	appServer := newTestAppServer(t, matchApp, otherApp)
+	appServer.enabledNamespaces = []string{"argocd-1"}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel immediately so Watch returns after emitting the initial ADDED events for the existing
+	// applications instead of blocking on the broadcaster loop.
+	cancel()
+	ws := &mockApplicationWatchServer{ctx: ctx}
+
+	err := appServer.Watch(&application.ApplicationQuery{Names: []string{"argocd-1/match-app"}}, ws)
+	require.NoError(t, err)
+
+	// A namespace qualified name must not let the same name in another namespace through.
+	require.NotEmpty(t, ws.sent)
+	for _, event := range ws.sent {
+		assert.Equal(t, "argocd-1", event.Application.Namespace)
 	}
 }
 
