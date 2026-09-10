@@ -1,0 +1,15 @@
+# An ImageConfig is configuration read by the package manager. Like
+# EnvironmentConfig it has no status subresource, so it reaches Healthy
+# only through the has_no_conditions list.
+apiVersion: pkg.crossplane.io/v1beta1
+kind: ImageConfig
+metadata:
+  name: acme-packages
+spec:
+  matchImages:
+    - prefix: registry1.com/acme-co/configuration-foo
+      type: Prefix
+  registry:
+    authentication:
+      pullSecretRef:
+        name: acme-registry-credentials
