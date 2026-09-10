@@ -1297,7 +1297,7 @@ func Test_nativeGitClient_RemoveContents_SpecificPath(t *testing.T) {
 	require.Equal(t, "README.md", strings.TrimSpace(string(ls)))
 }
 
-func Test_nativeGitClient_CommitAndPush(t *testing.T) {
+func Test_nativeGitClient_Commit_Push(t *testing.T) {
 	ctx := t.Context()
 	tempDir, err := _createEmptyGitRepo(ctx)
 	require.NoError(t, err)
@@ -1331,7 +1331,9 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 	err = runCmd(ctx, client.Root(), "touch", "README.md")
 	require.NoError(t, err)
 
-	out, err = client.CommitAndPush(t.Context(), branch, "docs: README")
+	out, err = client.Commit("docs: README", "")
+	require.NoError(t, err, "error output: %s", out)
+	out, err = client.Push(branch)
 	require.NoError(t, err, "error output: %s", out)
 
 	// get current commit hash of the cloned repository
@@ -1897,7 +1899,9 @@ func Test_nativeGitClient_GetCommitNote(t *testing.T) {
 	// Create and commit a test file
 	err = os.WriteFile(filepath.Join(client.Root(), "README.md"), []byte("content"), 0o644)
 	require.NoError(t, err)
-	out, err = client.CommitAndPush(t.Context(), branch, "initial commit")
+	out, err = client.Commit("initial commit", "")
+	require.NoError(t, err, "error output: %s", out)
+	out, err = client.Push(branch)
 	require.NoError(t, err, "error output: %s", out)
 
 	// Get the latest commit SHA
@@ -1955,7 +1959,9 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 	// Create and commit a test file
 	err = os.WriteFile(filepath.Join(client.Root(), "README.md"), []byte("content"), 0o644)
 	require.NoError(t, err)
-	out, err = client.CommitAndPush(t.Context(), branch, "initial commit")
+	out, err = client.Commit("initial commit", "")
+	require.NoError(t, err, "error output: %s", out)
+	out, err = client.Push(branch)
 	require.NoError(t, err, "error output: %s", out)
 
 	// Get current commit SHA
@@ -2076,7 +2082,9 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	require.True(t, changed, "expected untracked file to be reported as changed")
 
 	// After commit, should NOT be changed
-	out, err = client.CommitAndPush(t.Context(), branch, "add sample.txt")
+	out, err = client.Commit("add sample.txt", "")
+	require.NoError(t, err, "error output: %s", out)
+	out, err = client.Push(branch)
 	require.NoError(t, err, "error output: %s", out)
 	changed, err = client.HasFileChanged(t.Context(), filePath)
 	require.NoError(t, err)
