@@ -18,6 +18,7 @@ import {
     ComparisonStatusIcon,
     getAppOverridesCount,
     getApplicationParentRef,
+    getAppUrl,
     getAppSetHealthStatus,
     HealthStatusIcon,
     isApp,
@@ -936,11 +937,7 @@ function renderResourceNode(
                                 className='application-resource-tree__node-label application-resource-tree__node-label--appset'
                                 onClick={e => {
                                     e.stopPropagation();
-                                    const path =
-                                        appParentRef.kind === 'ApplicationSet'
-                                            ? `/applicationsets/${appParentRef.namespace}/${appParentRef.name}`
-                                            : `/applications/${appParentRef.namespace}/${appParentRef.name}`;
-                                    ctx.navigation.goto(path);
+                                    ctx.navigation.goto('/' + getAppUrl({kind: appParentRef.kind, metadata: {name: appParentRef.name, namespace: appParentRef.namespace}} as models.AbstractApplication));
                                 }}
                                 title={`Managed by ${appParentRef.kind}: ${appParentRef.name}`}>
                                 {appParentRef.name}

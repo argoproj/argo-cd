@@ -1189,14 +1189,14 @@ describe('getAppOfAppsParentRef', () => {
         expect(ref).toEqual({name: 'parent-app'});
     });
 
-    it('strips the namespace_ prefix from the instance label value', () => {
+    it('parses the namespace and name from a namespaced instance label value', () => {
         const ref = getAppOfAppsParentRef(app({labels: {'app.kubernetes.io/instance': 'other-ns_parent-app'}}), undefined, 'label');
-        expect(ref).toEqual({name: 'parent-app'});
+        expect(ref).toEqual({name: 'parent-app', namespace: 'other-ns'});
     });
 
-    it('strips the namespace_ prefix from the tracking-id annotation', () => {
+    it('parses the namespace and name from a namespaced tracking-id annotation', () => {
         const ref = getAppOfAppsParentRef(app({annotations: {'argocd.argoproj.io/tracking-id': 'other-ns_parent-app:argoproj.io/Application:argocd/child-app'}}));
-        expect(ref).toEqual({name: 'parent-app'});
+        expect(ref).toEqual({name: 'parent-app', namespace: 'other-ns'});
     });
 
     it('uses a custom instance label key when provided with label tracking', () => {
@@ -1241,7 +1241,7 @@ describe('getApplicationParentRef', () => {
         expect(getApplicationParentRef(app)).toEqual({name: 'my-appset', namespace: 'argocd', kind: 'ApplicationSet'});
     });
 
-    it('falls back to the app-of-apps parent Application when there is no ApplicationSet owner', () => {
+    it('falls back to the app-of-apps parent Application (no namespace) for a bare instance name', () => {
         const app = {
             metadata: {
                 name: 'child-app',
@@ -1249,7 +1249,30 @@ describe('getApplicationParentRef', () => {
                 annotations: {'argocd.argoproj.io/tracking-id': 'parent-app:argoproj.io/Application:argocd/child-app'}
             }
         } as unknown as Application;
-        expect(getApplicationParentRef(app)).toEqual({name: 'parent-app', namespace: 'argocd', kind: 'Application'});
+        // A bare instance name has no encoded namespace, so the parent resolves to the namespace-less form.
+        expect(getApplicationParentRef(app)).toEqual({name: 'parent-app', kind: 'Application'});
+    });
+
+    it('targets the parent namespace encoded in the instance name when it differs from the child', () => {
+        const app = {
+            metadata: {
+                name: 'child-app',
+                namespace: 'child-ns',
+                annotations: {'argocd.argoproj.io/tracking-id': 'parent-ns_parent-app:argoproj.io/Application:child-ns/child-app'}
+            }
+        } as unknown as Application;
+        expect(getApplicationParentRef(app)).toEqual({name: 'parent-app', namespace: 'parent-ns', kind: 'Application'});
+    });
+
+    it('does not guess the child namespace for a bare instance name when the child is in another namespace', () => {
+        const app = {
+            metadata: {
+                name: 'child-app',
+                namespace: 'child-ns',
+                annotations: {'argocd.argoproj.io/tracking-id': 'parent-app:argoproj.io/Application:child-ns/child-app'}
+            }
+        } as unknown as Application;
+        expect(getApplicationParentRef(app)).toEqual({name: 'parent-app', kind: 'Application'});
     });
 
     it('returns null when the application has no parent', () => {
@@ -1266,6 +1289,6 @@ describe('getApplicationParentRef', () => {
                 annotations: {'argocd.argoproj.io/tracking-id': 'parent-app:argoproj.io/ApplicationSet:argocd/child-appset'}
             }
         } as any;
-        expect(getApplicationParentRef(appSet)).toEqual({name: 'parent-app', namespace: 'argocd', kind: 'Application'});
+        expect(getApplicationParentRef(appSet)).toEqual({name: 'parent-app', kind: 'Application'});
     });
 });

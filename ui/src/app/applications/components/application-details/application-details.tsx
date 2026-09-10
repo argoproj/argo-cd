@@ -761,8 +761,12 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             const handleNodeClick = (fullName: string) => {
                                 const parts = fullName.split('/');
                                 const [group, kind, namespace, name] = parts;
-                                if (!isApplication && group === 'argoproj.io' && kind === 'Application' && namespace && name) {
-                                    appContext.navigation.goto(`/applications/${namespace}/${name}`);
+                                if (!isApplication && group === 'argoproj.io' && kind === 'Application' && name) {
+                                    // The app may live in the control-plane namespace (empty key segment), so build the URL
+                                    // via getAppUrl with an undefined namespace to get the namespace-less form.
+                                    appContext.navigation.goto(
+                                        '/' + AppUtils.getAppUrl({kind: 'Application', metadata: {name, namespace: namespace || undefined}} as appModels.AbstractApplication)
+                                    );
                                 } else {
                                     selectNode(fullName);
                                 }
@@ -796,21 +800,20 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         onNodeClick: (fullName: string) => {
                                             const parts = fullName.split('/');
                                             const [group, kind, namespace, name] = parts;
-                                            if (group === 'argoproj.io' && kind === 'ApplicationSet' && namespace && name) {
-                                                // Only navigate to AppSet page if this AppSet owns the current Application.
-                                                // If the AppSet is a child resource managed by this Application, open ResourceDetails instead.
-                                                const ownerAppSetRef = AppUtils.getApplicationSetOwnerRef(application as appModels.Application);
-                                                if (ownerAppSetRef && ownerAppSetRef.name === name) {
-                                                    appContext.navigation.goto(`/applicationsets/${namespace}/${name}`);
-                                                    return;
-                                                }
-                                            }
-                                            if (group === 'argoproj.io' && kind === 'Application' && namespace && name) {
-                                                // Navigate to the parent Application page when this is the synthesized
-                                                // app-of-apps parent node, rather than selecting it as a resource.
-                                                const parentRef = AppUtils.getAppOfAppsParentRef(application as appModels.Application, appLabelKey, trackingMethod);
-                                                if (parentRef && parentRef.name === name) {
-                                                    appContext.navigation.goto(`/applications/${namespace}/${name}`);
+                                            if (group === 'argoproj.io' && (kind === 'Application' || kind === 'ApplicationSet')) {
+                                                // When the clicked node is the synthesized parent (ApplicationSet owner or
+                                                // app-of-apps parent Application), navigate to its page instead of selecting
+                                                // it as a resource. The parent namespace may be unset (parent in the
+                                                // control-plane namespace), so build the URL from the ref via getAppUrl.
+                                                const parentRef = AppUtils.getApplicationParentRef(application as appModels.Application, appLabelKey, trackingMethod);
+                                                if (parentRef && parentRef.kind === kind && parentRef.name === name && (parentRef.namespace || '') === namespace) {
+                                                    appContext.navigation.goto(
+                                                        '/' +
+                                                            AppUtils.getAppUrl({
+                                                                kind: parentRef.kind,
+                                                                metadata: {name: parentRef.name, namespace: parentRef.namespace}
+                                                            } as appModels.AbstractApplication)
+                                                    );
                                                     return;
                                                 }
                                             }

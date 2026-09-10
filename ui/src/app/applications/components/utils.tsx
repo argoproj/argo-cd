@@ -1504,38 +1504,36 @@ export const DefaultAppInstanceLabelKey = 'app.kubernetes.io/instance';
 // resources with the instance label instead of the tracking-id annotation.
 export const TrackingMethodLabel = 'label';
 
-// getAppOfAppsParentRef resolves the name of the parent Application that manages
-// this Application via the app-of-apps pattern. The source of truth is determined
+// getAppOfAppsParentRef resolves the parent Application that manages this
+// Application via the app-of-apps pattern. The source of truth is determined
 // by the tracking method: the instance label is only consulted when the tracking
 // method is `label`; otherwise the tracking-id annotation is used.
+// When the parent lives in a non-default namespace its instance name is encoded
+// as `<namespace>_<name>`, so the namespace is returned when present (and left
+// undefined otherwise, so the caller can fall back to a default).
 // Returns null when no parent can be determined or the parent refers to itself.
-export function getAppOfAppsParentRef(application: appModels.AbstractApplication, appLabelKey?: string, trackingMethod?: string): {name: string} | null {
+export function getAppOfAppsParentRef(application: appModels.AbstractApplication, appLabelKey?: string, trackingMethod?: string): {name: string; namespace?: string} | null {
     const metadata = application.metadata || ({} as appModels.AbstractApplication['metadata']);
-    // The instance name is either `<name>` or, for apps in a non-default namespace, `<namespace>_<name>`.
-    const instanceNameToAppName = (instanceName: string) => {
-        const underscoreIndex = instanceName.indexOf('_');
-        return underscoreIndex >= 0 ? instanceName.substring(underscoreIndex + 1) : instanceName;
-    };
 
-    let parentName = '';
+    let instanceName = '';
     if (trackingMethod === TrackingMethodLabel) {
         const labelKey = appLabelKey || DefaultAppInstanceLabelKey;
-        const labelValue = metadata.labels?.[labelKey];
-        if (labelValue) {
-            parentName = instanceNameToAppName(labelValue);
-        }
+        instanceName = metadata.labels?.[labelKey] || '';
     } else {
-        const trackingId = metadata.annotations?.[AnnotationKeyAppInstance];
-        if (trackingId) {
-            // The instance name is the segment before the first colon.
-            parentName = instanceNameToAppName(trackingId.split(':')[0] || '');
-        }
+        // The instance name is the segment before the first colon of the tracking id.
+        instanceName = metadata.annotations?.[AnnotationKeyAppInstance]?.split(':')[0] || '';
     }
 
-    if (!parentName || parentName === metadata.name) {
+    // The instance name is either `<name>` or, for apps in a non-default namespace, `<namespace>_<name>`.
+    const underscoreIndex = instanceName.indexOf('_');
+    const parentNamespace = underscoreIndex >= 0 ? instanceName.substring(0, underscoreIndex) : undefined;
+    const parentName = underscoreIndex >= 0 ? instanceName.substring(underscoreIndex + 1) : instanceName;
+
+    // Ignore missing or self-referential tracking metadata.
+    if (!parentName || (parentName === metadata.name && (parentNamespace ?? metadata.namespace) === metadata.namespace)) {
         return null;
     }
-    return {name: parentName};
+    return {name: parentName, namespace: parentNamespace};
 }
 
 // getApplicationParentRef returns a unified reference to the Application's parent,
@@ -1545,15 +1543,18 @@ export function getApplicationParentRef(
     application: appModels.AbstractApplication,
     appLabelKey?: string,
     trackingMethod?: string
-): {name: string; namespace: string; kind: 'ApplicationSet' | 'Application'} | null {
+): {name: string; namespace?: string; kind: 'ApplicationSet' | 'Application'} | null {
     // Only Applications carry an ApplicationSet owner reference; for an ApplicationSet this is always empty.
+    // An ApplicationSet always lives in the same namespace as the Applications it generates.
     const appSetRef = getApplicationSetOwnerRef(application as appModels.Application);
     if (appSetRef) {
         return {name: appSetRef.name, namespace: application.metadata.namespace, kind: 'ApplicationSet'};
     }
     const appOfAppsRef = getAppOfAppsParentRef(application, appLabelKey, trackingMethod);
     if (appOfAppsRef) {
-        return {name: appOfAppsRef.name, namespace: application.metadata.namespace, kind: 'Application'};
+        // A bare instance name has no encoded namespace: leave it undefined so the parent resolves to the
+        // control-plane namespace (namespace-less URL) rather than guessing the child's namespace.
+        return {name: appOfAppsRef.name, namespace: appOfAppsRef.namespace, kind: 'Application'};
     }
     return null;
 }
