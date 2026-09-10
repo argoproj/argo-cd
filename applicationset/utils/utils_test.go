@@ -1579,6 +1579,37 @@ func TestRenderGeneratorParams_ValuesInterpolation(t *testing.T) {
 			useGoTemplate:     true,
 			expectErr:         `failed to pre-resolve Values key "bad": failed to execute go template`,
 		},
+		{
+			// Regression test for https://github.com/argoproj/argo-cd/issues/28546.
+			// When a Matrix has two ClusterGenerators, matrix.go filters cross-gen params to
+			// values.* only before calling RenderGeneratorParams. This test verifies that
+			// RenderGeneratorParams correctly handles that filtered param set: own-namespace keys
+			// (metadata, name) are absent so their templates are deferred, while values.* keys
+			// are present and do resolve.
+			name: "GoTemplate: values.* cross-gen keys resolve; missing own-namespace keys are deferred",
+			params: map[string]any{
+				// Only values.* keys are passed — matrix.go strips own-namespace keys for same-type.
+				"values": map[string]string{
+					"applicationsBranch": "main",
+				},
+			},
+			gen: &argoappsv1.ApplicationSetGenerator{
+				Clusters: &argoappsv1.ClusterGenerator{
+					Values: map[string]string{
+						// metadata.annotations not in params → missing key → deferred to own generator.
+						"clusterName": `{{ index .metadata.annotations "cluster_name" }}`,
+						// values.* is present → resolves from cross-gen params.
+						"branch": "{{.values.applicationsBranch}}",
+					},
+				},
+			},
+			goTemplateOptions: []string{"missingkey=error"},
+			useGoTemplate:     true,
+			expectedClusterValues: map[string]string{
+				"clusterName": `{{ index .metadata.annotations "cluster_name" }}`,
+				"branch":      "main",
+			},
+		},
 	}
 
 	for _, tt := range testSet {
