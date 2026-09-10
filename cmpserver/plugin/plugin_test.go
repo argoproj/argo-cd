@@ -834,6 +834,7 @@ func TestService_MatchRepository_DiscoveryNotCompleted(t *testing.T) {
 		t.Parallel()
 		s, err := NewMockMatchRepositoryStream("./testdata/kustomize", "./testdata/kustomize", nil)
 		require.NoError(t, err)
+		s.ctx = t.Context()
 		err = service.matchRepositoryGeneric(s)
 		require.NoError(t, err)
 		require.NotNil(t, s.response)
@@ -844,11 +845,37 @@ func TestService_MatchRepository_DiscoveryNotCompleted(t *testing.T) {
 		t.Parallel()
 		s, err := NewMockMatchRepositoryStream("./testdata/ksonnet", "./testdata/ksonnet", nil)
 		require.NoError(t, err)
+		s.ctx = t.Context()
 		err = service.matchRepositoryGeneric(s)
 		require.NoError(t, err)
 		require.NotNil(t, s.response)
 		assert.False(t, s.response.IsSupported)
 	})
+}
+
+// A discover command that is killed because the deadline expired must reach the repo-server as
+// DeadlineExceeded too. cmd.Wait reports the kill as "signal: killed" and drops the reason, so
+// without the context error in the chain this crosses the wire as codes.Unknown and the
+// repo-server falls back to the native generators.
+// See https://github.com/argoproj/argo-cd/issues/24004.
+func TestService_MatchRepository_FindCommandNotCompleted(t *testing.T) {
+	t.Parallel()
+
+	service, err := newService("./testdata/slow-discovery/config")
+	require.NoError(t, err)
+
+	s, err := NewMockMatchRepositoryStream("./testdata/kustomize", "./testdata/kustomize", nil)
+	require.NoError(t, err)
+	// The server gives itself a deadline cmpTimeoutBuffer earlier than this one, so the find
+	// command is killed while the stream is still alive.
+	ctx, cancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
+	defer cancel()
+	s.ctx = ctx
+
+	err = service.matchRepositoryGeneric(s)
+	require.Error(t, err)
+	assert.Equal(t, codes.DeadlineExceeded, status.Code(err))
+	assert.Nil(t, s.response)
 }
 
 type MockParametersAnnouncementStream struct {
