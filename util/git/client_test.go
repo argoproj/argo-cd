@@ -28,6 +28,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -924,6 +925,11 @@ func TestParseLsRemoteOutput(t *testing.T) {
 			errorContains: "malformed ls-remote ref line",
 		},
 		{
+			name:          "invalid hash reference",
+			input:         "not-a-hash\trefs/heads/main\n",
+			errorContains: "malformed ls-remote ref line",
+		},
+		{
 			name:          "malformed symbolic reference",
 			input:         "ref: refs/heads/main HEAD\n",
 			errorContains: "malformed ls-remote symbolic ref line",
@@ -983,6 +989,66 @@ func TestParseTargetedHeadFetchOutput(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, ref)
 		})
+	}
+}
+
+func TestRunTargetedHeadFetchWarnsWhenServerIgnoresFilter(t *testing.T) {
+	fakeBin := t.TempDir()
+	fakeGit := filepath.Join(fakeBin, "git")
+	const headSHA = "2222222222222222222222222222222222222222"
+	require.NoError(t, os.WriteFile(fakeGit, []byte(`#!/bin/sh
+case "$*" in
+  "init --bare --quiet .") exit 0 ;;
+  *"fetch --dry-run --porcelain"*)
+    printf '* 0000000000000000000000000000000000000000 2222222222222222222222222222222222222222 FETCH_HEAD\n'
+    printf 'warning: filtering not recognized by server, ignoring\n' >&2
+    ;;
+esac
+`), 0o755))
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	hook := logtest.NewGlobal()
+	t.Cleanup(hook.Reset)
+	client := &nativeGitClient{repoURL: "https://example.com/repo.git", creds: NopCreds{}}
+	ref, err := client.runTargetedHeadFetch()
+	require.NoError(t, err)
+	assert.Equal(t, plumbing.NewHashReference(headRevision, plumbing.NewHash(headSHA)), ref)
+
+	var messages []string
+	for _, entry := range hook.AllEntries() {
+		messages = append(messages, entry.Message)
+	}
+	assert.Contains(t, messages, "Git server for https://example.com/repo.git ignored object filtering; targeted HEAD resolution may transfer the full tip tree")
+}
+
+func TestNativeLsRemoteCommandsRedactCredentials(t *testing.T) {
+	fakeBin := t.TempDir()
+	fakeGit := filepath.Join(fakeBin, "git")
+	require.NoError(t, os.WriteFile(fakeGit, []byte(`#!/bin/sh
+if [ "$1" = "init" ]; then
+  exit 0
+fi
+printf 'failed' >&2
+exit 1
+`), 0o755))
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	hook := logtest.NewGlobal()
+	t.Cleanup(hook.Reset)
+	const repoURL = "https://user:secret@example.com/repo.git"
+	client := &nativeGitClient{repoURL: repoURL, root: t.TempDir(), creds: NopCreds{}}
+	_, err := client.runLsRemote("ls-remote", "--heads", "--tags", repoURL)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "user:secret")
+	assert.Contains(t, err.Error(), "https://example.com/repo.git")
+
+	_, err = client.runTargetedHeadFetch()
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "user:secret")
+	assert.Contains(t, err.Error(), "https://example.com/repo.git")
+
+	for _, entry := range hook.AllEntries() {
+		assert.NotContains(t, entry.Message, "user:secret")
 	}
 }
 
@@ -1206,7 +1272,7 @@ func TestOptimizedLsRemoteCoveredFullRefMissDoesNotFallback(t *testing.T) {
 
 	_, err = client.LsRemote("refs/heads/missing")
 	require.ErrorContains(t, err, "unable to resolve 'refs/heads/missing'")
-	assert.Equal(t, 2, lsRemoteCalls, "covered full-ref miss should use only the two optimized queries")
+	assert.Equal(t, 1, lsRemoteCalls, "covered full-ref miss should use one optimized cache fill")
 }
 
 func TestOptimizedLsRemoteHeadFailureFallsBackToGoGit(t *testing.T) {
@@ -1246,7 +1312,7 @@ esac
 	sha, err := client.LsRemote(headRevision)
 	require.NoError(t, err)
 	assert.Equal(t, mainSHA, sha)
-	assert.Equal(t, 3, lsRemoteCalls, "go-git should run only after the targeted HEAD query fails")
+	assert.Equal(t, 2, lsRemoteCalls, "go-git should run only after the optimized cache fill fails")
 }
 
 func TestOptimizedLsRemoteUsesSingleCacheKey(t *testing.T) {
@@ -1291,7 +1357,7 @@ func TestOptimizedLsRemoteUsesSingleCacheKey(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, mainSHA, sha)
 
-	assert.Equal(t, 2, lsRemoteCalls, "one cache fill should run one bulk query and one targeted HEAD query")
+	assert.Equal(t, 1, lsRemoteCalls, "one cache fill should report one ls-remote operation")
 	assert.Equal(t, []string{"ls-remote-optimized|" + repoURL + "|HEAD,heads,tags"}, cache.setKeys)
 }
 
@@ -1355,7 +1421,7 @@ esac
 		"init --bare --quiet .",
 		"--git-dir=. -c protocol.version=2 fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0 " + repoURL + " HEAD",
 	}, strings.Split(strings.TrimSpace(string(calls)), "\n"))
-	assert.EqualValues(t, 2, lsRemoteCalls.Load())
+	assert.EqualValues(t, 1, lsRemoteCalls.Load())
 	assert.Equal(t, 1, cache.setCalls)
 }
 
@@ -1401,7 +1467,7 @@ func TestOptimizedLsRemoteIgnoresExistingFullRefCache(t *testing.T) {
 	sha, err = client.LsRemote("main")
 	require.NoError(t, err)
 	assert.Equal(t, newSHA, sha)
-	assert.Equal(t, 2, lsRemoteCalls, "optimized HEAD must not use the go-git full-ref cache")
+	assert.Equal(t, 1, lsRemoteCalls, "optimized HEAD must not use the go-git full-ref cache")
 	assert.Contains(t, cache.setKeys, "ls-remote-optimized|"+repoURL+"|HEAD,heads,tags")
 }
 

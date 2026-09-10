@@ -2,6 +2,7 @@ package git
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/csv"
@@ -234,6 +235,8 @@ type runOpts struct {
 	SkipErrorLogging bool
 	CaptureStderr    bool
 	Dir              string
+	Redactor         func(string) string
+	StderrWriter     io.Writer
 }
 
 var (
@@ -992,6 +995,11 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 
 	cacheKey := m.optimizedLsRemoteCacheKey()
 	refs, err := m.getRefsFromCacheOrFetch(cacheKey, "optimized", func() ([]*plumbing.Reference, error) {
+		if m.OnLsRemote != nil {
+			done := m.OnLsRemote(m.repoURL)
+			defer done()
+		}
+
 		refs, err := m.runLsRemote("ls-remote", "--heads", "--tags", m.repoURL)
 		if err != nil {
 			return nil, err
@@ -1043,12 +1051,12 @@ func (m *nativeGitClient) runTargetedHeadFetch() (*plumbing.Reference, error) {
 		return nil, fmt.Errorf("failed to initialize temporary Git directory for HEAD resolution: %w", err)
 	}
 
-	if m.OnLsRemote != nil {
-		done := m.OnLsRemote(m.repoURL)
-		defer done()
-	}
-
-	out, err := m.runCredentialedCmdOutput(ctx, runOpts{Dir: gitDir},
+	var stderr bytes.Buffer
+	out, err := m.runCredentialedCmdOutput(ctx, runOpts{
+		Dir:          gitDir,
+		Redactor:     repoURLRedactor(m.repoURL),
+		StderrWriter: &stderr,
+	},
 		"--git-dir=.",
 		"-c", "protocol.version=2",
 		"fetch",
@@ -1065,6 +1073,9 @@ func (m *nativeGitClient) runTargetedHeadFetch() (*plumbing.Reference, error) {
 			return nil, fmt.Errorf("targeted Git HEAD query timed out after %s: %w", gitClientTimeout, ctxErr)
 		}
 		return nil, err
+	}
+	if strings.Contains(stderr.String(), "filtering not recognized by server") {
+		log.Warnf("Git server for %s ignored object filtering; targeted HEAD resolution may transfer the full tip tree", SanitizeRepoURL(m.repoURL))
 	}
 	return parseTargetedHeadFetchOutput(out)
 }
@@ -1096,18 +1107,13 @@ func parseTargetedHeadFetchOutput(out string) (*plumbing.Reference, error) {
 }
 
 func (m *nativeGitClient) runLsRemote(args ...string) ([]*plumbing.Reference, error) {
-	if m.OnLsRemote != nil {
-		done := m.OnLsRemote(m.repoURL)
-		defer done()
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
 	defer cancel()
 
 	// ls-remote does not need a local repository. Disable repository discovery so
 	// config found under the shared temp directory cannot influence the command.
 	args = append([]string{"--git-dir=" + os.DevNull, "-c", "protocol.version=2"}, args...)
-	out, err := m.runCredentialedCmdOutput(ctx, runOpts{Dir: os.TempDir()}, args...)
+	out, err := m.runCredentialedCmdOutput(ctx, runOpts{Dir: os.TempDir(), Redactor: repoURLRedactor(m.repoURL)}, args...)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, fmt.Errorf("git ls-remote timed out after %s: %w", gitClientTimeout, ctxErr)
@@ -1145,7 +1151,7 @@ func parseLsRemoteOutput(out string) ([]*plumbing.Reference, error) {
 		}
 
 		hash, refName, ok := strings.Cut(line, "\t")
-		if !ok {
+		if !ok || !plumbing.IsHash(hash) {
 			return nil, fmt.Errorf("malformed ls-remote ref line: %q", line)
 		}
 		refName = strings.TrimSuffix(refName, "^{}")
@@ -1160,6 +1166,13 @@ func parseLsRemoteOutput(out string) ([]*plumbing.Reference, error) {
 		refs = append(refs, refsByName[name])
 	}
 	return refs, nil
+}
+
+func repoURLRedactor(repoURL string) func(string) string {
+	sanitizedRepoURL := SanitizeRepoURL(repoURL)
+	return func(text string) string {
+		return strings.ReplaceAll(text, repoURL, sanitizedRepoURL)
+	}
 }
 
 func (m *nativeGitClient) lsRemote(revision string) (string, error) {
@@ -2140,6 +2153,8 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 		},
 		SkipErrorLogging: ropts.SkipErrorLogging,
 		CaptureStderr:    ropts.CaptureStderr,
+		Redactor:         ropts.Redactor,
+		StderrWriter:     ropts.StderrWriter,
 	}
 	return executil.RunWithExecRunOpts(cmd, opts)
 }
