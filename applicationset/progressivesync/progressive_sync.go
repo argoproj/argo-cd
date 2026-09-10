@@ -60,6 +60,9 @@ type Dependencies interface {
 		conditions []argov1alpha1.ApplicationSetCondition,
 		parametersGenerated bool,
 	) error
+
+	// RecordProgressiveSyncTriggered increments the sync counter for the given appset and step
+	RecordProgressiveSyncTriggered(applicationSet *argov1alpha1.ApplicationSet, step string)
 }
 
 type Manager struct {
@@ -523,7 +526,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			if currentAppStatus.Status == argov1alpha1.ProgressiveSyncPending {
 				// No need to evaluate status health further if the application did not change since our last transition
 				if app.Status.ReconciledAt == nil || (newAppStatus.LastTransitionTime != nil && app.Status.ReconciledAt.After(newAppStatus.LastTransitionTime.Time)) {
-					// Validate that at least one sync was trigerred after the pending transition time
+					// Validate that at least one sync was triggered after the pending transition time
 					if app.Status.OperationState != nil && app.Status.OperationState.StartedAt.After(currentAppStatus.LastTransitionTime.Time) {
 						statusLogCtx = statusLogCtx.WithField("app.operation", app.Status.OperationState.Phase)
 						newAppStatus.LastTransitionTime = &now
@@ -1019,7 +1022,9 @@ func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *arg
 		// check appsToSync to determine which Applications are ready to be updated and which should be skipped
 		if appsToSync[desiredApplications[i].Name] && appSetStatusPending {
 			logCtx.Infof("triggering sync for application: %v, prune enabled: %v", desiredApplications[i].Name, pruneEnabled)
+
 			desiredApplications[i] = syncApplication(desiredApplications[i], pruneEnabled, pinnedRevisions)
+			m.dependencies.RecordProgressiveSyncTriggered(applicationSet, applicationSet.Status.ApplicationStatus[idx].Step)
 		}
 
 		rolloutApps = append(rolloutApps, desiredApplications[i])

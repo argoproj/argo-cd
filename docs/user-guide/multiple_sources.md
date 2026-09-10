@@ -86,3 +86,20 @@ at that URL. If the `path` field is not set, Argo CD will use the repository sol
 
 > [!NOTE]
 > Even when the `ref` field is configured with the `path` field, `$value` still represents the root of sources with the `ref` field. Consequently, `valueFiles` must be specified as relative paths from the root of sources.
+
+## Creating with the CLI
+
+Multi-source applications cannot be created using individual flags like `--repo` and `--path` (those apply to a single source). Instead, provide a full Application manifest via `--file`:
+
+```bash
+argocd app create my-billing-app --file app.yaml
+```
+
+For parameterized pipelines, pipe a rendered manifest on stdin. The application name is taken from `metadata.name` in the manifest:
+
+```bash
+envsubst < app-template.yaml | argocd app create my-billing-app --file -
+```
+
+> [!NOTE]
+> When using `--file` with a multi-source manifest, source-related flags (`--repo`, `--path`, `--helm-set`, etc.) are ignored.
