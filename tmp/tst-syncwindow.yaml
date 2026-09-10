@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: SyncWindowResource
+metadata:
+  name: nightly-freeze
+  namespace: argocd
+  labels:
+    env: prod
+    team: platform
+spec:
+  windows:
+    - kind: deny
+      schedule: "0 * * * *"
+      duration: "24h"
+      applications:
+        - "*"
+      description: "Nightly maintenance freeze"
+    - kind: allow
+      schedule: "0 6 * * 1-5"
+      duration: "12h"
+      applications:
+        - "staging-*"
+      description: "Weekday staging deploys"

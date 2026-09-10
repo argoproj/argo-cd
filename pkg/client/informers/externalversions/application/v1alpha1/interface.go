@@ -15,7 +15,7 @@ type Interface interface {
 	// ApplicationSets returns a ApplicationSetInformer.
 	ApplicationSets() TypedApplicationSetInformer
 	// SyncWindows returns a SyncWindowInformer.
-	SyncWindows() SyncWindowInformer
+	SyncWindows() TypedSyncWindowInformer
 }
 
 type version struct {
@@ -44,7 +44,7 @@ func (v *version) ApplicationSets() TypedApplicationSetInformer {
 	return &applicationSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// SyncWindows returns a SyncWindowInformer.
-func (v *version) SyncWindows() SyncWindowInformer {
+// SyncWindows returns a TypedSyncWindowInformer.
+func (v *version) SyncWindows() TypedSyncWindowInformer {
 	return &syncWindowInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

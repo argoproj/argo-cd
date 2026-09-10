@@ -18,11 +18,39 @@ import (
 )
 
 // SyncWindowInformer provides access to a shared informer and lister for
-// SyncWindows.
+// SyncWindows. Prefer using the type-safe variant (see [TypedSyncWindowInformer]).
 type SyncWindowInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() applicationv1alpha1.SyncWindowLister
 }
+
+// TypedSyncWindowInformer provides access to a shared informer and lister for
+// SyncWindows, including the type-safe TypedInformer variant.
+// It is a superset of SyncWindowInformer.
+type TypedSyncWindowInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() SyncWindowIndexInformer
+	Lister() applicationv1alpha1.SyncWindowLister
+}
+
+// SyncWindowIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type SyncWindowIndexInformer cache.TypedSharedIndexInformer[*apisapplicationv1alpha1.SyncWindow]
+
+// SyncWindowHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for SyncWindow.
+type SyncWindowHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisapplicationv1alpha1.SyncWindow]
+
+// SyncWindowDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for SyncWindow.
+type SyncWindowDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisapplicationv1alpha1.SyncWindow]
+
+// SyncWindowFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for SyncWindow.
+type SyncWindowFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisapplicationv1alpha1.SyncWindow]
+
+// SyncWindowIndexers is a specialization of [cache.TypedIndexers] for SyncWindow.
+type SyncWindowIndexers = cache.TypedIndexers[*apisapplicationv1alpha1.SyncWindow]
+
+// DeletedSyncWindow is a specialization of [cache.DeletedObject] for SyncWindow.
+type DeletedSyncWindow = cache.DeletedObject[*apisapplicationv1alpha1.SyncWindow]
 
 type syncWindowInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -33,25 +61,49 @@ type syncWindowInformer struct {
 // NewSyncWindowInformer constructs a new informer for SyncWindow type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedSyncWindowInformer]).
 func NewSyncWindowInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewSyncWindowInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedSyncWindowInformer constructs a new informer for SyncWindow type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedSyncWindowInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers SyncWindowIndexers) SyncWindowIndexInformer {
+	return NewTypedSyncWindowInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredSyncWindowInformer constructs a new informer for SyncWindow type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredSyncWindowInformer]).
 func NewFilteredSyncWindowInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewSyncWindowInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+	return NewTypedSyncWindowInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredSyncWindowInformer constructs a new informer for SyncWindow type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredSyncWindowInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers SyncWindowIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) SyncWindowIndexInformer {
+	return NewTypedSyncWindowInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
 }
 
 // NewSyncWindowInformerWithOptions constructs a new informer for SyncWindow type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedSyncWindowInformerWithOptions]).
 func NewSyncWindowInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedSyncWindowInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedSyncWindowInformerWithOptions constructs a new informer for SyncWindow type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedSyncWindowInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) SyncWindowIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "syncwindows"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewSharedIndexInformerWithOptions(
+	return cache.NewTypedSharedIndexInformer[*apisapplicationv1alpha1.SyncWindow](cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -84,17 +136,57 @@ func NewSyncWindowInformerWithOptions(client versioned.Interface, namespace stri
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	)
+	))
 }
 
 func (f *syncWindowInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewSyncWindowInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewTypedSyncWindowInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *syncWindowInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisapplicationv1alpha1.SyncWindow{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *syncWindowInformer) TypedInformer() SyncWindowIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisapplicationv1alpha1.SyncWindow](f.factory.InformerFor(&apisapplicationv1alpha1.SyncWindow{}, f.defaultInformer))
 }
 
 func (f *syncWindowInformer) Lister() applicationv1alpha1.SyncWindowLister {
 	return applicationv1alpha1.NewSyncWindowLister(f.Informer().GetIndexer())
+}
+
+// ToTypedSyncWindowInformer converts an untyped informer into a TypedSyncWindowInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *SyncWindow. If that is not the case, calling type-safe methods of the returned
+// TypedSyncWindowInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedSyncWindowInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedSyncWindowInformer(informer SyncWindowInformer) TypedSyncWindowInformer {
+	if informer, ok := informer.(TypedSyncWindowInformer); ok {
+		return informer
+	}
+	return &syncWindowTypedInformerAdapter{informer}
+}
+
+type syncWindowTypedInformerAdapter struct {
+	SyncWindowInformer
+}
+
+func (a *syncWindowTypedInformerAdapter) TypedInformer() SyncWindowIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisapplicationv1alpha1.SyncWindow](a.Informer())
+}
+
+// ToSyncWindowIndexInformer converts an untyped informer into a SyncWindowIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *SyncWindow. If that is not the case, calling type-safe methods of the returned
+// SyncWindowIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a SyncWindowIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToSyncWindowIndexInformer(informer cache.SharedIndexInformer) SyncWindowIndexInformer {
+	if informer, ok := informer.(SyncWindowIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisapplicationv1alpha1.SyncWindow](informer)
 }
