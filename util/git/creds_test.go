@@ -322,30 +322,17 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 	// Previously, if the proxy URL was invalid, a temporary file would be left in /dev/shm. This ensures the file is cleaned up in this case.
 
-	// argoio.TempDir will be /dev/shm or "" (on an OS without /dev/shm).
-	// In this case os.CreateTemp(), which is used by creds.Environ(),
-	// will use os.TempDir for the temporary directory.
-	// Reproducing this logic here:
-	argoioTempDir := argoio.TempDir
-	if argoioTempDir == "" {
-		argoioTempDir = os.TempDir()
-	}
-
-	// This argoioTempDir is shared between all processes, making it unreliable
-	// to count the files inside before and after the invocation of creds.Environ().
-	// Use unique temp directory inside of it to isolate the validation logic.
-	argoioTempDir, err := os.MkdirTemp(argoioTempDir, "argocd-cleanup-test-*")
-	require.NoError(t, err)
-	t.Cleanup(func() { os.RemoveAll(argoioTempDir) })
-
 	origArgoioTempDir := argoio.TempDir
 	t.Cleanup(func() { argoio.TempDir = origArgoioTempDir })
 
-	argoio.TempDir = argoioTempDir
+	// Redirect argoio.TempDir to a test-private directory. Production uses /dev/shm
+	// or the OS temp dir, which other processes (and parallel tests) can modify,
+	// so counting entries there before/after creds.Environ() would be flaky.
+	argoio.TempDir = t.TempDir()
 
 	// countDev returns the number of files in the temporary directory
 	countFilesInDevShm := func() int {
-		entries, err := os.ReadDir(argoioTempDir)
+		entries, err := os.ReadDir(argoio.TempDir)
 		require.NoError(t, err)
 
 		return len(entries)
