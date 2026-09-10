@@ -28,41 +28,35 @@ This setting supports hot-reload and changes take effect without restarting the 
 
 ## Configuring Storage and Compression
 
-The serialization format and compression algorithm are configured via environment variables on the `argocd-application-controller` deployment.
+The serialization format and compression algorithm are configured in the `argocd-cm` ConfigMap. These settings support hot reload and changes take effect when the cluster cache is invalidated and re-synced.
 
 ### Storage Format
 
-| Environment Variable | Description |
+| ConfigMap key | Description |
 |---------------------|-------------|
-| `ARGOCD_CLUSTER_CACHE_MANIFEST_STORAGE` | Serialization format. Default: `json` |
+| `resource.manifest.storage` | Serialization format. Default: `json` |
 
-Supported values: `json`, `jsoniter`, `msgpack`
+Supported values: `json`, `msgpack`
 
 ### Compression Algorithm
 
-| Environment Variable | Description |
+| ConfigMap key | Description |
 |---------------------|-------------|
-| `ARGOCD_CLUSTER_CACHE_MANIFEST_COMPRESSION` | Compression algorithm. Default: `gzip-bestspeed` |
+| `resource.manifest.compression` | Compression algorithm. Default: `gzip-bestspeed` |
 
 Supported values: `gzip-bestspeed`, `gzip-default`, `s2-encode`, `s2-encodebetter`, `zlib`, `none`
 
-### Example Deployment Patch
+### Example ConfigMap
 
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: argocd-application-controller
-spec:
-  template:
-    spec:
-      containers:
-      - name: argocd-application-controller
-        env:
-        - name: ARGOCD_CLUSTER_CACHE_MANIFEST_STORAGE
-          value: "json"
-        - name: ARGOCD_CLUSTER_CACHE_MANIFEST_COMPRESSION
-          value: "gzip-bestspeed"
+  name: argocd-cm
+  namespace: argocd
+data:
+  resource.manifest.storage: "msgpack"
+  resource.manifest.compression: "gzip-bestspeed"
 ```
 ## Disabling
 

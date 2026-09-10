@@ -8,7 +8,6 @@ import (
 	"math"
 	"net"
 	"net/url"
-	"os"
 	"os/exec"
 	"reflect"
 	"strconv"
@@ -77,12 +76,6 @@ const (
 	// EnvClusterCacheEventsProcessingInterval is the env variable to control the interval between processing events when BatchEventsProcessing is enabled
 	EnvClusterCacheEventsProcessingInterval = "ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL"
 
-	// EnvClusterCacheManifestStorage configures cached manifest serialization format (json|jsoniter|msgpack).
-	EnvClusterCacheManifestStorage = "ARGOCD_CLUSTER_CACHE_MANIFEST_STORAGE"
-
-	// EnvClusterCacheManifestCompression configures cached manifest compression algorithm (gzip-bestspeed|gzip-default|s2-encode|s2-encodebetter|zlib|none).
-	EnvClusterCacheManifestCompression = "ARGOCD_CLUSTER_CACHE_MANIFEST_COMPRESSION"
-
 	// AnnotationIgnoreResourceUpdates when set to true on an untracked resource,
 	// argo will apply `ignoreResourceUpdates` configuration on it.
 	AnnotationIgnoreResourceUpdates = "argocd.argoproj.io/ignore-resource-updates"
@@ -123,12 +116,6 @@ var (
 
 	// clusterCacheEventsProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
 	clusterCacheEventsProcessingInterval = 100 * time.Millisecond
-
-	// clusterCacheManifestStorageType is the serialization format for cached manifests
-	clusterCacheManifestStorageType = clustercache.ManifestStorageJSON
-
-	// clusterCacheManifestCompressionType is the compression algorithm for cached manifests
-	clusterCacheManifestCompressionType = clustercache.ManifestCompressionGZipBestSpeed
 )
 
 func init() {
@@ -142,12 +129,6 @@ func init() {
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
 	clusterCacheBatchEventsProcessing = env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, true)
 	clusterCacheEventsProcessingInterval = env.ParseDurationFromEnv(EnvClusterCacheEventsProcessingInterval, clusterCacheEventsProcessingInterval, 0, math.MaxInt64)
-	if v := os.Getenv(EnvClusterCacheManifestStorage); v != "" {
-		clusterCacheManifestStorageType = clustercache.ManifestStorageType(v)
-	}
-	if v := os.Getenv(EnvClusterCacheManifestCompression); v != "" {
-		clusterCacheManifestCompressionType = clustercache.ManifestCompressionType(v)
-	}
 }
 
 type LiveStateCache interface {
@@ -238,6 +219,8 @@ type cacheSettings struct {
 	ignoreResourceUpdatesEnabled bool
 	// manifestCompressionEnabled controls whether resource manifests are stored gzip-compressed in memory.
 	manifestCompressionEnabled bool
+	manifestStorageType        clustercache.ManifestStorageType
+	manifestCompressionType    clustercache.ManifestCompressionType
 }
 
 type liveStateCache struct {
@@ -280,6 +263,14 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	if err != nil {
 		return nil, err
 	}
+	manifestStorage, err := c.settingsMgr.GetManifestStorage()
+	if err != nil {
+		return nil, err
+	}
+	manifestCompression, err := c.settingsMgr.GetManifestCompression()
+	if err != nil {
+		return nil, err
+	}
 	resourcesFilter, err := c.settingsMgr.GetResourcesFilter()
 	if err != nil {
 		return nil, err
@@ -293,7 +284,7 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 		ResourcesFilter:        resourcesFilter,
 	}
 
-	return &cacheSettings{clusterSettings, appInstanceLabelKey, appv1.TrackingMethod(trackingMethod), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled, manifestCompressionEnabled}, nil
+	return &cacheSettings{clusterSettings, appInstanceLabelKey, appv1.TrackingMethod(trackingMethod), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled, manifestCompressionEnabled, clustercache.ManifestStorageType(manifestStorage), clustercache.ManifestCompressionType(manifestCompression)}, nil
 }
 
 func asResourceNode(r *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) appv1.ResourceNode {
@@ -609,8 +600,8 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		clustercache.SetBatchEventsProcessing(clusterCacheBatchEventsProcessing),
 		clustercache.SetEventProcessingInterval(clusterCacheEventsProcessingInterval),
 		clustercache.SetManifestCompressionEnabled(cacheSettings.manifestCompressionEnabled),
-		clustercache.SetManifestStorageType(clusterCacheManifestStorageType),
-		clustercache.SetManifestCompressionType(clusterCacheManifestCompressionType),
+		clustercache.SetManifestStorageType(cacheSettings.manifestStorageType),
+		clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
@@ -697,8 +688,8 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 		clust.Invalidate(
 			clustercache.SetSettings(cacheSettings.clusterSettings),
 			clustercache.SetManifestCompressionEnabled(cacheSettings.manifestCompressionEnabled),
-			clustercache.SetManifestStorageType(clusterCacheManifestStorageType),
-			clustercache.SetManifestCompressionType(clusterCacheManifestCompressionType),
+			clustercache.SetManifestStorageType(cacheSettings.manifestStorageType),
+			clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
 		)
 	}
 	log.Info("live state cache invalidated")

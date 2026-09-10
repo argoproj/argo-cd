@@ -499,6 +499,10 @@ const (
 	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
 	// manifestCompressionEnabledKey is the key to a boolean determining whether manifest compression is enabled
 	manifestCompressionEnabledKey = "resource.manifest.compression.enabled"
+	// manifestStorageKey configures the serialization format for cached manifests
+	manifestStorageKey = "resource.manifest.storage"
+	// manifestCompressionKey configures the compression algorithm for cached manifests
+	manifestCompressionKey = "resource.manifest.compression"
 	// resourceSensitiveAnnotationsKey is the key to list of annotations to mask in secret resource
 	resourceSensitiveAnnotationsKey = "resource.sensitive.mask.annotations"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
@@ -1097,6 +1101,22 @@ func (mgr *SettingsManager) GetIsManifestCompressionEnabled() (bool, error) {
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[manifestCompressionEnabledKey])
+}
+
+func (mgr *SettingsManager) GetManifestStorage() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", fmt.Errorf("error retrieving config map: %w", err)
+	}
+	return argoCDCM.Data[manifestStorageKey], nil
+}
+
+func (mgr *SettingsManager) GetManifestCompression() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", fmt.Errorf("error retrieving config map: %w", err)
+	}
+	return argoCDCM.Data[manifestCompressionKey], nil
 }
 
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
