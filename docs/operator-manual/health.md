@@ -214,15 +214,12 @@ set, what they're for, and what might go wrong if the user were to manually clea
 Example:
 
 ```lua
-local hs = {}
-hs.status = "Progressing"
-hs.message = "Initializing"
-
 local finalizerMessages = {
   ["widget.example.com/cleanup"] = "Waiting for the external API to acknowledge deletion before the Widget can be removed.",
 }
 
 if obj.metadata ~= nil and obj.metadata.deletionTimestamp ~= nil then
+  local hs = {}
   hs.status = "Progressing"
   local parts = { "Widget is being deleted." }
   if obj.metadata.finalizers ~= nil then
@@ -238,6 +235,10 @@ if obj.metadata ~= nil and obj.metadata.deletionTimestamp ~= nil then
   hs.deletionMessage = table.concat(parts, " ")
   return hs
 end
+
+local hs = {}
+hs.status = "Progressing"
+hs.message = "Initializing"
 
 -- ... evaluate normal health into hs ...
 
