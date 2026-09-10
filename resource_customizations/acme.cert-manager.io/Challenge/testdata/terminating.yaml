@@ -1,7 +1,0 @@
-apiVersion: acme.cert-manager.io/v1
-kind: Challenge
-metadata:
-  name: terminating-resource
-  deletionTimestamp: "2024-01-01T00:00:00Z"
-  finalizers:
-    - example.com/finalizer

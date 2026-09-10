@@ -27,7 +27,3 @@ tests:
     status: Progressing
     message: Waiting for LLMInferenceService reconciliation (generation mismatch)
   inputPath: testdata/stale_condition.yaml
-- healthStatus:
-    status: Progressing
-    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
-  inputPath: testdata/terminating.yaml

@@ -4,10 +4,8 @@ local hs = {}
 hs.status = "Progressing"
 hs.message = "Initializing promotion strategy"
 
--- Check for deletion timestamp
-if obj.metadata.deletionTimestamp then
-    hs.status = "Progressing"
-    hs.message = "Promotion strategy is being deleted"
+if obj.metadata and obj.metadata.deletionTimestamp then
+    hs.deletionMessage = "Promotion strategy is being deleted"
     return hs
 end
 

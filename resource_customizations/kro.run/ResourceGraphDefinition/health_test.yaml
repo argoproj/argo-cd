@@ -23,7 +23,3 @@ tests:
       status: Progressing
       message: "Waiting for ResourceGraphDefinition to become ready"
     inputPath: testdata/missing_generation.yaml
-  - healthStatus:
-      status: Progressing
-      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
-    inputPath: testdata/terminating.yaml

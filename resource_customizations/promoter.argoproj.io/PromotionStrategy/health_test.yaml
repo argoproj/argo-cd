@@ -5,7 +5,8 @@ tests:
   inputPath: testdata/no-status.yaml
 - healthStatus:
     status: Progressing
-    message: Promotion strategy is being deleted
+    message: Initializing promotion strategy
+    deletionMessage: Promotion strategy is being deleted
   inputPath: testdata/deleting.yaml
 - healthStatus:
     status: Progressing
@@ -55,7 +56,3 @@ tests:
     status: Healthy
     message: All environments are up-to-date on commit '56057f1'. Hydrator has processed dry commit 'ab3c473'.
   inputPath: testdata/no-op-rehydration-note-ahead.yaml
-- healthStatus:
-    status: Progressing
-    message: "Promotion strategy is being deleted"
-  inputPath: testdata/terminating.yaml

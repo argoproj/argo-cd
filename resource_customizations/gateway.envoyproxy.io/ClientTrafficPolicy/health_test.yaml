@@ -23,7 +23,3 @@ tests:
     status: Healthy
     message: "ClientTrafficPolicy is healthy"
   inputPath: testdata/healthy_with_stale_ancestor.yaml
-- healthStatus:
-    status: Progressing
-    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
-  inputPath: testdata/terminating.yaml

@@ -23,7 +23,3 @@ tests:
     status: Healthy
     message: 'HTTPProxy inclusions cannot be health checked'
   inputPath: testdata/parent_child.yaml
-- healthStatus:
-    status: Progressing
-    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
-  inputPath: testdata/terminating.yaml

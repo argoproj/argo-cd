@@ -10,6 +10,8 @@ local function formatDeletingWithFinalizers(base, finalizers, catalog)
         local e = catalog[f]
         if e then
             table.insert(parts, f .. ": " .. e.wait .. " Risk if removed manually: " .. e.risk)
+        else
+            table.insert(parts, f .. ": still present.")
         end
     end
     return table.concat(parts, " ")
@@ -19,10 +21,8 @@ local hs = {}
 hs.status = "Progressing"
 hs.message = "Initializing pull request"
 
--- Check for deletion timestamp
-if obj.metadata.deletionTimestamp then
-    hs.status = "Progressing"
-    hs.message = formatDeletingWithFinalizers(
+if obj.metadata and obj.metadata.deletionTimestamp then
+    hs.deletionMessage = formatDeletingWithFinalizers(
         "Pull request is being deleted.",
         obj.metadata.finalizers,
         {

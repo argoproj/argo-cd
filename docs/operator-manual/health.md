@@ -184,22 +184,6 @@ The custom health check might return one of the following health statuses:
 
 By default, health typically returns a `Progressing` status.
 
-### Terminating resources
-
-When a resource is being deleted, Kubernetes sets `metadata.deletionTimestamp`. Health checks should handle
-this explicitly near the top of the script so operators see meaningful deletion progress (for example, which
-finalizers remain and what they protect).
-
-Bundled Argo CD health checks include a default deletion branch that reports `Progressing` with message
-`Pending deletion`, listing any remaining finalizers when present. You can customize this block in contributed
-checks—for example, mapping well-known finalizers to short explanations of who clears them.
-
-Resources with no health check still report `Progressing` / `Pending deletion` via a built-in default.
-
-If you use custom Lua health checks configured in `argocd-cm`, add a deletion branch if your script otherwise
-evaluates only `status` fields. See the [v3.5 to 3.6 upgrade guide](upgrading/3.5-3.6.md) for an example snippet
-and CLI commands to simulate behavior before and after upgrading.
-
 > [!NOTE]
 > As a security measure, access to the standard Lua libraries will be disabled by default.
 > Admins can control access by setting `resource.customizations.useOpenLibs.<group>_<kind>`.
@@ -211,6 +195,54 @@ and CLI commands to simulate behavior before and after upgrading.
 >   resource.customizations.health.cert-manager.io_Certificate: |
 >     # Lua standard libraries are enabled for this script
 > ```
+
+### Terminating resources
+
+When a resource has `metadata.deletionTimestamp` set (and it is not blocked on the Argo CD hook
+finalizer `argocd.argoproj.io/hook-finalizer`), Argo CD runs the health check and may adjust the
+result.
+
+If the check does **not** set `deletionMessage`, Argo CD returns a Progressing health with a default
+message listing pending finalizers.
+
+If the check **does** set `deletionMessage`, Argo CD uses the returned status and `deletionMessage`
+(ignoring any set `message` value).
+
+This feature exists mostly so that health checks can help users understand the finalizers that are
+set, what they're for, and what might go wrong if the user were to manually clear them.
+
+Example:
+
+```lua
+local hs = {}
+hs.status = "Progressing"
+hs.message = "Initializing"
+
+local finalizerMessages = {
+  ["widget.example.com/cleanup"] = "Waiting for the external API to acknowledge deletion before the Widget can be removed.",
+}
+
+if obj.metadata ~= nil and obj.metadata.deletionTimestamp ~= nil then
+  hs.status = "Progressing"
+  local parts = { "Widget is being deleted." }
+  if obj.metadata.finalizers ~= nil then
+    for _, f in ipairs(obj.metadata.finalizers) do
+      local msg = finalizerMessages[f]
+      if msg ~= nil then
+        table.insert(parts, f .. ": " .. msg)
+      else
+        table.insert(parts, f .. ": still present.")
+      end
+    end
+  end
+  hs.deletionMessage = table.concat(parts, " ")
+  return hs
+end
+
+-- ... evaluate normal health into hs ...
+
+return hs
+```
 
 ### Way 2. Contribute a Custom Health Check
 

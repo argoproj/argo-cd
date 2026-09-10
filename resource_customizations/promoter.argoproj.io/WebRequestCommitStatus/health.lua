@@ -7,9 +7,8 @@ hs.message = "Initializing web request commit validation"
 -- WebRequestCommitStatus (gitops-promoter v1alpha1): HTTP-based gating with per-environment phase
 -- (pending / success / failure) in status.environments, plus aggregated Ready.
 
-if obj.metadata.deletionTimestamp then
-    hs.status = "Progressing"
-    hs.message = "WebRequestCommitStatus is being deleted"
+if obj.metadata and obj.metadata.deletionTimestamp then
+    hs.deletionMessage = "WebRequestCommitStatus is being deleted"
     return hs
 end
 

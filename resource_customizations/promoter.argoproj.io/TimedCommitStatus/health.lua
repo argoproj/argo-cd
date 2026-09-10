@@ -7,9 +7,8 @@ hs.message = "Initializing timed commit gate"
 -- TimedCommitStatus (gitops-promoter v1alpha1): per-environment wait before reporting success.
 -- status.environments[].phase is pending or success (see API).
 
-if obj.metadata.deletionTimestamp then
-    hs.status = "Progressing"
-    hs.message = "TimedCommitStatus is being deleted"
+if obj.metadata and obj.metadata.deletionTimestamp then
+    hs.deletionMessage = "TimedCommitStatus is being deleted"
     return hs
 end
 

@@ -26,7 +26,3 @@ tests:
 
       - grafana-operator/grafana: inferred bar-folder
   inputPath: testdata/degraded-folder-uid-mismatch.yaml
-- healthStatus:
-    status: Progressing
-    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
-  inputPath: testdata/terminating.yaml

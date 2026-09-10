@@ -31,7 +31,3 @@ tests:
     status: Progressing
     message: Waiting for GRPCRoute status
   inputPath: testdata/progressing_all_stale.yaml
-- healthStatus:
-    status: Progressing
-    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
-  inputPath: testdata/terminating.yaml

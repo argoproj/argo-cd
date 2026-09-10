@@ -19,7 +19,3 @@ tests:
     status: Degraded
     message: "Pool exhausted for: cpu, memory"
   inputPath: testdata/degraded_exhausted.yaml
-- healthStatus:
-    status: Progressing
-    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
-  inputPath: testdata/terminating.yaml

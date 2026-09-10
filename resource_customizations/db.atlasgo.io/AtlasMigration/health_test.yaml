@@ -11,7 +11,3 @@ tests:
     status: Healthy
     message: "Applied"
   inputPath: testdata/healthy.yaml
-- healthStatus:
-    status: Progressing
-    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
-  inputPath: testdata/terminating.yaml

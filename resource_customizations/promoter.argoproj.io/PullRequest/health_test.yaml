@@ -1,42 +1,34 @@
 tests:
 - healthStatus:
-    message: Initializing pull request
     status: Progressing
+    message: Initializing pull request
   inputPath: testdata/no-status.yaml
 - healthStatus:
-    message: 'Pull request is being deleted. pullrequest.promoter.argoproj.io/finalizer:
-      Waiting for SCM closure or reconciliation of the pull request. Risk if removed
-      manually: the real PR can stay open after the CR is gone. changetransferpolicy.promoter.argoproj.io/pullrequest-finalizer:
-      Waiting for the ChangeTransferPolicy to observe PR identity and state. Risk
-      if removed manually: promotion status or history can be wrong or racy.'
     status: Progressing
+    message: Initializing pull request
+    deletionMessage: 'Pull request is being deleted. pullrequest.promoter.argoproj.io/finalizer: Waiting for SCM closure or reconciliation of the pull request. Risk if removed manually: the real PR can stay open after the CR is gone. changetransferpolicy.promoter.argoproj.io/pullrequest-finalizer: Waiting for the ChangeTransferPolicy to observe PR identity and state. Risk if removed manually: promotion status or history can be wrong or racy.'
   inputPath: testdata/deleting.yaml
 - healthStatus:
-    message: Waiting for pull request spec update to be observed
     status: Progressing
+    message: Waiting for pull request spec update to be observed
   inputPath: testdata/observed-generation-outdated.yaml
 - healthStatus:
-    message: 'Pull request reconciliation failed: Something went wrong'
     status: Degraded
+    message: "Pull request reconciliation failed: Something went wrong"
   inputPath: testdata/reconciliation-error.yaml
 - healthStatus:
-    message: 'Pull request reconciliation failed: Failed to create pull request: authentication
-      failed'
     status: Degraded
+    message: "Pull request reconciliation failed: Failed to create pull request: authentication failed"
   inputPath: testdata/non-reconciliation-error.yaml
 - healthStatus:
-    message: Pull request is not ready yet
     status: Progressing
+    message: Pull request is not ready yet
   inputPath: testdata/no-ready-condition.yaml
 - healthStatus:
-    message: Pull request is healthy
     status: Healthy
+    message: Pull request is healthy
   inputPath: testdata/healthy-no-id-or-state.yaml
 - healthStatus:
-    message: Pull request is open as PR 123
     status: Healthy
+    message: Pull request is open as PR 123
   inputPath: testdata/healthy-with-id-and-state.yaml
-- healthStatus:
-    message: Pull request is being deleted.
-    status: Progressing
-  inputPath: testdata/terminating.yaml

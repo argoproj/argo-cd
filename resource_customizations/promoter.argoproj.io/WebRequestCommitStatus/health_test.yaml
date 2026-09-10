@@ -1,48 +1,42 @@
 tests:
 - healthStatus:
-    message: Initializing web request commit validation
     status: Progressing
+    message: Initializing web request commit validation
   inputPath: testdata/no-status.yaml
 - healthStatus:
-    message: WebRequestCommitStatus is being deleted
     status: Progressing
+    message: Initializing web request commit validation
+    deletionMessage: WebRequestCommitStatus is being deleted
   inputPath: testdata/deleting.yaml
 - healthStatus:
-    message: Waiting for WebRequestCommitStatus spec update to be observed
     status: Progressing
+    message: Waiting for WebRequestCommitStatus spec update to be observed
   inputPath: testdata/observed-generation-outdated.yaml
 - healthStatus:
-    message: 'Web request commit validation failed: Reconciliation failed: invalid
-      URL template'
     status: Degraded
+    message: "Web request commit validation failed: Reconciliation failed: invalid URL template"
   inputPath: testdata/reconcile-error.yaml
 - healthStatus:
-    message: 'Web request commit validation not ready (CommitStatusesNotReady): CommitStatus
-      "external-check-env-dev-ext-approval" is not Ready because "ReconciliationError":
-      SCM error'
     status: Degraded
+    message: "Web request commit validation not ready (CommitStatusesNotReady): CommitStatus \"external-check-env-dev-ext-approval\" is not Ready because \"ReconciliationError\": SCM error"
   inputPath: testdata/commit-statuses-not-ready.yaml
 - healthStatus:
-    message: WebRequestCommitStatus Ready condition is missing
     status: Progressing
+    message: WebRequestCommitStatus Ready condition is missing
   inputPath: testdata/no-ready-condition.yaml
 - healthStatus:
-    message: Web request commit validation reconciled
     status: Healthy
+    message: Web request commit validation reconciled
   inputPath: testdata/empty-environments.yaml
 - healthStatus:
-    message: 'Web request validation pending for branch(es): env/dev'
     status: Progressing
+    message: "Web request validation pending for branch(es): env/dev"
   inputPath: testdata/environment-pending.yaml
 - healthStatus:
-    message: 'Web request validation failed for branch(es): env/dev'
     status: Degraded
+    message: "Web request validation failed for branch(es): env/dev"
   inputPath: testdata/environment-failure.yaml
 - healthStatus:
-    message: Web request validation passed for 2 environment(s)
     status: Healthy
+    message: Web request validation passed for 2 environment(s)
   inputPath: testdata/all-success.yaml
-- healthStatus:
-    message: WebRequestCommitStatus is being deleted
-    status: Progressing
-  inputPath: testdata/terminating.yaml

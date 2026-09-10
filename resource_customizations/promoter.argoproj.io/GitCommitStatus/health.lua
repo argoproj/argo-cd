@@ -8,9 +8,8 @@ hs.message = "Initializing git commit validation"
 -- (branch, phase, proposedHydratedSha, targetedSha, expressionResult). It is not CommitStatus:
 -- there is no top-level status.sha / status.phase.
 
-if obj.metadata.deletionTimestamp then
-    hs.status = "Progressing"
-    hs.message = "GitCommitStatus is being deleted"
+if obj.metadata and obj.metadata.deletionTimestamp then
+    hs.deletionMessage = "GitCommitStatus is being deleted"
     return hs
 end
 

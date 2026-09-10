@@ -19,7 +19,3 @@ tests:
       status: Progressing
       message: "Waiting for 3scale DeveloperAccount status..."
     inputPath: testdata/progressing.yaml
-  - healthStatus:
-      status: Progressing
-      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
-    inputPath: testdata/terminating.yaml

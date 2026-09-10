@@ -11,7 +11,3 @@ tests:
       status: Suspended
       message: "ExecHook disabled"
     inputPath: testdata/suspended.yaml
-  - healthStatus:
-      status: Progressing
-      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
-    inputPath: testdata/terminating.yaml

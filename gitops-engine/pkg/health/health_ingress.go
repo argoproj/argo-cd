@@ -5,9 +5,6 @@ import (
 )
 
 func getIngressHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
-	if h := pendingDeletionHealth(obj); h != nil {
-		return h, nil
-	}
 	ingresses, _, _ := unstructured.NestedSlice(obj.Object, "status", "loadBalancer", "ingress")
 	health := HealthStatus{}
 	if len(ingresses) > 0 {

@@ -4,10 +4,8 @@ local hs = {}
 hs.status = "Progressing"
 hs.message = "Initializing Argo CD commit status"
 
--- Check for deletion timestamp
-if obj.metadata.deletionTimestamp then
-    hs.status = "Progressing"
-    hs.message = "Argo CD commit status is being deleted"
+if obj.metadata and obj.metadata.deletionTimestamp then
+    hs.deletionMessage = "Argo CD commit status is being deleted"
     return hs
 end
 

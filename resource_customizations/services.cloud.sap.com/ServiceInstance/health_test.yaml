@@ -1,25 +1,21 @@
 tests:
 - healthStatus:
-    message: Waiting for status
     status: Progressing
+    message: 'Waiting for status'
   inputPath: testdata/progressing.yaml
 - healthStatus:
-    message: Waiting for spec update to be observed
     status: Progressing
+    message: 'Waiting for spec update to be observed'
   inputPath: testdata/observed-generation-outdated.yaml
 - healthStatus:
-    message: Resource is being deleted
     status: Progressing
+    message: 'Resource is being deleted'
   inputPath: testdata/deleting.yaml
 - healthStatus:
-    message: ServiceInstance update failed
     status: Degraded
+    message: 'ServiceInstance update failed'
   inputPath: testdata/degraded.yaml
 - healthStatus:
-    message: Ready to use
     status: Healthy
+    message: 'Ready to use'
   inputPath: testdata/healthy.yaml
-- healthStatus:
-    message: Resource is being deleted
-    status: Progressing
-  inputPath: testdata/terminating.yaml

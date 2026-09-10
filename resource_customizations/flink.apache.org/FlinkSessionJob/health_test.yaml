@@ -31,7 +31,3 @@ tests:
     status: Progressing
     message: Waiting for FlinkSessionJob to be reconciled
   inputPath: testdata/progressing_no_status.yaml
-- healthStatus:
-    status: Progressing
-    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
-  inputPath: testdata/terminating.yaml

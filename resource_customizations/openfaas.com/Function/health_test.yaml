@@ -15,7 +15,3 @@ tests:
     status: Suspended
     message: "No replicas available"
   inputPath: testdata/suspended_zero_replicas.yaml
-- healthStatus:
-    status: Progressing
-    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
-  inputPath: testdata/terminating.yaml

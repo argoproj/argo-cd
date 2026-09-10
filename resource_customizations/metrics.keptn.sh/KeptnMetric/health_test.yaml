@@ -15,7 +15,3 @@ tests:
       status: Healthy
       message: "KeptnMetric is healthy"
     inputPath: testdata/healthy_empty_error.yaml
-  - healthStatus:
-      status: Progressing
-      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
-    inputPath: testdata/terminating.yaml

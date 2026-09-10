@@ -35,7 +35,3 @@ tests:
     status: Degraded
     message: 'EKS cluster in unexpected FAILED state'
   inputPath: testdata/degraded_failure_message_no_conditions.yaml
-- healthStatus:
-    status: Progressing
-    message: "Pending deletion; blocked by finalizers: example.com/finalizer"
-  inputPath: testdata/terminating.yaml

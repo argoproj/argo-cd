@@ -15,7 +15,3 @@ tests:
       status: Progressing
       message: Waiting for the operator to observe the latest spec change
     inputPath: testdata/pending-generation.yaml
-  - healthStatus:
-      status: Progressing
-      message: "Pending deletion; blocked by finalizers: example.com/finalizer"
-    inputPath: testdata/terminating.yaml
