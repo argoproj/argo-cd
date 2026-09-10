@@ -115,6 +115,14 @@ When a sync operation takes place, Argo CD will:
 
 There is currently a delay between each sync wave in order to give other controllers a chance to react to the spec change that was just applied. This also prevents Argo CD from assessing resource health too quickly (against the stale object), causing hooks to fire prematurely. The current delay between each sync wave is 2 seconds and can be configured via the environment variable ARGOCD_SYNC_WAVE_DELAY.
 
+## Sync Waves with Application Resources
+
+When a parent application manages child Applications (the app-of-apps pattern), sync waves order when each child `Application` resource is applied. The waves do not wait for the child's workloads to finish rolling out.
+
+On updates this can break ordering. The child's status still reports the previous revision's `Synced`/`Healthy` until the Application controller observes the new spec. The wave gate can therefore apply the next wave before the previous rollout has started. The wave delay does not re-evaluate health and does not prevent this.
+
+To gate on the child's current state, configure a [custom health check](../operator-manual/health.md#custom-health-checks) for Applications. It should return `Progressing` while `status.sync.comparedTo` does not match `spec` ([example snippet](../operator-manual/upgrading/1.7-1.8.md)). This catches updates that reach the child as a spec change, for example Helm parameters rendered by the parent. If only the source content changes, compare `status.sync.revision` with the expected revision instead. This works when the expected revision is pinned, not when it tracks a moving branch.
+
 
 
 ## Combining Sync waves and hooks
