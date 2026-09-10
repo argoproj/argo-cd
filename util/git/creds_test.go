@@ -10,7 +10,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -335,8 +334,8 @@ func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 	// This argoioTempDir is shared between all processes, making it unreliable
 	// to count the files inside before and after the invocation of creds.Environ().
 	// Use unique temp directory inside of it to isolate the validation logic.
-	argoioTempDir = filepath.Join(argoioTempDir, "argo-cd-ssh-proxy-test-tmp-dir")
-	require.NoError(t, os.MkdirAll(argoioTempDir, 0o755))
+	argoioTempDir, err := os.MkdirTemp(argoioTempDir, "argocd-cleanup-test-*")
+	require.NoError(t, err)
 	t.Cleanup(func() { os.RemoveAll(argoioTempDir) })
 
 	origArgoioTempDir := argoio.TempDir
