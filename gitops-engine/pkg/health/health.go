@@ -82,8 +82,8 @@ func pendingDeletionHealth(obj *unstructured.Unstructured, health *HealthStatus)
 	if health != nil && health.DeletionMessage != "" {
 		// Health script overrides the default terminating health.
 		return &HealthStatus{
-			Status: health.Status
-			Message: health.DeletionMessage
+			Status:  health.Status,
+			Message: health.DeletionMessage,
 		}
 	}
 	// Fall back to default.
