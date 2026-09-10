@@ -8,6 +8,7 @@ extra_javascript:
 - assets/versions.js
 markdown_extensions:
 - markdown_include.include
+- attr_list
 - codehilite:
     css_class: highlight
 - admonition
@@ -116,6 +117,7 @@ nav:
       - operator-manual/applicationset/Generators-List.md
       - operator-manual/applicationset/Generators-Cluster.md
       - operator-manual/applicationset/Generators-Git.md
+      - operator-manual/applicationset/Generators-OCI.md
       - operator-manual/applicationset/Generators-Matrix.md
       - operator-manual/applicationset/Generators-Merge.md
       - operator-manual/applicationset/Generators-SCM-Provider.md
