@@ -52,7 +52,7 @@ var (
 var (
 	progressiveSyncTriggerSyncAfterDetectionHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "argocd_appset_progressive_sync_detection_to_trigger_seconds",
-		Help:    "Time from PerformProgressiveSync to SyncDesiredApplications",
+		Help:    "Time between detecting applications to sync and triggering their sync during a progressive sync wave",
 		Buckets: []float64{0.05, 0.1, 0.15, 0.5, 1, 5}, // Default  buckets are {.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10}
 	}, []string{"namespace", "name"})
 )
