@@ -1,0 +1,12 @@
+apiVersion: example.com/v1
+kind: SimpleApp
+metadata:
+  name: simpleapp-sample
+spec:
+  servers:
+    - name: server1
+      port: 8080
+      enabled: true
+    - name: server2
+      port: 9090
+      enabled: false

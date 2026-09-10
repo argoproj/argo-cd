@@ -275,10 +275,8 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 	})
 
 	appsetList := &v1alpha1.ApplicationSetList{
-		ListMeta: metav1.ListMeta{
-			ResourceVersion: s.appsetInformer.LastSyncResourceVersion(),
-		},
-		Items: newItems,
+		ResourceVersion: s.appsetInformer.LastSyncResourceVersion(),
+		Items:           newItems,
 	}
 	return appsetList, nil
 }
@@ -513,14 +511,12 @@ func (s *Server) buildApplicationSetTree(a *v1alpha1.ApplicationSet) (*v1alpha1.
 	apps := a.Status.Resources
 	for _, app := range apps {
 		tree.Nodes = append(tree.Nodes, v1alpha1.ResourceNode{
-			Health: app.Health,
-			ResourceRef: v1alpha1.ResourceRef{
-				Name:      app.Name,
-				Group:     app.Group,
-				Version:   app.Version,
-				Kind:      app.Kind,
-				Namespace: a.Namespace,
-			},
+			Health:     app.Health,
+			Name:       app.Name,
+			Group:      app.Group,
+			Version:    app.Version,
+			Kind:       app.Kind,
+			Namespace:  a.Namespace,
 			ParentRefs: parentRefs,
 		})
 	}

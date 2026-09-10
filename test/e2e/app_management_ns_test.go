@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1413,9 +1413,7 @@ func TestNamespacedOrphanedResource(t *testing.T) {
 		When().
 		And(func() {
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "orphaned-configmap",
-				},
+				Name: "orphaned-configmap",
 			}, metav1.CreateOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).
@@ -1495,27 +1493,23 @@ func TestNamespacedNotPermittedResources(t *testing.T) {
 	ctx.SetAppNamespace(fixture.AppNamespace())
 	pathType := networkingv1.PathTypePrefix
 	ingress := &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "sample-ingress",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: fmt.Sprintf("%s_%s:networking/Ingress:%s/sample-ingress", fixture.AppNamespace(), ctx.AppName(), ctx.DeploymentNamespace()),
-			},
+		Name: "sample-ingress",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: fmt.Sprintf("%s_%s:networking/Ingress:%s/sample-ingress", fixture.AppNamespace(), ctx.AppName(), ctx.DeploymentNamespace()),
 		},
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{{
-				IngressRuleValue: networkingv1.IngressRuleValue{
-					HTTP: &networkingv1.HTTPIngressRuleValue{
-						Paths: []networkingv1.HTTPIngressPath{{
-							Path: "/",
-							Backend: networkingv1.IngressBackend{
-								Service: &networkingv1.IngressServiceBackend{
-									Name: "guestbook-ui",
-									Port: networkingv1.ServiceBackendPort{Number: 80},
-								},
+				HTTP: &networkingv1.HTTPIngressRuleValue{
+					Paths: []networkingv1.HTTPIngressPath{{
+						Path: "/",
+						Backend: networkingv1.IngressBackend{
+							Service: &networkingv1.IngressServiceBackend{
+								Name: "guestbook-ui",
+								Port: networkingv1.ServiceBackendPort{Number: 80},
 							},
-							PathType: &pathType,
-						}},
-					},
+						},
+						PathType: &pathType,
+					}},
 				},
 			}},
 		},
@@ -1526,11 +1520,9 @@ func TestNamespacedNotPermittedResources(t *testing.T) {
 	}()
 
 	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "guestbook-ui",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: fmt.Sprintf("%s_%s:Service:%s/guesbook-ui", fixture.TestNamespace(), ctx.AppQualifiedName(), ctx.DeploymentNamespace()),
-			},
+		Name: "guestbook-ui",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: fmt.Sprintf("%s_%s:Service:%s/guesbook-ui", fixture.TestNamespace(), ctx.AppQualifiedName(), ctx.DeploymentNamespace()),
 		},
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{{
@@ -1699,9 +1691,7 @@ func TestNamespacedListResource(t *testing.T) {
 		When().
 		And(func() {
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "orphaned-configmap",
-				},
+				Name: "orphaned-configmap",
 			}, metav1.CreateOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).

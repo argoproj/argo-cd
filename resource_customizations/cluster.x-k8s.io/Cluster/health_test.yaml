@@ -21,5 +21,13 @@ tests:
   inputPath: testdata/error_provisioned.yaml
 - healthStatus:
     status: Progressing
+    message: 'Waiting for clusters'
+  inputPath: testdata/progressing_not_ready.yaml
+- healthStatus:
+    status: Degraded
+    message: 'failed to reconcile infrastructure: quota exceeded'
+  inputPath: testdata/degraded_provisioning_error.yaml
+- healthStatus:
+    status: Progressing
     message: "Pending deletion; blocked by finalizers: example.com/finalizer"
   inputPath: testdata/terminating.yaml

@@ -47,8 +47,10 @@ func (s *Server) ListRepositoryCredentials(ctx context.Context, _ *repocredspkg.
 			}
 			if repo != nil {
 				items = append(items, appsv1.RepoCreds{
-					URL:      url,
-					Username: repo.Username,
+					URL:       url,
+					Username:  repo.Username,
+					Type:      repo.Type,
+					EnableOCI: repo.EnableOCI,
 				})
 			}
 		}
@@ -71,8 +73,10 @@ func (s *Server) ListWriteRepositoryCredentials(ctx context.Context, _ *repocred
 			}
 			if repo != nil && repo.Password != "" {
 				items = append(items, appsv1.RepoCreds{
-					URL:      url,
-					Username: repo.Username,
+					URL:       url,
+					Username:  repo.Username,
+					Type:      repo.Type,
+					EnableOCI: repo.EnableOCI,
 				})
 			}
 		}

@@ -20,10 +20,19 @@ func NewKubectlOptionsRunner(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *KubectlOptionsRunner {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &KubectlOptionsRunner{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -65,7 +74,7 @@ type KubectlOptionsRunner_Apply_Call struct {
 
 // Apply is a helper method to define mock.On call
 //   - opts *apply.ApplyOptions
-func (_e *KubectlOptionsRunner_Expecter) Apply(opts interface{}) *KubectlOptionsRunner_Apply_Call {
+func (_e *KubectlOptionsRunner_Expecter) Apply(opts any) *KubectlOptionsRunner_Apply_Call {
 	return &KubectlOptionsRunner_Apply_Call{Call: _e.mock.On("Apply", opts)}
 }
 
@@ -116,7 +125,7 @@ type KubectlOptionsRunner_AuthReconcile_Call struct {
 
 // AuthReconcile is a helper method to define mock.On call
 //   - opts *auth.ReconcileOptions
-func (_e *KubectlOptionsRunner_Expecter) AuthReconcile(opts interface{}) *KubectlOptionsRunner_AuthReconcile_Call {
+func (_e *KubectlOptionsRunner_Expecter) AuthReconcile(opts any) *KubectlOptionsRunner_AuthReconcile_Call {
 	return &KubectlOptionsRunner_AuthReconcile_Call{Call: _e.mock.On("AuthReconcile", opts)}
 }
 
@@ -169,7 +178,7 @@ type KubectlOptionsRunner_Create_Call struct {
 //   - opts *create.CreateOptions
 //   - fact util.Factory
 //   - cmd *cobra.Command
-func (_e *KubectlOptionsRunner_Expecter) Create(opts interface{}, fact interface{}, cmd interface{}) *KubectlOptionsRunner_Create_Call {
+func (_e *KubectlOptionsRunner_Expecter) Create(opts any, fact any, cmd any) *KubectlOptionsRunner_Create_Call {
 	return &KubectlOptionsRunner_Create_Call{Call: _e.mock.On("Create", opts, fact, cmd)}
 }
 
@@ -231,7 +240,7 @@ type KubectlOptionsRunner_Replace_Call struct {
 // Replace is a helper method to define mock.On call
 //   - opts *replace.ReplaceOptions
 //   - fact util.Factory
-func (_e *KubectlOptionsRunner_Expecter) Replace(opts interface{}, fact interface{}) *KubectlOptionsRunner_Replace_Call {
+func (_e *KubectlOptionsRunner_Expecter) Replace(opts any, fact any) *KubectlOptionsRunner_Replace_Call {
 	return &KubectlOptionsRunner_Replace_Call{Call: _e.mock.On("Replace", opts, fact)}
 }
 

@@ -14,15 +14,13 @@ import (
 )
 
 var repoArgoCD = &corev1.Secret{
-	ObjectMeta: metav1.ObjectMeta{
-		Namespace: testNamespace,
-		Name:      "some-repo-secret",
-		Annotations: map[string]string{
-			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-		},
-		Labels: map[string]string{
-			common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
-		},
+	Namespace: testNamespace,
+	Name:      "some-repo-secret",
+	Annotations: map[string]string{
+		common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+	},
+	Labels: map[string]string{
+		common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
 	},
 	Data: map[string][]byte{
 		"name":     []byte("SomeRepo"),
@@ -34,15 +32,13 @@ var repoArgoCD = &corev1.Secret{
 }
 
 var repoArgoProj = &corev1.Secret{
-	ObjectMeta: metav1.ObjectMeta{
-		Namespace: testNamespace,
-		Name:      "some-other-repo-secret",
-		Annotations: map[string]string{
-			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-		},
-		Labels: map[string]string{
-			common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
-		},
+	Namespace: testNamespace,
+	Name:      "some-other-repo-secret",
+	Annotations: map[string]string{
+		common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+	},
+	Labels: map[string]string{
+		common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
 	},
 	Data: map[string][]byte{
 		"name":     []byte("OtherRepo"),
@@ -54,15 +50,13 @@ var repoArgoProj = &corev1.Secret{
 }
 
 var repoArgoCDWrite = &corev1.Secret{
-	ObjectMeta: metav1.ObjectMeta{
-		Namespace: testNamespace,
-		Name:      "some-repo-secret",
-		Annotations: map[string]string{
-			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-		},
-		Labels: map[string]string{
-			common.LabelKeySecretType: common.LabelValueSecretTypeRepositoryWrite,
-		},
+	Namespace: testNamespace,
+	Name:      "some-repo-secret",
+	Annotations: map[string]string{
+		common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+	},
+	Labels: map[string]string{
+		common.LabelKeySecretType: common.LabelValueSecretTypeRepositoryWrite,
 	},
 	Data: map[string][]byte{
 		"name":     []byte("SomeRepo"),
@@ -74,15 +68,13 @@ var repoArgoCDWrite = &corev1.Secret{
 }
 
 var repoArgoProjWrite = &corev1.Secret{
-	ObjectMeta: metav1.ObjectMeta{
-		Namespace: testNamespace,
-		Name:      "some-other-repo-secret",
-		Annotations: map[string]string{
-			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-		},
-		Labels: map[string]string{
-			common.LabelKeySecretType: common.LabelValueSecretTypeRepositoryWrite,
-		},
+	Namespace: testNamespace,
+	Name:      "some-other-repo-secret",
+	Annotations: map[string]string{
+		common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+	},
+	Labels: map[string]string{
+		common.LabelKeySecretType: common.LabelValueSecretTypeRepositoryWrite,
 	},
 	Data: map[string][]byte{
 		"name":     []byte("OtherRepo"),
@@ -259,12 +251,10 @@ func TestDb_DeleteRepository(t *testing.T) {
 func TestDb_GetRepositoryCredentials(t *testing.T) {
 	t.Parallel()
 	gitHubRepoCredsSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "some-repocreds-secret",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds,
-			},
+		Namespace: testNamespace,
+		Name:      "some-repocreds-secret",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds,
 		},
 		Data: map[string][]byte{
 			"type":     []byte("git"),
@@ -274,12 +264,10 @@ func TestDb_GetRepositoryCredentials(t *testing.T) {
 		},
 	}
 	gitLabRepoCredsSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "some-other-repocreds-secret",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds,
-			},
+		Namespace: testNamespace,
+		Name:      "some-other-repocreds-secret",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds,
 		},
 		Data: map[string][]byte{
 			"type":     []byte("git"),
@@ -385,12 +373,10 @@ func Test_CredsURLToSecretName(t *testing.T) {
 
 func Test_GetProjectRepositories(t *testing.T) {
 	repoSecretWithProject := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "some-repo-secret",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
-			},
+		Namespace: testNamespace,
+		Name:      "some-repo-secret",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
 		},
 		Data: map[string][]byte{
 			"type":    []byte("git"),
@@ -400,12 +386,10 @@ func Test_GetProjectRepositories(t *testing.T) {
 	}
 
 	repoSecretWithoutProject := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "some-other-repo-secret",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
-			},
+		Namespace: testNamespace,
+		Name:      "some-other-repo-secret",
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
 		},
 		Data: map[string][]byte{
 			"type": []byte("git"),

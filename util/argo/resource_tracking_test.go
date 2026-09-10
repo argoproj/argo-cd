@@ -50,6 +50,34 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 	assert.Equal(t, "my-app", app)
 }
 
+func TestGetAppName_AnnotationWithExistingInstallationID(t *testing.T) {
+	t.Parallel()
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+	require.NoError(t, err)
+
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	require.NoError(t, err)
+
+	resourceTracking := NewResourceTracking()
+
+	err = resourceTracking.SetAppInstance(&obj, common.AnnotationKeyAppInstance, "my-app", "", v1alpha1.TrackingMethodAnnotation, "some-installation-id")
+	require.NoError(t, err)
+
+	// When no installationID filter is provided, the app name should still be returned
+	// even though the resource has an installation ID annotation.
+	app := resourceTracking.GetAppName(&obj, common.AnnotationKeyAppInstance, v1alpha1.TrackingMethodAnnotation, "")
+	assert.Equal(t, "my-app", app)
+
+	// When a different installationID is provided, it should not match.
+	app = resourceTracking.GetAppName(&obj, common.AnnotationKeyAppInstance, v1alpha1.TrackingMethodAnnotation, "different-id")
+	assert.Empty(t, app)
+
+	// When the correct installationID is provided, it should match.
+	app = resourceTracking.GetAppName(&obj, common.AnnotationKeyAppInstance, v1alpha1.TrackingMethodAnnotation, "some-installation-id")
+	assert.Equal(t, "my-app", app)
+}
+
 func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
 	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
@@ -443,6 +471,103 @@ func TestResourceIdNormalizer_Normalize_ConfigHasOldLabel(t *testing.T) {
 	assert.Equal(t, liveObj.GetAnnotations()[common.AnnotationKeyAppInstance], annotation)
 	_, hasOldLabel := liveObj.GetLabels()[common.LabelKeyAppInstance]
 	assert.True(t, hasOldLabel)
+}
+
+// movedResource returns a ConfigMap as used in the moved-between-apps scenario
+// of issue #17965.
+func movedResource() *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1",
+		"kind":       "ConfigMap",
+		"metadata": map[string]any{
+			"name":      "my-cm",
+			"namespace": "default",
+		},
+	}}
+}
+
+func TestResourceIdNormalizer_Normalize_ResourceMovedToAnotherApp(t *testing.T) {
+	t.Parallel()
+	rt := NewResourceTracking()
+
+	// live object is tracked by app-a with annotation+label tracking
+	liveObj := movedResource()
+	err := rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "app-a", "", v1alpha1.TrackingMethodAnnotationAndLabel, "")
+	require.NoError(t, err)
+
+	// config object is the same resource, now managed by app-b
+	configObj := movedResource()
+	err = rt.SetAppInstance(configObj, common.LabelKeyAppInstance, "app-b", "", v1alpha1.TrackingMethodAnnotationAndLabel, "")
+	require.NoError(t, err)
+
+	err = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(v1alpha1.TrackingMethodAnnotationAndLabel))
+	require.NoError(t, err)
+
+	// the stale tracking annotation on the live object must be preserved so that
+	// the diff surfaces and a sync can update it (issue #17965)
+	assert.Equal(t, "app-a:/ConfigMap:default/my-cm", liveObj.GetAnnotations()[common.AnnotationKeyAppInstance])
+	assert.Equal(t, "app-b:/ConfigMap:default/my-cm", configObj.GetAnnotations()[common.AnnotationKeyAppInstance])
+}
+
+func TestResourceIdNormalizer_Normalize_ResourceMovedToAnotherApp_AnnotationTracking(t *testing.T) {
+	t.Parallel()
+	rt := NewResourceTracking()
+
+	// live object was previously synced with annotation+label tracking by app-a,
+	// so it still carries the instance label
+	liveObj := movedResource()
+	err := rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "app-a", "", v1alpha1.TrackingMethodAnnotationAndLabel, "")
+	require.NoError(t, err)
+
+	// config object is the same resource, now managed by app-b with annotation tracking
+	configObj := movedResource()
+	err = rt.SetAppInstance(configObj, common.LabelKeyAppInstance, "app-b", "", v1alpha1.TrackingMethodAnnotation, "")
+	require.NoError(t, err)
+
+	err = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(v1alpha1.TrackingMethodAnnotation))
+	require.NoError(t, err)
+
+	// the stale tracking annotation must be preserved so the diff surfaces (issue #17965),
+	// while the stale label is still dropped to smooth the label->annotation migration
+	assert.Equal(t, "app-a:/ConfigMap:default/my-cm", liveObj.GetAnnotations()[common.AnnotationKeyAppInstance])
+	_, hasOldLabel := liveObj.GetLabels()[common.LabelKeyAppInstance]
+	assert.False(t, hasOldLabel)
+}
+
+func TestResourceIdNormalizer_Normalize_ResourceMovedToAnotherApp_HelmInstanceLabel(t *testing.T) {
+	t.Parallel()
+	rt := NewResourceTracking()
+
+	// Both apps use annotation-only tracking, but the manifest itself bakes in
+	// the app.kubernetes.io/instance label (as Helm charts commonly do). The
+	// label alone must not cause the stale tracking annotation to be hidden.
+	withHelmLabel := func(un *unstructured.Unstructured) *unstructured.Unstructured {
+		labels := un.GetLabels()
+		if labels == nil {
+			labels = map[string]string{}
+		}
+		labels[common.LabelKeyAppInstance] = "my-release"
+		un.SetLabels(labels)
+		return un
+	}
+
+	// live object is tracked by the old standalone app
+	liveObj := withHelmLabel(movedResource())
+	err := rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "standalone-app", "", v1alpha1.TrackingMethodAnnotation, "")
+	require.NoError(t, err)
+
+	// config object is the same resource, now rendered for the appset-generated app
+	configObj := withHelmLabel(movedResource())
+	err = rt.SetAppInstance(configObj, common.LabelKeyAppInstance, "appset-app", "", v1alpha1.TrackingMethodAnnotation, "")
+	require.NoError(t, err)
+
+	err = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(v1alpha1.TrackingMethodAnnotation))
+	require.NoError(t, err)
+
+	// the stale tracking annotation must be preserved so the diff surfaces (issue #17965)
+	assert.Equal(t, "standalone-app:/ConfigMap:default/my-cm", liveObj.GetAnnotations()[common.AnnotationKeyAppInstance])
+	// the manifest-defined helm instance label is untouched
+	assert.Equal(t, "my-release", liveObj.GetLabels()[common.LabelKeyAppInstance])
 }
 
 func TestIsOldTrackingMethod(t *testing.T) {

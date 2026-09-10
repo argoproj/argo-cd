@@ -5,6 +5,7 @@ import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
 import {Subscription} from 'rxjs';
 import applications from './applications';
+import resources from './resources';
 import help from './help';
 import login from './login';
 import settings from './settings';
@@ -27,13 +28,20 @@ const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
 requests.setBaseHRef(base);
 
+// Guards the SSO re-authentication redirect below. Multiple watch streams can emit 401s
+// simultaneously when a session expires; without this, each one reassigns
+// window.location.href and cancels the previous in-flight navigation to the identity
+// provider, so the browser never actually leaves the page. Reset happens naturally: the
+// redirect is a full page load, which discards this module's state.
+let ssoRedirectInProgress = false;
+
 type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
 
 const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
     '/applications': {component: applications.component},
-    // TODO: Uncomment when ApplicationSet details page is fully implemented
     '/applicationsets': {component: applications.component},
+    '/resources': {component: resources.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
     '/help': {component: help.component}
@@ -58,6 +66,12 @@ const navItems: NavItem[] = [
         tooltip: 'Manage your ApplicationSets, and diagnose health problems.',
         path: '/applicationsets',
         iconClassName: 'argo-icon argo-icon-applicationset'
+    },
+    {
+        title: 'Resources',
+        tooltip: 'Display all managed resources.',
+        path: '/resources',
+        iconClassName: 'argo-icon argo-icon-catalog'
     },
     {
         title: 'Settings',
@@ -179,14 +193,14 @@ export class App extends React.Component<
         const {trackingID, anonymizeUsers} = authSettings.googleAnalytics || {trackingID: '', anonymizeUsers: true};
         const {loggedIn: userLoggedIn, username} = userInfoResult;
         if (trackingID) {
-            const ga = await import('react-ga');
+            const {default: ga} = await import('react-ga4');
             ga.initialize(trackingID);
             const trackPageView = () => {
                 if (userLoggedIn && username) {
                     const userId = !anonymizeUsers ? username : hashCode(username).toString();
                     ga.set({userId});
                 }
-                ga.pageview(location.pathname + location.search);
+                ga.send({hitType: 'pageview', page: location.pathname + location.search});
             };
             trackPageView();
             history.listen(trackPageView);
@@ -209,6 +223,9 @@ export class App extends React.Component<
             }
             history.replace(`/login?return_url=${encodeURIComponent(location.href)}`);
         }
+
+        // Remove the Resources item from the navigation if the resource view is disabled.
+        this.navItems = this.navItems.filter(item => item.path !== '/resources' || authSettings.resourceViewEnabled);
 
         this.setState(prev => ({
             ...prev,
@@ -348,6 +365,15 @@ export class App extends React.Component<
                 // If basehref is the default `/` it will become an empty string.
                 const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
                 if (isSSO) {
+                    if (ssoRedirectInProgress) {
+                        return;
+                    }
+                    ssoRedirectInProgress = true;
+                    // If the redirect fails to navigate away (e.g. network failure), reset the
+                    // flag so a later 401 can retry the redirect instead of being blocked forever.
+                    setTimeout(() => {
+                        ssoRedirectInProgress = false;
+                    }, 5000);
                     window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
                 } else {
                     history.push(`/login?return_url=${encodeURIComponent(location.href)}`);

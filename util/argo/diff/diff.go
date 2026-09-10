@@ -1,6 +1,7 @@
 package diff
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -15,9 +16,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/scheme"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/scheme"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -86,13 +87,6 @@ func (b *DiffConfigBuilder) WithGVKParser(parser *k8smanagedfields.GvkParser) *D
 	return b
 }
 
-// WithStructuredMergeDiff defines if the diff should be calculated using structured
-// merge.
-func (b *DiffConfigBuilder) WithStructuredMergeDiff(smd bool) *DiffConfigBuilder {
-	b.diffConfig.structuredMergeDiff = smd
-	return b
-}
-
 // WithManager defines the manager that should be using during structured
 // merge diffs.
 func (b *DiffConfigBuilder) WithManager(manager string) *DiffConfigBuilder {
@@ -151,14 +145,10 @@ type DiffConfig interface {
 	// Logger used during the diff.
 	Logger() *logr.Logger
 	// GVKParser returns a parser able to build a TypedValue used in
-	// structured merge diffs.
+	// server-side diffs.
 	GVKParser() *k8smanagedfields.GvkParser
-	// StructuredMergeDiff defines if the diff should be calculated using
-	// structured merge diffs. Will use standard 3-way merge diffs if
-	// returns false.
-	StructuredMergeDiff() bool
 	// Manager returns the manager that should be used by the diff while
-	// calculating the structured merge diff.
+	// calculating the server-side diff.
 	Manager() string
 
 	ServerSideDiff() bool
@@ -180,7 +170,6 @@ type diffConfig struct {
 	ignoreAggregatedRoles bool
 	logger                *logr.Logger
 	gvkParser             *k8smanagedfields.GvkParser
-	structuredMergeDiff   bool
 	manager               string
 	serverSideDiff        bool
 	serverSideDryRunner   diff.ServerSideDryRunner
@@ -226,10 +215,6 @@ func (c *diffConfig) Logger() *logr.Logger {
 
 func (c *diffConfig) GVKParser() *k8smanagedfields.GvkParser {
 	return c.gvkParser
-}
-
-func (c *diffConfig) StructuredMergeDiff() bool {
-	return c.structuredMergeDiff
 }
 
 func (c *diffConfig) Manager() string {
@@ -284,8 +269,8 @@ type NormalizationResult struct {
 
 // StateDiff will apply all required normalizations and calculate the diffs between
 // the live and the config/desired states.
-func StateDiff(live, config *unstructured.Unstructured, diffConfig DiffConfig) (diff.DiffResult, error) {
-	results, err := StateDiffs([]*unstructured.Unstructured{live}, []*unstructured.Unstructured{config}, diffConfig)
+func StateDiff(ctx context.Context, live, config *unstructured.Unstructured, diffConfig DiffConfig) (diff.DiffResult, error) {
+	results, err := StateDiffs(ctx, []*unstructured.Unstructured{live}, []*unstructured.Unstructured{config}, diffConfig)
 	if err != nil {
 		return diff.DiffResult{}, err
 	}
@@ -297,7 +282,7 @@ func StateDiff(live, config *unstructured.Unstructured, diffConfig DiffConfig) (
 
 // StateDiffs will apply all required normalizations and calculate the diffs between
 // the live and the config/desired states.
-func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*diff.DiffResultList, error) {
+func StateDiffs(ctx context.Context, lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*diff.DiffResultList, error) {
 	normResults, err := preDiffNormalize(lives, configs, diffConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to perform pre-diff normalization: %w", err)
@@ -311,7 +296,6 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 	diffOpts := []diff.Option{
 		diff.WithNormalizer(diffNormalizer),
 		diff.IgnoreAggregatedRoles(diffConfig.IgnoreAggregatedRoles()),
-		diff.WithStructuredMergeDiff(diffConfig.StructuredMergeDiff()),
 		diff.WithGVKParser(diffConfig.GVKParser()),
 		diff.WithManager(diffConfig.Manager()),
 		diff.WithServerSideDiff(diffConfig.ServerSideDiff()),
@@ -325,20 +309,20 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 
 	useCache, cachedDiff := diffConfig.DiffFromCache(diffConfig.AppName())
 	if useCache && cachedDiff != nil {
-		cached, err := diffArrayCached(normResults.Targets, normResults.Lives, cachedDiff, diffOpts...)
+		cached, err := diffArrayCached(ctx, normResults.Targets, normResults.Lives, cachedDiff, diffOpts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to calculate diff from cache: %w", err)
 		}
 		return cached, nil
 	}
-	array, err := diff.DiffArray(normResults.Targets, normResults.Lives, diffOpts...)
+	array, err := diff.DiffArray(ctx, normResults.Targets, normResults.Lives, diffOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate diff: %w", err)
 	}
 	return array, nil
 }
 
-func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unstructured.Unstructured, cachedDiff []*v1alpha1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
+func diffArrayCached(ctx context.Context, configArray []*unstructured.Unstructured, liveArray []*unstructured.Unstructured, cachedDiff []*v1alpha1.ResourceDiff, opts ...diff.Option) (*diff.DiffResultList, error) {
 	numItems := len(configArray)
 	if len(liveArray) != numItems {
 		return nil, errors.New("left and right arrays have mismatched lengths")
@@ -372,7 +356,7 @@ func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unst
 				Modified:       cachedDiff.Modified,
 			}
 		} else {
-			res, err := diff.Diff(configArray[i], liveArray[i], opts...)
+			res, err := diff.Diff(ctx, configArray[i], liveArray[i], opts...)
 			if err != nil {
 				return nil, err
 			}

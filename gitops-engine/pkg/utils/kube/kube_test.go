@@ -447,3 +447,44 @@ func TestServerResourceGroupForGroupVersionKind(t *testing.T) {
 		}
 	})
 }
+
+func TestIsAPIService(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		obj      *unstructured.Unstructured
+		expected bool
+	}{
+		{
+			name: "is an APIService",
+			obj: &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "apiregistration.k8s.io/v1",
+				"kind":       "APIService",
+			}},
+			expected: true,
+		},
+		{
+			name: "wrong group",
+			obj: &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "example.com/v1",
+				"kind":       "APIService",
+			}},
+			expected: false,
+		},
+		{
+			name: "wrong kind",
+			obj: &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "apiregistration.k8s.io/v1",
+				"kind":       "Service",
+			}},
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, IsAPIService(tc.obj))
+		})
+	}
+}

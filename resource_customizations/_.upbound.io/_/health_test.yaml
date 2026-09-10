@@ -9,5 +9,29 @@ tests:
     inputPath: testdata/managedresource_failedupdate_degraded.yaml
   - healthStatus:
       status: Progressing
+      message: "Provisioning ..."
+    inputPath: testdata/managedresource_provisioning_progressing.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Resource is up-to-date."
+    inputPath: testdata/providerconfigusage_healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Resource is up-to-date."
+    inputPath: testdata/clusterproviderconfigusage_healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Resource is in use."
+    inputPath: testdata/providerconfig_withusers_healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Resource is up-to-date."
+    inputPath: testdata/storeconfig_healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Resource is up-to-date."
+    inputPath: testdata/providerconfig_emptyconditions_healthy.yaml
+  - healthStatus:
+      status: Progressing
       message: "Pending deletion; blocked by finalizers: example.com/finalizer"
     inputPath: testdata/terminating.yaml

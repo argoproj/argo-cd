@@ -3,8 +3,8 @@ Keycloak and Argo CD integration can be configured in two ways with Client authe
 
 If you need to authenticate with __argo-cd command line__, you must choose PKCE way.
 
-* [Keycloak and Argo CD with Client authentication](#keycloak-and-argocd-with-client-authentication)
-* [Keycloak and Argo CD with PKCE](#keycloak-and-argocd-with-pkce)
+* [Keycloak and Argo CD with Client authentication](#keycloak-and-argo-cd-with-client-authentication)
+* [Keycloak and Argo CD with PKCE](#keycloak-and-argo-cd-with-pkce)
 
 ## Keycloak and Argo CD with Client authentication
 
@@ -204,6 +204,10 @@ data:
 ```
 
 In this example we give the role _role:admin_ to all users in the group _ArgoCDAdmins_.
+
+The group name in `policy.csv` must match the `groups` claim in the JWT **exactly**.
+With Keycloak's "Full group path" disabled (recommended above), the claim is `ArgoCDAdmins`.
+If your IdP includes a leading slash in the claim, use that exact value (for example `/ArgoCDAdmins`).
 
 ## Login
 

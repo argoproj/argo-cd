@@ -1,0 +1,31 @@
+apiVersion: pulumi.com/v1
+kind: Stack
+metadata:
+  name: my-stack
+  namespace: default
+  generation: 2
+spec:
+  stack: dev
+  programRef:
+    name: my-stack
+status:
+  observedGeneration: 2
+  conditions:
+  - lastTransitionTime: "2024-07-16T12:05:00Z"
+    observedGeneration: 2
+    reason: NotReadyInProgress
+    status: "False"
+    type: Ready
+    message: reconciliation is in progress
+  - lastTransitionTime: "2024-07-16T12:05:00Z"
+    observedGeneration: 2
+    reason: StackProcessing
+    status: "True"
+    type: Reconciling
+    message: stack is being processed
+  lastUpdate:
+    generation: 1
+    name: my-stack-19f06320a9e
+    type: up
+    state: succeeded
+    permalink: https://app.pulumi.com/org/my-stack/dev/updates/1

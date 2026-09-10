@@ -29,13 +29,13 @@ import (
 	testcore "k8s.io/client-go/testing"
 	"k8s.io/klog/v2/textlogger"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
-	testingutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
+	testingutils "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/testing"
 )
 
 func newTestSyncCtx(getResourceFunc *func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error), opts ...SyncOpt) *syncContext {
@@ -80,7 +80,7 @@ func TestSyncValidate(t *testing.T) {
 	})
 	syncCtx.validate = false
 
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 
 	// kubectl := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
 	resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
@@ -97,7 +97,7 @@ func TestSyncNotPermittedNamespace(t *testing.T) {
 		Live:   []*unstructured.Unstructured{nil, nil},
 		Target: []*unstructured.Unstructured{targetPod, testingutils.NewService()},
 	})
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, _, resources := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationFailed, phase)
 	assert.Contains(t, resources[0].Message, "not permitted in project")
@@ -123,7 +123,7 @@ func TestSyncNamespaceCreatedBeforeDryRunWithoutFailure(t *testing.T) {
 	})
 	syncCtx.dynamicIf = fakeDynamicClient
 
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, msg, resources := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
 	assert.Equal(t, "waiting for healthy state of /Namespace/fake-argocd-ns", msg)
@@ -149,7 +149,7 @@ func TestSyncNamespaceCreatedBeforeDryRunWithFailure(t *testing.T) {
 		Live:   []*unstructured.Unstructured{nil, nil},
 		Target: []*unstructured.Unstructured{pod},
 	})
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, msg, resources := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationFailed, phase)
 	assert.Equal(t, "one or more objects failed to apply (dry run)", msg)
@@ -167,7 +167,7 @@ func TestSyncCreateInSortedOrder(t *testing.T) {
 		Live:   []*unstructured.Unstructured{nil, nil},
 		Target: []*unstructured.Unstructured{testingutils.NewPod(), testingutils.NewService()},
 	})
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 
 	phase, _, resources := syncCtx.GetState()
 
@@ -262,7 +262,7 @@ func TestSyncCustomResources(t *testing.T) {
 				Target: resources,
 			})
 
-			tasks, successful := syncCtx.getSyncTasks()
+			tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 			if successful != tt.wantSuccess {
 				t.Errorf("successful = %v, want: %v", successful, tt.wantSuccess)
@@ -298,7 +298,7 @@ func TestSyncSuccessfully(t *testing.T) {
 
 	// Since we only have one step, we consider the sync successful if the manifest were applied correctly.
 	// In this case, we do not need to run the sync again to evaluate the health
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, _, resources := syncCtx.GetState()
 
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
@@ -340,7 +340,7 @@ func TestSyncSuccessfully_Multistep(t *testing.T) {
 
 	// Since we have multiple step, we need to run the sync again to evaluate the health of current phase
 	// (wave 0) and start the new phase (wave 5).
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, message, resources := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
 	assert.Equal(t, "waiting for healthy state of /Service/my-service", message)
@@ -353,7 +353,7 @@ func TestSyncSuccessfully_Multistep(t *testing.T) {
 		Target: []*unstructured.Unstructured{newSvc, newSvc2},
 	})
 
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, message, resources = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
 	assert.Equal(t, "successfully synced (all tasks run)", message)
@@ -435,7 +435,7 @@ func TestSync_MultistepResourceDeletionMidstep(t *testing.T) {
 			}
 			syncCtx.dynamicIf = fakeDynamicClient
 
-			syncCtx.Sync()
+			syncCtx.Sync(context.Background())
 			phase, _, resources := syncCtx.GetState()
 			assert.Len(t, resources, 1)
 			assert.Equal(t, "pod-1", resources[0].ResourceKey.Name)
@@ -445,7 +445,7 @@ func TestSync_MultistepResourceDeletionMidstep(t *testing.T) {
 
 			syncCtx.resources = tt.resourcesChange
 
-			syncCtx.Sync()
+			syncCtx.Sync(context.Background())
 			phase, _, resources = syncCtx.GetState()
 			assert.Equal(t, synccommon.OperationRunning, phase)
 			assert.Len(t, resources, 1)
@@ -467,7 +467,7 @@ func TestSyncDeleteSuccessfully(t *testing.T) {
 		Target: []*unstructured.Unstructured{nil, nil},
 	})
 
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, _, resources := syncCtx.GetState()
 
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
@@ -512,7 +512,7 @@ func TestSyncCreateFailure(t *testing.T) {
 		Target: []*unstructured.Unstructured{testSvc},
 	})
 
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	_, _, resources := syncCtx.GetState()
 
 	assert.Len(t, resources, 1)
@@ -541,7 +541,7 @@ func TestSync_ApplyOutOfSyncOnly(t *testing.T) {
 			Target: []*unstructured.Unstructured{pod1, nil, pod3},
 		})
 
-		syncCtx.Sync()
+		syncCtx.Sync(context.Background())
 		phase, _, resources := syncCtx.GetState()
 		assert.Equal(t, synccommon.OperationSucceeded, phase)
 		assert.Len(t, resources, 3)
@@ -554,7 +554,7 @@ func TestSync_ApplyOutOfSyncOnly(t *testing.T) {
 			Target: []*unstructured.Unstructured{pod1, nil, pod3},
 		})
 
-		syncCtx.Sync()
+		syncCtx.Sync(context.Background())
 		phase, _, resources := syncCtx.GetState()
 		assert.Equal(t, synccommon.OperationSucceeded, phase)
 		assert.Len(t, resources, 2)
@@ -578,7 +578,7 @@ func TestSync_ApplyOutOfSyncOnly(t *testing.T) {
 			Target: []*unstructured.Unstructured{pod1, nil, pod3, pod4},
 		})
 
-		syncCtx.Sync()
+		syncCtx.Sync(context.Background())
 		phase, _, resources := syncCtx.GetState()
 		assert.Equal(t, synccommon.OperationSucceeded, phase)
 		assert.Len(t, resources, 3)
@@ -593,7 +593,7 @@ func TestSync_ApplyOutOfSyncOnly(t *testing.T) {
 			Target: []*unstructured.Unstructured{pod1, nil, pod3},
 		})
 
-		syncCtx.Sync()
+		syncCtx.Sync(context.Background())
 		phase, _, resources := syncCtx.GetState()
 		assert.Equal(t, synccommon.OperationSucceeded, phase)
 		assert.Len(t, resources, 2)
@@ -628,7 +628,7 @@ func TestSync_ApplyOutOfSyncOnly(t *testing.T) {
 		})
 		syncCtx.dynamicIf = fakeDynamicClient
 
-		syncCtx.Sync()
+		syncCtx.Sync(context.Background())
 		phase, _, resources := syncCtx.GetState()
 		assert.Equal(t, synccommon.OperationRunning, phase)
 		assert.Len(t, resources, 1)
@@ -636,7 +636,7 @@ func TestSync_ApplyOutOfSyncOnly(t *testing.T) {
 		assert.Equal(t, synccommon.ResultCodeSynced, resources[0].Status)
 		assert.Equal(t, synccommon.OperationRunning, resources[0].HookPhase)
 
-		syncCtx.Sync()
+		syncCtx.Sync(context.Background())
 		phase, _, resources = syncCtx.GetState()
 		assert.Equal(t, synccommon.OperationRunning, phase)
 		assert.Len(t, resources, 1)
@@ -665,7 +665,7 @@ func TestSync_ApplyOutOfSyncOnly_ClusterResources(t *testing.T) {
 	// spec.destination.namespace is set for all resources that does not have a namespace set, irrespective of whether
 	// the resource is cluster scoped or namespace scoped.
 	//
-	// Refer to https://github.com/argoproj/argo-cd/gitops-engine/blob/8007df5f6c5dd78a1a8cef73569468ce4d83682c/pkg/sync/sync_context.go#L827-L833
+	// Refer to https://github.com/argoproj/argo-cd/blob/8007df5f6c5dd78a1a8cef73569468ce4d83682c/gitops-engine/pkg/sync/sync_context.go#L827-L833
 	ns2Target.SetNamespace("ns-2")
 
 	syncCtx := newTestSyncCtx(nil, WithResourceModificationChecker(true, diffResultListClusterResource()))
@@ -677,7 +677,7 @@ func TestSync_ApplyOutOfSyncOnly_ClusterResources(t *testing.T) {
 			Target: []*unstructured.Unstructured{ns1, ns2Target, ns3},
 		})
 
-		syncCtx.Sync()
+		syncCtx.Sync(context.Background())
 		phase, _, resources := syncCtx.GetState()
 		assert.Equal(t, synccommon.OperationSucceeded, phase)
 		assert.Len(t, resources, 1)
@@ -729,7 +729,7 @@ func TestSyncPruneFailure(t *testing.T) {
 		Target: []*unstructured.Unstructured{testSvc},
 	})
 
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, _, resources := syncCtx.GetState()
 
 	assert.Equal(t, synccommon.OperationFailed, phase)
@@ -898,7 +898,6 @@ func TestServerResourcesRetry(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
 			// Given
 			t.Parallel()
@@ -909,7 +908,7 @@ func TestServerResourcesRetry(t *testing.T) {
 			}
 
 			// When
-			fixture.syncCtx.Sync()
+			fixture.syncCtx.Sync(context.Background())
 			phase, msg, resources := fixture.syncCtx.GetState()
 
 			// Then
@@ -936,7 +935,7 @@ func TestSync_getSyncTasks_FailureMessage(t *testing.T) {
 			Resources: []*metav1.APIResourceList{},
 		},
 	}
-	fakeDisco.Fake.PrependReactor("get", "resource", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDisco.PrependReactor("get", "resource", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
 		reactorCalls++
 		return true, nil, errors.New("discovery failed")
 	})
@@ -947,10 +946,10 @@ func TestSync_getSyncTasks_FailureMessage(t *testing.T) {
 		Target: []*unstructured.Unstructured{targetSvc},
 	})
 
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, msg, _ := syncCtx.GetState()
 
-	require.Greater(t, reactorCalls, 0, "FakeDiscovery reactor must have been invoked for this test to be meaningful")
+	require.Positive(t, reactorCalls, "FakeDiscovery reactor must have been invoked for this test to be meaningful")
 
 	assert.Equal(t, synccommon.OperationFailed, phase)
 	assert.Contains(t, msg, "one or more synchronization tasks are not valid")
@@ -974,7 +973,7 @@ func Test_getSyncTasks_ErrorCaching(t *testing.T) {
 			Resources: []*metav1.APIResourceList{},
 		},
 	}
-	fakeDisco.Fake.PrependReactor("get", "resource", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDisco.PrependReactor("get", "resource", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
 		discoveryCalls++
 		return true, nil, errors.New("persistent discovery error")
 	})
@@ -985,11 +984,11 @@ func Test_getSyncTasks_ErrorCaching(t *testing.T) {
 		Target: []*unstructured.Unstructured{svc1, svc2},
 	})
 
-	tasks, ok := syncCtx.getSyncTasks()
+	tasks, ok := syncCtx.getSyncTasks(context.Background())
 	assert.False(t, ok)
 	assert.NotNil(t, tasks)
 
-	require.Greater(t, discoveryCalls, 0, "FakeDiscovery reactor must have been invoked for the caching test to be meaningful")
+	require.Positive(t, discoveryCalls, "FakeDiscovery reactor must have been invoked for the caching test to be meaningful")
 	assert.Equal(t, 1, discoveryCalls, "Discovery should have been called only once due to error caching")
 }
 
@@ -1004,7 +1003,7 @@ func TestDoNotSyncOrPruneHooks(t *testing.T) {
 	liveSvc.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 
 	syncCtx.hooks = []*unstructured.Unstructured{targetPod, liveSvc}
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, _, resources := syncCtx.GetState()
 	assert.Empty(t, resources)
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
@@ -1020,7 +1019,7 @@ func TestDoNotPruneAppLevelPruneFalse(t *testing.T) {
 		Target: []*unstructured.Unstructured{nil},
 	})
 
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, _, resources := syncCtx.GetState()
 
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
@@ -1028,7 +1027,7 @@ func TestDoNotPruneAppLevelPruneFalse(t *testing.T) {
 	assert.Equal(t, synccommon.ResultCodePruneSkipped, resources[0].Status)
 	assert.Equal(t, "ignored (no prune)", resources[0].Message)
 
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 
 	phase, _, _ = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
@@ -1049,7 +1048,7 @@ func TestDoNotPruneResourceLevelPruneFalse(t *testing.T) {
 		})
 		t.Run(fmt.Sprintf("Check resource level override defaultPruneOption=%v", defaultPruneOption), func(t *testing.T) {
 			syncCtx.defaultPruneOption = defaultPruneOption
-			syncCtx.Sync()
+			syncCtx.Sync(context.Background())
 			phase, _, resources := syncCtx.GetState()
 
 			assert.Equal(t, synccommon.OperationSucceeded, phase)
@@ -1075,7 +1074,7 @@ func TestPruneConfirmResourceLevel(t *testing.T) {
 		t.Run(fmt.Sprintf("Check resource level override defaultPruneOption=%v", defaultPruneOption), func(t *testing.T) {
 			syncCtx.defaultPruneOption = defaultPruneOption
 
-			syncCtx.Sync()
+			syncCtx.Sync(context.Background())
 			phase, msg, resources := syncCtx.GetState()
 
 			assert.Equal(t, synccommon.OperationRunning, phase)
@@ -1083,7 +1082,7 @@ func TestPruneConfirmResourceLevel(t *testing.T) {
 			assert.Equal(t, "waiting for pruning confirmation of /Pod/my-pod", msg)
 
 			syncCtx.pruneConfirmed = true
-			syncCtx.Sync()
+			syncCtx.Sync(context.Background())
 
 			phase, _, resources = syncCtx.GetState()
 			assert.Equal(t, synccommon.OperationSucceeded, phase)
@@ -1104,7 +1103,7 @@ func TestPruneConfirmAppLevel(t *testing.T) {
 		Target: []*unstructured.Unstructured{nil},
 	})
 
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, msg, resources := syncCtx.GetState()
 
 	assert.Equal(t, synccommon.OperationRunning, phase)
@@ -1112,7 +1111,7 @@ func TestPruneConfirmAppLevel(t *testing.T) {
 	assert.Equal(t, "waiting for pruning confirmation of /Pod/my-pod", msg)
 
 	syncCtx.pruneConfirmed = true
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 
 	phase, _, resources = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
@@ -1143,7 +1142,7 @@ func TestSyncOptionValidate(t *testing.T) {
 				Target: []*unstructured.Unstructured{pod},
 			})
 
-			syncCtx.Sync()
+			syncCtx.Sync(context.Background())
 
 			// kubectl, _ := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
 			resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
@@ -1178,7 +1177,7 @@ func TestSync_Replace(t *testing.T) {
 				Target: []*unstructured.Unstructured{tc.target},
 			})
 
-			syncCtx.Sync()
+			syncCtx.Sync(context.Background())
 
 			// kubectl, _ := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
 			resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
@@ -1213,7 +1212,7 @@ func TestSync_HookWithReplaceAndBeforeHookCreation_AlreadyDeleted(t *testing.T) 
 	})
 	syncCtx.dynamicIf = client
 
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 
 	resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
 	assert.Equal(t, "create", resourceOps.GetLastResourceCommand(kube.GetResourceKey(target)))
@@ -1238,7 +1237,6 @@ func TestSync_ServerSideApply(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			syncCtx := newTestSyncCtx(nil)
@@ -1253,7 +1251,7 @@ func TestSync_ServerSideApply(t *testing.T) {
 				Target: []*unstructured.Unstructured{tc.target},
 			})
 
-			syncCtx.Sync()
+			syncCtx.Sync(context.Background())
 
 			// kubectl, _ := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
 			resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
@@ -1320,7 +1318,7 @@ func TestSync_Force(t *testing.T) {
 				Target: []*unstructured.Unstructured{tc.target},
 			})
 
-			syncCtx.Sync()
+			syncCtx.Sync(context.Background())
 
 			resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
 			assert.Equal(t, tc.commandUsed, resourceOps.GetLastResourceCommand(kube.GetResourceKey(tc.target)))
@@ -1341,7 +1339,7 @@ func TestSelectiveSyncOnly(t *testing.T) {
 		Live:   []*unstructured.Unstructured{nil},
 		Target: []*unstructured.Unstructured{pod1},
 	})
-	tasks, successful := syncCtx.getSyncTasks()
+	tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 	assert.True(t, successful)
 	assert.Len(t, tasks, 1)
@@ -1357,7 +1355,7 @@ func TestUnnamedHooksGetUniqueNames(t *testing.T) {
 		pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync,PostSync"})
 		syncCtx.hooks = []*unstructured.Unstructured{pod}
 
-		tasks, successful := syncCtx.getSyncTasks()
+		tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 		assert.True(t, successful)
 		assert.Len(t, tasks, 2)
@@ -1373,7 +1371,7 @@ func TestUnnamedHooksGetUniqueNames(t *testing.T) {
 		pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync,PostSync"})
 		syncCtx.hooks = []*unstructured.Unstructured{pod}
 		syncCtx.revision = "foobar"
-		tasks, successful := syncCtx.getSyncTasks()
+		tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 		assert.True(t, successful)
 		assert.Len(t, tasks, 2)
@@ -1393,7 +1391,7 @@ func TestManagedResourceAreNotNamed(t *testing.T) {
 		Target: []*unstructured.Unstructured{pod},
 	})
 
-	tasks, successful := syncCtx.getSyncTasks()
+	tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 	assert.True(t, successful)
 	assert.Len(t, tasks, 1)
@@ -1411,7 +1409,7 @@ func TestDeDupingTasks(t *testing.T) {
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{pod}
 
-	tasks, successful := syncCtx.getSyncTasks()
+	tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 	assert.True(t, successful)
 	assert.Len(t, tasks, 1)
@@ -1425,7 +1423,7 @@ func TestObjectsGetANamespace(t *testing.T) {
 		Target: []*unstructured.Unstructured{pod},
 	})
 
-	tasks, successful := syncCtx.getSyncTasks()
+	tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 	assert.True(t, successful)
 	assert.Len(t, tasks, 1)
@@ -1453,7 +1451,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 			Live:   []*unstructured.Unstructured{nil},
 			Target: []*unstructured.Unstructured{namespace},
 		})
-		tasks, successful := syncCtx.getSyncTasks()
+		tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 		assert.True(t, successful)
 		assert.Len(t, tasks, 1)
@@ -1466,7 +1464,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 			Live:   []*unstructured.Unstructured{nil},
 			Target: []*unstructured.Unstructured{pod},
 		})
-		tasks, successful := syncCtx.getSyncTasks()
+		tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 		assert.True(t, successful)
 		assert.Len(t, tasks, 2)
@@ -1492,7 +1490,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		syncCtx.syncRes = map[string]synccommon.ResourceSyncResult{}
 		syncCtx.syncRes[task.resultKey()] = res
 
-		tasks, successful := syncCtx.getSyncTasks()
+		tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 		assert.True(t, successful)
 		assert.Len(t, tasks, 2)
@@ -1509,7 +1507,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 
 		syncCtx.syncNamespace = nil
 
-		tasks, successful := syncCtx.getSyncTasks()
+		tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 		assert.True(t, successful)
 		assert.Len(t, tasks, 1)
@@ -1538,7 +1536,7 @@ func TestNamespaceAutoCreationForNonExistingNs(t *testing.T) {
 			creatorCalled = true
 			return true, nil
 		}
-		tasks, successful := syncCtx.getSyncTasks()
+		tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 		assert.True(t, creatorCalled)
 		assert.True(t, successful)
@@ -1555,7 +1553,7 @@ func TestNamespaceAutoCreationForNonExistingNs(t *testing.T) {
 			creatorCalled = true
 			return false, nil
 		}
-		tasks, successful := syncCtx.getSyncTasks()
+		tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 		assert.True(t, creatorCalled)
 		assert.True(t, successful)
@@ -1572,7 +1570,7 @@ func TestNamespaceAutoCreationForNonExistingNs(t *testing.T) {
 			creatorCalled = true
 			return false, errors.New("some error")
 		}
-		tasks, successful := syncCtx.getSyncTasks()
+		tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 		assert.True(t, creatorCalled)
 		assert.True(t, successful)
@@ -1608,7 +1606,7 @@ func TestSync_SuccessfulSyncWithSyncFailHook(t *testing.T) {
 	syncCtx.dynamicIf = fake.NewSimpleDynamicClient(runtime.NewScheme())
 
 	// First sync does dry-run and starts hooks
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, message, resources := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
 	assert.Equal(t, "waiting for completion of hook /Pod/hook-1 and 1 more resources", message)
@@ -1621,7 +1619,7 @@ func TestSync_SuccessfulSyncWithSyncFailHook(t *testing.T) {
 	})
 
 	// Second sync completes hooks
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, message, resources = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
 	assert.Equal(t, "successfully synced (no more tasks)", message)
@@ -1647,7 +1645,7 @@ func TestSync_FailedSyncWithSyncFailHook_HookFailed(t *testing.T) {
 	syncCtx.dynamicIf = fake.NewSimpleDynamicClient(runtime.NewScheme())
 
 	// First sync does dry-run and starts hooks
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, message, resources := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
 	assert.Equal(t, "waiting for completion of hook /Pod/hook-1 and 1 more resources", message)
@@ -1660,7 +1658,7 @@ func TestSync_FailedSyncWithSyncFailHook_HookFailed(t *testing.T) {
 	})
 
 	// Second sync fails the sync and starts the SyncFail hooks
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, message, resources = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
 	assert.Equal(t, "waiting for completion of hook /Pod/sync-fail-hook", message)
@@ -1673,7 +1671,7 @@ func TestSync_FailedSyncWithSyncFailHook_HookFailed(t *testing.T) {
 	})
 
 	// Third sync completes the SyncFail hooks
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, message, resources = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationFailed, phase)
 	assert.Equal(t, "one or more synchronization tasks completed unsuccessfully", message)
@@ -1699,13 +1697,13 @@ func TestBeforeHookCreation(t *testing.T) {
 	syncCtx.dynamicIf = client
 
 	// First sync will delete the existing hook
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, _, _ := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
 	assert.True(t, finalizerRemoved)
 
 	// Second sync will create the hook
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, message, resources := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
 	assert.Len(t, resources, 1)
@@ -1739,7 +1737,7 @@ func TestSync_ExistingHooksWithFinalizer(t *testing.T) {
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{hook1, hook2, hook3}
 
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, message, _ := syncCtx.GetState()
 
 	assert.Equal(t, synccommon.OperationRunning, phase)
@@ -1747,7 +1745,7 @@ func TestSync_ExistingHooksWithFinalizer(t *testing.T) {
 	assert.Equal(t, 3, updatedCount)
 	assert.Equal(t, 1, deletedCount)
 
-	_, err := syncCtx.getResource(&syncTask{liveObj: hook1})
+	_, err := syncCtx.getResource(context.Background(), &syncTask{liveObj: hook1})
 	require.Error(t, err, "Expected resource to be deleted")
 	assert.True(t, apierrors.IsNotFound(err))
 }
@@ -1780,7 +1778,7 @@ func TestSync_FailedSyncWithSyncFailHook_ApplyFailed(t *testing.T) {
 	syncCtx.resourceOps = &mockResourceOps
 
 	// First sync triggers the SyncFail hooks on failure
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, message, resources := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
 	assert.Equal(t, "waiting for completion of hook /Pod/failed-sync-fail-hook and 1 more hooks", message)
@@ -1807,7 +1805,7 @@ func TestSync_FailedSyncWithSyncFailHook_ApplyFailed(t *testing.T) {
 	})
 
 	// Second sync completes when the SyncFail hooks are done
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, message, resources = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationFailed, phase)
 	assert.Equal(t, "one or more synchronization tasks completed unsuccessfully, reason: fake pod failure\none or more SyncFail hooks failed, reason: fake hook failure", message)
@@ -1870,7 +1868,7 @@ func TestSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{hook1, hook2, hook3}
 
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, message, _ := syncCtx.GetState()
 
 	assert.Equal(t, synccommon.OperationRunning, phase)
@@ -1930,7 +1928,7 @@ func TestSync_HooksDeletedAfterSyncSucceeded(t *testing.T) {
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{hook1, hook2, hook3}
 
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, message, _ := syncCtx.GetState()
 
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
@@ -1938,7 +1936,7 @@ func TestSync_HooksDeletedAfterSyncSucceeded(t *testing.T) {
 	assert.Equal(t, 3, updatedCount)
 	assert.Equal(t, 1, deletedCount)
 
-	_, err := syncCtx.getResource(&syncTask{liveObj: hook3})
+	_, err := syncCtx.getResource(context.Background(), &syncTask{liveObj: hook3})
 	require.Error(t, err, "Expected resource to be deleted")
 	assert.True(t, apierrors.IsNotFound(err))
 }
@@ -1995,7 +1993,7 @@ func TestSync_HooksDeletedAfterSyncFailed(t *testing.T) {
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{hook1, hook2, hook3}
 
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, message, _ := syncCtx.GetState()
 
 	assert.Equal(t, synccommon.OperationFailed, phase)
@@ -2003,7 +2001,7 @@ func TestSync_HooksDeletedAfterSyncFailed(t *testing.T) {
 	assert.Equal(t, 3, updatedCount)
 	assert.Equal(t, 1, deletedCount)
 
-	_, err := syncCtx.getResource(&syncTask{liveObj: hook2})
+	_, err := syncCtx.getResource(context.Background(), &syncTask{liveObj: hook2})
 	require.Error(t, err, "Expected resource to be deleted")
 	assert.True(t, apierrors.IsNotFound(err))
 }
@@ -2185,7 +2183,7 @@ func TestSync_SyncWaveHook(t *testing.T) {
 		assert.False(t, final)
 		return nil
 	}
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	assert.True(t, called)
 
 	// call sync again, it should not invoke the SyncWaveHook callback since we only should be
@@ -2195,7 +2193,7 @@ func TestSync_SyncWaveHook(t *testing.T) {
 		called = true
 		return nil
 	}
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	assert.False(t, called)
 
 	// complete wave -1, then call Sync again. Verify we invoke another SyncWaveHook call after applying wave 0
@@ -2211,7 +2209,7 @@ func TestSync_SyncWaveHook(t *testing.T) {
 		assert.False(t, final)
 		return nil
 	}
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	assert.True(t, called)
 
 	// complete wave 0. after applying PostSync, we should perform callback and final should be set true
@@ -2227,7 +2225,7 @@ func TestSync_SyncWaveHook(t *testing.T) {
 		assert.True(t, final)
 		return nil
 	}
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	assert.True(t, called)
 }
 
@@ -2252,7 +2250,7 @@ func TestSync_SyncWaveHookError(t *testing.T) {
 		called = true
 		return errors.New("intentional error")
 	}
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	assert.True(t, called)
 	phase, msg, results := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationError, phase)
@@ -2285,7 +2283,7 @@ func TestPruneLast(t *testing.T) {
 			Live:   []*unstructured.Unstructured{nil, pod2, pod3},
 			Target: []*unstructured.Unstructured{pod1, nil, nil},
 		})
-		tasks, successful := syncCtx.getSyncTasks()
+		tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 		assert.True(t, successful)
 		assert.Len(t, tasks, 3)
@@ -2301,7 +2299,7 @@ func TestPruneLast(t *testing.T) {
 			Live:   []*unstructured.Unstructured{nil, pod2, pod3},
 			Target: []*unstructured.Unstructured{pod1, nil, nil},
 		})
-		tasks, successful := syncCtx.getSyncTasks()
+		tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 		assert.True(t, successful)
 		assert.Len(t, tasks, 3)
@@ -2319,7 +2317,7 @@ func TestPruneLast(t *testing.T) {
 			Live:   []*unstructured.Unstructured{nil, pod2, pod3},
 			Target: []*unstructured.Unstructured{pod1, nil, nil},
 		})
-		tasks, successful := syncCtx.getSyncTasks()
+		tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 		assert.True(t, successful)
 		assert.Len(t, tasks, 3)
@@ -2379,7 +2377,7 @@ func Test_executeSyncFailPhase(t *testing.T) {
 	tasks := make([]*syncTask, 0)
 	tasks = append(tasks, &syncTask{message: "namespace not found"})
 
-	sc.executeSyncFailPhase(nil, tasks, "one or more objects failed to apply")
+	sc.executeSyncFailPhase(context.Background(), nil, tasks, "one or more objects failed to apply")
 
 	assert.Equal(t, "one or more objects failed to apply, reason: namespace not found", sc.message)
 }
@@ -2392,7 +2390,7 @@ func Test_executeSyncFailPhase_DuplicatedMessages(t *testing.T) {
 	tasks = append(tasks, &syncTask{message: "namespace not found"})
 	tasks = append(tasks, &syncTask{message: "namespace not found"})
 
-	sc.executeSyncFailPhase(nil, tasks, "one or more objects failed to apply")
+	sc.executeSyncFailPhase(context.Background(), nil, tasks, "one or more objects failed to apply")
 
 	assert.Equal(t, "one or more objects failed to apply, reason: namespace not found", sc.message)
 }
@@ -2401,7 +2399,7 @@ func Test_executeSyncFailPhase_NoTasks(t *testing.T) {
 	sc := syncContext{}
 	sc.log = textlogger.NewLogger(textlogger.NewConfig()).WithValues("application", "fake-app")
 
-	sc.executeSyncFailPhase(nil, nil, "one or more objects failed to apply")
+	sc.executeSyncFailPhase(context.Background(), nil, nil, "one or more objects failed to apply")
 
 	assert.Equal(t, "one or more objects failed to apply", sc.message)
 }
@@ -2415,7 +2413,7 @@ func Test_executeSyncFailPhase_RunningHooks(t *testing.T) {
 	tasks := make([]*syncTask, 0)
 	tasks = append(tasks, &syncTask{operationState: synccommon.OperationRunning})
 
-	sc.executeSyncFailPhase(tasks, nil, "one or more objects failed to apply")
+	sc.executeSyncFailPhase(context.Background(), tasks, nil, "one or more objects failed to apply")
 
 	assert.Equal(t, synccommon.OperationRunning, sc.phase)
 }
@@ -2433,7 +2431,7 @@ func Test_executeSyncFailPhase_CompletedHooks(t *testing.T) {
 	tasks = append(tasks, &syncTask{operationState: synccommon.OperationSucceeded})
 	tasks = append(tasks, &syncTask{operationState: synccommon.OperationFailed, syncStatus: synccommon.ResultCodeSyncFailed, message: "failed to apply"})
 
-	sc.executeSyncFailPhase(tasks, failed, "one or more objects failed to apply")
+	sc.executeSyncFailPhase(context.Background(), tasks, failed, "one or more objects failed to apply")
 
 	assert.Equal(t, "one or more objects failed to apply, reason: task in error\none or more SyncFail hooks failed, reason: failed to apply", sc.message)
 	assert.Equal(t, synccommon.OperationFailed, sc.phase)
@@ -2472,7 +2470,7 @@ func TestWaveReorderingOfPruneTasks(t *testing.T) {
 				Live:   test.live,
 				Target: test.target,
 			})
-			tasks, successful := syncCtx.getSyncTasks()
+			tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 			assert.True(t, successful)
 			assert.Len(t, tasks, len(test.target))
@@ -2680,7 +2678,7 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 	var results []synccommon.ResourceSyncResult
 
 	// 1st sync should prune only pod3
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, _, results = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
 	assert.Len(t, results, 1)
@@ -2694,7 +2692,7 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 	})
 
 	// next sync should prune only pod2
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, _, results = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
 	assert.Len(t, results, 2)
@@ -2706,7 +2704,7 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 
 	// next sync should wait for deletion of pod2 from cluster,
 	// it should not move to next wave and prune pod1
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, msg, results = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
 	assert.Equal(t, "waiting for deletion of /Pod/pod-2", msg)
@@ -2720,7 +2718,7 @@ func TestWaitForCleanUpBeforeNextWave(t *testing.T) {
 
 	// next sync should proceed with next wave
 	// i.e deletion of pod1
-	syncCtx.Sync()
+	syncCtx.Sync(context.Background())
 	phase, _, results = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
 	assert.Len(t, results, 3)
@@ -2776,7 +2774,7 @@ func BenchmarkSync(b *testing.B) {
 		})
 
 		b.StartTimer()
-		syncCtx.Sync()
+		syncCtx.Sync(context.Background())
 	}
 }
 
@@ -2900,7 +2898,7 @@ func TestPerformCSAUpgradeMigration_NoMigrationNeeded(t *testing.T) {
 	}
 
 	// Should return nil (no error) because there's no CSA manager to migrate
-	err := syncCtx.performCSAUpgradeMigration(obj, "kubectl-client-side-apply")
+	err := syncCtx.performCSAUpgradeMigration(context.Background(), obj, "kubectl-client-side-apply")
 	assert.NoError(t, err)
 }
 
@@ -2931,7 +2929,7 @@ func TestPerformCSAUpgradeMigration_WithCSAManager(t *testing.T) {
 	}
 
 	// Perform the migration
-	err := syncCtx.performCSAUpgradeMigration(obj, "kubectl-client-side-apply")
+	err := syncCtx.performCSAUpgradeMigration(context.Background(), obj, "kubectl-client-side-apply")
 	assert.NoError(t, err)
 
 	// Get the updated object from the fake client
@@ -2991,7 +2989,7 @@ func TestPerformCSAUpgradeMigration_ConflictRetry(t *testing.T) {
 		Fake: &testcore.Fake{Resources: testingutils.StaticAPIResources},
 	}
 
-	err := syncCtx.performCSAUpgradeMigration(obj, "kubectl-client-side-apply")
+	err := syncCtx.performCSAUpgradeMigration(context.Background(), obj, "kubectl-client-side-apply")
 	assert.NoError(t, err, "Migration should succeed after retrying on conflict")
 	assert.Equal(t, 2, patchAttempt, "Expected exactly 2 patch attempts (1 conflict + 1 success)")
 }
@@ -3040,7 +3038,7 @@ func TestTerminate(t *testing.T) {
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{}
 
-	syncCtx.Terminate()
+	syncCtx.Terminate(context.Background())
 	assert.Equal(t, synccommon.OperationFailed, syncCtx.phase)
 	assert.Equal(t, "Operation terminated", syncCtx.message)
 }
@@ -3105,7 +3103,7 @@ func TestTerminate_Hooks_Running(t *testing.T) {
 		return false, nil, nil
 	})
 
-	syncCtx.Terminate()
+	syncCtx.Terminate(context.Background())
 	phase, message, results := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationFailed, phase)
 	assert.Equal(t, "Operation terminated", message)
@@ -3183,7 +3181,7 @@ func TestTerminate_Hooks_Running_Healthy(t *testing.T) {
 		return false, nil, nil
 	})
 
-	syncCtx.Terminate()
+	syncCtx.Terminate(context.Background())
 	phase, message, results := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationFailed, phase)
 	assert.Equal(t, "Operation terminated", message)
@@ -3200,7 +3198,7 @@ func TestTerminate_Hooks_Running_Healthy(t *testing.T) {
 	assert.Equal(t, 3, updatedCount)
 	assert.Equal(t, 1, deletedCount)
 
-	_, err := syncCtx.getResource(&syncTask{liveObj: hook2})
+	_, err := syncCtx.getResource(context.Background(), &syncTask{liveObj: hook2})
 	require.Error(t, err, "Expected resource to be deleted")
 	assert.True(t, apierrors.IsNotFound(err))
 }
@@ -3268,7 +3266,7 @@ func TestTerminate_Hooks_Completed(t *testing.T) {
 		return false, nil, nil
 	})
 
-	syncCtx.Terminate()
+	syncCtx.Terminate(context.Background())
 	phase, message, results := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationFailed, phase)
 	assert.Equal(t, "Operation terminated", message)
@@ -3322,7 +3320,7 @@ func TestTerminate_Hooks_Error(t *testing.T) {
 		return true, nil, apierrors.NewInternalError(errors.New("update failed"))
 	})
 
-	syncCtx.Terminate()
+	syncCtx.Terminate(context.Background())
 	phase, message, results := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationError, phase)
 	assert.Equal(t, "Operation termination had errors", message)

@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for status"
+  inputPath: testdata/progressing_no_status.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for reconciliation (generation mismatch)"
+  inputPath: testdata/progressing_generation_mismatch.yaml
+- healthStatus:
+    status: Healthy
+    message: "Proxy rules have been successfully applied"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "ProxySetting failed to reconcile"
+  inputPath: testdata/degraded.yaml

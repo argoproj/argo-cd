@@ -1,6 +1,7 @@
 import {DataLoader, DropDown, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
 import {useState} from 'react';
+import {BehaviorSubject} from 'rxjs';
 import {EventsList, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
@@ -32,19 +33,26 @@ interface ResourceDetailsProps {
     isAppSelected: boolean;
     tree: ApplicationTree;
     appCxt: AppContext;
+    appChanged?: BehaviorSubject<models.AbstractApplication>;
 }
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
     const {selectedNode, updateApp, application, isAppSelected, tree} = {...props};
     const [activeContainer, setActiveContainer] = useState<number | null>(null);
     const appContext = React.useContext(Context);
-    const tab = new URLSearchParams(appContext.history.location.search).get('tab');
-    const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
+    const searchParams = new URLSearchParams(appContext.history.location.search);
+    const tab = searchParams.get('tab');
+    const showApplicationReference = !!searchParams.get('detailsApp');
+    const selectedNodeInfo = NodeInfo(searchParams.get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
 
-    React.useEffect(() => {
+    // Reset the active container when the selected node changes, by comparing the
+    // previous node key during render instead of using a cascading effect.
+    const [prevSelectedNodeKey, setPrevSelectedNodeKey] = useState(selectedNodeKey);
+    if (prevSelectedNodeKey !== selectedNodeKey) {
+        setPrevSelectedNodeKey(selectedNodeKey);
         setActiveContainer(null);
-    }, [selectedNodeKey]);
+    }
 
     const [pageNumber, setPageNumber] = React.useState(0);
     const [collapsedSources, setCollapsedSources] = React.useState(new Array<boolean>()); // For Sources tab to save collapse states
@@ -317,19 +325,38 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     </span>
                                 )}
                                 {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
-                                <button
-                                    onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
-                                    style={{marginLeft: 'auto', marginRight: '5px'}}
-                                    className='argo-button argo-button--base'>
-                                    <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
-                                </button>
-                                <button
-                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources)}
-                                    style={{marginRight: '5px'}}
-                                    className='argo-button argo-button--base'>
-                                    <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
-                                </button>
-                                {data.resourceActionsMenuItems?.length > 0 && (
+                                {showApplicationReference && (
+                                    <button
+                                        onClick={() =>
+                                            appContext.navigation.goto(`/${AppUtils.getAppUrl(application)}`, {
+                                                node: `${AppUtils.nodeKey(selectedNode)}/0`,
+                                                tab: tab || null
+                                            })
+                                        }
+                                        style={{marginLeft: 'auto', marginRight: '5px'}}
+                                        className='argo-button argo-button--base'>
+                                        <i className='fa fa-fw fa-info-circle' /> <span className='show-for-large'>DETAILS</span>
+                                    </button>
+                                )}
+                                {!showApplicationReference && (
+                                    <>
+                                        <button
+                                            onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
+                                            style={{marginLeft: 'auto', marginRight: '5px'}}
+                                            className='argo-button argo-button--base'>
+                                            <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
+                                        </button>
+                                        <button
+                                            onClick={() =>
+                                                AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources, props.appChanged)
+                                            }
+                                            style={{marginRight: '5px'}}
+                                            className='argo-button argo-button--base'>
+                                            <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
+                                        </button>
+                                    </>
+                                )}
+                                {data.resourceActionsMenuItems?.length > 0 && !showApplicationReference && (
                                     <DropDown
                                         isMenu={true}
                                         anchor={() => (
@@ -361,6 +388,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                                     controlled={data.controlledState}
                                                     node={selectedNode}
                                                     links={data.links}
+                                                    showApplicationReference={showApplicationReference}
                                                 />
                                             )
                                         }

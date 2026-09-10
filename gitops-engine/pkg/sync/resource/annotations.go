@@ -1,6 +1,7 @@
 package resource
 
 import (
+	"slices"
 	"strings"
 )
 
@@ -17,7 +18,7 @@ func GetAnnotationCSVs(obj AnnotationGetter, key string) []string {
 	// map for de-duping
 	seen := make(map[string]bool)
 	var values []string
-	for _, item := range strings.Split(obj.GetAnnotations()[key], ",") {
+	for item := range strings.SplitSeq(obj.GetAnnotations()[key], ",") {
 		val := strings.TrimSpace(item)
 		if val == "" {
 			continue
@@ -34,12 +35,7 @@ func GetAnnotationCSVs(obj AnnotationGetter, key string) []string {
 // HasAnnotationOption will return if the given obj has an annotation defined
 // as the given key and has in its values, the occurrence of val.
 func HasAnnotationOption(obj AnnotationGetter, key, val string) bool {
-	for _, item := range GetAnnotationCSVs(obj, key) {
-		if item == val {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(GetAnnotationCSVs(obj, key), val)
 }
 
 // GetAnnotationOptionValue will return the value of an option inside the
