@@ -11,7 +11,7 @@ import (
 
 func NewGithubAppService(ctx context.Context, g github_app_auth.Authentication, url, owner, repo string, labels []string, optionalHTTPClient ...*http.Client) (PullRequestService, error) {
 	httpClient := appsetutils.GetOptionalHTTPClient(optionalHTTPClient...)
-	client, err := github_app.Client(ctx, g, url, owner, httpClient)
+	client, err := github_app.Client(ctx, g, url, owner, false, httpClient)
 	if err != nil {
 		return nil, err
 	}
