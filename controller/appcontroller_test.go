@@ -3971,6 +3971,18 @@ func TestAlreadyAttemptSync(t *testing.T) {
 		assert.True(t, attempted)
 	})
 
+	t.Run("no sync result for orphaned sync", func(t *testing.T) {
+		// A terminal phase with no sync result and no finishedAt indicates an
+		// operation orphaned by a controller restart. It should not be treated as
+		// already attempted, otherwise auto-sync is permanently suppressed.
+		app := app.DeepCopy()
+		app.Status.OperationState.SyncResult = nil
+		app.Status.OperationState.Phase = synccommon.OperationSucceeded
+		app.Status.OperationState.FinishedAt = nil
+		attempted, _, _ := alreadyAttemptedSync(app, []string{defaultRevision}, true)
+		assert.False(t, attempted)
+	})
+
 	t.Run("single source", func(t *testing.T) {
 		t.Run("no revision", func(t *testing.T) {
 			attempted, _, _ := alreadyAttemptedSync(app, []string{}, true)
