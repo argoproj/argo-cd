@@ -70,7 +70,7 @@ As is the case with the development process, this document is under constant cha
 
 ### Perform the development cycle 
 - [Set kubectl context to argocd namespace](development-cycle.md#set-kubectl-context-to-argocd-namespace)
-- [Pull in all build dependencies](development-cycle.md#pull-in-all-build-dependencies)
+- [Pull in all build dependencies](development-cycle.md#pull-in-all-ui-build-dependencies)
 - [Generate API glue code and other assets](development-cycle.md#generate-api-glue-code-and-other-assets)
 - [Build your code and run unit tests](development-cycle.md#build-your-code-and-run-unit-tests)
 - [Lint your code base](development-cycle.md#lint-your-code-base)
@@ -90,6 +90,9 @@ As is the case with the development process, this document is under constant cha
 - [Understand & make sure your PR meets the CI code test coverage requirements](submit-your-pr.md#code-test-coverage)
 
 Need help? Start with the [Contributors FAQ](faq.md)
+
+## Contributing to Argo CD custom health checks
+- [Understanding and writing health checks](../operator-manual/health.md#custom-health-checks)
 
 ## Contributing to Argo CD dependencies
 - [Contributing to argo-ui](dependencies.md#argo-ui-components-githubcomargoprojargo-ui)

@@ -11,6 +11,7 @@ import (
 )
 
 func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
+	t.Parallel()
 	getOverride := func(gk string) map[string]v1alpha1.ResourceOverride {
 		return map[string]v1alpha1.ResourceOverride{
 			gk: {
@@ -35,6 +36,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	}
 	t.Run("will return ignore diffs from resource override", func(t *testing.T) {
 		// given
+		t.Parallel()
 		gk := "apps/Deployment"
 		override := getOverride(gk)
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "", "")
@@ -56,6 +58,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("will return ignore diffs from resource override with wildcard", func(t *testing.T) {
 		// given
+		t.Parallel()
 		gk := "*/*"
 		override := getOverride(gk)
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "", "")
@@ -77,6 +80,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("will return ignore diffs from application resource", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "app-name", "default")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
 		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
@@ -93,6 +97,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("will return ignore diffs from application resource with no app name and namespace configured", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "", "")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
 		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
@@ -109,6 +114,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("will return ignore diffs for all resources from group", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignoreDiff := getIgnoreDiff("apps", "*", "", "")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
 		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
@@ -125,6 +131,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("will return ignore diffs for all resources", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignoreDiff := getIgnoreDiff("*", "*", "", "")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
 		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
@@ -141,6 +148,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("no ignore diffs if namespace do not match", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "app-name", "default")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
 		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
@@ -154,6 +162,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("no ignore diffs if name do not match", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "app-name", "default")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
 		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
@@ -167,6 +176,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("no ignore diffs if resource do not match", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "app-name", "default")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
 		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
@@ -180,6 +190,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("no ignore diffs if group do not match", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "app-name", "default")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
 		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
@@ -193,6 +204,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("will merge ignore differences correctly removing duplicated configs", func(t *testing.T) {
 		// given
+		t.Parallel()
 		gk := "*/*"
 		override := getOverride(gk)
 		ignoreDiff := getIgnoreDiff("*", "*", "", "")

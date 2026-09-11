@@ -32,6 +32,7 @@ type awsCodeCommitTestRepository struct {
 }
 
 func TestAWSCodeCommitListRepos(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name                   string
 		repositories           []*awsCodeCommitTestRepository
@@ -160,6 +161,7 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 			codeCommitClient := mocks.NewAWSCodeCommitClient(t)
 			taggingClient := mocks.NewAWSTaggingClient(t)
 			ctx := t.Context()
@@ -234,6 +236,7 @@ func TestAWSCodeCommitListRepos(t *testing.T) {
 }
 
 func TestAWSCodeCommitRepoHasPath(t *testing.T) {
+	t.Parallel()
 	organization := "111111111111"
 	repoName := "repo1"
 	branch := "main"
@@ -346,6 +349,7 @@ func TestAWSCodeCommitRepoHasPath(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 			codeCommitClient := mocks.NewAWSCodeCommitClient(t)
 			taggingClient := mocks.NewAWSTaggingClient(t)
 			ctx := t.Context()
@@ -376,6 +380,7 @@ func TestAWSCodeCommitRepoHasPath(t *testing.T) {
 }
 
 func TestAWSCodeCommitGetBranches(t *testing.T) {
+	t.Parallel()
 	name := "repo1"
 	id := "1a64adc4-2fb5-4abd-afe7-127984ba83c0"
 	defaultBranch := "main"
@@ -418,6 +423,7 @@ func TestAWSCodeCommitGetBranches(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 			codeCommitClient := mocks.NewAWSCodeCommitClient(t)
 			taggingClient := mocks.NewAWSTaggingClient(t)
 			ctx := t.Context()

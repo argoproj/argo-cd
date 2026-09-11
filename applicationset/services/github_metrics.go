@@ -239,3 +239,15 @@ func NewGitHubMetricsClient(metricsContext *MetricsContext) *http.Client {
 		Transport: NewDefaultGitHubMetricsTransport(http.DefaultTransport, metricsContext),
 	}
 }
+
+// NewGitHubMetricsClientFrom returns a new http.Client wrapping the provided one with metrics middleware
+func NewGitHubMetricsClientFrom(httpClient *http.Client, metricsContext *MetricsContext) *http.Client {
+	log.Debug("Creating new GitHub metrics client")
+	httpClientCopy := *httpClient
+	transport := httpClient.Transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+	httpClientCopy.Transport = NewDefaultGitHubMetricsTransport(transport, metricsContext)
+	return &httpClientCopy
+}

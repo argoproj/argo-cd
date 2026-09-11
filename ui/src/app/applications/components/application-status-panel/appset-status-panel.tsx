@@ -63,13 +63,24 @@ export const ApplicationSetStatusPanel = ({appSet, showConditions}: Props) => {
                     <div className='application-status-panel__item-value application-status-panel__conditions' onClick={() => showConditions && showConditions()}>
                         {conditionCounts.info > 0 && (
                             <a className='info'>
-                                <i className='fa fa-info-circle application-status-panel__item-value__status-button' /> {conditionCounts.info} Info
+                                <i className='fa fa-info-circle application-status-panel__item-value__status-button' />
+                                <span className='sync-condition-details'>{conditionCounts.info} Info</span>
+                            </a>
+                        )}
+                        {conditionCounts.warning > 0 && (
+                            <a className='warning'>
+                                <i className='fa fa-exclamation-triangle application-status-panel__item-value__status-button' />
+                                <span className='sync-condition-details'>
+                                    {conditionCounts.warning} Warning{conditionCounts.warning !== 1 && 's'}
+                                </span>
                             </a>
                         )}
                         {conditionCounts.error > 0 && (
                             <a className='error'>
-                                <i className='fa fa-exclamation-circle application-status-panel__item-value__status-button' /> {conditionCounts.error} Error
-                                {conditionCounts.error !== 1 && 's'}
+                                <i className='fa fa-exclamation-circle application-status-panel__item-value__status-button' />
+                                <span className='sync-condition-details'>
+                                    {conditionCounts.error} Error{conditionCounts.error !== 1 && 's'}
+                                </span>
                             </a>
                         )}
                     </div>

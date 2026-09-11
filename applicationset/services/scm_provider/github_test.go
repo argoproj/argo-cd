@@ -394,6 +394,7 @@ func githubMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 }
 
 func TestGithubListRepos(t *testing.T) {
+	t.Parallel()
 	idptr := func(i int64) *int64 {
 		return &i
 	}
@@ -669,9 +670,10 @@ func TestGithubListRepos(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubMockHandler(t)(w, r)
 	}))
-	defer ts.Close()
+	t.Cleanup(ts.Close)
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			provider, _ := NewGithubProvider("argoproj", "", ts.URL, c.allBranches, c.excludeArchivedRepos)
 			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 			if c.hasError {
@@ -698,6 +700,7 @@ func TestGithubListRepos(t *testing.T) {
 httpClient := services.NewGitHubMetricsClient(metricsCtx)
 */
 func TestGithubHasPath(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubMockHandler(t)(w, r)
 	}))
@@ -718,6 +721,7 @@ func TestGithubHasPath(t *testing.T) {
 }
 
 func TestGithubGetBranches(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubMockHandler(t)(w, r)
 	}))

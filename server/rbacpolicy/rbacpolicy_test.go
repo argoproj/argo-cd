@@ -7,24 +7,26 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
+	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 )
+
+func init() {
+	settings_util.ConfigureGoClientFeatures()
+}
 
 func newFakeProj() *argoappv1.AppProject {
 	jwtTokenByRole := make(map[string]argoappv1.JWTTokens)
 	jwtTokenByRole["my-role"] = argoappv1.JWTTokens{Items: []argoappv1.JWTToken{{IssuedAt: 1234}}}
 
 	return &argoappv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-proj",
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      "my-proj",
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: argoappv1.AppProjectSpec{
 			Roles: []argoappv1.ProjectRole{
 				{
@@ -50,6 +52,7 @@ func newFakeProj() *argoappv1.AppProject {
 }
 
 func TestEnforceAllPolicies(t *testing.T) {
+	t.Parallel()
 	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
 	projLister := test.NewFakeProjLister(newFakeProj())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
@@ -96,6 +99,7 @@ func TestEnforceAllPolicies(t *testing.T) {
 }
 
 func TestEnforceActionActions(t *testing.T) {
+	t.Parallel()
 	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
 	projLister := test.NewFakeProjLister(newFakeProj())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
@@ -129,6 +133,7 @@ p, cam, applications, %s/argoproj.io/Rollout/resume, my-proj/*, allow
 }
 
 func TestInvalidatedCache(t *testing.T) {
+	t.Parallel()
 	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
 	projLister := test.NewFakeProjLister(newFakeProj())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
@@ -172,6 +177,7 @@ func TestInvalidatedCache(t *testing.T) {
 }
 
 func TestGetScopes_DefaultScopes(t *testing.T) {
+	t.Parallel()
 	rbacEnforcer := NewRBACPolicyEnforcer(nil, nil)
 
 	scopes := rbacEnforcer.GetScopes()
@@ -179,6 +185,7 @@ func TestGetScopes_DefaultScopes(t *testing.T) {
 }
 
 func TestGetScopes_CustomScopes(t *testing.T) {
+	t.Parallel()
 	rbacEnforcer := NewRBACPolicyEnforcer(nil, nil)
 	customScopes := []string{"custom"}
 	rbacEnforcer.SetScopes(customScopes)

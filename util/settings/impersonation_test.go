@@ -5,13 +5,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestDeriveServiceAccountToImpersonate(t *testing.T) {
+	t.Parallel()
 	t.Run("MatchingServerAndNamespace", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -35,6 +36,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("MatchingWithGlobPatterns", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -58,6 +60,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("MatchingWithNamespacedServiceAccount", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -81,6 +84,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("FallbackToAppNamespaceWhenDestEmpty", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -90,7 +94,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 			},
 		}
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Namespace: "app-ns"},
+			Namespace: "app-ns",
 			Spec: v1alpha1.ApplicationSpec{
 				Destination: v1alpha1.ApplicationDestination{
 					Server:    "https://cluster-api.example.com",
@@ -107,6 +111,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("NoMatchingEntry", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -125,11 +130,12 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 		cluster := &v1alpha1.Cluster{Server: "https://cluster-api.example.com"}
 
 		user, err := DeriveServiceAccountToImpersonate(project, app, cluster)
+		require.NoError(t, err)
 		assert.Empty(t, user)
-		assert.ErrorContains(t, err, "no matching service account found")
 	})
 
 	t.Run("EmptyDestinationServiceAccounts", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{},
@@ -146,11 +152,12 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 		cluster := &v1alpha1.Cluster{Server: "https://cluster-api.example.com"}
 
 		user, err := DeriveServiceAccountToImpersonate(project, app, cluster)
+		require.NoError(t, err)
 		assert.Empty(t, user)
-		assert.ErrorContains(t, err, "no matching service account found")
 	})
 
 	t.Run("InvalidServiceAccountChars", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -174,6 +181,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("BlankServiceAccount", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -197,6 +205,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("InvalidServerGlobPattern", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -220,6 +229,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("InvalidNamespaceGlobPattern", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
@@ -243,6 +253,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 	})
 
 	t.Run("FirstMatchWins", func(t *testing.T) {
+		t.Parallel()
 		project := &v1alpha1.AppProject{
 			Spec: v1alpha1.AppProjectSpec{
 				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{

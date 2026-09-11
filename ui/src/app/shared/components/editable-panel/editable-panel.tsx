@@ -1,7 +1,8 @@
 import {ErrorNotification, HelpIcon, NotificationType} from 'argo-ui';
-import * as classNames from 'classnames';
-import React, {type ReactNode, useCallback, useContext, useEffect, useRef, useState, Fragment} from 'react';
-import {Form, type FormApi} from 'react-form';
+import classNames from 'classnames';
+import * as React from 'react';
+import {type ReactNode, useCallback, useContext, useEffect, useRef, useState, Fragment} from 'react';
+import {Form, type FormApi} from 'argo-ui';
 import {helpTip} from '../../../applications/components/utils';
 import {Context} from '../../context';
 import {Spinner} from '../spinner';
@@ -68,13 +69,17 @@ function EditablePanel<T extends {} = {}>({
     const [isEditing, setIsEditing] = useState<boolean>(!!noReadonlyMode);
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const [isCollapsed, setIsCollapsed] = useState<boolean>(collapsedProp);
+    const [prevCollapsedProp, setPrevCollapsedProp] = useState<boolean>(collapsedProp);
     const ctx = useContext(Context);
     const formApiRef = useRef<FormApi | null>(null);
     const initialValuesRef = useRef<T>(values);
 
-    useEffect(() => {
+    // Sync the collapsed state when the controlling prop changes, adjusting
+    // during render instead of in an effect to avoid a cascading re-render.
+    if (collapsedProp !== prevCollapsedProp) {
+        setPrevCollapsedProp(collapsedProp);
         setIsCollapsed(collapsedProp);
-    }, [collapsedProp]);
+    }
 
     useEffect(() => {
         const initialValuesString = JSON.stringify(initialValuesRef.current);

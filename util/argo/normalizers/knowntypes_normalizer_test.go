@@ -68,6 +68,7 @@ func nestedSliceMap(obj map[string]any, i int, path ...string) (map[string]any, 
 }
 
 func TestNormalize_MapField(t *testing.T) {
+	t.Parallel()
 	normalizer, err := NewKnownTypesNormalizer(map[string]v1alpha1.ResourceOverride{
 		crdGroupKind: {
 			KnownTypeFields: []v1alpha1.KnownTypeField{{
@@ -102,6 +103,7 @@ func TestNormalize_MapField(t *testing.T) {
 }
 
 func TestNormalize_FieldInNestedSlice(t *testing.T) {
+	t.Parallel()
 	rollout := mustUnmarshalYAML(someCRDYaml)
 	normalizer, err := NewKnownTypesNormalizer(map[string]v1alpha1.ResourceOverride{
 		crdGroupKind: {
@@ -127,6 +129,7 @@ func TestNormalize_FieldInNestedSlice(t *testing.T) {
 }
 
 func TestNormalize_FieldInDoubleNestedSlice(t *testing.T) {
+	t.Parallel()
 	rollout := mustUnmarshalYAML(`apiVersion: some.io/v1alpha1
 kind: TestCRD
 metadata:
@@ -174,6 +177,7 @@ spec:
 }
 
 func TestNormalize_Quantity(t *testing.T) {
+	t.Parallel()
 	rollout := mustUnmarshalYAML(`apiVersion: some.io/v1alpha1
 kind: TestCRD
 metadata:
@@ -200,6 +204,7 @@ spec:
 }
 
 func TestNormalize_Duration(t *testing.T) {
+	t.Parallel()
 	cert := mustUnmarshalYAML(`
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -227,6 +232,7 @@ spec:
 }
 
 func TestFieldDoesNotExist(t *testing.T) {
+	t.Parallel()
 	rollout := mustUnmarshalYAML(someCRDYaml)
 	normalizer, err := NewKnownTypesNormalizer(map[string]v1alpha1.ResourceOverride{
 		crdGroupKind: {
@@ -252,6 +258,7 @@ func TestFieldDoesNotExist(t *testing.T) {
 }
 
 func TestRolloutPreConfigured(t *testing.T) {
+	t.Parallel()
 	normalizer, err := NewKnownTypesNormalizer(map[string]v1alpha1.ResourceOverride{})
 	require.NoError(t, err)
 	_, ok := normalizer.typeFields[schema.GroupKind{Group: application.Group, Kind: "Rollout"}]
@@ -259,6 +266,7 @@ func TestRolloutPreConfigured(t *testing.T) {
 }
 
 func TestOverrideKeyWithoutGroup(t *testing.T) {
+	t.Parallel()
 	normalizer, err := NewKnownTypesNormalizer(map[string]v1alpha1.ResourceOverride{
 		"ConfigMap": {
 			KnownTypeFields: []v1alpha1.KnownTypeField{{
@@ -273,6 +281,7 @@ func TestOverrideKeyWithoutGroup(t *testing.T) {
 }
 
 func TestKnownTypes(t *testing.T) {
+	t.Parallel()
 	typesData, err := os.ReadFile("./diffing_known_types.txt")
 	require.NoError(t, err)
 	for typeName := range strings.SplitSeq(string(typesData), "\n") {

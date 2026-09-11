@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -1400,6 +1402,7 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 }
 
 func TestGitlabListRepos(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, proto, topic                                                                             string
 		hasError, allBranches, includeSubgroups, includeSharedProjects, includeArchivedRepos, insecure bool
@@ -1630,7 +1633,8 @@ func TestGitlabListRepos(t *testing.T) {
 	}))
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.includeSharedProjects, c.includeArchivedRepos, c.insecure, "", c.topic, nil)
+			t.Parallel()
+			provider, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.includeSharedProjects, c.includeArchivedRepos, c.insecure, "", c.topic, nil, "", "")
 			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
@@ -1664,10 +1668,11 @@ func TestGitlabListRepos(t *testing.T) {
 }
 
 func TestGitlabHasPath(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gitlabMockHandler(t)(w, r)
 	}))
-	host, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, false, "", "", nil)
+	host, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, false, "", "", nil, "", "")
 	repo := &Repository{
 		Organization: "test-argocd-proton",
 		Repository:   "argocd",
@@ -1712,6 +1717,7 @@ func TestGitlabHasPath(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			ok, err := host.RepoHasPath(t.Context(), repo, c.path)
 			require.NoError(t, err)
 			assert.Equal(t, c.exists, ok)
@@ -1720,16 +1726,18 @@ func TestGitlabHasPath(t *testing.T) {
 }
 
 func TestGitlabGetBranches(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gitlabMockHandler(t)(w, r)
 	}))
-	host, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, false, "", "", nil)
+	host, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, false, "", "", nil, "", "")
 
 	repo := &Repository{
 		RepositoryId: int64(27084533),
 		Branch:       "master",
 	}
 	t.Run("branch exists", func(t *testing.T) {
+		t.Parallel()
 		repos, err := host.GetBranches(t.Context(), repo)
 		require.NoError(t, err)
 		assert.Equal(t, "master", repos[0].Branch)
@@ -1740,12 +1748,14 @@ func TestGitlabGetBranches(t *testing.T) {
 		Branch:       "foo",
 	}
 	t.Run("unknown branch", func(t *testing.T) {
+		t.Parallel()
 		_, err := host.GetBranches(t.Context(), repo2)
 		require.NoError(t, err)
 	})
 }
 
 func TestGetBranchesTLS(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		tlsInsecure bool
@@ -1780,6 +1790,7 @@ func TestGetBranchesTLS(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				gitlabMockHandler(t)(w, r)
 			}))
@@ -1799,7 +1810,7 @@ func TestGetBranchesTLS(t *testing.T) {
 				}
 			}
 
-			host, err := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, test.tlsInsecure, "", "", certs)
+			host, err := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, test.tlsInsecure, "", "", certs, "", "")
 			require.NoError(t, err)
 			repo := &Repository{
 				RepositoryId: int64(27084533),
@@ -1813,4 +1824,65 @@ func TestGetBranchesTLS(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewGitlabProvider_Proxy(t *testing.T) {
+	t.Parallel()
+	targetTS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/api/v4" || r.URL.Path == "/api/v4/" {
+			_, _ = w.Write([]byte(`{}`))
+			return
+		}
+		// Return a branch list that won't cause panic
+		// We need to check if the request is for listing branches (returns array) or getting one (returns object)
+		if strings.Contains(r.URL.Path, "/repository/branches/master") {
+			_, _ = w.Write([]byte(`{"name":"master","commit":{"id":"123456"}}`))
+		} else {
+			_, _ = w.Write([]byte(`[{"name":"master","commit":{"id":"123456"}}]`))
+		}
+	}))
+	defer targetTS.Close()
+
+	proxyCalled := 0
+	proxyTS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxyCalled++
+		r.RequestURI = ""
+		u, _ := url.Parse(targetTS.URL)
+		r.URL.Scheme = u.Scheme
+		r.URL.Host = u.Host
+		r.Host = u.Host
+
+		resp, err := http.DefaultClient.Do(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer resp.Body.Close()
+		for k, vv := range resp.Header {
+			for _, v := range vv {
+				w.Header().Add(k, v)
+			}
+		}
+		w.WriteHeader(resp.StatusCode)
+		_, _ = io.Copy(w, resp.Body)
+	}))
+	defer proxyTS.Close()
+
+	targetURL := "http://gitlab.example.com"
+
+	provider, err := NewGitlabProvider("test-org", "test-token", targetURL, false, false, false, false, false, "", "", nil, proxyTS.URL, "")
+	require.NoError(t, err)
+	require.NotNil(t, provider)
+
+	repo := &Repository{
+		Organization: "test-org",
+		Repository:   "test-repo",
+		Branch:       "master",
+		RepositoryId: 1,
+	}
+	_, err = provider.GetBranches(t.Context(), repo)
+	require.NoError(t, err)
+
+	assert.Positive(t, proxyCalled, "Proxy should have been called")
 }

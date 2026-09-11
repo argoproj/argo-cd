@@ -295,5 +295,8 @@ spec:
       # helm, kustomize, directory, and plugin fields are available here.
       # See the source.helm, source.kustomize, source.directory, and source.plugin sections above for details.
     syncSource:
+      # RepoURL is the Git repository where hydrated manifests are committed and synced from.
+      # When omitted, defaults to drySource.repoURL. Set repoURL to hydrate into a separate repository.
+      # repoURL: https://github.com/my-org/deployments.git
       targetBranch: env/prod
       path: guestbook-hydrated

@@ -1,0 +1,17 @@
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: daily-backup-20260627
+  namespace: velero
+spec:
+  includedNamespaces:
+  - '*'
+  storageLocation: default
+  ttl: 720h0m0s
+status:
+  phase: InProgress
+  startTimestamp: "2026-06-27T01:00:00Z"
+  formatVersion: 1.1.0
+  progress:
+    totalItems: 412
+    itemsBackedUp: 118

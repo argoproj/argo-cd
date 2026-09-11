@@ -68,6 +68,13 @@ export enum AppsListViewKey {
     Tiles = 'tiles'
 }
 
+export type ResourcesListViewType = 'list' | 'summary';
+
+export enum ResourcesListViewKey {
+    List = 'list',
+    Summary = 'summary'
+}
+
 export class AbstractAppsListPreferences {
     public static clearFilters(pref: AbstractAppsListPreferences) {
         pref.healthFilter = [];
@@ -84,6 +91,7 @@ export class AbstractAppsListPreferences {
     public statusBarView: HealthStatusBarPreferences;
     public showFavorites: boolean;
     public favoritesAppList: string[];
+    public searchRegex: boolean;
 }
 
 export class AppsListPreferences extends AbstractAppsListPreferences {
@@ -110,6 +118,43 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
     public operationFilter: string[];
 }
 
+export class ResourcesListPreferences {
+    public static countEnabledFilters(pref: ResourcesListPreferences) {
+        return [pref.clustersFilter, pref.healthFilter, pref.namespacesFilter, pref.projectsFilter, pref.syncFilter, pref.apiGroupFilter, pref.kindFilter].reduce(
+            (count, filter) => {
+                if (filter && filter.length > 0) {
+                    return count + 1;
+                }
+                return count;
+            },
+            0
+        );
+    }
+
+    public static clearFilters(pref: ResourcesListPreferences) {
+        pref.clustersFilter = [];
+        pref.healthFilter = [];
+        pref.namespacesFilter = [];
+        pref.projectsFilter = [];
+        pref.syncFilter = [];
+        pref.apiGroupFilter = [];
+        pref.kindFilter = [];
+    }
+
+    public projectsFilter: string[];
+    public syncFilter: string[];
+    public healthFilter: string[];
+    public namespacesFilter: string[];
+    public clustersFilter: string[];
+    public hideFilters: boolean;
+    public apiGroupFilter: string[];
+    public kindFilter: string[];
+    public view: ResourcesListViewType;
+    public searchRegex: boolean;
+
+    public statusBarView: HealthStatusBarPreferences;
+}
+
 export class AppSetsListPreferences extends AbstractAppsListPreferences {
     public static clearFilters(pref: AppSetsListPreferences) {
         super.clearFilters(pref);
@@ -120,8 +165,10 @@ export interface ViewPreferences {
     version: number;
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
+    resourcesList: ResourcesListPreferences;
     pageSizes: {[key: string]: number};
     sortOptions?: {[key: string]: string};
+    sortDirections?: {[key: string]: 'asc' | 'desc'};
     hideBannerContent: string;
     hideSidebar: boolean;
     position: string;
@@ -175,6 +222,22 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         hideFilters: false,
         showFavorites: false,
         favoritesAppList: new Array<string>(),
+        searchRegex: false,
+        statusBarView: {
+            showHealthStatusBar: true
+        }
+    },
+    resourcesList: {
+        projectsFilter: new Array<string>(),
+        namespacesFilter: new Array<string>(),
+        clustersFilter: new Array<string>(),
+        syncFilter: new Array<string>(),
+        healthFilter: new Array<string>(),
+        kindFilter: new Array<string>(),
+        apiGroupFilter: new Array<string>(),
+        hideFilters: false,
+        view: 'list' as ResourcesListViewType,
+        searchRegex: false,
         statusBarView: {
             showHealthStatusBar: true
         }
@@ -210,6 +273,9 @@ export class ViewPreferencesService {
         if (nextPref.appList) {
             this.normalizeAppListPreferences(nextPref.appList);
         }
+        if (nextPref.resourcesList) {
+            this.normalizeResourcesListPreferences(nextPref.resourcesList);
+        }
         window.localStorage.setItem(VIEW_PREFERENCES_KEY, JSON.stringify(nextPref));
         this.preferencesSubj.next(nextPref);
     }
@@ -220,7 +286,7 @@ export class ViewPreferencesService {
         if (preferencesStr) {
             try {
                 preferences = JSON.parse(preferencesStr);
-            } catch (e) {
+            } catch {
                 preferences = DEFAULT_PREFERENCES;
             }
             if (!preferences.version || preferences.version < minVer) {
@@ -232,7 +298,23 @@ export class ViewPreferencesService {
         const merged = deepMerge(DEFAULT_PREFERENCES, preferences);
         // Ensure all filter arrays are initialized to prevent undefined errors
         this.normalizeAppListPreferences(merged.appList);
+        this.normalizeResourcesListPreferences(merged.resourcesList);
         return merged;
+    }
+
+    private normalizeResourcesListPreferences(resourcesList: ResourcesListPreferences): void {
+        resourcesList.projectsFilter = resourcesList.projectsFilter || [];
+        resourcesList.namespacesFilter = resourcesList.namespacesFilter || [];
+        resourcesList.clustersFilter = resourcesList.clustersFilter || [];
+        resourcesList.syncFilter = resourcesList.syncFilter || [];
+        resourcesList.healthFilter = resourcesList.healthFilter || [];
+        resourcesList.apiGroupFilter = resourcesList.apiGroupFilter || [];
+        resourcesList.kindFilter = resourcesList.kindFilter || [];
+        resourcesList.statusBarView = resourcesList.statusBarView || {showHealthStatusBar: true};
+        resourcesList.searchRegex = resourcesList.searchRegex || false;
+        if (resourcesList.view !== ResourcesListViewKey.List && resourcesList.view !== ResourcesListViewKey.Summary) {
+            resourcesList.view = ResourcesListViewKey.List;
+        }
     }
 
     private normalizeAppListPreferences(appList: AppsListPreferences): void {

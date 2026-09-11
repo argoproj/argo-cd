@@ -1,7 +1,7 @@
 package git
 
 import (
-	"context"
+	_ "embed"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -23,7 +23,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	argoio "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/io"
+	argoio "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/io"
 
 	"github.com/argoproj/argo-cd/v3/util/cert"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -557,7 +557,7 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 		})
 
 		// Execute
-		ctx := context.Background()
+		ctx := t.Context()
 		actualId, err := DiscoverGitHubAppInstallationID(ctx, appId, "fake-key", "", org)
 
 		// Assert
@@ -592,7 +592,7 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 		})
 
 		// Execute & Assert
-		ctx := context.Background()
+		ctx := t.Context()
 		// Pass the mock server URL as the enterpriseBaseURL so the GitHub client uses it
 		// Note: The mock server will have a different domain (e.g., 127.0.0.1) than the first test (github.com),
 		// so there's no cache collision between the two subtests.
@@ -624,7 +624,7 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 			}
 		})
 
-		ctx := context.Background()
+		ctx := t.Context()
 		actualId, err := DiscoverGitHubAppInstallationID(ctx, 12345, fakeGitHubAppPrivateKey, server.URL, "target-org")
 		require.NoError(t, err)
 		assert.Equal(t, int64(22222), actualId, "should return the installation ID for the requested org, not the last one in the list")
@@ -871,10 +871,10 @@ func TestGitHubAppGetAccessToken_TCPConnectionErrors(t *testing.T) {
 	})
 
 	t.Run("DNS resolution failure", func(t *testing.T) {
+		t.Parallel()
 		if testing.Short() {
 			t.Skip("skipping DNS failure test (~15s due to hardcoded context timeout)")
 		}
-		t.Parallel()
 		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey,
 			"http://this-host-does-not-exist-anywhere.invalid:8080")
 		token, err := creds.getAccessToken()
@@ -909,7 +909,7 @@ func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 		gitClientTimeout = 15 * time.Second
 	})
 
-	t.Run("gitClientTimeout must be honoured for for token requests as well", func(t *testing.T) {
+	t.Run("gitClientTimeout must be honoured for token requests as well", func(t *testing.T) {
 		gitClientTimeout = 1 * time.Second // Very short — should cause timeout but won't
 
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1043,4 +1043,71 @@ func githubTokenResponse(token string) string {
 		"expires_at": time.Now().Add(1 * time.Hour).Format(time.RFC3339),
 	})
 	return string(b)
+}
+
+//go:embed testdata/gcpExternalAccountKey.json
+var gcpExternalAccountKeyJSON string
+
+//go:embed testdata/gcpImpersonatedServiceAccountKey.json
+var gcpImpersonatedServiceAccountKeyJSON string
+
+//go:embed testdata/gcpAuthorizedUser.json
+var gcpAuthorizedUserJSON string
+
+func TestCredentialTypeFromJSON(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		input    string
+		expected google.CredentialsType
+	}{
+		{
+			name:     "service_account maps to google.ServiceAccount",
+			input:    gcpServiceAccountKeyJSON,
+			expected: google.ServiceAccount,
+		},
+		{
+			name:     "external_account maps to google.ExternalAccount",
+			input:    gcpExternalAccountKeyJSON,
+			expected: google.ExternalAccount,
+		},
+		{
+			name:     "impersonated_service_account maps to google.ImpersonatedServiceAccount",
+			input:    gcpImpersonatedServiceAccountKeyJSON,
+			expected: google.ImpersonatedServiceAccount,
+		},
+		{
+			name:     "authorized_user maps to google.UserCredentials",
+			input:    gcpAuthorizedUserJSON,
+			expected: google.AuthorizedUser,
+		},
+		{
+			name:     "unknown type defaults to google.ServiceAccount",
+			input:    `{"type": "some_future_unknown_type"}`,
+			expected: google.ServiceAccount,
+		},
+		{
+			name:     "missing type field defaults to google.ServiceAccount",
+			input:    `{"project_id": "my-project"}`,
+			expected: google.ServiceAccount,
+		},
+		{
+			name:     "invalid JSON defaults to google.ServiceAccount",
+			input:    `{not valid json`,
+			expected: google.ServiceAccount,
+		},
+		{
+			name:     "empty string defaults to google.ServiceAccount",
+			input:    ``,
+			expected: google.ServiceAccount,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			actual := credentialTypeFromJSON([]byte(tt.input))
+			assert.Equal(t, tt.expected, actual)
+		})
+	}
 }

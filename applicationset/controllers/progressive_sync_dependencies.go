@@ -27,12 +27,19 @@ func (r *ApplicationSetReconciler) SetAppSetApplicationStatus(
 	return r.setAppSetApplicationStatus(ctx, logCtx, applicationSet, applicationStatuses)
 }
 
+func (r *ApplicationSetReconciler) RecordProgressiveSyncTriggered(
+	applicationSet *argov1alpha1.ApplicationSet,
+	step string,
+) {
+	r.Metrics.SetProgressiveSyncAppSync(applicationSet, step)
+}
+
 func (r *ApplicationSetReconciler) SetApplicationSetStatusCondition(
 	ctx context.Context,
 	applicationSet *argov1alpha1.ApplicationSet,
-	condition argov1alpha1.ApplicationSetCondition,
+	conditions []argov1alpha1.ApplicationSetCondition,
 	parametersGenerated bool,
 ) error {
 	// Delegate to existing controller method
-	return r.setApplicationSetStatusCondition(ctx, applicationSet, condition, parametersGenerated)
+	return r.setApplicationSetStatusCondition(ctx, applicationSet, conditions, parametersGenerated)
 }

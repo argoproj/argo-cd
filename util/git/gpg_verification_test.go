@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -117,13 +118,13 @@ func (g *gpgReadyRepo) cmd(args ...string) error {
 }
 
 func (g *gpgReadyRepo) commitSHA() string {
-	sha, err := g.git.CommitSHA()
+	sha, err := g.git.CommitSHA(context.Background())
 	require.NoError(g.t, err)
 	return sha
 }
 
 func (g *gpgReadyRepo) assertSignedAs(revision string, expectedSign ...string) {
-	info, _, err := g.git.LsSignatures(revision, true)
+	info, _, err := g.git.LsSignatures(context.Background(), revision, true)
 	require.NoError(g.t, err)
 
 	var actualSign []string
@@ -208,7 +209,7 @@ func Test_LsSignatures_UnsignedSealedCommitDoesNotStopHistorySearch(t *testing.T
 	require.NoError(t, repo.cmd("commit", "--allow-empty", "--no-edit", "--message=signed", "--gpg-sign="+trustedKeyID))
 	signedSha := repo.commitSHA()
 
-	info, _, err := repo.git.LsSignatures(signedSha, true)
+	info, _, err := repo.git.LsSignatures(t.Context(), signedSha, true)
 	require.NoError(t, err)
 
 	assert.Len(t, info, 4)
@@ -239,7 +240,7 @@ func Test_SignedTag(t *testing.T) {
 	require.NoError(t, repo.cmd("tag", "--message=signed tag", "--local-user="+tagKeyId, "2.0", "HEAD"))
 	require.NoError(t, repo.cmd("tag", "--message=unsigned tag", "dev", "HEAD"))
 
-	info, legacy, err := repo.git.LsSignatures("1.0", false)
+	info, legacy, err := repo.git.LsSignatures(t.Context(), "1.0", false)
 	require.NoError(t, err)
 	require.Len(t, info, 1)
 	assert.Equal(t, "1.0", info[0].Revision)
@@ -250,7 +251,7 @@ func Test_SignedTag(t *testing.T) {
 	assert.Contains(t, legacy, tagKeyId)
 	assert.Contains(t, legacy, `gpg: Good signature from "tag gpg User <tag gpg@example.com>" [ultimate]`)
 
-	info, legacy, err = repo.git.LsSignatures("2.0", false)
+	info, legacy, err = repo.git.LsSignatures(t.Context(), "2.0", false)
 	require.NoError(t, err)
 	require.Len(t, info, 1)
 	assert.Equal(t, "2.0", info[0].Revision)
@@ -261,7 +262,7 @@ func Test_SignedTag(t *testing.T) {
 	assert.Contains(t, legacy, tagKeyId)
 	assert.Contains(t, legacy, `gpg: Good signature from "tag gpg User <tag gpg@example.com>" [ultimate]`)
 
-	info, legacy, err = repo.git.LsSignatures("dev", false)
+	info, legacy, err = repo.git.LsSignatures(t.Context(), "dev", false)
 	require.NoError(t, err)
 	require.Len(t, info, 1)
 	assert.Equal(t, "dev", info[0].Revision)
@@ -324,4 +325,49 @@ func Test_parseGpgSignStatus(t *testing.T) {
 		assert.Equal(t, tt.expResult, result)
 		assert.Equal(t, tt.expKeyID, keyId)
 	}
+}
+
+func Test_CommitSignatureStatus(t *testing.T) {
+	repo := newGPGReadyRepo(t)
+	keyID := repo.generateGPGKey("signing")
+
+	require.NoError(t, repo.cmd("commit", "--allow-empty", "--message=signed", "--gpg-sign="+keyID))
+	signedSha := repo.commitSHA()
+	require.NoError(t, repo.cmd("commit", "--allow-empty", "--message=unsigned"))
+	unsignedSha := repo.commitSHA()
+
+	t.Run("reports a good signature and the signing key", func(t *testing.T) {
+		status, gotKeyID, err := repo.git.CommitSignatureStatus(t.Context(), signedSha)
+		require.NoError(t, err)
+		assert.Contains(t, []string{SignatureStatusGood, SignatureStatusGoodUnknownTrust}, status)
+		assert.Equal(t, keyID, gotKeyID)
+	})
+
+	t.Run("reports N for an unsigned commit", func(t *testing.T) {
+		// Not an error and not an empty status: callers must reject "N"
+		// explicitly, otherwise an unsigned commit slips through.
+		status, gotKeyID, err := repo.git.CommitSignatureStatus(t.Context(), unsignedSha)
+		require.NoError(t, err)
+		assert.Equal(t, "N", status)
+		assert.Empty(t, gotKeyID)
+	})
+
+	t.Run("is pinned to the given revision, not HEAD", func(t *testing.T) {
+		// HEAD is the unsigned commit, so asking for the signed SHA proves the
+		// check follows the argument rather than whatever HEAD happens to be.
+		head, _, err := repo.git.CommitSignatureStatus(t.Context(), "HEAD")
+		require.NoError(t, err)
+		require.Equal(t, "N", head)
+
+		status, gotKeyID, err := repo.git.CommitSignatureStatus(t.Context(), signedSha)
+		require.NoError(t, err)
+		assert.Contains(t, []string{SignatureStatusGood, SignatureStatusGoodUnknownTrust}, status)
+		assert.Equal(t, keyID, gotKeyID)
+	})
+
+	t.Run("errors on an unknown revision", func(t *testing.T) {
+		_, _, err := repo.git.CommitSignatureStatus(t.Context(), "0000000000000000000000000000000000000000")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to read signature status")
+	})
 }

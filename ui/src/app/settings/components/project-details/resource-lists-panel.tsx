@@ -1,6 +1,6 @@
 import {AutocompleteField, FormField, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {FormApi} from 'react-form';
+import {FormApi} from 'argo-ui';
 
 import {EditablePanel} from '../../../shared/components';
 import {

@@ -17,10 +17,19 @@ func NewRepoGetter(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *RepoGetter {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &RepoGetter{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -75,7 +84,7 @@ type RepoGetter_GetRepository_Call struct {
 //   - ctx context.Context
 //   - repoURL string
 //   - project string
-func (_e *RepoGetter_Expecter) GetRepository(ctx interface{}, repoURL interface{}, project interface{}) *RepoGetter_GetRepository_Call {
+func (_e *RepoGetter_Expecter) GetRepository(ctx any, repoURL any, project any) *RepoGetter_GetRepository_Call {
 	return &RepoGetter_GetRepository_Call{Call: _e.mock.On("GetRepository", ctx, repoURL, project)}
 }
 

@@ -20,18 +20,18 @@ export const ApplicationsTable = (props: {
     const [selectedApp, navApp, reset] = useNav(props.applications.length);
     const ctxh = React.useContext(Context);
 
-    const {useKeybinding} = React.useContext(KeybindingContext);
+    const {registerKeybinding} = React.useContext(KeybindingContext);
 
-    useKeybinding({keys: Key.DOWN, action: () => navApp(1)});
-    useKeybinding({keys: Key.UP, action: () => navApp(-1)});
-    useKeybinding({
+    registerKeybinding({keys: Key.DOWN, action: () => navApp(1)});
+    registerKeybinding({keys: Key.UP, action: () => navApp(-1)});
+    registerKeybinding({
         keys: Key.ESCAPE,
         action: () => {
             reset();
             return selectedApp > -1 ? true : false;
         }
     });
-    useKeybinding({
+    registerKeybinding({
         keys: Key.ENTER,
         action: () => {
             if (selectedApp > -1) {

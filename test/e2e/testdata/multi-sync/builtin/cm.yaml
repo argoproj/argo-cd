@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-cm
+  labels:
+    purpose: test
+data:
+  foo: bar
+
