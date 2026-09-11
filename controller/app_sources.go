@@ -3,6 +3,7 @@ package controller
 import (
 	"bytes"
 	"encoding/json"
+	"maps"
 	"reflect"
 
 	jsonpatch "github.com/evanphx/json-patch"
@@ -40,7 +41,7 @@ func mergeLiveApplicationSources(target, live *unstructured.Unstructured) *unstr
 			merged[i] = targetSource
 			continue
 		}
-		mergedSource, err := mergeJSON(liveSources[i], targetSource)
+		mergedSource, err := mergeJSON(withoutOtherSourceTypes(liveSources[i], targetSource), targetSource)
 		if err != nil {
 			mergedSource = targetSource
 		}
@@ -58,14 +59,19 @@ func isApplication(obj *unstructured.Unstructured) bool {
 	return gvk.Group == application.Group && gvk.Kind == application.ApplicationKind
 }
 
-// sameSource leaves out targetRevision so a chart or branch bump in git keeps the overrides.
+// sourceIdentityKeys leave out targetRevision so a chart or branch bump in git keeps the overrides.
+var sourceIdentityKeys = []string{"repoURL", "chart", "path", "ref", "name"}
+
+// sourceTypeKeys are the blocks of which a source may declare at most one.
+var sourceTypeKeys = []string{"helm", "kustomize", "directory", "plugin"}
+
 func sameSource(a, b any) bool {
 	am, aok := a.(map[string]any)
 	bm, bok := b.(map[string]any)
 	if !aok || !bok {
 		return false
 	}
-	for _, key := range []string{"repoURL", "chart", "path", "ref", "name"} {
+	for _, key := range sourceIdentityKeys {
 		av, aIsString := am[key].(string)
 		bv, bIsString := bm[key].(string)
 		if (am[key] != nil && !aIsString) || (bm[key] != nil && !bIsString) || av != bv {
@@ -73,6 +79,52 @@ func sameSource(a, b any) bool {
 		}
 	}
 	return true
+}
+
+// sourceIdentity returns the identity keys joined, or "" when the element carries none of them.
+func sourceIdentity(m map[string]any) string {
+	var buf bytes.Buffer
+	found := false
+	for _, key := range sourceIdentityKeys {
+		v, _ := m[key].(string)
+		if v != "" {
+			found = true
+		}
+		buf.WriteString(v)
+		buf.WriteByte(0)
+	}
+	if !found {
+		return ""
+	}
+	return buf.String()
+}
+
+// withoutOtherSourceTypes drops live type blocks git no longer declares when git declares another
+// type, so a helm to kustomize switch does not leave two types on the merged source. A source with
+// no type block in git keeps the live one: that is the override this option exists for.
+func withoutOtherSourceTypes(live, target any) any {
+	lm, lok := live.(map[string]any)
+	tm, tok := target.(map[string]any)
+	if !lok || !tok {
+		return live
+	}
+	targetHasType := false
+	for _, key := range sourceTypeKeys {
+		if _, ok := tm[key]; ok {
+			targetHasType = true
+			break
+		}
+	}
+	if !targetHasType {
+		return live
+	}
+	res := maps.Clone(lm)
+	for _, key := range sourceTypeKeys {
+		if _, ok := tm[key]; !ok {
+			delete(res, key)
+		}
+	}
+	return res
 }
 
 // mergeJSON applies patch to base as an RFC 7396 merge patch: patch keys win, base-only keys stay.

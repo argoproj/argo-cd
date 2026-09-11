@@ -458,7 +458,7 @@ metadata:
 > With this option, anyone who can edit the live child Application can keep any key git does not declare, including `plugin.env`, across parent syncs. This matches what `spec.source` already allows. Enable it only where write access to child Applications is as trusted as write access to the git repository.
 
 > [!NOTE]
-> A source is matched by `repoURL`, `chart`, `path`, `ref`, and `name` at the same index. When git reorders sources, the indexes that no longer match are applied as declared in git and lose their overrides. When git adds or removes a source, the whole list is applied as declared in git. To remove an override from git, declare the key (for example `parameters: []`) or run `argocd app unset` on the child.
+> A source is matched by `repoURL`, `chart`, `path`, `ref`, and `name` at the same index. When git reorders sources, the indexes that no longer match are applied as declared in git and lose their overrides. When git switches a source from one type to another (for example `helm` to `kustomize`), the live block of the old type is dropped. When git adds or removes a source, the whole list is applied as declared in git. To remove an override from git, declare the key (for example `parameters: []`) or run `argocd app unset` on the child.
 
 To keep only named fields instead, list them in `spec.ignoreDifferences` on the parent (for example `jqPathExpressions: ['.spec.sources[0].helm.parameters']` for `group: argoproj.io`, `kind: Application`) and set [`RespectIgnoreDifferences=true`](#respect-ignore-differences-configs).
 

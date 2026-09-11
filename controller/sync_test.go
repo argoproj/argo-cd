@@ -1040,6 +1040,41 @@ func TestRestoreNonIgnoredListElements(t *testing.T) {
 		assert.Equal(t, "live-b", patched[0].(map[string]any)["image"], "must not touch elements before bailing out")
 	})
 
+	t.Run("unnamed sources pair by repoURL and path", func(t *testing.T) {
+		t.Parallel()
+		patched := items(map[string]any{"repoURL": "r", "path": "a", "helm": "live"}, map[string]any{"repoURL": "r", "path": "b"})
+		original := items(map[string]any{"repoURL": "r", "path": "a"}, map[string]any{"repoURL": "r", "path": "b"})
+
+		assert.True(t, restoreNonIgnoredListElements(patched, original, original, original))
+		assert.Equal(t, "live", patched[0].(map[string]any)["helm"])
+	})
+
+	t.Run("reordered unnamed sources fall back to leaf", func(t *testing.T) {
+		t.Parallel()
+		patched := items(map[string]any{"repoURL": "r", "path": "b", "image": "live-b"}, map[string]any{"repoURL": "r", "path": "a", "image": "live-a"})
+		original := items(map[string]any{"repoURL": "r", "path": "a", "image": "git-a"}, map[string]any{"repoURL": "r", "path": "b", "image": "git-b"})
+
+		assert.False(t, restoreNonIgnoredListElements(patched, original, original, patched))
+		assert.Equal(t, "live-b", patched[0].(map[string]any)["image"])
+	})
+
+	t.Run("elements without identity fall back to leaf", func(t *testing.T) {
+		t.Parallel()
+		patched := items(map[string]any{"image": "live-a"}, map[string]any{"image": "live-b"})
+		original := items(map[string]any{"image": "git-a"}, map[string]any{"image": "git-b"})
+
+		assert.False(t, restoreNonIgnoredListElements(patched, original, original, patched))
+		assert.Equal(t, "live-a", patched[0].(map[string]any)["image"])
+	})
+
+	t.Run("duplicate names fall back to leaf", func(t *testing.T) {
+		t.Parallel()
+		patched := items(map[string]any{"name": "a", "image": "live-1"}, map[string]any{"name": "a", "image": "live-2"})
+		original := items(map[string]any{"name": "a", "image": "git-1"}, map[string]any{"name": "a", "image": "git-2"})
+
+		assert.False(t, restoreNonIgnoredListElements(patched, original, original, patched))
+	})
+
 	t.Run("normalized live of another length falls back to leaf", func(t *testing.T) {
 		t.Parallel()
 		patched := items(map[string]any{"name": "a"}, map[string]any{"name": "b", "liveOnly": 1})

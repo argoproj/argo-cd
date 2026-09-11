@@ -698,8 +698,9 @@ func restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive
 }
 
 // restoreNonIgnoredListElements returns false, so the caller treats the field as a leaf, unless every
-// list is a list of maps with one length and elements that carry a name pair up by name. Pairing is
-// by index, so a reordered live list would otherwise mix two elements into one.
+// list is a list of maps with one length and each element pairs up by identity (name, or the
+// Application source keys) with a unique identity in the list. Pairing is by index, so a reordered
+// live list or elements without identity would otherwise mix two elements into one.
 func restoreNonIgnoredListElements(patched, original, normalized, normalizedLive any) bool {
 	patchedList, ok1 := patched.([]any)
 	originalList, ok2 := original.([]any)
@@ -713,6 +714,7 @@ func restoreNonIgnoredListElements(patched, original, normalized, normalizedLive
 	}
 	n := len(originalList)
 	patchedMaps, originalMaps, normalizedMaps, normalizedLiveMaps := make([]map[string]any, n), make([]map[string]any, n), make([]map[string]any, n), make([]map[string]any, n)
+	seen := make(map[string]bool, n)
 	for i := range originalList {
 		patchedMaps[i], ok1 = patchedList[i].(map[string]any)
 		originalMaps[i], ok2 = originalList[i].(map[string]any)
@@ -723,11 +725,11 @@ func restoreNonIgnoredListElements(patched, original, normalized, normalizedLive
 		if normalizedLiveList != nil {
 			normalizedLiveMaps[i], _ = normalizedLiveList[i].(map[string]any)
 		}
-		patchedName, _ := patchedMaps[i]["name"].(string)
-		originalName, _ := originalMaps[i]["name"].(string)
-		if patchedName != originalName {
+		id := sourceIdentity(originalMaps[i])
+		if id == "" || seen[id] || !sameSource(patchedMaps[i], originalMaps[i]) {
 			return false
 		}
+		seen[id] = true
 	}
 	for i := range originalList {
 		restoreNonIgnoredFields(patchedMaps[i], originalMaps[i], normalizedMaps[i], normalizedLiveMaps[i])

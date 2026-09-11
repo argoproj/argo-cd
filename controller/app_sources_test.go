@@ -197,6 +197,52 @@ func TestMergeLiveApplicationSources(t *testing.T) {
 		assert.Equal(t, int64(3), replicas[0].(map[string]any)["count"])
 	})
 
+	t.Run("git changing the source type drops the live type block", func(t *testing.T) {
+		t.Parallel()
+		for typeKey, block := range map[string]string{"kustomize": "namePrefix: x-", "directory": "recurse: true", "plugin": "name: cmp"} {
+			target := appWithSources(t, `
+  - repoURL: https://git.example.com/manifests.git
+    targetRevision: main
+    path: manifests
+    `+typeKey+`:
+      `+block+`
+`)
+			live := appWithSources(t, `
+  - repoURL: https://git.example.com/manifests.git
+    targetRevision: main
+    path: manifests
+    helm:
+      parameters:
+        - name: image.tag
+          value: v2
+`)
+			src, ok := sourcesOf(t, mergeLiveApplicationSources(target, live))[0].(map[string]any)
+			require.True(t, ok)
+			_, hasHelm := src["helm"]
+			assert.False(t, hasHelm, typeKey)
+			assert.Contains(t, src, typeKey)
+		}
+	})
+
+	t.Run("git dropping the type block keeps the live one", func(t *testing.T) {
+		t.Parallel()
+		target := appWithSources(t, `
+  - repoURL: https://git.example.com/manifests.git
+    targetRevision: main
+    path: manifests
+`)
+		live := appWithSources(t, `
+  - repoURL: https://git.example.com/manifests.git
+    targetRevision: main
+    path: manifests
+    helm:
+      releaseName: keep
+`)
+		src, ok := sourcesOf(t, mergeLiveApplicationSources(target, live))[0].(map[string]any)
+		require.True(t, ok)
+		assert.Contains(t, src, "helm")
+	})
+
 	t.Run("ignores non application objects and nil live", func(t *testing.T) {
 		t.Parallel()
 		target := appWithSources(t, parentSources)
