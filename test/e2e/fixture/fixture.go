@@ -1214,6 +1214,18 @@ func AddSignedFile(t *testing.T, path, contents string) {
 	}
 }
 
+func AddSignedSealCommit(t *testing.T) {
+	t.Helper()
+
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	t.Setenv("GNUPGHOME", TmpDir()+"/gpg")
+	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "commit", "-S", `--trailer="Argocd-gpg-seal: Trusting this now"`, "--allow-empty", "-m", "seal commit"))
+	if IsRemote() {
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+	}
+}
+
 func AddSignedTag(t *testing.T, name string) {
 	t.Helper()
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
