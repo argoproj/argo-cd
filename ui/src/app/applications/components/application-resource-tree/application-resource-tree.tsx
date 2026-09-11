@@ -483,10 +483,12 @@ function renderPodGroup(
         }
     }
 
-    // Use Dagre's measured height directly to avoid duplicating sizing logic in the render path.
-    // Dagre assigns node.y as the node center; convert to DOM top-left for rendering.
+    // Dagre assigns node.y as the box center. Every other node renderer draws at `top: node.y`,
+    // i.e. a constant `NODE_HEIGHT / 2` offset below the box's true top. Pod-group nodes are taller,
+    // so we must apply that same constant offset (rather than the height-dependent `node.height / 2`)
+    // to keep grouped/compact cards aligned with equal gaps and avoid overlaps.
     const podGroupHeight = node.height;
-    const podGroupTop = node.y - podGroupHeight / 2;
+    const podGroupTop = node.y - podGroupHeight / 2 + NODE_HEIGHT / 2;
 
     return (
         <div
