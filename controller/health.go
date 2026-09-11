@@ -174,9 +174,7 @@ func parseHealthAggregateOverrides(overrideStr string) (map[string]health.Health
 	}
 
 	// Split by comma for multiple mappings
-	mappings := strings.Split(overrideStr, ",")
-
-	for _, mapping := range mappings {
+	for mapping := range strings.SplitSeq(overrideStr, ",") {
 		mapping = strings.TrimSpace(mapping)
 		if mapping == "" {
 			continue
