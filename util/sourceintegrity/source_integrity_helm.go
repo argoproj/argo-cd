@@ -17,7 +17,11 @@ import (
 )
 
 func hasHelmProvenanceCriteriaForSource(si *v1alpha1.SourceIntegrity, source v1alpha1.ApplicationSource) bool {
-	if !source.IsHelm() || source.IsHelmOci() || si == nil || si.Helm == nil {
+	if si == nil || si.Helm == nil {
+		return false
+	}
+	// Traditional Helm and Helm OCI repositories (host-style repoURL + chart).
+	if !source.IsHelm() {
 		return false
 	}
 	policies := findMatchingHelmPolicies(si.Helm, source.RepoURL)
@@ -160,11 +164,13 @@ var provFilesDigestRegex = regexp.MustCompile(`(?m)^\s+([^:]+):\s+sha256:([0-9a-
 func parseProvFilesDigest(signedBody []byte, chartFilename string) (expectedSHA256Hex string, err error) {
 	matches := provFilesDigestRegex.FindAllSubmatch(signedBody, -1)
 	for _, m := range matches {
-		if len(m) >= 3 {
-			fn := string(m[1])
-			if fn == chartFilename {
-				return string(m[2]), nil
-			}
+		if len(m) < 3 {
+			continue
+		}
+		fn := string(m[1])
+		sha := string(m[2])
+		if chartFilename != "" && strings.EqualFold(fn, chartFilename) {
+			return sha, nil
 		}
 	}
 	return "", fmt.Errorf("provenance files section has no digest for %q", chartFilename)

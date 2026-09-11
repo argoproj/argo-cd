@@ -575,11 +575,7 @@ func (s *Service) verifyHelmSourceIntegrity(
 	if !sourceintegrity.HasCriteria(sourceIntegrity, *source) {
 		return nil, nil
 	}
-	if source.IsHelmOci() {
-		// OCI Helm charts are out of scope for Helm .prov policies; future OCI/sigstore support is planned separately.
-		return nil, nil
-	}
-	return s.verifyTraditionalHelmProvenance(ctx, sourceIntegrity, source, helmClient, revision, noCache)
+	return s.verifyHelmProvenance(ctx, sourceIntegrity, source, helmClient, revision, noCache)
 }
 
 func readHelmChartAndProvenance(ctx context.Context, helmClient helm.Client, chart, revision string, noCache bool) (chartTgz, provContent []byte, chartFilename string, err error) {
@@ -598,7 +594,7 @@ func readHelmChartAndProvenance(ctx context.Context, helmClient helm.Client, cha
 	return chartTgz, provContent, chartFilename, nil
 }
 
-func (s *Service) verifyTraditionalHelmProvenance(
+func (s *Service) verifyHelmProvenance(
 	ctx context.Context,
 	sourceIntegrity *v1alpha1.SourceIntegrity,
 	source *v1alpha1.ApplicationSource,
@@ -609,8 +605,8 @@ func (s *Service) verifyTraditionalHelmProvenance(
 	chartTgz, provContent, chartFilename, err := readHelmChartAndProvenance(ctx, helmClient, source.Chart, revision, noCache)
 	if err != nil {
 		if errors.Is(err, helm.ErrProvenanceNotFound) {
-			// A 404 from every mirror is a definitive policy violation for this chart version, not a
-			// transient failure: record it as a failing check.
+			// Missing .prov (HTTP 404 from every mirror, or absent after helm pull --prov) is a
+			// definitive policy violation for this chart version, not a transient failure.
 			return sourceintegrity.HelmProvenanceFetchFailed(sourceIntegrity, source.RepoURL, err), nil
 		}
 		// Anything else (network error, 5xx) is transient: propagate it so the failure is cached as a

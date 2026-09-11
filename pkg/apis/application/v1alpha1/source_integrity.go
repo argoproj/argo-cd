@@ -15,11 +15,11 @@ const (
 type SourceIntegrity struct {
 	// Git - policies for git source verification
 	Git *SourceIntegrityGit `json:"git,omitempty" protobuf:"bytes,1,name=git"`
-	// Helm - policies for Helm chart provenance verification on traditional (HTTP/HTTPS) Helm repositories
+	// Helm - policies for Helm chart provenance verification (HTTP/HTTPS and Helm OCI repositories)
 	Helm *SourceIntegrityHelm `json:"helm,omitempty" protobuf:"bytes,2,name=helm"`
 }
 
-// SourceIntegrityHelm holds policies for Helm chart provenance verification on traditional Helm repositories.
+// SourceIntegrityHelm holds policies for Helm chart provenance verification on traditional and Helm OCI repositories.
 type SourceIntegrityHelm struct {
 	Policies []*SourceIntegrityHelmPolicy `json:"policies" protobuf:"bytes,1,name=policies"`
 }

@@ -320,7 +320,7 @@ spec:
                     type: object
                   helm:
                     description: Helm - policies for Helm chart provenance verification
-                      on traditional (HTTP/HTTPS) Helm repositories
+                      (HTTP/HTTPS and Helm OCI repositories)
                     properties:
                       policies:
                         items:

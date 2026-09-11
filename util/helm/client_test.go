@@ -728,19 +728,32 @@ entries: {}
 	})
 }
 
-func TestGetChartTgzPath_OCIReturnsError(t *testing.T) {
-	client := NewClient("example.com", HelmCreds{}, true, "", "")
+func TestGetChartTgzPath_OCIReturnsCachedPath(t *testing.T) {
+	client := NewClient("example.com", HelmCreds{}, true, "", "", WithChartPaths(utilio.NewRandomizedTempPaths(t.TempDir())))
 	path, err := client.GetChartTgzPath("my-chart", "1.0.0")
-	assert.Empty(t, path)
-	assert.ErrorIs(t, err, ErrOCINotEnabled)
+	require.NoError(t, err)
+	assert.NotEmpty(t, path)
 }
 
-func TestFetchProvenance_OCIReturnsError(t *testing.T) {
-	client := NewClient("example.com", HelmCreds{}, true, "", "")
-	prov, name, err := client.FetchProvenance(context.Background(), "my-chart", false, "1.0.0")
-	assert.Nil(t, prov)
-	assert.Empty(t, name)
-	assert.ErrorIs(t, err, ErrOCINotEnabled)
+func TestReadProvenanceFromPullDir(t *testing.T) {
+	t.Run("finds provenance file", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "mychart-1.0.0.tgz"), []byte("chart"), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "mychart-1.0.0.tgz.prov"), []byte("prov"), 0o600))
+		prov, name, err := readProvenanceFromPullDir(dir)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("prov"), prov)
+		assert.Equal(t, "mychart-1.0.0.tgz", name)
+	})
+	t.Run("missing provenance", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "mychart-1.0.0.tgz"), []byte("chart"), 0o600))
+		prov, name, err := readProvenanceFromPullDir(dir)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, ErrProvenanceNotFound)
+		assert.Nil(t, prov)
+		assert.Empty(t, name)
+	})
 }
 
 func TestFetchProvenance_MirrorFallback(t *testing.T) {

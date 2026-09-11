@@ -2,7 +2,7 @@
 
 ## Overview
 
-Source integrity Helm policies verify Helm chart signatures for **traditional Helm repositories** — HTTP/HTTPS chart repos (`repoURL` + `chart`). This is [Helm chart provenance](https://helm.sh/docs/topics/provenance/) verification.
+Source integrity Helm policies verify Helm chart signatures for traditional HTTP/HTTPS Helm repositories (`repoURL` + `chart`) and Helm OCI repositories (host-style `repoURL` without an `https://` or `oci://` scheme, plus `chart`, typically with `enableOCI`). This is [Helm chart provenance](https://helm.sh/docs/topics/provenance/) verification.
 
 This verification is equivalent to running:
 
@@ -11,18 +11,26 @@ helm pull <repo>/mychart --version 1.0.0 --prov
 gpg --verify mychart-1.0.0.tgz.prov
 ```
 
+For Helm OCI repositories the same GPG checks apply; Argo CD loads `.prov` with `helm pull --prov` instead of an HTTP sibling file.
+
 Argo CD automatically performs these steps during sync:
 
-1. Fetches the chart and its `.prov` signature file from the Helm repository
+1. Fetches the chart and its `.prov` signature file (HTTP `.prov` next to the chart archive, or via `helm pull --prov` for Helm OCI repositories)
 2. Verifies the PGP signature using keys configured in `provenance.keys`
 3. Ensures the chart contents match the cryptographically signed digest
 
 For implementation details (mirror fallback, digest checks, sync errors), see [What Argo CD verifies](#what-argo-cd-verifies) below.
 
 > [!NOTE]
-> **OCI Helm charts**
+> **Helm OCI repositories**
 >
-> OCI Helm registries (`enableOCI: true` or host-style `repoURL` without `https://`) and Helm `.prov` layers on OCI artifacts are currently **not** verified by `sourceIntegrity.helm`.
+> The same `sourceIntegrity.helm` provenance policies apply to Helm OCI Application sources:
+> host-style `repoURL` (for example `registry.example.com/charts`) plus `chart`. Register the
+> repository as a Helm OCI repo (`--enable-oci` / `enableOCI: true`).
+>
+> Push charts with `helm push` so accompanying `.prov` files are included in the registry
+> artifact. If a matching Helm provenance policy is configured, a missing provenance file fails
+> verification (same as a missing HTTP `.prov`).
 
 For GnuPG verification of Git commit signatures, see [Git GnuPG verification](./source-integrity-git-gpg.md).
 
@@ -89,7 +97,7 @@ Once `.prov` and chart archive are loaded, Argo CD runs these steps (check name 
 | 3. Signed body parse | Extract the signed YAML plaintext from the PGP cleartext envelope |
 | 4. Files digest | Find `files.<chart-filename>: sha256:...` in the signed body and compare to SHA256 of the chart archive |
 
-If any step fails, sync is blocked with a `ResourceComparison` error.
+If any step fails, sync is blocked with an `ApplicationConditionComparisonError`.
 
 ## Policies for Helm provenance verification
 
@@ -112,11 +120,11 @@ spec:
               - "4AEE18F83AFDEB23"
 ```
 
-The `repos` field lists glob patterns matched against the application's Helm `repoURL` (same rules as Git policies: positive globs apply, negative globs starting with `!` exclude).
+The `repos` field lists glob patterns matched against the application's Helm `repoURL` (same rules as Git policies: positive globs apply, negative globs starting with `!` exclude). For Helm OCI repositories, match the host-style URL (for example `registry.example.com/charts*`), not an `oci://` URL.
 
 Only one Helm policy applies per source repository. Sources not matched by any policy are not verified for provenance.
 
-Multi-source applications can combine Git and traditional Helm policies in the same `sourceIntegrity` block:
+Multi-source applications can combine Git and Helm policies in the same `sourceIntegrity` block:
 
 ```yaml
 spec:
@@ -133,6 +141,7 @@ spec:
       policies:
         - repos:
             - url: "https://charts.example.com/*"
+            - url: "registry.example.com/charts*"
           provenance:
             keys:
               - "4AEE18F83AFDEB23"
@@ -194,6 +203,8 @@ Cause: No `.prov` content was loaded for the chart version.
 
 - Confirm `<chart-url>.prov` exists (for example `curl -I https://charts.example.com/mychart-1.0.0.tgz.prov`).
 - If `index.yaml` lists multiple URLs, check whether a later mirror hosts the `.prov` file.
+- For Helm OCI repositories, confirm the artifact was pushed with a sibling `.prov` file
+  (for example `helm push` after `helm package --sign`), then retry with `helm pull oci://… --prov`.
 
 Fix: Use a signed chart release, or use a project without `sourceIntegrity.helm` if you intentionally want to skip verification for that repo.
 

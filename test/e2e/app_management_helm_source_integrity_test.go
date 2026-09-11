@@ -1,6 +1,8 @@
 package e2e
 
 import (
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +27,9 @@ const (
 	helmProvMirrorFailName      = "helm-prov-mirror-fail"
 	helmProvFailName            = "helm-prov-local-fail"
 	helmProvWrongKey            = "0000000000000000"
+
+	ociChartNoProv  = "helm-values"
+	ociChartNoProvV = "1.0.0"
 )
 
 func helmProvenanceLocalRepoURL() string {
@@ -210,6 +215,196 @@ func TestTraditionalHelmSourceIntegrityProvenanceFailsWithWrongKey(t *testing.T)
 		Expect(Condition(ApplicationConditionComparisonError, "HELM/PROVENANCE")).
 		Expect(Condition(ApplicationConditionComparisonError, "signed with unallowed key")).
 		Expect(Condition(ApplicationConditionComparisonError, "key_id="+fixture.GpgGoodKeyID))
+}
+
+func TestHelmOCISourceIntegrityProvenancePassesWithAllowedKey(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	pushHelmProvenanceChartToOCIRegistry(t)
+
+	Given(t).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		HelmOCIRepoAdded("helm-oci-prov").
+		Name("helm-oci-prov-pass").
+		Project("gpg").
+		ProjectSpec(appProjectWithHelmSourceIntegrity(fixture.GpgGoodKeyID)).
+		When().
+		IgnoreErrors().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source = &ApplicationSource{
+				RepoURL:        fixture.HelmOCIRegistryURL,
+				Chart:          helmProvChart,
+				TargetRevision: helmProvChartV,
+				Helm:           &ApplicationSourceHelm{ReleaseName: "helm-oci-prov-pass"},
+			}
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions())
+}
+
+func TestHelmOCISourceIntegrityProvenanceFailsWhenProvMissing(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+
+	Given(t).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		PushChartToOCIRegistry("testdata/helm-values", ociChartNoProv, ociChartNoProvV).
+		HelmOCIRepoAdded("helm-oci-prov-miss").
+		Name("helm-oci-prov-miss").
+		Project("gpg").
+		ProjectSpec(appProjectWithHelmSourceIntegrity(fixture.GpgGoodKeyID)).
+		When().
+		IgnoreErrors().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source = &ApplicationSource{
+				RepoURL:        fixture.HelmOCIRegistryURL,
+				Chart:          ociChartNoProv,
+				TargetRevision: ociChartNoProvV,
+				Helm:           &ApplicationSourceHelm{ReleaseName: "helm-oci-prov-miss"},
+			}
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(Condition(ApplicationConditionComparisonError, "HELM/PROVENANCE")).
+		Expect(Condition(ApplicationConditionComparisonError, "could not access chart for provenance verification"))
+}
+
+func TestHelmOCISourceIntegrityProvenanceFailsWithWrongKey(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	pushHelmProvenanceChartToOCIRegistry(t)
+
+	Given(t).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		HelmOCIRepoAdded("helm-oci-prov-wrong").
+		Name("helm-oci-prov-wrong").
+		Project("default").
+		ProjectSpec(appProjectWithHelmSourceIntegrity(helmProvWrongKey)).
+		When().
+		IgnoreErrors().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source = &ApplicationSource{
+				RepoURL:        fixture.HelmOCIRegistryURL,
+				Chart:          helmProvChart,
+				TargetRevision: helmProvChartV,
+				Helm:           &ApplicationSourceHelm{ReleaseName: "helm-oci-prov-wrong"},
+			}
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(Condition(ApplicationConditionComparisonError, "HELM/PROVENANCE")).
+		Expect(Condition(ApplicationConditionComparisonError, "signed with unallowed key")).
+		Expect(Condition(ApplicationConditionComparisonError, "key_id="+fixture.GpgGoodKeyID))
+}
+
+// TestHelmOCISourceIntegrityFailsWhenKeyNotInKeyring covers a misconfigured keyring:
+// policy lists the signing key, but the public key was never imported into Argo CD.
+func TestHelmOCISourceIntegrityFailsWhenKeyNotInKeyring(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	pushHelmProvenanceChartToOCIRegistry(t)
+
+	Given(t).
+		Sleep(2).
+		HelmOCIRepoAdded("helm-oci-prov-no-keyring").
+		Name("helm-oci-prov-no-keyring").
+		Project("default").
+		ProjectSpec(appProjectWithHelmSourceIntegrity(fixture.GpgGoodKeyID)).
+		When().
+		IgnoreErrors().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source = &ApplicationSource{
+				RepoURL:        fixture.HelmOCIRegistryURL,
+				Chart:          helmProvChart,
+				TargetRevision: helmProvChartV,
+				Helm:           &ApplicationSourceHelm{ReleaseName: "helm-oci-prov-no-keyring"},
+			}
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(Condition(ApplicationConditionComparisonError, "HELM/PROVENANCE")).
+		Expect(Condition(ApplicationConditionComparisonError, "provenance signature verification failed")).
+		Expect(Condition(ApplicationConditionComparisonError, "signed with key not in keyring")).
+		Expect(Condition(ApplicationConditionComparisonError, "key_id="+fixture.GpgGoodKeyID))
+}
+
+func TestMultiSourceGitHelmOCIProvenanceAllPass(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	pushHelmProvenanceChartToOCIRegistry(t)
+	gitURL := fixture.RepoURL(fixture.RepoURLTypeFile)
+
+	sources := []ApplicationSource{{
+		RepoURL:        gitURL,
+		Path:           guestbookPath,
+		Name:           "git",
+		TargetRevision: "HEAD",
+	}, {
+		RepoURL:        fixture.HelmOCIRegistryURL,
+		Chart:          helmProvChart,
+		TargetRevision: helmProvChartV,
+		Name:           "helm-oci",
+		Helm:           &ApplicationSourceHelm{ReleaseName: "multi-helm-oci"},
+	}}
+
+	Given(t).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		HelmOCIRepoAdded("helm-oci-multi").
+		Sources(sources).
+		Name("multi-git-helm-oci-pass").
+		Project("gpg").
+		ProjectSpec(appProjectWithGitAndHelmSourceIntegrity(fixture.GpgGoodKeyID)).
+		When().
+		AddSignedFile("multi-source-oci-test.yaml", "test").
+		IgnoreErrors().
+		CreateMultiSourceAppFromFile(func(_ *Application) { /* no app modifications */ }).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions())
+}
+
+// pushHelmProvenanceChartToOCIRegistry uploads the signed local helm-provenance chart (with .prov) to the e2e OCI registry.
+func pushHelmProvenanceChartToOCIRegistry(t *testing.T) {
+	t.Helper()
+	tmpDir := t.TempDir()
+	chartName := fmt.Sprintf("%s-%s.tgz", helmProvChart, helmProvChartV)
+	srcChart := filepath.Join("testdata", "helm-repo", "provenance", chartName)
+	dstChart := filepath.Join(tmpDir, chartName)
+	require.NoError(t, copyFile(srcChart, dstChart))
+	require.NoError(t, copyFile(srcChart+".prov", dstChart+".prov"))
+	_, err := fixture.Run("", "helm", "push", "--plain-http", dstChart, "oci://"+fixture.HelmOCIRegistryURL)
+	require.NoError(t, err)
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Sync()
 }
 
 func TestHelmSourceIntegrityNoVerificationPasses(t *testing.T) {

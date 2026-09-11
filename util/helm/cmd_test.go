@@ -178,6 +178,7 @@ func TestPullOCI(t *testing.T) {
 		name        string
 		creds       HelmCreds
 		plainHTTP   bool
+		prov        bool
 		expectedOut string
 	}{
 		{
@@ -204,6 +205,20 @@ func TestPullOCI(t *testing.T) {
 			plainHTTP:   true,
 			expectedOut: "helm pull oci://my.registry.com/myrepo/mychart --version 1.0.0 --destination /tmp/dest --insecure-skip-tls-verify --plain-http",
 		},
+		{
+			name:        "with provenance",
+			creds:       HelmCreds{},
+			plainHTTP:   false,
+			prov:        true,
+			expectedOut: "helm pull oci://my.registry.com/myrepo/mychart --version 1.0.0 --destination /tmp/dest --prov",
+		},
+		{
+			name:        "provenance with plain-http",
+			creds:       HelmCreds{},
+			plainHTTP:   true,
+			prov:        true,
+			expectedOut: "helm pull oci://my.registry.com/myrepo/mychart --version 1.0.0 --destination /tmp/dest --prov --plain-http",
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -211,7 +226,7 @@ func TestPullOCI(t *testing.T) {
 				return strings.Join(cmd.Args, " "), nil
 			})
 			require.NoError(t, err)
-			out, err := c.PullOCI("my.registry.com/myrepo", "mychart", "1.0.0", "/tmp/dest", &tc.creds, tc.plainHTTP)
+			out, err := c.PullOCI("my.registry.com/myrepo", "mychart", "1.0.0", "/tmp/dest", &tc.creds, tc.plainHTTP, tc.prov)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedOut, out)
 		})

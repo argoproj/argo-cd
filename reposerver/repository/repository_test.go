@@ -6488,6 +6488,75 @@ func TestHelmSourceIntegrity_FetchProvenanceTransientFails(t *testing.T) {
 	require.ErrorContains(t, err, "502")
 }
 
+func TestHelmSourceIntegrity_OCIFetchesProvenance(t *testing.T) {
+	root := t.TempDir()
+	chartTgzPath := filepath.Join(root, "my-chart-1.1.0.tgz")
+	require.NoError(t, os.WriteFile(chartTgzPath, []byte("chart-bytes"), 0o600))
+	service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, helmClient *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+		helmClient.EXPECT().GetTags(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		helmClient.EXPECT().ExtractChart(mock.Anything, "my-chart", "1.1.0", false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
+		helmClient.EXPECT().CleanChartCache("my-chart", "1.1.0").Return(nil)
+		helmClient.EXPECT().GetChartTgzPath("my-chart", "1.1.0").Return(chartTgzPath, nil)
+		// Missing .prov is a definitive policy violation (same as traditional Helm).
+		helmClient.EXPECT().FetchProvenance(mock.Anything, "my-chart", mock.AnythingOfType("bool"), "1.1.0").
+			Return(nil, "", helm.ErrProvenanceNotFound)
+		ociClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
+		ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		paths.EXPECT().Add(mock.Anything, mock.Anything).Return()
+		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
+		paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": root})
+	}, root)
+	source := &v1alpha1.ApplicationSource{Chart: "my-chart", TargetRevision: "1.1.0", RepoURL: "demo.goharbor.io/charts"}
+	request := &apiclient.ManifestRequest{
+		Repo:               &v1alpha1.Repository{Repo: "demo.goharbor.io/charts", EnableOCI: true},
+		ApplicationSource:  source,
+		NoCache:            true,
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+		SourceIntegrity:    sourceIntegrityHelmProvenance,
+	}
+	res, err := service.GenerateManifest(t.Context(), request)
+	require.NoError(t, err)
+	require.NotNil(t, res.SourceIntegrityResult)
+	require.Error(t, res.SourceIntegrityResult.AsError())
+	require.ErrorContains(t, res.SourceIntegrityResult.AsError(), "could not access chart for provenance verification")
+}
+
+func TestHelmSourceIntegrity_OCIFetchFails(t *testing.T) {
+	root := t.TempDir()
+	chartTgzPath := filepath.Join(root, "my-chart-1.1.0.tgz")
+	require.NoError(t, os.WriteFile(chartTgzPath, []byte("chart-bytes"), 0o600))
+	service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, helmClient *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+		helmClient.EXPECT().GetTags(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		helmClient.EXPECT().ExtractChart(mock.Anything, "my-chart", "1.1.0", false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
+		helmClient.EXPECT().CleanChartCache("my-chart", "1.1.0").Return(nil)
+		helmClient.EXPECT().GetChartTgzPath("my-chart", "1.1.0").Return(chartTgzPath, nil)
+		helmClient.EXPECT().FetchProvenance(mock.Anything, "my-chart", mock.AnythingOfType("bool"), "1.1.0").
+			Return(nil, "", errors.New("registry unavailable"))
+		ociClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
+		ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		paths.EXPECT().Add(mock.Anything, mock.Anything).Return()
+		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
+		paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": root})
+	}, root)
+	source := &v1alpha1.ApplicationSource{Chart: "my-chart", TargetRevision: "1.1.0", RepoURL: "demo.goharbor.io/charts"}
+	request := &apiclient.ManifestRequest{
+		Repo:               &v1alpha1.Repository{Repo: "demo.goharbor.io/charts", EnableOCI: true},
+		ApplicationSource:  source,
+		NoCache:            true,
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+		SourceIntegrity:    sourceIntegrityHelmProvenance,
+	}
+	res, err := service.GenerateManifest(t.Context(), request)
+	require.Error(t, err)
+	assert.Nil(t, res)
+	require.ErrorContains(t, err, "helm provenance verification")
+	require.ErrorContains(t, err, "registry unavailable")
+}
+
 func TestGetHelmRepos_InsecureOCIForceHttpPropagatedFromRepo(t *testing.T) {
 	q := apiclient.ManifestRequest{
 		Repos: []*v1alpha1.Repository{{

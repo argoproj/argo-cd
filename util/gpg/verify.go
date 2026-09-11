@@ -75,8 +75,6 @@ func VerifyCleartextSignedMessage(ctx context.Context, clearsigned []byte) (sign
 		}
 		return keyID, nil
 	}
-	if waitErr != nil {
-		return "", waitErr
-	}
+	// gpg exits non-zero for BADSIG/ERRSIG/etc.; prefer the parsed status message over "exit status N".
 	return "", errors.New(VerificationFailureMessage(code, keyID))
 }
