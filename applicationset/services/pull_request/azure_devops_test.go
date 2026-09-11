@@ -452,3 +452,37 @@ func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }
+
+func TestAzureDevOpsListReturnsRepositoryNotFoundErrorForNilRepository(t *testing.T) {
+	t.Parallel()
+
+	project := "myproject"
+	repo := "myrepo"
+
+	gitClientMock := &azureMock.Client{}
+	clientFactoryMock := &mocks.AzureDevOpsClientFactory{}
+
+	clientFactoryMock.EXPECT().
+		GetClient(mock.Anything).
+		Return(gitClientMock, nil)
+
+	gitClientMock.EXPECT().
+		GetRepository(mock.Anything, git.GetRepositoryArgs{
+			Project:      &project,
+			RepositoryId: &repo,
+		}).
+		Return(nil, nil)
+
+	provider := AzureDevOpsService{
+		clientFactory: clientFactoryMock,
+		project:       project,
+		repo:          repo,
+		labels:        nil,
+	}
+
+	prs, err := provider.List(t.Context())
+
+	assert.Empty(t, prs)
+	require.Error(t, err)
+	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
+}

@@ -79,6 +79,11 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 		}
 		return nil, fmt.Errorf("failed to get Azure Devops Repository %q: %w", a.repo, err)
 	}
+	if repository == nil || repository.Id == nil {
+		return []*PullRequest{}, NewRepositoryNotFoundError(
+			fmt.Errorf("repository %q not found in project %q", a.repo, a.project),
+		)
+	}
 
 	repositoryID := repository.Id
 
