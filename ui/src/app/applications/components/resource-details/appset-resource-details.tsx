@@ -1,6 +1,6 @@
 import {MockupList, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
-import {DataLoader, EventsList, Expandable, YamlEditor} from '../../../shared/components';
+import {EventsList, Expandable, YamlEditor} from '../../../shared/components';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -25,10 +25,25 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
     const conditions = appSet.status?.conditions || [];
     const conditionCounts = getConditionCounts(conditions);
 
+    // Load ApplicationSet events once so both the EVENTS tab list and its badge (number of warning/error events) share a single fetch
+    const [appSetEvents, setAppSetEvents] = React.useState<models.Event[] | null>(null);
+    React.useEffect(() => {
+        let cancelled = false;
+        services.applications
+            .appSetEvents(appSet.metadata.name, appSet.metadata.namespace)
+            .then(events => !cancelled && setAppSetEvents(events))
+            .catch(() => !cancelled && setAppSetEvents([]));
+        return () => {
+            cancelled = true;
+        };
+    }, [appSet.metadata.name, appSet.metadata.namespace, appSet.metadata.resourceVersion]);
+    const numEventErrors = (appSetEvents || []).filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
+
     const getTabs = (): Tab[] => {
         const tabs: Tab[] = [
             {
                 title: 'SUMMARY',
+                icon: 'fa fa-align-justify',
                 key: 'summary',
                 content: (
                     <div className='applicationset-summary'>
@@ -98,24 +113,23 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
             },
             {
                 title: 'MANIFEST',
+                icon: 'fa fa-file-alt',
                 key: 'manifest',
-                content: <YamlEditor minHeight={800} input={appSet.spec} hideModeButtons={true} />
+                // Show full appSet object since it is not editable
+                content: <YamlEditor minHeight={800} input={appSet} hideModeButtons={true} />
             },
             {
                 title: 'EVENTS',
+                icon: 'fa fa-calendar-alt',
+                badge: (numEventErrors > 0 && numEventErrors) || null,
                 key: 'event',
                 content: (
-                    <div className='application-resource-events'>
-                        <DataLoader
-                            load={() => services.applications.appSetEvents(appSet.metadata.name, appSet.metadata.namespace)}
-                            loadingRenderer={() => <MockupList height={50} marginTop={10} />}>
-                            {events => <EventsList events={events} />}
-                        </DataLoader>
-                    </div>
+                    <div className='application-resource-events'>{appSetEvents === null ? <MockupList height={50} marginTop={10} /> : <EventsList events={appSetEvents} />}</div>
                 )
             },
             {
                 title: 'PREVIEW',
+                icon: 'fa fa-eye',
                 key: 'preview',
                 content: <AppSetPreviewTab appSet={appSet} />
             }

@@ -8,7 +8,7 @@
         align-items: center;
         padding-right: 48px;
         h1 {
-            @include themify($themes){
+            @include themify($themes) {
                 color: themed('text-2');
             }
             font-size: 23px;
@@ -42,4 +42,15 @@
 
 .tabs .fa-stack[data-count='!']:after {
     background: $argo-status-warning-color;
+}
+
+// Align the tab icon and its label on the same vertical center.
+.tabs .tabs__nav-wrapper a {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+
+    i {
+        line-height: 1;
+    }
 }
