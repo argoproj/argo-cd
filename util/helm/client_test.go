@@ -750,7 +750,7 @@ func TestReadProvenanceFromPullDir(t *testing.T) {
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "mychart-1.0.0.tgz"), []byte("chart"), 0o600))
 		prov, name, err := readProvenanceFromPullDir(dir)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ErrProvenanceNotFound)
+		require.ErrorIs(t, err, ErrProvenanceNotFound)
 		assert.Nil(t, prov)
 		assert.Empty(t, name)
 	})
