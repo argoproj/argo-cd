@@ -415,6 +415,24 @@ func TestApplyOptionsConfiguration(t *testing.T) {
 		}
 	})
 
+	t.Run("force=true with serverSideApply=true does not set DeleteOptions.ForceDeletion", func(t *testing.T) {
+		t.Parallel()
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+
+		var capturedOpts *apply.ApplyOptions
+		cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
+			capturedOpts = args[0].(*apply.ApplyOptions)
+		}).Return(nil)
+
+		obj := testingutils.NewPod()
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, true, false, true, "test-manager")
+		require.NoError(t, err)
+
+		assert.True(t, capturedOpts.ServerSideApply)
+		assert.True(t, capturedOpts.ForceConflicts)
+		assert.False(t, capturedOpts.DeleteOptions.ForceDeletion)
+	})
+
 	t.Run("outputModeJSON returns JSONPrinter", func(t *testing.T) {
 		t.Parallel()
 		k, cmdMocks := newTestKubectlResourceOperations(t)
@@ -452,10 +470,14 @@ func TestCreateOptionsConfiguration(t *testing.T) {
 		testCases := []struct {
 			name     string
 			strategy cmdutil.DryRunStrategy
+			validate bool
 		}{
-			{"DryRunNone", cmdutil.DryRunNone},
-			{"DryRunClient", cmdutil.DryRunClient},
-			{"DryRunServer", cmdutil.DryRunServer},
+			{"DryRunNone, novalidate", cmdutil.DryRunNone, false},
+			{"DryRunClient, novalidate", cmdutil.DryRunClient, false},
+			{"DryRunServer, novalidate", cmdutil.DryRunServer, false},
+			{"DryRunNone, validate", cmdutil.DryRunNone, true},
+			{"DryRunClient, validate", cmdutil.DryRunClient, true},
+			{"DryRunServer, validate", cmdutil.DryRunServer, true},
 		}
 
 		for _, tc := range testCases {
@@ -469,12 +491,17 @@ func TestCreateOptionsConfiguration(t *testing.T) {
 				}).Return(nil)
 
 				obj := testingutils.NewPod()
-				_, err := k.CreateResource(t.Context(), obj, tc.strategy, false)
+				_, err := k.CreateResource(t.Context(), obj, tc.strategy, tc.validate)
 				require.NoError(t, err)
 
 				assert.Equal(t, tc.strategy, capturedOpts.DryRunStrategy)
 				assert.NotEmpty(t, capturedOpts.FilenameOptions.Filenames)
 				assert.NotNil(t, capturedOpts.PrintObj)
+				if tc.validate {
+					assert.Equal(t, "Strict", capturedOpts.ValidationDirective)
+				} else {
+					assert.Equal(t, "Ignore", capturedOpts.ValidationDirective)
+				}
 			})
 		}
 	})
