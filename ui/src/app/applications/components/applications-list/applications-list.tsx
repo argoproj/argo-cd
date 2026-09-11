@@ -15,6 +15,7 @@ import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-syn
 import * as AppUtils from '../utils';
 import {ApplicationsFilter, FilteredApp, getAppFilterResults} from './applications-filter';
 import {createMatcher} from './applications-list-search';
+import {showCreateFirstAppState} from './applications-list-empty-state';
 import {AppsStatusBar} from './applications-status-bar';
 import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
@@ -24,7 +25,7 @@ import {FlexTopBar} from '../../../shared/components';
 import {ViewTypeSwitcher} from './view-type-switcher';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
-import {isInvalidRegex} from '../../../shared/utils';
+import {isInvalidRegex, queryParamsChanged} from '../../../shared/utils';
 
 import './applications-list.scss';
 
@@ -357,25 +358,28 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
 
     function onAppFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
         services.viewPreferences.updatePreferences({appList: newPref});
-        ctx.navigation.goto(
-            '.',
-            {
-                proj: newPref.projectsFilter.join(','),
-                sync: newPref.syncFilter.join(','),
-                autoSync: newPref.autoSyncFilter.join(','),
-                health: newPref.healthFilter.join(','),
-                namespace: newPref.namespacesFilter.join(','),
-                targetRevision: newPref.targetRevisionFilter.map(encodeURIComponent).join(','),
-                repo: newPref.reposFilter.map(encodeURIComponent).join(','),
-                cluster: newPref.clustersFilter.join(','),
-                labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
-                annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),
-                operation: newPref.operationFilter.join(','),
-                // Keep URL and preferences consistent. When false, remove the param entirely.
-                showFavorites: newPref.showFavorites ? 'true' : null
-            },
-            {replace: true}
-        );
+        const params = {
+            proj: newPref.projectsFilter.join(','),
+            sync: newPref.syncFilter.join(','),
+            autoSync: newPref.autoSyncFilter.join(','),
+            health: newPref.healthFilter.join(','),
+            namespace: newPref.namespacesFilter.join(','),
+            targetRevision: newPref.targetRevisionFilter.map(encodeURIComponent).join(','),
+            repo: newPref.reposFilter.map(encodeURIComponent).join(','),
+            cluster: newPref.clustersFilter.join(','),
+            labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
+            annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),
+            operation: newPref.operationFilter.join(','),
+            // Keep URL and preferences consistent. When false, remove the param entirely.
+            showFavorites: newPref.showFavorites ? 'true' : null
+        };
+        // Every filter in the sidebar reports its state up when it mounts, so a remount produces one
+        // call per filter with nothing changed. Browsers rate limit history updates and Safari throws
+        // once the cap is hit, so only navigate when the query string actually changes.
+        if (!queryParamsChanged(window.location.search, params)) {
+            return;
+        }
+        ctx.navigation.goto('.', params, {replace: true});
     }
 
     function getPageTitle(view: string) {
@@ -412,7 +416,9 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                         ]
                                     }}>
                                     <DataLoader
-                                        input={`${pref.projectsFilter?.join(',')}:${pref.showFavorites}:${(pref.favoritesAppList || []).join(',')}`}
+                                        // The favorites list is only part of the query while the favorites filter is on, so
+                                        // starring an application with the filter off must not restart the list and watch.
+                                        input={`${pref.projectsFilter?.join(',')}:${pref.showFavorites}:${pref.showFavorites ? (pref.favoritesAppList || []).join(',') : ''}`}
                                         ref={loaderRef}
                                         load={() =>
                                             AppUtils.handlePageVisibility(() =>
@@ -474,7 +480,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                         }}
                                                     />
                                                     <div className='applications-list'>
-                                                        {apps.length === 0 && pref.projectsFilter?.length === 0 && (pref.labelsFilter || []).length === 0 ? (
+                                                        {showCreateFirstAppState(apps, pref) ? (
                                                             <EmptyState icon='argo-icon-application'>
                                                                 <h4>No applications available to you just yet</h4>
                                                                 <h5>Create new application to start managing resources in your cluster</h5>
