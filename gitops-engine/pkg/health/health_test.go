@@ -103,10 +103,10 @@ func TestIsValidHealthStatusCode(t *testing.T) {
 
 	invalidCodes := []HealthStatusCode{
 		"",
-		"healthy",   // wrong case
-		"Suspend",   // typo
-		"Bogus",     // unknown
-		"Healthy ",  // trailing space
+		"healthy",  // wrong case
+		"Suspend",  // typo
+		"Bogus",    // unknown
+		"Healthy ", // trailing space
 	}
 	for _, code := range invalidCodes {
 		t.Run("invalid/"+string(code), func(t *testing.T) {
