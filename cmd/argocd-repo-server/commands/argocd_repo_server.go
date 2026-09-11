@@ -143,7 +143,11 @@ func NewCommand() *cobra.Command {
 			askPassServer := askpass.NewServer(askpass.SocketPath)
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer, nil)
-			clientCAPath, err = resolveClientCAPath(clientCAPath, disableTLS)
+			// Flags().Changed is true when --client-ca-path was passed on the CLI. A
+			// non-empty value is also explicit because env.StringFromEnv applied
+			// ARGOCD_REPO_SERVER_CLIENT_CA_PATH as the flag default (not Changed).
+			explicit := c.Flags().Changed("client-ca-path") || clientCAPath != ""
+			clientCAPath, err = resolveClientCAPath(clientCAPath, disableTLS, explicit)
 			if err != nil {
 				return err
 			}
@@ -304,19 +308,23 @@ func buildHealthCheckTLSConfig(healthCheckClientCert *ctls.Certificate, disableT
 	return cfg
 }
 
-// resolveClientCAPath derives the effective client CA path from the flag value and the
-// disable-tls flag. A non-empty client CA path is meaningless (and thus an error) when TLS
-// is disabled, because mTLS requires TLS. When TLS is enabled and no path was provided, the
-// auto-mounted Secret path is used so mTLS is enabled whenever a client CA is present.
-func resolveClientCAPath(clientCAPath string, disableTLS bool) (string, error) {
+// resolveClientCAPath derives the effective client CA path from the flag value, whether
+// the flag was explicitly set, and the disable-tls flag.
+//
+// When TLS is disabled, a non-empty client CA path is an error because mTLS requires TLS;
+// an empty path is returned unchanged. When TLS is enabled and the flag was explicitly set
+// (CLI or environment), the provided value is used as-is, including "" which disables mTLS.
+// When TLS is enabled and the flag was not set, the auto-mounted Secret path is used so
+// mTLS is enabled whenever a client CA is present.
+func resolveClientCAPath(clientCAPath string, disableTLS bool, explicit bool) (string, error) {
 	if disableTLS {
 		if clientCAPath != "" {
 			return "", stderrors.New("--client-ca-path cannot be used when --disable-tls is enabled")
 		}
 		return "", nil
 	}
-	if clientCAPath == "" {
-		return defaultClientCAPath, nil
+	if explicit {
+		return clientCAPath, nil
 	}
-	return clientCAPath, nil
+	return defaultClientCAPath, nil
 }
