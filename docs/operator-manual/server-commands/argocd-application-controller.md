@@ -58,6 +58,7 @@ argocd-application-controller [flags]
       --password string                                           Password for basic authentication to the API server
       --persist-resource-health                                   Enables storing the managed resources health in the Application CRD
       --proxy-url string                                          If provided, this URL will be used to connect via proxy
+      --reconciled-at-heartbeat duration                          How stale the Application status.reconciledAt field may become while nothing else in status changes. Zero (the default) writes it on every reconciliation; a positive value (e.g. 10m) trades staleness of that one field for far fewer API server writes.
       --redis string                                              Redis server hostname and port (e.g. argocd-redis:6379). 
       --redis-ca-certificate string                               Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string                           Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
