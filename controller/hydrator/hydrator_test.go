@@ -1549,6 +1549,10 @@ func TestHydrator_hydrate_DeDupe_Success(t *testing.T) {
 	app1.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
 		LastSuccessfulOperation: lastSuccessfulOperation,
 	}
+	// Every app in the group must already be hydrated at this revision for the de-dupe to apply.
+	app2.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
+		LastSuccessfulOperation: lastSuccessfulOperation,
+	}
 
 	apps := []*v1alpha1.Application{app1, app2}
 	proj := newTestProject()
@@ -1565,6 +1569,43 @@ func TestHydrator_hydrate_DeDupe_Success(t *testing.T) {
 	assert.Equal(t, "sha123", sha)
 	assert.Equal(t, "hydrated123", hydratedSha)
 	assert.Empty(t, errs)
+}
+
+// An app that joined the group after the batch for this revision ran has no LastSuccessfulOperation.
+// The de-dupe must not fire for it, or it is marked Hydrated against a commit lacking its path and
+// nothing retries it. https://github.com/argoproj/argo-cd/issues/25190
+func TestHydrator_hydrate_DeDupe_SkippedForAppThatHasNotHydrated(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	h := &Hydrator{dependencies: d}
+
+	app1 := newTestApp("app1")
+	app2 := newTestApp("app2")
+	app1.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
+		LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
+			DrySHA:      "sha123",
+			HydratedSHA: "hydrated123",
+		},
+	}
+	// app2 deliberately has no LastSuccessfulOperation.
+
+	apps := []*v1alpha1.Application{app1, app2}
+	proj := newTestProject()
+	projects := map[string]*v1alpha1.AppProject{app1.Spec.Project: proj}
+
+	d.On("GetRepoObjs", mock.Anything, app1, app1.Spec.SourceHydrator.GetDrySource(), "main", proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil).Once()
+	// Reaching this call at all proves we did not quit early. Failing it keeps the test from
+	// needing the whole commit path mocked.
+	d.On("GetRepoObjs", mock.Anything, app2, app2.Spec.SourceHydrator.GetDrySource(), "sha123", proj).Return(nil, nil, errors.New("boom")).Once()
+	logCtx := log.NewEntry(log.StandardLogger())
+
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, apps, projects)
+
+	require.NoError(t, err)
+	assert.Equal(t, "sha123", sha)
+	assert.Empty(t, hydratedSha, "no commit should be reported when hydration did not complete")
+	assert.Contains(t, errs, app2.QualifiedName())
 }
 
 func Test_newRevisionHasChanges(t *testing.T) {

@@ -454,9 +454,20 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 	paths := []*commitclient.PathDetails{pathDetails}
 	logCtx = logCtx.WithFields(log.Fields{"drySha": targetRevision})
 	// De-dupe, if the drySha was already hydrated log a debug and return using the data from the last successful hydration run.
-	// We only inspect one app. If apps have been added/removed, that will be handled on the next DRY commit.
-	if apps[0].Status.SourceHydrator.LastSuccessfulOperation != nil && targetRevision == apps[0].Status.SourceHydrator.LastSuccessfulOperation.DrySHA {
-		logCtx.Debug("Skipping hydration since the DRY commit was already hydrated")
+	// Every app in the group must have hydrated at this revision. Inspecting only apps[0] skips the commit
+	// for a group an app has just joined: an ApplicationSet can create an Application after the batch for
+	// this revision has already run, and that app would then be marked Hydrated against a commit that does
+	// not contain its path, with nothing to retry it.
+	alreadyHydrated := true
+	for _, app := range apps {
+		lastSuccessful := app.Status.SourceHydrator.LastSuccessfulOperation
+		if lastSuccessful == nil || lastSuccessful.DrySHA != targetRevision {
+			alreadyHydrated = false
+			break
+		}
+	}
+	if alreadyHydrated {
+		logCtx.Debug("Skipping hydration since the DRY commit was already hydrated for every app in the group")
 		return targetRevision, apps[0].Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, nil, nil
 	}
 
