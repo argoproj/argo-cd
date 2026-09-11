@@ -1696,7 +1696,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		Revision:        q.GetRevision(),
 		SourceIntegrity: sourceIntegrity,
 		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
-		CheckSignature: sourceIntegrity != nil, // nolint:staticcheck
+		CheckSignature: sourceIntegrity != nil && sourceIntegrity.Git != nil, // nolint:staticcheck
 	})
 }
 

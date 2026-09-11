@@ -203,6 +203,158 @@ func (_c *Client_ExtractChart_Call) RunAndReturn(run func(ctx context.Context, c
 	return _c
 }
 
+// FetchProvenance provides a mock function for the type Client
+func (_mock *Client) FetchProvenance(ctx context.Context, chart string, noCache bool, version string) ([]byte, string, error) {
+	ret := _mock.Called(ctx, chart, noCache, version)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FetchProvenance")
+	}
+
+	var r0 []byte
+	var r1 string
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bool, string) ([]byte, string, error)); ok {
+		return returnFunc(ctx, chart, noCache, version)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bool, string) []byte); ok {
+		r0 = returnFunc(ctx, chart, noCache, version)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, bool, string) string); ok {
+		r1 = returnFunc(ctx, chart, noCache, version)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, bool, string) error); ok {
+		r2 = returnFunc(ctx, chart, noCache, version)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// Client_FetchProvenance_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FetchProvenance'
+type Client_FetchProvenance_Call struct {
+	*mock.Call
+}
+
+// FetchProvenance is a helper method to define mock.On call
+//   - ctx context.Context
+//   - chart string
+//   - noCache bool
+//   - version string
+func (_e *Client_Expecter) FetchProvenance(ctx any, chart any, noCache any, version any) *Client_FetchProvenance_Call {
+	return &Client_FetchProvenance_Call{Call: _e.mock.On("FetchProvenance", ctx, chart, noCache, version)}
+}
+
+func (_c *Client_FetchProvenance_Call) Run(run func(ctx context.Context, chart string, noCache bool, version string)) *Client_FetchProvenance_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 bool
+		if args[2] != nil {
+			arg2 = args[2].(bool)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_FetchProvenance_Call) Return(provContent []byte, chartFilename string, err error) *Client_FetchProvenance_Call {
+	_c.Call.Return(provContent, chartFilename, err)
+	return _c
+}
+
+func (_c *Client_FetchProvenance_Call) RunAndReturn(run func(ctx context.Context, chart string, noCache bool, version string) ([]byte, string, error)) *Client_FetchProvenance_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetChartTgzPath provides a mock function for the type Client
+func (_mock *Client) GetChartTgzPath(chart string, version string) (string, error) {
+	ret := _mock.Called(chart, version)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetChartTgzPath")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, string) (string, error)); ok {
+		return returnFunc(chart, version)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string, string) string); ok {
+		r0 = returnFunc(chart, version)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = returnFunc(chart, version)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Client_GetChartTgzPath_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetChartTgzPath'
+type Client_GetChartTgzPath_Call struct {
+	*mock.Call
+}
+
+// GetChartTgzPath is a helper method to define mock.On call
+//   - chart string
+//   - version string
+func (_e *Client_Expecter) GetChartTgzPath(chart any, version any) *Client_GetChartTgzPath_Call {
+	return &Client_GetChartTgzPath_Call{Call: _e.mock.On("GetChartTgzPath", chart, version)}
+}
+
+func (_c *Client_GetChartTgzPath_Call) Run(run func(chart string, version string)) *Client_GetChartTgzPath_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_GetChartTgzPath_Call) Return(s string, err error) *Client_GetChartTgzPath_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Client_GetChartTgzPath_Call) RunAndReturn(run func(chart string, version string) (string, error)) *Client_GetChartTgzPath_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetIndex provides a mock function for the type Client
 func (_mock *Client) GetIndex(ctx context.Context, noCache bool, maxIndexSize int64) (*helm.Index, error) {
 	ret := _mock.Called(ctx, noCache, maxIndexSize)
