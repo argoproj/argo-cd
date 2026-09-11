@@ -52,6 +52,12 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
     mkdir -p /home/argocd && \
     chown argocd:0 /home/argocd && \
     chmod g=u /home/argocd && \
+    # Force HTTPS for Ubuntu apt mirrors. Port 80 to archive.ubuntu.com and
+    # security.ubuntu.com is unreachable from GitHub Actions runners (and from
+    # many networks generally) as of 2026-09; apt over HTTPS is unaffected.
+    # apt verifies signatures independently, so this is a transport upgrade only.
+    grep -rl -E 'http://(archive|security)\.ubuntu\.com' /etc/apt 2>/dev/null | \
+      xargs -r sed -i 's|http://archive.ubuntu.com|https://archive.ubuntu.com|g; s|http://security.ubuntu.com|https://security.ubuntu.com|g' && \
     apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get install --no-install-recommends -y \
