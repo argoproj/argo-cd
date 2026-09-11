@@ -30,10 +30,10 @@ func TestK8sEventListToAPIEventList(t *testing.T) {
 		t.Parallel()
 		eventTime := metav1.NewTime(time.Now())
 		input := &corev1.EventList{
-			ListMeta: metav1.ListMeta{ResourceVersion: "12345"},
+			ResourceVersion: "12345",
 			Items: []corev1.Event{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "test-event-1", Namespace: "default"},
+					Name: "test-event-1", Namespace: "default",
 					InvolvedObject: corev1.ObjectReference{
 						Kind:      "Pod",
 						Name:      "test-pod",
@@ -47,7 +47,7 @@ func TestK8sEventListToAPIEventList(t *testing.T) {
 					LastTimestamp:  eventTime,
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "test-event-2", Namespace: "default"},
+					Name: "test-event-2", Namespace: "default",
 					InvolvedObject: corev1.ObjectReference{
 						Kind:      "Pod",
 						Name:      "test-pod",
@@ -81,11 +81,9 @@ func TestK8sEventListToAPIEventList(t *testing.T) {
 	t.Run("EventList metadata is preserved", func(t *testing.T) {
 		t.Parallel()
 		input := &corev1.EventList{
-			ListMeta: metav1.ListMeta{
-				ResourceVersion: "67890",
-				Continue:        "continue-token",
-			},
-			Items: []corev1.Event{},
+			ResourceVersion: "67890",
+			Continue:        "continue-token",
+			Items:           []corev1.Event{},
 		}
 
 		result := K8sEventListToAPIEventList(input)
@@ -99,7 +97,7 @@ func TestK8sEventListToAPIEventList(t *testing.T) {
 		input := &corev1.EventList{
 			Items: []corev1.Event{
 				{
-					ObjectMeta:          metav1.ObjectMeta{Name: "evt", Namespace: "default"},
+					Name: "evt", Namespace: "default",
 					Reason:              "Updated",
 					Series:              &corev1.EventSeries{Count: 3},
 					Related:             &corev1.ObjectReference{Kind: "Deployment", Name: "dep"},

@@ -95,7 +95,7 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                             </div>
                             <div className='applications-list__meta-row'>
                                 <div className='show-for-xxlarge applications-list__meta-label'>Name:</div>
-                                <div className='applications-list__meta-value'>
+                                <div className='applications-list__meta-value applications-list__name-value'>
                                     <Tooltip
                                         content={
                                             <>
@@ -112,11 +112,10 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                                     </Tooltip>
                                     <button
                                         type='button'
-                                        className={managedByURLInvalid ? 'managed-by-url-invalid' : undefined}
+                                        className={`applications-list__open-app-button${managedByURLInvalid ? ' managed-by-url-invalid' : ''}`}
                                         onClick={handleExternalLinkClick}
-                                        style={{marginLeft: '0.5em', cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
                                         title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
-                                        <i className='fa fa-external-link-alt' />
+                                        <i className='fa fa-window-maximize' />
                                     </button>
                                 </div>
                             </div>

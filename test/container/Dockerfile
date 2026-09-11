@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:8.10.0@sha256:344e3945a0b431c8ff1eecd58c5573538126bd756f02fc7e218ddf1fc2546366 AS redis
+FROM docker.io/library/redis:8.10.1@sha256:691577adaf11927f4bb8871d40a5dd69a5c300d4453b742e8f6383c3e6e8d2e1 AS redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -8,13 +8,13 @@ RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
 FROM docker.io/library/node:24.17.0@sha256:032e78d7e54e352129831743737e3a83171d9cc5b5896f411649c597ce0b11ea AS node
 
-FROM docker.io/library/golang:1.26.6@sha256:640a234f4bea3e399c056b7b8f9c667c4939befae8db2f14e9785e16eccd4205 AS golang
+FROM docker.io/library/golang:1.27.1@sha256:f773aa2679c165b2d4ccf04c1de9ef5f34c0e4fd7008b3c449d4cdc47d83af55 AS golang
 
 FROM docker.io/library/registry:3.1@sha256:85347ed2ecde64161c7a4788a4d7d3dcc9d6f86f7be95834022e3c6a423a945a AS registry
 
 FROM docker.io/bitnamilegacy/kubectl:1.33@sha256:cd354d5b25562b195b277125439c23e4046902d7f1abc0dc3c75aad04d298c17 AS kubectl
 
-FROM docker.io/library/ubuntu:26.04@sha256:53958ec7b67c2c9355df922dd08dbf0360611f8c3cdb656875e81873db9ffdba
+FROM docker.io/library/ubuntu:26.04@sha256:2260313b31c8c011cd2eebe728008efac1b3982be73eb71348ea2648d2c0e09b
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -74,6 +74,7 @@ RUN ./install.sh helm && \
     ./install.sh lint-tools && \
     ./install.sh gotestsum && \
     ./install.sh git-lfs && \
+    ./install.sh oras && \
     go install github.com/mattn/goreman@latest && \
     go install github.com/kisielk/godepgraph@latest && \
     go install github.com/jstemmer/go-junit-report@latest && \

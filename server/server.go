@@ -292,7 +292,7 @@ func (g GracefulRestartSignal) Signal() {}
 // initializeDefaultProject creates the default project if it does not already exist
 func initializeDefaultProject(opts ArgoCDServerOpts) error {
 	defaultProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.DefaultAppProjectName, Namespace: opts.Namespace},
+		Name: v1alpha1.DefaultAppProjectName, Namespace: opts.Namespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:              []string{"*"},
 			Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
