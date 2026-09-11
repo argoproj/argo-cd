@@ -94,9 +94,7 @@ const AppBreadcrumb = ({app, appName, objectListKind}: {app: appModels.Applicati
     const appDropdown = <ApplicationsDetailsAppDropdown appName={appName} objectListKind={objectListKind} />;
     if (!directParentName) return appDropdown;
     return (
-        <DataLoader
-            input={`${app.metadata.name}/${app.metadata.namespace}`}
-            load={() => loadAppAncestors(app, directParentName)}>
+        <DataLoader input={`${app.metadata.name}/${app.metadata.namespace}`} load={() => loadAppAncestors(app, directParentName)}>
             {(ancestors: Array<{name: string; namespace: string}>) => {
                 const chain = ancestors.filter(a => a.name !== app.metadata.name);
                 if (chain.length === 0) return appDropdown;
@@ -964,9 +962,15 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     path: isApplication ? '/applications' : '/applicationsets'
                                                 },
                                                 {
-                                                    title: isApplication
-                                                        ? <AppBreadcrumb app={application as appModels.Application} appName={props.match.params.name} objectListKind={objectListKind} />
-                                                        : <ApplicationsDetailsAppDropdown appName={props.match.params.name} objectListKind={objectListKind} />
+                                                    title: isApplication ? (
+                                                        <AppBreadcrumb
+                                                            app={application as appModels.Application}
+                                                            appName={props.match.params.name}
+                                                            objectListKind={objectListKind}
+                                                        />
+                                                    ) : (
+                                                        <ApplicationsDetailsAppDropdown appName={props.match.params.name} objectListKind={objectListKind} />
+                                                    )
                                                 }
                                             ],
                                             actionMenu: {

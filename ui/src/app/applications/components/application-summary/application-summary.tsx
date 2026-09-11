@@ -111,9 +111,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                   {
                       title: 'PARENT APP',
                       view: (
-                          <DataLoader
-                              input={`${app.metadata.name}/${app.metadata.namespace}`}
-                              load={() => loadAppAncestors(app, directParentName)}>
+                          <DataLoader input={`${app.metadata.name}/${app.metadata.namespace}`} load={() => loadAppAncestors(app, directParentName)}>
                               {(ancestors: Array<{name: string; namespace: string}>) => {
                                   const chain = ancestors.filter(a => a.name !== app.metadata.name);
                                   if (chain.length === 0) return null;
@@ -124,11 +122,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                           {higher.length > 0 && (
                                               <React.Fragment>
                                                   <DropDownMenu
-                                                      anchor={() => (
-                                                          <a style={{cursor: 'pointer'}}>
-                                                              +{higher.length}
-                                                          </a>
-                                                      )}
+                                                      anchor={() => <a style={{cursor: 'pointer'}}>+{higher.length}</a>}
                                                       items={higher.map(a => ({
                                                           title: a.name,
                                                           action: () => ctx.navigation.goto(`/applications/${a.namespace}/${a.name}`)
