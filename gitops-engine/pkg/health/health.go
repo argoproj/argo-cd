@@ -52,6 +52,15 @@ var healthOrder = []HealthStatusCode{
 	HealthStatusUnknown,
 }
 
+// IsValidHealthStatusCode returns whether the given code is one of the known health status codes.
+func IsValidHealthStatusCode(statusCode HealthStatusCode) bool {
+	switch statusCode {
+	case HealthStatusUnknown, HealthStatusProgressing, HealthStatusSuspended, HealthStatusHealthy, HealthStatusDegraded, HealthStatusMissing:
+		return true
+	}
+	return false
+}
+
 // IsWorse returns whether or not the new health status code is a worse condition than the current
 func IsWorse(current, new HealthStatusCode) bool {
 	currentIndex := 0

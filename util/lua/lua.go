@@ -32,6 +32,7 @@ import (
 const (
 	incorrectReturnType       = "expect %s output from Lua script, not %s"
 	invalidHealthStatus       = "Lua returned an invalid health status"
+	invalidAggregateAsStatus  = "Lua returned an invalid aggregation status"
 	healthScriptFile          = "health.lua"
 	actionScriptFile          = "action.lua"
 	actionDiscoveryScriptFile = "discovery.lua"
@@ -231,10 +232,17 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 			}
 			return nil, err
 		}
-		if !isValidHealthStatusCode(healthStatus.Status) {
+		if !health.IsValidHealthStatusCode(healthStatus.Status) {
 			return &health.HealthStatus{
 				Status:  health.HealthStatusUnknown,
 				Message: invalidHealthStatus,
+			}, nil
+		}
+		// The aggregateAs status, when specified, must also be a valid health status code.
+		if healthStatus.AggregateAs != "" && !health.IsValidHealthStatusCode(healthStatus.AggregateAs) {
+			return &health.HealthStatus{
+				Status:  health.HealthStatusUnknown,
+				Message: invalidAggregateAsStatus,
 			}, nil
 		}
 
@@ -666,14 +674,6 @@ func getWildcardBuiltInHealthOverrideLua(objKey string) (string, error) {
 		return string(script), nil
 	}
 	return "", nil
-}
-
-func isValidHealthStatusCode(statusCode health.HealthStatusCode) bool {
-	switch statusCode {
-	case health.HealthStatusUnknown, health.HealthStatusProgressing, health.HealthStatusSuspended, health.HealthStatusHealthy, health.HealthStatusDegraded, health.HealthStatusMissing:
-		return true
-	}
-	return false
 }
 
 // Took logic from the link below and added the int, int32, and int64 types since the value would have type int64

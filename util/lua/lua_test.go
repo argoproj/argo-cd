@@ -111,6 +111,25 @@ func TestExecuteHealthStatusWithAggregateAs(t *testing.T) {
 	assert.Equal(t, expectedHealthStatus, status)
 }
 
+func TestExecuteHealthStatusWithInvalidAggregateAs(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	script := `
+		hs = {}
+		hs.status = "Suspended"
+		hs.message = "Resource is suspended"
+		hs.aggregateAs = "Bogus"
+		return hs
+	`
+	status, err := vm.ExecuteHealthLua(testObj, script)
+	require.NoError(t, err)
+	expectedHealthStatus := &health.HealthStatus{
+		Status:  health.HealthStatusUnknown,
+		Message: invalidAggregateAsStatus,
+	}
+	assert.Equal(t, expectedHealthStatus, status)
+}
+
 func TestExecuteWildcardHealthStatusFunction(t *testing.T) {
 	t.Parallel()
 	testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)

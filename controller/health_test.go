@@ -448,6 +448,18 @@ func TestParseHealthAggregateOverrides(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "source and target cannot be empty")
 	})
+
+	t.Run("InvalidFormat_UnknownSourceStatus", func(t *testing.T) {
+		_, err := parseHealthAggregateOverrides("Bogus=Healthy")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown source status")
+	})
+
+	t.Run("InvalidFormat_UnknownTargetStatus", func(t *testing.T) {
+		_, err := parseHealthAggregateOverrides("Suspended=Bogus")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown target status")
+	})
 }
 
 func TestSetApplicationHealth_WithAggregateAsAnnotation(t *testing.T) {
@@ -514,6 +526,52 @@ func TestSetApplicationHealth_WithAggregateAsAnnotation(t *testing.T) {
 		assert.Contains(t, err.Error(), "failed to parse health aggregate overrides annotation")
 		assert.Contains(t, err.Error(), "invalid mapping format")
 	})
+
+	t.Run("UnknownTargetStatusReturnsError", func(t *testing.T) {
+		suspendedJob := resourceFromFile("./testdata/job-suspended.yaml")
+		annotations := suspendedJob.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		// Target status is not a known health status code.
+		annotations["argocd.argoproj.io/health-aggregate-overrides"] = "Suspended=Bogus"
+		suspendedJob.SetAnnotations(annotations)
+
+		resources := []managedResource{{
+			Group: "batch", Version: "v1", Kind: "Job", Live: &suspendedJob,
+		}}
+		resourceStatuses := initStatuses(resources)
+
+		_, _, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse health aggregate overrides annotation")
+		assert.Contains(t, err.Error(), "unknown target status")
+	})
+
+	t.Run("IgnoreHealthCheckTakesPrecedenceOverOverride", func(t *testing.T) {
+		degradedJob := resourceFromFile("./testdata/job-failed.yaml")
+		annotations := degradedJob.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		// ignore-healthcheck should exclude the resource entirely, so the override is never applied.
+		annotations["argocd.argoproj.io/ignore-healthcheck"] = "true"
+		annotations["argocd.argoproj.io/health-aggregate-overrides"] = "Degraded=Progressing"
+		degradedJob.SetAnnotations(annotations)
+
+		runningPod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
+		resources := []managedResource{{
+			Group: "batch", Version: "v1", Kind: "Job", Live: &degradedJob,
+		}, {
+			Group: "", Version: "v1", Kind: "Pod", Live: &runningPod,
+		}}
+		resourceStatuses := initStatuses(resources)
+
+		healthStatus, _, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+		require.NoError(t, err)
+		// The degraded Job is ignored, so the app reflects the remaining healthy Pod, not the Progressing override.
+		assert.Equal(t, health.HealthStatusHealthy, healthStatus)
+	})
 }
 
 func TestSetApplicationHealth_WithLuaAggregateAs(t *testing.T) {
@@ -575,5 +633,31 @@ func TestSetApplicationHealth_WithLuaAggregateAs(t *testing.T) {
 		// Annotation maps Suspended -> Degraded, ignoring Lua's aggregateAs
 		assert.Equal(t, health.HealthStatusDegraded, healthStatus)
 		assert.Equal(t, health.HealthStatusSuspended, resourceStatuses[0].Health.Status)
+	})
+
+	t.Run("InvalidLuaAggregateAsBecomesUnknown", func(t *testing.T) {
+		overrides := lua.ResourceHealthOverrides{
+			lua.GetConfigMapKey(schema.FromAPIVersionAndKind("v1", "Pod")): appv1.ResourceOverride{
+				HealthLua: `
+					hs = {}
+					hs.status = "Suspended"
+					hs.message = "Pod is suspended"
+					hs.aggregateAs = "Bogus"
+					return hs
+				`,
+			},
+		}
+
+		runningPod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
+		resources := []managedResource{{
+			Group: "", Version: "v1", Kind: "Pod", Live: &runningPod,
+		}}
+		resourceStatuses := initStatuses(resources)
+
+		// An invalid aggregateAs coerces the resource to Unknown rather than silently Healthy.
+		healthStatus, _, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
+		require.NoError(t, err)
+		assert.Equal(t, health.HealthStatusUnknown, healthStatus)
+		assert.Equal(t, health.HealthStatusUnknown, resourceStatuses[0].Health.Status)
 	})
 }

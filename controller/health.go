@@ -195,6 +195,13 @@ func parseHealthAggregateOverrides(overrideStr string) (map[string]health.Health
 			return nil, fmt.Errorf("invalid mapping format: %s (source and target cannot be empty)", mapping)
 		}
 
+		if !health.IsValidHealthStatusCode(health.HealthStatusCode(sourceStatus)) {
+			return nil, fmt.Errorf("invalid mapping format: %s (unknown source status %q)", mapping, sourceStatus)
+		}
+		if !health.IsValidHealthStatusCode(health.HealthStatusCode(targetStatus)) {
+			return nil, fmt.Errorf("invalid mapping format: %s (unknown target status %q)", mapping, targetStatus)
+		}
+
 		result[sourceStatus] = health.HealthStatusCode(targetStatus)
 	}
 
