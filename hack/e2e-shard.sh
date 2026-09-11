@@ -12,6 +12,12 @@
 # hack/e2e-shard-weights.sh. Tests missing from that file, including every test when the
 # file does not exist yet, get the mean weight, so the split stays sane between refreshes.
 #
+# Requires a running e2e environment. `go test -list` links and starts the test binary,
+# so test/e2e/fixture's init() runs: it builds clients from the kubeconfig with
+# NewForConfigOrDie and dials the API server via grpcutil.TestTLS. With no reachable
+# server this blocks for the 30s dial timeout and then exits rather than printing names.
+# In CI that is satisfied because the suite runs after `make start-e2e-local`.
+#
 # Only top-level test names are matched. `go test` splits a -run pattern on "/" and
 # applies each element to one nesting level, so a pattern with no "/" filters top-level
 # tests only and every subtest of a selected test still runs.
