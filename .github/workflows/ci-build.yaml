@@ -34,6 +34,8 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend_any_changed }}
       docs: ${{ steps.filter.outputs.docs_any_changed }}
       e2e: ${{ steps.filter.outputs.e2e_any_changed }}
+      e2e_shards: ${{ steps.shards.outputs.list }}
+      e2e_shard_count: ${{ steps.shards.outputs.count }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         if: ${{ vars.disable_harden_runner != 'true' }}
@@ -71,11 +73,6 @@ jobs:
               # re-included below because it defines the job itself.
               - '!.github/**'
               - '.github/workflows/ci-build.yaml'
-              # Lua health checks and custom actions are embedded in the binary, but no test
-              # under test/e2e/ exercises them. They are fully covered by the table-driven
-              # tests in util/lua/health_test.go and util/lua/custom_actions_test.go, which
-              # walk resource_customizations/ and run every testdata case.
-              - '!resource_customizations/**'
               # Consumed by docs generation and the notifications engine's own unit tests.
               - '!notifications_catalog/**'
               # Sample manifests for users; never applied by the e2e fixtures.
@@ -94,6 +91,17 @@ jobs:
               - Dockerfile
             docs:
               - 'docs/**'
+      - name: Compute the e2e shard split
+        id: shards
+        env:
+          SHARD_COUNT: '4'
+        run: |
+          set -eu
+          # awk rather than `seq -s,`: BSD seq appends a trailing separator and GNU does
+          # not, which would emit invalid JSON on a non-GNU runner.
+          list=$(awk -v n="${SHARD_COUNT}" 'BEGIN { printf "["; for (i = 1; i <= n; i++) printf "%s%d", (i > 1 ? "," : ""), i; printf "]" }')
+          echo "count=${SHARD_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "list=${list}" >> "$GITHUB_OUTPUT"
   check-go:
     name: Ensure Go modules synchronicity
     if: ${{ needs.changes.outputs.backend == 'true' }}
@@ -618,8 +626,8 @@ jobs:
           - version: v1.34.11
             latest: false
         # The e2e suite is one serial package; splitting it across jobs is the only way to
-        # cut its wall-clock time. Keep this in sync with ARGOCD_E2E_SHARD_COUNT below.
-        shard: [1, 2, 3, 4]
+        # cut its wall-clock time. Legs and count both come from the changes job.
+        shard: ${{ fromJSON(needs.changes.outputs.e2e_shards) }}
     needs:
       - build-go
       - changes
@@ -629,7 +637,7 @@ jobs:
       ARGOCD_IN_CI: 'true'
       ARGOCD_E2E_APISERVER_PORT: '8088'
       ARGOCD_E2E_SHARD: ${{ matrix.shard }}
-      ARGOCD_E2E_SHARD_COUNT: '4'
+      ARGOCD_E2E_SHARD_COUNT: ${{ needs.changes.outputs.e2e_shard_count }}
       ARGOCD_APPLICATION_NAMESPACES: 'argocd-e2e-external,argocd-e2e-external-2'
       ARGOCD_SERVER: '127.0.0.1:8088'
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
