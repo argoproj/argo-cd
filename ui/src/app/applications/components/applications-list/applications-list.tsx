@@ -419,6 +419,9 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                         // The favorites list is only part of the query while the favorites filter is on, so
                                         // starring an application with the filter off must not restart the list and watch.
                                         input={`${pref.projectsFilter?.join(',')}:${pref.showFavorites}:${pref.showFavorites ? (pref.favoritesAppList || []).join(',') : ''}`}
+                                        // Keep the current list (and with it the filter sidebar) rendered while a filter
+                                        // change reloads the data, instead of dropping to the loading mockup.
+                                        noLoaderOnInputChange={true}
                                         ref={loaderRef}
                                         load={() =>
                                             AppUtils.handlePageVisibility(() =>
