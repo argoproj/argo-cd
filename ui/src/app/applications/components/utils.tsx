@@ -2084,41 +2084,6 @@ export function getManagedByURLFromNode(node: any): string | null {
 }
 
 /**
- * Gets the correct URL for an application link, considering managed-by-url annotation
- * @param app The application object
- * @param baseHref The current instance's base href
- * @param node Optional resource node to get managed-by-url from info field
- * @returns The URL to use for the application link
- */
-export function getApplicationLinkURL(app: any, baseHref: string, node?: any): {url: string; isExternal: boolean} {
-    // First try to get managed-by-url from the node's info field (for nested applications)
-    let managedByURL = node ? getManagedByURLFromNode(node) : null;
-
-    // If not found in node, try the application's metadata
-    if (!managedByURL) {
-        managedByURL = getManagedByURL(app);
-    }
-
-    let url, isExternal;
-    if (managedByURL) {
-        // Validate the managed-by URL using the same validation as external links
-        if (!isValidManagedByURL(managedByURL)) {
-            // If URL is invalid, fall back to local URL for security
-            console.warn(`Invalid managed-by URL for application ${app.metadata.name}: ${managedByURL}`);
-            url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
-            isExternal = false;
-        } else {
-            url = managedByURL + '/applications/' + app.metadata.namespace + '/' + app.metadata.name;
-            isExternal = true;
-        }
-    } else {
-        url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
-        isExternal = false;
-    }
-    return {url, isExternal};
-}
-
-/**
  * Gets the correct URL for an application link from a resource node, considering managed-by-url annotation
  * @param node The resource node representing an application
  * @param baseHref The current instance's base href
