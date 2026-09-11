@@ -38,7 +38,7 @@ So you can just use them instead of reinventing new ones.
     kubectl patch cm argocd-notifications-cm -n argocd --type merge -p '{"data": {"service.email": "{ username: $email-username, password: $email-password, host: smtp.gmail.com, port: 465, from: $email-username }" }}'
     ```
 
-* Subscribe to notifications by adding the `notifications.argoproj.io/subscribe.on-sync-succeeded.slack` annotation to the Argo CD application or project:
+* Subscribe to notifications by adding the `notifications.argoproj.io/subscribe.on-sync-succeeded.email` annotation to the Argo CD application or project:
 
     ```bash
     kubectl patch app <my-app> -n argocd -p '{"metadata": {"annotations": {"notifications.argoproj.io/subscribe.on-sync-succeeded.email":"<my-email-address>"}}}' --type merge
