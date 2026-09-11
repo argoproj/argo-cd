@@ -357,12 +357,6 @@
         top: 7px;
     }
 
-    &__node-content {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
     &__node-kind-icon {
         text-align: center;
         position: absolute;
@@ -435,6 +429,9 @@
     }
 
     &__node-content {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
         padding: 10px 20px 10px 10px;
         line-height: 0.95;
         display: flex;
