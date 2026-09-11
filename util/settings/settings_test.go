@@ -1055,6 +1055,21 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 	})
 }
 
+func TestSettingsManager_GetManifestCodecSettings(t *testing.T) {
+	_, settingsManager := fixtures(t.Context(), map[string]string{
+		"resource.manifest.storage":     "msgpack",
+		"resource.manifest.compression": "s2-encode",
+	})
+
+	storage, err := settingsManager.GetManifestStorage()
+	require.NoError(t, err)
+	assert.Equal(t, "msgpack", storage)
+
+	compression, err := settingsManager.GetManifestCompression()
+	require.NoError(t, err)
+	assert.Equal(t, "s2-encode", compression)
+}
+
 func TestGetOIDCConfig(t *testing.T) {
 	testCases := []struct {
 		name          string
