@@ -11,7 +11,7 @@ import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewKey, AppsListViewType, AppSetsListPreferences, HealthStatusBarPreferences, services, ViewPreferences} from '../../../shared/services';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useObservableQuery} from '../../../shared/hooks/query';
-import {isInvalidRegex} from '../../../shared/utils';
+import {gotoIfQueryChanged, isInvalidRegex} from '../../../shared/utils';
 import * as AppUtils from '../utils';
 import {AppSetsFilter, ApplicationSetFilteredApp, getAppSetFilterResults} from './applications-filter';
 import {createMatcher} from './applications-list-search';
@@ -372,15 +372,12 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
 
     function onAppSetFilterPrefChanged(ctx: ContextApis, newPref: AppSetsListPreferences) {
         services.viewPreferences.updatePreferences({appList: newPref as AppsListPreferences});
-        ctx.navigation.goto(
-            '.',
-            {
-                health: newPref.healthFilter.join(','),
-                labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
-                showFavorites: newPref.showFavorites ? 'true' : null
-            },
-            {replace: true}
-        );
+        const params = {
+            health: newPref.healthFilter.join(','),
+            labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
+            showFavorites: newPref.showFavorites ? 'true' : null
+        };
+        gotoIfQueryChanged(ctx.navigation, params);
     }
 
     function getPageTitle(view: string) {

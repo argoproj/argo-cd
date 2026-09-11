@@ -24,7 +24,7 @@ import {FlexTopBar} from '../../../shared/components';
 import {ViewTypeSwitcher} from './view-type-switcher';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
-import {isInvalidRegex} from '../../../shared/utils';
+import {gotoIfQueryChanged, isInvalidRegex} from '../../../shared/utils';
 
 import './applications-list.scss';
 
@@ -351,25 +351,22 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
 
     function onAppFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
         services.viewPreferences.updatePreferences({appList: newPref});
-        ctx.navigation.goto(
-            '.',
-            {
-                proj: newPref.projectsFilter.join(','),
-                sync: newPref.syncFilter.join(','),
-                autoSync: newPref.autoSyncFilter.join(','),
-                health: newPref.healthFilter.join(','),
-                namespace: newPref.namespacesFilter.join(','),
-                targetRevision: newPref.targetRevisionFilter.map(encodeURIComponent).join(','),
-                repo: newPref.reposFilter.map(encodeURIComponent).join(','),
-                cluster: newPref.clustersFilter.join(','),
-                labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
-                annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),
-                operation: newPref.operationFilter.join(','),
-                // Keep URL and preferences consistent. When false, remove the param entirely.
-                showFavorites: newPref.showFavorites ? 'true' : null
-            },
-            {replace: true}
-        );
+        const params = {
+            proj: newPref.projectsFilter.join(','),
+            sync: newPref.syncFilter.join(','),
+            autoSync: newPref.autoSyncFilter.join(','),
+            health: newPref.healthFilter.join(','),
+            namespace: newPref.namespacesFilter.join(','),
+            targetRevision: newPref.targetRevisionFilter.map(encodeURIComponent).join(','),
+            repo: newPref.reposFilter.map(encodeURIComponent).join(','),
+            cluster: newPref.clustersFilter.join(','),
+            labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
+            annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),
+            operation: newPref.operationFilter.join(','),
+            // Keep URL and preferences consistent. When false, remove the param entirely.
+            showFavorites: newPref.showFavorites ? 'true' : null
+        };
+        gotoIfQueryChanged(ctx.navigation, params);
     }
 
     function getPageTitle(view: string) {

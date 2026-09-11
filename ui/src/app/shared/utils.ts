@@ -1,3 +1,4 @@
+import {NavigationApi} from 'argo-ui';
 import {useCallback, useSyncExternalStore} from 'react';
 import type {CSSProperties} from 'react';
 import {AuthSettings, Cluster, UserInfo} from './models';
@@ -208,4 +209,44 @@ export function isSSOConfigured(userInfo: UserInfo | null | undefined, authSetti
     const hasDexConnectors = (authSettings.dexConfig?.connectors?.length ?? 0) > 0;
     const hasOidcConfig = !!authSettings.oidcConfig;
     return isExternalIssuer && (hasDexConnectors || hasOidcConfig);
+}
+
+/**
+ * Checks whether merging the given query parameters into a search string would change it, following
+ * how NavigationApi.goto merges them.
+ */
+function queryParamsChanged(search: string, params: {[name: string]: any}): boolean {
+    const current = new URLSearchParams(search);
+    const next = new URLSearchParams(search);
+    for (const [name, value] of Object.entries(params)) {
+        next.delete(name);
+        if (value === undefined || value === null) {
+            continue;
+        }
+        if (value instanceof Array) {
+            for (const item of value) {
+                next.append(name, item);
+            }
+        } else {
+            next.set(name, value);
+        }
+    }
+    // goto moves the parameters it sets to the end, which is not a real change.
+    current.sort();
+    next.sort();
+    return next.toString() !== current.toString();
+}
+
+/**
+ * Replaces the current URL with the given query parameters, unless they leave it unchanged. Filters
+ * report their state up when they mount, so a remount would otherwise write the same query string
+ * once per filter. Browsers rate limit history updates and throw once the cap is hit.
+ * @param navigation - The navigation API to replace the URL with
+ * @param params - The query parameters to merge into the current URL
+ */
+export function gotoIfQueryChanged(navigation: NavigationApi, params: {[name: string]: any}): void {
+    if (!queryParamsChanged(window.location.search, params)) {
+        return;
+    }
+    navigation.goto('.', params, {replace: true});
 }
