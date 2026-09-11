@@ -89,16 +89,14 @@ func (rg *RepoGenerator) Generate(opts *util.GenerateOpts) error {
 	rg.bar.NewOption(0, int64(len(repos)))
 	for _, repo := range repos {
 		_, err = secrets.Create(context.TODO(), &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				GenerateName: "repo-",
-				Namespace:    opts.Namespace,
-				Labels: map[string]string{
-					"app.kubernetes.io/generated-by": "argocd-generator",
-					"argocd.argoproj.io/secret-type": "repository",
-				},
-				Annotations: map[string]string{
-					"managed-by": "argocd.argoproj.io",
-				},
+			GenerateName: "repo-",
+			Namespace:    opts.Namespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/generated-by": "argocd-generator",
+				"argocd.argoproj.io/secret-type": "repository",
+			},
+			Annotations: map[string]string{
+				"managed-by": "argocd.argoproj.io",
 			},
 			Data: map[string][]byte{
 				"type":    []byte("git"),
@@ -117,7 +115,7 @@ func (rg *RepoGenerator) Generate(opts *util.GenerateOpts) error {
 }
 
 func (rg *RepoGenerator) Clean(opts *util.GenerateOpts) error {
-	log.Printf("Clean repos")
+	log.Print("Clean repos")
 	secrets := rg.clientSet.CoreV1().Secrets(opts.Namespace)
 	return secrets.DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/generated-by=argocd-generator",

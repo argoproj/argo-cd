@@ -35,13 +35,13 @@ So you can just use them instead of reinventing new ones.
 * Register email notification service
 
     ```bash
-    kubectl patch cm argocd-notifications-cm -n argocd --type merge -p '{"data": {"service.email.gmail": "{ username: $email-username, password: $email-password, host: smtp.gmail.com, port: 465, from: $email-username }" }}'
+    kubectl patch cm argocd-notifications-cm -n argocd --type merge -p '{"data": {"service.email": "{ username: $email-username, password: $email-password, host: smtp.gmail.com, port: 465, from: $email-username }" }}'
     ```
 
-* Subscribe to notifications by adding the `notifications.argoproj.io/subscribe.on-sync-succeeded.slack` annotation to the Argo CD application or project:
+* Subscribe to notifications by adding the `notifications.argoproj.io/subscribe.on-sync-succeeded.email` annotation to the Argo CD application or project:
 
     ```bash
-    kubectl patch app <my-app> -n argocd -p '{"metadata": {"annotations": {"notifications.argoproj.io/subscribe.on-sync-succeeded.slack":"<my-channel>"}}}' --type merge
+    kubectl patch app <my-app> -n argocd -p '{"metadata": {"annotations": {"notifications.argoproj.io/subscribe.on-sync-succeeded.email":"<my-email-address>"}}}' --type merge
     ```
 
 Try syncing an application to get notified when the sync is completed.
@@ -68,6 +68,19 @@ metadata:
 data:
   application.namespaces: app-team-one, app-team-two
   notificationscontroller.selfservice.enabled: "true"
+```
+
+Other notifications controller startup settings can be managed the same way. For notifications-heavy
+installations, `notificationscontroller.processors.count` configures the worker concurrency and maps
+to the `--processors-count` startup flag. For example:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  notificationscontroller.processors.count: "4"
 ```
 
 To use this feature, you can deploy configmap named `argocd-notifications-cm` and possibly a secret `argocd-notifications-secret` in the namespace where the Argo CD application lives.
@@ -112,4 +125,4 @@ metadata:
 > When the same notification service and trigger are defined in controller level configuration and application level configuration,
 > both notifications will be sent according to its own configuration.
 
-[Defining and using secrets within notification templates](templates/#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.
+[Defining and using secrets within notification templates](templates.md#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.

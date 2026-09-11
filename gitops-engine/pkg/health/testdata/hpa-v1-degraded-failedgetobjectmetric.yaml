@@ -1,0 +1,17 @@
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  annotations:
+    autoscaling.alpha.kubernetes.io/conditions: '[{"type":"AbleToScale","status":"True","lastTransitionTime":"2025-01-15T10:30:00Z","reason":"SucceededGetScale","message":"the HPA controller was able to get the target''s current scale"},{"type":"ScalingActive","status":"False","lastTransitionTime":"2025-01-15T10:30:15Z","reason":"FailedGetObjectMetric","message":"the HPA was unable to compute the replica count: unable to get metric tomcat_sessions_active_current_sessions: Service on namespace sample-service/unable to fetch metrics from custom metrics API: the server could not find the metric tomcat_sessions_active_current_sessions for services"}]'
+  name: sample-object-metric-failed
+  namespace: argocd
+spec:
+  maxReplicas: 8
+  minReplicas: 2
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sample
+status:
+  currentReplicas: 2
+  desiredReplicas: 0

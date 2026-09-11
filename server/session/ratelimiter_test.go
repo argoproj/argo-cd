@@ -11,9 +11,10 @@ import (
 )
 
 func TestRateLimiter(t *testing.T) {
+	t.Parallel()
 	var closers []utilio.Closer
 	limiter := NewLoginRateLimiter(10)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		closer, err := limiter()
 		require.NoError(t, err)
 		closers = append(closers, closer)

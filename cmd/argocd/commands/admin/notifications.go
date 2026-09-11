@@ -1,9 +1,11 @@
 package admin
 
 import (
+	"context"
 	"log"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -31,12 +33,14 @@ func NewNotificationsCommand() *cobra.Command {
 
 	var argocdService service.Service
 
+	var repoServerClientTLSConfigSrc func() (tls.Configuration, error)
+
 	toolsCommand := cmd.NewToolsCommand(
 		"notifications",
 		"argocd admin notifications",
 		applications,
 		settings.GetFactorySettingsForCLI(func() service.Service { return argocdService }, "argocd-notifications-secret", "argocd-notifications-cm", false),
-		func(clientConfig clientcmd.ClientConfig) {
+		func(_ context.Context, clientConfig clientcmd.ClientConfig) {
 			k8sCfg, err := clientConfig.ClientConfig()
 			if err != nil {
 				log.Fatalf("Failed to parse k8s config: %v", err)
@@ -45,11 +49,13 @@ func NewNotificationsCommand() *cobra.Command {
 			if err != nil {
 				log.Fatalf("Failed to parse k8s config: %v", err)
 			}
-			tlsConfig := apiclient.TLSConfiguration{
-				DisableTLS:       argocdRepoServerPlaintext,
-				StrictValidation: argocdRepoServerStrictTLS,
+			tlsConfig, err := repoServerClientTLSConfigSrc()
+			if err != nil {
+				log.Fatalf("Failed to get repo-server client TLS configuration: %v", err)
 			}
-			if !tlsConfig.DisableTLS && tlsConfig.StrictValidation {
+			tlsConfig.DisableTLS = argocdRepoServerPlaintext
+			tlsConfig.StrictValidation = argocdRepoServerStrictTLS || tlsConfig.StrictValidation
+			if !tlsConfig.DisableTLS && tlsConfig.StrictValidation && tlsConfig.Certificates == nil {
 				pool, err := tls.LoadX509CertPool(
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/tls.crt",
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/ca.crt",
@@ -60,7 +66,11 @@ func NewNotificationsCommand() *cobra.Command {
 				tlsConfig.Certificates = pool
 			}
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, 5, tlsConfig)
-			argocdService, err = service.NewArgoCDService(kubernetes.NewForConfigOrDie(k8sCfg), ns, repoClientset)
+			dynamicClient, err := dynamic.NewForConfig(k8sCfg)
+			if err != nil {
+				log.Fatalf("Failed to create dynamic client: %v", err)
+			}
+			argocdService, err = service.NewArgoCDService(kubernetes.NewForConfigOrDie(k8sCfg), dynamicClient, ns, repoClientset)
 			if err != nil {
 				log.Fatalf("Failed to initialize Argo CD service: %v", err)
 			}
@@ -68,5 +78,9 @@ func NewNotificationsCommand() *cobra.Command {
 	toolsCommand.PersistentFlags().StringVar(&argocdRepoServer, "argocd-repo-server", common.DefaultRepoServerAddr, "Argo CD repo server address")
 	toolsCommand.PersistentFlags().BoolVar(&argocdRepoServerPlaintext, "argocd-repo-server-plaintext", false, "Use a plaintext client (non-TLS) to connect to repository server")
 	toolsCommand.PersistentFlags().BoolVar(&argocdRepoServerStrictTLS, "argocd-repo-server-strict-tls", false, "Perform strict validation of TLS certificates when connecting to repo server")
+	if err := toolsCommand.PersistentFlags().MarkDeprecated("argocd-repo-server-strict-tls", "use --argocd-repo-server-ca-cert-path instead"); err != nil {
+		log.Fatal(err)
+	}
+	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmd(toolsCommand)
 	return toolsCommand
 }

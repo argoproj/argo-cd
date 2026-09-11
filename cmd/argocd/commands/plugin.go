@@ -35,7 +35,7 @@ func NewDefaultPluginHandler() *DefaultPluginHandler {
 // HandleCommandExecutionError processes the error returned from executing the command.
 // It handles both standard Argo CD commands and plugin commands. We don't require returning
 // an error, but we are doing it to cover various test scenarios.
-func (h *DefaultPluginHandler) HandleCommandExecutionError(err error, isArgocdCLI bool, args []string) error {
+func (h *DefaultPluginHandler) HandleCommandExecutionError(err error, isArgocdCLI bool, args []string) (msg string, retErr error) {
 	// the log level needs to be setup manually here since the initConfig()
 	// set by the cobra.OnInitialize() was never executed because cmd.Execute()
 	// gave us a non-nil error.
@@ -51,19 +51,16 @@ func (h *DefaultPluginHandler) HandleCommandExecutionError(err error, isArgocdCL
 		// This means the command is neither a normal Argo CD Command nor a plugin.
 		if pluginErr != nil {
 			// If plugin handling fails, report the plugin error and exit
-			fmt.Printf("Error: %v\n", pluginErr)
-			return pluginErr
+			return fmt.Sprintf("Error: %v\n", pluginErr), pluginErr
 		} else if pluginPath == "" {
-			fmt.Printf("Error: %v\nRun 'argocd --help' for usage.\n", err)
-			return err
+			return fmt.Sprintf("Error: %v\nRun 'argocd --help' for usage.\n", err), err
 		}
 	} else {
 		// If it's any other error (not an unknown command), report it directly and exit
-		fmt.Printf("Error: %v\n", err)
-		return err
+		return fmt.Sprintf("Error: %v\n", err), err
 	}
 
-	return nil
+	return "", nil
 }
 
 // handlePluginCommand is  responsible for finding and executing a plugin when a command isn't recognized as a built-in command
@@ -170,9 +167,9 @@ func (h *DefaultPluginHandler) ListAvailablePlugins() []string {
 
 			// Check if the file is a valid argocd plugin
 			pluginPrefix := prefix + "-"
-			if strings.HasPrefix(name, pluginPrefix) {
+			if after, ok := strings.CutPrefix(name, pluginPrefix); ok {
 				// Extract the plugin command name (everything after the prefix)
-				pluginName := strings.TrimPrefix(name, pluginPrefix)
+				pluginName := after
 
 				// Skip empty plugin names or names with path separators
 				if pluginName == "" || strings.Contains(pluginName, "/") || strings.Contains(pluginName, "\\") {

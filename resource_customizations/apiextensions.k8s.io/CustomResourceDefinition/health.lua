@@ -46,9 +46,15 @@ for _, condition in pairs(obj.status.conditions) do
     end
 
     -- Checking if CRD is established
-    if condition.type == "Established" and condition.status == "True" then
-        isEstablished = true
-        conditionMsg = condition.message
+    if condition.type == "Established" then
+        if condition.status == "True" then
+            isEstablished = true
+            conditionMsg = condition.message
+        elseif condition.reason == "Installing" then
+            hs.status = "Progressing"
+            hs.message = "CRD is being installed"
+            return hs
+        end
     end
 end
 

@@ -12,6 +12,7 @@ import (
 )
 
 func TestSecureMkdirAllDefault(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 
 	unsafePath := "test/dir"
@@ -23,6 +24,7 @@ func TestSecureMkdirAllDefault(t *testing.T) {
 }
 
 func TestSecureMkdirAllWithExistingDir(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	unsafePath := "existing/dir"
 
@@ -35,6 +37,7 @@ func TestSecureMkdirAllWithExistingDir(t *testing.T) {
 }
 
 func TestSecureMkdirAllWithFile(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	unsafePath := "file.txt"
 
@@ -48,6 +51,7 @@ func TestSecureMkdirAllWithFile(t *testing.T) {
 }
 
 func TestSecureMkdirAllDotDotPath(t *testing.T) {
+	t.Parallel()
 	root := t.TempDir()
 	unsafePath := "../outside"
 

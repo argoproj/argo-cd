@@ -1,0 +1,18 @@
+discoveryTests:
+  - inputPath: testdata/ready.yaml
+    result:
+      - name: pause
+        disabled: false
+        iconClass: fa fa-fw fa-pause-circle
+      - name: unpause
+        disabled: true
+        iconClass: fa fa-fw fa-play-circle
+
+  - inputPath: testdata/paused.yaml
+    result:
+      - name: pause
+        disabled: true
+        iconClass: fa fa-fw fa-pause-circle
+      - name: unpause
+        disabled: false
+        iconClass: fa fa-fw fa-play-circle

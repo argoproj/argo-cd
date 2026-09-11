@@ -7,6 +7,7 @@ import (
 )
 
 func TestMergeStringMaps(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		args []map[string]string
@@ -59,6 +60,7 @@ func TestMergeStringMaps(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equalf(t, tt.want, Merge(tt.args...), "Merge[string, string](%v)", tt.args)
 		})
 	}

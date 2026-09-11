@@ -1,10 +1,13 @@
 package sharding
 
 import (
+	"maps"
+	"strconv"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/db"
 )
@@ -18,6 +21,7 @@ type ClusterShardingCache interface {
 	DeleteApp(a *v1alpha1.Application)
 	UpdateApp(a *v1alpha1.Application)
 	IsManagedCluster(c *v1alpha1.Cluster) bool
+	IsManagedClusterByServer(server string) (managed bool, known bool)
 	GetDistribution() map[string]int
 	GetAppDistribution() map[string]int
 	UpdateShard(shard int) bool
@@ -60,13 +64,35 @@ func (sharding *ClusterSharding) IsManagedCluster(c *v1alpha1.Cluster) bool {
 	if c == nil { // nil cluster (in-cluster) is always managed by current clusterShard
 		return true
 	}
+	return sharding.isManagedShard(c.Server, c.Annotations)
+}
+
+// IsManagedClusterByServer is IsManagedCluster by server URL. known reports whether the cache
+// holds a cluster for that server; when it doesn't, managed is true, mirroring IsManagedCluster(nil).
+func (sharding *ClusterSharding) IsManagedClusterByServer(server string) (bool, bool) {
+	sharding.lock.RLock()
+	defer sharding.lock.RUnlock()
+	c, ok := sharding.Clusters[server]
+	if !ok {
+		return true, false
+	}
+	return sharding.isManagedShard(server, c.Annotations), true
+}
+
+// isManagedShard reports whether the cluster identified by the given server URL and annotations
+// belongs to this shard. Callers must hold at least the read lock.
+func (sharding *ClusterSharding) isManagedShard(server string, annotations map[string]string) bool {
+	if skipReconcile, err := strconv.ParseBool(annotations[common.AnnotationKeyAppSkipReconcile]); err == nil && skipReconcile {
+		log.Debugf("Cluster %s has %s annotation set, skipping", server, common.AnnotationKeyAppSkipReconcile)
+		return false
+	}
 	clusterShard := 0
-	if shard, ok := sharding.Shards[c.Server]; ok {
+	if shard, ok := sharding.Shards[server]; ok {
 		clusterShard = shard
 	} else {
-		log.Warnf("The cluster %s has no assigned shard.", c.Server)
+		log.Warnf("The cluster %s has no assigned shard.", server)
 	}
-	log.Debugf("Checking if cluster %s with clusterShard %d should be processed by shard %d", c.Server, clusterShard, sharding.Shard)
+	log.Debugf("Checking if cluster %s with clusterShard %d should be processed by shard %d", server, clusterShard, sharding.Shard)
 	return clusterShard == sharding.Shard
 }
 
@@ -134,9 +160,7 @@ func (sharding *ClusterSharding) GetDistribution() map[string]int {
 	shards := sharding.Shards
 
 	distribution := make(map[string]int, len(shards))
-	for k, v := range shards {
-		distribution[k] = v
-	}
+	maps.Copy(distribution, shards)
 	return distribution
 }
 
@@ -247,7 +271,7 @@ func (sharding *ClusterSharding) UpdateApp(a *v1alpha1.Application) {
 	}
 }
 
-// GetAppDistribution should be not be called from a DestributionFunction because
+// GetAppDistribution should be not be called from a DistributionFunction because
 // it could cause a deadlock when updateDistribution is called.
 func (sharding *ClusterSharding) GetAppDistribution() map[string]int {
 	sharding.lock.RLock()

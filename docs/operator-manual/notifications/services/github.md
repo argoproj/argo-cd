@@ -108,10 +108,13 @@ template.app-deployed: |
 
 - If the message is set to 140 characters or more, it will be truncated.
 - If `github.repoURLPath` and `github.revisionPath` are same as above, they can be omitted.
-- Automerge is optional and `true` by default for github deployments to ensure the requested ref is up to date with the default branch.
+- Automerge is optional and `true` by default for github deployments to ensure the requested ref is up-to-date with the default branch.
   Setting this option to `false` is required if you would like to deploy older refs in your default branch.
   For more information see the [GitHub Deployment API Docs](https://docs.github.com/en/rest/deployments/deployments?apiVersion=2022-11-28#create-a-deployment).
 - If `github.pullRequestComment.content` is set to 65536 characters or more, it will be truncated.
 - The `github.pullRequestComment.commentTag` parameter is used to identify the comment. If a comment with the specified tag is found, it will be updated (upserted). If no comment with the tag is found, a new comment will be created.
 - Reference is optional. When set, it will be used as the ref to deploy. If not set, the revision will be used as the ref to deploy.
 
+## Commit Statuses
+
+The [method for generating commit statuses](https://docs.github.com/en/rest/commits/statuses?apiVersion=2022-11-28#create-a-commit-status) allows a maximum of 1000 attempts using the same commit SHA and context. Once this limit is reached, the API returns validation errors (HTTP 422). The notification engine ignores these errors and marks the notification attempts as completed.

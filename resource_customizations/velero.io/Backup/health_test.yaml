@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "Backup completed"
+    inputPath: testdata/completed.yaml
+  - healthStatus:
+      status: Progressing
+      message: "InProgress"
+    inputPath: testdata/inprogress.yaml
+  - healthStatus:
+      status: Degraded
+      message: "found a backup with a missing volume snapshot"
+    inputPath: testdata/failed.yaml
+  - healthStatus:
+      status: Degraded
+      message: "PartiallyFailed"
+    inputPath: testdata/partiallyfailed.yaml

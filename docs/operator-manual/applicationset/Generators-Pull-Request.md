@@ -282,7 +282,8 @@ You can use branch `filters` like
 - `branchMatch`: Optional regexp filter which should match the source branch name.
 - `targetBranchMatch`: Optional regexp filter which should match destination branch name.
 
-> Note: Labels are not supported by Bitbucket.
+> [!NOTE]
+> Labels are not supported by Bitbucket.
 
 If you want to access a private repository, Argo CD will need credentials to access repository in Bitbucket Cloud. You can use Bitbucket App Password (generated per user, with access to whole workspace), or Bitbucket App Token (generated per repository, with access limited to repository scope only). If both App Password and App Token are defined, App Token will be used.
 
@@ -453,7 +454,7 @@ When using a Pull Request generator, the ApplicationSet controller polls every `
 The configuration is almost the same as the one described [in the Git generator](Generators-Git.md), but there is one difference: if you want to use the Pull Request Generator as well, additionally configure the following settings.
 
 > [!NOTE]
-> The ApplicationSet controller webhook does not use the same webhook as the API server as defined [here](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
+> The ApplicationSet controller webhook does not use the same [API server webhook](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
 
 ### Github webhook configuration
 

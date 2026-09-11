@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 )
 
 // Resource holds the information about Kubernetes resource, ownership references and optional information
@@ -24,8 +24,16 @@ type Resource struct {
 	CreationTimestamp *metav1.Time
 	// Optional additional information about the resource
 	Info any
-	// Optional whole resource manifest
+	// Resource stores the raw manifest when compression is disabled (original behavior)
 	Resource *unstructured.Unstructured
+	// compressedManifest stores the compressed serialized manifest when compression is enabled.
+	// Use SetManifest/GetManifest to access.
+	compressedManifest []byte
+
+	// manifestStorage records which serialization format was used
+	manifestStorage ManifestStorageType
+	// manifestCompression records which compression algorithm was used
+	manifestCompression ManifestCompressionType
 
 	// answers if resource is inferred parent of provided resource
 	isInferredParentOf func(key kube.ResourceKey) bool
@@ -76,16 +84,16 @@ func (r *Resource) toOwnerRef() metav1.OwnerReference {
 }
 
 // iterateChildrenV2 is a depth-first traversal of the graph of resources starting from the current resource.
-func (r *Resource) iterateChildrenV2(graph map[kube.ResourceKey]map[types.UID]*Resource, ns map[kube.ResourceKey]*Resource, visited map[kube.ResourceKey]int, action func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool) {
+func (r *Resource) iterateChildrenV2(graph map[kube.ResourceKey]map[types.UID]*Resource, ns map[kube.ResourceKey]*Resource, actionCallState map[kube.ResourceKey]callState, action func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool) {
 	key := r.ResourceKey()
-	if visited[key] == 2 {
+	if actionCallState[key] == completed {
 		return
 	}
 	// this indicates that we've started processing this node's children
-	visited[key] = 1
+	actionCallState[key] = inProgress
 	defer func() {
 		// this indicates that we've finished processing this node's children
-		visited[key] = 2
+		actionCallState[key] = completed
 	}()
 	children, ok := graph[key]
 	if !ok || children == nil {
@@ -94,14 +102,80 @@ func (r *Resource) iterateChildrenV2(graph map[kube.ResourceKey]map[types.UID]*R
 	for _, child := range children {
 		childKey := child.ResourceKey()
 		// For cross-namespace relationships, child might not be in ns, so use it directly from graph
-		switch visited[childKey] {
-		case 1:
+		switch actionCallState[childKey] {
+		case inProgress:
 			// Since we encountered a node that we're currently processing, we know we have a circular dependency.
 			_ = action(fmt.Errorf("circular dependency detected. %s is child and parent of %s", childKey.String(), key.String()), child, ns)
-		case 0:
+		case notCalled:
 			if action(nil, child, ns) {
-				child.iterateChildrenV2(graph, ns, visited, action)
+				child.iterateChildrenV2(graph, ns, actionCallState, action)
 			}
 		}
 	}
+}
+
+// SetManifest compresses and stores the resource manifest using the default codec
+// (JSON serialization + gzip-bestspeed compression).
+// Pass nil to clear the stored manifest.
+func (r *Resource) SetManifest(un *unstructured.Unstructured) error {
+	if un == nil {
+		r.compressedManifest = nil
+		return nil
+	}
+	return r.SetManifestWithCodec(un, ManifestStorageJSON, ManifestCompressionGZipBestSpeed)
+}
+
+// SetManifestWithCodec serializes and compresses the resource manifest using the specified
+// storage type and compression type.
+func (r *Resource) SetManifestWithCodec(un *unstructured.Unstructured, storageType ManifestStorageType, compressionType ManifestCompressionType) error {
+	if un == nil {
+		r.compressedManifest = nil
+		return nil
+	}
+
+	storageType = normalizeManifestStorageType(storageType)
+	compressionType = normalizeManifestCompressionType(compressionType)
+
+	data, err := serializeManifestObject(un.Object, storageType)
+	if err != nil {
+		return fmt.Errorf("failed to serialize manifest (storage=%s): %w", storageType, err)
+	}
+
+	compressed, err := compressManifestData(data, compressionType)
+	if err != nil {
+		return fmt.Errorf("failed to compress manifest (compression=%s): %w", compressionType, err)
+	}
+
+	r.compressedManifest = compressed
+	r.manifestStorage = storageType
+	r.manifestCompression = compressionType
+	return nil
+}
+
+// GetManifest returns the stored resource manifest.
+// Always returns a new object; callers may mutate it without affecting the cache.
+func (r *Resource) GetManifest() (*unstructured.Unstructured, error) {
+	if r.Resource != nil {
+		return r.Resource.DeepCopy(), nil
+	}
+	if r.compressedManifest == nil {
+		return nil, nil
+	}
+
+	data, err := decompressManifestData(r.compressedManifest, r.manifestCompression)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decompress manifest (compression=%s): %w", r.manifestCompression, err)
+	}
+
+	obj, err := deserializeManifestObject(data, r.manifestStorage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to deserialize manifest (storage=%s): %w", r.manifestStorage, err)
+	}
+
+	return &unstructured.Unstructured{Object: obj}, nil
+}
+
+// HasManifest returns true if a manifest is stored (either raw or compressed).
+func (r *Resource) HasManifest() bool {
+	return r.Resource != nil || r.compressedManifest != nil
 }

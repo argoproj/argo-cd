@@ -12,6 +12,7 @@ argocd app delete-resource APPNAME [flags]
 
 ```
       --all                    Indicates whether to patch multiple matching of resources
+  -N, --app-namespace string   Namespace of the application
       --force                  Indicates whether to force delete the resource
       --group string           Group
   -h, --help                   help for delete-resource

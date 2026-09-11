@@ -71,7 +71,7 @@ The settings are largely the same with a few changes in the Okta app configurati
 
 Using this deployment model, the user connects to the private Argo CD UI and the Okta authentication flow seamlessly redirects back to the private UI URL.
 
-Often this public endpoint is exposed through an [Ingress object](../../ingress/#private-argo-cd-ui-with-multiple-ingress-objects-and-byo-certificate).
+Often this public endpoint is exposed through an [Ingress object](../ingress.md#private-argo-cd-ui-with-multiple-ingress-objects-and-byo-certificate).
 
 
 1. Update the URLs in the Okta app's General settings

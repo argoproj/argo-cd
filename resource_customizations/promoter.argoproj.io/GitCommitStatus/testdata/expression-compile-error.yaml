@@ -1,0 +1,26 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: GitCommitStatus
+metadata:
+  name: git-commit-check
+  namespace: gitops-promoter
+  generation: 1
+spec:
+  description: Commit subject must start with 'chore:'
+  expression: Commit.Subject.startsWith("chore:")
+  key: git-commit-check
+  promotionStrategyRef:
+    name: demo
+  target: proposed
+status:
+  conditions:
+    - lastTransitionTime: '2026-04-05T17:54:11Z'
+      message: >-
+        Reconciliation failed: failed to process environments: failed to
+        evaluate expression for branch "env/dev": failed to compile expression:
+        failed to compile expression: type string has no method startsWith (1:16)
+         | Commit.Subject.startsWith("chore:")
+         | ...............^
+      observedGeneration: 1
+      reason: ReconciliationError
+      status: 'False'
+      type: Ready

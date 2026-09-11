@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 	"time"
@@ -115,9 +116,7 @@ func (g *PluginGenerator) generateParams(appSetGenerator *argoprojiov1alpha1.App
 		params := map[string]any{}
 
 		if useGoTemplate {
-			for k, v := range objectFound {
-				params[k] = v
-			}
+			maps.Copy(params, objectFound)
 		} else {
 			flat, err := flatten.Flatten(objectFound, "", flatten.DotStyle)
 			if err != nil {

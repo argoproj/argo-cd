@@ -1,0 +1,17 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: ClusterScmProvider
+metadata:
+  name: github-enterprise
+  generation: 1
+spec:
+  secretRef:
+    name: github-app-secret
+  github:
+    appID: 1
+status:
+  conditions:
+    - type: Ready
+      status: "False"
+      reason: ReconciliationError
+      message: "Reconciliation failed: invalid credentials"
+      observedGeneration: 1

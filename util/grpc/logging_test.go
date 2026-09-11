@@ -17,6 +17,7 @@ import (
 )
 
 func Test_JSONLogging(t *testing.T) {
+	t.Parallel()
 	l := logrus.New()
 	l.SetFormatter(&logrus.JSONFormatter{})
 	var buf bytes.Buffer
@@ -42,6 +43,7 @@ func Test_JSONLogging(t *testing.T) {
 }
 
 func Test_logRequest(t *testing.T) {
+	t.Parallel()
 	c := t.Context()
 	//nolint:staticcheck
 	c = context.WithValue(c, "claims", jwt.MapClaims{"groups": []string{"expected-group-claim"}})
@@ -56,6 +58,7 @@ func Test_logRequest(t *testing.T) {
 	}
 
 	t.Run("with debug enabled, group claims are logged", func(t *testing.T) {
+		t.Parallel()
 		l := logrus.New()
 		l.SetFormatter(&logrus.JSONFormatter{})
 		var buf bytes.Buffer
@@ -73,6 +76,7 @@ func Test_logRequest(t *testing.T) {
 	})
 
 	t.Run("with debug not enabled, group claims aren't logged", func(t *testing.T) {
+		t.Parallel()
 		l := logrus.New()
 		l.SetFormatter(&logrus.JSONFormatter{})
 		var buf bytes.Buffer

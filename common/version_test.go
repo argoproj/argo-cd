@@ -8,6 +8,7 @@ import (
 )
 
 func TestGetVersion(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name           string
 		inputGitCommit string

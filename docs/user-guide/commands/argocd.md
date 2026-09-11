@@ -2,7 +2,7 @@
 
 ## argocd
 
-argocd controls a Argo CD server
+argocd controls an Argo CD server
 
 ```
 argocd [flags]
@@ -48,7 +48,7 @@ argocd [flags]
 * [argocd appset](argocd_appset.md)	 - Manage ApplicationSets
 * [argocd cert](argocd_cert.md)	 - Manage repository certificates and SSH known hosts entries
 * [argocd cluster](argocd_cluster.md)	 - Manage cluster credentials
-* [argocd completion](argocd_completion.md)	 - output shell completion code for the specified shell (bash, zsh or fish)
+* [argocd completion](argocd_completion.md)	 - Output shell completion code for the specified shell (bash, zsh or fish)
 * [argocd configure](argocd_configure.md)	 - Manage local configuration
 * [argocd context](argocd_context.md)	 - Switch between contexts
 * [argocd gpg](argocd_gpg.md)	 - Manage GPG keys used for signature verification

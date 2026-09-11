@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	lua "github.com/yuin/gopher-lua"
@@ -79,6 +79,7 @@ func StrToUnstructured(jsonStr string) *unstructured.Unstructured {
 }
 
 func TestExecuteNewHealthStatusFunction(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, newHealthStatusFunction)
@@ -111,6 +112,7 @@ func TestExecuteHealthStatusWithAggregateAs(t *testing.T) {
 }
 
 func TestExecuteWildcardHealthStatusFunction(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, newWildcardHealthStatusFunction)
@@ -125,6 +127,7 @@ func TestExecuteWildcardHealthStatusFunction(t *testing.T) {
 const osLuaScript = `os.getenv("HOME")`
 
 func TestFailExternalLibCall(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	_, err := vm.ExecuteHealthLua(testObj, osLuaScript)
@@ -136,6 +139,7 @@ func TestFailExternalLibCall(t *testing.T) {
 const returnInt = `return 1`
 
 func TestFailLuaReturnNonTable(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	_, err := vm.ExecuteHealthLua(testObj, returnInt)
@@ -148,6 +152,7 @@ return healthStatus
 `
 
 func TestInvalidHealthStatusStatus(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, invalidHealthStatusStatus)
@@ -164,12 +169,12 @@ return
 `
 
 func TestNoReturnHealthStatusStatus(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, validReturnNothingHealthStatusStatus)
 	require.NoError(t, err)
-	expectedStatus := &health.HealthStatus{}
-	assert.Equal(t, expectedStatus, status)
+	assert.Nil(t, status)
 }
 
 const validNilHealthStatusStatus = `local healthStatus = {}
@@ -177,12 +182,12 @@ return nil
 `
 
 func TestNilHealthStatusStatus(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, validNilHealthStatusStatus)
 	require.NoError(t, err)
-	expectedStatus := &health.HealthStatus{}
-	assert.Equal(t, expectedStatus, status)
+	assert.Nil(t, status)
 }
 
 const validEmptyArrayHealthStatusStatus = `local healthStatus = {}
@@ -190,6 +195,7 @@ return healthStatus
 `
 
 func TestEmptyHealthStatusStatus(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, validEmptyArrayHealthStatusStatus)
@@ -201,6 +207,7 @@ func TestEmptyHealthStatusStatus(t *testing.T) {
 const infiniteLoop = `while true do ; end`
 
 func TestHandleInfiniteLoop(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	_, err := vm.ExecuteHealthLua(testObj, infiniteLoop)
@@ -209,6 +216,7 @@ func TestHandleInfiniteLoop(t *testing.T) {
 }
 
 func TestGetHealthScriptWithOverride(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
@@ -225,6 +233,7 @@ func TestGetHealthScriptWithOverride(t *testing.T) {
 }
 
 func TestGetHealthScriptWithKindWildcardOverride(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
@@ -242,6 +251,7 @@ func TestGetHealthScriptWithKindWildcardOverride(t *testing.T) {
 }
 
 func TestGetHealthScriptWithGroupWildcardOverride(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
@@ -259,6 +269,7 @@ func TestGetHealthScriptWithGroupWildcardOverride(t *testing.T) {
 }
 
 func TestGetHealthScriptWithGroupAndKindWildcardOverride(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
@@ -276,6 +287,7 @@ func TestGetHealthScriptWithGroupAndKindWildcardOverride(t *testing.T) {
 }
 
 func TestGetHealthScriptPredefined(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
@@ -285,6 +297,7 @@ func TestGetHealthScriptPredefined(t *testing.T) {
 }
 
 func TestGetHealthScriptNoPredefined(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objWithNoScriptJSON)
 	vm := VM{}
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
@@ -294,6 +307,7 @@ func TestGetHealthScriptNoPredefined(t *testing.T) {
 }
 
 func TestGetResourceActionPredefined(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 
@@ -303,6 +317,7 @@ func TestGetResourceActionPredefined(t *testing.T) {
 }
 
 func TestGetResourceActionNoPredefined(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objWithNoScriptJSON)
 	vm := VM{}
 	action, err := vm.GetResourceAction(testObj, "test")
@@ -311,6 +326,7 @@ func TestGetResourceActionNoPredefined(t *testing.T) {
 }
 
 func TestGetResourceActionWithOverride(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	test := appv1.ResourceActionDefinition{
 		Name:      "test",
@@ -334,6 +350,7 @@ func TestGetResourceActionWithOverride(t *testing.T) {
 }
 
 func TestGetResourceActionDiscoveryPredefined(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 
@@ -343,6 +360,7 @@ func TestGetResourceActionDiscoveryPredefined(t *testing.T) {
 }
 
 func TestGetResourceActionDiscoveryNoPredefined(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objWithNoScriptJSON)
 	vm := VM{}
 	discoveryLua, err := vm.GetResourceActionDiscovery(testObj)
@@ -351,6 +369,7 @@ func TestGetResourceActionDiscoveryNoPredefined(t *testing.T) {
 }
 
 func TestGetResourceActionDiscoveryWithOverride(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
@@ -367,6 +386,7 @@ func TestGetResourceActionDiscoveryWithOverride(t *testing.T) {
 }
 
 func TestGetResourceActionsWithBuiltInActionsFlag(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
@@ -406,6 +426,7 @@ return a
 `
 
 func TestExecuteResourceActionDiscovery(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	actions, err := vm.ExecuteResourceActionDiscovery(testObj, []string{validDiscoveryLua})
@@ -426,6 +447,7 @@ func TestExecuteResourceActionDiscovery(t *testing.T) {
 }
 
 func TestExecuteResourceActionDiscoveryWithDuplicationActions(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	actions, err := vm.ExecuteResourceActionDiscovery(testObj, []string{validDiscoveryLua, additionalValidDiscoveryLua})
@@ -455,6 +477,7 @@ a = {resume = resume}
 return a`
 
 func TestExecuteResourceActionDiscoveryInvalidResourceAction(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	actions, err := vm.ExecuteResourceActionDiscovery(testObj, []string{discoveryLuaWithInvalidResourceAction})
@@ -468,6 +491,7 @@ return a
 `
 
 func TestExecuteResourceActionDiscoveryInvalidReturn(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	actions, err := vm.ExecuteResourceActionDiscovery(testObj, []string{invalidDiscoveryLua})
@@ -494,6 +518,7 @@ metadata:
 
 // Test an action that returns a single k8s resource json
 func TestExecuteOldStyleResourceAction(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	expectedLuaUpdatedObj := StrToUnstructured(expectedLuaUpdatedResult)
 	vm := VM{}
@@ -663,6 +688,7 @@ return result
 `
 
 func TestExecuteNewStyleCreateActionSingleResource(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(cronJobObjYaml)
 	jsonBytes, err := yaml.YAMLToJSON([]byte(expectedCreatedJobObjList))
 	require.NoError(t, err)
@@ -676,6 +702,7 @@ func TestExecuteNewStyleCreateActionSingleResource(t *testing.T) {
 }
 
 func TestExecuteNewStyleCreateActionMultipleResources(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(cronJobObjYaml)
 	jsonBytes, err := yaml.YAMLToJSON([]byte(expectedCreatedMultipleJobsObjList))
 	require.NoError(t, err)
@@ -689,6 +716,7 @@ func TestExecuteNewStyleCreateActionMultipleResources(t *testing.T) {
 }
 
 func TestExecuteNewStyleActionMixedOperationsOk(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(cronJobObjYaml)
 	jsonBytes, err := yaml.YAMLToJSON([]byte(expectedActionMixedOperationObjList))
 	require.NoError(t, err)
@@ -702,6 +730,7 @@ func TestExecuteNewStyleActionMixedOperationsOk(t *testing.T) {
 }
 
 func TestExecuteNewStyleActionMixedOperationsFailure(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(cronJobObjYaml)
 	vm := VM{}
 	_, err := vm.ExecuteResourceAction(testObj, createMixedOperationActionLuaFailing, nil)
@@ -709,6 +738,7 @@ func TestExecuteNewStyleActionMixedOperationsFailure(t *testing.T) {
 }
 
 func TestExecuteResourceActionNonTableReturn(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	_, err := vm.ExecuteResourceAction(testObj, returnInt, nil)
@@ -721,6 +751,7 @@ return newObj
 `
 
 func TestExecuteResourceActionInvalidUnstructured(t *testing.T) {
+	t.Parallel()
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	_, err := vm.ExecuteResourceAction(testObj, invalidTableReturn, nil)
@@ -728,7 +759,9 @@ func TestExecuteResourceActionInvalidUnstructured(t *testing.T) {
 }
 
 func TestCleanPatch(t *testing.T) {
+	t.Parallel()
 	t.Run("Empty Struct preserved", func(t *testing.T) {
+		t.Parallel()
 		const obj = `
 apiVersion: argoproj.io/v1alpha1
 kind: Test
@@ -785,6 +818,7 @@ return obj
 	})
 
 	t.Run("New item added to array", func(t *testing.T) {
+		t.Parallel()
 		const obj = `
 apiVersion: argoproj.io/v1alpha1
 kind: Test
@@ -843,6 +877,7 @@ return obj
 	})
 
 	t.Run("Last item removed from array", func(t *testing.T) {
+		t.Parallel()
 		const obj = `
 apiVersion: argoproj.io/v1alpha1
 kind: Test
@@ -900,6 +935,7 @@ return obj
 }
 
 func TestGetResourceHealth(t *testing.T) {
+	t.Parallel()
 	const testSA = `
 apiVersion: v1
 kind: ServiceAccount
@@ -959,6 +995,7 @@ return hs`
 	}
 
 	t.Run("Enable Lua standard lib", func(t *testing.T) {
+		t.Parallel()
 		testObj := StrToUnstructured(testSA)
 		overrides := getHealthOverride(true)
 		status, err := overrides.GetResourceHealth(testObj)
@@ -971,6 +1008,7 @@ return hs`
 	})
 
 	t.Run("Disable Lua standard lib", func(t *testing.T) {
+		t.Parallel()
 		testObj := StrToUnstructured(testSA)
 		overrides := getHealthOverride(false)
 		status, err := overrides.GetResourceHealth(testObj)
@@ -982,6 +1020,7 @@ return hs`
 	})
 
 	t.Run("Get resource health for wildcard override", func(t *testing.T) {
+		t.Parallel()
 		testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
 		overrides := getWildcardHealthOverride
 		status, err := overrides.GetResourceHealth(testObj)
@@ -993,6 +1032,7 @@ return hs`
 	})
 
 	t.Run("Get resource health for wildcard override with non-empty health.lua", func(t *testing.T) {
+		t.Parallel()
 		testObj := StrToUnstructured(ec2AWSCrossplaneObjJSON)
 		overrides := getMultipleWildcardHealthOverrides
 		status, err := overrides.GetResourceHealth(testObj)
@@ -1002,6 +1042,7 @@ return hs`
 	})
 
 	t.Run("Get resource health for */* override with empty health.lua", func(t *testing.T) {
+		t.Parallel()
 		testObj := StrToUnstructured(objWithNoScriptJSON)
 		overrides := getBaseWildcardHealthOverrides
 		status, err := overrides.GetResourceHealth(testObj)
@@ -1010,6 +1051,7 @@ return hs`
 	})
 
 	t.Run("Resource health for wildcard override not found", func(t *testing.T) {
+		t.Parallel()
 		testObj := StrToUnstructured(testSA)
 		overrides := getWildcardHealthOverride
 		status, err := overrides.GetResourceHealth(testObj)
@@ -1019,6 +1061,7 @@ return hs`
 }
 
 func TestExecuteResourceActionWithParams(t *testing.T) {
+	t.Parallel()
 	deploymentObj := createMockResource("Deployment", "test-deployment", 1)
 	statefulSetObj := createMockResource("StatefulSet", "test-statefulset", 1)
 
@@ -1029,8 +1072,8 @@ func TestExecuteResourceActionWithParams(t *testing.T) {
 
 	params := []*applicationpkg.ResourceActionParameters{
 		{
-			Name:  func() *string { s := "replicas"; return &s }(),
-			Value: func() *string { s := "3"; return &s }(),
+			Name:  new("replicas"),
+			Value: new("3"),
 		},
 	}
 
@@ -1038,6 +1081,7 @@ func TestExecuteResourceActionWithParams(t *testing.T) {
 
 	// Test with Deployment
 	t.Run("Test with Deployment", func(t *testing.T) {
+		t.Parallel()
 		impactedResources, err := vm.ExecuteResourceAction(deploymentObj, actionLua, params)
 		require.NoError(t, err)
 
@@ -1054,6 +1098,7 @@ func TestExecuteResourceActionWithParams(t *testing.T) {
 
 	// Test with StatefulSet
 	t.Run("Test with StatefulSet", func(t *testing.T) {
+		t.Parallel()
 		impactedResources, err := vm.ExecuteResourceAction(statefulSetObj, actionLua, params)
 		require.NoError(t, err)
 
@@ -1098,7 +1143,11 @@ func Test_getHealthScriptPaths(t *testing.T) {
 	assert.Equal(t, []string{
 		"_.cnrm.cloud.google.com/_",
 		"_.crossplane.io/_",
+		"_.services.k8s.aws/_",
 		"_.upbound.io/_",
 		"grafana-org-operator.kubitus-project.gitlab.io/_",
+		"kro.run/_",
+		"microgateway.airlock.com/_",
+		"operator.victoriametrics.com/_",
 	}, paths)
 }

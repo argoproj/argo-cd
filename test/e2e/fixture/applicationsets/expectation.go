@@ -3,11 +3,13 @@ package applicationsets
 import (
 	"fmt"
 	"reflect"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -23,7 +25,7 @@ const (
 	succeeded = "succeeded"
 )
 
-// Expectation returns succeeded on succes condition, or pending/failed on failure, along with
+// Expectation returns succeeded on success condition, or pending/failed on failure, along with
 // a message to describe the success/failure condition.
 type Expectation func(c *Consequences) (state state, message string)
 
@@ -118,6 +120,23 @@ func ApplicationSetHasConditions(expectedConditions []v1alpha1.ApplicationSetCon
 	}
 }
 
+func ApplicationSetHasCondition(expType v1alpha1.ApplicationSetConditionType, expStatus v1alpha1.ApplicationSetConditionStatus, expMessage *regexp.Regexp, expReason string) Expectation {
+	return func(c *Consequences) (state, string) {
+		foundApplicationSet := c.applicationSet(c.context.GetName())
+		if foundApplicationSet == nil {
+			return pending, fmt.Sprintf("application set '%s' not found", c.context.GetName())
+		}
+		got := foundApplicationSet.Status.Conditions
+		message := fmt.Sprintf("condition {%s %s %s %s} in %v", expType, expMessage, expStatus, expReason, got)
+		for _, condition := range got {
+			if expType == condition.Type && expStatus == condition.Status && expReason == condition.Reason && expMessage.MatchString(condition.Message) {
+				return succeeded, message
+			}
+		}
+		return pending, message
+	}
+}
+
 // ApplicationsDoNotExist checks that each of the 'expectedApps' no longer exist in the namespace
 func ApplicationsDoNotExist(expectedApps []v1alpha1.Application) Expectation {
 	return func(c *Consequences) (state, string) {
@@ -129,6 +148,82 @@ func ApplicationsDoNotExist(expectedApps []v1alpha1.Application) Expectation {
 		}
 
 		return succeeded, "all apps do not exist"
+	}
+}
+
+// ApplicationsTransitionInOrder sorts the application in appset's ApplicationSetApplicationStatus by LastTransitionTime and compares it to be in expectedOrder
+func ApplicationsTransitionInOrder(expectedOrderApps []string) Expectation {
+	return func(c *Consequences) (state, string) {
+		foundAppsetStatus := c.applicationSet(c.context.GetName()).Status.ApplicationStatus
+		slices.SortFunc(foundAppsetStatus, func(a, b v1alpha1.ApplicationSetApplicationStatus) int {
+			return a.LastTransitionTime.Compare(b.LastTransitionTime.Time)
+		})
+		for i, expectedappName := range expectedOrderApps {
+			appName := foundAppsetStatus[i].Application
+			if appName != expectedappName {
+				return failed, fmt.Sprintf("app %v transitioned before app %v", appName, expectedappName)
+			}
+		}
+		return succeeded, "all apps lastTransitionTime is in expected order"
+	}
+}
+
+// CheckApplicationsReconciledAfter expects all apps in expectedApps to have reconciled after changeTime
+func CheckApplicationsReconciledAfter(expectedApps []string, changeTime *metav1.Time) Expectation {
+	return func(c *Consequences) (state, string) {
+		for _, expectedApp := range expectedApps {
+			foundApp := c.app(expectedApp)
+			if foundApp == nil {
+				return pending, fmt.Sprintf("application '%s' not found", expectedApp)
+			}
+			if foundApp.Status.ReconciledAt != nil && foundApp.Status.ReconciledAt.Before(changeTime) {
+				return pending, fmt.Sprintf("application '%s' has not reconciled yet", foundApp.Name)
+			}
+		}
+		return succeeded, "all applications have reconciled after changeTime"
+	}
+}
+
+// CheckApplicationsNotReconciledAfter expects all apps in appNames to have ReconciledAt before changeTime
+func CheckApplicationsNotReconciledAfter(appNames []string, changeTime *metav1.Time) Expectation {
+	return func(c *Consequences) (state, string) {
+		for _, appName := range appNames {
+			foundApp := c.app(appName)
+			if foundApp == nil {
+				return pending, fmt.Sprintf("application '%s' not found", appName)
+			}
+			if foundApp.Status.ReconciledAt != nil && !foundApp.Status.ReconciledAt.Before(changeTime) {
+				return failed, fmt.Sprintf("application '%s' reconciled after changeTime at %s", appName, foundApp.Status.ReconciledAt)
+			}
+		}
+		return succeeded, "all applications have not reconciled after changeTime"
+	}
+}
+
+// AppsTransitionedAfter expects all apps in appNames to have transitioned after changeTime
+// compares app's LastTransitionTime from appset's ApplicationSetApplicationStatus for provided appNames
+func AppsTransitionedAfter(appNames []string, changeTime *metav1.Time) Expectation {
+	return func(c *Consequences) (state, string) {
+		retrievedAppset := c.applicationSet(c.context.GetName())
+
+		// Build a map for O(1) lookup instead
+		statusMap := make(map[string]v1alpha1.ApplicationSetApplicationStatus, len(retrievedAppset.Status.ApplicationStatus))
+		for _, appStatus := range retrievedAppset.Status.ApplicationStatus {
+			statusMap[appStatus.Application] = appStatus
+		}
+
+		for _, appName := range appNames {
+			appStatus, found := statusMap[appName]
+			if !found {
+				return failed, fmt.Sprintf("application '%s' not found in ApplicationSet status", appName)
+			}
+
+			lastTransitionTime := appStatus.LastTransitionTime
+			if lastTransitionTime == nil || lastTransitionTime.Before(changeTime) {
+				return failed, fmt.Sprintf("application '%s' did not transition after expected change at time '%s'", appName, changeTime)
+			}
+		}
+		return succeeded, "all applications have transitioned after change"
 	}
 }
 
@@ -193,13 +288,11 @@ func filterFields(input v1alpha1.Application) v1alpha1.Application {
 	metaCopy := input.ObjectMeta.DeepCopy()
 
 	output := v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels:      metaCopy.Labels,
-			Annotations: metaCopy.Annotations,
-			Name:        metaCopy.Name,
-			Namespace:   metaCopy.Namespace,
-			Finalizers:  metaCopy.Finalizers,
-		},
+		Labels:      metaCopy.Labels,
+		Annotations: metaCopy.Annotations,
+		Name:        metaCopy.Name,
+		Namespace:   metaCopy.Namespace,
+		Finalizers:  metaCopy.Finalizers,
 		Spec: v1alpha1.ApplicationSpec{
 			Source: &v1alpha1.ApplicationSource{
 				Path:           spec.GetSource().Path,
@@ -242,4 +335,134 @@ func appsAreEqual(one v1alpha1.Application, two v1alpha1.Application) bool {
 // conditionsAreEqual returns true if the appset status conditions are equal, comparing only fields of interest
 func conditionsAreEqual(one, two *[]v1alpha1.ApplicationSetCondition) bool {
 	return reflect.DeepEqual(filterConditionFields(one), filterConditionFields(two))
+}
+
+// CheckProgressiveSyncStatusCodeOfApplications checks whether the progressive sync status codes of applications in ApplicationSetApplicationStatus
+// match the expected values.
+func CheckProgressiveSyncStatusCodeOfApplications(expectedStatuses map[string]v1alpha1.ApplicationSetApplicationStatus) Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no ApplicationSet found with name '%s'", c.context.GetName())
+		}
+		if appSet.Status.ApplicationStatus == nil {
+			return pending, fmt.Sprintf("no application status found for ApplicationSet '%s'", c.context.GetName())
+		}
+		for _, appStatus := range appSet.Status.ApplicationStatus {
+			expectedstatus, found := expectedStatuses[appStatus.Application]
+			if !found {
+				continue // Appset has more apps than expected - not ideal
+			}
+			if appStatus.Status != expectedstatus.Status {
+				return pending, fmt.Sprintf("for application '%s': expected status '%s' but got '%s'", expectedstatus.Application, expectedstatus.Status, appStatus.Status)
+			}
+		}
+		return succeeded, fmt.Sprintf("all applications in ApplicationSet's: '%s' Application Status have expected statuses ", c.context.GetName())
+	}
+}
+
+// CheckApplicationInRightSteps checks that a step contains exactly the expected applications.
+func CheckApplicationInRightSteps(step string, expectedApps []string) Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
+		}
+		if appSet.Status.ApplicationStatus == nil {
+			return pending, fmt.Sprintf("no application status found for ApplicationSet '%s'", c.context.GetName())
+		}
+		var stepApps []string
+		for _, appStatus := range appSet.Status.ApplicationStatus {
+			if appStatus.Step == step {
+				stepApps = append(stepApps, appStatus.Application)
+			}
+		}
+		if len(stepApps) != len(expectedApps) {
+			return pending, fmt.Sprintf("expected %d apps in step '%s' for appset '%s', but got %d", len(expectedApps), step, c.context.GetName(), len(stepApps))
+		}
+		// Sort before comparing to avoid flakiness
+		slices.Sort(stepApps)
+		slices.Sort(expectedApps)
+		if !slices.Equal(stepApps, expectedApps) {
+			return pending, fmt.Sprintf("In step '%s', expected apps: '%s', but got: '%s'", step, expectedApps, stepApps)
+		}
+		return succeeded, fmt.Sprintf("Step '%s' has expected apps: '%s'", step, expectedApps)
+	}
+}
+
+// ApplicationSetDoesNotHaveApplicationStatus checks that ApplicationSet.Status.ApplicationStatus is nil
+func ApplicationSetDoesNotHaveApplicationStatus() Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
+		}
+		if appSet.Status.ApplicationStatus != nil {
+			return failed, fmt.Sprintf("application set '%s' has ApplicationStatus when not expected", c.context.GetName())
+		}
+		return succeeded, fmt.Sprintf("Application '%s' does not have ApplicationStatus", c.context.GetName())
+	}
+}
+
+// ApplicationSetHasApplicationStatus checks that ApplicationSet has expected number of applications in its status
+// and all have progressive sync status Healthy.
+func ApplicationSetHasApplicationStatus(expectedApplicationStatusLength int) Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
+		}
+		if appSet.Status.ApplicationStatus == nil {
+			return pending, fmt.Sprintf("application set '%s' has no ApplicationStatus when '%d' expected", c.context.GetName(), expectedApplicationStatusLength)
+		}
+
+		if len(appSet.Status.ApplicationStatus) != expectedApplicationStatusLength {
+			return failed, fmt.Sprintf("applicationset has '%d' applicationstatus, when '%d' are expected", len(appSet.Status.ApplicationStatus), expectedApplicationStatusLength)
+		}
+
+		for _, appStatus := range appSet.Status.ApplicationStatus {
+			if appStatus.Status != v1alpha1.ProgressiveSyncHealthy {
+				return pending, fmt.Sprintf("Application '%s' not Healthy", appStatus.Application)
+			}
+		}
+		return succeeded, fmt.Sprintf("All Applications in ApplicationSet: '%s' are Healthy ", c.context.GetName())
+	}
+}
+
+// ApplicationDeletionStarted verifies at least one application from provided list of appNames has DeletionTimestamp set,
+// indicating deletion has begun for this step. Returns failed if any application doesn't exist, does not expect completion of deletion.
+func ApplicationDeletionStarted(appNames []string) Expectation {
+	return func(c *Consequences) (state, string) {
+		anyapp := false
+		for _, appName := range appNames {
+			app := c.app(appName)
+			if app == nil {
+				// with test finalizer explicitly added, application should not be deleted
+				return failed, fmt.Sprintf("no application found with name '%s'", c.context.GetName())
+			}
+			if app.DeletionTimestamp != nil {
+				anyapp = true
+			}
+		}
+		if !anyapp {
+			return pending, "no app in this step is being deleted yet"
+		}
+		return succeeded, fmt.Sprintf("at least one app in %v is being deleted or gone", appNames)
+	}
+}
+
+// ApplicationsExistAndNotBeingDeleted checks that specified apps exist and do NOT have DeletionTimestamp set
+func ApplicationsExistAndNotBeingDeleted(appNames []string) Expectation {
+	return func(c *Consequences) (state, string) {
+		for _, appName := range appNames {
+			app := c.app(appName)
+			if app == nil {
+				return failed, fmt.Sprintf("app '%s' does not exist but should", appName)
+			}
+			if app.DeletionTimestamp != nil {
+				return failed, fmt.Sprintf("app '%s' is being deleted but should not be yet", appName)
+			}
+		}
+		return succeeded, fmt.Sprintf("all apps %v exist and are not being deleted", appNames)
+	}
 }

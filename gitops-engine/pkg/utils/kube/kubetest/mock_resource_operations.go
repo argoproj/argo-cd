@@ -11,7 +11,7 @@ import (
 	"k8s.io/client-go/rest"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 )
 
 type MockResourceOps struct {
@@ -150,10 +150,11 @@ func (r *MockResourceOps) UpdateResource(_ context.Context, obj *unstructured.Un
 	return obj, command.Err
 }
 
-func (r *MockResourceOps) CreateResource(_ context.Context, obj *unstructured.Unstructured, dryRun cmdutil.DryRunStrategy, _ bool) (string, error) {
+func (r *MockResourceOps) CreateResource(_ context.Context, obj *unstructured.Unstructured, dryRun cmdutil.DryRunStrategy, validate bool) (string, error) {
 	if dryRun != cmdutil.DryRunNone && !r.ExecuteForDryRun {
 		return "", nil
 	}
+	r.SetLastValidate(validate)
 	r.SetLastResourceCommand(kube.GetResourceKey(obj), "create")
 	command, ok := r.Commands[obj.GetName()]
 	if !ok {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 )
@@ -16,6 +17,7 @@ func setupTestSharding(shard int, replicas int) *ClusterSharding {
 }
 
 func TestNewClusterSharding(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -28,6 +30,7 @@ func TestNewClusterSharding(t *testing.T) {
 }
 
 func TestClusterSharding_Add(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -63,6 +66,7 @@ func TestClusterSharding_Add(t *testing.T) {
 }
 
 func TestClusterSharding_AddRoundRobin_Redistributes(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 
@@ -123,6 +127,7 @@ func TestClusterSharding_AddRoundRobin_Redistributes(t *testing.T) {
 }
 
 func TestClusterSharding_Delete(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -154,6 +159,7 @@ func TestClusterSharding_Delete(t *testing.T) {
 }
 
 func TestClusterSharding_Update(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -203,6 +209,7 @@ func TestClusterSharding_Update(t *testing.T) {
 }
 
 func TestClusterSharding_UpdateServerName(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -254,6 +261,7 @@ func TestClusterSharding_UpdateServerName(t *testing.T) {
 }
 
 func TestClusterSharding_IsManagedCluster(t *testing.T) {
+	t.Parallel()
 	replicas := 2
 	sharding0 := setupTestSharding(0, replicas)
 
@@ -322,14 +330,88 @@ func TestClusterSharding_IsManagedCluster(t *testing.T) {
 	}))
 }
 
+func TestIsManagedCluster_SkipReconcileAnnotation(t *testing.T) {
+	t.Parallel()
+	sharding := setupTestSharding(0, 1)
+	sharding.Init(
+		&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{{ID: "1", Server: "https://cluster1"}}},
+		&v1alpha1.ApplicationList{},
+	)
+
+	assert.True(t, sharding.IsManagedCluster(&v1alpha1.Cluster{Server: "https://cluster1"}))
+
+	assert.False(t, sharding.IsManagedCluster(&v1alpha1.Cluster{
+		Server:      "https://cluster1",
+		Annotations: map[string]string{common.AnnotationKeyAppSkipReconcile: "true"},
+	}))
+
+	assert.True(t, sharding.IsManagedCluster(&v1alpha1.Cluster{
+		Server:      "https://cluster1",
+		Annotations: map[string]string{common.AnnotationKeyAppSkipReconcile: "false"},
+	}))
+
+	assert.True(t, sharding.IsManagedCluster(nil))
+}
+
+func TestClusterSharding_IsManagedClusterByServer(t *testing.T) {
+	t.Parallel()
+	replicas := 2
+	shard0, shard1 := int64(0), int64(1)
+	clusters := &v1alpha1.ClusterList{
+		Items: []v1alpha1.Cluster{
+			{ID: "1", Server: "https://kubernetes.default.svc", Shard: &shard0},
+			{ID: "2", Server: "https://127.0.0.1:6443", Shard: &shard1},
+			{ID: "3", Server: "https://skipped", Shard: &shard0, Annotations: map[string]string{common.AnnotationKeyAppSkipReconcile: "true"}},
+			{ID: "4", Server: "https://not-skipped", Shard: &shard0, Annotations: map[string]string{common.AnnotationKeyAppSkipReconcile: "false"}},
+		},
+	}
+	apps := &v1alpha1.ApplicationList{
+		Items: []v1alpha1.Application{
+			createApp("app1", "https://kubernetes.default.svc"),
+			createApp("app2", "https://127.0.0.1:6443"),
+		},
+	}
+
+	sharding0 := setupTestSharding(0, replicas)
+	sharding0.Init(clusters, apps)
+	sharding1 := setupTestSharding(1, replicas)
+	sharding1.Init(clusters, apps)
+
+	tests := []struct {
+		name       string
+		server     string
+		wantShard0 bool
+		wantShard1 bool
+		wantKnown  bool
+	}{
+		{"cluster assigned to shard 0", "https://kubernetes.default.svc", true, false, true},
+		{"cluster assigned to shard 1", "https://127.0.0.1:6443", false, true, true},
+		{"cluster with skip-reconcile annotation", "https://skipped", false, false, true},
+		{"cluster with skip-reconcile annotation set to false", "https://not-skipped", true, false, true},
+		// An unknown server reports managed, matching IsManagedCluster(nil), with known=false so
+		// callers can fall back to the full lookup.
+		{"server the cache holds no cluster for", "https://unknown", true, true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			managed, known := sharding0.IsManagedClusterByServer(tt.server)
+			assert.Equal(t, tt.wantShard0, managed, "shard 0 managed")
+			assert.Equal(t, tt.wantKnown, known, "shard 0 known")
+
+			managed, known = sharding1.IsManagedClusterByServer(tt.server)
+			assert.Equal(t, tt.wantShard1, managed, "shard 1 managed")
+			assert.Equal(t, tt.wantKnown, known, "shard 1 known")
+		})
+	}
+}
+
 func TestClusterSharding_ClusterShardOfResourceShouldNotBeChanged(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
-
-	Int64Ptr := func(i int64) *int64 {
-		return &i
-	}
 
 	clusterWithNil := &v1alpha1.Cluster{
 		ID:     "2",
@@ -340,13 +422,13 @@ func TestClusterSharding_ClusterShardOfResourceShouldNotBeChanged(t *testing.T) 
 	clusterWithValue := &v1alpha1.Cluster{
 		ID:     "1",
 		Server: "https://kubernetes.default.svc",
-		Shard:  Int64Ptr(1),
+		Shard:  new(int64(1)),
 	}
 
 	clusterWithToBigValue := &v1alpha1.Cluster{
 		ID:     "3",
 		Server: "https://1.1.1.1",
-		Shard:  Int64Ptr(999), // shard value is explicitly bigger than the number of replicas
+		Shard:  new(int64(999)), // shard value is explicitly bigger than the number of replicas
 	}
 
 	sharding.Init(
@@ -379,10 +461,7 @@ func TestClusterSharding_ClusterShardOfResourceShouldNotBeChanged(t *testing.T) 
 }
 
 func TestHasShardingUpdates(t *testing.T) {
-	Int64Ptr := func(i int64) *int64 {
-		return &i
-	}
-
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		old      *v1alpha1.Cluster
@@ -393,11 +472,11 @@ func TestHasShardingUpdates(t *testing.T) {
 			name: "No updates",
 			old: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(1),
+				Shard:  new(int64(1)),
 			},
 			new: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(1),
+				Shard:  new(int64(1)),
 			},
 			expected: false,
 		},
@@ -405,11 +484,11 @@ func TestHasShardingUpdates(t *testing.T) {
 			name: "Updates",
 			old: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(1),
+				Shard:  new(int64(1)),
 			},
 			new: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			expected: true,
 		},
@@ -418,7 +497,7 @@ func TestHasShardingUpdates(t *testing.T) {
 			old:  nil,
 			new: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			expected: false,
 		},
@@ -426,7 +505,7 @@ func TestHasShardingUpdates(t *testing.T) {
 			name: "New is nil",
 			old: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			new:      nil,
 			expected: false,
@@ -457,7 +536,7 @@ func TestHasShardingUpdates(t *testing.T) {
 			},
 			new: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			expected: true,
 		},
@@ -465,7 +544,7 @@ func TestHasShardingUpdates(t *testing.T) {
 			name: "New shard is nil",
 			old: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			new: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
@@ -478,12 +557,12 @@ func TestHasShardingUpdates(t *testing.T) {
 			old: &v1alpha1.Cluster{
 				ID:     "1",
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			new: &v1alpha1.Cluster{
 				ID:     "2",
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			expected: true,
 		},
@@ -492,12 +571,12 @@ func TestHasShardingUpdates(t *testing.T) {
 			old: &v1alpha1.Cluster{
 				ID:     "1",
 				Server: "https://server1",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			new: &v1alpha1.Cluster{
 				ID:     "1",
 				Server: "https://server2",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			expected: true,
 		},
@@ -505,6 +584,7 @@ func TestHasShardingUpdates(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tc.expected, hasShardingUpdates(tc.old, tc.new))
 		})
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,14 +36,12 @@ func TestRenderTemplateParams(t *testing.T) {
 	fieldMap["Project"] = func(app *argoappsv1.Application) *string { return &app.Spec.Project }
 
 	emptyApplication := &argoappsv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
-			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
-			CreationTimestamp: metav1.NewTime(time.Now()),
-			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
-			Name:              "application-one",
-			Namespace:         "default",
-		},
+		Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
+		Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
+		CreationTimestamp: metav1.NewTime(time.Now()),
+		UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+		Name:              "application-one",
+		Namespace:         "default",
 		Spec: argoappsv1.ApplicationSpec{
 			Source: &argoappsv1.ApplicationSource{
 				Path:           "",
@@ -200,14 +199,12 @@ func TestRenderHelmValuesObjectJson(t *testing.T) {
 	}
 
 	application := &argoappsv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
-			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
-			CreationTimestamp: metav1.NewTime(time.Now()),
-			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
-			Name:              "application-one",
-			Namespace:         "default",
-		},
+		Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
+		Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
+		CreationTimestamp: metav1.NewTime(time.Now()),
+		UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+		Name:              "application-one",
+		Namespace:         "default",
 		Spec: argoappsv1.ApplicationSpec{
 			Source: &argoappsv1.ApplicationSource{
 				Path:           "",
@@ -253,14 +250,12 @@ func TestRenderHelmValuesObjectYaml(t *testing.T) {
 	}
 
 	application := &argoappsv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
-			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
-			CreationTimestamp: metav1.NewTime(time.Now()),
-			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
-			Name:              "application-one",
-			Namespace:         "default",
-		},
+		Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
+		Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
+		CreationTimestamp: metav1.NewTime(time.Now()),
+		UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+		Name:              "application-one",
+		Namespace:         "default",
 		Spec: argoappsv1.ApplicationSpec{
 			Source: &argoappsv1.ApplicationSource{
 				Path:           "",
@@ -312,14 +307,12 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 	fieldMap["Project"] = func(app *argoappsv1.Application) *string { return &app.Spec.Project }
 
 	emptyApplication := &argoappsv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
-			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
-			CreationTimestamp: metav1.NewTime(time.Now()),
-			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
-			Name:              "application-one",
-			Namespace:         "default",
-		},
+		Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
+		Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
+		CreationTimestamp: metav1.NewTime(time.Now()),
+		UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+		Name:              "application-one",
+		Namespace:         "default",
 		Spec: argoappsv1.ApplicationSpec{
 			Source: &argoappsv1.ApplicationSource{
 				Path:           "",
@@ -603,6 +596,49 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 				"value": "non\n compliant\n yaml",
 			},
 		},
+		{
+			name:        "tpl",
+			fieldVal:    "{{ tpl \"{{.value}}\" . }}",
+			expectedVal: "hello world",
+			params: map[string]any{
+				"value": "hello world",
+			},
+		},
+		{
+			name:            "tpl non-existent value with missingkey=error",
+			fieldVal:        "{{ tpl \"{{.DoesNotExist}}\" . }}",
+			errorMessage:    "failed to execute go template {{ tpl \"{{.DoesNotExist}}\" . }}: template: base:1:3: executing \"base\" at <tpl \"{{.DoesNotExist}}\" .>: error calling tpl: error during tpl function execution for \"{{.DoesNotExist}}\": template: base:1:2: executing \"base\" at <.DoesNotExist>: map has no entry for key \"DoesNotExist\"",
+			templateOptions: []string{"missingkey=error"},
+			params: map[string]any{
+				"value": "hello world",
+			},
+		},
+		{
+			name:            "tpl non-existent value with missingkey=default",
+			fieldVal:        "{{ tpl \"{{.DoesNotExist}}\" . }}",
+			expectedVal:     "",
+			templateOptions: []string{"missingkey=default"},
+			params: map[string]any{
+				"value": "hello world",
+			},
+		},
+		{
+			name:         "tpl disallow infinite recursion",
+			fieldVal:     "{{ tpl .self . }}",
+			errorMessage: "failed to execute go template {{ tpl .self . }}: template: base:1:3: executing \"base\" at <tpl .self .>: error calling tpl: error during tpl function execution for \"{{ tpl .self . }}\": template: base:1:3: executing \"base\" at <tpl .self .>: error calling tpl: error during tpl function execution for \"{{ tpl .self . }}\": template: base:1:3: executing \"base\" at <tpl .self .>: error calling tpl: error during tpl function execution for \"{{ tpl .self . }}\": template: base:1:3: executing \"base\" at <tpl .self .>: error calling tpl: maximum recursion depth 3 exceeded in tpl function",
+			params: map[string]any{
+				"self": "{{ tpl .self . }}",
+			},
+		},
+		{
+			name:        "tpl allow multiple uses",
+			fieldVal:    "{{ tpl \"{{ .foo }}\" . }}-{{ tpl \"{{ .bar }}\" . }}",
+			expectedVal: "foo-bar",
+			params: map[string]any{
+				"foo": "foo",
+				"bar": "bar",
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -672,10 +708,8 @@ func TestRenderGeneratorParams_does_not_panic(t *testing.T) {
 func TestRenderTemplateKeys(t *testing.T) {
 	t.Run("fasttemplate", func(t *testing.T) {
 		application := &argoappsv1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{
-					"annotation-{{key}}": "annotation-{{value}}",
-				},
+			Annotations: map[string]string{
+				"annotation-{{key}}": "annotation-{{value}}",
 			},
 		}
 
@@ -692,10 +726,8 @@ func TestRenderTemplateKeys(t *testing.T) {
 	})
 	t.Run("gotemplate", func(t *testing.T) {
 		application := &argoappsv1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{
-					"annotation-{{ .key }}": "annotation-{{ .value }}",
-				},
+			Annotations: map[string]string{
+				"annotation-{{ .key }}": "annotation-{{ .value }}",
 			},
 		}
 
@@ -801,6 +833,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 	} {
 		t.Run(c.testName, func(t *testing.T) {
 			// Clone the template application
+
 			application := emptyApplication.DeepCopy()
 			application.Finalizers = c.existingFinalizers
 
@@ -1386,6 +1419,191 @@ WkBKOclmOV2xlTVuPw==
 			assert.NotNil(t, tlsConfig)
 			if testCase.validateCertInTLSConfig {
 				assert.True(t, tlsConfig.RootCAs.Equal(certPool))
+			}
+		})
+	}
+}
+
+func Test_getFilteredGeneratorTypes(t *testing.T) {
+	generators := getFilteredGeneratorTypes()
+	assert.Less(t, 1, len(generators))
+	for name, val := range generators {
+		assert.True(t, val)
+		assert.True(t, strings.HasSuffix(name, "Generator"))
+	}
+}
+
+func TestRenderGeneratorParams_ValuesInterpolation(t *testing.T) {
+	render := Render{}
+
+	type testInput struct {
+		name                  string
+		params                map[string]any
+		gen                   *argoappsv1.ApplicationSetGenerator
+		goTemplateOptions     []string
+		useGoTemplate         bool
+		expectedClusterValues map[string]string
+		expectedGitValues     map[string]string
+		expectErr             string
+	}
+
+	testSet := []testInput{
+		{
+			name:   "GoTemplate: cross-generator key is resolved",
+			params: map[string]any{"path": map[string]string{"basename": "guestbook"}},
+			gen: &argoappsv1.ApplicationSetGenerator{
+				Clusters: &argoappsv1.ClusterGenerator{
+					Values: map[string]string{
+						"env": "{{.path.basename}}",
+					},
+				},
+			},
+			goTemplateOptions:     []string{"missingkey=error"},
+			useGoTemplate:         true,
+			expectedClusterValues: map[string]string{"env": "guestbook"},
+		},
+		{
+			name:   "GoTemplate: self-referential key is deferred (kept as template)",
+			params: map[string]any{"some": "value"},
+			gen: &argoappsv1.ApplicationSetGenerator{
+				Git: &argoappsv1.GitGenerator{
+					RepoURL: "https://git.example.com",
+					Values: map[string]string{
+						"basename": "{{.path.basename}}",
+					},
+				},
+			},
+			goTemplateOptions: []string{"missingkey=error"},
+			useGoTemplate:     true,
+			expectedGitValues: map[string]string{"basename": "{{.path.basename}}"},
+		},
+		{
+			name:   "GoTemplate: mixed — cross-generator resolves, self-referential defers",
+			params: map[string]any{"path": map[string]string{"basename": "guestbook"}},
+			gen: &argoappsv1.ApplicationSetGenerator{
+				Clusters: &argoappsv1.ClusterGenerator{
+					Values: map[string]string{
+						"env":         "{{.path.basename}}",
+						"clusterName": "{{.name}}",
+					},
+				},
+			},
+			goTemplateOptions: []string{"missingkey=error"},
+			useGoTemplate:     true,
+			expectedClusterValues: map[string]string{
+				"env":         "guestbook",
+				"clusterName": "{{.name}}",
+			},
+		},
+		{
+			name:   "GoTemplate: cross-generator resolves even without missingkey=error in user options",
+			params: map[string]any{"path": map[string]string{"basename": "guestbook"}},
+			gen: &argoappsv1.ApplicationSetGenerator{
+				Clusters: &argoappsv1.ClusterGenerator{
+					Values: map[string]string{
+						"env":         "{{.path.basename}}",
+						"clusterName": "{{.name}}",
+					},
+				},
+			},
+			goTemplateOptions: []string{},
+			useGoTemplate:     true,
+			expectedClusterValues: map[string]string{
+				"env":         "guestbook",
+				"clusterName": "{{.name}}",
+			},
+		},
+		{
+			name:   "GoTemplate: literal values (no template) pass through unchanged",
+			params: map[string]any{"path": map[string]string{"basename": "guestbook"}},
+			gen: &argoappsv1.ApplicationSetGenerator{
+				Clusters: &argoappsv1.ClusterGenerator{
+					Values: map[string]string{
+						"static": "some-hardcoded-value",
+					},
+				},
+			},
+			goTemplateOptions:     []string{},
+			useGoTemplate:         true,
+			expectedClusterValues: map[string]string{"static": "some-hardcoded-value"},
+		},
+		{
+			name:   "No GoTemplate: cross-generator key is resolved",
+			params: map[string]any{"path.basename": "guestbook"},
+			gen: &argoappsv1.ApplicationSetGenerator{
+				Clusters: &argoappsv1.ClusterGenerator{
+					Values: map[string]string{
+						"env": "{{path.basename}}",
+					},
+				},
+			},
+			expectedClusterValues: map[string]string{"env": "guestbook"},
+		},
+		{
+			name:   "No GoTemplate: self-referential key is kept as template",
+			params: map[string]any{"some": "value"},
+			gen: &argoappsv1.ApplicationSetGenerator{
+				Clusters: &argoappsv1.ClusterGenerator{
+					Values: map[string]string{
+						"clusterName": "{{name}}",
+					},
+				},
+			},
+			expectedClusterValues: map[string]string{"clusterName": "{{name}}"},
+		},
+		{
+			name:   "GoTemplate: malformed template syntax in Values surfaces an error",
+			params: map[string]any{"path": map[string]string{"basename": "guestbook"}},
+			gen: &argoappsv1.ApplicationSetGenerator{
+				Clusters: &argoappsv1.ClusterGenerator{
+					Values: map[string]string{
+						"bad": "{{.path.basename",
+					},
+				},
+			},
+			goTemplateOptions: []string{"missingkey=error"},
+			useGoTemplate:     true,
+			expectErr:         `failed to pre-resolve Values key "bad": failed to parse template`,
+		},
+		{
+			name:   "GoTemplate: sprig must* function error in Values surfaces an error",
+			params: map[string]any{"path": map[string]string{"basename": "guestbook"}},
+			gen: &argoappsv1.ApplicationSetGenerator{
+				Clusters: &argoappsv1.ClusterGenerator{
+					Values: map[string]string{
+						"bad": `{{mustFromJson "not-valid-json"}}`,
+					},
+				},
+			},
+			goTemplateOptions: []string{"missingkey=error"},
+			useGoTemplate:     true,
+			expectErr:         `failed to pre-resolve Values key "bad": failed to execute go template`,
+		},
+	}
+
+	for _, tt := range testSet {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := render.RenderGeneratorParams(tt.gen, tt.params, tt.useGoTemplate, tt.goTemplateOptions)
+
+			if tt.expectErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.expectErr)
+			} else {
+				require.NoError(t, err)
+				if tt.expectedClusterValues != nil {
+					if result.Clusters == nil {
+						t.Error("expected Clusters to be non-nil")
+					} else {
+						assert.Equal(t, tt.expectedClusterValues, result.Clusters.Values)
+					}
+				}
+				if tt.expectedGitValues != nil {
+					if result.Git == nil {
+						t.Error("expected Git to be non-nil")
+					} else {
+						assert.Equal(t, tt.expectedGitValues, result.Git.Values)
+					}
+				}
 			}
 		})
 	}

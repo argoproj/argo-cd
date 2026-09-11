@@ -20,10 +20,11 @@ import (
 	"encoding/json"
 	"sort"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/security"
@@ -207,6 +208,8 @@ type ApplicationSetGenerator struct {
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
 
 	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
+
+	Oci *OciGenerator `json:"oci,omitempty" protobuf:"bytes,11,name=oci"`
 }
 
 // ApplicationSetNestedGenerator represents a generator nested within a combination-type generator (MatrixGenerator or
@@ -229,6 +232,8 @@ type ApplicationSetNestedGenerator struct {
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
 
 	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
+
+	Oci *OciGenerator `json:"oci,omitempty" protobuf:"bytes,11,name=oci"`
 }
 
 type ApplicationSetNestedGenerators []ApplicationSetNestedGenerator
@@ -248,6 +253,8 @@ type ApplicationSetTerminalGenerator struct {
 
 	// Selector allows to post-filter all generator.
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,8,name=selector"`
+
+	Oci *OciGenerator `json:"oci,omitempty" protobuf:"bytes,9,name=oci"`
 }
 
 type ApplicationSetTerminalGenerators []ApplicationSetTerminalGenerator
@@ -267,6 +274,7 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 			PullRequest:             terminalGenerator.PullRequest,
 			Plugin:                  terminalGenerator.Plugin,
 			Selector:                terminalGenerator.Selector,
+			Oci:                     terminalGenerator.Oci,
 		}
 	}
 	return nestedGenerators
@@ -431,6 +439,29 @@ type GitFileGeneratorItem struct {
 	Exclude bool   `json:"exclude,omitempty" protobuf:"bytes,2,name=exclude"`
 }
 
+type OciGenerator struct {
+	RepoURL             string                      `json:"repoURL" protobuf:"bytes,1,name=repoURL"`
+	Directories         []OciDirectoryGeneratorItem `json:"directories,omitempty" protobuf:"bytes,2,name=directories"`
+	Files               []OciFileGeneratorItem      `json:"files,omitempty" protobuf:"bytes,3,name=files"`
+	Revision            string                      `json:"revision" protobuf:"bytes,4,name=revision"`
+	RequeueAfterSeconds *int64                      `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
+	Template            ApplicationSetTemplate      `json:"template,omitempty" protobuf:"bytes,6,name=template"`
+	PathParamPrefix     string                      `json:"pathParamPrefix,omitempty" protobuf:"bytes,7,name=pathParamPrefix"`
+
+	// Values contains key/value pairs which are passed directly as parameters to the template
+	Values map[string]string `json:"values,omitempty" protobuf:"bytes,8,name=values"`
+}
+
+type OciDirectoryGeneratorItem struct {
+	Path    string `json:"path" protobuf:"bytes,1,name=path"`
+	Exclude bool   `json:"exclude,omitempty" protobuf:"bytes,2,name=exclude"`
+}
+
+type OciFileGeneratorItem struct {
+	Path    string `json:"path" protobuf:"bytes,1,name=path"`
+	Exclude bool   `json:"exclude,omitempty" protobuf:"bytes,2,name=exclude"`
+}
+
 // SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.
 type SCMProviderGenerator struct {
 	// Which provider to use and config for it.
@@ -483,6 +514,8 @@ type SCMProviderGeneratorGitea struct {
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
 	// Allow self-signed TLS / Certificates; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+	// Exclude repositories that are archived.
+	ExcludeArchivedRepos bool `json:"excludeArchivedRepos,omitempty" protobuf:"varint,6,opt,name=excludeArchivedRepos"`
 }
 
 // SCMProviderGeneratorGithub defines connection info specific to GitHub.
@@ -497,6 +530,8 @@ type SCMProviderGeneratorGithub struct {
 	AppSecretName string `json:"appSecretName,omitempty" protobuf:"bytes,4,opt,name=appSecretName"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,5,opt,name=allBranches"`
+	// Exclude repositories that are archived.
+	ExcludeArchivedRepos bool `json:"excludeArchivedRepos,omitempty" protobuf:"varint,6,opt,name=excludeArchivedRepos"`
 }
 
 // SCMProviderGeneratorGitlab defines connection info specific to Gitlab.
@@ -519,6 +554,8 @@ type SCMProviderGeneratorGitlab struct {
 	Topic string `json:"topic,omitempty" protobuf:"bytes,8,opt,name=topic"`
 	// ConfigMap key holding the trusted certificates
 	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,9,opt,name=caRef"`
+	// Include repositories that are archived.
+	IncludeArchivedRepos bool `json:"includeArchivedRepos,omitempty" protobuf:"varint,10,opt,name=includeArchivedRepos"`
 }
 
 func (s *SCMProviderGeneratorGitlab) WillIncludeSharedProjects() bool {
@@ -852,10 +889,11 @@ type ApplicationSetConditionType string
 
 // ErrorOccurred / ParametersGenerated / TemplateRendered / ResourcesUpToDate
 const (
-	ApplicationSetConditionErrorOccurred       ApplicationSetConditionType = "ErrorOccurred"
-	ApplicationSetConditionParametersGenerated ApplicationSetConditionType = "ParametersGenerated"
-	ApplicationSetConditionResourcesUpToDate   ApplicationSetConditionType = "ResourcesUpToDate"
-	ApplicationSetConditionRolloutProgressing  ApplicationSetConditionType = "RolloutProgressing"
+	ApplicationSetConditionErrorOccurred        ApplicationSetConditionType = "ErrorOccurred"
+	ApplicationSetConditionParametersGenerated  ApplicationSetConditionType = "ParametersGenerated"
+	ApplicationSetConditionResourcesUpToDate    ApplicationSetConditionType = "ResourcesUpToDate"
+	ApplicationSetConditionRolloutProgressing   ApplicationSetConditionType = "RolloutProgressing"
+	ApplicationSetConditionInvalidRolloutConfig ApplicationSetConditionType = "InvalidRolloutConfig"
 )
 
 type ApplicationSetReasonType string
@@ -864,7 +902,6 @@ const (
 	ApplicationSetReasonErrorOccurred                    = "ErrorOccurred"
 	ApplicationSetReasonApplicationSetUpToDate           = "ApplicationSetUpToDate"
 	ApplicationSetReasonParametersGenerated              = "ParametersGenerated"
-	ApplicationSetReasonApplicationGenerated             = "ApplicationGeneratedSuccessfully"
 	ApplicationSetReasonUpdateApplicationError           = "UpdateApplicationError"
 	ApplicationSetReasonApplicationParamsGenerationError = "ApplicationGenerationFromParamsError"
 	ApplicationSetReasonRenderTemplateParamsError        = "RenderTemplateParamsError"
@@ -874,7 +911,9 @@ const (
 	ApplicationSetReasonApplicationValidationError       = "ApplicationValidationError"
 	ApplicationSetReasonApplicationSetModified           = "ApplicationSetModified"
 	ApplicationSetReasonApplicationSetRolloutComplete    = "ApplicationSetRolloutComplete"
-	ApplicationSetReasonSyncApplicationError             = "SyncApplicationError"
+	ApplicationSetReasonApplicationSetRolloutError       = "ApplicationSetRolloutError"
+	ApplicationSetReasonInvalidRolloutConfig             = "ApplicationSetInvalidRolloutConfig"
+	ApplicationSetReasonValidRolloutConfig               = "ApplicationSetValidRolloutConfig"
 )
 
 // Represents resource health status
@@ -1076,4 +1115,18 @@ func (a *ApplicationSet) QualifiedName() string {
 		return a.Name
 	}
 	return a.Namespace + "/" + a.Name
+}
+
+// ApplicationSetWatchEvent contains information about application change.
+type ApplicationSetWatchEvent struct {
+	// Type represents the Kubernetes watch event type. The protobuf tag uses
+	// casttype to ensure the generated Go code keeps this field as
+	// watch.EventType (a strong Go type) instead of falling back to a plain string
+	Type watch.EventType `json:"type" protobuf:"bytes,1,opt,name=type,casttype=k8s.io/apimachinery/pkg/watch.EventType"`
+	// ApplicationSet is:
+	//  * If Type is Added or Modified: the new state of the object.
+	//  * If Type is Deleted: the state of the object immediately before deletion.
+	//  * If Type is Error: *api.Status is recommended; other types may make sense
+	//    depending on context
+	ApplicationSet ApplicationSet `json:"applicationSet" protobuf:"bytes,2,opt,name=applicationSet"`
 }

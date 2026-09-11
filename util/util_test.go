@@ -7,13 +7,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/util"
 	"github.com/argoproj/argo-cd/v3/util/webhook"
 )
 
 func TestMakeSignature(t *testing.T) {
+	t.Parallel()
 	for size := 1; size <= 64; size++ {
 		s, err := util.MakeSignature(size)
 		require.NoError(t, err, "Could not generate signature of size %d: %v", size, err)
@@ -22,6 +22,7 @@ func TestMakeSignature(t *testing.T) {
 }
 
 func TestParseRevision(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		ref string
 	}
@@ -37,12 +38,14 @@ func TestParseRevision(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equalf(t, tt.want, webhook.ParseRevision(tt.args.ref), "parseRevision(%v)", tt.args.ref)
 		})
 	}
 }
 
 func TestSliceCopy(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		secrets []*corev1.Secret
 	}
@@ -54,24 +57,25 @@ func TestSliceCopy(t *testing.T) {
 		{name: "nil", args: args{secrets: nil}, want: []*corev1.Secret{}},
 		{
 			name: "Three", args: args{secrets: []*corev1.Secret{
-				{ObjectMeta: metav1.ObjectMeta{Name: "one"}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "two"}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "three"}},
+				{Name: "one"},
+				{Name: "two"},
+				{Name: "three"},
 			}},
 			want: []*corev1.Secret{
-				{ObjectMeta: metav1.ObjectMeta{Name: "one"}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "two"}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "three"}},
+				{Name: "one"},
+				{Name: "two"},
+				{Name: "three"},
 			},
 		},
 		{
-			name: "One", args: args{secrets: []*corev1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}}}},
-			want: []*corev1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}}},
+			name: "One", args: args{secrets: []*corev1.Secret{{Name: "one"}}},
+			want: []*corev1.Secret{{Name: "one"}},
 		},
 		{name: "Zero", args: args{secrets: []*corev1.Secret{}}, want: []*corev1.Secret{}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			secretsCopy := util.SliceCopy(tt.args.secrets)
 			assert.Equalf(t, tt.want, secretsCopy, "SliceCopy(%v)", tt.args.secrets)
 			for i := range tt.args.secrets {
@@ -83,6 +87,7 @@ func TestSliceCopy(t *testing.T) {
 
 // TestGenerateCacheKey tests the GenerateCacheKey function
 func TestGenerateCacheKey(t *testing.T) {
+	t.Parallel()
 	// Define test cases
 	testCases := []struct {
 		format    string
@@ -113,6 +118,7 @@ func TestGenerateCacheKey(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("format=%s args=%v", tc.format, tc.args), func(t *testing.T) {
+			t.Parallel()
 			key, err := util.GenerateCacheKey(tc.format, tc.args...)
 			if tc.shouldErr {
 				require.Errorf(t, err, "expected error but got none")

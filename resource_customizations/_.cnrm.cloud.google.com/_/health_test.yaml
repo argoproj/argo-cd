@@ -23,3 +23,23 @@ tests:
     status: Progressing
     message: 'Update in progress'
   inputPath: testdata/generation.yaml
+- healthStatus:
+    status: Healthy
+    message: "ConfigConnectorContext is healthy"
+  inputPath: testdata/config-connector-context.yaml
+- healthStatus:
+    status: Degraded
+    message: "ConfigConnectorContext is not healthy"
+  inputPath: testdata/config-connector-context-unhealthy.yaml
+- healthStatus:
+    status: Healthy
+    message: "ConfigConnector is healthy"
+  inputPath: testdata/config-connector-healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "ConfigConnector is not healthy"
+  inputPath: testdata/config-connector-unhealthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Update in progress"
+  inputPath: testdata/config-connector-stale.yaml

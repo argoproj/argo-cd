@@ -210,7 +210,6 @@ func TestRegisterExtensions(t *testing.T) {
 
 		// when
 		for _, tc := range cases {
-			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
 				// given
 				t.Parallel()
@@ -321,9 +320,7 @@ func TestCallExtension(t *testing.T) {
 			destinations = append(destinations, destination)
 		}
 		return &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: prjName,
-			},
+			Name: prjName,
 			Spec: v1alpha1.AppProjectSpec{
 				Destinations: destinations,
 			},

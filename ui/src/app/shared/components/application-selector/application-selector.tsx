@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {FormFunctionProps} from 'react-form';
+import {FormFunctionProps} from 'argo-ui';
 import {CheckboxField} from '..';
 import * as models from '../../models';
 import {appInstanceName, appQualifiedName, ComparisonStatusIcon, HealthStatusIcon, OperationPhaseIcon} from '../../../applications/components/utils';

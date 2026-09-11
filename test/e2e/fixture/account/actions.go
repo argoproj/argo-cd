@@ -1,8 +1,10 @@
 package account
 
 import (
+	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -65,6 +67,24 @@ func (a *Actions) Login() *Actions {
 	return a
 }
 
+func (a *Actions) CLILogin() *Actions {
+	a.context.T().Helper()
+	CLILogin(a.context.T(), a.context.GetName(), fixture.DefaultTestUserPassword, a.context.GetConfigPath())
+	return a
+}
+
+func (a *Actions) SessionToken() *Actions {
+	a.context.T().Helper()
+	a.lastOutput, a.lastError = fixture.Run("", "../../dist/argocd", "account", "session-token", "--config", a.context.GetConfigPath())
+	return a
+}
+
+func (a *Actions) SessionTokenJSON() *Actions {
+	a.context.T().Helper()
+	a.lastOutput, a.lastError = fixture.Run("", "../../dist/argocd", "account", "session-token", "-o", "json", "--config", a.context.GetConfigPath())
+	return a
+}
+
 func (a *Actions) runCli(args ...string) {
 	a.context.T().Helper()
 	a.lastOutput, a.lastError = fixture.RunCli(args...)
@@ -74,4 +94,26 @@ func (a *Actions) Then() *Consequences {
 	a.context.T().Helper()
 	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
+}
+
+// CLILogin performs a CLI-based login using argocd login command with a custom config path.
+// This properly establishes the context in the config file with server, user, and context information.
+// Use this when you need to test CLI commands that rely on the local config file.
+func CLILogin(t *testing.T, username, password, configPath string) {
+	t.Helper()
+	args := []string{
+		"login", fixture.GetApiServerAddress(),
+		"--username", username,
+		"--password", password,
+		"--config", configPath,
+		"--insecure",
+	}
+
+	if fixture.IsPlainText() {
+		args = append(args, "--plaintext")
+	}
+
+	loginOutput, err := fixture.Run("", "../../dist/argocd", args...)
+	require.NoError(t, err, "Login should succeed")
+	assert.Contains(t, loginOutput, "logged in successfully")
 }

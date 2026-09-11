@@ -32,7 +32,7 @@ spec:
 ## Temporarily toggling auto-sync for applications managed by ApplicationSets
 
 For a standalone application, toggling auto-sync is performed by changing the application's `spec.syncPolicy.automated` field. For an ApplicationSet managed application, changing the application's `spec.syncPolicy.automated` field will, however, have no effect.
-Read more details about how to perform the toggling for applications managed by ApplicationSets [here](../operator-manual/applicationset/Controlling-Resource-Modification.md).
+[Controlling Resource Modification](../operator-manual/applicationset/Controlling-Resource-Modification.md) has more details about how to perform the toggling for applications managed by ApplicationSets.
 
 
 ## Automatic Pruning
@@ -93,6 +93,26 @@ spec:
 
 > [!NOTE]
 > Disabling self-heal does not guarantee that live cluster changes in multi-source applications will persist. Although one of the resource's sources remains unchanged, changes in another can trigger `autosync`. To handle such cases, consider disabling `autosync`.
+
+## Automatic Retry with a limit
+
+Argo CD can automatically retry a failed sync operation using exponential backoff. To enable, configure the `retry` field in the sync policy:
+
+```yaml
+spec:
+  syncPolicy:
+    retry:
+      limit: 5 # number of retries (-1 for unlimited retries)
+      backoff:
+        duration: 5s # base duration between retries
+        factor: 2 # exponential backoff factor
+        maxDuration: 3m # maximum duration between retries
+```
+
+- `limit`: number of retry attempts. Set to `-1` for unlimited retries.
+- `backoff.duration`: base wait time before the first retry.
+- `backoff.factor`: multiplier applied after each failed attempt.
+- `backoff.maxDuration`: maximum wait time between retries, regardless of the number of attempts.
 
 ## Automatic Retry Refresh on new revisions
 

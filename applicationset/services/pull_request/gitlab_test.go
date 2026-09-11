@@ -23,6 +23,7 @@ func writeMRListResponse(t *testing.T, w io.Writer) {
 }
 
 func TestGitLabServiceCustomBaseURL(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -34,7 +35,7 @@ func TestGitLabServiceCustomBaseURL(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("", server.URL, "278964", nil, "", "", false, nil)
+	svc, err := NewGitLabService("", server.URL, "278964", nil, "", "", false, nil, "", "")
 	require.NoError(t, err)
 
 	_, err = svc.List(t.Context())
@@ -42,6 +43,7 @@ func TestGitLabServiceCustomBaseURL(t *testing.T) {
 }
 
 func TestGitLabServiceToken(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -53,7 +55,7 @@ func TestGitLabServiceToken(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("token-123", server.URL, "278964", nil, "", "", false, nil)
+	svc, err := NewGitLabService("token-123", server.URL, "278964", nil, "", "", false, nil, "", "")
 	require.NoError(t, err)
 
 	_, err = svc.List(t.Context())
@@ -61,6 +63,7 @@ func TestGitLabServiceToken(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -72,7 +75,7 @@ func TestList(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("", server.URL, "278964", []string{}, "", "", false, nil)
+	svc, err := NewGitLabService("", server.URL, "278964", []string{}, "", "", false, nil, "", "")
 	require.NoError(t, err)
 
 	prs, err := svc.List(t.Context())
@@ -87,6 +90,7 @@ func TestList(t *testing.T) {
 }
 
 func TestListWithLabels(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -98,7 +102,7 @@ func TestListWithLabels(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("", server.URL, "278964", []string{"feature", "ready"}, "", "", false, nil)
+	svc, err := NewGitLabService("", server.URL, "278964", []string{"feature", "ready"}, "", "", false, nil, "", "")
 	require.NoError(t, err)
 
 	_, err = svc.List(t.Context())
@@ -106,6 +110,7 @@ func TestListWithLabels(t *testing.T) {
 }
 
 func TestListWithState(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -117,7 +122,7 @@ func TestListWithState(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService("", server.URL, "278964", []string{}, "opened", "", false, nil)
+	svc, err := NewGitLabService("", server.URL, "278964", []string{}, "opened", "", false, nil, "", "")
 	require.NoError(t, err)
 
 	_, err = svc.List(t.Context())
@@ -125,6 +130,7 @@ func TestListWithState(t *testing.T) {
 }
 
 func TestListWithStateTLS(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		tlsInsecure bool
@@ -158,8 +164,8 @@ func TestListWithStateTLS(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				writeMRListResponse(t, w)
 			}))
@@ -179,7 +185,7 @@ func TestListWithStateTLS(t *testing.T) {
 				}
 			}
 
-			svc, err := NewGitLabService("", ts.URL, "278964", []string{}, "opened", "", test.tlsInsecure, certs)
+			svc, err := NewGitLabService("", ts.URL, "278964", []string{}, "opened", "", test.tlsInsecure, certs, "", "")
 			require.NoError(t, err)
 
 			_, err = svc.List(t.Context())
@@ -193,6 +199,7 @@ func TestListWithStateTLS(t *testing.T) {
 }
 
 func TestGitLabListReturnsRepositoryNotFoundError(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -205,7 +212,7 @@ func TestGitLabListReturnsRepositoryNotFoundError(t *testing.T) {
 		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
 	})
 
-	svc, err := NewGitLabService("", server.URL, "nonexistent", []string{}, "", "", false, nil)
+	svc, err := NewGitLabService("", server.URL, "nonexistent", []string{}, "", "", false, nil, "", "")
 	require.NoError(t, err)
 
 	prs, err := svc.List(t.Context())

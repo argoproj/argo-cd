@@ -1,0 +1,14 @@
+apiVersion: karpenter.sh/v1
+kind: NodeClaim
+metadata:
+  name: default-xxxx
+spec:
+  nodeClassRef:
+    group: karpenter.k8s.aws
+    kind: EC2NodeClass
+    name: default
+  requirements:
+    - key: karpenter.k8s.aws/instance-family
+      operator: In
+      values:
+        - m5

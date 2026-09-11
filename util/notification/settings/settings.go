@@ -1,10 +1,13 @@
 package settings
 
 import (
+	"context"
 	"errors"
+	"time"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/services"
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
@@ -66,10 +69,19 @@ func initGetVarsWithoutSecret(argocdService service.Service, cfg *api.Config, co
 	}
 
 	return func(obj map[string]any, dest services.Destination) map[string]any {
-		return expression.Spawn(&unstructured.Unstructured{Object: obj}, argocdService, map[string]any{
+		vars := map[string]any{
 			"app":     obj,
 			"context": injectLegacyVar(context, dest.Service),
-		})
+		}
+
+		// Add AppProject to template variables
+		if appProject := getAppProjectForTemplate(argocdService, obj); appProject != nil {
+			vars["appProject"] = appProject
+		} else {
+			vars["appProject"] = map[string]any{}
+		}
+
+		return expression.Spawn(&unstructured.Unstructured{Object: obj}, argocdService, vars)
 	}, nil
 }
 
@@ -80,10 +92,53 @@ func initGetVars(argocdService service.Service, cfg *api.Config, configMap *core
 	}
 
 	return func(obj map[string]any, dest services.Destination) map[string]any {
-		return expression.Spawn(&unstructured.Unstructured{Object: obj}, argocdService, map[string]any{
+		vars := map[string]any{
 			"app":     obj,
 			"context": injectLegacyVar(context, dest.Service),
 			"secrets": secret.Data,
-		})
+		}
+
+		// Add AppProject to template variables
+		if appProject := getAppProjectForTemplate(argocdService, obj); appProject != nil {
+			vars["appProject"] = appProject
+		} else {
+			vars["appProject"] = map[string]any{}
+		}
+
+		return expression.Spawn(&unstructured.Unstructured{Object: obj}, argocdService, vars)
 	}, nil
+}
+
+// getAppProjectForTemplate retrieves the AppProject as an unstructured object for an Application object.
+// Returns nil if the project cannot be found or an error occurs. The lookup goes through the argocd
+// Service, whose GetAppProject serves from the AppProject informer cache when one is wired (the
+// controller) and falls back to a live lookup otherwise (CLI).
+func getAppProjectForTemplate(argocdService service.Service, obj map[string]any) map[string]any {
+	// Extract project name from app.spec.project
+	spec, ok := obj["spec"].(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	projectName, ok := spec["project"].(string)
+	if !ok || projectName == "" {
+		projectName = "default"
+	}
+
+	metadata, _ := obj["metadata"].(map[string]any)
+	appName, _ := metadata["name"].(string)
+	appNamespace, _ := metadata["namespace"].(string)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	appProjectObj, err := argocdService.GetAppProject(ctx, projectName)
+	if err != nil {
+		log.WithFields(log.Fields{
+			"app":       appName,
+			"namespace": appNamespace,
+			"project":   projectName,
+		}).Warnf("Failed to get AppProject for notification template: %v", err)
+		return nil
+	}
+
+	return appProjectObj.Object
 }

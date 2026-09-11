@@ -1,0 +1,49 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: Initializing git commit validation
+  inputPath: testdata/no-status.yaml
+- healthStatus:
+    status: Progressing
+    message: GitCommitStatus is being deleted
+  inputPath: testdata/deleting.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for GitCommitStatus spec update to be observed
+  inputPath: testdata/observed-generation-outdated.yaml
+- healthStatus:
+    status: Degraded
+    message: "Git commit validation failed: Something went wrong"
+  inputPath: testdata/reconcile-error.yaml
+- healthStatus:
+    status: Degraded
+    message: "Git commit validation not ready (CommitStatusesNotReady): CommitStatus \"git-commit-check-env-dev-git-commit-check\" is not Ready because \"ReconciliationError\": Failed to sync to SCM"
+  inputPath: testdata/commit-statuses-not-ready.yaml
+- healthStatus:
+    status: Progressing
+    message: GitCommitStatus Ready condition is missing
+  inputPath: testdata/no-ready-condition.yaml
+- healthStatus:
+    status: Progressing
+    message: "Git commit validation status unknown (CommitStatusesNotReady): CommitStatus \"child\" Ready condition is missing"
+  inputPath: testdata/ready-unknown.yaml
+- healthStatus:
+    status: Healthy
+    message: Git commit validation reconciled
+  inputPath: testdata/empty-environments.yaml
+- healthStatus:
+    status: Healthy
+    message: Git commit validation passed for 2 environment(s)
+  inputPath: testdata/all-success.yaml
+- healthStatus:
+    status: Progressing
+    message: "Git commit validation pending for branch(es): env/dev"
+  inputPath: testdata/environment-pending.yaml
+- healthStatus:
+    status: Degraded
+    message: "Git commit validation failed for branch(es): env/dev"
+  inputPath: testdata/environment-failure.yaml
+- healthStatus:
+    status: Degraded
+    message: "Git commit validation failed: Reconciliation failed: failed to process environments: failed to evaluate expression for branch \"env/dev\": failed to compile expression: failed to compile expression: type string has no method startsWith (1:16)\n | Commit.Subject.startsWith(\"chore:\")\n | ...............^"
+  inputPath: testdata/expression-compile-error.yaml

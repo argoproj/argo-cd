@@ -41,7 +41,7 @@ spec:
               - https://kubernetes.default.svc
               - https://some-other-cluster
 
-    # Git generator generates parametes either from directory structure of files within a git repo
+    # Git generator generates parameters either from directory structure of files within a git repo
     - git:
         repoURL: https://github.com/argoproj/argo-cd.git
         # OPTIONAL: use directory structure of git repo to generate parameters

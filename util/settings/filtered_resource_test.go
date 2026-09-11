@@ -7,6 +7,7 @@ import (
 )
 
 func TestExcludeResource(t *testing.T) {
+	t.Parallel()
 	apiGroup := "foo.com"
 	kind := "bar"
 	cluster := "baz.com"

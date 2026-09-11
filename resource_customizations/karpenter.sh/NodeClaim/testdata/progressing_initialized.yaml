@@ -1,0 +1,36 @@
+apiVersion: karpenter.sh/v1
+kind: NodeClaim
+metadata:
+  name: default-xxxx
+  generation: 1
+spec:
+  nodeClassRef:
+    group: karpenter.k8s.aws
+    kind: EC2NodeClass
+    name: default
+  requirements:
+    - key: karpenter.k8s.aws/instance-family
+      operator: In
+      values:
+        - m5
+status:
+  observedGeneration: 1
+  nodeName: ip-10-0-1-100.ec2.internal
+  providerID: aws:///us-east-1a/i-0abc123def456789
+  conditions:
+    - message: ""
+      reason: Launched
+      status: "True"
+      type: Launched
+    - message: ""
+      reason: Registered
+      status: "True"
+      type: Registered
+    - message: ""
+      reason: Initialized
+      status: "True"
+      type: Initialized
+    - message: ""
+      reason: Ready
+      status: "Unknown"
+      type: Ready
