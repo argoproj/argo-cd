@@ -20,16 +20,45 @@ import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
 
 import './application-sync-panel.scss';
 
+function parseSelectedChildApp(selectedResource: string, application: models.Application): {name: string; namespace: string} | null {
+    if (!selectedResource || selectedResource === 'all') {
+        return null;
+    }
+    const parts = selectedResource.split('/');
+    if (parts.length === 4 && parts[0] === 'argoproj.io' && parts[1] === 'Application') {
+        const namespace = parts[2];
+        const name = parts[3];
+        if (name !== application.metadata.name || namespace !== application.metadata.namespace) {
+            return {name, namespace};
+        }
+    }
+    return null;
+}
+
 export const ApplicationSyncPanel = ({application, selectedResource, hide}: {application: models.Application; selectedResource: string; hide: () => any}) => {
     const [form, setForm] = React.useState<FormApi>(null);
     const isVisible = !!(selectedResource && application);
-    const appResources = ((application && selectedResource && application.status && application.status.resources) || [])
+    const [childApp, setChildApp] = React.useState<models.Application | null>(null);
+    const childAppRef = parseSelectedChildApp(selectedResource, application);
+
+    React.useEffect(() => {
+        if (childAppRef) {
+            services.applications.get(childAppRef.name, childAppRef.namespace, 'application').then(app => {
+                setChildApp(app as models.Application);
+            });
+        } else {
+            setChildApp(null);
+        }
+    }, [selectedResource]);
+
+    const targetApp = childAppRef && childApp ? childApp : application;
+    const appResources = ((targetApp && selectedResource && targetApp.status && targetApp.status.resources) || [])
         .sort((first, second) => nodeKey(first).localeCompare(nodeKey(second), undefined, {numeric: true}))
         .filter(item => !item.hook);
-    const syncResIndex = appResources.findIndex(item => nodeKey(item) === selectedResource);
+    const syncResIndex = childAppRef ? -1 : appResources.findIndex(item => nodeKey(item) === selectedResource);
     const syncStrategy = {} as models.SyncStrategy;
     const [isPending, setPending] = React.useState(false);
-    const source = getAppDefaultSource(application);
+    const source = getAppDefaultSource(targetApp);
 
     return (
         <Consumer>
@@ -55,10 +84,11 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                     }>
                     {isVisible && (
                         <Form
+                            key={targetApp.metadata.name + '/' + (targetApp.metadata.namespace || '')}
                             defaultValues={{
                                 revision: new URLSearchParams(ctx.history.location.search).get('revision') || source.targetRevision || 'HEAD',
                                 resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
-                                syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : []
+                                syncOptions: targetApp.spec.syncPolicy ? targetApp.spec.syncPolicy.syncOptions : []
                             }}
                             validateError={values => ({
                                 resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource'
@@ -225,8 +255,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
 
                                 try {
                                     await services.applications.sync(
-                                        application.metadata.name,
-                                        application.metadata.namespace,
+                                        targetApp.metadata.name,
+                                        targetApp.metadata.namespace || '',
                                         params.revision,
                                         syncFlags.Prune || false,
                                         syncFlags.DryRun || false,
@@ -274,7 +304,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         <ApplicationRetryOptions
                                             id='application-sync-panel'
                                             formApi={formApi}
-                                            initValues={application.spec.syncPolicy ? application.spec.syncPolicy.retry : null}
+                                            initValues={targetApp.spec.syncPolicy ? targetApp.spec.syncPolicy.retry : null}
                                         />
 
                                         <label>Synchronize resources:</label>
@@ -293,9 +323,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                 onClick={() =>
                                                     formApi.setValue(
                                                         'resources',
-                                                        application.status.resources
-                                                            .filter(item => !item.hook)
-                                                            .map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync)
+                                                        appResources.map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync)
                                                     )
                                                 }>
                                                 out of sync
@@ -315,35 +343,31 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                             {!formApi.values.resources.every((item: boolean) => item) && <div>WARNING: partial synchronization is not recorded in history</div>}
                                         </div>
                                         <div>
-                                            {application.status.resources
-                                                .filter(item => !item.hook)
-                                                .map((item, i) => {
-                                                    const resKey = nodeKey(item);
-                                                    const contentStart = resKey.substr(0, Math.floor(resKey.length / 2));
-                                                    let contentEnd = resKey.substr(-Math.floor(resKey.length / 2));
-                                                    // We want the ellipsis to be in the middle of our text, so we use RTL layout to put it there.
-                                                    // Unfortunately, strong LTR characters get jumbled around, so make sure that the last character isn't strong.
-                                                    const firstLetter = /[a-z]/i.exec(contentEnd);
-                                                    if (firstLetter) {
-                                                        contentEnd = contentEnd.slice(firstLetter.index);
-                                                    }
-                                                    const isLongLabel = resKey.length > 68;
-                                                    return (
-                                                        <div key={resKey} className='application-sync-panel__resource'>
-                                                            <CheckboxField id={resKey} field={`resources[${i}]`} />
-                                                            <Tooltip content={<div style={{wordBreak: 'break-all'}}>{resKey}</div>}>
-                                                                <div className='container'>
-                                                                    {isLongLabel ? (
-                                                                        <label htmlFor={resKey} content-start={contentStart} content-end={contentEnd} />
-                                                                    ) : (
-                                                                        <label htmlFor={resKey}>{resKey}</label>
-                                                                    )}
-                                                                </div>
-                                                            </Tooltip>
-                                                            <ComparisonStatusIcon status={item.status} resource={item} />
-                                                        </div>
-                                                    );
-                                                })}
+                                            {appResources.map((item, i) => {
+                                                const resKey = nodeKey(item);
+                                                const contentStart = resKey.substr(0, Math.floor(resKey.length / 2));
+                                                let contentEnd = resKey.substr(-Math.floor(resKey.length / 2));
+                                                const firstLetter = /[a-z]/i.exec(contentEnd);
+                                                if (firstLetter) {
+                                                    contentEnd = contentEnd.slice(firstLetter.index);
+                                                }
+                                                const isLongLabel = resKey.length > 68;
+                                                return (
+                                                    <div key={resKey} className='application-sync-panel__resource'>
+                                                        <CheckboxField id={resKey} field={`resources[${i}]`} />
+                                                        <Tooltip content={<div style={{wordBreak: 'break-all'}}>{resKey}</div>}>
+                                                            <div className='container'>
+                                                                {isLongLabel ? (
+                                                                    <label htmlFor={resKey} content-start={contentStart} content-end={contentEnd} />
+                                                                ) : (
+                                                                    <label htmlFor={resKey}>{resKey}</label>
+                                                                )}
+                                                            </div>
+                                                        </Tooltip>
+                                                        <ComparisonStatusIcon status={item.status} resource={item} />
+                                                    </div>
+                                                );
+                                            })}
                                             {formApi.errors.resources && <div className='argo-form-row__error-msg'>{formApi.errors.resources}</div>}
                                         </div>
                                     </div>
