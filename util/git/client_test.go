@@ -1021,6 +1021,25 @@ esac
 	assert.Contains(t, messages, "Git server for https://example.com/repo.git ignored object filtering; targeted HEAD resolution may transfer the full tip tree")
 }
 
+func TestRunTargetedHeadFetchReturnsRevisionNotFound(t *testing.T) {
+	fakeBin := t.TempDir()
+	fakeGit := filepath.Join(fakeBin, "git")
+	require.NoError(t, os.WriteFile(fakeGit, []byte(`#!/bin/sh
+case "$*" in
+  "init --bare --quiet .") exit 0 ;;
+  *"fetch --dry-run --porcelain"*)
+    printf "fatal: couldn't find remote ref HEAD\n" >&2
+    exit 128
+    ;;
+esac
+`), 0o755))
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	client := &nativeGitClient{repoURL: "https://example.com/repo.git", creds: NopCreds{}}
+	_, err := client.runTargetedHeadFetch()
+	require.ErrorIs(t, err, ErrRevisionNotFound)
+}
+
 func TestNativeLsRemoteCommandsRedactCredentials(t *testing.T) {
 	fakeBin := t.TempDir()
 	fakeGit := filepath.Join(fakeBin, "git")
@@ -1193,6 +1212,122 @@ func TestOptimizedLsRemote(t *testing.T) {
 			assert.Equal(t, tc.expected, sha)
 		})
 	}
+}
+
+func TestOptimizedLsRemoteTruncatedSHAUsesDefaultResolver(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	shaBytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	truncatedSHA := strings.TrimSpace(string(shaBytes))[:7]
+
+	lsRemoteCalls := 0
+	client, err := NewClientExt("file://"+sourceRepoPath, filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "",
+		WithOptimizedLsRemote(true),
+		WithEventHandlers(EventHandlers{
+			OnLsRemote: func(string) func() {
+				lsRemoteCalls++
+				return func() {}
+			},
+		}))
+	require.NoError(t, err)
+
+	resolvedSHA, err := client.LsRemote(truncatedSHA)
+	require.NoError(t, err)
+	assert.Equal(t, truncatedSHA, resolvedSHA)
+	assert.Equal(t, 1, lsRemoteCalls, "truncated SHAs should bypass the optimized cache fill")
+}
+
+func TestOptimizedLsRemoteEmptyRepositoryDoesNotFallBack(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath := t.TempDir()
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "init", "--bare"))
+
+	for _, tc := range []struct {
+		name     string
+		revision string
+	}{
+		{name: "empty revision", revision: ""},
+		{name: "HEAD", revision: headRevision},
+		{name: "fully qualified branch", revision: "refs/heads/main"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			lsRemoteCalls := 0
+			client, err := NewClientExt("file://"+sourceRepoPath, filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "",
+				WithOptimizedLsRemote(true),
+				WithEventHandlers(EventHandlers{
+					OnLsRemote: func(string) func() {
+						lsRemoteCalls++
+						return func() {}
+					},
+				}))
+			require.NoError(t, err)
+
+			_, err = client.(*nativeGitClient).lsRemote(tc.revision)
+			require.ErrorIs(t, err, ErrRevisionNotFound)
+			assert.Equal(t, 1, lsRemoteCalls, "a missing HEAD should not trigger the full resolver")
+		})
+	}
+}
+
+func TestOptimizedLsRemoteMissingHeadStillResolvesBranch(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	shaBytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	expectedSHA := strings.TrimSpace(string(shaBytes))
+	branchBytes, err := outputCmd(ctx, sourceRepoPath, "git", "branch", "--show-current")
+	require.NoError(t, err)
+	branch := strings.TrimSpace(string(branchBytes))
+	require.NotEmpty(t, branch)
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "symbolic-ref", "HEAD", "refs/heads/missing"))
+
+	lsRemoteCalls := 0
+	client, err := NewClientExt("file://"+sourceRepoPath, filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "",
+		WithOptimizedLsRemote(true),
+		WithEventHandlers(EventHandlers{
+			OnLsRemote: func(string) func() {
+				lsRemoteCalls++
+				return func() {}
+			},
+		}))
+	require.NoError(t, err)
+
+	resolvedSHA, err := client.LsRemote(branch)
+	require.NoError(t, err)
+	assert.Equal(t, expectedSHA, resolvedSHA)
+	assert.Equal(t, 1, lsRemoteCalls, "a missing HEAD should not discard usable branch refs")
+}
+
+func TestOptimizedLsRemoteResolvesDetachedHeadWithoutBranches(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	shaBytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	expectedSHA := strings.TrimSpace(string(shaBytes))
+	branchBytes, err := outputCmd(ctx, sourceRepoPath, "git", "branch", "--show-current")
+	require.NoError(t, err)
+	branch := strings.TrimSpace(string(branchBytes))
+	require.NotEmpty(t, branch)
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "checkout", "--detach", expectedSHA))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "branch", "-D", branch))
+
+	client, err := NewClientExt("file://"+sourceRepoPath, filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "", WithOptimizedLsRemote(true))
+	require.NoError(t, err)
+
+	resolvedSHA, err := client.LsRemote(headRevision)
+	require.NoError(t, err)
+	assert.Equal(t, expectedSHA, resolvedSHA)
 }
 
 func TestOptimizedLsRemoteAnnotatedTagMatchesDefault(t *testing.T) {
