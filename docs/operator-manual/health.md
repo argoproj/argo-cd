@@ -347,30 +347,36 @@ By doing this, the health status of the Deployment will not affect the health of
 
 ## Customizing Child Resource Health Check in Applications
 
-While totally ignoring the health of a resource may be suitable in some cases, sometimes you may want to customize how specific health statuses affect the Application's overall health.
+Ignoring a resource entirely is useful when none of its health states should affect the Application. In other cases, you may want the resource to retain its actual health status while contributing a different status to the Application's aggregated health.
+
+These are separate concepts:
+
+- The resource health status is the status shown for the resource in the resource tree.
+- The aggregated health status is the status used when calculating the health of the parent Application.
+- An aggregation override changes only the status used for the parent Application. It does not change the resource's own health status.
 
 ### Using Custom Health Check
 
-You can customize health checks using Lua scripts to return a different status for aggregation purposes. For example, to treat suspended Jobs as healthy:
+You can use a Lua health check to set `hs.aggregateAs` to the status that should be used for Application aggregation. For example, to display a suspended resource as `Suspended` while treating it as `Healthy` for the Application:
 
 ```lua
 hs = {}
 if obj.spec.suspend == true then
-  hs.status = "Suspended"     -- Resource itself will have a Suspended status
-  hs.aggregateAs = "Healthy"  -- Application sees this as Healthy instead of Suspended
+  hs.status = "Suspended"    -- Status shown for the resource
+  hs.aggregateAs = "Healthy" -- Status used for Application aggregation
   return hs
 end
 -- ... rest of health check logic
 return hs
 ```
 
-The `aggregateAs` field allows the resource to display its actual status (e.g., "Suspended") while contributing a different status (e.g., "Healthy") to the Application's overall health calculation.
+The `aggregateAs` field is optional. When it is not set, the resource's `hs.status` is used for Application aggregation as before.
 
-**Note**: Argo CD includes built-in health checks for Jobs and CronJobs that automatically set `aggregateAs = "Healthy"` when suspended, so suspended Jobs/CronJobs won't mark your Application as "Suspended".
+**Note**: Argo CD includes built-in health checks for Jobs and CronJobs that set `aggregateAs = "Healthy"` when they are suspended. Therefore, suspended Jobs and CronJobs remain `Suspended` individually but do not make the Application `Suspended` by default.
 
 ### Using an annotation for a specific resource
 
-For per-resource overrides, use the `argocd.argoproj.io/health-aggregate-overrides` annotation:
+For a per-resource override, use the `argocd.argoproj.io/health-aggregate-overrides` annotation. Each mapping has the form `ResourceStatus=ApplicationStatus`:
 
 ```yaml
 apiVersion: batch/v1
@@ -378,17 +384,19 @@ kind: Job
 metadata:
   name: my-job
   annotations:
-    # Map Suspended status to Progressing for this resource only
+    # The Job remains Suspended, but the Application aggregates it as Progressing
     argocd.argoproj.io/health-aggregate-overrides: 'Suspended=Progressing'
 spec:
   suspend: true
 ```
 
-Multiple mappings can be specified using comma separation:
+Multiple mappings can be specified as a comma-separated list:
 
 ```yaml
 annotations:
   argocd.argoproj.io/health-aggregate-overrides: 'Suspended=Healthy,Progressing=Degraded'
 ```
 
-**Precedence**: Annotation overrides take precedence over `aggregateAs` from Lua health checks, allowing you to specify the aggregation behavior for a specific resource.
+The annotation is evaluated against the resource's actual health status (`hs.status`), not against a previously configured `aggregateAs` value. If the actual status has no matching mapping, the Lua `aggregateAs` value is used when present; otherwise, the actual status is used.
+
+**Precedence**: For a matching status, the annotation override takes precedence over `aggregateAs` from a Lua or built-in health check. This allows a specific resource to override the default aggregation behavior without changing its displayed health.
