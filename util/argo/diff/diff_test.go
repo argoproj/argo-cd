@@ -372,7 +372,7 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 					"name":      "test-deployment",
 					"namespace": "default",
 					"annotations": map[string]any{
-						common.AnnotationKeyIgnoreDifferencesJSONPointers: "/spec/replicas,/metadata/labels/version",
+						common.AnnotationKeyIgnoreDifferences: "jsonPointers:\n- /spec/replicas\n- /metadata/labels/version",
 					},
 					"labels": map[string]any{
 						"app":     "test",
@@ -494,7 +494,7 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 				"kind":       "Service",
 				"metadata": map[string]any{
 					"annotations": map[string]any{
-						common.AnnotationKeyIgnoreDifferencesJSONPointers: "/spec/clusterIP",
+						common.AnnotationKeyIgnoreDifferences: "jsonPointers:\n- /spec/clusterIP",
 					},
 				},
 			},
@@ -529,7 +529,7 @@ func TestStateDiffWithAnnotationBasedIgnoreDifferences(t *testing.T) {
 					"name":      "test-deployment",
 					"namespace": "default",
 					"annotations": map[string]any{
-						common.AnnotationKeyIgnoreDifferencesJSONPointers: "spec/replicas",
+						common.AnnotationKeyIgnoreDifferences: "not a valid yaml struct for this annotation",
 					},
 				},
 				"spec": map[string]any{

@@ -5,13 +5,17 @@ import (
 	"slices"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
-	resourceannotation "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 )
+
+// ignoreDifferencesAnnotationValue holds list of paths which should be ignored during comparison with live state from argocd.argoproj.io/ignore-differences annotation value.
+type ignoreDifferencesAnnotationValue struct {
+	JSONPointers []string `json:"jsonPointers"`
+}
 
 // IgnoreDiffConfig holds the ignore difference configurations defined in argo-cm
 // as well as in the Application resource.
@@ -118,24 +122,28 @@ func resolvedIgnores(resources []*unstructured.Unstructured, diffConfigIgnores [
 }
 
 // ExtractIgnoreDifferencesFromAnnotations parses resource annotations to extract ignoreDifferences rules.
-// It looks for the argocd.argoproj.io/ignore-differences-json-pointers annotation containing comma-separated JSON pointer paths.
+// It looks for the argocd.argoproj.io/ignore-differences annotation whose value is a YAML list
+// with a jsonPointers key listing RFC6901 JSON Pointer paths
 func ExtractIgnoreDifferencesFromAnnotations(resources []*unstructured.Unstructured) []v1alpha1.ResourceIgnoreDifferences {
 	var result []v1alpha1.ResourceIgnoreDifferences
 
 	for _, resource := range resources {
 		if resource != nil {
-			jsonPointers := resourceannotation.GetAnnotationCSVs(resource, common.AnnotationKeyIgnoreDifferencesJSONPointers)
-			if len(jsonPointers) == 0 {
-				continue
+			annotationValue, ok := resource.GetAnnotations()[common.AnnotationKeyIgnoreDifferences]
+			if ok && annotationValue != "" {
+				var parsed ignoreDifferencesAnnotationValue
+				if err := yaml.Unmarshal([]byte(annotationValue), &parsed); err != nil || len(parsed.JSONPointers) == 0 {
+					continue
+				}
+				gvk := resource.GroupVersionKind()
+				result = append(result, v1alpha1.ResourceIgnoreDifferences{
+					Group:        gvk.Group,
+					Kind:         gvk.Kind,
+					Name:         resource.GetName(),
+					Namespace:    resource.GetNamespace(),
+					JSONPointers: parsed.JSONPointers,
+				})
 			}
-			gvk := resource.GroupVersionKind()
-			result = append(result, v1alpha1.ResourceIgnoreDifferences{
-				Group:        gvk.Group,
-				Kind:         gvk.Kind,
-				Name:         resource.GetName(),
-				Namespace:    resource.GetNamespace(),
-				JSONPointers: jsonPointers,
-			})
 		}
 	}
 

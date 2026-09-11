@@ -2,7 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-      argocd.argoproj.io/ignore-differences-json-pointers : "/spec/replicas"
+      argocd.argoproj.io/ignore-differences: |-
+        jsonPointers:
+        - /spec/replicas
   name: test-deployment
   namespace: default
 spec:

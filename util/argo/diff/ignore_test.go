@@ -266,7 +266,7 @@ func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
 		t.Parallel()
 		resource := newDeployment()
 		resource.SetAnnotations(map[string]string{
-			"argocd.argoproj.io/ignore-differences-json-pointers": "/spec/replicas",
+			"argocd.argoproj.io/ignore-differences": "jsonPointers:\n- /spec/replicas",
 		})
 		resources := []*unstructured.Unstructured{resource}
 
@@ -284,7 +284,7 @@ func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
 		t.Parallel()
 		resource := newDeployment()
 		resource.SetAnnotations(map[string]string{
-			"argocd.argoproj.io/ignore-differences-json-pointers": "/spec/replicas,/metadata/labels/version,/spec/template/metadata/annotations",
+			"argocd.argoproj.io/ignore-differences": "jsonPointers:\n- /spec/replicas\n- /metadata/labels/version\n- /spec/template/metadata/annotations",
 		})
 		resources := []*unstructured.Unstructured{resource}
 
@@ -296,12 +296,12 @@ func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
 		assert.ElementsMatch(t, []string{"/spec/replicas", "/metadata/labels/version", "/spec/template/metadata/annotations"}, result[0].JSONPointers)
 	})
 
-	t.Run("handles whitespace in comma-separated list", func(t *testing.T) {
+	t.Run("handles block scalar YAML annotation value", func(t *testing.T) {
 		// given
 		t.Parallel()
 		resource := newDeployment()
 		resource.SetAnnotations(map[string]string{
-			"argocd.argoproj.io/ignore-differences-json-pointers": "/spec/replicas , /metadata/labels , /status",
+			"argocd.argoproj.io/ignore-differences": "jsonPointers:\n- /spec/replicas\n- /metadata/labels\n- /status",
 		})
 		resources := []*unstructured.Unstructured{resource}
 
@@ -343,7 +343,7 @@ func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
 		t.Parallel()
 		resource := newDeployment()
 		resource.SetAnnotations(map[string]string{
-			"argocd.argoproj.io/ignore-differences-json-pointers": "",
+			"argocd.argoproj.io/ignore-differences": "",
 		})
 		resources := []*unstructured.Unstructured{resource}
 
@@ -359,11 +359,11 @@ func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
 		t.Parallel()
 		deployment := newDeployment()
 		deployment.SetAnnotations(map[string]string{
-			"argocd.argoproj.io/ignore-differences-json-pointers": "/spec/replicas",
+			"argocd.argoproj.io/ignore-differences": "jsonPointers:\n- /spec/replicas",
 		})
 		service := newService()
 		service.SetAnnotations(map[string]string{
-			"argocd.argoproj.io/ignore-differences-json-pointers": "/spec/ports",
+			"argocd.argoproj.io/ignore-differences": "jsonPointers:\n- /spec/ports",
 		})
 		resources := []*unstructured.Unstructured{deployment, service}
 
