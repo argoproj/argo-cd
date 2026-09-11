@@ -26,7 +26,7 @@ network: defaults
 # "The requested model is not available for integrator". *****
 engine:
   id: copilot
-  model: gpt-5-mini
+  model: gpt-4o-mini
 
 safe-outputs:
   add-labels:
@@ -40,6 +40,8 @@ safe-outputs:
     max: 1
 
 tools:
+  bash: []
+  cli-proxy: false
   web-fetch:
   github:
     toolsets: [issues, labels, search, repos] # ***** argo-cd specific: added search and repos so that the agent also looks at the code when triaging the issue, as the default is triaging based on the issue description, comments and labels only. This results in more tokens being used *****
