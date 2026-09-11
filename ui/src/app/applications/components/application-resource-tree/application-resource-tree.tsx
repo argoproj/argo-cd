@@ -937,7 +937,13 @@ function renderResourceNode(
                                 className='application-resource-tree__node-label application-resource-tree__node-label--appset'
                                 onClick={e => {
                                     e.stopPropagation();
-                                    ctx.navigation.goto('/' + getAppUrl({kind: appParentRef.kind, metadata: {name: appParentRef.name, namespace: appParentRef.namespace}} as models.AbstractApplication));
+                                    ctx.navigation.goto(
+                                        '/' +
+                                            getAppUrl({
+                                                kind: appParentRef.kind,
+                                                metadata: {name: appParentRef.name, namespace: appParentRef.namespace}
+                                            } as models.AbstractApplication)
+                                    );
                                 }}
                                 title={`Managed by ${appParentRef.kind}: ${appParentRef.name}`}>
                                 {appParentRef.name}
