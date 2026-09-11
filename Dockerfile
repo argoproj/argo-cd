@@ -44,6 +44,13 @@ USER root
 ENV ARGOCD_USER_ID=999 \
     DEBIAN_FRONTEND=noninteractive
 
+# Provide a CA trust store from the (Debian-based) builder stage so apt can
+# talk to Ubuntu mirrors over HTTPS. The minimal Ubuntu base image doesn't
+# ship ca-certificates, and Ubuntu's apt mirrors no longer answer on port 80
+# from many networks (including GitHub Actions runners) as of 2026-09 — so
+# HTTPS is the only viable transport, and HTTPS needs a CA bundle.
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
 # renovate: datasource=deb depName=git registryUrl=https://archive.ubuntu.com/ubuntu?suite=resolute&components=main,security&binaryArch=amd64
 ARG GIT_APT_VERSION=1:2.53.0-1ubuntu1
 
@@ -52,10 +59,9 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
     mkdir -p /home/argocd && \
     chown argocd:0 /home/argocd && \
     chmod g=u /home/argocd && \
-    # Force HTTPS for Ubuntu apt mirrors. Port 80 to archive.ubuntu.com and
-    # security.ubuntu.com is unreachable from GitHub Actions runners (and from
-    # many networks generally) as of 2026-09; apt over HTTPS is unaffected.
-    # apt verifies signatures independently, so this is a transport upgrade only.
+    # Rewrite the Ubuntu apt sources to HTTPS. See the COPY above for why.
+    # apt verifies package signatures independently, so switching transport
+    # is a defense-in-depth improvement with no behavioural change.
     grep -rl -E 'http://(archive|security)\.ubuntu\.com' /etc/apt 2>/dev/null | \
       xargs -r sed -i 's|http://archive.ubuntu.com|https://archive.ubuntu.com|g; s|http://security.ubuntu.com|https://security.ubuntu.com|g' && \
     apt-get update && \
