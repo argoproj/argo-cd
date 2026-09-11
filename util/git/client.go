@@ -985,12 +985,20 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 	if !m.optimizedLsRemoteEnabled {
 		return "", false, nil
 	}
+	// The default resolver must see the complete advertisement before treating a
+	// hexadecimal name as a truncated SHA, because it may instead name a ref.
+	if IsTruncatedCommitSHA(revision) {
+		return "", false, nil
+	}
 
+	isHeadRevision := revision == "" || revision == headRevision
+	isCoveredFullRef := false
 	if strings.HasPrefix(revision, "refs/") {
 		refName := plumbing.ReferenceName(revision)
 		if !refName.IsBranch() && !refName.IsTag() {
 			return "", false, nil
 		}
+		isCoveredFullRef = true
 	}
 
 	cacheKey := m.optimizedLsRemoteCacheKey()
@@ -1004,19 +1012,36 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 		if err != nil {
 			return nil, err
 		}
+		if len(refs) == 0 && isCoveredFullRef {
+			return nil, ErrRevisionNotFound
+		}
 		headRef, err := m.runTargetedHeadFetch()
 		if err != nil {
+			// A missing remote HEAD does not prevent branch and tag resolution. Keep
+			// the non-empty narrowed snapshot and represent HEAD by its absence.
+			if errors.Is(err, ErrRevisionNotFound) && len(refs) > 0 {
+				return refs, nil
+			}
 			return nil, err
 		}
 		return append(refs, headRef), nil
 	})
 	if err != nil {
+		if errors.Is(err, ErrRevisionNotFound) && (isHeadRevision || isCoveredFullRef) {
+			if revision == "" {
+				revision = headRevision
+			}
+			return "", true, fmt.Errorf("unable to resolve '%s' to a commit SHA: %w", revision, ErrRevisionNotFound)
+		}
 		return "", false, err
 	}
 	res, err := m.resolveRevisionWithoutTruncatedSHAFallback(revision, refs)
 	if err != nil {
-		// Short names can refer to custom namespaces, and hexadecimal names can be
-		// truncated commit SHAs. Preserve the full resolver for either case.
+		if isHeadRevision {
+			return "", true, err
+		}
+		// Short names can refer to refs outside the narrowed namespaces. Preserve
+		// the full resolver for those cases.
 		if !strings.HasPrefix(revision, "refs/") {
 			return "", false, nil
 		}
@@ -1068,13 +1093,17 @@ func (m *nativeGitClient) runTargetedHeadFetch() (*plumbing.Reference, error) {
 		m.repoURL,
 		headRevision,
 	)
+	stderrOutput := stderr.String()
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, fmt.Errorf("targeted Git HEAD query timed out after %s: %w", gitClientTimeout, ctxErr)
 		}
+		if strings.Contains(stderrOutput, "couldn't find remote ref") {
+			return nil, fmt.Errorf("targeted Git HEAD query returned no ref: %w", ErrRevisionNotFound)
+		}
 		return nil, err
 	}
-	if strings.Contains(stderr.String(), "filtering not recognized by server") {
+	if strings.Contains(stderrOutput, "filtering not recognized by server") {
 		log.Warnf("Git server for %s ignored object filtering; targeted HEAD resolution may transfer the full tip tree", SanitizeRepoURL(m.repoURL))
 	}
 	return parseTargetedHeadFetchOutput(out)
