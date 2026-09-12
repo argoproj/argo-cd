@@ -1,7 +1,14 @@
 package apiclient
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"io"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -280,4 +287,82 @@ func (c *closeTracker) Close() error {
 		c.onClose()
 	}
 	return c.ReadCloser.Close()
+}
+
+// generateTestCAPEM creates a self-signed CA certificate PEM for use in tests.
+func generateTestCAPEM(t *testing.T) []byte {
+	t.Helper()
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	template := x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "test-ca"},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+	}
+
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	require.NoError(t, err)
+
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+}
+
+func Test_client_tlsConfig(t *testing.T) {
+	t.Run("no cert data results in empty RootCAs and no client certs", func(t *testing.T) {
+		c := &client{}
+		tlsCfg, err := c.tlsConfig()
+		require.NoError(t, err)
+		assert.Nil(t, tlsCfg.RootCAs)
+		assert.Empty(t, tlsCfg.Certificates)
+		assert.False(t, tlsCfg.InsecureSkipVerify)
+	})
+
+	t.Run("valid CA PEM data is appended to RootCAs", func(t *testing.T) {
+		caPEM := generateTestCAPEM(t)
+		c := &client{CertPEMData: caPEM}
+		tlsCfg, err := c.tlsConfig()
+		require.NoError(t, err)
+		require.NotNil(t, tlsCfg.RootCAs)
+
+		// Confirm the generated CA cert was actually parsed and installed by
+		// verifying a certificate signed by it validates against the resulting pool.
+		block, _ := pem.Decode(caPEM)
+		require.NotNil(t, block)
+		parsedCA, err := x509.ParseCertificate(block.Bytes)
+		require.NoError(t, err)
+
+		_, err = parsedCA.Verify(x509.VerifyOptions{Roots: tlsCfg.RootCAs})
+		require.NoError(t, err)
+	})
+
+	t.Run("invalid CA PEM data returns an error", func(t *testing.T) {
+		c := &client{CertPEMData: []byte("not a valid pem certificate")}
+		tlsCfg, err := c.tlsConfig()
+		require.Error(t, err)
+		assert.Nil(t, tlsCfg)
+	})
+
+	t.Run("client certificate is set on the tls config when present", func(t *testing.T) {
+		caPEM := generateTestCAPEM(t)
+		block, _ := pem.Decode(caPEM)
+		require.NotNil(t, block)
+
+		clientCert := &tls.Certificate{Certificate: [][]byte{block.Bytes}}
+		c := &client{ClientCert: clientCert}
+		tlsCfg, err := c.tlsConfig()
+		require.NoError(t, err)
+		require.Len(t, tlsCfg.Certificates, 1)
+		assert.Equal(t, *clientCert, tlsCfg.Certificates[0])
+	})
+
+	t.Run("insecure sets InsecureSkipVerify", func(t *testing.T) {
+		c := &client{Insecure: true}
+		tlsCfg, err := c.tlsConfig()
+		require.NoError(t, err)
+		assert.True(t, tlsCfg.InsecureSkipVerify)
+	})
 }
