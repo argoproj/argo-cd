@@ -19,6 +19,7 @@ export interface AppSetTableRowProps {
 export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
+    const isFav = AppUtils.isFavorite(favList, appSet);
     const healthStatus = getAppSetHealthStatus(appSet);
 
     // AppSet pages don't support the Application details `view` param, so the link is view-less.
@@ -26,12 +27,7 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (favList?.includes(appSet.metadata.name)) {
-            favList.splice(favList.indexOf(appSet.metadata.name), 1);
-        } else {
-            favList.push(appSet.metadata.name);
-        }
-        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
+        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: AppUtils.toggleFavorite(favList, appSet)}});
     };
 
     return (
@@ -51,13 +47,13 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                 <div className='columns small-4'>
                     <div className='applications-list__meta-column'>
                         <div className='applications-list__fav-col'>
-                            <Tooltip content={favList?.includes(appSet.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
+                            <Tooltip content={isFav ? 'Remove Favorite' : 'Add Favorite'}>
                                 <button type='button' onClick={handleFavoriteToggle}>
                                     <i
-                                        className={favList?.includes(appSet.metadata.name) ? 'fas fa-star' : 'far fa-star'}
+                                        className={isFav ? 'fas fa-star' : 'far fa-star'}
                                         style={{
                                             cursor: 'pointer',
-                                            color: favList?.includes(appSet.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                                            color: isFav ? '#FFCE25' : '#8fa4b1'
                                         }}
                                     />
                                 </button>

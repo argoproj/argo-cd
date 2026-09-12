@@ -5,7 +5,7 @@ import {filter, map, repeat, retry} from 'rxjs/operators';
 import * as models from '../models';
 import {isValidURL} from '../utils';
 import requests from './requests';
-import {getRootPathByApp, isApp} from '../../applications/components/utils';
+import {getRootPathByApp, isApp} from '../components/app-utils';
 import {namespaceQuery, namespaceQueryKey} from './applications-service.namespace';
 
 interface QueryOptions {
@@ -13,16 +13,20 @@ interface QueryOptions {
     exclude?: boolean;
     selector?: string;
     appNamespace?: string;
+    names?: string[];
 }
 
-function optionsToSearch(options?: QueryOptions): {fields?: string; selector: string; appNamespace: string} {
+function optionsToSearch(options?: QueryOptions): {fields?: string; selector: string; appNamespace: string; names?: string[]} {
     if (options) {
-        const result: {fields?: string; selector: string; appNamespace: string} = {
+        const result: {fields?: string; selector: string; appNamespace: string; names?: string[]} = {
             selector: options.selector || '',
             appNamespace: options.appNamespace || ''
         };
         if (options.fields) {
             result.fields = (options.exclude ? '-' : '') + options.fields.join(',');
+        }
+        if (options.names) {
+            result.names = options.names;
         }
         return result;
     }
@@ -258,6 +262,7 @@ export class ApplicationsService {
             if (isApplication) {
                 query?.projects?.forEach(project => search.append('projects', project));
             }
+            searchOptions.names?.forEach(name => search.append('names', name));
         }
         const searchStr = search.toString();
         const url = `/stream${endpoint}${(searchStr && '?' + searchStr) || ''}`;
