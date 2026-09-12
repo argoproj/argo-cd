@@ -2870,3 +2870,57 @@ func TestShouldUseServerSideDiff(t *testing.T) {
 		})
 	}
 }
+
+// TestCompareAppStateChildSourceOverrides covers argoproj/argo-cd#25855: with PreserveSourceOverrides the
+// target a parent app syncs keeps helm parameters that "argocd app set" added to a child multi-source
+// Application. The diff already ignores such live-only keys, so the child is Synced either way.
+func TestCompareAppStateChildSourceOverrides(t *testing.T) {
+	wantParams := []any{map[string]any{"name": "image.tag", "value": "v2"}}
+	tests := []struct {
+		name         string
+		parentOption bool
+		childOption  bool
+		wantParams   []any
+	}{
+		{name: "off by default"},
+		{name: "parent sync option", parentOption: true, wantParams: wantParams},
+		{name: "child annotation", childOption: true, wantParams: wantParams},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			target := appWithSources(t, parentSources)
+			target.SetNamespace(test.FakeDestNamespace)
+			if tc.childOption {
+				target.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "PreserveSourceOverrides=true"})
+			}
+			live := appWithSources(t, liveSourcesWithOverride)
+			live.SetNamespace(test.FakeDestNamespace)
+			live.SetAnnotations(target.GetAnnotations())
+
+			app := newFakeApp()
+			if tc.parentOption {
+				app.Spec.SyncPolicy.SyncOptions = append(app.Spec.SyncPolicy.SyncOptions, "PreserveSourceOverrides=true")
+			}
+			data := fakeData{
+				manifestResponse: &apiclient.ManifestResponse{
+					Manifests: []string{toJSON(t, target)},
+					Namespace: test.FakeDestNamespace,
+					Server:    test.FakeClusterURL,
+					Revision:  "abc123",
+				},
+				managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+					kube.GetResourceKey(live): live,
+				},
+			}
+			ctrl := newFakeController(t.Context(), &data, nil)
+			compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, false, false, nil, false)
+			require.NoError(t, err)
+
+			assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+			require.Len(t, compRes.reconciliationResult.Target, 1)
+			params, _ := helmParamsOf(t, compRes.reconciliationResult.Target[0])
+			assert.Equal(t, tc.wantParams, params)
+			assert.Empty(t, app.Status.Conditions)
+		})
+	}
+}
