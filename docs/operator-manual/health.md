@@ -5,6 +5,14 @@ Argo CD provides built-in health assessment for several standard Kubernetes type
 surfaced to the overall Application health status as a whole. The following checks are made for
 specific types of Kubernetes resources:
 
+> [!TIP]
+> To see what determines a specific resource's health status, open the resource in the UI and select
+> its **Health Check** tab. It shows whether the resource has a Lua-based health check at all, whether
+> that script is one of the [custom health checks](#custom-health-checks) defined in the
+> `argocd-cm` ConfigMap or one bundled with Argo CD, and the script's source when one applies.
+> Resources assessed by one of the built-in Go checks documented below (e.g. Deployment, Pod, Service)
+> have no Lua script to show.
+
 ### Deployment, ReplicaSet, StatefulSet, DaemonSet
 * Observed generation is equal to desired generation.
 * Number of **updated** replicas equals the number of desired replicas.

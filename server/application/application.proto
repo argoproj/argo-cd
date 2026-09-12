@@ -241,6 +241,20 @@ message ResourceActionsListResponse {
 	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceAction actions = 1;
 }
 
+message ResourceHealthDefinitionResponse {
+	// Source describes where the resource's health check definition comes from. One of:
+	//  - "custom": a user-defined override configured in argocd-cm.
+	//  - "built-in": a Lua script bundled with Argo CD.
+	//  - "built-in-go": the resource has no Lua-based health check, but is assessed by one of
+	//    Argo CD's built-in Go health checks. Script is unset in this case - there is no Lua
+	//    source to show.
+	//  - unset: the resource kind has no dedicated health check at all.
+	optional string source = 1;
+	// Script contains the Lua source of the health check, when one is defined (source is
+	// "custom" or "built-in"). Empty otherwise.
+	optional string script = 2;
+}
+
 message ApplicationResourceResponse {
 	required string manifest = 1;
 }
@@ -502,6 +516,12 @@ service ApplicationService {
 	// ListResourceActions returns list of resource actions
 	rpc ListResourceActions(ApplicationResourceRequest) returns (ResourceActionsListResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/resource/actions";
+	}
+
+	// GetResourceHealthDefinition returns the health check definition (Lua script and its source)
+	// used to compute the resource's health status, if any
+	rpc GetResourceHealthDefinition(ApplicationResourceRequest) returns (ResourceHealthDefinitionResponse) {
+		option (google.api.http).get = "/api/v1/applications/{name}/resource/health";
 	}
 
 	// RunResourceAction runs a resource action
