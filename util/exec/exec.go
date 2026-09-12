@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unicode"
@@ -50,6 +51,110 @@ func initTimeout() {
 	fatalTimeout, err = time.ParseDuration(os.Getenv("ARGOCD_EXEC_FATAL_TIMEOUT"))
 	if err != nil {
 		fatalTimeout = 10 * time.Second
+	}
+}
+
+// defaultCancelGrace applies when the configured grace is not positive: ARGOCD_EXEC_FATAL_TIMEOUT=0
+// disables the timeout path's SIGKILL, but cancellation has no other backstop.
+const defaultCancelGrace = 10 * time.Second
+
+// isolateProcessGroups gates SetChildProcessGroup. See DisableProcessGroupIsolation.
+var isolateProcessGroups = true
+
+// DisableProcessGroupIsolation keeps commands in the caller's process group. The argocd CLI calls
+// this at startup: a terminal delivers Ctrl-C to its whole foreground group, so a command moved into
+// its own group would keep running after the user interrupts - `app diff --local` spawns helm and
+// kustomize through here. Servers have no terminal and need the isolation, so they leave it on.
+// Call before running any command.
+func DisableProcessGroupIsolation() {
+	isolateProcessGroups = false
+}
+
+// CancelGrace is how long a cancelled command has before it is killed. Callers budgeting around
+// cancellation must use this rather than the raw ARGOCD_EXEC_FATAL_TIMEOUT, so as not to undercut it.
+// RunCommandExt also uses it as the default cmd.WaitDelay, so lowering ARGOCD_EXEC_FATAL_TIMEOUT
+// shortens the post-exit pipe drain of every command as well as the SIGTERM-to-SIGKILL window.
+func CancelGrace() time.Duration {
+	if fatalTimeout <= 0 {
+		return defaultCancelGrace
+	}
+	return fatalTimeout
+}
+
+// TerminateGroupOnCancel terminates cmd's process group when its context is cancelled: SIGTERM,
+// then SIGKILL partway through grace. os/exec instead SIGKILLs the command at once, skipping its cleanup - git
+// leaves .git/index.lock behind, and nothing ever reclaims a stale one.
+//
+// cmd must come from exec.CommandContext. grace bounds the whole sequence as cmd.WaitDelay and falls
+// back to defaultCancelGrace; the SIGKILL lands partway through it, see cancelEscalation. Call the
+// returned stop once cmd.Wait has returned, so a pending escalation cannot signal a process group that
+// has since recycled the PID.
+func TerminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration) (stop func()) {
+	return terminateGroupOnCancel(cmd, grace, SignalProcessGroup)
+}
+
+// cancelEscalation is when the SIGKILL fires within grace. It has to land strictly before WaitDelay,
+// which lets Wait return - with a grandchild still holding the inherited pipes, os/exec reports
+// ErrWaitDelay at exactly WaitDelay - because callers run stop on that return and it would cancel the
+// escalation the surviving group still needs. So the SIGTERM gets the first half of grace to clean up
+// and the SIGKILL the second half to take effect, leaving CancelGrace the whole window callers budget
+// around.
+func cancelEscalation(grace time.Duration) time.Duration {
+	return grace / 2
+}
+
+// terminateGroupOnCancel takes the signalling function, so tests can observe the escalation.
+func terminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration, signal func(*exec.Cmd, syscall.Signal) error) (stop func()) {
+	SetChildProcessGroup(cmd)
+	if grace <= 0 {
+		grace = defaultCancelGrace
+	}
+
+	var mu sync.Mutex
+	var escalation *time.Timer
+	cancelled, stopped := false, false
+
+	cmd.Cancel = func() error {
+		mu.Lock()
+		defer mu.Unlock()
+		if stopped {
+			// Already waited for: signalling could hit whatever recycled the PID, and reporting an
+			// error would fail a command that finished cleanly. os/exec skips both for ErrProcessDone.
+			return os.ErrProcessDone
+		}
+		if cancelled {
+			// Already cancelled. os/exec cancels once, but a direct caller signalling again would
+			// orphan the timer stop needs to reach.
+			return nil
+		}
+		cancelled = true
+		err := signal(cmd, syscall.SIGTERM)
+		if errors.Is(err, os.ErrProcessDone) {
+			// Already reaped, so there is nothing left to escalate against: an armed timer could
+			// only reach whatever recycled the PID.
+			return err
+		}
+		// Reap whatever ignored SIGTERM, as the timeout path does.
+		escalation = time.AfterFunc(cancelEscalation(grace), func() {
+			mu.Lock()
+			defer mu.Unlock()
+			if stopped {
+				return
+			}
+			_ = signal(cmd, syscall.SIGKILL)
+		})
+		// Best effort otherwise: reporting e.g. EPERM here would mask the context error on Wait.
+		return nil
+	}
+	cmd.WaitDelay = grace
+
+	return func() {
+		mu.Lock()
+		defer mu.Unlock()
+		stopped = true
+		if escalation != nil {
+			escalation.Stop()
+		}
 	}
 }
 
@@ -118,6 +223,10 @@ func (ce *CmdError) Error() string {
 
 func (ce *CmdError) String() string {
 	return ce.Error()
+}
+
+func (ce *CmdError) Unwrap() error {
+	return ce.Cause
 }
 
 func newCmdError(args string, cause error, stderr string) *CmdError {
@@ -189,14 +298,56 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
+	// Own process group, so a timeout reaps grandchildren too. See SignalProcessGroup.
+	SetChildProcessGroup(cmd)
+	if cmd.WaitDelay == 0 {
+		// Bound cmd.Wait. A grandchild that left the group survives the SIGKILL still holding the
+		// inherited pipes, and every <-done below would then block forever - including the one on the
+		// shutdown path, which the repo-server's drain waits on. Callers that installed
+		// TerminateGroupOnCancel already set this, so leave theirs alone.
+		cmd.WaitDelay = CancelGrace()
+	}
+
+	select {
+	case <-shutdown:
+		return "", ErrShuttingDown
+	default:
+	}
+
 	start := time.Now()
 	err = cmd.Start()
 	if err != nil {
 		return "", err
 	}
+	inFlight.Add(1)
+	defer inFlight.Add(-1)
 
-	done := make(chan error)
-	go func() { done <- cmd.Wait() }()
+	// Buffered: the timeout path returns without reading done when ShouldWait is false, which would
+	// otherwise leave this goroutine blocked on the send, holding the command and its output buffers.
+	done := make(chan error, 1)
+	var reapedMu sync.Mutex
+	reaped := false
+	go func() {
+		waitErr := cmd.Wait()
+		reapedMu.Lock()
+		reaped = true
+		reapedMu.Unlock()
+		done <- waitErr
+	}()
+
+	// done only becomes readable a moment after Wait returns, so a command can already be reaped - its
+	// process group free for reuse - while the select below still sees it as running. Same guard as
+	// TerminateGroupOnCancel's stop. reaped is set after Wait returns rather than atomically with the
+	// kernel reaping the PID, so this narrows that window rather than closing it; SignalProcessGroup
+	// falling back to Process.Signal keeps an already-empty group harmless.
+	signalGroup := func(sig syscall.Signal) {
+		reapedMu.Lock()
+		defer reapedMu.Unlock()
+		if reaped {
+			return
+		}
+		_ = SignalProcessGroup(cmd, sig)
+	}
 
 	// Start timers for timeout
 	timeout := DefaultCmdOpts.Timeout
@@ -220,6 +371,27 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		fatalTimeoutCh = time.NewTimer(timeout + fatalTimeout).C
 	}
 
+	capture := func() string {
+		output := stdout.String()
+		if opts.CaptureStderr {
+			output += stderr.String()
+		}
+		logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
+		return strings.TrimSuffix(output, "\n")
+	}
+
+	finish := func(waitErr error) (string, error) {
+		output := capture()
+		if waitErr == nil {
+			return output, nil
+		}
+		cmdErr := newCmdError(redactor(args), errors.New(redactor(waitErr.Error())), strings.TrimSpace(redactor(stderr.String())))
+		if !opts.SkipErrorLogging {
+			logCtx.Error(cmdErr.Error())
+		}
+		return output, cmdErr
+	}
+
 	timeoutBehavior := DefaultCmdOpts.TimeoutBehavior
 	fatalTimeoutBehaviour := syscall.SIGKILL
 	if opts.TimeoutBehavior.Signal != syscall.Signal(0) {
@@ -229,58 +401,70 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	select {
 	// noinspection ALL
 	case <-timoutCh:
-		// send timeout signal
-		_ = cmd.Process.Signal(timeoutBehavior.Signal)
+		// Both cases can be ready at once, and select picks at random: report a command that has
+		// already exited as itself rather than as a timeout.
+		select {
+		case waitErr := <-done:
+			return finish(waitErr)
+		default:
+		}
+		// send timeout signal to the whole process group
+		signalGroup(timeoutBehavior.Signal)
 		// wait on timeout signal and fallback to fatal timeout signal
 		if timeoutBehavior.ShouldWait {
 			select {
 			case <-done:
 			case <-fatalTimeoutCh:
 				// upgrades to SIGKILL if cmd does not respect SIGTERM
-				_ = cmd.Process.Signal(fatalTimeoutBehaviour)
+				signalGroup(fatalTimeoutBehaviour)
 				// now original cmd should exit immediately after SIGKILL
 				<-done
 				// return error with a marker indicating that cmd exited only after fatal SIGKILL
-				output := stdout.String()
-				if opts.CaptureStderr {
-					output += stderr.String()
-				}
-				logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
+				output := capture()
 				err = newCmdError(redactor(args), fmt.Errorf("fatal timeout after %v", timeout+fatalTimeout), "")
 				logCtx.Error(err.Error())
-				return strings.TrimSuffix(output, "\n"), err
+				return output, err
 			}
 		}
 		// either did not wait for timeout or cmd did respect SIGTERM
-		output := stdout.String()
-		if opts.CaptureStderr {
-			output += stderr.String()
-		}
-		logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
+		output := capture()
 		err = newCmdError(redactor(args), fmt.Errorf("timeout after %v", timeout), "")
 		logCtx.Error(err.Error())
-		return strings.TrimSuffix(output, "\n"), err
-	case err := <-done:
-		if err != nil {
-			output := stdout.String()
-			if opts.CaptureStderr {
-				output += stderr.String()
-			}
-			logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
-			err := newCmdError(redactor(args), errors.New(redactor(err.Error())), strings.TrimSpace(redactor(stderr.String())))
-			if !opts.SkipErrorLogging {
-				logCtx.Error(err.Error())
-			}
-			return strings.TrimSuffix(output, "\n"), err
+		return output, err
+	case <-shutdown:
+		// Both cases can be ready at once, and select picks at random: report a command that has
+		// already exited as itself rather than as a shutdown casualty.
+		select {
+		case waitErr := <-done:
+			return finish(waitErr)
+		default:
 		}
+		// Signal the group so the command can clean up, then reap it if it ignores SIGTERM.
+		signalGroup(syscall.SIGTERM)
+		var waitErr error
+		select {
+		case waitErr = <-done:
+		case <-time.After(CancelGrace()):
+			signalGroup(syscall.SIGKILL)
+			waitErr = <-done
+		}
+		if waitErr == nil {
+			// Finished on its own between the check above and the SIGTERM, so it is no casualty.
+			return finish(nil)
+		}
+		output := capture()
+		// Keep the exit error behind the sentinel: callers match on its text - git reads "exit status 1"
+		// from git diff as "changes found" - and a command that failed on its own during the drain must
+		// still report why.
+		cause := fmt.Errorf("%w: %w", ErrShuttingDown, errors.New(redactor(waitErr.Error())))
+		err = newCmdError(redactor(args), cause, strings.TrimSpace(redactor(stderr.String())))
+		if !opts.SkipErrorLogging {
+			logCtx.Error(err.Error())
+		}
+		return output, err
+	case waitErr := <-done:
+		return finish(waitErr)
 	}
-	output := stdout.String()
-	if opts.CaptureStderr {
-		output += stderr.String()
-	}
-	logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
-
-	return strings.TrimSuffix(output, "\n"), nil
 }
 
 func RunCommand(name string, opts CmdOpts, arg ...string) (string, error) {
