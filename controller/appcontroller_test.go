@@ -104,9 +104,15 @@ type MockKubectl struct {
 	// through to the embedded Kubectl. It lets tests control what the API server
 	// reports for a resource that is not in the cluster cache.
 	GetResourceResult *unstructured.Unstructured
+	// GetResourceError, when set, is returned by GetResource. It takes precedence
+	// over GetResourceResult.
+	GetResourceError error
 }
 
 func (m *MockKubectl) GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+	if m.GetResourceError != nil {
+		return nil, m.GetResourceError
+	}
 	if m.GetResourceResult != nil {
 		return m.GetResourceResult, nil
 	}
@@ -1463,6 +1469,79 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		// Deletion proceeds: the finalizer is removed rather than waiting for a
 		// resource this application will never observe.
 		assert.True(t, patched, "deletion must not block on a hook name owned by another application")
+	})
+
+	t.Run("PostDelete_HookAlreadyExistsOwnershipLookup", func(t *testing.T) {
+		// Covers how the ownership lookup behaves when the API server does not
+		// return an object that can be inspected.
+		tests := []struct {
+			name        string
+			getErr      error
+			getResult   *unstructured.Unstructured
+			expectErr   string
+			expectPatch bool
+		}{
+			{
+				// The hook was deleted between the create attempt and the
+				// lookup, so there is nothing left to wait for.
+				name:        "hook disappeared before the lookup",
+				getErr:      apierrors.NewNotFound(schema.GroupResource{Group: "batch", Resource: "jobs"}, "post-delete-hook"),
+				expectPatch: true,
+			},
+			{
+				// Ownership cannot be established, so the phase must fail rather
+				// than guess. Failing keeps the finalizer in place.
+				name:      "lookup fails",
+				getErr:    errors.New("connection refused"),
+				expectErr: "failed to check ownership of existing PostDelete hook",
+			},
+			{
+				// Nothing came back to inspect; treat it as not ours so deletion
+				// is not blocked.
+				name:        "lookup returns nothing",
+				expectPatch: true,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				app := newFakeApp()
+				app.SetPostDeleteFinalizer()
+				app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+				ctrl := newFakeController(t.Context(), &fakeData{
+					manifestResponses: []*apiclient.ManifestResponse{{
+						Manifests: []string{fakePostDeleteHook},
+					}},
+					apps:            []runtime.Object{app, &defaultProj},
+					managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+				}, nil)
+				ctrl.kubectl.(*MockKubectl).CreateError = apierrors.NewAlreadyExists(schema.GroupResource{Group: "batch", Resource: "jobs"}, "post-delete-hook")
+				ctrl.kubectl.(*MockKubectl).GetResourceError = tt.getErr
+				ctrl.kubectl.(*MockKubectl).GetResourceResult = tt.getResult
+
+				patched := false
+				fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+				defaultReactor := fakeAppCs.ReactionChain[0]
+				fakeAppCs.ReactionChain = nil
+				fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+					return defaultReactor.React(action)
+				})
+				fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+					patched = true
+					return true, &v1alpha1.Application{}, nil
+				})
+				err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
+					return []*v1alpha1.Cluster{}, nil
+				})
+				if tt.expectErr != "" {
+					require.ErrorContains(t, err, tt.expectErr)
+					assert.False(t, patched, "finalizer must stay while ownership is unknown")
+					return
+				}
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectPatch, patched)
+			})
+		}
 	})
 
 	t.Run("PostDelete_HookIsCreatedForLongAppName", func(t *testing.T) {
