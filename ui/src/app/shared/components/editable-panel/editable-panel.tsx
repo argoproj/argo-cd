@@ -1,11 +1,12 @@
 import {ErrorNotification, HelpIcon, NotificationType} from 'argo-ui';
 import classNames from 'classnames';
 import * as React from 'react';
-import {type ReactNode, useCallback, useContext, useEffect, useRef, useState, Fragment} from 'react';
+import {type ReactNode, useCallback, useContext, useState, Fragment} from 'react';
 import {Form, type FormApi} from 'argo-ui';
 import {helpTip} from '../../../applications/components/utils';
 import {Context} from '../../context';
 import {Spinner} from '../spinner';
+import {useAutoSaveForm} from './use-auto-save-form';
 
 import './editable-panel.scss';
 
@@ -71,8 +72,7 @@ function EditablePanel<T extends {} = {}>({
     const [isCollapsed, setIsCollapsed] = useState<boolean>(collapsedProp);
     const [prevCollapsedProp, setPrevCollapsedProp] = useState<boolean>(collapsedProp);
     const ctx = useContext(Context);
-    const formApiRef = useRef<FormApi | null>(null);
-    const initialValuesRef = useRef<T>(values);
+    const {formApiRef, onFormDidUpdate} = useAutoSaveForm(values, noReadonlyMode, save);
 
     // Sync the collapsed state when the controlling prop changes, adjusting
     // during render instead of in an effect to avoid a cascading re-render.
@@ -80,20 +80,6 @@ function EditablePanel<T extends {} = {}>({
         setPrevCollapsedProp(collapsedProp);
         setIsCollapsed(collapsedProp);
     }
-
-    useEffect(() => {
-        const initialValuesString = JSON.stringify(initialValuesRef.current);
-        const valuesString = JSON.stringify(values);
-
-        if (formApiRef.current && initialValuesString !== valuesString) {
-            if (noReadonlyMode) {
-                formApiRef.current.setAllValues(values);
-            }
-            initialValuesRef.current = values;
-        } else if (initialValuesString !== valuesString) {
-            initialValuesRef.current = values;
-        }
-    }, [values, noReadonlyMode]);
 
     const onModeSwitch = useCallback(() => {
         if (onModeSwitchProp) {
@@ -231,11 +217,7 @@ function EditablePanel<T extends {} = {}>({
                         ) : (
                             <Form
                                 getApi={api => (formApiRef.current = api)}
-                                formDidUpdate={async form => {
-                                    if (noReadonlyMode && save) {
-                                        await save(form.values as any, {});
-                                    }
-                                }}
+                                formDidUpdate={onFormDidUpdate}
                                 onSubmit={handleSubmit}
                                 defaultValues={values}
                                 validateError={validate}>

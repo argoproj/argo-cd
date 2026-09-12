@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {render as rtlRender, screen, fireEvent} from '@testing-library/react';
+import {render as rtlRender, screen, fireEvent, waitFor} from '@testing-library/react';
 import {act} from 'react';
 
 // helpTip is imported by editable-panel from applications/components/utils,
@@ -185,13 +185,137 @@ describe('EditablePanel – noReadonlyMode', () => {
             />
         );
 
+        await waitFor(() => expect(capturedFormApi).not.toBeNull());
+        save.mockClear();
+
         // Trigger a value change via the captured FormApi
         await act(async () => {
             capturedFormApi?.setValue('name', 'bob');
         });
 
-        // save() should have been called at least once via formDidUpdate
-        expect(save).toHaveBeenCalled();
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+        expect(save).toHaveBeenLastCalledWith({name: 'bob'}, {});
+    });
+
+    test('saves a user change once and does not save the parent echo', async () => {
+        const save = jest.fn().mockResolvedValue(undefined);
+        let capturedFormApi: FormApi | null = null;
+        const editItems: EditablePanelItem[] = [
+            {
+                title: 'Name',
+                view: <span />,
+                edit: (api: FormApi) => {
+                    capturedFormApi = api;
+                    return <span data-testid='form-value'>{api.values.name}</span>;
+                }
+            }
+        ];
+
+        const {rerender} = renderPanel(<EditablePanel values={{name: 'alice'}} items={editItems} save={save} noReadonlyMode />);
+
+        await waitFor(() => expect(capturedFormApi).not.toBeNull());
+        save.mockClear();
+
+        await act(async () => {
+            capturedFormApi?.setValue('name', 'bob');
+        });
+
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+        expect(save).toHaveBeenLastCalledWith({name: 'bob'}, {});
+
+        rerender(
+            <Wrapper>
+                <EditablePanel values={{name: 'bob'}} items={editItems} save={save} noReadonlyMode />
+            </Wrapper>
+        );
+
+        await waitFor(() => expect(screen.getByTestId('form-value')).toHaveTextContent('bob'));
+        expect(save).toHaveBeenCalledTimes(1);
+    });
+
+    test('does not save values synchronized from the parent', async () => {
+        const save = jest.fn().mockResolvedValue(undefined);
+        const editItems: EditablePanelItem[] = [
+            {
+                title: 'Name',
+                view: <span />,
+                edit: (api: FormApi) => <span data-testid='form-value'>{api.values.name}</span>
+            }
+        ];
+
+        const {rerender} = renderPanel(<EditablePanel values={{name: 'v1'}} items={editItems} save={save} noReadonlyMode />);
+
+        await waitFor(() => expect(screen.getByTestId('form-value')).toHaveTextContent('v1'));
+        save.mockClear();
+
+        rerender(
+            <Wrapper>
+                <EditablePanel values={{name: 'v2'}} items={editItems} save={save} noReadonlyMode />
+            </Wrapper>
+        );
+
+        await waitFor(() => expect(screen.getByTestId('form-value')).toHaveTextContent('v2'));
+        expect(save).not.toHaveBeenCalled();
+    });
+
+    test('does not save touched or error-only form updates', async () => {
+        const save = jest.fn().mockResolvedValue(undefined);
+        let capturedFormApi: FormApi | null = null;
+        const editItems: EditablePanelItem[] = [
+            {
+                title: 'Name',
+                view: <span />,
+                edit: (api: FormApi) => {
+                    capturedFormApi = api;
+                    return <span />;
+                }
+            }
+        ];
+
+        renderPanel(<EditablePanel values={{name: 'alice'}} items={editItems} save={save} noReadonlyMode />);
+
+        await waitFor(() => expect(capturedFormApi).not.toBeNull());
+        save.mockClear();
+
+        await act(async () => {
+            capturedFormApi?.setTouched('name', true);
+        });
+        await act(async () => {
+            capturedFormApi?.setError('name', 'Required');
+        });
+
+        expect(save).not.toHaveBeenCalled();
+    });
+
+    test('saves every distinct user value while earlier saves are pending', async () => {
+        const save = jest.fn().mockImplementation(() => new Promise(() => undefined));
+        let capturedFormApi: FormApi | null = null;
+        const editItems: EditablePanelItem[] = [
+            {
+                title: 'Name',
+                view: <span />,
+                edit: (api: FormApi) => {
+                    capturedFormApi = api;
+                    return <span />;
+                }
+            }
+        ];
+
+        renderPanel(<EditablePanel values={{name: ''}} items={editItems} save={save} noReadonlyMode />);
+
+        await waitFor(() => expect(capturedFormApi).not.toBeNull());
+        save.mockClear();
+
+        await act(async () => {
+            capturedFormApi?.setValue('name', 'a');
+        });
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+
+        await act(async () => {
+            capturedFormApi?.setValue('name', 'ab');
+        });
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+        expect(save).toHaveBeenLastCalledWith({name: 'ab'}, {});
     });
 });
 
