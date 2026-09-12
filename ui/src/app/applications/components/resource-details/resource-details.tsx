@@ -318,55 +318,61 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     <ResourceIcon group={selectedNode.group} kind={selectedNode.kind} />
                                     {ResourceLabel({kind: selectedNode.kind})}
                                 </div>
-                                <h1>{selectedNode.name}</h1>
-                                {data.controlledState && (
-                                    <span style={{marginRight: '5px'}}>
-                                        <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
+                                <div className='resource-details__header-name'>
+                                    <h1 className='resource-details__header-title'>{selectedNode.name}</h1>
+                                    <span className='resource-details__header-status'>
+                                        {data.controlledState && (
+                                            <span style={{marginRight: '5px'}}>
+                                                <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
+                                            </span>
+                                        )}
+                                        {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
                                     </span>
-                                )}
-                                {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
-                                {showApplicationReference && (
-                                    <button
-                                        onClick={() =>
-                                            appContext.navigation.goto(`/${AppUtils.getAppUrl(application)}`, {
-                                                node: `${AppUtils.nodeKey(selectedNode)}/0`,
-                                                tab: tab || null
-                                            })
-                                        }
-                                        style={{marginLeft: 'auto', marginRight: '5px'}}
-                                        className='argo-button argo-button--base'>
-                                        <i className='fa fa-fw fa-info-circle' /> <span className='show-for-large'>DETAILS</span>
-                                    </button>
-                                )}
-                                {!showApplicationReference && (
-                                    <>
-                                        <button
-                                            onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
-                                            style={{marginLeft: 'auto', marginRight: '5px'}}
-                                            className='argo-button argo-button--base'>
-                                            <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
-                                        </button>
+                                </div>
+                                <div className='resource-details__header-actions'>
+                                    {showApplicationReference && (
                                         <button
                                             onClick={() =>
-                                                AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources, props.appChanged)
+                                                appContext.navigation.goto(`/${AppUtils.getAppUrl(application)}`, {
+                                                    node: `${AppUtils.nodeKey(selectedNode)}/0`,
+                                                    tab: tab || null
+                                                })
                                             }
                                             style={{marginRight: '5px'}}
                                             className='argo-button argo-button--base'>
-                                            <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
+                                            <i className='fa fa-fw fa-info-circle' /> <span className='show-for-large'>DETAILS</span>
                                         </button>
-                                    </>
-                                )}
-                                {data.resourceActionsMenuItems?.length > 0 && !showApplicationReference && (
-                                    <DropDown
-                                        isMenu={true}
-                                        anchor={() => (
-                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                <i className='fa fa-ellipsis-v' />
+                                    )}
+                                    {!showApplicationReference && (
+                                        <>
+                                            <button
+                                                onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
+                                                style={{marginRight: '5px'}}
+                                                className='argo-button argo-button--base'>
+                                                <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
                                             </button>
-                                        )}>
-                                        {() => AppUtils.renderResourceActionMenu(data.resourceActionsMenuItems)}
-                                    </DropDown>
-                                )}
+                                            <button
+                                                onClick={() =>
+                                                    AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources, props.appChanged)
+                                                }
+                                                style={{marginRight: '5px'}}
+                                                className='argo-button argo-button--base'>
+                                                <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
+                                            </button>
+                                        </>
+                                    )}
+                                    {data.resourceActionsMenuItems?.length > 0 && !showApplicationReference && (
+                                        <DropDown
+                                            isMenu={true}
+                                            anchor={() => (
+                                                <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                    <i className='fa fa-ellipsis-v' />
+                                                </button>
+                                            )}>
+                                            {() => AppUtils.renderResourceActionMenu(data.resourceActionsMenuItems)}
+                                        </DropDown>
+                                    )}
+                                </div>
                             </div>
                             <Tabs
                                 navTransparent={true}
