@@ -3,6 +3,8 @@ package controllers
 import (
 	"testing"
 
+	"k8s.io/apimachinery/pkg/labels"
+
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 
 	log "github.com/sirupsen/logrus"
@@ -13,6 +15,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -41,6 +44,7 @@ func TestClusterEventHandler(t *testing.T) {
 		name             string
 		items            []argov1alpha1.ApplicationSet
 		secret           corev1.Secret
+		secretOld        *corev1.Secret
 		expectedRequests []ctrl.Request
 	}{
 		{
@@ -209,6 +213,76 @@ func TestClusterEventHandler(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: "argocd",
 					Name:      "my-non-argocd-secret",
+				},
+			},
+			expectedRequests: []reconcile.Request{},
+		},
+		{
+			name: "a cluster generator with matching labels should produce a request",
+			items: []argov1alpha1.ApplicationSet{
+				{
+					Name:      "my-app-set",
+					Namespace: "argocd",
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{
+							{
+								Clusters: &argov1alpha1.ClusterGenerator{
+									Selector: metav1.LabelSelector{
+										MatchLabels: map[string]string{
+											"env":    "prod",
+											"region": "us-east-1",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			secret: corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "argocd",
+					Name:      "my-secret",
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"env":                         "prod",
+						"region":                      "us-east-1",
+					},
+				},
+			},
+			expectedRequests: []reconcile.Request{
+				{Namespace: "argocd", Name: "my-app-set"},
+			},
+		},
+		{
+			name: "a cluster generator with non matching labels should not produce a request",
+			items: []argov1alpha1.ApplicationSet{
+				{
+					Name:      "my-app-set",
+					Namespace: "argocd",
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{
+							{
+								Clusters: &argov1alpha1.ClusterGenerator{
+									Selector: metav1.LabelSelector{
+										MatchLabels: map[string]string{
+											"env": "prod",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			secret: corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "argocd",
+					Name:      "my-secret",
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"env":                         "dev",
+					},
 				},
 			},
 			expectedRequests: []reconcile.Request{},
@@ -539,6 +613,72 @@ func TestClusterEventHandler(t *testing.T) {
 			},
 			expectedRequests: []reconcile.Request{},
 		},
+		{
+			name: "when a cluster secret label changes from stage to prod, both stage and prod appsets should reconcile but not dev",
+			items: []argov1alpha1.ApplicationSet{
+				{
+					Name:      "dev-appset",
+					Namespace: "argocd",
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{{
+							Clusters: &argov1alpha1.ClusterGenerator{
+								Selector: metav1.LabelSelector{
+									MatchLabels: map[string]string{"env": "dev"},
+								},
+							},
+						}},
+					},
+				},
+				{
+					Name:      "stage-appset",
+					Namespace: "argocd",
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{{
+							Clusters: &argov1alpha1.ClusterGenerator{
+								Selector: metav1.LabelSelector{
+									MatchLabels: map[string]string{"env": "stage"},
+								},
+							},
+						}},
+					},
+				},
+				{
+					Name:      "prod-appset",
+					Namespace: "argocd",
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{{
+							Clusters: &argov1alpha1.ClusterGenerator{
+								Selector: metav1.LabelSelector{
+									MatchLabels: map[string]string{"env": "prod"},
+								},
+							},
+						}},
+					},
+				},
+			},
+			secret: corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "argocd",
+					Name:      "my-secret",
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"env":                         "prod",
+					},
+				},
+			},
+			secretOld: &corev1.Secret{
+				Namespace: "argocd",
+				Name:      "my-secret",
+				Labels: map[string]string{
+					argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+					"env":                         "stage",
+				},
+			},
+			expectedRequests: []reconcile.Request{
+				{Namespace: "argocd", Name: "prod-appset"},
+				{Namespace: "argocd", Name: "stage-appset"},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -558,7 +698,11 @@ func TestClusterEventHandler(t *testing.T) {
 
 			mockAddRateLimitingInterface := mockAddRateLimitingInterface{}
 
-			handler.queueRelatedAppGenerators(t.Context(), &mockAddRateLimitingInterface, &test.secret)
+			var secretOld client.Object
+			if test.secretOld != nil {
+				secretOld = test.secretOld
+			}
+			handler.queueRelatedAppGenerators(t.Context(), &mockAddRateLimitingInterface, &test.secret, secretOld)
 
 			assert.ElementsMatch(t, mockAddRateLimitingInterface.addedItems, test.expectedRequests)
 		})
@@ -571,7 +715,8 @@ func TestNestedGeneratorHasClusterGenerator_NestedClusterGenerator(t *testing.T)
 		Clusters: &argov1alpha1.ClusterGenerator{},
 	}
 
-	hasClusterGenerator, err := nestedGeneratorHasClusterGenerator(nested)
+	emptyLabels := labels.Set{}
+	hasClusterGenerator, err := nestedGeneratorHasClusterGenerator(nested, []labels.Labels{emptyLabels})
 
 	require.NoError(t, err)
 	assert.True(t, hasClusterGenerator)
@@ -599,7 +744,8 @@ func TestNestedGeneratorHasClusterGenerator_NestedMergeGenerator(t *testing.T) {
 		},
 	}
 
-	hasClusterGenerator, err := nestedGeneratorHasClusterGenerator(nested)
+	matchingLabels := labels.Set{"argocd.argoproj.io/secret-type": "cluster"}
+	hasClusterGenerator, err := nestedGeneratorHasClusterGenerator(nested, []labels.Labels{matchingLabels})
 
 	require.NoError(t, err)
 	assert.True(t, hasClusterGenerator)
@@ -627,8 +773,93 @@ func TestNestedGeneratorHasClusterGenerator_NestedMergeGeneratorWithInvalidJSON(
 		},
 	}
 
-	hasClusterGenerator, err := nestedGeneratorHasClusterGenerator(nested)
+	emptyLabels := labels.Set{}
+	hasClusterGenerator, err := nestedGeneratorHasClusterGenerator(nested, []labels.Labels{emptyLabels})
 
 	require.Error(t, err)
 	assert.False(t, hasClusterGenerator)
+}
+
+func TestNestedGeneratorHasClusterGenerator_NestedMergeGeneratorNonMatchingLabels(t *testing.T) {
+	nested := argov1alpha1.ApplicationSetNestedGenerator{
+		Merge: &apiextensionsv1.JSON{
+			Raw: []byte(
+				`{
+					"generators": [
+					  {
+						"clusters": {
+						  "selector": {
+							"matchLabels": {
+							  "env": "prod"
+							}
+						  }
+						}
+					  }
+					]
+				  }`,
+			),
+		},
+	}
+
+	nonMatchingLabels := labels.Set{"env": "dev"}
+	hasClusterGenerator, err := nestedGeneratorHasClusterGenerator(nested, []labels.Labels{nonMatchingLabels})
+
+	require.NoError(t, err)
+	assert.False(t, hasClusterGenerator)
+}
+
+func TestNestedGeneratorHasClusterGenerator_NestedMatrixGeneratorPartialLabels(t *testing.T) {
+	nested := argov1alpha1.ApplicationSetNestedGenerator{
+		Matrix: &apiextensionsv1.JSON{
+			Raw: []byte(
+				`{
+					"generators": [
+					  {
+						"clusters": {
+						  "selector": {
+							"matchLabels": {
+							  "env": "prod",
+							  "region": "us-east-1"
+							}
+						  }
+						},
+						"list": {
+						  "elements": [
+							  "a",
+							  "b"
+						  ]
+						}
+					  }
+					]
+				  }`,
+			),
+		},
+	}
+
+	nonMatchingLabels := labels.Set{"env": "prod"}
+	hasClusterGenerator, err := nestedGeneratorHasClusterGenerator(nested, []labels.Labels{nonMatchingLabels})
+
+	require.NoError(t, err)
+	assert.False(t, hasClusterGenerator)
+}
+
+func TestClusterGenerator_InvalidSelector(t *testing.T) {
+	clusterGenerator := argov1alpha1.ClusterGenerator{
+		Selector: metav1.LabelSelector{
+			MatchExpressions: []metav1.LabelSelectorRequirement{
+				{
+					Key:      "env",
+					Operator: metav1.LabelSelectorOperator("InvalidOperator"),
+					Values:   []string{"prod", "dev"},
+				},
+			},
+		},
+	}
+
+	emptyLabels := labels.Set{}
+	hasClusterGenerator, err := clusterGeneratorMatches(&clusterGenerator, []labels.Labels{emptyLabels})
+
+	require.Error(t, err)
+	assert.False(t, hasClusterGenerator)
+	assert.ErrorContains(t, err, "invalid label selector in cluster generator")
 }
