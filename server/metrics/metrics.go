@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -21,6 +22,8 @@ type MetricsServer struct {
 	extensionRequestCounter  *prometheus.CounterVec
 	extensionRequestDuration *prometheus.HistogramVec
 	loginRequestCounter      *prometheus.CounterVec
+	activeUsersTracker       *ActiveUserTracker
+	cancelTracker            context.CancelFunc
 	PrometheusRegistry       *prometheus.Registry
 }
 
@@ -83,12 +86,17 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 
 	profile.RegisterProfiler(mux)
 
+	activeUsersTracker := NewActiveUserTracker(DefaultActiveUsersWindow, DefaultActiveUsersCleanupInterval)
+	trackerCtx, cancelTracker := context.WithCancel(context.Background())
+	go activeUsersTracker.Run(trackerCtx)
+
 	registry.MustRegister(redisRequestCounter)
 	registry.MustRegister(redisRequestHistogram)
 	registry.MustRegister(extensionRequestCounter)
 	registry.MustRegister(extensionRequestDuration)
 	registry.MustRegister(loginRequestCounter)
 	registry.MustRegister(argoVersion)
+	registry.MustRegister(activeUsersTracker.Gauge())
 
 	kubectl.RegisterWithClientGo()
 	kubectl.RegisterWithPrometheus(registry)
@@ -103,7 +111,25 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 		extensionRequestCounter:  extensionRequestCounter,
 		extensionRequestDuration: extensionRequestDuration,
 		loginRequestCounter:      loginRequestCounter,
+		activeUsersTracker:       activeUsersTracker,
+		cancelTracker:            cancelTracker,
 		PrometheusRegistry:       registry,
+	}
+}
+
+// Stop cancels the background goroutines started by NewMetricsServer, such as
+// the active user cleanup loop.
+func (m *MetricsServer) Stop() {
+	if m.cancelTracker != nil {
+		m.cancelTracker()
+	}
+}
+
+// RecordActiveUser records the given authenticated principal as active,
+// updating the argocd_server_active_users_24h gauge.
+func (m *MetricsServer) RecordActiveUser(user string) {
+	if m.activeUsersTracker != nil {
+		m.activeUsersTracker.Record(user)
 	}
 }
 

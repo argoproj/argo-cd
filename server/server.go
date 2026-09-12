@@ -203,6 +203,7 @@ type ArgoCDServer struct {
 	appsetInformer  cache.SharedIndexInformer
 	appsetLister    applisters.ApplicationSetLister
 	db              db.ArgoDB
+	metricServer    *metrics.MetricsServer
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
 	stopCh             chan os.Signal
@@ -586,6 +587,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		}
 	}()
 	metricsServ := metrics.NewMetricsServer(server.MetricsHost, server.MetricsPort)
+	server.metricServer = metricsServ
 	if server.RedisClient != nil {
 		cacheutil.CollectMetrics(server.RedisClient, metricsServ, server.userStateStorage.GetLockObject())
 	}
@@ -710,7 +712,8 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 			grpcS.GracefulStop()
 		})
 
-		// Shutdown metrics server
+		// Stop the active user tracker background goroutine and shutdown the metrics server
+		metricsServ.Stop()
 		wg.Go(func() {
 			err := metricsServ.Shutdown(shutdownCtx)
 			if err != nil {
@@ -1575,6 +1578,12 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 			// response forwarder that will translate it into Set-Cookie header.
 			if err := grpc.SendHeader(ctx, metadata.New(map[string]string{renewTokenKey: newToken})); err != nil {
 				log.Warnf("Failed to set %s header", renewTokenKey)
+			}
+		}
+		// Record the authenticated principal for the active user metric.
+		if server.metricServer != nil {
+			if user := util_session.GetUserIdentifier(ctx); user != "" {
+				server.metricServer.RecordActiveUser(user)
 			}
 		}
 	}
