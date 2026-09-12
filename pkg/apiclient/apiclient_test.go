@@ -49,6 +49,25 @@ func Test_parseGRPCHeaders(t *testing.T) {
 	})
 }
 
+func TestNewClient_GRPCWebTransportUsesProxyFromEnvironment(t *testing.T) {
+	t.Parallel()
+
+	c, err := NewClientWithContext(t.Context(), &ClientOptions{
+		ServerAddr: "argocd.example.com:443",
+		Insecure:   true, // TLS client which does not require a real CA
+		GRPCWeb:    true, // skip the plain gRPC probe, which would try to reach the server
+	})
+	require.NoError(t, err)
+
+	cl, ok := c.(*client)
+	require.True(t, ok)
+	transport, ok := cl.httpClient.Transport.(*http.Transport)
+	require.True(t, ok, "expected *http.Transport, got %T", cl.httpClient.Transport)
+
+	assert.NotNil(t, transport.Proxy, "gRPC-web transport must honor HTTP_PROXY/HTTPS_PROXY/NO_PROXY")
+	require.NotNil(t, transport.TLSClientConfig)
+}
+
 func TestExecuteRequest_ClosesBodyOnHTTPError(t *testing.T) {
 	t.Parallel()
 	bodyClosed := &atomic.Bool{}
