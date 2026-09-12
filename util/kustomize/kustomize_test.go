@@ -18,14 +18,16 @@ import (
 )
 
 const (
-	kustomization1 = "kustomization_yaml"
-	kustomization3 = "force_common"
-	kustomization4 = "custom_version"
-	kustomization5 = "kustomization_yaml_patches"
-	kustomization6 = "kustomization_yaml_components"
-	kustomization7 = "label_without_selector"
-	kustomization8 = "kustomization_yaml_patches_empty"
-	kustomization9 = "kustomization_yaml_components_monorepo"
+	kustomization1  = "kustomization_yaml"
+	kustomization3  = "force_common"
+	kustomization4  = "custom_version"
+	kustomization5  = "kustomization_yaml_patches"
+	kustomization6  = "kustomization_yaml_components"
+	kustomization7  = "label_without_selector"
+	kustomization8  = "kustomization_yaml_patches_empty"
+	kustomization9  = "kustomization_yaml_components_monorepo"
+	kustomization10 = "kustomization_image_matcher"
+	kustomization11 = "kustomization_image_alias_collision"
 )
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
@@ -625,6 +627,83 @@ func TestKustomizeBuildComponentsNoFoundComponents(t *testing.T) {
 	for _, cmd := range commands {
 		assert.NotContains(t, cmd, "edit add component", "kustomize edit add component should not be invoked when foundComponents is empty")
 	}
+}
+
+func TestKustomizeBuildImagesPreserveOriginalName(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization10)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+
+	_, images, _, err := kustomize.Build(nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	assert.Equal(t, []Image{
+		"mirrored=mirror.example.com/mirrored:1.0",
+		"my-image=ghcr.io/my-org/my-image:main",
+		"nginx:1.15.4",
+		"other-image=quay.io/my-org/other-image@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3",
+	}, images)
+}
+
+func TestKustomizeBuildImageOverrideByOriginalName(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization10)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Images: v1alpha1.KustomizeImages{"my-image=ghcr.io/my-org/my-image:abc123"},
+	}
+	objs, images, _, err := kustomize.Build(&kustomizeSource, nil, &v1alpha1.Env{}, nil)
+	require.NoError(t, err)
+
+	require.Len(t, objs, 1)
+	containers, ok, err := unstructured.NestedSlice(objs[0].Object, "spec", "template", "spec", "containers")
+	require.NoError(t, err)
+	require.True(t, ok)
+	image, ok, err := unstructured.NestedString(containers[0].(map[string]any), "image")
+	require.NoError(t, err)
+	require.True(t, ok)
+	assert.Equal(t, "ghcr.io/my-org/my-image:abc123", image)
+
+	assert.Contains(t, images, Image("my-image=ghcr.io/my-org/my-image:abc123"))
+}
+
+func TestKustomizeBuildImageOverrideToDifferentRepo(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization10)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Images: v1alpha1.KustomizeImages{"my-image=example.com:5000/elsewhere:v1"},
+	}
+	_, images, _, err := kustomize.Build(&kustomizeSource, nil, &v1alpha1.Env{}, nil)
+	require.NoError(t, err)
+
+	assert.Contains(t, images, Image("my-image=example.com:5000/elsewhere:v1"))
+}
+
+func TestKustomizeBuildImagesSharingOneNewName(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization11)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+
+	_, images, _, err := kustomize.Build(nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	assert.Contains(t, images, Image("my-image=ghcr.io/my-org/shared:v1"))
+	assert.Contains(t, images, Image("other-image=ghcr.io/my-org/shared:v2"))
+}
+
+func TestKustomizeBuildImagesLeaveUntransformedImagesAlone(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization11)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+
+	_, images, _, err := kustomize.Build(nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	assert.Contains(t, images, Image("nginx:1.15.4"))
+	assert.Contains(t, images, Image("aliased-nginx=nginx:v3"))
 }
 
 func Test_getImageParameters_sorted(t *testing.T) {
