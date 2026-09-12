@@ -38,6 +38,37 @@ the appropriate tool.
   and might fail. To avoid failed syncs use the `ARGOCD_GIT_ATTEMPTS_COUNT` environment variable to retry failed
   requests.
 
+* For repositories with very large ref advertisements, enable `--git-ls-remote-optimized` to resolve `HEAD`, branches,
+  and tags with protocol v2 server-side narrowing. For each optimized cache refresh, one cache-lock owner runs
+  `git -c protocol.version=2 ls-remote --heads --tags` and a targeted
+  `git -c protocol.version=2 fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0 <repository> HEAD` from a
+  temporary bare repository.
+  The results are stored together, so concurrent `HEAD` requests share the same two-query cache fill. The dry-run fetch
+  uses a bounded set of `HEAD`-related ref prefixes with protocol v2 servers. Because Git still transfers a pack during
+  a dry-run, `--depth=1` prevents full-history transfer and `--filter=tree:0` omits trees and blobs when the server
+  supports object filtering. The temporary repository is removed after the query. If either optimized query fails,
+  Argo CD uses the default go-git resolver as a last resort. This fallback can require another full remote listing, so
+  disable the optimization if native queries fail persistently. Unsupported refs, including GitHub pull request refs such
+  as `refs/pull/<pr-number>/head` and GitLab merge request refs such as `refs/merge-requests/<mr-number>/head`, continue
+  to use the default resolver directly. See
+  [Use Fully Qualified Git References](#use-fully-qualified-git-references) for related `targetRevision` guidance.
+
+  > [!WARNING]
+  > `--filter=tree:0` limits object transfer only when the Git server supports partial-fetch object filtering. On
+  > self-hosted servers, enable [`uploadpack.allowFilter`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-uploadpackallowFilter)
+  > and ensure `tree` filters are allowed before enabling this optimization. Otherwise, Git ignores the filter and the
+  > targeted `HEAD` query may transfer the complete tip tree on every revision-cache refresh. Argo CD logs a warning
+  > when Git reports that the filter was ignored.
+
+  > [!NOTE]
+  > `--git-ls-remote-optimized` is a global repo-server flag. Configure it consistently across all repo-server replicas.
+  > During a rolling update, the optimized and default resolvers use separate cache entries, so mutable refs might briefly
+  > resolve from snapshots captured at different times.
+
+  > [!NOTE]
+  > The heads/tags query and targeted `HEAD` query each receive the configured Git request timeout. A cache refresh can
+  > therefore take up to twice that timeout before any default-resolver fallback.
+
 * `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default
   that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With
   Kustomize remote bases, or in case a Helm chart gets changed without bumping its version number, the expected
