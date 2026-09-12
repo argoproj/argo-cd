@@ -27,6 +27,7 @@ export interface ApplicationTableRowProps {
 export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, refreshApplication, deleteApplication}: ApplicationTableRowProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
+    const isFav = AppUtils.isFavorite(favList, app);
     const healthStatus = app.status.health.status;
     const source = getAppDefaultSource(app);
 
@@ -35,12 +36,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (favList?.includes(app.metadata.name)) {
-            favList.splice(favList.indexOf(app.metadata.name), 1);
-        } else {
-            favList.push(app.metadata.name);
-        }
-        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
+        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: AppUtils.toggleFavorite(favList, app)}});
     };
 
     return (
@@ -60,13 +56,13 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                 <div className='columns small-4'>
                     <div className='applications-list__meta-column'>
                         <div className='applications-list__fav-col'>
-                            <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
+                            <Tooltip content={isFav ? 'Remove Favorite' : 'Add Favorite'}>
                                 <button type='button' onClick={handleFavoriteToggle}>
                                     <i
-                                        className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}
+                                        className={isFav ? 'fas fa-star' : 'far fa-star'}
                                         style={{
                                             cursor: 'pointer',
-                                            color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                                            color: isFav ? '#FFCE25' : '#8fa4b1'
                                         }}
                                     />
                                 </button>
