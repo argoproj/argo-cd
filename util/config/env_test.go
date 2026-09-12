@@ -148,3 +148,9 @@ func TestFlagWithEqualSign(t *testing.T) {
 
 	assert.Equal(t, "bar", GetFlag("foo", ""))
 }
+
+func TestRepeatedFlagCommaSeparated(t *testing.T) {
+	loadOpts(t, "--header 'CF-Access-Client-Id: foo' --header 'CF-Access-Client-Secret: bar'")
+
+	assert.Equal(t, "CF-Access-Client-Id: foo,CF-Access-Client-Secret: bar", GetFlag("header", ""))
+}
