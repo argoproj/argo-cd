@@ -3,7 +3,7 @@ import * as React from 'react';
 import {Timestamp} from '../../../shared/components/timestamp';
 import {services} from '../../../shared/services';
 
-export const RevisionMetadataPanel = (props: {appName: string; appNamespace: string; type: string; revision: string; versionId: number}) => {
+export const RevisionMetadataPanel = (props: {appName: string; appNamespace: string; type: string; revision: string; versionId: number | null}) => {
     if (props.type === 'helm') {
         return null;
     }
