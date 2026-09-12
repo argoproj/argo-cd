@@ -6,10 +6,10 @@ import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 import {ClusterCtx, DataLoader, EmptyState, Page, Paginate, SearchBar, Spinner} from '../../../shared/components';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewKey, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
-import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
@@ -17,7 +17,6 @@ import {ApplicationsFilter, FilteredApp, getAppFilterResults} from './applicatio
 import {createMatcher} from './applications-list-search';
 import {showCreateFirstAppState} from './applications-list-empty-state';
 import {AppsStatusBar} from './applications-status-bar';
-import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
 import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
@@ -28,6 +27,15 @@ import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
 import {isInvalidRegex, queryParamsChanged} from '../../../shared/utils';
 
 import './applications-list.scss';
+
+const ApplicationCreatePanel = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "app-create-panel" */ '../application-create-panel/application-create-panel').then(m => ({default: m.ApplicationCreatePanel}))),
+    'Failed to load application create panel. Please reload and try again.'
+);
+const ApplicationsSummary = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "apps-summary" */ './applications-summary').then(m => ({default: m.ApplicationsSummary}))),
+    'Failed to load applications summary. Please reload and try again.'
+);
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
