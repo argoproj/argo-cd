@@ -1,6 +1,6 @@
 import * as deepMerge from 'deepmerge';
 import {Observable} from 'rxjs';
-import {filter, map, repeat, retry} from 'rxjs/operators';
+import {auditTime, filter, map, repeat, retry, switchMap} from 'rxjs/operators';
 
 import * as models from '../models';
 import {isValidURL} from '../utils';
@@ -123,24 +123,30 @@ export class ApplicationsService {
 
     public watchResourceTree(name: string, appNamespace: string, objectListKind: string): Observable<models.ApplicationTree> {
         const isApplication = objectListKind === 'application';
-        // ApplicationSet has no dedicated streaming resource-tree endpoint.
-        // Derive the tree from status.resources via the existing AppSet watch stream.
+        // ApplicationSet has no streaming resource-tree endpoint: re-fetch it on watch events (rate-limited, as
+        // status.resources updates can be frequent) to keep server-side fields such as createdAt, falling back
+        // to a tree derived from status.resources when the fetch fails.
         if (!isApplication) {
             return this.watch(objectListKind, {name, appNamespace}).pipe(
-                map(watchEvent => {
-                    const appset = watchEvent.application;
-                    return {
-                        nodes: (appset.status?.resources || []).map(res => ({
-                            ...res,
-                            parentRefs: [] as models.ResourceRef[],
-                            info: [] as models.InfoItem[],
-                            resourceVersion: '',
-                            uid: ''
-                        })),
-                        orphanedNodes: [],
-                        hosts: []
-                    } as models.ApplicationTree;
-                })
+                filter(watchEvent => watchEvent.type !== 'DELETED'),
+                auditTime(1000),
+                switchMap(
+                    watchEvent =>
+                        this.resourceTree(name, appNamespace, objectListKind).catch(
+                            () =>
+                                ({
+                                    nodes: (watchEvent.application.status?.resources || []).map(res => ({
+                                        ...res,
+                                        parentRefs: [] as models.ResourceRef[],
+                                        info: [] as models.InfoItem[],
+                                        resourceVersion: '',
+                                        uid: ''
+                                    })),
+                                    orphanedNodes: [],
+                                    hosts: []
+                                }) as models.ApplicationTree
+                        ) as Promise<models.ApplicationTree>
+                )
             );
         }
         return requests
