@@ -7,6 +7,7 @@ import (
 	"net"
 	"runtime/debug"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
@@ -36,19 +37,42 @@ func LoggerRecoveryHandler(log *logrus.Entry) recovery.RecoveryHandlerFunc {
 // connection will be insecure (plain-text).
 // Lifted from: https://github.com/fullstorydev/grpcurl/blob/master/grpcurl.go
 func BlockingNewClient(ctx context.Context, network, address string, creds credentials.TransportCredentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	rawConn, err := proxy.Dial(ctx, network, address)
-	if err != nil {
-		return nil, fmt.Errorf("error dial proxy: %w", err)
+	dial := func(dialCtx context.Context) (net.Conn, error) {
+		rawConn, err := proxy.Dial(dialCtx, network, address)
+		if err != nil {
+			return nil, fmt.Errorf("error dial proxy: %w", err)
+		}
+
+		if creds != nil {
+			conn, _, err := creds.ClientHandshake(dialCtx, address, rawConn)
+			if err != nil {
+				_ = rawConn.Close()
+				return nil, fmt.Errorf("error creating connection: %w", err)
+			}
+			rawConn = conn
+		}
+
+		return rawConn, nil
 	}
 
-	if creds != nil {
-		rawConn, _, err = creds.ClientHandshake(ctx, address, rawConn)
-		if err != nil {
-			return nil, fmt.Errorf("error creating connection: %w", err)
-		}
+	// Establish the first connection before creating the client.
+	// The custom dialer uses this connection for the initial dial.
+	firstConn, err := dial(ctx)
+	if err != nil {
+		return nil, err
 	}
-	customDialer := func(_ context.Context, _ string) (net.Conn, error) {
-		return rawConn, nil
+
+	var firstDial sync.Once
+	customDialer := func(dialCtx context.Context, _ string) (net.Conn, error) {
+		var conn net.Conn
+		firstDial.Do(func() {
+			conn = firstConn
+			firstConn = nil
+		})
+		if conn != nil {
+			return conn, nil
+		}
+		return dial(dialCtx)
 	}
 
 	opts = append(opts,
@@ -59,11 +83,13 @@ func BlockingNewClient(ctx context.Context, network, address string, creds crede
 
 	conn, err := grpc.NewClient("passthrough:"+address, opts...)
 	if err != nil {
+		_ = firstConn.Close()
 		return nil, fmt.Errorf("grpc.NewClient failed: %w", err)
 	}
 
 	conn.Connect()
 	if err := waitForReady(ctx, conn); err != nil {
+		_ = conn.Close()
 		return nil, fmt.Errorf("gRPC connection not ready: %w", err)
 	}
 
