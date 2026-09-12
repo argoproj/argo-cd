@@ -1,15 +1,15 @@
 -- CRD spec: https://gitops-promoter.readthedocs.io/en/latest/crd-specs/#argocdcommitstatus
 
+if obj.metadata and obj.metadata.deletionTimestamp then
+    local hs = {}
+    hs.status = "Progressing"
+    hs.deletionMessage = "Argo CD commit status is being deleted"
+    return hs
+end
 local hs = {}
 hs.status = "Progressing"
 hs.message = "Initializing Argo CD commit status"
 
--- Check for deletion timestamp
-if obj.metadata.deletionTimestamp then
-    hs.status = "Progressing"
-    hs.message = "Argo CD commit status is being deleted"
-    return hs
-end
 
 -- Check if status exists
 if not obj.status then

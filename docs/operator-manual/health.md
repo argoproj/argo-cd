@@ -196,6 +196,55 @@ By default, health typically returns a `Progressing` status.
 >     # Lua standard libraries are enabled for this script
 > ```
 
+### Terminating resources
+
+When a resource has `metadata.deletionTimestamp` set (and it is not blocked on the Argo CD hook
+finalizer `argocd.argoproj.io/hook-finalizer`), Argo CD runs the health check and may adjust the
+result.
+
+If the check does **not** set `deletionMessage`, Argo CD returns a Progressing health with a default
+message listing pending finalizers.
+
+If the check **does** set `deletionMessage`, Argo CD uses the returned status and `deletionMessage`
+(ignoring any set `message` value).
+
+This feature exists mostly so that health checks can help users understand the finalizers that are
+set, what they're for, and what might go wrong if the user were to manually clear them.
+
+Example:
+
+```lua
+local finalizerMessages = {
+  ["widget.example.com/cleanup"] = "Waiting for the external API to acknowledge deletion before the Widget can be removed.",
+}
+
+if obj.metadata ~= nil and obj.metadata.deletionTimestamp ~= nil then
+  local hs = {}
+  hs.status = "Progressing"
+  local parts = { "Widget is being deleted." }
+  if obj.metadata.finalizers ~= nil then
+    for _, f in ipairs(obj.metadata.finalizers) do
+      local msg = finalizerMessages[f]
+      if msg ~= nil then
+        table.insert(parts, f .. ": " .. msg)
+      else
+        table.insert(parts, f .. ": still present.")
+      end
+    end
+  end
+  hs.deletionMessage = table.concat(parts, " ")
+  return hs
+end
+
+local hs = {}
+hs.status = "Progressing"
+hs.message = "Initializing"
+
+-- ... evaluate normal health into hs ...
+
+return hs
+```
+
 ### Way 2. Contribute a Custom Health Check
 
 A health check can be bundled into Argo CD. Custom health check scripts are located in the `resource_customizations` directory of [https://github.com/argoproj/argo-cd](https://github.com/argoproj/argo-cd). This must have the following directory structure:
