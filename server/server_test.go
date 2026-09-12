@@ -445,6 +445,8 @@ func TestGracefulShutdown(t *testing.T) {
 	defer appsetInformerCancel()
 	clusterInformerCancel := test.StartInformer(s.clusterInformer)
 	defer clusterInformerCancel()
+	syncWindowInformerCancel := test.StartInformer(s.syncWindowInformer)
+	defer syncWindowInformerCancel()
 
 	lns, err := s.Listen()
 	require.NoError(t, err)
@@ -526,6 +528,8 @@ clientSecret: $oidc.myoidc.clientSecret
 	defer appsetInformerCancel()
 	clusterInformerCancel := test.StartInformer(s.clusterInformer)
 	defer clusterInformerCancel()
+	syncWindowInformerCancel := test.StartInformer(s.syncWindowInformer)
+	defer syncWindowInformerCancel()
 
 	shutdown := false
 

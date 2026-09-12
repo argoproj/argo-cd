@@ -1,5 +1,8 @@
 # Sync Windows
 
+For reusable sync windows defined as Kubernetes resources, see the [SyncWindow CRD](sync_windows_crd.md)
+guide.
+
 Sync windows are configurable windows of time where syncs will either be blocked or allowed. These are defined
 by a kind, which can be either `allow` or `deny`, a `schedule` in cron format and a duration along with one or 
 more of either `applications`, `namespaces` and `clusters`. If more than one option is specified, by default, the enabled options will 
