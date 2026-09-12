@@ -17,6 +17,7 @@ type MetricsServer struct {
 	gitRequestCounter             *prometheus.CounterVec
 	gitRequestHistogram           *prometheus.HistogramVec
 	repoPendingRequestsGauge      *prometheus.GaugeVec
+	activeGRPCRequestsGauge       prometheus.Gauge
 	parallelismWaitHistogram      prometheus.Histogram
 	redisRequestCounter           *prometheus.CounterVec
 	redisRequestHistogram         *prometheus.HistogramVec
@@ -88,6 +89,14 @@ func NewMetricsServer() *MetricsServer {
 		[]string{"repo"},
 	)
 	registry.MustRegister(repoPendingRequestsGauge)
+
+	activeGRPCRequestsGauge := prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "argocd_repo_server_active_requests",
+			Help: "Number of currently active gRPC requests being handled by the repo server. Useful for HPA scaling.",
+		},
+	)
+	registry.MustRegister(activeGRPCRequestsGauge)
 
 	parallelismWaitHistogram := prometheus.NewHistogram(
 		prometheus.HistogramOpts{
@@ -188,6 +197,7 @@ func NewMetricsServer() *MetricsServer {
 		gitRequestCounter:             gitRequestCounter,
 		gitRequestHistogram:           gitRequestHistogram,
 		repoPendingRequestsGauge:      repoPendingRequestsGauge,
+		activeGRPCRequestsGauge:       activeGRPCRequestsGauge,
 		parallelismWaitHistogram:      parallelismWaitHistogram,
 		redisRequestCounter:           redisRequestCounter,
 		redisRequestHistogram:         redisRequestHistogram,
@@ -279,4 +289,11 @@ func (m *MetricsServer) IncOCIGetTagsFailCounter(repo string) {
 // IncOCITestRepoFailCounter increments the OCI failed test repo requests counter
 func (m *MetricsServer) IncOCITestRepoFailCounter(repo string) {
 	m.ociTestRepoFailCounter.WithLabelValues(repo).Inc()
+}
+
+// SetActiveGRPCRequests sets the number of active gRPC requests currently being handled by the
+// repo server. The value is supplied by the concurrency limiter so that this gauge and the
+// limiter's own counter never drift apart.
+func (m *MetricsServer) SetActiveGRPCRequests(active int64) {
+	m.activeGRPCRequestsGauge.Set(float64(active))
 }

@@ -46,7 +46,7 @@ type ArgoCDRepoServer struct {
 var tlsHostList = []string{"localhost", "reposerver"}
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore, clientCAPath string, disableTLS bool) (*ArgoCDRepoServer, error) {
+func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore, clientCAPath string, disableTLS bool, maxConcurrentGRPCRequests int64) (*ArgoCDRepoServer, error) {
 	var tlsConfig *tls.Config
 	var healthCheckClientCert *tls.Certificate
 
@@ -92,14 +92,19 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	metricsServer.PrometheusRegistry.MustRegister(serverMetrics)
 
 	serverLog := log.NewEntry(log.StandardLogger())
+	// The concurrency limiter is placed after the logging and metrics interceptors so that
+	// requests rejected with ResourceExhausted are still logged and counted, and before the
+	// recovery interceptor so the latter continues to wrap the actual handler.
 	streamInterceptors := []grpc.StreamServerInterceptor{
 		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
 		serverMetrics.StreamServerInterceptor(),
+		grpc_util.ConcurrencyLimiterStreamServerInterceptor(maxConcurrentGRPCRequests, metricsServer.SetActiveGRPCRequests),
 		recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(serverLog))),
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
 		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
 		serverMetrics.UnaryServerInterceptor(),
+		grpc_util.ConcurrencyLimiterUnaryServerInterceptor(maxConcurrentGRPCRequests, metricsServer.SetActiveGRPCRequests),
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(serverLog))),
 		grpc_util.ErrorSanitizerUnaryServerInterceptor(),
 	}
