@@ -2330,14 +2330,7 @@ func checkAppWaitConditions(app *argoappv1.Application, watch watchOpts, selecte
 		}
 	}
 
-	// LastSuccessfulOperation is only populated after a successful hydration,
-	// so it can be nil while CurrentOperation is set. Guard against the nil
-	// dereference before comparing the two.
-	hydrationFinished := app.Status.SourceHydrator.CurrentOperation != nil &&
-		app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
-		app.Status.SourceHydrator.CurrentOperation.Phase == argoappv1.HydrateOperationPhaseHydrated &&
-		app.Status.SourceHydrator.CurrentOperation.SourceHydrator.DeepEquals(app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator) &&
-		app.Status.SourceHydrator.CurrentOperation.DrySHA == app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+	hydrationFinished := appHydrationFinished(app)
 
 	if len(selectedResources) > 0 {
 		ready = true
@@ -2538,8 +2531,111 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 		}
 		_ = w.Flush()
 	}
-	_ = printFinalStatus(appWithLock.GetApp())
-	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
+	app = appWithLock.GetApp()
+	_ = printFinalStatus(app)
+
+	// Collect the state that kept the wait from completing so the timeout
+	// error carries actionable information.
+	hydrationFinished := appHydrationFinished(app)
+	if len(selectedResources) > 0 {
+		// The selected-resources wait gates checkResourceStatus per resource,
+		// so mirror that here (see notReadyResources, which also filters out
+		// completed hooks). Operation and hydration are app-level conditions,
+		// not resource-specific, so report them too; the sync/health aggregate
+		// is intentionally omitted for a selected-resource wait.
+		var parts []string
+		if watch.operation {
+			parts = append(parts, "operation: "+operationStatus(app))
+		}
+		if watch.hydrated {
+			parts = append(parts, fmt.Sprintf("hydrated: %t", hydrationFinished))
+		}
+		if pending := notReadyResources(app, watch, selectedResources, hydrationFinished); len(pending) > 0 {
+			parts = append(parts, "resources not ready: "+formatPendingResources(pending))
+		}
+		if len(parts) == 0 {
+			return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state", timeout, appName)
+		}
+		return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state. %s", timeout, appName, strings.Join(parts, ", "))
+	}
+
+	// Without selected resources the wait condition is evaluated against the
+	// app-level aggregate status. Report only the conditions the wait was
+	// gated on (a --operation/--hydrated wait shouldn't mention sync/health),
+	// and list any not-ready resources as a hint.
+	var conditions []string
+	if watch.sync {
+		conditions = append(conditions, fmt.Sprintf("sync status: %s", app.Status.Sync.Status))
+	}
+	if watch.health || watch.suspended || watch.degraded {
+		conditions = append(conditions, fmt.Sprintf("health status: %s", app.Status.Health.Status))
+	}
+	if watch.operation {
+		conditions = append(conditions, "operation: "+operationStatus(app))
+	}
+	if watch.hydrated {
+		conditions = append(conditions, fmt.Sprintf("hydrated: %t", hydrationFinished))
+	}
+	detail := "app " + strings.Join(conditions, ", ")
+
+	if pending := notReadyResources(app, watch, nil, hydrationFinished); len(pending) > 0 {
+		detail += ", resources not ready: " + formatPendingResources(pending)
+	}
+	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state. %s", timeout, appName, detail)
+}
+
+// operationStatus describes the app's operation for a timeout message. The
+// requested operation (app.Operation) is cleared once the controller starts
+// processing it, so fall back to the recorded OperationState phase.
+func operationStatus(app *argoappv1.Application) string {
+	switch {
+	case app.Status.OperationState != nil:
+		return string(app.Status.OperationState.Phase)
+	case app.Operation != nil:
+		return "still in progress"
+	default:
+		return "none"
+	}
+}
+
+// notReadyResources returns the resources that kept the wait from completing,
+// skipping completed hooks. A hook reports its terminal phase (Succeeded,
+// Failed or Error) in Status, which checkResourceStatus treats as not-Synced;
+// such a hook is done, not pending, so it must not be listed as "not ready".
+func notReadyResources(app *argoappv1.Application, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, hydrationFinished bool) []string {
+	var pending []string
+	for _, state := range getResourceStates(app, selectedResources) {
+		if state.Hook != "" && common.OperationPhase(state.Status).Completed() {
+			continue
+		}
+		if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, hydrationFinished) {
+			pending = append(pending, fmt.Sprintf("%s (sync: %s, health: %s)", state.Key(), state.Status, state.Health))
+		}
+	}
+	return pending
+}
+
+// appHydrationFinished reports whether the app's current hydration operation
+// has completed successfully. LastSuccessfulOperation is only populated after
+// a successful hydration, so it can be nil while CurrentOperation is set.
+func appHydrationFinished(app *argoappv1.Application) bool {
+	return app.Status.SourceHydrator.CurrentOperation != nil &&
+		app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
+		app.Status.SourceHydrator.CurrentOperation.Phase == argoappv1.HydrateOperationPhaseHydrated &&
+		app.Status.SourceHydrator.CurrentOperation.SourceHydrator.DeepEquals(app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator) &&
+		app.Status.SourceHydrator.CurrentOperation.DrySHA == app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+}
+
+// formatPendingResources builds a summary string for resources that have not
+// reached the desired state. If there are more than maxPending entries the
+// list is truncated and a count of the remaining items is appended.
+func formatPendingResources(pending []string) string {
+	// TODO(#29031): make the limit configurable via a command flag
+	const maxPending = 10
+	if len(pending) > maxPending {
+		return strings.Join(pending[:maxPending], ", ") + fmt.Sprintf(", ... and %d more", len(pending)-maxPending)
+	}
+	return strings.Join(pending, ", ")
 }
 
 // isContextCanceledErr returns true if the error is a context cancellation or deadline exceeded,
