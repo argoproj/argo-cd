@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,8 @@ import (
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pluginclient "github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -45,6 +48,12 @@ func Discover(ctx context.Context, appPath, repoPath string, enableGenerateManif
 
 		apps["."] = string(v1alpha1.ApplicationSourceTypePlugin)
 		return apps, nil
+	}
+	if isDiscoveryIncompleteError(err) {
+		// The plugins could not be asked whether they support the repository, so we do not know
+		// that they do not. Falling back to the native generators here would generate manifests
+		// from a repository a plugin was meant to process, and that result gets cached.
+		return nil, fmt.Errorf("failed to check for config management plugins: %w", err)
 	}
 
 	err = filepath.Walk(appPath, func(path string, info os.FileInfo, err error) error {
@@ -120,6 +129,11 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, plugin
 				if connFound {
 					break
 				}
+				if isDiscoveryIncompleteError(lastErr) {
+					// Probing the remaining plugins cannot produce a trustworthy answer, and a
+					// later "does not match" would overwrite lastErr. Report the failure instead.
+					break
+				}
 			}
 		}
 		if !connFound {
@@ -142,7 +156,10 @@ func matchRepositoryCMP(ctx context.Context, appPath, repoPath string, client pl
 	}
 
 	err = cmp.SendRepoStream(ctx, appPath, repoPath, matchRepoStream, env, tarExcludedGlobs)
-	if err != nil {
+	// io.EOF means the server ended the stream before we finished sending. The reason is only
+	// available from CloseAndRecv, so do not report the EOF itself: it would hide the status
+	// code the server sent, and a cancelled discovery check would look like any other failure.
+	if err != nil && !errors.Is(err, io.EOF) {
 		return false, false, fmt.Errorf("error sending stream: %w", err)
 	}
 	resp, err := matchRepoStream.CloseAndRecv()
@@ -150,6 +167,24 @@ func matchRepositoryCMP(ctx context.Context, appPath, repoPath string, client pl
 		return false, false, fmt.Errorf("error receiving stream response: %w", err)
 	}
 	return resp.GetIsSupported(), resp.GetIsDiscoveryEnabled(), nil
+}
+
+// isDiscoveryIncompleteError reports whether err means the discovery check could not be
+// completed, as opposed to a plugin answering that it does not support the repository. Only
+// the latter is a valid reason to fall back to the native generators.
+func isDiscoveryIncompleteError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	switch status.Code(err) {
+	case codes.Canceled, codes.DeadlineExceeded, codes.Unavailable:
+		return true
+	default:
+		return false
+	}
 }
 
 // cmpSupports checks if the given plugin socket supports the repo. If namedPlugin is true
