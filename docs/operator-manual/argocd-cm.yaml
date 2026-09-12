@@ -54,6 +54,11 @@ data:
   # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/user-management/index.md#sso
   # https://dexidp.io/docs/connectors/
   dex.config: |
+    # Optional: configure Dex storage backend to persist sessions and signing keys
+    storage:
+      type: kubernetes
+      config:
+        inCluster: true
     web:
       tlsMinVersion: "1.2"
     connectors:
@@ -115,6 +120,16 @@ data:
   # Enable resource.customizations.ignoreResourceUpdates rules. If "false," those rules are not applied, and all updates
   # to resources are applied to the cluster cache. Default is true.
   resource.ignoreResourceUpdatesEnabled: "true"
+
+  # Enable manifest compression in the cluster cache. When enabled, cached resource manifests are serialized and
+  # compressed using the configured storage format and compression algorithm. When disabled (default), manifests are
+  # stored as raw in-memory objects.
+  resource.manifest.compression.enabled: "false"
+  # Serialization format for cached manifests. Supported values are "json" (default) and "msgpack".
+  # resource.manifest.storage: "json"
+  # Compression algorithm for cached manifests. Supported values are "gzip-bestspeed" (default), "gzip-default",
+  # "s2-encode", "s2-encodebetter", "zlib", and "none".
+  # resource.manifest.compression: "gzip-bestspeed"
 
   # Configuration to define customizations ignoring differences during watched resource updates to skip application reconciles.
   resource.customizations.ignoreResourceUpdates.all: |
@@ -227,6 +242,18 @@ data:
       - Snapshot
       clusters:
       - "*.local"
+
+  # By default all the objects of an included group/kind are watched. The resource.selectors setting
+  # allows narrowing down the watched objects to the ones matching a label selector. The selector is
+  # passed to the Kubernetes API server, so it is a label selector in its string form.
+  resource.selectors: |
+    - apiGroups:
+      - ""
+      kinds:
+      - Pod
+      clusters:
+      - "*.local"
+      selector: "!argocd.argoproj.io/instance"
 
   # An optional comma-separated list of annotation keys to mask in UI/CLI on secrets
   resource.sensitive.mask.annotations: openshift.io/token-secret.value,api-key

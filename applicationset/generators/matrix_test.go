@@ -1,6 +1,7 @@
 package generators
 
 import (
+	"maps"
 	"testing"
 	"time"
 
@@ -137,9 +138,7 @@ func TestMatrixGenerate(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			genMock := &generatorsMock.Generator{}
 			appSet := &v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{},
 			}
 
@@ -344,9 +343,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			genMock := &generatorsMock.Generator{}
 			appSet := &v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 				},
@@ -583,17 +580,13 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 	}
 	clusters := []client.Object{
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "dev-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "dev",
-				},
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "dev-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "dev",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -603,17 +596,13 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 			Type: corev1.SecretType("Opaque"),
 		},
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "prod-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "prod",
-				},
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "prod-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "prod",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -756,17 +745,13 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 	}
 	clusters := []client.Object{
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "dev-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "dev",
-				},
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "dev-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "dev",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -776,17 +761,13 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 			Type: corev1.SecretType("Opaque"),
 		},
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "prod-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "prod",
-				},
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "prod-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "prod",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -958,9 +939,7 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			genMock := &generatorsMock.Generator{}
 			appSet := &v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 				},
@@ -1284,10 +1263,8 @@ func TestInterpolatedMatrixGenerateGoTemplate_ClusterValuesFromFirstGenerator(t 
 
 func appSet() *v1alpha1.ApplicationSet {
 	appSet := &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "repro",
-			Namespace: "argocd",
-		},
+		Name:      "repro",
+		Namespace: "argocd",
 		Spec: v1alpha1.ApplicationSetSpec{
 			GoTemplate: true,
 			// This is the most important part of the test because this is telling the code to return an error
@@ -1299,17 +1276,13 @@ func appSet() *v1alpha1.ApplicationSet {
 
 func clusterSecret() *corev1.Secret {
 	clusterSecret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "guestbook-cluster",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				"argocd.argoproj.io/secret-type": "cluster",
-				"environment":                    "guestbook",
-			},
+		Kind:       "Secret",
+		APIVersion: "v1",
+		Name:       "guestbook-cluster",
+		Namespace:  "argocd",
+		Labels: map[string]string{
+			"argocd.argoproj.io/secret-type": "cluster",
+			"environment":                    "guestbook",
 		},
 		Data: map[string][]byte{
 			"config": []byte("{}"),
@@ -1361,4 +1334,360 @@ func getGenerators() (*v1alpha1.GitGenerator, *generatorsMock.Generator, *v1alph
 		},
 	}
 	return gitGeneratorSpec, genMock, clusterGeneratorSpec
+}
+
+// TestMatrixGenerateReusesSecondGeneratorParams covers a second generator that ignores the outer
+// parameters, one that selects on them, and an outer parameter set that merges into a nested map the
+// second generator produced.
+func TestMatrixGenerateReusesSecondGeneratorParams(t *testing.T) {
+	const namespace = "namespace"
+
+	clusters := []client.Object{
+		&corev1.Secret{
+			Name:      "staging-01",
+			Namespace: namespace,
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "staging",
+			},
+			Data: map[string][]byte{
+				"name":   []byte("staging-01"),
+				"server": []byte("https://staging-01.example.com"),
+				"config": []byte("{}"),
+			},
+			Type: corev1.SecretType("Opaque"),
+		},
+		&corev1.Secret{
+			Name:      "production-01",
+			Namespace: namespace,
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "production",
+			},
+			Data: map[string][]byte{
+				"name":   []byte("production-01"),
+				"server": []byte("https://production-01.example.com"),
+				"config": []byte("{}"),
+			},
+			Type: corev1.SecretType("Opaque"),
+		},
+	}
+
+	stagingLabels := func(extra map[string]string) map[string]string {
+		labels := map[string]string{
+			"argocd.argoproj.io/secret-type": "cluster",
+			"environment":                    "staging",
+		}
+		maps.Copy(labels, extra)
+		return labels
+	}
+
+	testCases := []struct {
+		name     string
+		elements []apiextensionsv1.JSON
+		selector metav1.LabelSelector
+		expected []map[string]any
+	}{
+		{
+			name: "second generator ignores the outer parameters",
+			elements: []apiextensionsv1.JSON{
+				{Raw: []byte(`{"path":"apps/one"}`)},
+				{Raw: []byte(`{"path":"apps/two"}`)},
+			},
+			selector: metav1.LabelSelector{MatchLabels: map[string]string{"environment": "staging"}},
+			expected: []map[string]any{
+				{
+					"path":           "apps/one",
+					"name":           "staging-01",
+					"nameNormalized": "staging-01",
+					"server":         "https://staging-01.example.com",
+					"project":        "",
+					"metadata":       map[string]any{"labels": stagingLabels(nil)},
+				},
+				{
+					"path":           "apps/two",
+					"name":           "staging-01",
+					"nameNormalized": "staging-01",
+					"server":         "https://staging-01.example.com",
+					"project":        "",
+					"metadata":       map[string]any{"labels": stagingLabels(nil)},
+				},
+			},
+		},
+		{
+			name: "second generator selects on the outer parameters",
+			elements: []apiextensionsv1.JSON{
+				{Raw: []byte(`{"env":"staging"}`)},
+				{Raw: []byte(`{"env":"production"}`)},
+			},
+			selector: metav1.LabelSelector{MatchLabels: map[string]string{"environment": "{{.env}}"}},
+			expected: []map[string]any{
+				{
+					"env":            "staging",
+					"name":           "staging-01",
+					"nameNormalized": "staging-01",
+					"server":         "https://staging-01.example.com",
+					"project":        "",
+					"metadata":       map[string]any{"labels": stagingLabels(nil)},
+				},
+				{
+					"env":            "production",
+					"name":           "production-01",
+					"nameNormalized": "production-01",
+					"server":         "https://production-01.example.com",
+					"project":        "",
+					"metadata": map[string]any{"labels": map[string]string{
+						"argocd.argoproj.io/secret-type": "cluster",
+						"environment":                    "production",
+					}},
+				},
+			},
+		},
+		{
+			name: "outer parameters merge into the nested map of the second generator",
+			elements: []apiextensionsv1.JSON{
+				{Raw: []byte(`{"metadata":{"only-in-first":"yes"}}`)},
+				{Raw: []byte(`{"metadata":{"only-in-second":"yes"}}`)},
+				{Raw: []byte(`{"hint":"third"}`)},
+			},
+			selector: metav1.LabelSelector{MatchLabels: map[string]string{"environment": "staging"}},
+			expected: []map[string]any{
+				{
+					"name":           "staging-01",
+					"nameNormalized": "staging-01",
+					"server":         "https://staging-01.example.com",
+					"project":        "",
+					"metadata": map[string]any{
+						"labels":        stagingLabels(nil),
+						"only-in-first": "yes",
+					},
+				},
+				{
+					"name":           "staging-01",
+					"nameNormalized": "staging-01",
+					"server":         "https://staging-01.example.com",
+					"project":        "",
+					"metadata": map[string]any{
+						"labels":         stagingLabels(nil),
+						"only-in-second": "yes",
+					},
+				},
+				{
+					"hint":           "third",
+					"name":           "staging-01",
+					"nameNormalized": "staging-01",
+					"server":         "https://staging-01.example.com",
+					"project":        "",
+					"metadata":       map[string]any{"labels": stagingLabels(nil)},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
+			matrixGenerator := NewMatrixGenerator(map[string]Generator{
+				"List":     &ListGenerator{},
+				"Clusters": NewClusterGenerator(fakeClient, namespace),
+			})
+
+			got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
+				Matrix: &v1alpha1.MatrixGenerator{
+					Generators: []v1alpha1.ApplicationSetNestedGenerator{
+						{List: &v1alpha1.ListGenerator{Elements: tc.elements}},
+						{Clusters: &v1alpha1.ClusterGenerator{Selector: tc.selector}},
+					},
+				},
+			}, &v1alpha1.ApplicationSet{
+				Name:      "set",
+				Namespace: namespace,
+				Spec:      v1alpha1.ApplicationSetSpec{GoTemplate: true},
+			}, fakeClient)
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+}
+
+// countingGenerator records how many times the matrix asked its child for parameters.
+type countingGenerator struct {
+	Generator
+	calls int
+}
+
+func (c *countingGenerator) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetGenerator, appSet *v1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
+	c.calls++
+	return c.Generator.GenerateParams(appSetGenerator, appSet, client)
+}
+
+func stagingClusterSecret(namespace string) []client.Object {
+	return []client.Object{
+		&corev1.Secret{
+			Name:      "staging-01",
+			Namespace: namespace,
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "staging",
+			},
+			Data: map[string][]byte{
+				"name":   []byte("staging-01"),
+				"server": []byte("https://staging-01.example.com"),
+				"config": []byte("{}"),
+			},
+			Type: corev1.SecretType("Opaque"),
+		},
+	}
+}
+
+// TestMatrixGenerateSecondGeneratorInvocations covers a second generator whose spec holds no
+// template placeholders and one whose selector references the outer parameters.
+func TestMatrixGenerateSecondGeneratorInvocations(t *testing.T) {
+	const namespace = "namespace"
+
+	testCases := []struct {
+		name              string
+		selector          metav1.LabelSelector
+		generatorSelector *metav1.LabelSelector
+		expectCalls       int
+	}{
+		{
+			name:        "spec without placeholders is generated once",
+			selector:    metav1.LabelSelector{MatchLabels: map[string]string{"environment": "staging"}},
+			expectCalls: 1,
+		},
+		{
+			name:        "spec referencing outer params is generated per parameter set",
+			selector:    metav1.LabelSelector{MatchLabels: map[string]string{"environment": "{{.env}}"}},
+			expectCalls: 3,
+		},
+		{
+			name:              "spec whose parameters are all filtered out is generated once",
+			selector:          metav1.LabelSelector{MatchLabels: map[string]string{"environment": "staging"}},
+			generatorSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"name": "no-such-cluster"}},
+			expectCalls:       1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeClient := fake.NewClientBuilder().WithObjects(stagingClusterSecret(namespace)...).Build()
+			counted := &countingGenerator{Generator: NewClusterGenerator(fakeClient, namespace)}
+			matrixGenerator := NewMatrixGenerator(map[string]Generator{
+				"List":     &ListGenerator{},
+				"Clusters": counted,
+			})
+
+			_, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
+				Matrix: &v1alpha1.MatrixGenerator{
+					Generators: []v1alpha1.ApplicationSetNestedGenerator{
+						{List: &v1alpha1.ListGenerator{Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"env":"staging"}`)},
+							{Raw: []byte(`{"env":"staging"}`)},
+							{Raw: []byte(`{"env":"staging"}`)},
+						}}},
+						{
+							Clusters: &v1alpha1.ClusterGenerator{Selector: tc.selector},
+							Selector: tc.generatorSelector,
+						},
+					},
+				},
+			}, &v1alpha1.ApplicationSet{
+				Name:      "set",
+				Namespace: namespace,
+				Spec:      v1alpha1.ApplicationSetSpec{GoTemplate: true},
+			}, fakeClient)
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectCalls, counted.calls)
+		})
+	}
+}
+
+// TestMatrixGenerateFlatListIsolation covers the cluster generator's flat list mode, where every
+// cluster arrives under one key as a slice of maps that the parameter sets must not share.
+func TestMatrixGenerateFlatListIsolation(t *testing.T) {
+	const namespace = "namespace"
+
+	fakeClient := fake.NewClientBuilder().WithObjects(stagingClusterSecret(namespace)...).Build()
+	matrixGenerator := NewMatrixGenerator(map[string]Generator{
+		"List":     &ListGenerator{},
+		"Clusters": NewClusterGenerator(fakeClient, namespace),
+	})
+
+	got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
+		Matrix: &v1alpha1.MatrixGenerator{
+			Generators: []v1alpha1.ApplicationSetNestedGenerator{
+				{List: &v1alpha1.ListGenerator{Elements: []apiextensionsv1.JSON{
+					{Raw: []byte(`{"path":"apps/one"}`)},
+					{Raw: []byte(`{"path":"apps/two"}`)},
+					{Raw: []byte(`{"path":"apps/three"}`)},
+				}}},
+				{Clusters: &v1alpha1.ClusterGenerator{
+					FlatList: true,
+					Selector: metav1.LabelSelector{MatchLabels: map[string]string{"environment": "staging"}},
+				}},
+			},
+		},
+	}, &v1alpha1.ApplicationSet{
+		Name:      "set",
+		Namespace: namespace,
+		Spec:      v1alpha1.ApplicationSetSpec{GoTemplate: true},
+	}, fakeClient)
+
+	require.NoError(t, err)
+	require.Len(t, got, 3)
+
+	clustersOf := func(params map[string]any) []map[string]any {
+		clusters, ok := params["clusters"].([]map[string]any)
+		require.True(t, ok, "expected clusters to be a slice of maps")
+		return clusters
+	}
+
+	clustersOf(got[0])[0]["name"] = "mutated"
+
+	for _, params := range got[1:] {
+		assert.Equal(t, "staging-01", clustersOf(params)[0]["name"])
+	}
+}
+
+// TestMatrixGenerateFlatListNoMatches covers flat list mode when the selector matches no clusters,
+// where the generator hands back a nil slice that every parameter set has to keep.
+func TestMatrixGenerateFlatListNoMatches(t *testing.T) {
+	const namespace = "namespace"
+
+	fakeClient := fake.NewClientBuilder().WithObjects(stagingClusterSecret(namespace)...).Build()
+	matrixGenerator := NewMatrixGenerator(map[string]Generator{
+		"List":     &ListGenerator{},
+		"Clusters": NewClusterGenerator(fakeClient, namespace),
+	})
+
+	got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
+		Matrix: &v1alpha1.MatrixGenerator{
+			Generators: []v1alpha1.ApplicationSetNestedGenerator{
+				{List: &v1alpha1.ListGenerator{Elements: []apiextensionsv1.JSON{
+					{Raw: []byte(`{"path":"apps/one"}`)},
+					{Raw: []byte(`{"path":"apps/two"}`)},
+					{Raw: []byte(`{"path":"apps/three"}`)},
+				}}},
+				{Clusters: &v1alpha1.ClusterGenerator{
+					FlatList: true,
+					Selector: metav1.LabelSelector{MatchLabels: map[string]string{"environment": "nothing-matches"}},
+				}},
+			},
+		},
+	}, &v1alpha1.ApplicationSet{
+		Name:      "set",
+		Namespace: namespace,
+		Spec:      v1alpha1.ApplicationSetSpec{GoTemplate: true},
+	}, fakeClient)
+
+	require.NoError(t, err)
+	require.Len(t, got, 3)
+
+	// A nil list and an empty list serialize differently, so every parameter set has to agree.
+	for i, params := range got {
+		assert.Nil(t, params["clusters"], "parameter set %d", i)
+	}
 }

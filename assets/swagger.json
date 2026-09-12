@@ -6247,7 +6247,7 @@
         "windows": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1SyncWindow"
+            "$ref": "#/definitions/v1alpha1InlineSyncWindow"
           }
         }
       }
@@ -6553,7 +6553,7 @@
       }
     },
     "runtimeRawExtension": {
-      "description": "RawExtension is used to hold extensions in external versions.\n\nTo use this, make a field which has RawExtension as its type in your external, versioned\nstruct, and Object in your internal struct. You also need to register your\nvarious plugin types.\n\n// Internal package:\n\n\ttype MyAPIObject struct {\n\t\truntime.TypeMeta `json:\",inline\"`\n\t\tMyPlugin runtime.Object `json:\"myPlugin\"`\n\t}\n\n\ttype PluginA struct {\n\t\tAOption string `json:\"aOption\"`\n\t}\n\n// External package:\n\n\ttype MyAPIObject struct {\n\t\truntime.TypeMeta `json:\",inline\"`\n\t\tMyPlugin runtime.RawExtension `json:\"myPlugin\"`\n\t}\n\n\ttype PluginA struct {\n\t\tAOption string `json:\"aOption\"`\n\t}\n\n// On the wire, the JSON will look something like this:\n\n\t{\n\t\t\"kind\":\"MyAPIObject\",\n\t\t\"apiVersion\":\"v1\",\n\t\t\"myPlugin\": {\n\t\t\t\"kind\":\"PluginA\",\n\t\t\t\"aOption\":\"foo\",\n\t\t},\n\t}\n\nSo what happens? Decode first uses json or yaml to unmarshal the serialized data into\nyour external MyAPIObject. That causes the raw JSON to be stored, but not unpacked.\nThe next step is to copy (using pkg/conversion) into the internal struct. The runtime\npackage's DefaultScheme has conversion functions installed which will unpack the\nJSON stored in RawExtension, turning it into the correct object type, and storing it\nin the Object. (TODO: In the case where the object is of an unknown type, a\nruntime.Unknown object will be created and stored.)\n\n+k8s:deepcopy-gen=true\n+protobuf=true\n+k8s:openapi-gen=true",
+      "description": "RawExtension is used to hold extensions in external versions.\n\nTo use this, make a field which has RawExtension as its type in your external, versioned\nstruct, and Object in your internal struct. You also need to register your\nvarious plugin types.\n\n// Internal package:\n\n\ttype MyAPIObject struct {\n\t\truntime.TypeMeta `json:\"\"`\n\t\tMyPlugin runtime.Object `json:\"myPlugin\"`\n\t}\n\n\ttype PluginA struct {\n\t\tAOption string `json:\"aOption\"`\n\t}\n\n// External package:\n\n\ttype MyAPIObject struct {\n\t\truntime.TypeMeta `json:\"\"`\n\t\tMyPlugin runtime.RawExtension `json:\"myPlugin\"`\n\t}\n\n\ttype PluginA struct {\n\t\tAOption string `json:\"aOption\"`\n\t}\n\n// On the wire, the JSON will look something like this:\n\n\t{\n\t\t\"kind\":\"MyAPIObject\",\n\t\t\"apiVersion\":\"v1\",\n\t\t\"myPlugin\": {\n\t\t\t\"kind\":\"PluginA\",\n\t\t\t\"aOption\":\"foo\",\n\t\t},\n\t}\n\nSo what happens? Decode first uses json or yaml to unmarshal the serialized data into\nyour external MyAPIObject. That causes the raw JSON to be stored, but not unpacked.\nThe next step is to copy (using pkg/conversion) into the internal struct. The runtime\npackage's DefaultScheme has conversion functions installed which will unpack the\nJSON stored in RawExtension, turning it into the correct object type, and storing it\nin the Object. (TODO: In the case where the object is of an unknown type, a\nruntime.Unknown object will be created and stored.)\n\n+k8s:deepcopy-gen=true\n+protobuf=true\n+k8s:openapi-gen=true",
       "type": "object",
       "properties": {
         "raw": {
@@ -6779,8 +6779,8 @@
           "type": "string"
         },
         "operation": {
-          "description": "Operation is the type of operation which lead to this ManagedFieldsEntry being created.\nThe only valid values for this field are 'Apply' and 'Update'.",
-          "type": "string"
+          "type": "string",
+          "title": "Operation is the type of operation which lead to this ManagedFieldsEntry being created.\nThe only valid values for this field are 'Apply' and 'Update'.\n+k8s:alpha(since: \"1.37\")=+k8s:required"
         },
         "subresource": {
           "description": "Subresource is the name of the subresource used to update that object, or\nempty string if the object was updated through the main resource. The\nvalue of this field is used to distinguish between managers, even if they\nshare the same name. For example, a status update will be distinct from a\nregular update using the same manager name.\nNote that the APIVersion field is not related to the Subresource field and\nit always corresponds to the version of the main resource.",
@@ -6858,6 +6858,10 @@
           "description": "OS Image reported by the node from /etc/os-release (e.g. Debian GNU/Linux 7 (wheezy)).",
           "type": "string"
         },
+        "runningInUserNamespace": {
+          "type": "boolean",
+          "title": "Whether the node is running in a user namespace.\n+featureGate=KubeletInUserNamespace\n+optional"
+        },
         "swap": {
           "$ref": "#/definitions/v1NodeSwapStatus"
         },
@@ -6884,7 +6888,7 @@
         "deletionGracePeriodSeconds": {
           "type": "integer",
           "format": "int64",
-          "title": "Number of seconds allowed for this object to gracefully terminate before\nit will be removed from the system. Only set when deletionTimestamp is also set.\nMay only be shortened.\nRead-only.\n+optional"
+          "title": "Number of seconds allowed for this object to gracefully terminate before\nit will be removed from the system. Only set when deletionTimestamp is also set.\nMay only be shortened.\nRead-only.\n+optional\n+k8s:alpha(since: \"1.37\")=+k8s:optional\n+k8s:alpha(since: \"1.37\")=+k8s:immutable"
         },
         "deletionTimestamp": {
           "$ref": "#/definitions/v1Time"
@@ -6903,7 +6907,7 @@
         "generation": {
           "type": "integer",
           "format": "int64",
-          "title": "A sequence number representing a specific generation of the desired state.\nPopulated by the system. Read-only.\n+optional"
+          "title": "A sequence number representing a specific generation of the desired state.\nPopulated by the system. Read-only.\n+optional\n+k8s:alpha(since: \"1.37\")=+k8s:optional\n+k8s:alpha(since: \"1.37\")=+k8s:minimum=0"
         },
         "labels": {
           "type": "object",
@@ -6913,7 +6917,7 @@
           }
         },
         "managedFields": {
-          "description": "ManagedFields maps workflow-id and version to the set of fields\nthat are managed by that workflow. This is mostly for internal\nhousekeeping, and users typically shouldn't need to set or\nunderstand this field. A workflow can be the user's name, a\ncontroller's name, or the name of a specific apply path like\n\"ci-cd\". The set of fields is always in the version that the\nworkflow used when modifying the object.\n\n+optional\n+listType=atomic",
+          "description": "ManagedFields maps workflow-id and version to the set of fields\nthat are managed by that workflow. This is mostly for internal\nhousekeeping, and users typically shouldn't need to set or\nunderstand this field. A workflow can be the user's name, a\ncontroller's name, or the name of a specific apply path like\n\"ci-cd\". The set of fields is always in the version that the\nworkflow used when modifying the object.\n\n+optional\n+listType=atomic\n+k8s:alpha(since: \"1.37\")=+k8s:optional",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1ManagedFieldsEntry"
@@ -6929,7 +6933,7 @@
         },
         "ownerReferences": {
           "type": "array",
-          "title": "List of objects depended by this object. If ALL objects in the list have\nbeen deleted, this object will be garbage collected. If this object is managed by a controller,\nthen an entry in this list will point to this controller, with the controller field set to true.\nThere cannot be more than one managing controller.\n+optional\n+patchMergeKey=uid\n+patchStrategy=merge\n+listType=map\n+listMapKey=uid",
+          "title": "List of objects depended by this object. If ALL objects in the list have\nbeen deleted, this object will be garbage collected. If this object is managed by a controller,\nthen an entry in this list will point to this controller, with the controller field set to true.\nThere cannot be more than one managing controller.\n+optional\n+patchMergeKey=uid\n+patchStrategy=merge\n+listType=map\n+listMapKey=uid\n+k8s:alpha(since:\"1.37\")=+k8s:optional",
           "items": {
             "$ref": "#/definitions/v1OwnerReference"
           }
@@ -6943,7 +6947,7 @@
           "title": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.\n+optional"
         },
         "uid": {
-          "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids\n+optional",
+          "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids\n+optional\n+k8s:alpha(since: \"1.37\")=+k8s:optional\n+k8s:alpha(since: \"1.37\")=+k8s:immutable",
           "type": "string"
         }
       }
@@ -6953,8 +6957,8 @@
       "title": "OwnerReference contains enough information to let you identify an owning\nobject. An owning object must be in the same namespace as the dependent, or\nbe cluster-scoped, so there is no namespace field.\n+structType=atomic",
       "properties": {
         "apiVersion": {
-          "description": "API version of the referent.",
-          "type": "string"
+          "type": "string",
+          "title": "API version of the referent.\n+k8s:alpha(since:\"1.37\")=+k8s:required"
         },
         "blockOwnerDeletion": {
           "type": "boolean",
@@ -6966,15 +6970,15 @@
         },
         "kind": {
           "type": "string",
-          "title": "Kind of the referent.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"
+          "title": "Kind of the referent.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds\n+k8s:alpha(since:\"1.37\")=+k8s:required"
         },
         "name": {
           "type": "string",
-          "title": "Name of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names"
+          "title": "Name of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names\n+k8s:alpha(since:\"1.37\")=+k8s:required"
         },
         "uid": {
           "type": "string",
-          "title": "UID of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids"
+          "title": "UID of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids\n+k8s:alpha(since:\"1.37\")=+k8s:required"
         }
       }
     },
@@ -7170,7 +7174,7 @@
           "type": "array",
           "title": "SyncWindows controls when syncs can be run for apps in this project",
           "items": {
-            "$ref": "#/definitions/v1alpha1SyncWindow"
+            "$ref": "#/definitions/v1alpha1InlineSyncWindow"
           }
         }
       }
@@ -7402,6 +7406,9 @@
         "merge": {
           "$ref": "#/definitions/v1alpha1MergeGenerator"
         },
+        "oci": {
+          "$ref": "#/definitions/v1alpha1OciGenerator"
+        },
         "plugin": {
           "$ref": "#/definitions/v1alpha1PluginGenerator"
         },
@@ -7452,6 +7459,9 @@
         },
         "merge": {
           "$ref": "#/definitions/v1JSON"
+        },
+        "oci": {
+          "$ref": "#/definitions/v1alpha1OciGenerator"
         },
         "plugin": {
           "$ref": "#/definitions/v1alpha1PluginGenerator"
@@ -8287,6 +8297,11 @@
         "config": {
           "$ref": "#/definitions/v1alpha1ClusterConfig"
         },
+        "configHash": {
+          "type": "string",
+          "format": "uint64",
+          "title": "ConfigHash is an opaque value which tracks changes to the desired configuration of a Cluster"
+        },
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
         },
@@ -8962,6 +8977,65 @@
         }
       }
     },
+    "v1alpha1InlineSyncWindow": {
+      "type": "object",
+      "title": "InlineSyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
+      "properties": {
+        "andOperator": {
+          "type": "boolean",
+          "title": "UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator"
+        },
+        "applications": {
+          "type": "array",
+          "title": "Applications contains a list of applications that the window will apply to",
+          "items": {
+            "type": "string"
+          }
+        },
+        "clusters": {
+          "type": "array",
+          "title": "Clusters contains a list of clusters that the window will apply to",
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "type": "string",
+          "title": "Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example"
+        },
+        "duration": {
+          "type": "string",
+          "title": "Duration is the amount of time the sync window will be open"
+        },
+        "kind": {
+          "type": "string",
+          "title": "Kind defines if the window allows or blocks syncs"
+        },
+        "manualSync": {
+          "type": "boolean",
+          "title": "ManualSync enables manual syncs when they would otherwise be blocked"
+        },
+        "namespaces": {
+          "type": "array",
+          "title": "Namespaces contains a list of namespaces that the window will apply to",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schedule": {
+          "type": "string",
+          "title": "Schedule is the time the window will begin, specified in cron format"
+        },
+        "syncOverrun": {
+          "type": "boolean",
+          "title": "SyncOverrun allows ongoing syncs to continue in two scenarios:\nFor deny windows: allows syncs that started before the deny window became active to continue running\nFor allow windows: allows syncs that started during the allow window to continue after the window ends"
+        },
+        "timeZone": {
+          "type": "string",
+          "title": "TimeZone of the sync that will be applied to the schedule"
+        }
+      }
+    },
     "v1alpha1JWTToken": {
       "type": "object",
       "title": "JWTToken holds the issuedAt and expiresAt values of a token",
@@ -9230,6 +9304,68 @@
         },
         "version": {
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1OciDirectoryGeneratorItem": {
+      "type": "object",
+      "properties": {
+        "exclude": {
+          "type": "boolean"
+        },
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1OciFileGeneratorItem": {
+      "type": "object",
+      "properties": {
+        "exclude": {
+          "type": "boolean"
+        },
+        "path": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1OciGenerator": {
+      "type": "object",
+      "properties": {
+        "directories": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1OciDirectoryGeneratorItem"
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1OciFileGeneratorItem"
+          }
+        },
+        "pathParamPrefix": {
+          "type": "string"
+        },
+        "repoURL": {
+          "type": "string"
+        },
+        "requeueAfterSeconds": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "template": {
+          "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
@@ -11113,65 +11249,6 @@
       "properties": {
         "syncStrategyApply": {
           "$ref": "#/definitions/v1alpha1SyncStrategyApply"
-        }
-      }
-    },
-    "v1alpha1SyncWindow": {
-      "type": "object",
-      "title": "SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
-      "properties": {
-        "andOperator": {
-          "type": "boolean",
-          "title": "UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator"
-        },
-        "applications": {
-          "type": "array",
-          "title": "Applications contains a list of applications that the window will apply to",
-          "items": {
-            "type": "string"
-          }
-        },
-        "clusters": {
-          "type": "array",
-          "title": "Clusters contains a list of clusters that the window will apply to",
-          "items": {
-            "type": "string"
-          }
-        },
-        "description": {
-          "type": "string",
-          "title": "Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example"
-        },
-        "duration": {
-          "type": "string",
-          "title": "Duration is the amount of time the sync window will be open"
-        },
-        "kind": {
-          "type": "string",
-          "title": "Kind defines if the window allows or blocks syncs"
-        },
-        "manualSync": {
-          "type": "boolean",
-          "title": "ManualSync enables manual syncs when they would otherwise be blocked"
-        },
-        "namespaces": {
-          "type": "array",
-          "title": "Namespaces contains a list of namespaces that the window will apply to",
-          "items": {
-            "type": "string"
-          }
-        },
-        "schedule": {
-          "type": "string",
-          "title": "Schedule is the time the window will begin, specified in cron format"
-        },
-        "syncOverrun": {
-          "type": "boolean",
-          "title": "SyncOverrun allows ongoing syncs to continue in two scenarios:\nFor deny windows: allows syncs that started before the deny window became active to continue running\nFor allow windows: allows syncs that started during the allow window to continue after the window ends"
-        },
-        "timeZone": {
-          "type": "string",
-          "title": "TimeZone of the sync that will be applied to the schedule"
         }
       }
     },

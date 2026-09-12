@@ -320,9 +320,7 @@ func TestCallExtension(t *testing.T) {
 			destinations = append(destinations, destination)
 		}
 		return &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: prjName,
-			},
+			Name: prjName,
 			Spec: v1alpha1.AppProjectSpec{
 				Destinations: destinations,
 			},

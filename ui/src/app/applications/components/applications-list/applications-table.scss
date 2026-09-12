@@ -78,15 +78,6 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
         }
     }
 
-    .applications-list__table-row button.managed-by-url-invalid {
-        color: #f4c030;
-        cursor: not-allowed;
-
-        &:hover {
-            color: #f4c030;
-        }
-    }
-
     .applications-list__meta-column {
         display: flex;
         align-items: flex-start;
@@ -148,30 +139,8 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
             margin-left: 0.5em;
         }
 
-        .application-notice-icon,
-        .applications-list__open-app-button {
+        .application-notice-icon {
             flex-shrink: 0;
-        }
-
-        .applications-list__open-app-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin-left: 0.5em;
-            padding: 0;
-            border: 0;
-            background: none;
-            color: inherit;
-            cursor: pointer;
-            line-height: 1;
-
-            &:hover {
-                color: $argo-color-teal-5;
-            }
-
-            i {
-                font-size: 14px;
-            }
         }
     }
 

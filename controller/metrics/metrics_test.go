@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	stderrors "errors"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -9,12 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/mock"
-
-	"github.com/argoproj/argo-cd/v3/util/db/mocks"
-
 	gitopsCache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -179,6 +178,120 @@ status:
     status: Healthy
 `
 
+const fakeAppHydratorHydrated = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hydrator-hydrated
+  namespace: argocd
+spec:
+  destination:
+    namespace: dummy-namespace
+    name: cluster1
+  project: important-project
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps.git
+      targetRevision: HEAD
+      path: guestbook
+    syncSource:
+      targetBranch: env/test
+      path: guestbook
+status:
+  sync:
+    status: Synced
+  health:
+    status: Healthy
+  sourceHydrator:
+    currentOperation:
+      phase: Hydrated
+`
+
+const fakeAppHydratorHydrating = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hydrator-hydrating
+  namespace: argocd
+spec:
+  destination:
+    namespace: dummy-namespace
+    name: cluster1
+  project: important-project
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps.git
+      targetRevision: HEAD
+      path: guestbook
+    syncSource:
+      targetBranch: env/test
+      path: guestbook
+status:
+  sync:
+    status: Synced
+  health:
+    status: Healthy
+  sourceHydrator:
+    currentOperation:
+      phase: Hydrating
+`
+
+const fakeAppHydratorFailed = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hydrator-failed
+  namespace: argocd
+spec:
+  destination:
+    namespace: dummy-namespace
+    name: cluster1
+  project: important-project
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps.git
+      targetRevision: HEAD
+      path: guestbook
+    syncSource:
+      targetBranch: env/test
+      path: guestbook
+status:
+  sync:
+    status: Synced
+  health:
+    status: Healthy
+  sourceHydrator:
+    currentOperation:
+      phase: Failed
+`
+
+const fakeAppHydratorUnknown = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: hydrator-unknown
+  namespace: argocd
+spec:
+  destination:
+    namespace: dummy-namespace
+    name: cluster1
+  project: important-project
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps.git
+      targetRevision: HEAD
+      path: guestbook
+    syncSource:
+      targetBranch: env/test
+      path: guestbook
+status:
+  sync:
+    status: Synced
+  health:
+    status: Healthy
+  sourceHydrator: {}
+`
+
 const fakeAppOperationRunning = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -205,6 +318,9 @@ status:
   operationState:
     phase: Running
     startedAt: "2025-01-29T08:42:34Z"
+operation:
+  sync:
+    revision: HEAD
 `
 
 const fakeAppOperationFinished = `
@@ -236,12 +352,41 @@ status:
     finishedAt: "2025-01-29T08:42:35Z"
 `
 
+const fakeAppOperationFailed = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+  namespace: argocd
+  labels:
+    team-name: my-team
+    team-bu: bu-id
+    argoproj.io/cluster: test-cluster
+spec:
+  destination:
+    namespace: dummy-namespace
+    name: cluster1
+  project: important-project
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+status:
+  sync:
+    status: OutOfSync
+  health:
+    status: Degraded
+  operationState:
+    phase: Failed
+    startedAt: "2025-01-29T08:42:34Z"
+    finishedAt: "2025-01-29T08:42:35Z"
+`
+
 var noOpHealthCheck = func(_ *http.Request) error {
 	return nil
 }
 
-var appFilter = func(_ any) bool {
-	return true
+var appFilter AppFilter = func(_ any) (bool, string, error) {
+	return true, "https://localhost:6443", nil
 }
 
 func init() {
@@ -323,10 +468,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	t.Helper()
 	cancel, appLister := newFakeLister(t.Context(), cfg.FakeAppYAMLs...)
 	defer cancel()
-	mockDB := mocks.NewArgoDB(t)
-	mockDB.EXPECT().GetClusterServersByName(mock.Anything, "cluster1").Return([]string{"https://localhost:6443"}, nil).Maybe()
-	mockDB.EXPECT().GetCluster(mock.Anything, "https://localhost:6443").Return(&argoappv1.Cluster{Name: "cluster1", Server: "https://localhost:6443"}, nil).Maybe()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppConditions, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppConditions)
 	require.NoError(t, err)
 
 	if len(cfg.ClustersInfo) > 0 {
@@ -356,9 +498,9 @@ func TestMetrics(t *testing.T) {
 			responseContains: `
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app-3",namespace="argocd",operation="delete",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
-argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
-argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app-2",namespace="argocd",operation="sync",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",hydrator_status="",name="my-app-3",namespace="argocd",operation="delete",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",hydrator_status="",name="my-app",namespace="argocd",operation="",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",hydrator_status="",name="my-app-2",namespace="argocd",operation="sync",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
 `,
 		},
 		{
@@ -366,7 +508,7 @@ argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_se
 			responseContains: `
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="default",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",hydrator_status="",name="my-app",namespace="argocd",operation="",phase="",project="default",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
 `,
 		},
 	}
@@ -374,6 +516,49 @@ argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_s
 	for _, combination := range combinations {
 		testApp(t, combination.applications, combination.responseContains)
 	}
+}
+
+func TestMetricsOperationPhase(t *testing.T) {
+	combinations := []testCombination{
+		{
+			applications: []string{fakeAppOperationRunning},
+			responseContains: `
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Progressing",hydrator_status="",name="my-app",namespace="argocd",operation="sync",phase="Running",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
+`,
+		},
+		{
+			applications: []string{fakeAppOperationFinished},
+			responseContains: `
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",hydrator_status="",name="my-app",namespace="argocd",operation="",phase="Succeeded",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+`,
+		},
+		{
+			applications: []string{fakeAppOperationFailed},
+			responseContains: `
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",hydrator_status="",name="my-app",namespace="argocd",operation="",phase="Failed",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
+`,
+		},
+	}
+
+	for _, combination := range combinations {
+		testApp(t, combination.applications, combination.responseContains)
+	}
+}
+
+func TestMetricsHydratorStatus(t *testing.T) {
+	testApp(t, []string{
+		fakeAppHydratorHydrated,
+		fakeAppHydratorHydrating,
+		fakeAppHydratorFailed,
+		fakeAppHydratorUnknown,
+	}, `
+# HELP argocd_app_info Information about application.
+# TYPE argocd_app_info gauge
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",hydrator_status="Failed",name="hydrator-failed",namespace="argocd",operation="",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",hydrator_status="Hydrated",name="hydrator-hydrated",namespace="argocd",operation="",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",hydrator_status="Hydrating",name="hydrator-hydrating",namespace="argocd",operation="",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",hydrator_status="Unknown",name="hydrator-unknown",namespace="argocd",operation="",phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+`)
 }
 
 func TestMetricLabels(t *testing.T) {
@@ -386,28 +571,24 @@ func TestMetricLabels(t *testing.T) {
 		{
 			description:  "will return the labels metrics successfully",
 			metricLabels: []string{"team-name", "team-bu", "argoproj.io/cluster"},
-			testCombination: testCombination{
-				applications: []string{fakeApp, fakeApp2, fakeApp3},
-				responseContains: `
+			applications: []string{fakeApp, fakeApp2, fakeApp3},
+			responseContains: `
 # TYPE argocd_app_labels gauge
 argocd_app_labels{label_argoproj_io_cluster="test-cluster",label_team_bu="bu-id",label_team_name="my-team",name="my-app",namespace="argocd",project="important-project"} 1
 argocd_app_labels{label_argoproj_io_cluster="test-cluster",label_team_bu="bu-id",label_team_name="my-team",name="my-app-2",namespace="argocd",project="important-project"} 1
 argocd_app_labels{label_argoproj_io_cluster="test-cluster",label_team_bu="bu-id",label_team_name="my-team",name="my-app-3",namespace="argocd",project="important-project"} 1
 `,
-			},
 		},
 		{
 			description:  "metric will have empty label value if not present in the application",
 			metricLabels: []string{"non-existing"},
-			testCombination: testCombination{
-				applications: []string{fakeApp, fakeApp2, fakeApp3},
-				responseContains: `
+			applications: []string{fakeApp, fakeApp2, fakeApp3},
+			responseContains: `
 # TYPE argocd_app_labels gauge
 argocd_app_labels{label_non_existing="",name="my-app",namespace="argocd",project="important-project"} 1
 argocd_app_labels{label_non_existing="",name="my-app-2",namespace="argocd",project="important-project"} 1
 argocd_app_labels{label_non_existing="",name="my-app-3",namespace="argocd",project="important-project"} 1
 `,
-			},
 		},
 	}
 
@@ -428,39 +609,33 @@ func TestMetricConditions(t *testing.T) {
 		{
 			description:      "metric will only output OrphanedResourceWarning",
 			metricConditions: []string{"OrphanedResourceWarning"},
-			testCombination: testCombination{
-				applications: []string{fakeApp4},
-				responseContains: `
+			applications:     []string{fakeApp4},
+			responseContains: `
 # HELP argocd_app_condition Report application conditions.
 # TYPE argocd_app_condition gauge
 argocd_app_condition{condition="OrphanedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 1
 `,
-			},
 		},
 		{
 			description:      "metric will only output ExcludedResourceWarning",
 			metricConditions: []string{"ExcludedResourceWarning"},
-			testCombination: testCombination{
-				applications: []string{fakeApp4},
-				responseContains: `
+			applications:     []string{fakeApp4},
+			responseContains: `
 # HELP argocd_app_condition Report application conditions.
 # TYPE argocd_app_condition gauge
 argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 2
 `,
-			},
 		},
 		{
 			description:      "metric will only output both OrphanedResourceWarning and ExcludedResourceWarning",
 			metricConditions: []string{"ExcludedResourceWarning", "OrphanedResourceWarning"},
-			testCombination: testCombination{
-				applications: []string{fakeApp4},
-				responseContains: `
+			applications:     []string{fakeApp4},
+			responseContains: `
 # HELP argocd_app_condition Report application conditions.
 # TYPE argocd_app_condition gauge
 argocd_app_condition{condition="OrphanedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 1
 argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 2
 `,
-			},
 		},
 	}
 
@@ -474,8 +649,7 @@ argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespa
 func TestMetricsSyncCounter(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
 	require.NoError(t, err)
 
 	appSyncTotal := `
@@ -528,8 +702,7 @@ func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
 func TestMetricsSyncDuration(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
 	require.NoError(t, err)
 
 	t.Run("metric is not generated during Operation Running.", func(t *testing.T) {
@@ -569,8 +742,7 @@ argocd_app_sync_duration_seconds_total{dest_server="https://localhost:6443",name
 func TestReconcileMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
 	require.NoError(t, err)
 
 	appReconcileMetrics := `
@@ -603,8 +775,7 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 func TestOrphanedResourcesMetric(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
 	require.NoError(t, err)
 
 	expectedMetrics := `
@@ -629,8 +800,7 @@ argocd_app_orphaned_resources_count{name="my-app-4",namespace="argocd",project="
 func TestMetricsReset(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
 	require.NoError(t, err)
 
 	appSyncTotal := `
@@ -667,8 +837,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=
 func TestWorkqueueMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
 	require.NoError(t, err)
 
 	expectedMetrics := `
@@ -698,8 +867,7 @@ workqueue_unfinished_work_seconds{controller="test",name="test"}
 func TestGoMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	mockDB := mocks.NewArgoDB(t)
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
 	require.NoError(t, err)
 
 	expectedMetrics := `
@@ -726,4 +894,42 @@ go_threads
 	body := rr.Body.String()
 	log.Println(body)
 	assertMetricsPrinted(t, expectedMetrics, body)
+}
+
+// TestAppCollector_WarnsOnDestinationResolutionFailure pins the per scrape warning for an
+// Application whose destination does not resolve. The filter reports the failure, the collector
+// logs it, and the Application is still exported.
+func TestAppCollector_WarnsOnDestinationResolutionFailure(t *testing.T) {
+	cancel, appLister := newFakeLister(t.Context(), fakeApp)
+	defer cancel()
+
+	hook := logtest.NewGlobal()
+	defer hook.Reset()
+
+	resolutionErr := stderrors.New("there are no clusters with this name: missing-cluster")
+	failingFilter := AppFilter(func(_ any) (bool, string, error) {
+		return true, "", resolutionErr
+	})
+
+	registry := NewAppRegistry(appLister, failingFilter, []string{}, []string{})
+	families, err := registry.Gather()
+	require.NoError(t, err)
+
+	var exported bool
+	for _, f := range families {
+		if f.GetName() == "argocd_app_info" && len(f.GetMetric()) > 0 {
+			exported = true
+		}
+	}
+	assert.True(t, exported, "an unresolvable destination must still be exported")
+
+	var warned bool
+	for _, entry := range hook.AllEntries() {
+		if entry.Level == logrus.WarnLevel &&
+			strings.Contains(entry.Message, "Failed to get destination cluster for application") &&
+			strings.Contains(entry.Message, resolutionErr.Error()) {
+			warned = true
+		}
+	}
+	assert.True(t, warned, "collector must warn once per scrape when the destination fails to resolve")
 }
