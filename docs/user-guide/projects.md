@@ -67,15 +67,50 @@ argocd proj add-source <PROJECT> !<REPO>
 argocd proj remove-source <PROJECT> !<REPO>
 ```
 
-Declaratively we can do something like this:
+#### Wildcard Patterns in Source Repositories
+
+Source repositories support glob-style wildcard patterns for flexible repository matching:
+
+- `*` - Matches any characters within a single path segment (between slashes)
+- `**` - Matches any characters across multiple path segments (recursive)
+
+Common patterns:
+
+```yaml
+spec:
+  sourceRepos:
+    # Match all repositories (any Git server)
+    - '*'
+
+    # Match all GitHub repositories (using double-wildcard for recursive matching)
+    - 'https://github.com/**'
+
+    # Match all repositories in a specific organization
+    - 'https://github.com/argoproj/*'
+
+    # Match all repositories in organizations starting with 'my-'
+    - 'https://github.com/my-*/*'
+
+    # Match GitLab group repositories with nested subgroups
+    - 'https://gitlab.com/group/**'
+
+    # Match specific nested path depth
+    - 'https://gitlab.com/group/*/*'  # Exactly two levels deep
+```
+
+Negation examples:
 
 ```yaml
 spec:
   sourceRepos:
     # Do not use the test repo in argoproj
     - '!ssh://git@GITHUB.com:argoproj/test'
-    # Nor any Gitlab repo under group/ 
+    # Nor any Gitlab repo under group/
     - '!https://gitlab.com/group/**'
+    # Deny all GitHub repos except those explicitly allowed
+    - '!https://github.com/**'
+    # Allow specific GitHub organization
+    - 'https://github.com/my-org/*'
     # Any other repo is fine though
     - '*'
 ```

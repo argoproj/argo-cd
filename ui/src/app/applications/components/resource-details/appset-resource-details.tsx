@@ -138,8 +138,12 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                     <ResourceIcon group='argoproj.io' kind='ApplicationSet' />
                     {ResourceLabel({kind: 'ApplicationSet'})}
                 </div>
-                <h1>{appSet.metadata.name}</h1>
-                <HealthStatusIcon state={{status: healthStatus, message: ''}} />
+                <div className='resource-details__header-name'>
+                    <h1 className='resource-details__header-title'>{appSet.metadata.name}</h1>
+                    <span className='resource-details__header-status'>
+                        <HealthStatusIcon state={{status: healthStatus, message: ''}} />
+                    </span>
+                </div>
             </div>
             <Tabs
                 key={tab || 'default'}

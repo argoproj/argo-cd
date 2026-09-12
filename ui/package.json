@@ -2,7 +2,7 @@
   "name": "argo-cd-ui",
   "version": "1.0.0",
   "license": "Apache-2.0",
-  "packageManager": "pnpm@10.28.1",
+  "packageManager": "pnpm@12.3.4",
   "scarfSettings": {
     "enabled": false
   },
@@ -49,19 +49,11 @@
     "rxjs": "^7.8.2",
     "superagent": "^8.1.2",
     "swagger-ui-dist": "^5.32.11",
-    "timezones-list": "3.0.1",
+    "timezones-list": "3.1.0",
     "unidiff": "^1.0.2",
     "url": "^0.11.0",
     "xterm": "^4.19.0",
     "xterm-addon-fit": "^0.5.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "@types/react": "^19.0.0",
-      "@types/react-dom": "^19.0.0",
-      "rxjs": "7.8.2",
-      "dompurify": "3.4.7"
-    }
   },
   "devDependencies": {
     "@babel/core": "^7.29.6",
@@ -122,7 +114,7 @@
     "ts-jest": "^29.4.12",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.60.1",
-    "webpack": "^5.105.4",
+    "webpack": "^5.110.3",
     "webpack-cli": "^7.2.3",
     "webpack-dev-server": "^5.2.6"
   }

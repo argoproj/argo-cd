@@ -21,7 +21,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
@@ -65,7 +64,7 @@ var (
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
 		"Information about application.",
-		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation", "phase"),
+		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "hydrator_status", "operation", "phase"),
 		nil,
 	)
 
@@ -156,10 +155,18 @@ var (
 		Name: "argocd_resource_events_processed_in_batch",
 		Help: "Number of resource events processed in batch",
 	}, []string{"server"})
+
+	argoVersion = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "argocd_info",
+			Help: "ArgoCD version information",
+		},
+		[]string{"version"},
+	)
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string, db db.ArgoDB) (*MetricsServer, error) {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter AppFilter, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string) (*MetricsServer, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -185,7 +192,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	}
 
 	mux := http.NewServeMux()
-	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions, db)
+	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions)
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
@@ -193,9 +200,11 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		// contains workqueue metrics, process and golang metrics
 		ctrlmetrics.Registry,
 	}, promhttp.HandlerOpts{}))
+	argoVersion.WithLabelValues(common.GetVersion().Version).Set(1)
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
 
+	registry.MustRegister(argoVersion)
 	registry.MustRegister(syncCounter)
 	registry.MustRegister(syncDuration)
 	registry.MustRegister(k8sRequestCounter)
@@ -354,29 +363,34 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 	return nil
 }
 
+// AppFilter reports whether an Application should be exported, and returns the destination server
+// it resolved on the way. Resolving isn't free, so the collector reuses this instead of resolving
+// again. destServer is empty and err is set when the destination doesn't resolve, which the
+// collector logs per scrape; keep is independent of err, an unresolvable destination is still
+// exported.
+type AppFilter func(obj any) (keep bool, destServer string, err error)
+
 type appCollector struct {
 	store         applister.ApplicationLister
-	appFilter     func(obj any) bool
+	appFilter     AppFilter
 	appLabels     []string
 	appConditions []string
-	db            db.ArgoDB
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter AppFilter, appLabels []string, appConditions []string) prometheus.Collector {
 	return &appCollector{
 		store:         appLister,
 		appFilter:     appFilter,
 		appLabels:     appLabels,
 		appConditions: appConditions,
-		db:            db,
 	}
 }
 
 // NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) *prometheus.Registry {
+func NewAppRegistry(appLister applister.ApplicationLister, appFilter AppFilter, appLabels []string, appConditions []string) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, db))
+	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions))
 	return registry
 }
 
@@ -399,16 +413,12 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 	for _, app := range apps {
-		if !c.appFilter(app) {
+		keep, destServer, err := c.appFilter(app)
+		if !keep {
 			continue
 		}
-		destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, c.db)
 		if err != nil {
 			log.Warnf("Failed to get destination cluster for application %s: %v", app.Name, err)
-		}
-		destServer := ""
-		if destCluster != nil {
-			destServer = destCluster.Server
 		}
 		c.collectApps(ch, app, destServer)
 	}
@@ -445,6 +455,13 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 	if healthStatus == "" {
 		healthStatus = health.HealthStatusUnknown
 	}
+	var hydratorStatus string
+	if app.Spec.SourceHydrator != nil {
+		hydratorStatus = string(argoappv1.HydrateOperationPhaseUnknown)
+		if op := app.Status.SourceHydrator.CurrentOperation; op != nil && op.Phase != "" {
+			hydratorStatus = string(op.Phase)
+		}
+	}
 
 	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled()
 
@@ -453,7 +470,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		operationPhase = string(app.Status.OperationState.Phase)
 	}
 
-	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), destServer, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation, operationPhase)
+	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), destServer, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), hydratorStatus, operation, operationPhase)
 
 	if len(c.appLabels) > 0 {
 		labelValues := []string{}

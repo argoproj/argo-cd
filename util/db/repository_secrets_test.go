@@ -659,6 +659,46 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 	}
 }
 
+func TestSecretToRepoCred_AzureServicePrincipalKeyAliases(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     map[string][]byte
+		clientID string
+		tenantID string
+	}{
+		{
+			name: "repository-style aliases",
+			data: map[string][]byte{
+				"azureServicePrincipalClientId": []byte("alias-client"),
+				"azureServicePrincipalTenantId": []byte("alias-tenant"),
+			},
+			clientID: "alias-client",
+			tenantID: "alias-tenant",
+		},
+		{
+			name: "existing keys take precedence",
+			data: map[string][]byte{
+				"azureServicePrincipalClientID": []byte("existing-client"),
+				"azureServicePrincipalClientId": []byte("alias-client"),
+				"azureServicePrincipalTenantID": []byte("existing-tenant"),
+				"azureServicePrincipalTenantId": []byte("alias-tenant"),
+			},
+			clientID: "existing-client",
+			tenantID: "existing-tenant",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			creds, err := (&secretsRepositoryBackend{}).secretToRepoCred(&corev1.Secret{Data: tt.data})
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.clientID, creds.AzureServicePrincipalClientId)
+			assert.Equal(t, tt.tenantID, creds.AzureServicePrincipalTenantId)
+		})
+	}
+}
+
 func TestSecretsRepositoryBackend_ListRepoCreds(t *testing.T) {
 	repoCredSecrets := []runtime.Object{
 		&corev1.Secret{
