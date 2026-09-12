@@ -23,6 +23,9 @@ fi
 if test "${ARGOCD_TEST_VERBOSE:-}" != ""; then
 	TEST_FLAGS="$TEST_FLAGS -v"
 fi
+if test "${PACKAGES:-}" = "./test/e2e" && test "${ARGOCD_E2E_SHARD:-}" != "" && test "${ARGOCD_E2E_SHARD_COUNT:-}" != ""; then
+	TEST_FLAGS="$TEST_FLAGS -run $(./hack/e2e-shard.sh "${PACKAGES}" "$ARGOCD_E2E_SHARD" "$ARGOCD_E2E_SHARD_COUNT")"
+fi
 
 mkdir -p "$TEST_RESULTS"
 
