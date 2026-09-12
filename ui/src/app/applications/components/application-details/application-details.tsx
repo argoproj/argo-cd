@@ -17,7 +17,7 @@ import {NoticeBanner} from '../application-notice/notice-banner';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
 import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
 import {PodGroupType, PodView} from '../application-pod-view/pod-view';
-import {ApplicationResourceTree, ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
+import {ApplicationResourceTree, type ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
 import {ApplicationSetStatusPanel} from '../application-status-panel/appset-status-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';

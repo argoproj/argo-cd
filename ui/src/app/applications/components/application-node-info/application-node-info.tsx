@@ -3,17 +3,25 @@ import classNames from 'classnames';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 
-import {YamlEditor, ClipboardText, Cluster} from '../../../shared/components';
+import {ClipboardText, Cluster} from '../../../shared/components';
+import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import {DeepLinks} from '../../../shared/components/deep-links';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
-import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
+import type {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ComparisonStatusIcon, formatCreationTimestamp, getAppUrl, getPodReadinessGatesState, getPodStateReason, HealthStatusIcon, nodeKey} from '../utils';
 import './application-node-info.scss';
 import {ReadinessGatesNotPassedWarning} from './readiness-gates-not-passed-warning';
 import Moment from 'react-moment';
+
+const ApplicationResourcesDiff = lazyWithBoundary(
+    React.lazy(() =>
+        import(/* webpackChunkName: "app-resources-diff" */ '../application-resources-diff/application-resources-diff').then(m => ({default: m.ApplicationResourcesDiff}))
+    ),
+    'Failed to load diff. Please reload and try again.'
+);
 
 const RenderContainerState = (props: {container: any}) => {
     const state = (props.container.state?.waiting && 'waiting') || (props.container.state?.terminated && 'terminated') || (props.container.state?.running && 'running');
