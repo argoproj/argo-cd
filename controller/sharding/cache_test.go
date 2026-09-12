@@ -260,6 +260,60 @@ func TestClusterSharding_UpdateServerName(t *testing.T) {
 	assert.True(t, ok) // the new server name should be present
 }
 
+// TestClusterSharding_UpdateRedistributesUnshardedCluster verifies that a cluster
+// which reaches the sharding cache through an update event, e.g. the periodic
+// resync of the cluster secret informer, is added to the distribution. Otherwise
+// the cluster stays in Clusters without a Shards entry, IsManagedCluster silently
+// falls back to shard 0 for it, and every other cluster keeps the shard it was
+// assigned while that cluster was still unknown.
+func TestClusterSharding_UpdateRedistributesUnshardedCluster(t *testing.T) {
+	t.Parallel()
+	replicas := 2
+
+	clusterA := v1alpha1.Cluster{ID: "1", Server: "https://127.0.0.1:6443"}
+	clusterB := v1alpha1.Cluster{ID: "3", Server: "https://kubernetes.default.svc"}
+	clusterC := v1alpha1.Cluster{ID: "2", Server: "https://1.1.1.1"}
+
+	newSharding := func(shard int) *ClusterSharding {
+		sharding := NewClusterSharding(&dbmocks.ArgoDB{}, shard, replicas, "round-robin").(*ClusterSharding)
+		sharding.Init(
+			&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{clusterA, clusterB}},
+			&v1alpha1.ApplicationList{},
+		)
+		return sharding
+	}
+
+	// Shard 0 observes the add event of clusterC, shard 1 only observes an update
+	// event for it.
+	shard0 := newSharding(0)
+	shard0.Add(&clusterC)
+
+	shard1 := newSharding(1)
+	shard1.Update(&clusterC, &clusterC)
+
+	// Clusters are indexed by ID, so clusterC ("2") moves clusterB ("3") from
+	// shard 1 to shard 0. Both shards must agree on that distribution.
+	expected := map[string]int{
+		clusterA.Server: 0,
+		clusterC.Server: 1,
+		clusterB.Server: 0,
+	}
+	assert.Equal(t, expected, shard0.GetDistribution())
+	assert.Equal(t, expected, shard1.GetDistribution())
+
+	// Each cluster is processed by exactly one shard: none is orphaned and none
+	// is processed twice.
+	for _, cluster := range []*v1alpha1.Cluster{&clusterA, &clusterB, &clusterC} {
+		owners := 0
+		for _, sharding := range []*ClusterSharding{shard0, shard1} {
+			if sharding.IsManagedCluster(cluster) {
+				owners++
+			}
+		}
+		assert.Equal(t, 1, owners, "cluster %s should be processed by exactly one shard", cluster.Server)
+	}
+}
+
 func TestClusterSharding_IsManagedCluster(t *testing.T) {
 	t.Parallel()
 	replicas := 2
