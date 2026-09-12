@@ -100,6 +100,17 @@ type MockKubectl struct {
 	// through to the embedded Kubectl. It lets tests reproduce API server
 	// responses such as AlreadyExists.
 	CreateError error
+	// GetResourceResult, when set, is returned by GetResource instead of calling
+	// through to the embedded Kubectl. It lets tests control what the API server
+	// reports for a resource that is not in the cluster cache.
+	GetResourceResult *unstructured.Unstructured
+}
+
+func (m *MockKubectl) GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+	if m.GetResourceResult != nil {
+		return m.GetResourceResult, nil
+	}
+	return m.Kubectl.GetResource(ctx, config, gvk, name, namespace)
 }
 
 func (m *MockKubectl) CreateResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, obj *unstructured.Unstructured, createOptions metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
@@ -113,6 +124,19 @@ func (m *MockKubectl) CreateResource(ctx context.Context, config *rest.Config, g
 func (m *MockKubectl) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error {
 	m.DeletedResources = append(m.DeletedResources, kube.NewResourceKey(gvk.Group, gvk.Kind, namespace, name))
 	return m.Kubectl.DeleteResource(ctx, config, gvk, name, namespace, deleteOptions)
+}
+
+// setFakeAppInstance stamps obj with appName using the same tracking settings the
+// controller is configured with, so tests do not have to assume a tracking method.
+func setFakeAppInstance(t *testing.T, ctrl *ApplicationController, obj *unstructured.Unstructured, appName string) error {
+	t.Helper()
+	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
+	require.NoError(t, err)
+	trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
+	require.NoError(t, err)
+	installationID, err := ctrl.settingsMgr.GetInstallationID()
+	require.NoError(t, err)
+	return argo.NewResourceTracking().SetAppInstance(obj, appLabelKey, appName, test.FakeArgoCDNamespace, v1alpha1.TrackingMethod(trackingMethod), installationID)
 }
 
 // recordingOperationQueue embeds a real rate-limiting queue but records every
@@ -1374,6 +1398,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
 		}, nil)
 		ctrl.kubectl.(*MockKubectl).CreateError = apierrors.NewAlreadyExists(schema.GroupResource{Group: "batch", Resource: "jobs"}, "post-delete-hook")
+		// The API server reports the hook that the earlier pass created, carrying
+		// this application's tracking identity.
+		existingHook := &unstructured.Unstructured{Object: newFakePostDeleteHook()}
+		require.NoError(t, setFakeAppInstance(t, ctrl, existingHook, app.InstanceName(test.FakeArgoCDNamespace)))
+		ctrl.kubectl.(*MockKubectl).GetResourceResult = existingHook
 
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
@@ -1393,6 +1422,47 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		// The finalizer must still be in place, so the hook is not deleted by
 		// cascade deletion while it is still starting.
 		assert.False(t, patched, "post-delete finalizer must not be removed while a hook is unaccounted for")
+	})
+
+	t.Run("PostDelete_HookNameTakenByAnotherAppDoesNotBlockDeletion", func(t *testing.T) {
+		// An AlreadyExists response does not prove the existing resource is this
+		// application's hook. A resource owned by someone else never appears in
+		// this application's cluster cache, so waiting for it would block the
+		// deletion forever. It has to be skipped instead.
+		app := newFakeApp()
+		app.SetPostDeleteFinalizer()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		ctrl := newFakeController(t.Context(), &fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{fakePostDeleteHook},
+			}},
+			apps:            []runtime.Object{app, &defaultProj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+		}, nil)
+		ctrl.kubectl.(*MockKubectl).CreateError = apierrors.NewAlreadyExists(schema.GroupResource{Group: "batch", Resource: "jobs"}, "post-delete-hook")
+		// The name is taken by a resource belonging to a different application.
+		foreignHook := &unstructured.Unstructured{Object: newFakePostDeleteHook()}
+		require.NoError(t, setFakeAppInstance(t, ctrl, foreignHook, "some-other-app"))
+		ctrl.kubectl.(*MockKubectl).GetResourceResult = foreignHook
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, &v1alpha1.Application{}, nil
+		})
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		require.NoError(t, err)
+		// Deletion proceeds: the finalizer is removed rather than waiting for a
+		// resource this application will never observe.
+		assert.True(t, patched, "deletion must not block on a hook name owned by another application")
 	})
 
 	t.Run("PostDelete_HookIsCreatedForLongAppName", func(t *testing.T) {
