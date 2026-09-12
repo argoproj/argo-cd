@@ -22,17 +22,15 @@ func getSecret(client kubernetes.Interface, ns, name string) (*corev1.Secret, er
 
 func Test_CreateOrUpdateSecretField(t *testing.T) {
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-secret",
-			Namespace: "test",
-			Labels: map[string]string{
-				"label1": "bar",
-				"label2": "baz",
-			},
-			Annotations: map[string]string{
-				"annotation1": "bar",
-				"annotation2": "baz",
-			},
+		Name:      "test-secret",
+		Namespace: "test",
+		Labels: map[string]string{
+			"label1": "bar",
+			"label2": "baz",
+		},
+		Annotations: map[string]string{
+			"annotation1": "bar",
+			"annotation2": "baz",
 		},
 		Data: map[string][]byte{
 			"password": []byte("foobar"),
@@ -113,10 +111,8 @@ func Test_CreateOrUpdateSecretField(t *testing.T) {
 
 func Test_CreateOrUpdateSecretData(t *testing.T) {
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-secret",
-			Namespace: "test",
-		},
+		Name:      "test-secret",
+		Namespace: "test",
 		Data: map[string][]byte{
 			"something": []byte("something"),
 			"password":  []byte("foobar"),

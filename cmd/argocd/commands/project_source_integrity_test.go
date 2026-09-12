@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
@@ -51,7 +50,7 @@ func dummySourceIntegrity() *appsv1.SourceIntegrity {
 
 func dummyProject(projectName string, si *appsv1.SourceIntegrity) *appsv1.AppProject {
 	return &appsv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: projectName},
+		Name: projectName,
 		Spec: appsv1.AppProjectSpec{
 			SourceIntegrity: si,
 		},

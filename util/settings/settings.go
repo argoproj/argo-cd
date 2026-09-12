@@ -493,8 +493,16 @@ const (
 	resourceExclusionsKey = "resource.exclusions"
 	// resourceInclusions is the key to the list of explicitly watched resources
 	resourceInclusionsKey = "resource.inclusions"
+	// resourceSelectorsKey is the key to the list of label selectors that narrow down the watched resources
+	resourceSelectorsKey = "resource.selectors"
 	// resourceIgnoreResourceUpdatesEnabledKey is the key to a boolean determining whether the resourceIgnoreUpdates feature is enabled
 	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
+	// manifestCompressionEnabledKey is the key to a boolean determining whether manifest compression is enabled
+	manifestCompressionEnabledKey = "resource.manifest.compression.enabled"
+	// manifestStorageKey configures the serialization format for cached manifests
+	manifestStorageKey = "resource.manifest.storage"
+	// manifestCompressionKey configures the compression algorithm for cached manifests
+	manifestCompressionKey = "resource.manifest.compression"
 	// resourceSensitiveAnnotationsKey is the key to list of annotations to mask in secret resource
 	resourceSensitiveAnnotationsKey = "resource.sensitive.mask.annotations"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
@@ -557,6 +565,8 @@ const (
 	inClusterEnabledKey = "cluster.inClusterEnabled"
 	// settingsServerRBACEDisableFineGrainedInheritance is the key to configure find-grained RBAC inheritance
 	settingsServerRBACDisableFineGrainedInheritance = "server.rbac.disableApplicationFineGrainedRBACInheritance"
+	// settingsServerRBACRollbackEnforceEnableKey enables the dedicated rollback RBAC action in argocd-cm
+	settingsServerRBACRollbackEnforceEnableKey = "server.rbac.rollback.enforce.enable"
 	// MaxPodLogsToRender the maximum number of pod logs to render
 	settingsMaxPodLogsToRender = "server.maxPodLogsToRender"
 	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
@@ -725,9 +735,7 @@ func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) er
 			return err
 		}
 		argoCDSecret = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: common.ArgoCDSecretName,
-			},
+			Name: common.ArgoCDSecretName,
 			Data: make(map[string][]byte),
 		}
 		createSecret = true
@@ -763,9 +771,7 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) err
 			return err
 		}
 		argoCDCM = &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: common.ArgoCDConfigMapName,
-			},
+			Name: common.ArgoCDConfigMapName,
 			Data: make(map[string]string),
 		}
 		createCM = true
@@ -902,6 +908,20 @@ func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 		}
 		rf.ResourceExclusions = excludedResources
 	}
+
+	if value, ok := argoCDCM.Data[resourceSelectorsKey]; ok {
+		resourceSelectors := make([]FilteredResource, 0)
+		err := yaml.Unmarshal([]byte(value), &resourceSelectors)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshalling resource selectors %w", err)
+		}
+		for _, resourceSelector := range resourceSelectors {
+			if _, err := labels.Parse(resourceSelector.Selector); err != nil {
+				return nil, fmt.Errorf("error parsing resource selector %q: %w", resourceSelector.Selector, err)
+			}
+		}
+		rf.ResourceSelectors = resourceSelectors
+	}
 	return rf, nil
 }
 
@@ -960,6 +980,19 @@ func (mgr *SettingsManager) ApplicationFineGrainedRBACInheritanceDisabled() (boo
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACDisableFineGrainedInheritance])
+}
+
+func (mgr *SettingsManager) GetServerRBACRollbackEnforceEnable() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, err
+	}
+
+	if argoCDCM.Data[settingsServerRBACRollbackEnforceEnableKey] == "" {
+		return false, nil
+	}
+
+	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACRollbackEnforceEnableKey])
 }
 
 func (mgr *SettingsManager) GetMaxPodLogsToRender() (int64, error) {
@@ -1055,6 +1088,35 @@ func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey])
+}
+
+func (mgr *SettingsManager) GetIsManifestCompressionEnabled() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, fmt.Errorf("error retrieving config map: %w", err)
+	}
+
+	if argoCDCM.Data[manifestCompressionEnabledKey] == "" {
+		return false, nil
+	}
+
+	return strconv.ParseBool(argoCDCM.Data[manifestCompressionEnabledKey])
+}
+
+func (mgr *SettingsManager) GetManifestStorage() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", fmt.Errorf("error retrieving config map: %w", err)
+	}
+	return argoCDCM.Data[manifestStorageKey], nil
+}
+
+func (mgr *SettingsManager) GetManifestCompression() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", fmt.Errorf("error retrieving config map: %w", err)
+	}
+	return argoCDCM.Data[manifestCompressionKey], nil
 }
 
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
@@ -1688,7 +1750,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	if settings.OIDCConfigRAW == "" {
 		settings.DexAuthConnectorID = getDexAuthConnectorID(argoCDCM.Data)
 	}
-	if err := ValidateOIDCConfig(settings.OIDCConfigRAW); err != nil {
+	if err := validateOIDCConfigWithSecrets(settings.OIDCConfigRAW, settings.Secrets); err != nil {
 		log.Warnf("Failed to validate OIDC config: %v", err)
 	}
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
@@ -2138,6 +2200,25 @@ func ValidateOIDCConfig(configStr string) error {
 		if err := ValidateAzureGraphAPIEndpoint(settings.Azure.GraphAPIEndpoint); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func validateOIDCConfigWithSecrets(configStr string, secrets map[string]string) error {
+	configMap := map[string]any{}
+	if err := yaml.Unmarshal([]byte(configStr), &configMap); err != nil {
+		return err
+	}
+
+	configMap = ReplaceMapSecrets(configMap, secrets)
+
+	resolvedConfig, err := yaml.Marshal(configMap)
+	if err != nil {
+		return errors.New("failed to marshal config after replacing secrets")
+	}
+
+	if err := ValidateOIDCConfig(string(resolvedConfig)); err != nil {
+		return errors.New("invalid OIDC config")
 	}
 	return nil
 }

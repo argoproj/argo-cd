@@ -93,6 +93,20 @@ export {
     SyncWindowStatusIcon
 };
 
+/**
+ * Builds the class list for the Application (and ApplicationSet) details container.
+ *
+ * The per-application class is a styling hook that lets operators target a specific
+ * application's page from custom CSS (see docs/operator-manual/custom-styles.md, added in #13279).
+ * It is prefixed with `user-app-` so that an application whose name matches a built-in component
+ * class cannot collide with that component's styles. For example, an application named `login`
+ * previously rendered the class `application-details login`, which pulled in the login page's
+ * `.login` styles and broke the page (issue #24220).
+ */
+export function getApplicationDetailsContainerClass(appName: string): string {
+    return `application-details user-app-${appName}`;
+}
+
 export function nameConfirmationError(entered: string, expected: string, emptyMessage: string, mismatchMessage: string): string | false {
     if (entered === expected) return false;
     return !entered ? emptyMessage : mismatchMessage;
@@ -931,7 +945,7 @@ export function hydrationStatusMessage(app: appModels.Application) {
     const sourceHydrator = app.status.sourceHydrator.currentOperation.sourceHydrator;
     const drySource = sourceHydrator.drySource;
     const dryCommit = app.status.sourceHydrator.currentOperation.drySHA;
-    const syncSource = getAppHydratorSyncSource(sourceHydrator);
+    const hydrateToSource = getAppHydrateToSource(sourceHydrator);
     const hydratedCommit = app.status.sourceHydrator.currentOperation.hydratedSHA || '';
 
     switch (app.status.sourceHydrator.currentOperation.phase) {
@@ -944,8 +958,8 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     </Revision>
                     <br />
                     to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={hydratedCommit}>
-                        {syncSource.targetRevision + ' (' + hydratedCommit.substr(0, 7) + ')'}
+                    <Revision repoUrl={hydrateToSource.repoURL} revision={hydratedCommit}>
+                        {hydrateToSource.targetRevision + ' (' + hydratedCommit.substr(0, 7) + ')'}
                     </Revision>
                 </span>
             );
@@ -958,8 +972,8 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     </Revision>
                     <br />
                     to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
-                        {syncSource.targetRevision}
+                    <Revision repoUrl={hydrateToSource.repoURL} revision={hydrateToSource.targetRevision}>
+                        {hydrateToSource.targetRevision}
                     </Revision>
                 </span>
             );
@@ -973,8 +987,8 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     </Revision>
                     <br />
                     to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
-                        {syncSource.targetRevision}
+                    <Revision repoUrl={hydrateToSource.repoURL} revision={hydrateToSource.targetRevision}>
+                        {hydrateToSource.targetRevision}
                     </Revision>
                 </span>
             );
@@ -1361,6 +1375,15 @@ export function getAppHydratorSyncSource(sourceHydrator?: appModels.SourceHydrat
         repoURL: getHydratorSyncSourceRepoURL(sourceHydrator),
         targetRevision: sourceHydrator?.syncSource?.targetBranch || '',
         path: sourceHydrator?.syncSource?.path || ''
+    };
+}
+
+// Destination of a hydration push: hydrateTo.targetBranch when set, otherwise the sync source branch.
+export function getAppHydrateToSource(sourceHydrator?: appModels.SourceHydrator): appModels.ApplicationSource {
+    const syncSource = getAppHydratorSyncSource(sourceHydrator);
+    return {
+        ...syncSource,
+        targetRevision: sourceHydrator?.hydrateTo?.targetBranch || syncSource.targetRevision
     };
 }
 
@@ -1830,41 +1853,6 @@ export function getManagedByURLFromNode(node: any): string | null {
 
     const managedByURLInfo = node.info.find((info: any) => info.name === 'managed-by-url');
     return managedByURLInfo?.value || null;
-}
-
-/**
- * Gets the correct URL for an application link, considering managed-by-url annotation
- * @param app The application object
- * @param baseHref The current instance's base href
- * @param node Optional resource node to get managed-by-url from info field
- * @returns The URL to use for the application link
- */
-export function getApplicationLinkURL(app: any, baseHref: string, node?: any): {url: string; isExternal: boolean} {
-    // First try to get managed-by-url from the node's info field (for nested applications)
-    let managedByURL = node ? getManagedByURLFromNode(node) : null;
-
-    // If not found in node, try the application's metadata
-    if (!managedByURL) {
-        managedByURL = getManagedByURL(app);
-    }
-
-    let url, isExternal;
-    if (managedByURL) {
-        // Validate the managed-by URL using the same validation as external links
-        if (!isValidManagedByURL(managedByURL)) {
-            // If URL is invalid, fall back to local URL for security
-            console.warn(`Invalid managed-by URL for application ${app.metadata.name}: ${managedByURL}`);
-            url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
-            isExternal = false;
-        } else {
-            url = managedByURL + '/applications/' + app.metadata.namespace + '/' + app.metadata.name;
-            isExternal = true;
-        }
-    } else {
-        url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
-        isExternal = false;
-    }
-    return {url, isExternal};
 }
 
 /**

@@ -19,7 +19,7 @@
       ]
     },
     {
-      "description": "Refresh helm checksum files after version bump",
+      "description": "Refresh helm checksum files and regenerate redis-ha manifests after version bump",
       "matchDatasources": [
         "github-releases"
       ],
@@ -28,10 +28,13 @@
       ],
       "postUpgradeTasks": {
         "commands": [
-          "hack/installers/checksums/add-helm-checksums.sh {{newVersion}}"
+          "hack/installers/checksums/add-helm-checksums.sh {{newVersion}}",
+          "env INSTALL_SUDO=env BIN=./dist ./hack/install.sh kustomize helm",
+          "sh -c PATH=`pwd`/dist:$PATH;./hack/update-manifests.sh"
         ],
         "fileFilters": [
-          "hack/installers/checksums/**"
+          "hack/installers/checksums/**",
+          "manifests/**"
         ],
         "executionMode": "branch"
       }
