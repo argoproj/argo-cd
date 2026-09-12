@@ -116,6 +116,7 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
     public clustersFilter: string[];
     public targetRevisionFilter: string[];
     public operationFilter: string[];
+    public groupByProject: boolean;
 }
 
 export class ResourcesListPreferences {
@@ -223,6 +224,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         showFavorites: false,
         favoritesAppList: new Array<string>(),
         searchRegex: false,
+        groupByProject: false,
         statusBarView: {
             showHealthStatusBar: true
         }
@@ -330,5 +332,6 @@ export class ViewPreferencesService {
         appList.healthFilter = appList.healthFilter || [];
         appList.operationFilter = appList.operationFilter || [];
         appList.favoritesAppList = appList.favoritesAppList || [];
+        appList.groupByProject = !!appList.groupByProject;
     }
 }
