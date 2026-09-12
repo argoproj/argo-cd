@@ -148,8 +148,13 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 		}
 	}
 
-	// Create hooks that don't exist yet
-	createdCnt := 0
+	// Create hooks that don't exist yet.
+	// pendingCnt counts hooks that are known to exist on the cluster but are not
+	// in runningHooks yet, either because this pass created them or because a
+	// previous pass did and the cluster cache has not caught up. Their health is
+	// unknown, so the phase must not be reported as complete while any are
+	// pending.
+	pendingCnt := 0
 	for key, obj := range expectedHook {
 		// Apply app instance tracking metadata so the hook can be tracked and cleaned up.
 		// Use the same code path as regular sync resources so the configured
@@ -165,16 +170,22 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 		_, err = ctrl.kubectl.CreateResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), obj, metav1.CreateOptions{})
 		if err != nil {
 			if apierrors.IsAlreadyExists(err) {
-				logCtx.Warnf("Hook resource %s already exists, skipping", key)
+				// The hook was created by an earlier pass that the cluster cache
+				// has not observed yet. It exists and its health is not known, so
+				// it has to be waited for rather than skipped: reporting the phase
+				// as complete here lets the caller remove the deletion finalizer
+				// and cascade-delete the hook before it ever runs.
+				logCtx.Infof("Hook resource %s already exists, waiting for it to complete", key)
+				pendingCnt++
 				continue
 			}
 			return false, err
 		}
-		createdCnt++
+		pendingCnt++
 	}
 
-	if createdCnt > 0 {
-		logCtx.Infof("Created %d %s hooks", createdCnt, hookType)
+	if pendingCnt > 0 {
+		logCtx.Infof("Waiting for %d %s hooks to be observed", pendingCnt, hookType)
 		return false, nil
 	}
 

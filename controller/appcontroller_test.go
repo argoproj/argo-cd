@@ -96,10 +96,17 @@ type MockKubectl struct {
 
 	DeletedResources []kube.ResourceKey
 	CreatedResources []*unstructured.Unstructured
+	// CreateError, when set, is returned by CreateResource instead of calling
+	// through to the embedded Kubectl. It lets tests reproduce API server
+	// responses such as AlreadyExists.
+	CreateError error
 }
 
 func (m *MockKubectl) CreateResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, obj *unstructured.Unstructured, createOptions metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
 	m.CreatedResources = append(m.CreatedResources, obj)
+	if m.CreateError != nil {
+		return nil, m.CreateError
+	}
 	return m.Kubectl.CreateResource(ctx, config, gvk, name, namespace, obj, createOptions, subresources...)
 }
 
@@ -1346,6 +1353,46 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		// post-delete hook is created
 		require.Len(t, ctrl.kubectl.(*MockKubectl).CreatedResources, 1)
 		require.Equal(t, "post-delete-hook", ctrl.kubectl.(*MockKubectl).CreatedResources[0].GetName())
+	})
+
+	t.Run("PostDelete_HookAlreadyExistsIsNotTreatedAsComplete", func(t *testing.T) {
+		// Reproduces the race where a hook created by an earlier finalization
+		// pass is not in the cluster cache yet: the create returns AlreadyExists
+		// and the hook is therefore absent from both the cache and the created
+		// set. The phase must not be reported as complete, otherwise the
+		// finalizer is removed and cascade deletion destroys the hook before it
+		// ever runs.
+		app := newFakeApp()
+		app.SetPostDeleteFinalizer()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		ctrl := newFakeController(t.Context(), &fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{fakePostDeleteHook},
+			}},
+			apps: []runtime.Object{app, &defaultProj},
+			// The hook exists on the cluster but the cache has not observed it.
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+		}, nil)
+		ctrl.kubectl.(*MockKubectl).CreateError = apierrors.NewAlreadyExists(schema.GroupResource{Group: "batch", Resource: "jobs"}, "post-delete-hook")
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, &v1alpha1.Application{}, nil
+		})
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		require.NoError(t, err)
+		// The finalizer must still be in place, so the hook is not deleted by
+		// cascade deletion while it is still starting.
+		assert.False(t, patched, "post-delete finalizer must not be removed while a hook is unaccounted for")
 	})
 
 	t.Run("PostDelete_HookIsCreatedForLongAppName", func(t *testing.T) {
