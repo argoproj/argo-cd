@@ -3,7 +3,7 @@ declare const test: any;
 declare const expect: any;
 declare const describe: any;
 import {concatMaps} from './utils';
-import {isValidManagedByURL, isValidURL} from './utils';
+import {gotoIfQueryChanged, isValidManagedByURL, isValidURL} from './utils';
 
 test('map concatenation', () => {
     const map1 = {
@@ -56,5 +56,48 @@ describe('isValidManagedByURL', () => {
     test('rejects invalid URL strings', () => {
         expect(isValidManagedByURL('not-a-url')).toBe(false);
         expect(isValidManagedByURL('')).toBe(false);
+    });
+});
+
+describe('gotoIfQueryChanged', () => {
+    const navigateFrom = (search: string, params: {[name: string]: any}) => {
+        window.history.replaceState({}, '', '/applications' + search);
+        const goto = jest.fn();
+        gotoIfQueryChanged({goto} as any, params);
+        return goto;
+    };
+
+    test('replaces the URL when a value changes', () => {
+        const goto = navigateFrom('?proj=default', {proj: 'other'});
+        expect(goto).toHaveBeenCalledWith('.', {proj: 'other'}, {replace: true});
+    });
+
+    test('replaces the URL when a parameter is added', () => {
+        expect(navigateFrom('?proj=default', {proj: 'default', showFavorites: 'true'})).toHaveBeenCalled();
+    });
+
+    test('does not navigate when every parameter already has that value', () => {
+        expect(navigateFrom('?proj=default&health=Healthy', {proj: 'default', health: 'Healthy'})).not.toHaveBeenCalled();
+    });
+
+    test('does not navigate for parameters it was not given', () => {
+        expect(navigateFrom('?proj=default&view=tiles', {proj: 'default'})).not.toHaveBeenCalled();
+    });
+
+    test('treats null and undefined as removing a parameter', () => {
+        expect(navigateFrom('?showFavorites=true', {showFavorites: null})).toHaveBeenCalled();
+        expect(navigateFrom('?proj=default', {showFavorites: null})).not.toHaveBeenCalled();
+        expect(navigateFrom('?proj=default', {showFavorites: undefined})).not.toHaveBeenCalled();
+    });
+
+    test('compares every entry of an array parameter', () => {
+        expect(navigateFrom('?type=git&type=helm', {type: ['git', 'helm']})).not.toHaveBeenCalled();
+        expect(navigateFrom('?type=git&type=helm', {type: ['git']})).toHaveBeenCalled();
+        expect(navigateFrom('?type=git', {type: ['git', 'helm']})).toHaveBeenCalled();
+    });
+
+    test('navigates when the URL has no query string yet', () => {
+        expect(navigateFrom('', {proj: ''})).toHaveBeenCalled();
+        expect(navigateFrom('', {proj: null})).not.toHaveBeenCalled();
     });
 });
