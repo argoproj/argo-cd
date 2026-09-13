@@ -436,6 +436,25 @@ spec:
 
 The example above shows how an Argo CD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieved by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
 
+Key-level ignore rules work the same way on Secrets, whether the manifest uses `data` or `stringData`. The example below keeps a password that was generated in the cluster while every other key of the Secret is still managed from git:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  ignoreDifferences:
+    - kind: Secret
+      name: db-credentials
+      jqPathExpressions:
+        - .data.password, .stringData.password
+
+  syncPolicy:
+    syncOptions:
+      - RespectIgnoreDifferences=true
+```
+
+During the sync the live value of `password` is carried into the applied Secret and the rendered value for that key is never applied. Keys that exist only in the live Secret and are not ignored are not copied into the applied manifest. To protect every key of a Secret, ignore the whole map with `.data, .stringData` instead of listing keys.
+
 ## Create Namespace
 
 ```yaml
