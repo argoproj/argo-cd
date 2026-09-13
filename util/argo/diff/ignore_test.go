@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
@@ -229,5 +230,221 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		assert.ElementsMatch(t, expectedManagers, actual.ManagedFieldsManagers)
 		assert.ElementsMatch(t, expectedJSONPointers, actual.JSONPointers)
 		assert.ElementsMatch(t, expectedJQPath, actual.JQPathExpressions)
+	})
+}
+
+func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
+	t.Parallel()
+	newDeployment := func() *unstructured.Unstructured {
+		return &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "apps/v1",
+				"kind":       "Deployment",
+				"metadata": map[string]any{
+					"name":      "test-deployment",
+					"namespace": "default",
+				},
+			},
+		}
+	}
+
+	newService := func() *unstructured.Unstructured {
+		return &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "v1",
+				"kind":       "Service",
+				"metadata": map[string]any{
+					"name":      "test-service",
+					"namespace": "default",
+				},
+			},
+		}
+	}
+
+	t.Run("extracts single JSON pointer from annotation", func(t *testing.T) {
+		// given
+		t.Parallel()
+		resource := newDeployment()
+		resource.SetAnnotations(map[string]string{
+			"argocd.argoproj.io/ignore-differences": "jsonPointers:\n- /spec/replicas",
+		})
+		resources := []*unstructured.Unstructured{resource}
+
+		// when
+		result := diff.ExtractIgnoreDifferencesFromAnnotations(resources)
+
+		// then
+		require.Len(t, result, 1)
+		assert.Equal(t, "Deployment", result[0].Kind)
+		assert.Equal(t, []string{"/spec/replicas"}, result[0].JSONPointers)
+	})
+
+	t.Run("extracts multiple JSON pointers from annotation", func(t *testing.T) {
+		// given
+		t.Parallel()
+		resource := newDeployment()
+		resource.SetAnnotations(map[string]string{
+			"argocd.argoproj.io/ignore-differences": "jsonPointers:\n- /spec/replicas\n- /metadata/labels/version\n- /spec/template/metadata/annotations",
+		})
+		resources := []*unstructured.Unstructured{resource}
+
+		// when
+		result := diff.ExtractIgnoreDifferencesFromAnnotations(resources)
+
+		// then
+		require.Len(t, result, 1)
+		assert.ElementsMatch(t, []string{"/spec/replicas", "/metadata/labels/version", "/spec/template/metadata/annotations"}, result[0].JSONPointers)
+	})
+
+	t.Run("handles block scalar YAML annotation value", func(t *testing.T) {
+		// given
+		t.Parallel()
+		resource := newDeployment()
+		resource.SetAnnotations(map[string]string{
+			"argocd.argoproj.io/ignore-differences": "jsonPointers:\n- /spec/replicas\n- /metadata/labels\n- /status",
+		})
+		resources := []*unstructured.Unstructured{resource}
+
+		// when
+		result := diff.ExtractIgnoreDifferencesFromAnnotations(resources)
+
+		// then
+		require.Len(t, result, 1)
+		assert.ElementsMatch(t, []string{"/spec/replicas", "/metadata/labels", "/status"}, result[0].JSONPointers)
+	})
+
+	t.Run("returns empty list when no annotation present", func(t *testing.T) {
+		// given
+		t.Parallel()
+		resource := newDeployment()
+		resources := []*unstructured.Unstructured{resource}
+
+		// when
+		result := diff.ExtractIgnoreDifferencesFromAnnotations(resources)
+
+		// then
+		assert.Empty(t, result)
+	})
+
+	t.Run("handles nil resource", func(t *testing.T) {
+		// given
+		t.Parallel()
+		resources := []*unstructured.Unstructured{nil}
+
+		// when
+		result := diff.ExtractIgnoreDifferencesFromAnnotations(resources)
+
+		// then
+		assert.Empty(t, result)
+	})
+
+	t.Run("handles empty annotation value", func(t *testing.T) {
+		// given
+		t.Parallel()
+		resource := newDeployment()
+		resource.SetAnnotations(map[string]string{
+			"argocd.argoproj.io/ignore-differences": "",
+		})
+		resources := []*unstructured.Unstructured{resource}
+
+		// when
+		result := diff.ExtractIgnoreDifferencesFromAnnotations(resources)
+
+		// then
+		assert.Empty(t, result)
+	})
+
+	t.Run("extracts from multiple resources", func(t *testing.T) {
+		// given
+		t.Parallel()
+		deployment := newDeployment()
+		deployment.SetAnnotations(map[string]string{
+			"argocd.argoproj.io/ignore-differences": "jsonPointers:\n- /spec/replicas",
+		})
+		service := newService()
+		service.SetAnnotations(map[string]string{
+			"argocd.argoproj.io/ignore-differences": "jsonPointers:\n- /spec/ports",
+		})
+		resources := []*unstructured.Unstructured{deployment, service}
+
+		// when
+		result := diff.ExtractIgnoreDifferencesFromAnnotations(resources)
+
+		// then
+		require.Len(t, result, 2)
+		assert.Equal(t, "Deployment", result[0].Kind)
+		assert.Equal(t, []string{"/spec/replicas"}, result[0].JSONPointers)
+		assert.Equal(t, "Service", result[1].Kind)
+		assert.Equal(t, []string{"/spec/ports"}, result[1].JSONPointers)
+	})
+}
+
+func TestMergeResourceIgnoreDifferences(t *testing.T) {
+	t.Parallel()
+	t.Run("merges application and resource-level ignores", func(t *testing.T) {
+		// given
+		t.Parallel()
+		appIgnores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "apps",
+				Kind:         "Deployment",
+				JSONPointers: []string{"/spec/replicas"},
+			},
+		}
+		resourceIgnores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "apps",
+				Kind:         "Deployment",
+				Name:         "my-app",
+				Namespace:    "default",
+				JSONPointers: []string{"/metadata/labels/version"},
+			},
+		}
+
+		// when
+		result := diff.MergeResourceIgnoreDifferences(appIgnores, resourceIgnores)
+
+		// then
+		require.Len(t, result, 2)
+		assert.Equal(t, appIgnores[0], result[0])
+		assert.Equal(t, resourceIgnores[0], result[1])
+	})
+
+	t.Run("returns app ignores when no resource ignores", func(t *testing.T) {
+		// given
+		t.Parallel()
+		appIgnores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "apps",
+				Kind:         "Deployment",
+				JSONPointers: []string{"/spec/replicas"},
+			},
+		}
+
+		// when
+		result := diff.MergeResourceIgnoreDifferences(appIgnores, nil)
+
+		// then
+		assert.Equal(t, appIgnores, result)
+	})
+
+	t.Run("returns resource ignores when no app ignores", func(t *testing.T) {
+		// given
+		t.Parallel()
+		resourceIgnores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "apps",
+				Kind:         "Deployment",
+				Name:         "my-app",
+				JSONPointers: []string{"/metadata/labels/version"},
+			},
+		}
+
+		// when
+		result := diff.MergeResourceIgnoreDifferences(nil, resourceIgnores)
+
+		// then
+		require.Len(t, result, 1)
+		assert.Equal(t, resourceIgnores[0], result[0])
 	})
 }
