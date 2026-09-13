@@ -50,6 +50,10 @@ var (
 	helmUserAgent                                = env.StringFromEnv(common.EnvHelmUserAgent, "")
 )
 
+// defaultClientCAPath is the auto-mounted Secret path used when mTLS is enabled and no
+// explicit client CA path was configured.
+const defaultClientCAPath = "/app/config/reposerver/mtls/client-ca.crt"
+
 func NewCommand() *cobra.Command {
 	var (
 		parallelismLimit                   int64
@@ -139,8 +143,13 @@ func NewCommand() *cobra.Command {
 			askPassServer := askpass.NewServer(askpass.SocketPath)
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer, nil)
-			if disableTLS && clientCAPath != "" {
-				return stderrors.New("--client-ca-path cannot be used when --disable-tls is enabled")
+			// Flags().Changed is true when --client-ca-path was passed on the CLI. A
+			// non-empty value is also explicit because env.StringFromEnv applied
+			// ARGOCD_REPO_SERVER_CLIENT_CA_PATH as the flag default (not Changed).
+			explicit := c.Flags().Changed("client-ca-path") || clientCAPath != ""
+			clientCAPath, err = resolveClientCAPath(clientCAPath, disableTLS, explicit)
+			if err != nil {
+				return err
 			}
 
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
@@ -275,7 +284,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&ociMediaTypes, "oci-layer-media-types", env.StringsFromEnv("ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES", []string{"application/vnd.oci.image.layer.v1.tar", "application/vnd.oci.image.layer.v1.tar+gzip", "application/vnd.cncf.helm.chart.content.v1.tar+gzip"}, ","), "Comma separated list of allowed media types for OCI media types. This only accounts for media types within layers.")
 	command.Flags().BoolVar(&enableBuiltinGitConfig, "enable-builtin-git-config", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG", true), "Enable builtin git configuration options that are required for correct argocd-repo-server operation.")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS for the repo-server gRPC endpoint")
-	command.Flags().StringVar(&clientCAPath, "client-ca-path", env.StringFromEnv("ARGOCD_REPO_SERVER_CLIENT_CA_PATH", "/app/config/reposerver/mtls/client-ca.crt"), "Path to the client CA certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS is skipped if the file does not exist.")
+	command.Flags().StringVar(&clientCAPath, "client-ca-path", env.StringFromEnv("ARGOCD_REPO_SERVER_CLIENT_CA_PATH", ""), "Path to the client CA certificate file for mTLS. When TLS is enabled and this is unset, the auto-mounted Secret path is used; mTLS is skipped if the file does not exist.")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
@@ -297,4 +306,25 @@ func buildHealthCheckTLSConfig(healthCheckClientCert *ctls.Certificate, disableT
 		cfg.ClientCertificates = []ctls.Certificate{*healthCheckClientCert}
 	}
 	return cfg
+}
+
+// resolveClientCAPath derives the effective client CA path from the flag value, whether
+// the flag was explicitly set, and the disable-tls flag.
+//
+// When TLS is disabled, a non-empty client CA path is an error because mTLS requires TLS;
+// an empty path is returned unchanged. When TLS is enabled and the flag was explicitly set
+// (CLI or environment), the provided value is used as-is, including "" which disables mTLS.
+// When TLS is enabled and the flag was not set, the auto-mounted Secret path is used so
+// mTLS is enabled whenever a client CA is present.
+func resolveClientCAPath(clientCAPath string, disableTLS bool, explicit bool) (string, error) {
+	if disableTLS {
+		if clientCAPath != "" {
+			return "", stderrors.New("--client-ca-path cannot be used when --disable-tls is enabled")
+		}
+		return "", nil
+	}
+	if explicit {
+		return clientCAPath, nil
+	}
+	return defaultClientCAPath, nil
 }
