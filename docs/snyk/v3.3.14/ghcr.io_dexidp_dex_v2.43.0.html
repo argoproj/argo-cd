@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="88 known vulnerabilities found in 246 vulnerable dependency paths.">
+  <meta name="description" content="89 known vulnerabilities found in 248 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">September 6th 2026, 12:45:04 am (UTC+00:00)</p>
+                <p class="timestamp">September 13th 2026, 12:45:24 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -505,8 +505,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>88</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>246 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>89</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>248 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>1134</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -1967,6 +1967,94 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOGLEGOLANGORGGRPCINTERNALTRANSPORT-19497932">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Uncaught Exception</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            google.golang.org/grpc/internal/transport
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and google.golang.org/grpc/internal/transport@v1.68.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/internal/transport@v1.68.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/internal/transport@v1.72.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Uncaught Exception through the HTTP/2 header processing path in <code>internal/transport/http2_server.go</code> and <code>internal/xds/server/routing.go</code>. An attacker can crash the server by sending a gRPC request that omits both the <code>:authority</code> and <code>Host</code> headers. In <code>xds.NewGRPCServer()</code> deployments, that malformed request reaches the xDS routing interceptor, which expects an authority value and then indexes into an empty header slice. The resulting panic terminates the server process, causing a complete outage for clients connected to that gRPC server.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>google.golang.org/grpc/internal/transport</code> to version 1.82.2, 1.83.2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/grpc/grpc-go/commit/3822494d8ea03b992c089fd2a195f041762fffb7">GitHub Commit</a></li>
+        <li><a href="https://github.com/grpc/grpc-go/commit/8668b69c167df908b6b3666dcbf40992b9e932a4">GitHub Commit</a></li>
+        <li><a href="https://github.com/grpc/grpc-go/commit/93e31b48545e2a8aaeb6e06b47fb249f94e6297f">GitHub Commit</a></li>
+        <li><a href="https://github.com/grpc/grpc-go/issues/9354">GitHub Issue</a></li>
+        <li><a href="https://github.com/grpc/grpc-go/pull/9365">GitHub PR</a></li>
+        <li><a href="https://github.com/grpc/grpc-go/pull/9366">GitHub PR</a></li>
+        <li><a href="https://github.com/grpc/grpc-go/pull/9367">GitHub PR</a></li>
+        <li><a href="https://github.com/grpc/grpc-go/security/advisories/GHSA-2v4p-qf9q-27wj">Maintainer&#39;s Advisory</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOGLEGOLANGORGGRPCINTERNALTRANSPORT-19651825">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
