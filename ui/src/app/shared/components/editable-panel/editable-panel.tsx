@@ -20,6 +20,22 @@ export interface EditablePanelItem {
     titleEdit?: (formApi: FormApi) => ReactNode;
 }
 
+export function EditablePanelItemTitle({item, formApi}: {item: EditablePanelItem; formApi?: FormApi}) {
+    if (formApi && item.titleEdit) {
+        return <>{item.titleEdit(formApi)}</>;
+    }
+    return (
+        <>
+            {item.customTitle || item.title}
+            {item.hint && (
+                <span style={{marginLeft: '0.25em'}}>
+                    <HelpIcon title={item.hint} />
+                </span>
+            )}
+        </>
+    );
+}
+
 export interface EditablePanelSubsection {
     sectionName: string;
     items: EditablePanelItem[];
@@ -132,18 +148,7 @@ function EditablePanel<T extends {} = {}>({
             {item.before}
             <div className='row white-box__details-row'>
                 <div className='columns small-3' style={isIndented ? {paddingLeft: '2em'} : undefined}>
-                    {api && item.titleEdit ? (
-                        item.titleEdit(api)
-                    ) : (
-                        <>
-                            {item.customTitle || item.title}
-                            {item.hint && (
-                                <span style={{marginLeft: '0.25em'}}>
-                                    <HelpIcon title={item.hint} />
-                                </span>
-                            )}
-                        </>
-                    )}
+                    <EditablePanelItemTitle item={item} formApi={api} />
                 </div>
                 <div className='columns small-9'>{api && item.edit ? item.edit(api) : item.view}</div>
             </div>
