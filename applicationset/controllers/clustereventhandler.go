@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -201,6 +202,10 @@ func clusterGeneratorMatches(cluster *argoprojiov1alpha1.ClusterGenerator, label
 	if cluster == nil {
 		return false, nil
 	}
+	// A templated selector is only resolved during generation, so queue rather than risk missing the event.
+	if hasTemplatedSelector(cluster.Selector) {
+		return true, nil
+	}
 	selector, err := metav1.LabelSelectorAsSelector(&cluster.Selector)
 	if err != nil {
 		return false, fmt.Errorf("invalid label selector in cluster generator: %w", err)
@@ -211,4 +216,25 @@ func clusterGeneratorMatches(cluster *argoprojiov1alpha1.ClusterGenerator, label
 	}
 
 	return false, nil
+}
+
+// hasTemplatedSelector checks if a given label selector contains any templated values (contains "{{").
+func hasTemplatedSelector(selector metav1.LabelSelector) bool {
+	isTemplated := func(s string) bool {
+		return strings.Contains(s, "{{")
+	}
+
+	for key, value := range selector.MatchLabels {
+		if isTemplated(key) || isTemplated(value) {
+			return true
+		}
+	}
+
+	for _, req := range selector.MatchExpressions {
+		if isTemplated(req.Key) || slices.ContainsFunc(req.Values, isTemplated) {
+			return true
+		}
+	}
+
+	return false
 }

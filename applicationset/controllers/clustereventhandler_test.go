@@ -679,6 +679,102 @@ func TestClusterEventHandler(t *testing.T) {
 				{Namespace: "argocd", Name: "stage-appset"},
 			},
 		},
+		{
+			name: "a matrix generator with a templated cluster generator match labels should produce a request",
+			items: []argov1alpha1.ApplicationSet{
+				{
+					Name:      "matrix-templated-appset",
+					Namespace: "argocd",
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{{
+							Matrix: &argov1alpha1.MatrixGenerator{
+								Generators: []argov1alpha1.ApplicationSetNestedGenerator{
+									{
+										Git: &argov1alpha1.GitGenerator{
+											RepoURL:  "https://github.com/argoproj/applicationset.git",
+											Revision: "HEAD",
+											Files: []argov1alpha1.GitFileGeneratorItem{
+												{Path: "examples/git-generator-files-discovery/cluster-config/**/config.json"},
+											},
+										},
+									},
+									{
+										Clusters: &argov1alpha1.ClusterGenerator{
+											Selector: metav1.LabelSelector{
+												MatchLabels: map[string]string{"env": "{{.path.basename}}"},
+											},
+										},
+									},
+								},
+							},
+						}},
+					},
+				},
+			},
+			secret: corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "argocd",
+					Name:      "my-secret",
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"env":                         "prod",
+					},
+				},
+			},
+			expectedRequests: []reconcile.Request{
+				{Namespace: "argocd", Name: "matrix-templated-appset"},
+			},
+		},
+		{
+			name: "a matrix generator with a templated cluster generator match expression should produce a request",
+			items: []argov1alpha1.ApplicationSet{
+				{
+					Name:      "matrix-templated-appset",
+					Namespace: "argocd",
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{{
+							Matrix: &argov1alpha1.MatrixGenerator{
+								Generators: []argov1alpha1.ApplicationSetNestedGenerator{
+									{
+										Git: &argov1alpha1.GitGenerator{
+											RepoURL:  "https://github.com/argoproj/applicationset.git",
+											Revision: "HEAD",
+											Files: []argov1alpha1.GitFileGeneratorItem{
+												{Path: "examples/git-generator-files-discovery/cluster-config/**/config.json"},
+											},
+										},
+									},
+									{
+										Clusters: &argov1alpha1.ClusterGenerator{
+											Selector: metav1.LabelSelector{
+												MatchExpressions: []metav1.LabelSelectorRequirement{{
+													Key:      "env",
+													Operator: metav1.LabelSelectorOpIn,
+													Values:   []string{"staging", "{{path.basename}}"},
+												}},
+											},
+										},
+									},
+								},
+							},
+						}},
+					},
+				},
+			},
+			secret: corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "argocd",
+					Name:      "my-secret",
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"env":                         "prod",
+					},
+				},
+			},
+			expectedRequests: []reconcile.Request{
+				{Namespace: "argocd", Name: "matrix-templated-appset"},
+			},
+		},
 	}
 
 	for _, test := range tests {
