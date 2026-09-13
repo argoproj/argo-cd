@@ -33,6 +33,7 @@ import * as jsYaml from 'js-yaml';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import classNames from 'classnames';
 import {ApplicationParametersSource} from './application-parameters-source';
+import {parseHelmValues, validateHelmValues} from './helm-values';
 
 import './application-parameters.scss';
 import {AppContext} from '../../../shared/context';
@@ -389,8 +390,11 @@ export const ApplicationParameters = (props: {
                                 }
                             }
                             if (updatedSrc && updatedSrc.helm?.valuesObject) {
-                                updatedSrc.helm.valuesObject = jsYaml.load(updatedSrc.helm.values); // Deserialize json
-                                updatedSrc.helm.values = '';
+                                const parsedValues = parseHelmValues(updatedSrc.helm.values);
+                                if (!parsedValues.error) {
+                                    updatedSrc.helm.valuesObject = parsedValues.value; // Deserialize json
+                                    updatedSrc.helm.values = '';
+                                }
                             }
                             await props.save(input, {});
                             setRemovedOverrides(new Array<boolean>());
@@ -407,8 +411,7 @@ export const ApplicationParameters = (props: {
 
                         const helmSrc = isMulti ? updatedApp.spec.sources[ind] : updatedApp.spec.source;
                         if (helmSrc?.helm?.values) {
-                            const parsedValues = jsYaml.load(helmSrc.helm.values);
-                            errors[helmValuesPath] = typeof parsedValues === 'object' ? null : 'Values must be a map';
+                            errors[helmValuesPath] = validateHelmValues(helmSrc.helm.values) || null;
                         }
 
                         return errors;
@@ -532,8 +535,11 @@ export const ApplicationParameters = (props: {
                             appSrc.plugin.parameters = params;
                         }
                         if (appSrc.helm && appSrc.helm.valuesObject) {
-                            appSrc.helm.valuesObject = jsYaml.load(appSrc.helm.values); // Deserialize json
-                            appSrc.helm.values = '';
+                            const parsedValues = parseHelmValues(appSrc.helm.values);
+                            if (!parsedValues.error) {
+                                appSrc.helm.valuesObject = parsedValues.value; // Deserialize json
+                                appSrc.helm.values = '';
+                            }
                         }
 
                         await props.save(input, {});
@@ -561,8 +567,7 @@ export const ApplicationParameters = (props: {
                     }
 
                     if (updatedApp.spec.sources[ind].helm?.values) {
-                        const parsedValues = jsYaml.load(updatedApp.spec.sources[ind].helm.values);
-                        errors['spec.sources[' + ind + '].helm.values'] = typeof parsedValues === 'object' ? null : 'Values must be a map';
+                        errors['spec.sources[' + ind + '].helm.values'] = validateHelmValues(updatedApp.spec.sources[ind].helm.values) || null;
                     }
 
                     return errors;

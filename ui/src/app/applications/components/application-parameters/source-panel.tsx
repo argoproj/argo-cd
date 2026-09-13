@@ -3,6 +3,7 @@ import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import {Form, FormApi, FormErrors, Text} from 'argo-ui';
 import {ApplicationParameters} from '../../../applications/components/application-parameters/application-parameters';
+import {validateHelmValues} from '../../../applications/components/application-parameters/helm-values';
 import {RevisionFormField} from '../../../applications/components/revision-form-field/revision-form-field';
 import {RevisionHelpIcon} from '../../../shared/components';
 import * as models from '../../../shared/models';
@@ -119,7 +120,8 @@ export const SourcePanel = (props: {
                                     // eslint-disable-next-line no-prototype-builtins
                                     'spec.source.targetRevision': !a.spec?.source?.targetRevision && a.spec?.source?.hasOwnProperty('chart') && 'Version is required',
                                     'spec.source.path': pathError,
-                                    'spec.source.chart': chartError
+                                    'spec.source.chart': chartError,
+                                    'spec.source.helm.values': validateHelmValues(a.spec?.source?.helm?.values)
                                 };
                             }}
                             defaultValues={appInEdit}
