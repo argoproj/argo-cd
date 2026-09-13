@@ -46,5 +46,7 @@ export const services: Services = {
     notification: new NotificationService()
 };
 
+services.users.setServices(services.accounts, services.authService);
+
 export * from './projects-service';
 export * from './view-preferences-service';
