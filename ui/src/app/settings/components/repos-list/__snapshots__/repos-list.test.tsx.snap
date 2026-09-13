@@ -1,0 +1,3 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`CredentialTemplateStatus renders a key icon and a clear label instead of a bare dash 1`] = `"<span><i class="fa fa-key"></i> Credential template</span>"`;
