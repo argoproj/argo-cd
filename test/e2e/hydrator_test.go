@@ -1,14 +1,23 @@
 package e2e
 
 import (
+	"context"
+	"encoding/json"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/hydrator"
 
 	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 )
@@ -43,6 +52,54 @@ func TestSimpleHydrator(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestHydratorCrossRepoHydration_READMEUsesDrySourceRepoURL(t *testing.T) {
+	const (
+		syncBranch = "env/test"
+		syncPath   = "guestbook"
+	)
+
+	drySourceRepoURL := fixture.RepoURL(fixture.RepoURLTypeFile)
+	hydratedRepoURL, hydratedRepoDir := initEmptyGitRepo(t, "hydrated-dest-repo.git")
+
+	Given(t).
+		Name("test-cross-repo-hydration-readme").
+		And(func() {
+			registerRepoAndWriteCredentials(t, "hydrated-dest", hydratedRepoURL)
+		}).
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source = nil
+			app.Spec.SourceHydrator = &SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        drySourceRepoURL,
+					Path:           syncPath,
+					TargetRevision: "HEAD",
+				},
+				SyncSource: SyncSource{
+					RepoURL:      hydratedRepoURL,
+					TargetBranch: syncBranch,
+					Path:         syncPath,
+				},
+			}
+		}).
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			readme := gitShowFile(t, hydratedRepoDir, syncBranch, syncPath+"/README.md")
+			topMetadata := readHydratorMetadata(t, hydratedRepoDir, syncBranch, "hydrator.metadata")
+			pathMetadata := readHydratorMetadata(t, hydratedRepoDir, syncBranch, syncPath+"/hydrator.metadata")
+
+			require.Contains(t, readme, "git clone "+drySourceRepoURL)
+			require.NotContains(t, readme, hydratedRepoURL)
+			require.Equal(t, drySourceRepoURL, topMetadata.RepoURL)
+			require.Equal(t, drySourceRepoURL, pathMetadata.RepoURL)
+		})
 }
 
 func TestHydrateTo(t *testing.T) {
@@ -680,4 +737,54 @@ func TestHydratorNestedRequest(t *testing.T) {
 	// in the end hydrated to the last committed revision - the second refresh worked
 	// it is expected to take a long time if runner is slow
 	acts.ThenWithTimeout(80).Expect(All(HydrationPhaseIs(HydrateOperationPhaseHydrated), DryRevisionIs(revision)))
+}
+
+func initEmptyGitRepo(t *testing.T, dirName string) (repoURL, repoDir string) {
+	t.Helper()
+	repoDir = filepath.Join(fixture.TmpDir(), dirName)
+	handler := errors.NewHandler(t)
+	handler.FailOnErr(fixture.Run("", "mkdir", "-p", repoDir))
+	handler.FailOnErr(fixture.Run(repoDir, "chmod", "777", "."))
+	handler.FailOnErr(fixture.Run(repoDir, "git", "init", "-b", "master"))
+	handler.FailOnErr(fixture.Run(repoDir, "git", "config", "core.sharedRepository", "0666"))
+	handler.FailOnErr(fixture.Run(repoDir, "git", "config", "receive.denyCurrentBranch", "updateInstead"))
+	handler.FailOnErr(fixture.Run(repoDir, "git", "commit", "--allow-empty", "-m", "init"))
+	return "file://" + repoDir, repoDir
+}
+
+func registerRepoAndWriteCredentials(t *testing.T, name, repoURL string) {
+	t.Helper()
+	_, err := fixture.RunCli("repo", "add", repoURL)
+	require.NoError(t, err)
+
+	secretName := "write-creds-" + name
+	_, err = fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Create(
+		context.Background(),
+		&corev1.Secret{
+			Name: secretName,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepositoryWrite,
+			},
+			StringData: map[string]string{
+				"url": repoURL,
+			},
+		},
+		metav1.CreateOptions{},
+	)
+	require.NoError(t, err)
+}
+
+func gitShowFile(t *testing.T, repoDir, branch, path string) string {
+	t.Helper()
+	out, err := fixture.Run(repoDir, "git", "show", branch+":"+path)
+	require.NoError(t, err)
+	return strings.TrimSpace(out)
+}
+
+func readHydratorMetadata(t *testing.T, repoDir, branch, path string) hydrator.HydratorCommitMetadata {
+	t.Helper()
+	raw := gitShowFile(t, repoDir, branch, path)
+	var metadata hydrator.HydratorCommitMetadata
+	require.NoError(t, json.Unmarshal([]byte(raw), &metadata))
+	return metadata
 }

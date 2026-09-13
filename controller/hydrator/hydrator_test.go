@@ -1148,6 +1148,7 @@ func TestHydrator_hydrate_Success(t *testing.T) {
 		assert.Equal(t, "hydrated-next", in.TargetBranch)
 		assert.Equal(t, "sha123", in.DrySha)
 		assert.Equal(t, writeRepo, in.Repo)
+		assert.Equal(t, app1.Spec.SourceHydrator.DrySource.RepoURL, in.DrySourceRepoURL)
 		assert.Len(t, in.Paths, 2)
 		assert.Equal(t, app1.Spec.SourceHydrator.SyncSource.Path, in.Paths[0].Path)
 		assert.Equal(t, app2.Spec.SourceHydrator.SyncSource.Path, in.Paths[1].Path)

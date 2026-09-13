@@ -1,10 +1,12 @@
 package commit
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -21,6 +23,8 @@ import (
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
 	"github.com/argoproj/argo-cd/v3/util/gpgsign"
 	"github.com/argoproj/argo-cd/v3/util/gpgsign/gpgsigntest"
+	"github.com/argoproj/argo-cd/v3/util/hydrator"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func Test_CommitHydratedManifests(t *testing.T) {
@@ -451,6 +455,82 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		require.NotNil(t, resp)
 		// BUG FIX: When manifests don't change (no-op), the existing hydrated SHA should be returned.
 		assert.Equal(t, "root-and-blank-sha", resp.HydratedSha, "Should return existing hydrated SHA for no-op")
+	})
+
+	t.Run("cross-repo hydration uses dry source repo URL in README and hydrator metadata", func(t *testing.T) {
+		t.Parallel()
+
+		const (
+			hydratedRepoURL  = "https://git.example.com/org/hydrated-live.git"
+			drySourceRepoURL = "https://git.example.com/org/dry-source.git"
+		)
+
+		service, mockRepoClientFactory := newServiceWithMocks(t)
+		mockGitClient := gitmocks.NewClient(t)
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().SetAuthor(mock.Anything, "Argo CD", "argo-cd@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan(mock.Anything, "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew(mock.Anything, "main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
+		mockGitClient.EXPECT().HasFileChanged(mock.Anything, mock.Anything).Return(true, nil).Once()
+		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().CommitSHA(mock.Anything).Return("cross-repo-sha", nil).Twice()
+
+		var rootPath string
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).
+			Run(func(_ *v1alpha1.Repository, dirPath string) { rootPath = dirPath }).
+			Return(mockGitClient, nil).Once()
+
+		// The commit server removes the working directory when handleCommitRequest returns, so the manifests
+		// (including the README and hydrator.metadata files under test) must be inspected from within the
+		// Commit callback, before the deferred cleanup runs.
+		var topMetadata hydrator.HydratorCommitMetadata
+		var readmeContents string
+		mockGitClient.EXPECT().Commit("test commit message", "").
+			Run(func(_ string, _ string) {
+				topMetadataBytes, err := os.ReadFile(filepath.Join(rootPath, "hydrator.metadata"))
+				require.NoError(t, err)
+				require.NoError(t, json.Unmarshal(topMetadataBytes, &topMetadata))
+
+				readmeBytes, err := os.ReadFile(filepath.Join(rootPath, "README.md"))
+				require.NoError(t, err)
+				readmeContents = string(readmeBytes)
+			}).
+			Return("", nil).Once()
+		mockGitClient.EXPECT().Push("main").Return("", nil).Once()
+
+		request := &apiclient.CommitHydratedManifestsRequest{
+			Repo: &v1alpha1.Repository{
+				Repo: hydratedRepoURL,
+			},
+			DrySourceRepoURL: drySourceRepoURL,
+			TargetBranch:     "main",
+			SyncBranch:       "env/test",
+			CommitMessage:    "test commit message",
+			DrySha:           "dry-sha-789",
+			ReadmeMessage:    settings.DefaultManifestHydrationReadmeTemplate,
+			Paths: []*apiclient.PathDetails{
+				{
+					Path: ".",
+					Manifests: []*apiclient.HydratedManifestDetails{
+						{
+							ManifestJSON: `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"test-cross-repo"}}`,
+						},
+					},
+				},
+			},
+		}
+
+		resp, err := service.CommitHydratedManifests(t.Context(), request)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, "cross-repo-sha", resp.HydratedSha)
+		require.NotEmpty(t, rootPath)
+
+		assert.Equal(t, drySourceRepoURL, topMetadata.RepoURL, "top-level hydrator.metadata should reference the dry source repo, not the hydrated destination repo")
+		assert.Contains(t, readmeContents, "git clone "+drySourceRepoURL, "README.md git clone instructions should point at the dry source repo")
+		assert.NotContains(t, readmeContents, hydratedRepoURL, "README.md should not reference the hydrated destination repo")
 	})
 }
 
