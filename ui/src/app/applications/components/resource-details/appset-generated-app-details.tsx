@@ -27,7 +27,11 @@ export const AppSetGeneratedAppDetails = (props: AppSetGeneratedAppDetailsProps)
 
     return (
         <div style={{width: '100%', height: '100%'}}>
-            <DataLoader input={nodeKey(node)} load={async () => (await services.applications.get(node.name, node.namespace, 'application')) as models.Application}>
+            {/* Include the node's resourceVersion so the manifest refreshes when the watch stream reports a change
+                to the selected Application (same signal ResourceDetails relies on). */}
+            <DataLoader
+                input={`${nodeKey(node)}/${node.resourceVersion}`}
+                load={async () => (await services.applications.get(node.name, node.namespace, 'application')) as models.Application}>
                 {app => {
                     const tabs: Tab[] = [
                         {

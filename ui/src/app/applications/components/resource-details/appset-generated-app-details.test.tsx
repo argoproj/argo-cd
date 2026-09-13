@@ -53,7 +53,7 @@ const node = {
 
 let goto: jest.Mock;
 
-const renderComponent = (search = '') => {
+const renderComponent = (search = '', appNode: models.ResourceNode = node) => {
     goto = jest.fn();
     return render(
         <Context.Provider
@@ -66,7 +66,7 @@ const renderComponent = (search = '') => {
                     baseHref: '/'
                 } as any
             }>
-            <AppSetGeneratedAppDetails node={node} />
+            <AppSetGeneratedAppDetails node={appNode} />
         </Context.Provider>
     );
 };
@@ -88,6 +88,24 @@ describe('AppSetGeneratedAppDetails', () => {
         // The live manifest passed to the node-info panel is the complete Application object, status included.
         const nodeInfo = await screen.findByTestId('node-info');
         expect(JSON.parse(nodeInfo.textContent)).toEqual({kind: 'Application', hasStatus: true});
+    });
+
+    it('reloads the manifest when the watched node reports a new resource version', async () => {
+        const value = {history: {location: {search: ''}}, navigation: {goto: jest.fn()}, notifications: {show: jest.fn()}, popup: {}, baseHref: '/'} as any;
+        const {rerender} = render(
+            <Context.Provider value={value}>
+                <AppSetGeneratedAppDetails node={node} />
+            </Context.Provider>
+        );
+        await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(1));
+
+        rerender(
+            <Context.Provider value={value}>
+                <AppSetGeneratedAppDetails node={{...node, resourceVersion: '999'}} />
+            </Context.Provider>
+        );
+
+        await waitFor(() => expect(mockGet).toHaveBeenCalledTimes(2));
     });
 
     it('shows the application events for the selected Application on the EVENTS tab', async () => {
