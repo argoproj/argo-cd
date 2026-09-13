@@ -15,6 +15,7 @@ import (
 )
 
 func TestNormalize(t *testing.T) {
+	t.Parallel()
 	type fixture struct {
 		diffConfig diff.DiffConfig
 		lives      []*unstructured.Unstructured
@@ -37,6 +38,7 @@ func TestNormalize(t *testing.T) {
 	}
 	t.Run("will normalize resources removing the fields owned by managers", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignore := v1alpha1.ResourceIgnoreDifferences{
 			Group:                 "*",
 			Kind:                  "*",
@@ -60,6 +62,7 @@ func TestNormalize(t *testing.T) {
 	})
 	t.Run("will correctly normalize with multiple ignore configurations", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
 			{
 				Group:        "apps",
@@ -95,6 +98,7 @@ func TestNormalize(t *testing.T) {
 	})
 	t.Run("will not modify resources if ignore difference is not configured", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignores := []v1alpha1.ResourceIgnoreDifferences{}
 		f := setup(t, ignores)
 

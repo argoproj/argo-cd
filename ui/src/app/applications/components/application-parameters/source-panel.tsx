@@ -1,7 +1,7 @@
 import {AutocompleteField, DataLoader, DropDownMenu, FormField} from 'argo-ui';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
-import {Form, FormApi, FormErrors, Text} from 'react-form';
+import {Form, FormApi, FormErrors, Text} from 'argo-ui';
 import {ApplicationParameters} from '../../../applications/components/application-parameters/application-parameters';
 import {RevisionFormField} from '../../../applications/components/revision-form-field/revision-form-field';
 import {RevisionHelpIcon} from '../../../shared/components';

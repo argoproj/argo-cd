@@ -10,6 +10,7 @@ import (
 )
 
 func TestGetParameterValueByName(t *testing.T) {
+	t.Parallel()
 	helmAppSpec := CustomHelmAppSpec{
 		HelmAppSpec: apiclient.HelmAppSpec{
 			Parameters: []*v1alpha1.HelmParameter{

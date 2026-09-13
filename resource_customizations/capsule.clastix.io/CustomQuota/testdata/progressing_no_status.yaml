@@ -1,0 +1,6 @@
+apiVersion: capsule.clastix.io/v1beta2
+kind: CustomQuota
+metadata:
+  name: solar-custom-quota
+  namespace: solar-production
+spec: {}

@@ -1,20 +1,21 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
-	"os"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
 	"dario.cat/mergo"
-	cachemocks "github.com/argoproj/argo-cd/gitops-engine/pkg/cache/mocks"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	. "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
+	cachemocks "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache/mocks"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	diffmocks "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff/mocks"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/testing"
 	"github.com/sirupsen/logrus"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -33,9 +34,204 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/testdata"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v3/test"
+	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
+
+func newSecretManagedResource(name string, targetData, liveData map[string][]byte) managedResource {
+	build := func(data map[string][]byte) *unstructured.Unstructured {
+		if data == nil {
+			return nil
+		}
+		return kube.MustToUnstructured(&corev1.Secret{
+			APIVersion: "v1", Kind: kube.SecretKind,
+			Name: name, Namespace: "default",
+			Data: data,
+		})
+	}
+	return managedResource{
+		Name:      name,
+		Namespace: "default",
+		Kind:      kube.SecretKind,
+		Group:     "",
+		Target:    build(targetData),
+		Live:      build(liveData),
+	}
+}
+
+func buildSSADiffConfig(t *testing.T) argodiff.DiffConfig {
+	t.Helper()
+	cfg, err := argodiff.NewDiffConfigBuilder().
+		WithDiffSettings(nil, nil, false, normalizers.IgnoreNormalizerOpts{}).
+		WithTracking("", "").
+		WithNoCache().
+		WithServerSideDiff(true).
+		WithServerSideDryRunner(diffmocks.NewServerSideDryRunner(t)).
+		Build()
+	require.NoError(t, err)
+	return cfg
+}
+
+// TestHideSecretData_SSDPathReusesMainDiff verifies that when the main comparison
+// used server-side diff (which removes webhook mutations in gitops-engine), the
+// cached ResourceDiff items reuse that result instead of re-running a client-side diff
+func TestHideSecretData_SSDPathReusesMainDiff(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+
+	mr := newSecretManagedResource(
+		"test-secret",
+		map[string][]byte{"key": []byte("${vault:secret/foo#bar}")},
+		map[string][]byte{"key": []byte("realvalue")},
+	)
+	// cmVhbHZhbHVl is base64("realvalue"), the webhook-resolved value that server-side
+	// diff sees on both sides once the webhook mutation is removed.
+	state := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-secret","namespace":"default"},"data":{"key":"cmVhbHZhbHVl"}}`
+	mr.Diff = diff.DiffResult{
+		Modified:       false,
+		NormalizedLive: []byte(state),
+		PredictedLive:  []byte(state),
+	}
+
+	compRes := &comparisonResult{
+		managedResources: []managedResource{mr},
+		diffConfig:       buildSSADiffConfig(t),
+	}
+	items, err := ctrl.hideSecretData(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.False(t, items[0].Modified)
+	// both sides mask to the same placeholder, so the UI shows no drift
+	assert.JSONEq(t, items[0].PredictedLiveState, items[0].NormalizedLiveState)
+	assert.Contains(t, items[0].PredictedLiveState, "++++++++")
+}
+
+// TestHideSecretData_SSDPathCreateRecomputes verifies that for Secret creation
+// (live is nil) under server-side diff, the function still falls back to the
+// client-side recompute, which masks the target state.
+func TestHideSecretData_SSDPathCreateRecomputes(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+
+	mr := newSecretManagedResource(
+		"test-secret",
+		map[string][]byte{"key": []byte("valueA")},
+		nil,
+	)
+	mr.Diff = diff.DiffResult{Modified: false, NormalizedLive: []byte("null"), PredictedLive: []byte("null")}
+
+	compRes := &comparisonResult{
+		managedResources: []managedResource{mr},
+		diffConfig:       buildSSADiffConfig(t),
+	}
+	items, err := ctrl.hideSecretData(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.True(t, items[0].Modified)
+	assert.Contains(t, items[0].TargetState, "++++++++")
+}
+
+// TestHideSecretData_SSDPathMasksSensitiveAnnotations verifies that when SSD result
+// is reused, sensitive annotation values in PredictedLive/NormalizedLive are masked
+// via SettingsManager.GetSensitiveAnnotations. gitops-engine SSD does not mask at
+// all, so without re-masking those values would leak into the cache.
+func TestHideSecretData_SSDPathMasksSensitiveAnnotations(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{
+		configMapData: map[string]string{
+			"resource.sensitive.mask.annotations": "my-sensitive",
+		},
+	}, nil)
+
+	mr := newSecretManagedResource(
+		"test-secret",
+		map[string][]byte{"key": []byte("v")},
+		map[string][]byte{"key": []byte("v")},
+	)
+	predicted := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-secret","annotations":{"my-sensitive":"topsecret"}},"data":{"key":"dg=="}}`
+	normalized := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-secret","annotations":{"my-sensitive":"topsecret"}},"data":{"key":"dg=="}}`
+	mr.Diff = diff.DiffResult{
+		Modified:       false,
+		PredictedLive:  []byte(predicted),
+		NormalizedLive: []byte(normalized),
+	}
+
+	compRes := &comparisonResult{
+		managedResources: []managedResource{mr},
+		diffConfig:       buildSSADiffConfig(t),
+	}
+	items, err := ctrl.hideSecretData(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.False(t, items[0].Modified)
+	assert.NotContains(t, items[0].PredictedLiveState, "topsecret")
+	assert.NotContains(t, items[0].NormalizedLiveState, "topsecret")
+}
+
+// TestHideSecretData_SSDPathMasksReusedSecretData verifies that the reused SSD result
+// is masked even when no sensitive annotations are configured. gitops-engine leaves
+// Secret masking to the caller, so PredictedLive/NormalizedLive hold raw data that
+// would otherwise leak into the cache.
+func TestHideSecretData_SSDPathMasksReusedSecretData(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+
+	mr := newSecretManagedResource(
+		"test-secret",
+		map[string][]byte{"key": []byte("topsecret")},
+		map[string][]byte{"key": []byte("topsecret")},
+	)
+	// dG9wc2VjcmV0 is base64("topsecret"), as it appears in an unmasked server-side diff result.
+	state := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-secret"},"data":{"key":"dG9wc2VjcmV0"}}`
+	mr.Diff = diff.DiffResult{
+		Modified:       false,
+		PredictedLive:  []byte(state),
+		NormalizedLive: []byte(state),
+	}
+
+	compRes := &comparisonResult{
+		managedResources: []managedResource{mr},
+		diffConfig:       buildSSADiffConfig(t),
+	}
+	items, err := ctrl.hideSecretData(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.False(t, items[0].Modified)
+	assert.Contains(t, items[0].PredictedLiveState, "++++++++")
+	assert.Contains(t, items[0].NormalizedLiveState, "++++++++")
+	assert.NotContains(t, items[0].PredictedLiveState, "dG9wc2VjcmV0")
+	assert.NotContains(t, items[0].NormalizedLiveState, "dG9wc2VjcmV0")
+	// target and live states are masked as well
+	assert.NotContains(t, items[0].TargetState, "dG9wc2VjcmV0")
+	assert.NotContains(t, items[0].LiveState, "dG9wc2VjcmV0")
+}
+
+// TestHideSecretData_NonSSDRecomputes verifies that when server-side diff is not
+// in use, the existing client-side recomputation path is preserved.
+func TestHideSecretData_NonSSDRecomputes(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+
+	mr := newSecretManagedResource(
+		"test-secret",
+		map[string][]byte{"key": []byte("valueA")},
+		map[string][]byte{"key": []byte("valueB")},
+	)
+	mr.Diff = diff.DiffResult{Modified: false}
+
+	compRes := &comparisonResult{
+		managedResources: []managedResource{mr},
+	}
+	items, err := ctrl.hideSecretData(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.True(t, items[0].Modified)
+	assert.Contains(t, items[0].LiveState, "++++++++")
+	assert.Contains(t, items[0].TargetState, "++++++++")
+	// different values must keep different placeholders
+	assert.NotEqual(t, items[0].TargetState, items[0].LiveState)
+}
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects
 func TestCompareAppStateEmpty(t *testing.T) {
@@ -56,7 +252,7 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -74,18 +270,18 @@ func TestCompareAppStateRepoError(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	assert.Nil(t, compRes)
 	require.EqualError(t, err, ErrCompareStateRepo.Error())
 
 	// expect to still get compare state error to as inside grace period
-	compRes, err = ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err = ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	assert.Nil(t, compRes)
 	require.EqualError(t, err, ErrCompareStateRepo.Error())
 
 	time.Sleep(10 * time.Second)
 	// expect to not get error as outside of grace period, but status should be unknown
-	compRes, err = ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err = ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	assert.NotNil(t, compRes)
 	require.NoError(t, err)
 	assert.Equal(t, v1alpha1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
@@ -120,7 +316,7 @@ func TestCompareAppStateNamespaceMetadataDiffers(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -169,7 +365,7 @@ func TestCompareAppStateNamespaceMetadataDiffersToManifest(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -227,7 +423,7 @@ func TestCompareAppStateNamespaceMetadata(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -286,7 +482,7 @@ func TestCompareAppStateNamespaceMetadataIsTheSame(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -314,7 +510,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -322,6 +518,74 @@ func TestCompareAppStateMissing(t *testing.T) {
 	assert.Len(t, compRes.resources, 1)
 	assert.Len(t, compRes.managedResources, 1)
 	assert.Empty(t, app.Status.Conditions)
+}
+
+// TestCompareAppStateResourceSelector tests that a managed resource filtered out by a configured
+// resource selector is reported with an ExcludedResourceWarning, as it will never have a live state
+func TestCompareAppStateResourceSelector(t *testing.T) {
+	labeledPodManifest := `{"apiVersion":"v1","kind":"Pod","metadata":{"name":"my-pod","labels":{"app":"my-app"}}}`
+
+	compare := func(t *testing.T, manifest string, selector string) (*comparisonResult, *v1alpha1.Application) {
+		t.Helper()
+		app := newFakeApp()
+		data := fakeData{
+			apps: []runtime.Object{app},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{manifest},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+			configMapData: map[string]string{
+				"resource.selectors": fmt.Sprintf("- kinds: [\"Pod\"]\n  selector: %q\n", selector),
+			},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, false, false, nil, false)
+		require.NoError(t, err)
+		return compRes, app
+	}
+
+	t.Run("resource not matching the selector is reported", func(t *testing.T) {
+		// PodManifest has no labels, so it does not match
+		compRes, app := compare(t, PodManifest, "app=my-app")
+
+		require.Len(t, app.Status.Conditions, 1)
+		assert.Equal(t, v1alpha1.ApplicationConditionExcludedResourceWarning, app.Status.Conditions[0].Type)
+		assert.Contains(t, app.Status.Conditions[0].Message, `Resource /Pod my-pod does not match the resource selector "app=my-app" in the settings`)
+		// the resource stays managed, it is only unwatched
+		assert.Len(t, compRes.resources, 1)
+		assert.Len(t, compRes.managedResources, 1)
+	})
+
+	t.Run("resource matching the selector is not reported", func(t *testing.T) {
+		compRes, app := compare(t, labeledPodManifest, "app=my-app")
+
+		assert.Empty(t, app.Status.Conditions)
+		assert.Len(t, compRes.resources, 1)
+	})
+
+	t.Run("selector of another kind is ignored", func(t *testing.T) {
+		app := newFakeApp()
+		data := fakeData{
+			apps: []runtime.Object{app},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{PodManifest},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+			configMapData: map[string]string{
+				"resource.selectors": "- kinds: [\"Service\"]\n  selector: \"app=my-app\"\n",
+			},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		_, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, false, false, nil, false)
+		require.NoError(t, err)
+		assert.Empty(t, app.Status.Conditions)
+	})
 }
 
 // TestCompareAppStateExtra tests when there is an extra object in live but not defined in git
@@ -346,7 +610,7 @@ func TestCompareAppStateExtra(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
@@ -377,7 +641,7 @@ func TestCompareAppStateHook(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -409,7 +673,7 @@ func TestCompareAppStateSkipHook(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -489,7 +753,7 @@ func TestCompareAppStateSyncHookSyncWave(t *testing.T) {
 			sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
 			revisions := []string{""}
 
-			compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+			compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 			require.NoError(t, err)
 			require.NotNil(t, compRes)
 
@@ -535,7 +799,7 @@ func TestCompareAppStateRequireDeletion(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
@@ -575,7 +839,7 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
@@ -608,7 +872,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
@@ -637,7 +901,7 @@ func TestAppRevisionsSingleSource(t *testing.T) {
 	app := newFakeApp()
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources())
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources())
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -677,7 +941,7 @@ func TestAppRevisionsMultiSource(t *testing.T) {
 	app := newFakeMultiSourceApp()
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources())
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources())
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -726,7 +990,7 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
@@ -763,7 +1027,7 @@ func TestCompareAppStateManagedNamespaceMetadataWithLiveNsDoesNotGetPruned(t *te
 		},
 	}
 	ctrl := newFakeController(t.Context(), &data, nil)
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, []string{}, app.Spec.Sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{}, app.Spec.Sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
@@ -780,10 +1044,8 @@ func TestCompareAppStateManagedNamespaceMetadataWithLiveNsDoesNotGetPruned(t *te
 }
 
 var defaultProj = v1alpha1.AppProject{
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "default",
-		Namespace: test.FakeArgoCDNamespace,
-	},
+	Name:      "default",
+	Namespace: test.FakeArgoCDNamespace,
 	Spec: v1alpha1.AppProjectSpec{
 		SourceRepos: []string{"*"},
 		Destinations: []v1alpha1.ApplicationDestination{
@@ -817,7 +1079,7 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 	ctrl := newFakeController(t.Context(), &data, nil)
 	revisions := make([]string, 0)
 	revisions = append(revisions, "abc123")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -827,14 +1089,10 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 func TestSetHealth(t *testing.T) {
 	app := newFakeApp()
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "demo",
+		Namespace:  "default",
 	})
 	ctrl := newFakeController(t.Context(), &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
@@ -853,7 +1111,7 @@ func TestSetHealth(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus)
@@ -863,14 +1121,10 @@ func TestPreserveStatusTimestamp(t *testing.T) {
 	timestamp := metav1.Now()
 	app := newFakeAppWithHealthAndTime(health.HealthStatusHealthy, timestamp)
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "demo",
+		Namespace:  "default",
 	})
 	ctrl := newFakeController(t.Context(), &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
@@ -889,7 +1143,7 @@ func TestPreserveStatusTimestamp(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus)
@@ -899,14 +1153,10 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	app := newFakeApp()
 	unstructuredApp := kube.MustToUnstructured(app)
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "demo",
+		Namespace:  "default",
 	})
 	ctrl := newFakeController(t.Context(), &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
@@ -926,7 +1176,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus)
@@ -949,7 +1199,7 @@ func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
 		},
 	}, nil)
 
-	tree, err := ctrl.setAppManagedResources(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, &comparisonResult{managedResources: make([]managedResource, 0)})
+	tree, err := ctrl.setAppManagedResources(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	require.NoError(t, err)
 	assert.Len(t, tree.OrphanedNodes, 1)
@@ -978,7 +1228,7 @@ func TestSetManagedResourcesWithResourcesOfAnotherApp(t *testing.T) {
 		},
 	}, nil)
 
-	tree, err := ctrl.setAppManagedResources(&v1alpha1.Cluster{Server: "test", Name: "test"}, app1, &comparisonResult{managedResources: make([]managedResource, 0)})
+	tree, err := ctrl.setAppManagedResources(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app1, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	require.NoError(t, err)
 	assert.Empty(t, tree.OrphanedNodes)
@@ -1001,7 +1251,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus)
@@ -1031,7 +1281,7 @@ func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 		},
 	}, nil)
 
-	tree, err := ctrl.setAppManagedResources(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, &comparisonResult{managedResources: make([]managedResource, 0)})
+	tree, err := ctrl.setAppManagedResources(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app, &comparisonResult{managedResources: make([]managedResource, 0)})
 
 	require.NoError(t, err)
 	assert.Len(t, tree.OrphanedNodes, 1)
@@ -1098,21 +1348,9 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	assert.Empty(t, app.Status.History)
 }
 
-// helper function to read contents of a file to string
-// panics on error
-func mustReadFile(path string) string {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		panic(err.Error())
-	}
-	return string(b)
-}
-
-var signedProj = v1alpha1.AppProject{
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "default",
-		Namespace: test.FakeArgoCDNamespace,
-	},
+var projWithSourceIntegrity = v1alpha1.AppProject{
+	Name:      "default",
+	Namespace: test.FakeArgoCDNamespace,
 	Spec: v1alpha1.AppProjectSpec{
 		SourceRepos: []string{"*"},
 		Destinations: []v1alpha1.ApplicationDestination{
@@ -1121,27 +1359,33 @@ var signedProj = v1alpha1.AppProject{
 				Namespace: "*",
 			},
 		},
-		SignatureKeys: []v1alpha1.SignatureKey{
-			{
-				KeyID: "4AEE18F83AFDEB23",
+		SourceIntegrity: &v1alpha1.SourceIntegrity{
+			Git: &v1alpha1.SourceIntegrityGit{
+				Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+					GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+						Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+						Keys: []string{"4AEE18F83AFDEB23"},
+					},
+				}},
 			},
 		},
 	},
 }
 
-func TestSignedResponseNoSignatureRequired(t *testing.T) {
+func TestNoSourceIntegrity(t *testing.T) {
 	t.Setenv("ARGOCD_GPG_ENABLED", "true")
 
-	// We have a good signature response, but project does not require signed commits
 	{
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
+				Manifests:             []string{},
+				Namespace:             test.FakeDestNamespace,
+				Server:                test.FakeClusterURL,
+				Revision:              "abc123",
+				SourceIntegrityResult: nil, // No verification requested
+				//nolint:staticcheck // SA1019: VerifyResult is deprecated, but we still need to support it for backward compatibility.
+				VerifyResult: "",
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -1150,34 +1394,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-		require.NoError(t, err)
-		assert.NotNil(t, compRes)
-		assert.NotNil(t, compRes.syncStatus)
-		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Empty(t, app.Status.Conditions)
-	}
-	// We have a bad signature response, but project does not require signed commits
-	{
-		app := newFakeApp()
-		data := fakeData{
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		ctrl := newFakeController(t.Context(), &data, nil)
-		sources := make([]v1alpha1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.GetSource())
-		revisions := make([]string, 0)
-		revisions = append(revisions, "")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1188,19 +1405,22 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 	}
 }
 
-func TestSignedResponseSignatureRequired(t *testing.T) {
+func TestValidSourceIntegrity(t *testing.T) {
 	t.Setenv("ARGOCD_GPG_ENABLED", "true")
 
-	// We have a good signature response, valid key, and signing is required - sync!
+	// Source integrity required, and it is valid - sync!
 	{
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+				SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+					Name:     "Some/check",
+					Problems: []string{}, // Valid
+				}}},
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -1209,7 +1429,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &projWithSourceIntegrity, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1218,16 +1438,19 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		assert.Empty(t, compRes.managedResources)
 		assert.Empty(t, app.Status.Conditions)
 	}
-	// We have a bad signature response and signing is required - do not sync
+	// Source integrity required, not valid - do not sync
 	{
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+				SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+					Name:     "Some/check",
+					Problems: []string{"The thing have failed to validate!"},
+				}}},
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -1236,170 +1459,64 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &projWithSourceIntegrity, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 		assert.Empty(t, compRes.resources)
 		assert.Empty(t, compRes.managedResources)
-		assert.Len(t, app.Status.Conditions, 1)
-	}
-	// We have a malformed signature response and signing is required - do not sync
-	{
-		app := newFakeApp()
-		data := fakeData{
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_malformed1.txt"),
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		ctrl := newFakeController(t.Context(), &data, nil)
-		sources := make([]v1alpha1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.GetSource())
-		revisions := make([]string, 0)
-		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
-		require.NoError(t, err)
-		assert.NotNil(t, compRes)
-		assert.NotNil(t, compRes.syncStatus)
-		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Len(t, app.Status.Conditions, 1)
-	}
-	// We have no signature response (no signature made) and signing is required - do not sync
-	{
-		app := newFakeApp()
-		data := fakeData{
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: "",
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		ctrl := newFakeController(t.Context(), &data, nil)
-		sources := make([]v1alpha1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.GetSource())
-		revisions := make([]string, 0)
-		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
-		require.NoError(t, err)
-		assert.NotNil(t, compRes)
-		assert.NotNil(t, compRes.syncStatus)
-		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Len(t, app.Status.Conditions, 1)
+		require.Len(t, app.Status.Conditions, 1)
+		assert.Contains(t, app.Status.Conditions[0].Message, "Some/check: The thing have failed to validate!")
 	}
 
-	// We have a good signature and signing is required, but key is not allowed - do not sync
+	// Source integrity required, unknown key - do not sync
 	{
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+				SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+					Name:     "Some/check",
+					Problems: []string{"The thing have failed to validate!"},
+				}}},
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(t.Context(), &data, nil)
-		testProj := signedProj
-		testProj.Spec.SignatureKeys[0].KeyID = "4AEE18F83AFDEB24"
 		sources := make([]v1alpha1.ApplicationSource, 0)
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &testProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &projWithSourceIntegrity, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 		assert.Empty(t, compRes.resources)
 		assert.Empty(t, compRes.managedResources)
-		assert.Len(t, app.Status.Conditions, 1)
-		assert.Contains(t, app.Status.Conditions[0].Message, "key is not allowed")
-	}
-	// Signature required and local manifests supplied - do not sync
-	{
-		app := newFakeApp()
-		data := fakeData{
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: "",
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		// it doesn't matter for our test whether local manifests are valid
-		localManifests := []string{"foobar"}
-		ctrl := newFakeController(t.Context(), &data, nil)
-		sources := make([]v1alpha1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.GetSource())
-		revisions := make([]string, 0)
-		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false)
-		require.NoError(t, err)
-		assert.NotNil(t, compRes)
-		assert.NotNil(t, compRes.syncStatus)
-		assert.Equal(t, v1alpha1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Len(t, app.Status.Conditions, 1)
-		assert.Contains(t, app.Status.Conditions[0].Message, "Cannot use local manifests")
+		require.Len(t, app.Status.Conditions, 1)
+		assert.Contains(t, app.Status.Conditions[0].Message, "The thing have failed to validate!")
 	}
 
 	t.Setenv("ARGOCD_GPG_ENABLED", "false")
-	// We have a bad signature response and signing would be required, but GPG subsystem is disabled - sync
-	{
-		app := newFakeApp()
-		data := fakeData{
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		ctrl := newFakeController(t.Context(), &data, nil)
-		sources := make([]v1alpha1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.GetSource())
-		revisions := make([]string, 0)
-		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
-		require.NoError(t, err)
-		assert.NotNil(t, compRes)
-		assert.NotNil(t, compRes.syncStatus)
-		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Empty(t, app.Status.Conditions)
-	}
 
 	// Signature required and local manifests supplied and GPG subsystem is disabled - sync
 	{
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: "",
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+				SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+					Name:     "Some/check",
+					Problems: []string{"The thing have failed to validate!"},
+				}}},
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -1410,7 +1527,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &projWithSourceIntegrity, revisions, sources, false, false, localManifests, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1443,94 +1560,66 @@ func TestIsLiveResourceManaged(t *testing.T) {
 	t.Parallel()
 
 	managedObj := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap1",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap1",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
 		},
 	})
 	managedObjWithLabel := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap1",
-			Namespace: "default",
-			Labels: map[string]string{
-				common.LabelKeyAppInstance: "guestbook",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap1",
+		Namespace:  "default",
+		Labels: map[string]string{
+			common.LabelKeyAppInstance: "guestbook",
 		},
 	})
 	unmanagedObjWrongName := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap2",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap2",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
 		},
 	})
 	unmanagedObjWrongKind := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap2",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:/Service:default/configmap2",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap2",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:/Service:default/configmap2",
 		},
 	})
 	unmanagedObjWrongGroup := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap2",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:apps/ConfigMap:default/configmap2",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap2",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:apps/ConfigMap:default/configmap2",
 		},
 	})
 	unmanagedObjWrongNamespace := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap2",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:fakens/configmap2",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap2",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:fakens/configmap2",
 		},
 	})
 	managedWrongAPIGroup := kube.MustToUnstructured(&networkingv1.Ingress{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "networking.k8s.io/v1",
-			Kind:       "Ingress",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "some-ingress",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:extensions/Ingress:default/some-ingress",
-			},
+		APIVersion: "networking.k8s.io/v1",
+		Kind:       "Ingress",
+		Name:       "some-ingress",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:extensions/Ingress:default/some-ingress",
 		},
 	})
 	ctrl := newFakeController(t.Context(), &fakeData{
@@ -1638,11 +1727,10 @@ func TestUseDiffCache(t *testing.T) {
 					"{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"labels\":{\"app.kubernetes.io/instance\":\"httpbin\"},\"name\":\"httpbin-svc\",\"namespace\":\"httpbin\"},\"spec\":{\"ports\":[{\"name\":\"http-port\",\"port\":7777,\"targetPort\":80},{\"name\":\"test\",\"port\":333}],\"selector\":{\"app\":\"httpbin\"}}}",
 					"{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"app.kubernetes.io/instance\":\"httpbin\"},\"name\":\"httpbin-deployment\",\"namespace\":\"httpbin\"},\"spec\":{\"replicas\":2,\"selector\":{\"matchLabels\":{\"app\":\"httpbin\"}},\"template\":{\"metadata\":{\"labels\":{\"app\":\"httpbin\"}},\"spec\":{\"containers\":[{\"image\":\"kennethreitz/httpbin\",\"imagePullPolicy\":\"Always\",\"name\":\"httpbin\",\"ports\":[{\"containerPort\":80}]}]}}}}",
 				},
-				Namespace:    "",
-				Server:       "",
-				Revision:     revision,
-				SourceType:   "Kustomize",
-				VerifyResult: "",
+				Namespace:  "",
+				Server:     "",
+				Revision:   revision,
+				SourceType: "Kustomize",
 			},
 		}
 	}
@@ -1659,10 +1747,8 @@ func TestUseDiffCache(t *testing.T) {
 
 	app := func(namespace string, revision string, refresh bool, a *v1alpha1.Application) *v1alpha1.Application {
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "httpbin",
-				Namespace: namespace,
-			},
+			Name:      "httpbin",
+			Namespace: namespace,
 			Spec: v1alpha1.ApplicationSpec{
 				Source: new(source()),
 				Destination: v1alpha1.ApplicationDestination{
@@ -1876,6 +1962,32 @@ func TestUseDiffCache(t *testing.T) {
 			expectedUseCache:     false,
 			serverSideDiff:       false,
 		},
+		{
+			testName:             "will use diff cache if status refresh timeout is disabled",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev1"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", false, nil),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: 0,
+			expectedUseCache:     true,
+			serverSideDiff:       false,
+		},
+		{
+			testName:      "will return false if never reconciled and status refresh timeout is disabled",
+			noCache:       false,
+			manifestInfos: manifestInfos("rev1"),
+			sources:       sources(),
+			app: app("httpbin", "rev1", false, &v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					ReconciledAt: nil,
+				},
+			}),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: 0,
+			expectedUseCache:     false,
+			serverSideDiff:       false,
+		},
 	}
 
 	for _, tc := range cases {
@@ -1908,7 +2020,7 @@ func TestCompareAppStateDefaultRevisionUpdated(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -1931,7 +2043,7 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
 	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
@@ -1940,10 +2052,8 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 
 func Test_NormalizeTargetObjects_ClusterScopeTracking(t *testing.T) {
 	obj := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "test",
-		},
+		Name:      "test",
+		Namespace: "test",
 	})
 	c := &cachemocks.ClusterCache{}
 	c.EXPECT().IsNamespaced(mock.Anything).Return(false, nil)
@@ -1963,37 +2073,25 @@ func Test_NormalizeTargetObjects_Deduplication(t *testing.T) {
 	// Create three cluster-scoped objects with the same Group/Kind/Name
 	// Using cluster-scoped to work with resourceInfoProviderStub
 	obj1 := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "my-cluster-role",
-		},
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Name:       "my-cluster-role",
 		Rules: []rbacv1.PolicyRule{
 			{Verbs: []string{"get"}, Resources: []string{"pods"}},
 		},
 	})
 	obj2 := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "my-cluster-role",
-		},
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Name:       "my-cluster-role",
 		Rules: []rbacv1.PolicyRule{
 			{Verbs: []string{"list"}, Resources: []string{"pods"}},
 		},
 	})
 	obj3 := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "my-cluster-role",
-		},
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Name:       "my-cluster-role",
 		Rules: []rbacv1.PolicyRule{
 			{Verbs: []string{"watch"}, Resources: []string{"pods"}},
 		},
@@ -2030,24 +2128,16 @@ func Test_NormalizeTargetObjects_Deduplication(t *testing.T) {
 func Test_NormalizeTargetObjects_GenerateName(t *testing.T) {
 	// Create two objects with the same generateName
 	obj1 := kube.MustToUnstructured(&corev1.Pod{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Pod",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "test-pod-",
-			Namespace:    "default",
-		},
+		APIVersion:   "v1",
+		Kind:         "Pod",
+		GenerateName: "test-pod-",
+		Namespace:    "default",
 	})
 	obj2 := kube.MustToUnstructured(&corev1.Pod{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Pod",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "test-pod-",
-			Namespace:    "default",
-		},
+		APIVersion:   "v1",
+		Kind:         "Pod",
+		GenerateName: "test-pod-",
+		Namespace:    "default",
 	})
 
 	result, conditions, err := NormalizeTargetObjects(
@@ -2068,10 +2158,8 @@ func Test_NormalizeTargetObjects_GenerateName(t *testing.T) {
 func Test_NormalizeTargetObjects_NamespacedResourceWithTracking(t *testing.T) {
 	// Create a namespaced resource without namespace set
 	obj := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "my-config",
 			// No namespace specified
@@ -2133,21 +2221,24 @@ func TestCompareAppState_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
 		},
-		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: false},
+		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+			Changes:  false,
+			Revision: "abc123",
+		},
 	}
-	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, nil)
+	ctrl := newFakeController(t.Context(), &data, nil)
 
 	source := app.Spec.GetSource()
 	source.RepoURL = "oci://example.com/argo/argo-cd"
 	sources := make([]v1alpha1.ApplicationSource, 0)
 	sources = append(sources, source)
 
-	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"123456"}, false, false, false, &defaultProj, false)
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"123456"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
 	require.NoError(t, err)
 	require.False(t, revisionsMayHaveChanges)
 }
 
-func TestCompareAppState_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T) {
+func TestGetRepoObjs_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T) {
 	app := newFakeApp()
 	// Enable the manifest-generate-paths annotation and set a synced revision
 	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
@@ -2189,14 +2280,14 @@ func TestCompareAppState_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T)
 			{Changes: false, Revision: "resolved-main"},
 		},
 	}
-	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, nil)
+	ctrl := newFakeController(t.Context(), &data, nil)
 
 	revisions := make([]string, 0)
 	revisions = append(revisions, "0.0.1", "abc123", "main")
 
 	sources := app.Spec.Sources
 
-	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "0.0.1", revisions, false, false, false, &defaultProj, false)
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "0.0.1", revisions, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
 	require.NoError(t, err)
 	require.False(t, revisionsMayHaveChanges)
 }
@@ -2226,7 +2317,7 @@ func Test_GetRepoObjs_HydrateToAppPathNotExist(t *testing.T) {
 		ctrl := newFakeController(t.Context(), &fakeData{manifestResponse: &apiclient.ManifestResponse{}}, errors.New("env/prod/my-app: app path does not exist"))
 		source := app.Spec.GetSource()
 
-		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, false, &defaultProj, false)
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, nil, &defaultProj, false)
 		require.ErrorContains(t, err, "app path does not exist")
 		require.ErrorContains(t, err, "waiting for an external process to update env/prod from env/prod-next")
 	})
@@ -2250,7 +2341,7 @@ func Test_GetRepoObjs_HydrateToAppPathNotExist(t *testing.T) {
 		ctrl := newFakeController(t.Context(), &fakeData{manifestResponse: &apiclient.ManifestResponse{}}, errors.New("env/prod/my-app: app path does not exist"))
 		source := app.Spec.GetSource()
 
-		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, false, &defaultProj, false)
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, nil, &defaultProj, false)
 		require.ErrorContains(t, err, "app path does not exist")
 		require.NotContains(t, err.Error(), "waiting for an external process")
 	})
@@ -2325,189 +2416,457 @@ func Test_isObjRequiresDeletionConfirmation(t *testing.T) {
 	}
 }
 
-func Test_evaluateRevisionChanges(t *testing.T) {
-	tests := []struct {
-		name                                string
-		source                              *v1alpha1.ApplicationSource
-		sourceType                          v1alpha1.ApplicationSourceType
-		syncPolicy                          *v1alpha1.SyncPolicy
-		revision                            string
-		appSyncedRevision                   string
-		refSources                          map[string]*v1alpha1.RefTarget
-		repoDepth                           int64
-		keyManifestGenerateAnnotationExists bool
-		keyManifestGenerateAnnotationVal    string
-		updateRevisionForPathsResponse      *apiclient.UpdateRevisionForPathsResponse
-		expectedRevision                    string
-		expectedHasChanges                  bool
-		expectUpdateRevisionForPathsCalled  bool
+func Test_EvaluateAppRevisionsChanges(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name                      string
+		app                       *v1alpha1.Application
+		sources                   []v1alpha1.ApplicationSource
+		revisions                 []string
+		data                      fakeData
+		sendRuntimeState          bool
+		expectedHasChanges        bool
+		expectedResolvedRevisions []string
 	}{
 		{
-			name: "Ref source returns early with no changes",
-			source: &v1alpha1.ApplicationSource{
-				RepoURL: "https://github.com/example/repo",
-				Ref:     "main",
-			},
-			sourceType:         v1alpha1.ApplicationSourceTypeHelm,
-			revision:           "abc123",
-			appSyncedRevision:  "def456",
-			expectedRevision:   "abc123",
-			expectedHasChanges: false,
+			name: "single source with changes (no annotation)",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions:                 []string{"def456"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"def456"},
 		},
 		{
-			name: "Same revision with no ref sources returns early",
-			source: &v1alpha1.ApplicationSource{
-				RepoURL: "https://github.com/example/repo",
-				Path:    "manifests",
+			name: "multiple sources with changes (no annotation)",
+			app: func() *v1alpha1.Application {
+				app := newFakeMultiSourceApp()
+				app.Status.Sync.Revisions = []string{"abc123", "xyz789"}
+				return app
+			}(),
+			sources: []v1alpha1.ApplicationSource{
+				{RepoURL: "https://github.com/test/repo1", Path: "path1", TargetRevision: "main"},
+				{RepoURL: "https://github.com/test/repo2", Path: "path2", TargetRevision: "main"},
 			},
-			sourceType:         v1alpha1.ApplicationSourceTypeKustomize,
-			revision:           "abc123",
-			appSyncedRevision:  "abc123",
-			refSources:         map[string]*v1alpha1.RefTarget{},
-			expectedRevision:   "abc123",
-			expectedHasChanges: false,
+			revisions:                 []string{"abc123", "new-sha"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"abc123", "new-sha"},
 		},
 		{
-			name: "Same revision with ref sources continues to evaluation",
-			source: &v1alpha1.ApplicationSource{
-				RepoURL: "https://github.com/example/repo",
-				Path:    "manifests",
-			},
-			sourceType:        v1alpha1.ApplicationSourceTypeKustomize,
-			revision:          "abc123",
-			appSyncedRevision: "abc123",
-			refSources: map[string]*v1alpha1.RefTarget{
-				"ref1": {Repo: v1alpha1.Repository{Repo: "https://github.com/example/ref"}},
-			},
-			repoDepth:                           0,
-			keyManifestGenerateAnnotationExists: true,
-			keyManifestGenerateAnnotationVal:    ".",
-			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
-				Revision: "abc123",
-				Changes:  false,
-			},
-			expectedRevision:                   "abc123",
-			expectedHasChanges:                 false,
-			expectUpdateRevisionForPathsCalled: true,
+			name: "single source without changes (no annotation)",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions:                 []string{"def456"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"def456"},
 		},
 		{
-			name: "Shallow clone skips UpdateRevisionForPaths",
-			source: &v1alpha1.ApplicationSource{
-				RepoURL: "https://github.com/example/repo",
-				Path:    "manifests",
+			name: "single source without changes (with annotation)",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
+				}
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions: []string{"def456"},
+			data: fakeData{
+				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+					Revision: "def456",
+					Changes:  false,
+				},
 			},
-			sourceType: v1alpha1.ApplicationSourceTypeKustomize,
-			syncPolicy: &v1alpha1.SyncPolicy{
-				Automated: &v1alpha1.SyncPolicyAutomated{},
-			},
-			revision:                            "abc123",
-			appSyncedRevision:                   "def456",
-			repoDepth:                           1,
-			keyManifestGenerateAnnotationExists: true,
-			keyManifestGenerateAnnotationVal:    ".",
-			expectedRevision:                    "abc123",
-			expectedHasChanges:                  true,
-			expectUpdateRevisionForPathsCalled:  false,
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"def456"},
 		},
 		{
-			name: "Missing annotation skips UpdateRevisionForPaths",
-			source: &v1alpha1.ApplicationSource{
-				RepoURL: "https://github.com/example/repo",
-				Path:    "manifests",
-			},
-			sourceType: v1alpha1.ApplicationSourceTypeKustomize,
-			syncPolicy: &v1alpha1.SyncPolicy{
-				Automated: &v1alpha1.SyncPolicyAutomated{},
-			},
-			revision:                            "abc123",
-			appSyncedRevision:                   "def456",
-			repoDepth:                           0,
-			keyManifestGenerateAnnotationExists: false,
-			keyManifestGenerateAnnotationVal:    "",
-			expectedRevision:                    "abc123",
-			expectedHasChanges:                  true,
-			expectUpdateRevisionForPathsCalled:  false,
+			name: "with send runtime state",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions:                 []string{"def456"},
+			data:                      fakeData{},
+			sendRuntimeState:          true,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"def456"},
 		},
 		{
-			name: "UpdateRevisionForPaths returns updated revision",
-			source: &v1alpha1.ApplicationSource{
-				RepoURL: "https://github.com/example/repo",
-				Path:    "manifests",
+			name: "dry source with annotation uses UpdateRevisionForPaths",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
+				}
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: app.Spec.Source.TargetRevision,
+						Path:           app.Spec.Source.Path,
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "hydrated",
+						Path:         "hydrated/path",
+					},
+				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-dry-sha"
+				app.Status.Sync.Revision = "should-not-be-used"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: app.Spec.Source.TargetRevision,
+						Path:           app.Spec.Source.Path,
+					},
+				}
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				return []v1alpha1.ApplicationSource{drySource}
+			}(),
+			revisions: []string{"new-dry-sha"},
+			data: fakeData{
+				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+					Revision: "new-dry-sha",
+					Changes:  true,
+				},
 			},
-			sourceType: v1alpha1.ApplicationSourceTypeKustomize,
-			syncPolicy: &v1alpha1.SyncPolicy{
-				Automated: &v1alpha1.SyncPolicyAutomated{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"new-dry-sha"},
+		},
+		{
+			name: "dry source without annotation uses ResolveRevision",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				// No annotation set
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           app.Spec.Source.Path,
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "hydrated",
+						Path:         "hydrated/path",
+					},
+				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-dry-sha"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           app.Spec.Source.Path,
+					},
+				}
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				return []v1alpha1.ApplicationSource{drySource}
+			}(),
+			revisions: []string{"HEAD"},
+			data: fakeData{
+				resolveRevisionResponses: []*apiclient.ResolveRevisionResponse{
+					{
+						Revision:          "old-dry-sha",
+						AmbiguousRevision: "HEAD",
+					},
+				},
 			},
-			revision:                            "HEAD",
-			appSyncedRevision:                   "def456",
-			repoDepth:                           0,
-			keyManifestGenerateAnnotationExists: true,
-			keyManifestGenerateAnnotationVal:    ".",
-			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
-				Revision: "abc123resolved",
-				Changes:  true,
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"old-dry-sha"},
+		},
+		{
+			name: "ref source always returns false",
+			app:  newFakeApp(),
+			sources: []v1alpha1.ApplicationSource{
+				{Ref: "ref-name"},
 			},
-			expectedRevision:                   "abc123resolved",
-			expectedHasChanges:                 true,
-			expectUpdateRevisionForPathsCalled: true,
+			revisions:                 []string{"any-revision"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"any-revision"},
+		},
+		{
+			name: "same revision no ref sources returns false",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions:                 []string{"abc123"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"abc123"},
+		},
+		{
+			name: "dry source with same SHA returns false",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "hydrated",
+						Path:         "sync-path",
+					},
+				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "same-sha"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+				}
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				return []v1alpha1.ApplicationSource{drySource}
+			}(),
+			revisions:                 []string{"same-sha"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"same-sha"},
+		},
+		{
+			name: "dry source with annotation and changes detected",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
+				}
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "hydrated",
+						Path:         "sync-path",
+					},
+				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-dry-sha"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+				}
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				return []v1alpha1.ApplicationSource{drySource}
+			}(),
+			revisions: []string{"HEAD"},
+			data: fakeData{
+				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+					Revision: "new-dry-sha-resolved",
+					Changes:  true,
+				},
+			},
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"new-dry-sha-resolved"},
+		},
+		{
+			name: "dry source with annotation but no changes",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
+				}
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "hydrated",
+						Path:         "sync-path",
+					},
+				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-dry-sha"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+				}
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				return []v1alpha1.ApplicationSource{drySource}
+			}(),
+			revisions: []string{"HEAD"},
+			data: fakeData{
+				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+					Revision: "new-dry-sha-resolved",
+					Changes:  false,
+				},
+			},
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"new-dry-sha-resolved"},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			app := newFakeApp()
-			app.Spec.SyncPolicy = tt.syncPolicy
-			app.Status.Sync.Revision = tt.appSyncedRevision
-			app.Status.SourceType = tt.sourceType
-			if tt.keyManifestGenerateAnnotationExists {
-				app.Annotations = map[string]string{
-					v1alpha1.AnnotationKeyManifestGeneratePaths: tt.keyManifestGenerateAnnotationVal,
-				}
-			}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-			repo := &v1alpha1.Repository{
-				Repo:  tt.source.RepoURL,
-				Depth: tt.repoDepth,
-			}
+			ctrl := newFakeController(t.Context(), &tc.data, nil)
 
-			mockRepoClient := &mocks.RepoServerServiceClient{}
-			if tt.expectUpdateRevisionForPathsCalled {
-				mockRepoClient.On("UpdateRevisionForPaths", mock.Anything, mock.Anything).Return(tt.updateRevisionForPathsResponse, nil)
-			}
-
-			mgr := &appStateManager{
-				namespace: "test-namespace",
-			}
-
-			resolvedRevision, hasChanges, err := mgr.evaluateRevisionChanges(
-				context.Background(),
-				mockRepoClient,
-				app,
-				tt.source,
-				0, // sourceIndex
-				repo,
-				tt.revision,
-				tt.refSources,
-				nil,
+			hasChanges, resolvedRevisions, err := ctrl.appStateManager.EvaluateAppRevisionsChanges(
+				t.Context(),
+				tc.app,
+				tc.sources,
+				tc.revisions,
+				&defaultProj,
+				tc.sendRuntimeState,
 				false,
-				"app.kubernetes.io/instance",
-				"v1.28.0",
-				[]string{"v1"},
-				"label",
-				"test-installation",
-				tt.keyManifestGenerateAnnotationExists,
-				tt.keyManifestGenerateAnnotationVal,
 			)
 
 			require.NoError(t, err)
-			assert.Equal(t, tt.expectedRevision, resolvedRevision)
-			assert.Equal(t, tt.expectedHasChanges, hasChanges)
+			assert.Equal(t, tc.expectedHasChanges, hasChanges)
+			require.Len(t, resolvedRevisions, len(tc.sources))
+			assert.Equal(t, tc.expectedResolvedRevisions, resolvedRevisions)
+		})
+	}
+}
 
-			if tt.expectUpdateRevisionForPathsCalled {
-				mockRepoClient.AssertExpectations(t)
-			} else {
-				mockRepoClient.AssertNotCalled(t, "UpdateRevisionForPaths")
-			}
+func TestShouldUseServerSideDiff(t *testing.T) {
+	appWith := func(compareOptions string, syncOptions ...string) *v1alpha1.Application {
+		app := &v1alpha1.Application{}
+		if compareOptions != "" {
+			app.Annotations = map[string]string{common.AnnotationCompareOptions: compareOptions}
+		}
+		if syncOptions != nil {
+			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{SyncOptions: syncOptions}
+		}
+		return app
+	}
+
+	testCases := []struct {
+		name               string
+		app                *v1alpha1.Application
+		controllerLevelSSD bool
+		expected           bool
+	}{
+		{
+			name:               "no controller flag, no annotation, no sync option -> false",
+			app:                appWith(""),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "controller level enabled -> true",
+			app:                appWith(""),
+			controllerLevelSSD: true,
+			expected:           true,
+		},
+		{
+			name:               "ServerSideDiff=true annotation -> true",
+			app:                appWith("ServerSideDiff=true"),
+			controllerLevelSSD: false,
+			expected:           true,
+		},
+		{
+			name:               "ServerSideApply=true sync option -> true",
+			app:                appWith("", "ServerSideApply=true"),
+			controllerLevelSSD: false,
+			expected:           true,
+		},
+		{
+			name:               "other sync options only -> false",
+			app:                appWith("", "Validate=false", "Prune=false"),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "ServerSideDiff=false annotation overrides controller level flag -> false",
+			app:                appWith("ServerSideDiff=false"),
+			controllerLevelSSD: true,
+			expected:           false,
+		},
+		{
+			name:               "ServerSideDiff=false annotation overrides ServerSideApply=true sync option -> false",
+			app:                appWith("ServerSideDiff=false", "ServerSideApply=true"),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "ServerSideDiff=false annotation overrides ServerSideDiff=true annotation -> false",
+			app:                appWith("ServerSideDiff=false,ServerSideDiff=true"),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "nil SyncPolicy is handled gracefully -> false",
+			app:                &v1alpha1.Application{},
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, shouldUseServerSideDiff(tc.app, tc.controllerLevelSSD))
 		})
 	}
 }

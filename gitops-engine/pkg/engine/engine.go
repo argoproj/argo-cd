@@ -4,7 +4,7 @@ and "implements" GitOps.
 
 Example
 
-The https://github.com/argoproj/argo-cd/gitops-engine/tree/master/agent demonstrates how to use the engine.
+The https://github.com/argoproj/argo-cd/tree/master/gitops-engine/agent demonstrates how to use the engine.
 */
 
 package engine
@@ -18,11 +18,11 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 )
 
 const (
@@ -79,12 +79,12 @@ func (e *gitOpsEngine) Sync(ctx context.Context,
 		return nil, fmt.Errorf("failed to get managed live objects: %w", err)
 	}
 	result := sync.Reconcile(resources, managedResources, namespace, e.cache)
-	diffRes, err := diff.DiffArray(result.Target, result.Live, diff.WithLogr(e.log))
+	diffRes, err := diff.DiffArray(ctx, result.Target, result.Live, diff.WithLogr(e.log))
 	if err != nil {
 		return nil, fmt.Errorf("failed to diff objects: %w", err)
 	}
 	opts = append(opts, sync.WithSkipHooks(!diffRes.Modified))
-	syncCtx, cleanup, err := sync.NewSyncContext(revision, result, e.config, e.config, e.kubectl, namespace, e.cache.GetOpenAPISchema(), opts...)
+	syncCtx, cleanup, err := sync.NewSyncContext(revision, result, e.config, e.config, e.kubectl, namespace, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create sync context: %w", err)
 	}
@@ -109,7 +109,7 @@ func (e *gitOpsEngine) Sync(ctx context.Context,
 	defer close(resIgnore)
 	defer unsubscribe()
 	for {
-		syncCtx.Sync()
+		syncCtx.Sync(ctx)
 		phase, message, resources := syncCtx.GetState()
 		if phase.Completed() {
 			if phase == common.OperationError {
@@ -119,7 +119,7 @@ func (e *gitOpsEngine) Sync(ctx context.Context,
 		}
 		select {
 		case <-ctx.Done():
-			syncCtx.Terminate()
+			syncCtx.Terminate(ctx)
 			//nolint:wrapcheck // don't wrap context errors
 			return resources, ctx.Err()
 		case <-time.After(operationRefreshTimeout):

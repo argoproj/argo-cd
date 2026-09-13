@@ -1,0 +1,10 @@
+# Non-empty status, no conditions: the case the kind list has to catch.
+apiVersion: helm.m.crossplane.io/v1beta1
+kind: ClusterProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: InjectedIdentity
+status:
+  users: 3

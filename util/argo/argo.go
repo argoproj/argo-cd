@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/r3labs/diff/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -23,13 +23,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/argoproj/argo-cd/v3/util/gpg"
-
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -130,6 +129,41 @@ func FilterByProjectsP(apps []*argoappv1.Application, projects []string) []*argo
 		}
 	}
 	return items
+}
+
+// FilterByNamesP returns applications whose name is contained in the provided set of names.
+// It is used by the UI favorites filter to restrict the list to a client-selected subset of applications.
+// Names may be namespace-qualified, see MatchesNameFilter.
+func FilterByNamesP(apps []*argoappv1.Application, names []string) []*argoappv1.Application {
+	if len(names) == 0 {
+		return apps
+	}
+	namesMap := NewNameFilter(names)
+	items := []*argoappv1.Application{}
+	for i := range apps {
+		a := apps[i]
+		if MatchesNameFilter(namesMap, a.Namespace, a.Name) {
+			items = append(items, a)
+		}
+	}
+	return items
+}
+
+// NewNameFilter turns a list of application names into a set which can be passed to MatchesNameFilter.
+func NewNameFilter(names []string) map[string]bool {
+	namesMap := make(map[string]bool, len(names))
+	for i := range names {
+		namesMap[names[i]] = true
+	}
+	return namesMap
+}
+
+// MatchesNameFilter returns true if an application is contained in the provided set of names. An entry
+// may be qualified as "namespace/name" to match only the application in that namespace, which matters
+// when apps-in-any-namespace is enabled and the same name exists in more than one namespace. Unqualified
+// entries match on name alone, regardless of the namespace the application lives in.
+func MatchesNameFilter(names map[string]bool, namespace, name string) bool {
+	return names[name] || names[namespace+"/"+name]
 }
 
 // FilterAppSetsByProjects returns applications which belongs to the specified project
@@ -239,25 +273,35 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 }
 
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
-func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrate bool) (*argoappv1.Application, error) {
+// and sets the refresh-timestamp annotation, which lets the controller detect refresh requests that
+// arrived during an ongoing refresh. Optionally, if hydrateType is provided, it also sets the hydrate
+// and hydrate-timestamp annotations.
+func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrateType *argoappv1.HydrateType) (*argoappv1.Application, error) {
+	annotations := map[string]string{
+		argoappv1.AnnotationKeyRefresh: string(refreshType),
+	}
+	if hydrateType != nil {
+		annotations[argoappv1.AnnotationKeyHydrate] = string(*hydrateType)
+	}
 	metadata := map[string]any{
 		"metadata": map[string]any{
-			"annotations": map[string]string{
-				argoappv1.AnnotationKeyRefresh: string(refreshType),
-			},
+			"annotations": annotations,
 		},
 	}
-	if hydrate {
-		metadata["metadata"].(map[string]any)["annotations"].(map[string]string)[argoappv1.AnnotationKeyHydrate] = string(argoappv1.HydrateTypeNormal)
-	}
-
 	var err error
-	patch, err := json.Marshal(metadata)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling metadata: %w", err)
-	}
 	for range 5 {
-		app, err := appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
+		timestamp := time.Now().Format(time.RFC3339Nano)
+		annotations[argoappv1.AnnotationKeyRefreshTimestamp] = timestamp
+		if hydrateType != nil {
+			annotations[argoappv1.AnnotationKeyHydrateTimestamp] = timestamp
+		}
+		var patch []byte
+		patch, err = json.Marshal(metadata)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling metadata: %w", err)
+		}
+		var app *argoappv1.Application
+		app, err = appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err == nil {
 			log.Infof("Requested app '%s' refresh", name)
 			return app.DeepCopy(), nil
@@ -544,8 +588,9 @@ func GetSyncedRefSources(refSources argoappv1.RefTargetRevisionMapping, sources 
 // once (which would lead to ambiguous references).
 func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, project string, getRepository func(ctx context.Context, url string, project string) (*argoappv1.Repository, error), revisions []string) (argoappv1.RefTargetRevisionMapping, error) {
 	refSources := make(argoappv1.RefTargetRevisionMapping)
-	if len(sources) > 1 {
-		// Validate first to avoid unnecessary DB calls.
+	if len(sources) > 0 {
+		// Validate first to avoid unnecessary DB calls. Use len(sources) > 0 (not > 1) so a sole source with ref:
+		// is populated; otherwise GetSyncedRefSources panics when spec.sources has one element (see #27759).
 		refKeys := make(map[string]bool)
 		for _, source := range sources {
 			if source.Ref == "" {
@@ -569,7 +614,7 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 
 			repo, err := getRepository(ctx, source.RepoURL, project)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get repository %s: %w", source.RepoURL, err)
+				return nil, fmt.Errorf("failed to get repository %s: %w", git.SanitizeRepoURL(source.RepoURL), err)
 			}
 			refKey := "$" + source.Ref
 			revision := source.TargetRevision
@@ -633,7 +678,7 @@ func validateSourceHydrator(hydrator *argoappv1.SourceHydrator) []argoappv1.Appl
 	if hydrator.HydrateTo != nil && hydrator.HydrateTo.TargetBranch == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: "when spec.sourceHydrator.hydrateTo is set, spec.sourceHydrator.hydrateTo.path is required",
+			Message: "when spec.sourceHydrator.hydrateTo is set, spec.sourceHydrator.hydrateTo.targetBranch is required",
 		})
 	}
 	return conditions
@@ -654,6 +699,13 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
 				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.SourceHydrator.GetDrySource().RepoURL, proj.Name),
+			})
+		}
+		syncSource := spec.SourceHydrator.GetSyncSource()
+		if syncSource.RepoURL != spec.SourceHydrator.DrySource.RepoURL && !proj.IsSourcePermitted(syncSource) {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("sync source repo %s is not permitted in project '%s'", syncSource.RepoURL, proj.Name),
 			})
 		}
 	case spec.HasMultipleSources():
@@ -862,11 +914,6 @@ func verifyGenerateManifests(
 			continue
 		}
 
-		verifySignature := false
-		if len(proj.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
-			verifySignature = true
-		}
-
 		repos := helmRepos
 		helmRepoCreds := repositoryCredentials
 		// If the source is OCI, there is a potential for an OCI image to be a Helm chart and that said chart in
@@ -887,7 +934,6 @@ func verifyGenerateManifests(
 				Proxy:   repoRes.Proxy,
 				NoProxy: repoRes.NoProxy,
 			},
-			VerifySignature:                 verifySignature,
 			Repos:                           repos,
 			Revision:                        source.TargetRevision,
 			AppName:                         app.Name,
@@ -898,6 +944,8 @@ func verifyGenerateManifests(
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
 			HelmOptions:                     helmOptions,
+			SourceIntegrity:                 proj.EffectiveSourceIntegrity(),
+			VerifySignature:                 proj.EffectiveSourceIntegrity() != nil, // nolint:staticcheck
 			HelmRepoCreds:                   helmRepoCreds,
 			TrackingMethod:                  trackingMethod,
 			EnabledSourceTypes:              enableGenerateManifests,
@@ -1020,8 +1068,8 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 		spec.SyncPolicy = nil
 	}
 	if len(spec.Sources) > 0 {
-		for _, source := range spec.Sources {
-			NormalizeSource(&source)
+		for i := range spec.Sources {
+			NormalizeSource(&spec.Sources[i])
 		}
 	} else if spec.Source != nil {
 		// In practice, spec.Source should never be nil.

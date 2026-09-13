@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"os/exec"
@@ -34,11 +35,16 @@ type Cmd struct {
 
 func NewCmd(workDir string, version string, proxy string, noProxy string) (*Cmd, error) {
 	switch version {
-	// If v3 is specified (or by default, if no value is specified) then use v3
-	case "", "v3":
+	// There was a point in time when we supported both v2 and v3, and at some point we stopped
+	// supporting v2.
+	// We now support v4 only, but from Helm docs v4 is backwards compatible with v3 charts.
+	// Removing the v3 value would break existing applications that specify v3.
+	// There is also no reason for users to specify v4 explicitly, but in case someone does it, we support the value.
+	// TODO: Remove support for v3 value in a major release.
+	case "", "v3", "v4":
 		return NewCmdWithVersion(workDir, false, proxy, noProxy)
 	}
-	return nil, fmt.Errorf("helm chart version '%s' is not supported", version)
+	return nil, fmt.Errorf("helm version '%s' is not supported", version)
 }
 
 func NewCmdWithVersion(workDir string, isHelmOci bool, proxy string, noProxy string) (*Cmd, error) {
@@ -58,9 +64,14 @@ var redactor = func(text string) string {
 }
 
 func (c Cmd) run(ctx context.Context, args ...string) (string, string, error) {
+	return c.runWithStdin(ctx, nil, args...)
+}
+
+func (c Cmd) runWithStdin(ctx context.Context, stdin io.Reader, args ...string) (string, string, error) {
 	cmd := exec.CommandContext(ctx, "helm", args...)
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
+	cmd.Stdin = stdin
 	if !c.IsLocal {
 		cmd.Env = append(cmd.Env,
 			fmt.Sprintf("XDG_CACHE_HOME=%s/cache", c.helmHome),
@@ -79,13 +90,16 @@ func (c Cmd) run(ctx context.Context, args ...string) (string, string, error) {
 	return out, fullCommand, nil
 }
 
-func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
+func (c *Cmd) RegistryLogin(ctx context.Context, repo string, creds Creds, plainHTTP bool) (string, error) {
 	args := []string{"registry", "login"}
 	registry, err := c.getHelmRegistry(repo)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse registry URL: %w", err)
 	}
 	args = append(args, registry)
+	if plainHTTP {
+		args = append(args, "--plain-http")
+	}
 
 	if creds.GetUsername() != "" {
 		args = append(args, "--username", creds.GetUsername())
@@ -96,7 +110,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 		return "", fmt.Errorf("failed to get password for helm registry: %w", err)
 	}
 	if helmPassword != "" {
-		args = append(args, "--password", helmPassword)
+		args = append(args, "--password-stdin")
 	}
 
 	if creds.GetCAPath() != "" {
@@ -124,7 +138,11 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	if creds.GetInsecureSkipVerify() {
 		args = append(args, "--insecure")
 	}
-	out, _, err := c.run(context.Background(), args...)
+	var stdin io.Reader
+	if helmPassword != "" {
+		stdin = strings.NewReader(helmPassword)
+	}
+	out, _, err := c.runWithStdin(ctx, stdin, args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to login to registry: %w", err)
 	}
@@ -288,7 +306,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	return out, nil
 }
 
-func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds Creds) (string, error) {
+func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds Creds, plainHTTP bool) (string, error) {
 	args := []string{
 		"pull", fmt.Sprintf("oci://%s/%s", repo, chart), "--version",
 		version,
@@ -320,6 +338,9 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	if creds.GetInsecureSkipVerify() {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
+	if plainHTTP {
+		args = append(args, "--plain-http")
+	}
 	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to pull OCI chart: %w", err)
@@ -327,10 +348,13 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	return out, nil
 }
 
-func (c *Cmd) dependencyBuild(insecure bool) (string, error) {
+func (c *Cmd) dependencyBuild(insecure bool, plainHTTP bool) (string, error) {
 	args := []string{"dependency", "build"}
 	if insecure {
 		args = append(args, "--insecure-skip-tls-verify")
+	}
+	if plainHTTP {
+		args = append(args, "--plain-http")
 	}
 	out, _, err := c.run(context.Background(), args...)
 	if err != nil {

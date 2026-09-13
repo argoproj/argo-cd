@@ -16,10 +16,19 @@ func NewExtensionMetricsRegistry(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *ExtensionMetricsRegistry {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &ExtensionMetricsRegistry{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -51,7 +60,7 @@ type ExtensionMetricsRegistry_IncExtensionRequestCounter_Call struct {
 // IncExtensionRequestCounter is a helper method to define mock.On call
 //   - extension string
 //   - status int
-func (_e *ExtensionMetricsRegistry_Expecter) IncExtensionRequestCounter(extension interface{}, status interface{}) *ExtensionMetricsRegistry_IncExtensionRequestCounter_Call {
+func (_e *ExtensionMetricsRegistry_Expecter) IncExtensionRequestCounter(extension any, status any) *ExtensionMetricsRegistry_IncExtensionRequestCounter_Call {
 	return &ExtensionMetricsRegistry_IncExtensionRequestCounter_Call{Call: _e.mock.On("IncExtensionRequestCounter", extension, status)}
 }
 
@@ -97,7 +106,7 @@ type ExtensionMetricsRegistry_ObserveExtensionRequestDuration_Call struct {
 // ObserveExtensionRequestDuration is a helper method to define mock.On call
 //   - extension string
 //   - duration time.Duration
-func (_e *ExtensionMetricsRegistry_Expecter) ObserveExtensionRequestDuration(extension interface{}, duration interface{}) *ExtensionMetricsRegistry_ObserveExtensionRequestDuration_Call {
+func (_e *ExtensionMetricsRegistry_Expecter) ObserveExtensionRequestDuration(extension any, duration any) *ExtensionMetricsRegistry_ObserveExtensionRequestDuration_Call {
 	return &ExtensionMetricsRegistry_ObserveExtensionRequestDuration_Call{Call: _e.mock.On("ObserveExtensionRequestDuration", extension, duration)}
 }
 

@@ -8,6 +8,7 @@ import (
 )
 
 func TestRandString(t *testing.T) {
+	t.Parallel()
 	ss, err := StringFromCharset(10, "A")
 	require.NoError(t, err)
 	assert.Equal(t, "AAAAAAAAAA", ss)
@@ -18,6 +19,7 @@ func TestRandString(t *testing.T) {
 }
 
 func TestRandHex(t *testing.T) {
+	t.Parallel()
 	ss, err := RandHex(10)
 	require.NoError(t, err)
 	assert.Len(t, ss, 10)

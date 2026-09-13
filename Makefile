@@ -26,7 +26,7 @@ BUILD_DATE:=$(if $(BUILD_DATE),$(BUILD_DATE),$(shell date -u +'%Y-%m-%dT%H:%M:%S
 GIT_COMMIT:=$(if $(GIT_COMMIT),$(GIT_COMMIT),$(shell git rev-parse HEAD))
 GIT_TAG:=$(if $(GIT_TAG),$(GIT_TAG),$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi))
 GIT_TREE_STATE:=$(if $(GIT_TREE_STATE),$(GIT_TREE_STATE),$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi))
-VOLUME_MOUNT=$(shell if test "$(go env GOOS)" = "darwin"; then echo ":delegated"; elif test selinuxenabled; then echo ":delegated"; else echo ""; fi)
+VOLUME_MOUNT=$(shell if test "$(go env GOOS)" = "darwin"; then echo ":delegated"; elif test selinuxenabled; then echo ":Z"; else echo ""; fi)
 KUBECTL_VERSION=$(shell go list -m k8s.io/client-go | head -n 1 | rev | cut -d' ' -f1 | rev)
 
 GOPATH?=$(shell if test -x `which go`; then go env GOPATH; else echo "$(HOME)/go"; fi)
@@ -292,6 +292,13 @@ codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen m
 .PHONY: codegen-local-fast
 codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen mockgen manifests-local notification-docs notification-catalog
 
+# Recompiles the GitHub Agentics workflow lock files after editing issue-triage.md or aw.json.
+# Only needed by maintainers working on GitHub Agentics workflows; requires an installed and
+# authenticated gh CLI plus the gh-aw extension (see install-gh-aw-local).
+.PHONY: gh-aw-compile
+gh-aw-compile:
+	gh aw compile
+
 .PHONY: codegen
 codegen: test-tools-image
 	$(call run-in-test-client,make codegen-local)
@@ -352,8 +359,8 @@ controller:
 .PHONY: build-ui
 build-ui:
 	DOCKER_BUILDKIT=1 $(DOCKER) build -t argocd-ui --platform=$(TARGET_ARCH) --target argocd-ui .
-	find ./ui/dist -type f -not -name gitkeep -delete
-	$(DOCKER) run -u $(CONTAINER_UID):$(CONTAINER_GID) -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
+	find ./ui/dist -type f -not -name gitkeep -not -name .gitkeep -delete
+	$(DOCKER) run $(PODMAN_ARGS) -v ${CURRENT_DIR}/ui/dist/app:/tmp/app:Z --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 
 .PHONY: image
 ifeq ($(DEV_IMAGE), true)
@@ -363,7 +370,7 @@ ifeq ($(DEV_IMAGE), true)
 IMAGE_TAG="dev-$(shell git describe --always --dirty)"
 image: build-ui
 	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t argocd-base --target argocd-base .
-	GOOS=linux GOARCH=$(TARGET_ARCH:linux/%=%) GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
+	GOOS=linux GOARCH=$(TARGET_ARCH:linux/%=%) GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -gcflags="all=-N -l" -o ${DIST_DIR}/argocd ./cmd
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-repo-server
@@ -379,7 +386,7 @@ endif
 
 .PHONY: armimage
 armimage:
-	$(DOCKER) build -t $(IMAGE_PREFIX)(IMAGE_REPOSITORY):$(IMAGE_TAG)-arm .
+	$(DOCKER) build -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG)-arm .
 
 .PHONY: builder-image
 builder-image:
@@ -458,8 +465,8 @@ endif
 test-gitops-engine:
 # run if TEST_MODULE is empty or points to gitops-engine tests
 ifneq ($(if $(TEST_MODULE),,ALL)$(filter github.com/argoproj/argo-cd/gitops-engine% ./gitops-engine%,$(TEST_MODULE)),)
-	mkdir -p $(PWD)/test-results
-	cd gitops-engine && go test -race -cover ./... -args -test.gocoverdir="$(PWD)/test-results"
+	mkdir -p $(PWD)/test-results/gitops-engine
+	cd gitops-engine && go test -race -cover ./... -args -test.gocoverdir="$(PWD)/test-results/gitops-engine"
 endif
 
 .PHONY: test-race
@@ -611,7 +618,7 @@ build-docs-local:
 
 .PHONY: build-docs
 build-docs:
-	$(DOCKER) run ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs build'
+	$(DOCKER) run -u $(CONTAINER_UID):$(CONTAINER_GID) -e HOME=/tmp/home $(PODMAN_ARGS) ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs:Z -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install --user -r docs/requirements.txt; /tmp/home/.local/bin/mkdocs build'
 
 .PHONY: serve-docs-local
 serve-docs-local:
@@ -619,7 +626,7 @@ serve-docs-local:
 
 .PHONY: serve-docs
 serve-docs:
-	$(DOCKER) run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install -r docs/requirements.txt; mkdocs serve -a $$(ip route get 1 | awk '\''{print $$7}'\''):8000'
+	$(DOCKER) run -u $(CONTAINER_UID):$(CONTAINER_GID) -e HOME=/tmp/home $(PODMAN_ARGS) ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs:Z -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install --user -r docs/requirements.txt; /tmp/home/.local/bin/mkdocs serve -a $$(ip route get 1 | awk '\''{print $$7}'\''):8000'
 
 # Verify that kubectl can connect to your K8s cluster from Docker
 .PHONY: verify-kube-connect
@@ -637,6 +644,17 @@ show-go-version: test-tools-image
 # Installs all tools required to build and test ArgoCD locally
 .PHONY: install-tools-local
 install-tools-local: install-test-tools-local install-codegen-tools-local install-go-tools-local
+
+# Installs the gh aw CLI extension for managing GitHub Agentics workflows.
+# Only needed by maintainers working on GitHub Agentics workflows; not part of install-tools-local.
+# Requires an installed and authenticated gh CLI.
+.PHONY: install-gh-aw-local
+install-gh-aw-local:
+	@if ! command -v gh >/dev/null 2>&1; then \
+		echo "gh CLI is required to install the gh-aw extension. See https://cli.github.com/ and https://argo-cd.readthedocs.io/en/latest/developer-guide/github-agentics-issue-triage/"; \
+		exit 1; \
+	fi
+	. hack/tool-versions.sh && gh extension install --pin v$${GH_AW_VERSION} --force github/gh-aw
 
 # Installs all tools required for running unit & end-to-end tests (Linux packages)
 .PHONY: install-test-tools-local
@@ -751,3 +769,7 @@ help:
 	@echo '  codegen(-local) -- if using -local, run the following targets first'
 	@echo '  install-codegen-tools-local -- run this to install the codegen tools'
 	@echo '  install-go-tools-local -- run this to install go libraries for codegen'
+	@echo
+	@echo 'github agentics (maintainers only):'
+	@echo '  install-gh-aw-local -- install the gh aw CLI extension (requires an authenticated gh CLI)'
+	@echo '  gh-aw-compile -- recompile the agentics workflow lock files after editing issue-triage.md or aw.json'

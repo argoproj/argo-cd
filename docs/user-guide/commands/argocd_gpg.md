@@ -20,7 +20,6 @@ argocd gpg [flags]
       --password string            Password for basic authentication to the API server
       --proxy-url string           If provided, this URL will be used to connect via proxy
       --request-timeout string     The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --tls-server-name string     If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string               Bearer token for authentication to the API server
       --user string                The name of the kubeconfig user to use
       --username string            Username for basic authentication to the API server
@@ -59,7 +58,7 @@ argocd gpg [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
+* [argocd](argocd.md)	 - argocd controls an Argo CD server
 * [argocd gpg add](argocd_gpg_add.md)	 - Adds a GPG public key to the server's keyring
 * [argocd gpg get](argocd_gpg_get.md)	 - Get the GPG public key with ID <KEYID> from the server
 * [argocd gpg list](argocd_gpg_list.md)	 - List configured GPG public keys
