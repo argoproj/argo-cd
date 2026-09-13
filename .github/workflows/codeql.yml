@@ -34,15 +34,26 @@ env:
   
 jobs:
   CodeQL-Build:
-    name: CodeQL analysis
+    name: CodeQL analysis (${{ matrix.language }})
     permissions:
       actions: read  # for github/codeql-action/init to get workflow details
       contents: read  # for actions/checkout to fetch code
-      security-events: write  # for github/codeql-action/autobuild to send a status report
+      security-events: write  # for github/codeql-action/analyze to upload results
     if: github.repository == 'argoproj/argo-cd' || vars.enable_codeql
 
     # CodeQL runs on ubuntu-latest and windows-latest
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: go
+            build-mode: manual
+          - language: javascript
+            build-mode: none
+          - language: actions
+            build-mode: none
+
     steps:
     - name: Harden the runner (Audit all outbound calls)
       if: ${{ vars.disable_harden_runner != 'true' }}
@@ -57,6 +68,7 @@ jobs:
 
     # Use correct go version. https://github.com/github/codeql-action/issues/1842#issuecomment-1704398087
     - name: Setup Golang
+      if: matrix.language == 'go'
       uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version-file: go.mod
@@ -64,17 +76,18 @@ jobs:
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
-      # Override language selection by uncommenting this and choosing your languages
-      # with:
-      #   languages: go, javascript, csharp, python, cpp, java
       with:
-        build-mode: manual
+        languages: ${{ matrix.language }}
+        build-mode: ${{ matrix.build-mode }}
 
     # Build Go code manually so CodeQL can observe compilation. The default
     # autobuild step runs `make cli`, which uses an interactive Docker
     # container (`docker run -it`) and fails in the non-TTY CodeQL runner.
     - name: Build Go code for CodeQL
+      if: matrix.language == 'go'
       run: go build ./...
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+      with:
+        category: "/language:${{ matrix.language }}"
