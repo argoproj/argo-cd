@@ -3,6 +3,7 @@
 package db
 
 import (
+	"strings"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -13,6 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	testutil "github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -190,4 +192,72 @@ func TestWatchClusters_LocalClusterModificationsWhenDisabled(t *testing.T) {
 		},
 	})
 	assert.False(t, completed, "Expecting the method to never complete because no cluster is ever added")
+}
+
+func TestWatchClusters_DefaultCABundle(t *testing.T) {
+	caBundle := []byte(strings.TrimSpace(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt")))
+	emptyArgoCDConfigMap := &corev1.ConfigMap{
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
+		},
+		Data: map[string]string{},
+	}
+	argoCDSecret := &corev1.Secret{
+		Name:      common.ArgoCDSecretName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
+		},
+		Data: map[string][]byte{
+			"admin.password":   nil,
+			"server.secretkey": nil,
+		},
+	}
+	clusterCAConfigMap := &corev1.ConfigMap{
+		Name:      common.ArgoCDClusterCAConfigMapName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
+		},
+		Data: map[string]string{
+			common.ArgoCDClusterCAConfigMapKey: string(caBundle),
+		},
+	}
+	kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret, clusterCAConfigMap)
+	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+	watchClientSet := newWatchNotifyingClientSet(kubeclientset)
+	db := NewDB(fakeNamespace, settingsManager, watchClientSet)
+	completed := runWatchTest(t, watchClientSet, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
+		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
+			assert.Nil(t, old)
+			assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, new.Server)
+			assert.Equal(t, caBundle, new.DefaultCABundle)
+
+			_, err := db.CreateCluster(t.Context(), &v1alpha1.Cluster{
+				Server: "https://minikube",
+				Name:   "minikube",
+			})
+			assert.NoError(t, err)
+		},
+		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
+			assert.Nil(t, old)
+			assert.Equal(t, "https://minikube", new.Server)
+			assert.Equal(t, caBundle, new.DefaultCABundle, "added clusters must carry the default bundle")
+
+			_, err := db.UpdateCluster(t.Context(), &v1alpha1.Cluster{
+				Server: "https://minikube",
+				Name:   "minikube-renamed",
+			})
+			assert.NoError(t, err)
+		},
+		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
+			assert.Equal(t, "https://minikube", new.Server)
+			assert.Equal(t, "minikube-renamed", new.Name)
+			assert.Equal(t, caBundle, old.DefaultCABundle)
+			assert.Equal(t, caBundle, new.DefaultCABundle, "modified clusters must carry the default bundle so the controller rebuilds a REST config that still trusts it")
+		},
+	})
+	assert.True(t, completed, "Failed due to timeout")
 }
