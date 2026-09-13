@@ -59,7 +59,7 @@ argocd login cd.argoproj.io --sso
 
 # Configure direct access using Kubernetes API server
 argocd login cd.argoproj.io --core`,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			var server string
@@ -127,7 +127,7 @@ argocd login cd.argoproj.io --core`,
 			var refreshToken string
 			if !clientOpts.Core {
 				acdClient := headless.NewClientOrDie(&loginOpts, c)
-				setConn, setIf := acdClient.NewSettingsClientOrDie()
+				setConn, setIf := acdClient.NewSettingsClientOrDieWithContext(ctx)
 				defer utilio.Close(setConn)
 				if !sso {
 					tokenString = passwordLogin(ctx, acdClient, username, password)
@@ -139,7 +139,7 @@ argocd login cd.argoproj.io --core`,
 					errors.CheckError(err)
 					oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 					errors.CheckError(err)
-					tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
+					tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser, acdSet.GetDexConfig().GetDexAuthConnectorID())
 				}
 				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 				claims := jwt.MapClaims{}
@@ -179,7 +179,7 @@ argocd login cd.argoproj.io --core`,
 			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
 			errors.CheckError(err)
 			fmt.Printf("Context '%s' updated\n", ctxName)
-		},
+		}),
 	}
 	command.Flags().StringVar(&ctxName, "name", "", "Name to use for the context")
 	command.Flags().StringVar(&username, "username", "", "The username of an account to authenticate")
@@ -212,6 +212,7 @@ func oauth2Login(
 	oauth2conf *oauth2.Config,
 	provider *oidc.Provider,
 	ssoLaunchBrowser bool,
+	dexAuthConnectorID string,
 ) (string, string) {
 	redirectBase := callback
 	if redirectBase == "" {
@@ -323,6 +324,12 @@ func oauth2Login(
 	if claimsRequested := oidcSettings.GetIDTokenClaims(); claimsRequested != nil {
 		opts = oidcutil.AppendClaimsAuthenticationRequestParameter(opts, claimsRequested)
 	}
+	// When bundled Dex is configured with a forced connector, redirect straight to it and
+	// bypass Dex's connector selection screen (mirrors the browser login flow).
+	if dexAuthConnectorID != "" {
+		log.Debugf("force redirect to selected connector_id: %s", dexAuthConnectorID)
+		opts = append(opts, oauth2.SetAuthURLParam("connector_id", dexAuthConnectorID))
+	}
 
 	switch grantType {
 	case oidcutil.GrantTypeAuthorizationCode:
@@ -362,7 +369,7 @@ func oauth2Login(
 
 func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username, password string) string {
 	username, password = cli.PromptCredentials(username, password)
-	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
+	sessConn, sessionIf := acdClient.NewSessionClientOrDieWithContext(ctx)
 	defer utilio.Close(sessConn)
 	sessionRequest := sessionpkg.SessionCreateRequest{
 		Username: username,

@@ -33,7 +33,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
 
-	enginecache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
+	enginecache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
 	timeutil "github.com/argoproj/pkg/v2/time"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -97,6 +97,8 @@ type ArgoCDSettings struct {
 	StatusBadgeRootUrl string `json:"statusBadgeRootUrl,omitempty"` //nolint:revive //FIXME(var-naming)
 	// DexConfig contains portions of a dex config yaml
 	DexConfig string `json:"dexConfig,omitempty"`
+	// DexAuthConnectorID holds default dex auth connector ID
+	DexAuthConnectorID string `json:"dexAuthConnectorID,omitempty"`
 	// OIDCConfigRAW holds OIDC configuration as a raw string
 	OIDCConfigRAW string `json:"oidcConfig,omitempty"`
 	// ServerSignature holds the key used to generate JWT tokens.
@@ -116,6 +118,8 @@ type ArgoCDSettings struct {
 	WebhookBitbucketServerSecret string `json:"webhookBitbucketServerSecret,omitempty"`
 	// WebhookGogsSecret holds the shared secret for authenticating Gogs webhook events
 	WebhookGogsSecret string `json:"webhookGogsSecret,omitempty"`
+	// WebhookHarborSecret holds the shared secret for authenticating Harbor webhook events
+	WebhookHarborSecret string `json:"webhookHarborSecret,omitempty"`
 	// WebhookAzureDevOpsUsername holds the username for authenticating Azure DevOps webhook events
 	WebhookAzureDevOpsUsername string `json:"webhookAzureDevOpsUsername,omitempty"`
 	// WebhookAzureDevOpsPassword holds the password for authenticating Azure DevOps webhook events
@@ -138,6 +142,8 @@ type ArgoCDSettings struct {
 	UiBannerPermanent bool `json:"uiBannerPermanent,omitempty"` //nolint:revive //FIXME(var-naming)
 	// Position of UI Banner
 	UiBannerPosition string `json:"uiBannerPosition,omitempty"` //nolint:revive //FIXME(var-naming)
+	// ResourceViewEnabled indicates whether the managed Resources view is enabled in the UI
+	ResourceViewEnabled bool `json:"resourceViewEnabled"`
 	// UiLoginButtonText is an optional override for the SSO login button label
 	UiLoginButtonText string `json:"uiLoginButtonText,omitempty"` //nolint:revive //FIXME(var-naming)
 	// PasswordPattern for password regular expression
@@ -443,6 +449,8 @@ const (
 	settingAdditionalUrlsKey = "additionalUrls"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
+	// settingDexAuthConnectorIDKey designates the key for the default dex auth connector ID
+	settingDexAuthConnectorIDKey = "dex.auth.connectorId"
 	// settingsOIDCConfigKey designates the key for OIDC config
 	settingsOIDCConfigKey = "oidc.config"
 	// statusBadgeEnabledKey holds the key which enables of disables status badge feature
@@ -459,6 +467,8 @@ const (
 	settingsWebhookBitbucketServerSecretKey = "webhook.bitbucketserver.secret"
 	// settingsWebhookGogsSecret is the key for Gogs webhook secret
 	settingsWebhookGogsSecretKey = "webhook.gogs.secret"
+	// settingsWebhookHarborSecret is the key for Harbor webhook secret
+	settingsWebhookHarborSecretKey = "webhook.harbor.secret"
 	// settingsWebhookAzureDevOpsUsernameKey is the key for Azure DevOps webhook username
 	settingsWebhookAzureDevOpsUsernameKey = "webhook.azuredevops.username"
 	// settingsWebhookAzureDevOpsPasswordKey is the key for Azure DevOps webhook password
@@ -483,8 +493,16 @@ const (
 	resourceExclusionsKey = "resource.exclusions"
 	// resourceInclusions is the key to the list of explicitly watched resources
 	resourceInclusionsKey = "resource.inclusions"
+	// resourceSelectorsKey is the key to the list of label selectors that narrow down the watched resources
+	resourceSelectorsKey = "resource.selectors"
 	// resourceIgnoreResourceUpdatesEnabledKey is the key to a boolean determining whether the resourceIgnoreUpdates feature is enabled
 	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
+	// manifestCompressionEnabledKey is the key to a boolean determining whether manifest compression is enabled
+	manifestCompressionEnabledKey = "resource.manifest.compression.enabled"
+	// manifestStorageKey configures the serialization format for cached manifests
+	manifestStorageKey = "resource.manifest.storage"
+	// manifestCompressionKey configures the compression algorithm for cached manifests
+	manifestCompressionKey = "resource.manifest.compression"
 	// resourceSensitiveAnnotationsKey is the key to list of annotations to mask in secret resource
 	resourceSensitiveAnnotationsKey = "resource.sensitive.mask.annotations"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
@@ -515,6 +533,8 @@ const (
 	settingUIBannerPermanentKey = "ui.bannerpermanent"
 	// settingUIBannerPositionKey designates the key for the position of the banner
 	settingUIBannerPositionKey = "ui.bannerposition"
+	// settingUIResourcesViewDisabledKey designates the key for disabling the managed Resources view in the UI
+	settingUIResourcesViewDisabledKey = "ui.view.resources.disabled"
 	// settingUILoginButtonTextKey designates the key for the custom SSO login button label
 	settingUILoginButtonTextKey = "ui.loginButtonText"
 	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
@@ -545,6 +565,8 @@ const (
 	inClusterEnabledKey = "cluster.inClusterEnabled"
 	// settingsServerRBACEDisableFineGrainedInheritance is the key to configure find-grained RBAC inheritance
 	settingsServerRBACDisableFineGrainedInheritance = "server.rbac.disableApplicationFineGrainedRBACInheritance"
+	// settingsServerRBACRollbackEnforceEnableKey enables the dedicated rollback RBAC action in argocd-cm
+	settingsServerRBACRollbackEnforceEnableKey = "server.rbac.rollback.enforce.enable"
 	// MaxPodLogsToRender the maximum number of pod logs to render
 	settingsMaxPodLogsToRender = "server.maxPodLogsToRender"
 	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
@@ -568,6 +590,8 @@ const (
 	RespectRBACValueNormal = "normal"
 	// impersonationEnabledKey is the key to configure whether the application sync decoupling through impersonation feature is enabled
 	impersonationEnabledKey = "application.sync.impersonation.enabled"
+	// impersonationEnforcedKey is the key to configure whether a service account must be configured in the AppProject when impersonation is enabled
+	impersonationEnforcedKey = "application.sync.impersonation.enforced"
 	// requireOverridePrivilegeForRevisionSyncKey is the key to configure whether giving an external revision during sync is considered an override
 	requireOverridePrivilegeForRevisionSyncKey = "application.sync.requireOverridePrivilegeForRevisionSync"
 )
@@ -581,6 +605,9 @@ const (
 
 	// application sync with impersonation feature is disabled by default.
 	defaultImpersonationEnabledFlag = false
+
+	// application sync with impersonation enforcement is enabled by default (applies only when defaultImpersonationEnabledFlag is enabled)
+	defaultImpersonationEnforcedFlag = true
 
 	// defaultInClusterEnabledFlag is the default value when the in-cluster setting
 	// cannot be read from the configmap or is not explicitly set by the user.
@@ -708,9 +735,7 @@ func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) er
 			return err
 		}
 		argoCDSecret = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: common.ArgoCDSecretName,
-			},
+			Name: common.ArgoCDSecretName,
 			Data: make(map[string][]byte),
 		}
 		createSecret = true
@@ -746,9 +771,7 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) err
 			return err
 		}
 		argoCDCM = &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: common.ArgoCDConfigMapName,
-			},
+			Name: common.ArgoCDConfigMapName,
 			Data: make(map[string]string),
 		}
 		createCM = true
@@ -885,6 +908,20 @@ func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 		}
 		rf.ResourceExclusions = excludedResources
 	}
+
+	if value, ok := argoCDCM.Data[resourceSelectorsKey]; ok {
+		resourceSelectors := make([]FilteredResource, 0)
+		err := yaml.Unmarshal([]byte(value), &resourceSelectors)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshalling resource selectors %w", err)
+		}
+		for _, resourceSelector := range resourceSelectors {
+			if _, err := labels.Parse(resourceSelector.Selector); err != nil {
+				return nil, fmt.Errorf("error parsing resource selector %q: %w", resourceSelector.Selector, err)
+			}
+		}
+		rf.ResourceSelectors = resourceSelectors
+	}
 	return rf, nil
 }
 
@@ -943,6 +980,19 @@ func (mgr *SettingsManager) ApplicationFineGrainedRBACInheritanceDisabled() (boo
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACDisableFineGrainedInheritance])
+}
+
+func (mgr *SettingsManager) GetServerRBACRollbackEnforceEnable() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, err
+	}
+
+	if argoCDCM.Data[settingsServerRBACRollbackEnforceEnableKey] == "" {
+		return false, nil
+	}
+
+	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACRollbackEnforceEnableKey])
 }
 
 func (mgr *SettingsManager) GetMaxPodLogsToRender() (int64, error) {
@@ -1038,6 +1088,35 @@ func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey])
+}
+
+func (mgr *SettingsManager) GetIsManifestCompressionEnabled() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, fmt.Errorf("error retrieving config map: %w", err)
+	}
+
+	if argoCDCM.Data[manifestCompressionEnabledKey] == "" {
+		return false, nil
+	}
+
+	return strconv.ParseBool(argoCDCM.Data[manifestCompressionEnabledKey])
+}
+
+func (mgr *SettingsManager) GetManifestStorage() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", fmt.Errorf("error retrieving config map: %w", err)
+	}
+	return argoCDCM.Data[manifestStorageKey], nil
+}
+
+func (mgr *SettingsManager) GetManifestCompression() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", fmt.Errorf("error retrieving config map: %w", err)
+	}
+	return argoCDCM.Data[manifestCompressionKey], nil
 }
 
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
@@ -1665,7 +1744,13 @@ func getDownloadBinaryUrlsFromConfigMap(argoCDCM *corev1.ConfigMap) map[string]s
 func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
-	if err := ValidateOIDCConfig(settings.OIDCConfigRAW); err != nil {
+	// connector_id is only meaningful when the bundled Dex server is the active SSO provider.
+	// When external OIDC is configured it takes precedence over Dex (see NewClientApp), so leave
+	// DexAuthConnectorID empty to avoid appending a Dex-specific parameter to an external IdP.
+	if settings.OIDCConfigRAW == "" {
+		settings.DexAuthConnectorID = getDexAuthConnectorID(argoCDCM.Data)
+	}
+	if err := validateOIDCConfigWithSecrets(settings.OIDCConfigRAW, settings.Secrets); err != nil {
 		log.Warnf("Failed to validate OIDC config: %v", err)
 	}
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
@@ -1676,6 +1761,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.UiBannerContent = argoCDCM.Data[settingUIBannerContentKey]
 	settings.UiBannerPermanent = argoCDCM.Data[settingUIBannerPermanentKey] == "true"
 	settings.UiBannerPosition = argoCDCM.Data[settingUIBannerPositionKey]
+	settings.ResourceViewEnabled = argoCDCM.Data[settingUIResourcesViewDisabledKey] != "true"
 	settings.UiLoginButtonText = argoCDCM.Data[settingUILoginButtonTextKey]
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
 	if err := ValidateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
@@ -1741,6 +1827,38 @@ func getExtensionConfigs(cmData map[string]string) map[string]string {
 	return result
 }
 
+func getDexAuthConnectorID(cmData map[string]string) string {
+	dexConfig := cmData[settingDexConfigKey]
+	if dexConfig == "" {
+		return ""
+	}
+	dexAuthConnectorID := cmData[settingDexAuthConnectorIDKey]
+	if dexAuthConnectorID == "" {
+		return ""
+	}
+	dexCfg, err := UnmarshalDexConfig(dexConfig)
+	if err != nil {
+		log.Warnf("invalid dex.config YAML: %v", err)
+		return ""
+	}
+	connectors, ok := dexCfg["connectors"].([]any)
+	if !ok {
+		return ""
+	}
+	for _, c := range connectors {
+		connector, ok := c.(map[string]any)
+		if !ok {
+			continue
+		}
+		connID, ok := connector["id"].(string)
+		if ok && connID == dexAuthConnectorID {
+			return dexAuthConnectorID
+		}
+	}
+	log.Warnf("dex.auth.connectorId is not found in dex connectors: %s", dexAuthConnectorID)
+	return ""
+}
+
 // ValidateExternalURL ensures the external URL that is set on the configmap is valid
 func ValidateExternalURL(u string) error {
 	if u == "" {
@@ -1795,6 +1913,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	settings.WebhookBitbucketUUID = string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey])
 	settings.WebhookBitbucketServerSecret = string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey])
 	settings.WebhookGogsSecret = string(argoCDSecret.Data[settingsWebhookGogsSecretKey])
+	settings.WebhookHarborSecret = string(argoCDSecret.Data[settingsWebhookHarborSecretKey])
 	settings.WebhookAzureDevOpsUsername = string(argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey])
 	settings.WebhookAzureDevOpsPassword = string(argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey])
 
@@ -2043,6 +2162,11 @@ func (a *ArgoCDSettings) GetWebhookGogsSecret() string {
 	return ReplaceStringSecret(a.WebhookGogsSecret, a.Secrets)
 }
 
+// GetWebhookHarborSecret returns the resolved Harbor webhook secret
+func (a *ArgoCDSettings) GetWebhookHarborSecret() string {
+	return ReplaceStringSecret(a.WebhookHarborSecret, a.Secrets)
+}
+
 // GetWebhookAzureDevOpsUsername returns the resolved Azure DevOps webhook username
 func (a *ArgoCDSettings) GetWebhookAzureDevOpsUsername() string {
 	return ReplaceStringSecret(a.WebhookAzureDevOpsUsername, a.Secrets)
@@ -2076,6 +2200,25 @@ func ValidateOIDCConfig(configStr string) error {
 		if err := ValidateAzureGraphAPIEndpoint(settings.Azure.GraphAPIEndpoint); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func validateOIDCConfigWithSecrets(configStr string, secrets map[string]string) error {
+	configMap := map[string]any{}
+	if err := yaml.Unmarshal([]byte(configStr), &configMap); err != nil {
+		return err
+	}
+
+	configMap = ReplaceMapSecrets(configMap, secrets)
+
+	resolvedConfig, err := yaml.Marshal(configMap)
+	if err != nil {
+		return errors.New("failed to marshal config after replacing secrets")
+	}
+
+	if err := ValidateOIDCConfig(string(resolvedConfig)); err != nil {
+		return errors.New("invalid OIDC config")
 	}
 	return nil
 }
@@ -2782,6 +2925,18 @@ func (mgr *SettingsManager) IsImpersonationEnabled() (bool, error) {
 		return defaultImpersonationEnabledFlag, fmt.Errorf("error checking %s property in configmap: %w", impersonationEnabledKey, err)
 	}
 	return cm.Data[impersonationEnabledKey] == "true", nil
+}
+
+// IsImpersonationEnforced returns true if impersonation enforcement is enabled (requires service account to be configured)
+func (mgr *SettingsManager) IsImpersonationEnforced() (bool, error) {
+	cm, err := mgr.getConfigMap()
+	if err != nil {
+		return defaultImpersonationEnforcedFlag, fmt.Errorf("error checking %s property in configmap: %w", impersonationEnforcedKey, err)
+	}
+	if value, exists := cm.Data[impersonationEnforcedKey]; exists {
+		return value != "false", nil
+	}
+	return defaultImpersonationEnforcedFlag, nil
 }
 
 func (mgr *SettingsManager) GetAllowedNodeLabels() []string {

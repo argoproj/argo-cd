@@ -1,4 +1,4 @@
-import {NotificationType, Tooltip} from 'argo-ui';
+import {Tooltip} from 'argo-ui';
 import classNames from 'classnames';
 import * as React from 'react';
 import {Cluster} from '../../../shared/components';
@@ -7,8 +7,7 @@ import * as models from '../../../shared/models';
 import {NoticeIcon} from '../application-notice/notice-icon';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
-import {isValidManagedByURL} from '../../../shared/utils';
+import {getAppDefaultSource, OperationState} from '../utils';
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
 
@@ -26,51 +25,31 @@ export interface ApplicationTileProps {
 export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplication, refreshApplication, deleteApplication}: ApplicationTileProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
+    const isFav = AppUtils.isFavorite(favList, app);
 
     const source = getAppDefaultSource(app);
     const isOci = source?.repoURL?.startsWith('oci://');
     const targetRevision = source ? source.targetRevision || 'HEAD' : 'Unknown';
-    const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
     const healthStatus = app.status.health.status;
-    const managedByURL = getManagedByURL(app);
-    const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
+
+    const view = pref.appDetails.view;
+    const appLink = AppUtils.getAppListLink(ctx, app, view);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (favList?.includes(app.metadata.name)) {
-            favList.splice(favList.indexOf(app.metadata.name), 1);
-        } else {
-            favList.push(app.metadata.name);
-        }
-        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
-    };
-
-    const handleExternalLinkClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (managedByURLInvalid) {
-            ctx.notifications.show({
-                content: (
-                    <div>
-                        <div style={{fontWeight: 600}}>{MANAGED_BY_URL_INVALID_TEXT}</div>
-                        <div style={{marginTop: 6}}>{MANAGED_BY_URL_INVALID_TOOLTIP}</div>
-                    </div>
-                ),
-                type: NotificationType.Warning
-            });
-            return;
-        }
-        if (linkInfo.isExternal) {
-            window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
-        } else {
-            ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`);
-        }
+        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: AppUtils.toggleFavorite(favList, app)}});
     };
 
     return (
         <div
             ref={tileRef}
             className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
-            <div className='row applications-tiles__wrapper' onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {view: pref.appDetails.view}, {event: e})}>
+            <a
+                className='row applications-tiles__wrapper'
+                href={appLink.href}
+                onClick={appLink.onClick}
+                draggable={false}
+                aria-label={AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}>
                 <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(app)} applications-tiles__item`}>
                     {/* Header row with icon, title, and action buttons */}
                     <div className='row'>
@@ -81,38 +60,9 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                             </Tooltip>
                             <NoticeIcon annotations={app.metadata.annotations} />
                         </div>
-                        <div className={app.status.summary?.externalURLs?.length > 0 ? 'columns small-2' : 'columns small-1'}>
-                            <div className='applications-list__external-link'>
-                                <ApplicationURLs urls={app.status.summary?.externalURLs} />
-                                {managedByURLInvalid ? (
-                                    <button
-                                        type='button'
-                                        className='managed-by-url-invalid'
-                                        onClick={handleExternalLinkClick}
-                                        style={{cursor: 'not-allowed'}}
-                                        title={MANAGED_BY_URL_INVALID_TEXT}>
-                                        <i className='fa fa-external-link-alt' />
-                                    </button>
-                                ) : (
-                                    <button type='button' onClick={handleExternalLinkClick} title={managedByURL ? `Managed by: ${managedByURL}` : 'Open application'}>
-                                        <i className='fa fa-external-link-alt' />
-                                    </button>
-                                )}
-                                <button
-                                    title={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}
-                                    className='large-text-height'
-                                    onClick={handleFavoriteToggle}>
-                                    <i
-                                        className={favList?.includes(app.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
-                                        style={{
-                                            cursor: 'pointer',
-                                            margin: '-1px 0px 0px 7px',
-                                            color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
-                                        }}
-                                    />
-                                </button>
-                            </div>
-                        </div>
+                        {/* Empty placeholder — the actual buttons live outside the anchor as an
+                            absolutely-positioned sibling, so we don't nest interactive content in <a>. */}
+                        <div className={app.status.summary?.externalURLs?.length > 0 ? 'columns small-2' : 'columns small-1'} aria-hidden='true' />
                     </div>
 
                     <div className='applications-tiles__fields'>
@@ -251,48 +201,57 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                             </div>
                         )}
                     </div>
-
-                    {/* Action buttons */}
-                    <div className='row applications-tiles__actions'>
-                        <div className='columns applications-list__entry--actions'>
-                            <a
-                                className='argo-button argo-button--base'
-                                qe-id='applications-tiles-button-sync'
-                                onClick={e => {
-                                    e.stopPropagation();
-                                    syncApplication(app.metadata.name, app.metadata.namespace);
-                                }}>
-                                <i className='fa fa-sync' /> Sync
-                            </a>
-                            &nbsp;
-                            <Tooltip className='applications-tiles__action-tooltip' content={'Refresh'}>
-                                <a
-                                    className='argo-button argo-button--base'
-                                    qe-id='applications-tiles-button-refresh'
-                                    {...AppUtils.refreshLinkAttrs(app)}
-                                    onClick={e => {
-                                        e.stopPropagation();
-                                        refreshApplication(app.metadata.name, app.metadata.namespace);
-                                    }}>
-                                    <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
-                                    <span className='show-for-xxlarge'>Refresh</span>
-                                </a>
-                            </Tooltip>
-                            &nbsp;
-                            <Tooltip className='applications-tiles__action-tooltip' content={'Delete'}>
-                                <a
-                                    className='argo-button argo-button--base'
-                                    qe-id='applications-tiles-button-delete'
-                                    onClick={e => {
-                                        e.stopPropagation();
-                                        deleteApplication(app.metadata.name, app.metadata.namespace);
-                                    }}>
-                                    <i className='fa fa-times-circle' /> <span className='show-for-xxlarge'>Delete</span>
-                                </a>
-                            </Tooltip>
-                        </div>
-                    </div>
                 </div>
+            </a>
+
+            {/* Header buttons — sibling of the anchor (not nested) so the markup stays valid. */}
+            <div className='applications-tiles__header-buttons applications-list__external-link'>
+                <ApplicationURLs urls={app.status.summary?.externalURLs} />
+                <button title={isFav ? 'Remove Favorite' : 'Add Favorite'} className='large-text-height' onClick={handleFavoriteToggle}>
+                    <i
+                        className={isFav ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
+                        style={{
+                            cursor: 'pointer',
+                            margin: '-1px 0px 0px 0px',
+                            color: isFav ? '#FFCE25' : '#8fa4b1'
+                        }}
+                    />
+                </button>
+            </div>
+
+            {/* Action buttons — sibling of the anchor (not nested). */}
+            <div className='applications-tiles__actions'>
+                <button
+                    type='button'
+                    className='argo-button argo-button--base'
+                    qe-id='applications-tiles-button-sync'
+                    onClick={() => syncApplication(app.metadata.name, app.metadata.namespace)}>
+                    <i className='fa fa-sync' /> Sync
+                </button>
+                &nbsp;
+                <Tooltip className='custom-tooltip' content={'Refresh'}>
+                    {/* Spreading refreshLinkAttrs (= {disabled: isAppRefreshing(app)}) onto a real
+                        <button> would actively block clicks while a refresh is in flight, leaving
+                        the user no way to retrigger a stuck refresh — that attribute only existed
+                        because this used to be an <a>, where `disabled` is meaningless. */}
+                    <button
+                        type='button'
+                        className='argo-button argo-button--base'
+                        qe-id='applications-tiles-button-refresh'
+                        onClick={() => refreshApplication(app.metadata.name, app.metadata.namespace)}>
+                        <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} /> <span className='show-for-xxlarge'>Refresh</span>
+                    </button>
+                </Tooltip>
+                &nbsp;
+                <Tooltip className='custom-tooltip' content={'Delete'}>
+                    <button
+                        type='button'
+                        className='argo-button argo-button--base'
+                        qe-id='applications-tiles-button-delete'
+                        onClick={() => deleteApplication(app.metadata.name, app.metadata.namespace)}>
+                        <i className='fa fa-times-circle' /> <span className='show-for-xxlarge'>Delete</span>
+                    </button>
+                </Tooltip>
             </div>
         </div>
     );

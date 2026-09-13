@@ -23,7 +23,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	argoio "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/io"
+	argoio "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/io"
 
 	"github.com/argoproj/argo-cd/v3/util/cert"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -909,7 +909,7 @@ func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 		gitClientTimeout = 15 * time.Second
 	})
 
-	t.Run("gitClientTimeout must be honoured for for token requests as well", func(t *testing.T) {
+	t.Run("gitClientTimeout must be honoured for token requests as well", func(t *testing.T) {
 		gitClientTimeout = 1 * time.Second // Very short — should cause timeout but won't
 
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

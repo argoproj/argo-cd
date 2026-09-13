@@ -125,6 +125,16 @@ func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespac
 	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &argoSettings, objects...)
 }
 
+type fakeProjectNamespaceLister struct {
+	argov1.AppProjectNamespaceLister
+	namespace string
+	clientset *appclientset.Clientset
+}
+
+func (f *fakeProjectNamespaceLister) Get(name string) (*v1alpha1.AppProject, error) {
+	return f.clientset.ArgoprojV1alpha1().AppProjects(f.namespace).Get(context.Background(), name, metav1.GetOptions{})
+}
+
 type fakeAppsLister struct {
 	argov1.ApplicationLister
 	argov1.ApplicationNamespaceLister
@@ -166,7 +176,7 @@ func newMockHandler(reactor *reactorDef, applicationNamespaces []string, maxPayl
 		1*time.Minute,
 		1*time.Minute,
 		10*time.Second,
-	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB, maxPayloadSize, 0, 10)
+	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB, maxPayloadSize, 0, 10, &fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"})
 }
 
 func TestGitHubCommitEvent(t *testing.T) {
@@ -217,10 +227,8 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 
 	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{"end-to-end-tests", "app-team-*"},
 		&v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "app-to-refresh-in-default-namespace",
-				Namespace: "argocd",
-			},
+			Name:      "app-to-refresh-in-default-namespace",
+			Namespace: "argocd",
 			Spec: v1alpha1.ApplicationSpec{
 				Sources: v1alpha1.ApplicationSources{
 					{
@@ -230,10 +238,8 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 				},
 			},
 		}, &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "app-to-ignore",
-				Namespace: "kube-system",
-			},
+			Name:      "app-to-ignore",
+			Namespace: "kube-system",
 			Spec: v1alpha1.ApplicationSpec{
 				Sources: v1alpha1.ApplicationSources{
 					{
@@ -243,10 +249,8 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 				},
 			},
 		}, &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "app-to-refresh-in-exact-match-namespace",
-				Namespace: "end-to-end-tests",
-			},
+			Name:      "app-to-refresh-in-exact-match-namespace",
+			Namespace: "end-to-end-tests",
 			Spec: v1alpha1.ApplicationSpec{
 				Sources: v1alpha1.ApplicationSources{
 					{
@@ -256,10 +260,8 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 				},
 			},
 		}, &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "app-to-refresh-in-globbed-namespace",
-				Namespace: "app-team-two",
-			},
+			Name:      "app-to-refresh-in-globbed-namespace",
+			Namespace: "app-team-two",
 			Spec: v1alpha1.ApplicationSpec{
 				Sources: v1alpha1.ApplicationSources{
 					{
@@ -778,10 +780,8 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "single source without annotation - always refreshes",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-				},
+				Name:      "test-app",
+				Namespace: "argocd",
 				Spec: v1alpha1.ApplicationSpec{
 					Sources: v1alpha1.ApplicationSources{
 						{
@@ -800,12 +800,10 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "single source with annotation - matching file triggers refresh",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": "deploy",
-					},
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					Sources: v1alpha1.ApplicationSources{
@@ -825,12 +823,10 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "single source with annotation - non-matching file updates cache",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": "manifests",
-					},
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "manifests",
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					Sources: v1alpha1.ApplicationSources{
@@ -850,12 +846,10 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "single source with multiple paths annotation - matching subpath triggers refresh",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": "manifests;dev/deploy;other/path",
-					},
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "manifests;dev/deploy;other/path",
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					Sources: v1alpha1.ApplicationSources{
@@ -875,10 +869,8 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "multi-source without annotation - always refreshes",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-				},
+				Name:      "test-app",
+				Namespace: "argocd",
 				Spec: v1alpha1.ApplicationSpec{
 					Sources: v1alpha1.ApplicationSources{
 						{
@@ -902,12 +894,10 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "multi-source with annotation - matching file triggers refresh",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": "components",
-					},
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "components",
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					Sources: v1alpha1.ApplicationSources{
@@ -932,10 +922,8 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "source hydrator sync source without annotation - refreshes when sync path matches",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-				},
+				Name:      "test-app",
+				Namespace: "argocd",
 				Spec: v1alpha1.ApplicationSpec{
 					SourceHydrator: &v1alpha1.SourceHydrator{
 						DrySource: v1alpha1.DrySource{
@@ -958,10 +946,8 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "source hydrator dry source without annotation - always refreshes and hydrates",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-				},
+				Name:      "test-app",
+				Namespace: "argocd",
 				Spec: v1alpha1.ApplicationSpec{
 					SourceHydrator: &v1alpha1.SourceHydrator{
 						DrySource: v1alpha1.DrySource{
@@ -984,12 +970,10 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "source hydrator sync source with annotation - refresh only",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": "deploy",
-					},
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					SourceHydrator: &v1alpha1.SourceHydrator{
@@ -1013,12 +997,10 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "source hydrator dry source with annotation - refresh and hydrate",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": "deploy",
-					},
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					SourceHydrator: &v1alpha1.SourceHydrator{
@@ -1042,12 +1024,10 @@ func TestHandleEvent(t *testing.T) {
 		{
 			name: "source hydrator dry source with annotation - non-matching file updates cache",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-app",
-					Namespace: "argocd",
-					Annotations: map[string]string{
-						"argocd.argoproj.io/manifest-generate-paths": "deploy",
-					},
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
 				},
 				Spec: v1alpha1.ApplicationSpec{
 					SourceHydrator: &v1alpha1.SourceHydrator{
@@ -1106,7 +1086,7 @@ func TestHandleEvent(t *testing.T) {
 					source = &ttc.app.Spec.Sources[0]
 				}
 				if source != nil {
-					setupTestCache(t, repoCache, ttc.app.Name, source, []string{"test-manifest"})
+					setupTestCache(t, repoCache, ttc.app.Name, source, nil, []string{"test-manifest"})
 				}
 			}
 
@@ -1160,6 +1140,7 @@ func TestHandleEvent(t *testing.T) {
 				int64(50)*1024*1024,
 				0,
 				10,
+				&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 			)
 
 			// Create payload with the changed file
@@ -1198,19 +1179,220 @@ func TestHandleEvent(t *testing.T) {
 					// Verify cache was updated with afterSHA
 					clusterInfo := &mockClusterInfo{}
 					var afterManifests cache.CachedManifestResponse
-					err := repoCache.GetManifests(cache.ManifestKey{
-						Revision:    testAfterSHA,
-						AppSource:   source,
-						RefSources:  nil,
-						ClusterInfo: clusterInfo,
-						AppLabelKey: testAppLabelKey,
-						AppName:     ttc.app.Name,
-					}, &afterManifests)
+					key := cache.NewManifestKey(testAfterSHA, source, nil, "", "", testAppLabelKey, ttc.app.Name, "", nil, clusterInfo, nil)
+					err := repoCache.GetManifests(key, &afterManifests)
 					require.NoError(t, err, "cache should be updated with afterSHA")
 					if err == nil {
 						assert.Equal(t, testAfterSHA, afterManifests.ManifestResponse.Revision, "cached revision should match afterSHA")
 					}
 				}
+			}
+		})
+	}
+}
+
+func Test_storePreviouslyCachedManifests(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name         string
+		app          *v1alpha1.Application
+		project      *v1alpha1.AppProject
+		seedCache    bool // seed the cache with manifests for the previous revision
+		cacheUpdated bool // cache should be updated with the new revision
+		errExpected  bool
+	}{
+		{
+			name: "single source with source integrity",
+			app: &v1alpha1.Application{
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/test/repo",
+						TargetRevision: "main",
+					},
+				},
+			},
+			project: &v1alpha1.AppProject{
+				Name:      "default",
+				Namespace: "argocd",
+				Spec: v1alpha1.AppProjectSpec{
+					SourceRepos: []string{"*"},
+					Destinations: []v1alpha1.ApplicationDestination{
+						{
+							Server:    "*",
+							Namespace: "*",
+						},
+					},
+					SourceIntegrity: &v1alpha1.SourceIntegrity{
+						Git: &v1alpha1.SourceIntegrityGit{
+							Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+								GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+									Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+									Keys: []string{"4AEE18F83AFDEB23"},
+								},
+							}},
+						},
+					},
+				},
+			},
+			seedCache:    true,
+			cacheUpdated: true,
+			errExpected:  false,
+		},
+		{
+			name: "single source rename cache miss is not an error",
+			app: &v1alpha1.Application{
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/test/repo",
+						TargetRevision: "main",
+					},
+				},
+			},
+			project: &v1alpha1.AppProject{
+				Name:      "default",
+				Namespace: "argocd",
+				Spec: v1alpha1.AppProjectSpec{
+					SourceRepos: []string{"*"},
+					Destinations: []v1alpha1.ApplicationDestination{
+						{
+							Server:    "*",
+							Namespace: "*",
+						},
+					},
+				},
+			},
+			seedCache:    false,
+			cacheUpdated: false,
+			errExpected:  false,
+		},
+		{
+			name: "error not support refSourceCommitSHAs",
+			app: &v1alpha1.Application{
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/test/repo",
+							TargetRevision: "main",
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								ValueFiles: []string{"$myref/test.yaml"},
+							},
+						},
+						{
+							RepoURL:        "https://github.com/test/repo",
+							TargetRevision: "main",
+							Ref:            "myref",
+						},
+					},
+				},
+			},
+			cacheUpdated: false,
+			errExpected:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			mockDB := mocks.ArgoDB{}
+
+			inMemoryCache := cacheutil.NewInMemoryCache(1 * time.Hour)
+			cacheClient := cacheutil.NewCache(inMemoryCache)
+			serverCache := servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute)
+			repoCache := cache.NewCache(cacheClient, 1*time.Minute, 1*time.Minute, 10*time.Second)
+
+			var source *v1alpha1.ApplicationSource
+			if tt.app.Spec.Source != nil {
+				source = tt.app.Spec.Source
+			} else if tt.app.Spec.Sources != nil {
+				source = &tt.app.Spec.Sources[0]
+			}
+
+			if tt.app.Spec.Destination.Server == "" {
+				tt.app.Spec.Destination.Server = testClusterURL
+			}
+
+			if tt.project == nil {
+				tt.project = &v1alpha1.AppProject{}
+			}
+
+			mockDB.EXPECT().GetCluster(mock.Anything, testClusterURL).Return(&v1alpha1.Cluster{
+				Server: testClusterURL,
+				Info: v1alpha1.ClusterInfo{
+					ServerVersion:   "1.28.0",
+					ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful},
+					APIVersions:     []string{},
+				},
+			}, nil).Maybe()
+
+			appClientset := appclientset.NewSimpleClientset(tt.app, tt.project)
+
+			err := serverCache.SetClusterInfo(testClusterURL, &v1alpha1.ClusterInfo{
+				ServerVersion:   "1.28.0",
+				ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful},
+				APIVersions:     []string{},
+			})
+			require.NoError(t, err)
+
+			mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
+			mockDB.EXPECT().GetRepository(mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{}, nil).Maybe()
+
+			h := NewHandler(
+				"argocd",
+				[]string{},
+				10,
+				5,
+				appClientset,
+				&fakeAppsLister{clientset: appClientset},
+				&settings.ArgoCDSettings{},
+				&fakeSettingsSrc{},
+				repoCache,
+				serverCache,
+				&mockDB,
+				int64(50)*1024*1024,
+				2*time.Second,
+				100, // High threshold - won't be exceeded
+				&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
+			)
+
+			if tt.seedCache {
+				setupTestCache(t, repoCache, tt.app.Name, source, tt.project.EffectiveSourceIntegrity(), []string{"test-manifest"})
+			}
+			logger, _ := test.NewNullLogger()
+			logCtx := logger.WithField("application", tt.app.Name)
+			err = h.storePreviouslyCachedManifests(logCtx, tt.app, changeInfo{shaBefore: testBeforeSHA, shaAfter: testAfterSHA}, "", testAppLabelKey, "", *source)
+
+			if tt.errExpected {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tt.cacheUpdated {
+				clusterInfo := &mockClusterInfo{}
+				var sourceIntegrity *v1alpha1.SourceIntegrity
+				if tt.project != nil {
+					sourceIntegrity = tt.project.EffectiveSourceIntegrity()
+				}
+				key := cache.NewManifestKey(testAfterSHA, source, nil, "", "", testAppLabelKey, tt.app.Name, "", sourceIntegrity, clusterInfo, nil)
+				err = repoCache.GetManifests(key, &cache.CachedManifestResponse{})
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -1702,7 +1884,7 @@ func verifyAnnotations(t *testing.T, patchData []byte, expectRefresh bool, expec
 }
 
 // setupTestCache is a helper that creates and populates a test cache
-func setupTestCache(t *testing.T, repoCache *cache.Cache, appName string, source *v1alpha1.ApplicationSource, manifests []string) {
+func setupTestCache(t *testing.T, repoCache *cache.Cache, appName string, source *v1alpha1.ApplicationSource, sourceIntegrity *v1alpha1.SourceIntegrity, manifests []string) {
 	t.Helper()
 	clusterInfo := &mockClusterInfo{}
 	dummyManifests := &cache.CachedManifestResponse{
@@ -1713,23 +1895,15 @@ func setupTestCache(t *testing.T, repoCache *cache.Cache, appName string, source
 			Server:    testClusterURL,
 		},
 	}
-	err := repoCache.SetManifests(cache.ManifestKey{
-		Revision:    testBeforeSHA,
-		AppSource:   source,
-		RefSources:  nil,
-		ClusterInfo: clusterInfo,
-		AppLabelKey: testAppLabelKey,
-		AppName:     appName,
-	}, dummyManifests)
+	key := cache.NewManifestKey(testBeforeSHA, source, make(map[string]*v1alpha1.RefTarget), "", "", testAppLabelKey, appName, "", sourceIntegrity, clusterInfo, nil)
+	err := repoCache.SetManifests(key, dummyManifests)
 	require.NoError(t, err)
 }
 
 func TestWebhookRefreshWithJitter(t *testing.T) {
 	app := v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "argocd",
-		},
+		Name:      "test-app",
+		Namespace: "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Source: &v1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/test/repo",
@@ -1771,6 +1945,7 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 			int64(50)*1024*1024,
 			2*time.Second,
 			10,
+			&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 		)
 
 		req := &appRefreshRequest{
@@ -1811,6 +1986,7 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 			int64(50)*1024*1024,
 			2*time.Second,
 			100, // High threshold - won't be exceeded
+			&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 		)
 
 		req := &appRefreshRequest{
@@ -1830,10 +2006,8 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 
 func TestProcessAppRefresh(t *testing.T) {
 	app := v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "argocd",
-		},
+		Name:      "test-app",
+		Namespace: "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Source: &v1alpha1.ApplicationSource{
 				RepoURL:        "https://github.com/test/repo",
@@ -1876,4 +2050,438 @@ func TestProcessAppRefresh(t *testing.T) {
 
 		assert.Contains(t, hook.LastEntry().Message, "Requested app 'test-app' hydration")
 	})
+}
+
+func NewMockHandlerForBitbucketServerCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return(
+		[]*v1alpha1.Repository{
+			{
+				Repo:     "https://bitbucketserver/scm/myproject/test-repo.git",
+				Username: "testuser",
+				Password: "testpassword",
+			},
+			{
+				Repo:     "https://bitbucketserver/scm/myproject/paged-repo.git",
+				Username: "testuser",
+				Password: "testpassword",
+			},
+			{
+				Repo:     "https://bitbucketserver/scm/myproject/auth-error-repo.git",
+				Username: "testuser",
+				Password: "testpassword",
+			},
+		}, nil)
+	argoSettings := settings.ArgoCDSettings{WebhookBitbucketServerSecret: "my-bb-server-secret"}
+	defaultMaxPayloadSize := int64(50) * 1024 * 1024
+	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &argoSettings, objects...)
+}
+
+// getBBServerChangesResponderFn returns a httpmock responder for the Bitbucket Server changes API
+func getBBServerChangesResponderFn() func(req *http.Request) (*http.Response, error) {
+	return func(_ *http.Request) (*http.Response, error) {
+		changesResp := map[string]any{
+			"values": []any{
+				map[string]any{
+					"contentId":     "abc123",
+					"fromContentId": "def456",
+					"path": map[string]any{
+						"components": []any{"guestbook", "guestbook-ui-deployment.yaml"},
+						"parent":     "guestbook",
+						"name":       "guestbook-ui-deployment.yaml",
+						"extension":  "yaml",
+						"toString":   "guestbook/guestbook-ui-deployment.yaml",
+					},
+					"type":     "MODIFY",
+					"nodeType": "FILE",
+				},
+			},
+			"isLastPage": true,
+			"start":      0,
+			"limit":      25,
+			"size":       1,
+		}
+		resp, err := httpmock.NewJsonResponse(200, changesResp)
+		if err != nil {
+			return httpmock.NewStringResponse(500, ""), nil
+		}
+		return resp, nil
+	}
+}
+
+// getBBServerDefaultBranchResponderFn returns a httpmock responder for the Bitbucket Server default branch API
+func getBBServerDefaultBranchResponderFn(defaultBranch string) func(req *http.Request) (*http.Response, error) {
+	return func(_ *http.Request) (*http.Response, error) {
+		branchResp := map[string]any{
+			"id":           "refs/heads/" + defaultBranch,
+			"displayId":    defaultBranch,
+			"type":         "BRANCH",
+			"isDefault":    true,
+			"latestCommit": "abc123",
+		}
+		resp, err := httpmock.NewJsonResponse(200, branchResp)
+		if err != nil {
+			return httpmock.NewStringResponse(500, ""), nil
+		}
+		return resp, nil
+	}
+}
+
+func NewMockHandlerForBitbucketServerNoSecret(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
+	mockDB := &mocks.ArgoDB{}
+	// No ListRepositories expectation because it must never be called without a secret.
+	argoSettings := settings.ArgoCDSettings{} // no WebhookBitbucketServerSecret
+	defaultMaxPayloadSize := int64(50) * 1024 * 1024
+	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &argoSettings, objects...)
+}
+
+// getBBServer401ResponderFn returns a 401 Unauthorized responder to simulate auth errors.
+func getBBServer401ResponderFn() func(req *http.Request) (*http.Response, error) {
+	return func(_ *http.Request) (*http.Response, error) {
+		return httpmock.NewStringResponse(401, `{"errors":[{"message":"Unauthenticated"}]}`), nil
+	}
+}
+
+// getBBServerPagedChangesResponderFn returns a two-page stateful responder for the Bitbucket Server changes API.
+func getBBServerPagedChangesResponderFn() func(req *http.Request) (*http.Response, error) {
+	callCount := 0
+	return func(_ *http.Request) (*http.Response, error) {
+		callCount++
+		var body map[string]any
+		if callCount == 1 {
+			body = map[string]any{
+				"values": []any{
+					map[string]any{"path": map[string]any{"toString": "base/deployment.yaml"}},
+				},
+				"isLastPage":    false,
+				"nextPageStart": float64(1),
+				"limit":         1,
+			}
+		} else {
+			body = map[string]any{
+				"values": []any{
+					map[string]any{"path": map[string]any{"toString": "base/service.yaml"}},
+				},
+				"isLastPage": true,
+				"limit":      1,
+			}
+		}
+		resp, err := httpmock.NewJsonResponse(200, body)
+		if err != nil {
+			return httpmock.NewStringResponse(500, ""), nil
+		}
+		return resp, nil
+	}
+}
+
+func Test_affectedRevisionInfo_bbserver_changed_files(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	httpmock.RegisterResponder("GET",
+		`=~^https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/test-repo/changes`,
+		getBBServerChangesResponderFn())
+	httpmock.RegisterResponder("GET",
+		"https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/test-repo/branches/default",
+		getBBServerDefaultBranchResponderFn("master"))
+	httpmock.RegisterResponder("GET",
+		`=~^https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/paged-repo/changes`,
+		getBBServerPagedChangesResponderFn())
+	httpmock.RegisterResponder("GET",
+		"https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/paged-repo/branches/default",
+		getBBServerDefaultBranchResponderFn("master"))
+	httpmock.RegisterResponder("GET",
+		`=~^https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/auth-error-repo/`,
+		getBBServer401ResponderFn())
+
+	// payload with both HTTP and SSH clone links
+	bbServerPayload := func(branchName, projectKey, repoSlug, fromHash, toHash string) bitbucketserver.RepositoryReferenceChangedPayload {
+		return bitbucketserver.RepositoryReferenceChangedPayload{
+			Changes: []bitbucketserver.RepositoryChange{
+				{
+					Reference:   bitbucketserver.RepositoryReference{ID: "refs/heads/" + branchName},
+					ReferenceID: "refs/heads/" + branchName,
+					FromHash:    fromHash,
+					ToHash:      toHash,
+					Type:        "UPDATE",
+				},
+			},
+			Repository: bitbucketserver.Repository{
+				Slug: repoSlug,
+				Project: bitbucketserver.Project{
+					Key: projectKey,
+				},
+				Links: map[string]any{
+					"clone": []any{
+						map[string]any{
+							"href": "https://bitbucketserver/scm/" + strings.ToLower(projectKey) + "/" + repoSlug + ".git",
+							"name": "http",
+						},
+						map[string]any{
+							"href": "ssh://git@bitbucketserver:7999/" + strings.ToLower(projectKey) + "/" + repoSlug + ".git",
+							"name": "ssh",
+						},
+					},
+				},
+			},
+		}
+	}
+
+	// payload with SSH clone link only (no HTTP)
+	bbServerSSHOnlyPayload := func(branchName, projectKey, repoSlug, fromHash, toHash string) bitbucketserver.RepositoryReferenceChangedPayload {
+		p := bbServerPayload(branchName, projectKey, repoSlug, fromHash, toHash)
+		p.Repository.Links = map[string]any{
+			"clone": []any{
+				map[string]any{
+					"href": "ssh://git@bitbucketserver:7999/" + strings.ToLower(projectKey) + "/" + repoSlug + ".git",
+					"name": "ssh",
+				},
+			},
+		}
+		return p
+	}
+
+	tests := []struct {
+		name                 string
+		revision             string
+		hookPayload          bitbucketserver.RepositoryReferenceChangedPayload
+		handler              func() *ArgoCDWebhookHandler
+		expectedTouchHead    bool
+		expectedChangedFiles []string
+		expectedChangeInfo   changeInfo
+	}{
+		{
+			name:                 "push to non-default branch",
+			revision:             "feature-branch",
+			hookPayload:          bbServerPayload("feature-branch", "MYPROJECT", "test-repo", "abcdef", "ghijkl"),
+			handler:              func() *ArgoCDWebhookHandler { return NewMockHandlerForBitbucketServerCallback(nil, []string{}) },
+			expectedTouchHead:    false,
+			expectedChangedFiles: []string{"guestbook/guestbook-ui-deployment.yaml"},
+			expectedChangeInfo:   changeInfo{shaBefore: "abcdef", shaAfter: "ghijkl"},
+		},
+		{
+			name:                 "push to default branch",
+			revision:             "master",
+			hookPayload:          bbServerPayload("master", "MYPROJECT", "test-repo", "abcdef", "ghijkl"),
+			handler:              func() *ArgoCDWebhookHandler { return NewMockHandlerForBitbucketServerCallback(nil, []string{}) },
+			expectedTouchHead:    true,
+			expectedChangedFiles: []string{"guestbook/guestbook-ui-deployment.yaml"},
+			expectedChangeInfo:   changeInfo{shaBefore: "abcdef", shaAfter: "ghijkl"},
+		},
+		{
+			// Without a secret the API must never be called; changed files stay nil and
+			// touchedHead defaults to true (safe fallback).
+			name:                 "no secret configured - no API call, touchedHead defaults to true",
+			revision:             "master",
+			hookPayload:          bbServerPayload("master", "MYPROJECT", "test-repo", "abcdef", "ghijkl"),
+			handler:              func() *ArgoCDWebhookHandler { return NewMockHandlerForBitbucketServerNoSecret(nil, []string{}) },
+			expectedTouchHead:    true,
+			expectedChangedFiles: nil,
+			expectedChangeInfo:   changeInfo{shaBefore: "abcdef", shaAfter: "ghijkl"},
+		},
+		{
+			// When only an SSH clone URL is present httpCloneURL remains empty and the API
+			// block is skipped, same as no-secret.
+			name:                 "SSH-only clone URL - API skipped, touchedHead defaults to true",
+			revision:             "master",
+			hookPayload:          bbServerSSHOnlyPayload("master", "MYPROJECT", "test-repo", "abcdef", "ghijkl"),
+			handler:              func() *ArgoCDWebhookHandler { return NewMockHandlerForBitbucketServerCallback(nil, []string{}) },
+			expectedTouchHead:    true,
+			expectedChangedFiles: nil,
+			expectedChangeInfo:   changeInfo{shaBefore: "abcdef", shaAfter: "ghijkl"},
+		},
+		{
+			// Changes API returns two pages; both pages should be collected.
+			name:                 "paginated changes response",
+			revision:             "master",
+			hookPayload:          bbServerPayload("master", "MYPROJECT", "paged-repo", "abcdef", "ghijkl"),
+			handler:              func() *ArgoCDWebhookHandler { return NewMockHandlerForBitbucketServerCallback(nil, []string{}) },
+			expectedTouchHead:    true,
+			expectedChangedFiles: []string{"base/deployment.yaml", "base/service.yaml"},
+			expectedChangeInfo:   changeInfo{shaBefore: "abcdef", shaAfter: "ghijkl"},
+		},
+		{
+			// When the Bitbucket Server API returns a 401 error changed files stay nil and
+			// touchedHead defaults to true so the controller performs a safe full-refresh.
+			name:                 "API auth error - no changed files, touchedHead defaults to true",
+			revision:             "master",
+			hookPayload:          bbServerPayload("master", "MYPROJECT", "auth-error-repo", "abcdef", "ghijkl"),
+			handler:              func() *ArgoCDWebhookHandler { return NewMockHandlerForBitbucketServerCallback(nil, []string{}) },
+			expectedTouchHead:    true,
+			expectedChangedFiles: nil,
+			expectedChangeInfo:   changeInfo{shaBefore: "abcdef", shaAfter: "ghijkl"},
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			h := testCase.handler()
+			_, revisionFromHook, change, touchHead, changedFiles := h.affectedRevisionInfo(testCase.hookPayload)
+			require.Equal(t, testCase.revision, revisionFromHook)
+			require.Equal(t, testCase.expectedTouchHead, touchHead)
+			require.Equal(t, testCase.expectedChangedFiles, changedFiles)
+			require.Equal(t, testCase.expectedChangeInfo, change)
+		})
+	}
+}
+
+func TestExtractBBServerBaseURL(t *testing.T) {
+	tests := []struct {
+		name        string
+		cloneURL    string
+		expected    string
+		expectedErr string
+	}{
+		{
+			name:     "standard http clone URL",
+			cloneURL: "https://bitbucketserver/scm/myproject/test-repo.git",
+			expected: "https://bitbucketserver",
+		},
+		{
+			name:     "personal project clone URL",
+			cloneURL: "https://bitbucketserver/scm/~testuser/test_a.git",
+			expected: "https://bitbucketserver",
+		},
+		{
+			name:     "bitbucket server deployed under a subpath",
+			cloneURL: "https://mycompany.com/bitbucket/scm/myproject/test-repo.git",
+			expected: "https://mycompany.com/bitbucket",
+		},
+		{
+			name:        "invalid URL missing host",
+			cloneURL:    "/scm/myproject/test-repo.git",
+			expectedErr: "invalid Bitbucket Server clone URL",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := extractBBServerBaseURL(tt.cloneURL)
+			if tt.expectedErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.expectedErr)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestFetchChangesFromBitbucketServer(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	httpmock.RegisterResponder("GET",
+		`=~^https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/test-repo/changes`,
+		getBBServerChangesResponderFn())
+
+	client := newBitbucketServerClient(t.Context(), &v1alpha1.Repository{}, "https://bitbucketserver")
+
+	tt := []struct {
+		name                string
+		projectKey          string
+		repoSlug            string
+		fromHash            string
+		toHash              string
+		expectedLen         int
+		expectedFileChanged string
+		expectedErrString   string
+	}{
+		{
+			name:                "valid project and repo",
+			projectKey:          "MYPROJECT",
+			repoSlug:            "test-repo",
+			fromHash:            "abcdef",
+			toHash:              "ghijkl",
+			expectedLen:         1,
+			expectedFileChanged: "guestbook/guestbook-ui-deployment.yaml",
+		},
+		{
+			name:              "unknown repo",
+			projectKey:        "MYPROJECT",
+			repoSlug:          "unknown-repo",
+			fromHash:          "abcdef",
+			toHash:            "ghijkl",
+			expectedErrString: "error fetching changes from Bitbucket Server",
+		},
+	}
+	for _, test := range tt {
+		t.Run(test.name, func(t *testing.T) {
+			changedFiles, err := fetchChangesFromBitbucketServer(client, test.projectKey, test.repoSlug, test.fromHash, test.toHash)
+			if test.expectedErrString == "" {
+				require.NoError(t, err)
+				require.Len(t, changedFiles, test.expectedLen)
+				require.Equal(t, test.expectedFileChanged, changedFiles[0])
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), test.expectedErrString)
+			}
+		})
+	}
+}
+
+func TestFetchChangesFromBitbucketServerPaginated(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	httpmock.RegisterResponder("GET",
+		`=~^https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/paged-repo/changes`,
+		getBBServerPagedChangesResponderFn())
+
+	client := newBitbucketServerClient(t.Context(), &v1alpha1.Repository{}, "https://bitbucketserver")
+	changedFiles, err := fetchChangesFromBitbucketServer(client, "MYPROJECT", "paged-repo", "abcdef", "ghijkl")
+	require.NoError(t, err)
+	require.Equal(t, 2, httpmock.GetTotalCallCount(), "expected two API calls for two pages")
+	require.Equal(t, []string{"base/deployment.yaml", "base/service.yaml"}, changedFiles)
+}
+
+func TestIsBBServerHeadTouched(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+	httpmock.RegisterResponder("GET",
+		"https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/test-repo/branches/default",
+		getBBServerDefaultBranchResponderFn("master"))
+
+	client := newBitbucketServerClient(t.Context(), &v1alpha1.Repository{}, "https://bitbucketserver")
+
+	tt := []struct {
+		name              string
+		projectKey        string
+		repoSlug          string
+		revision          string
+		expectedTouchHead bool
+		expectedErrString string
+	}{
+		{
+			name:              "revision matches default branch",
+			projectKey:        "MYPROJECT",
+			repoSlug:          "test-repo",
+			revision:          "master",
+			expectedTouchHead: true,
+		},
+		{
+			name:              "revision does not match default branch",
+			projectKey:        "MYPROJECT",
+			repoSlug:          "test-repo",
+			revision:          "feature-branch",
+			expectedTouchHead: false,
+		},
+		{
+			name:              "unknown repo returns error",
+			projectKey:        "MYPROJECT",
+			repoSlug:          "unknown-repo",
+			revision:          "master",
+			expectedErrString: "https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/unknown-repo",
+		},
+	}
+	for _, test := range tt {
+		t.Run(test.name, func(t *testing.T) {
+			touchedHead, err := isBBServerHeadTouched(client, test.projectKey, test.repoSlug, test.revision)
+			if test.expectedErrString == "" {
+				require.NoError(t, err)
+				require.Equal(t, test.expectedTouchHead, touchedHead)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), test.expectedErrString)
+				require.False(t, touchedHead)
+			}
+		})
+	}
 }

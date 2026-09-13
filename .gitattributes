@@ -16,3 +16,5 @@ manifests/install-with-hydrator.yaml linguist-generated=true
 manifests/namespace-install.yaml linguist-generated=true
 manifests/namespace-install-with-hydrator.yaml linguist-generated=true
 pkg/apis/api-rules/violation_exceptions.list linguist-generated=true
+
+.github/workflows/*.lock.yml linguist-generated=true merge=ours

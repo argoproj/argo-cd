@@ -1,14 +1,68 @@
 'use strict;';
 
+const path = require('path');
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const {codecovWebpackPlugin} = require("@codecov/webpack-plugin");
+const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
 const webpack = require('webpack');
 
 const isProd = process.env.NODE_ENV === 'production';
 
+// React Compiler is on by default; set REACT_COMPILER=0 for a no-compiler
+// baseline build (used for A/B measurement). REACT_COMPILER_LOG=1 turns on the
+// plugin's per-component compiled/bailed report (off in normal/CI builds).
+const reactCompiler = process.env.REACT_COMPILER !== '0';
+const reactCompilerLog = process.env.REACT_COMPILER_LOG === '1';
+
 console.log(`Bundling in ${isProd ? 'production' : 'development'}...`);
+console.log(`React Compiler: ${reactCompiler ? 'enabled' : 'disabled'}${reactCompiler && reactCompilerLog ? ' (logging)' : ''}`);
+
+const esbuildTsxLoader = {
+    loader: 'esbuild-loader',
+    options: {
+        loader: 'tsx',
+        target: 'es2015',
+        tsconfigRaw: require('./tsconfig.json')
+    }
+};
+
+// When enabled, Babel handles the full .tsx transpile (TS + JSX) so the React
+// Compiler analyzes source-equivalent input. esbuild can't be the first pass
+// here: running the compiler on esbuild's type-stripped/JSX-lowered output
+// produces spurious bailouts, so we drop esbuild for .tsx when the compiler is
+// on and let Babel + esbuild's JS minify (later) split the work.
+//
+// Fast Refresh is only wired into this babel-loader path via react-refresh/babel
+// below. The esbuild-loader path (REACT_COMPILER=0) has no Babel plugin support,
+// so Fast Refresh doesn't work there; that's an accepted, documented gap since
+// REACT_COMPILER=0 is an explicit niche A/B-testing flag.
+const tsxRule = reactCompiler
+    ? {
+          test: /\.tsx?$/,
+          loader: 'babel-loader',
+          options: {
+              babelrc: false,
+              configFile: false,
+              // Strip types and transform JSX only; leave ES modules intact so
+              // webpack resolves imports (preset-env's module transform changed
+              // resolution and surfaced spurious missing-dep errors in argo-ui).
+              // esbuild's existing /\.js$/ rule handles final JS lowering.
+              presets: [
+                  ['@babel/preset-react', {runtime: 'automatic'}],
+                  ['@babel/preset-typescript', {isTSX: true, allExtensions: true}]
+              ],
+              plugins: [
+                  ['babel-plugin-react-compiler', {target: '19', ...(reactCompilerLog ? {logger: {logEvent: (filename, event) => console.log(`[react-compiler] ${event.kind} ${filename ?? ''}`)}} : {})}],
+                  ...(!isProd ? ['react-refresh/babel'] : [])
+              ]
+          }
+      }
+    : {
+          test: /\.tsx?$/,
+          ...esbuildTsxLoader
+      };
 
 const proxyConf = {
     target: process.env.ARGOCD_API_URL || 'http://localhost:8080',
@@ -23,9 +77,25 @@ const config = {
         filename: '[name].[contenthash].js',
         chunkFilename: '[name].[contenthash].chunk.js',
         path: __dirname + '/../../dist/app',
-        clean: true
+        // `gitkeep` (and assets/images/resources/.gitkeep) are tracked in git so ui/embed.go
+        // has something to embed before the UI is built; clean would otherwise delete them.
+        clean: {keep: /(^|\/)\.?gitkeep$/}
     },
     cache: { type: 'filesystem' },
+    optimization: {
+        runtimeChunk: 'single',
+        splitChunks: {
+            chunks: 'all',
+            cacheGroups: {
+                vendors: {
+                    test: /[\\/]node_modules[\\/]/,
+                    name: 'vendors',
+                    chunks: 'initial',
+                    priority: -5
+                }
+            }
+        }
+    },
 
     resolve: {
         extensions: ['.ts', '.tsx', '.js', '.json'],
@@ -39,15 +109,7 @@ const config = {
     }],
     module: {
         rules: [
-            {
-                test: /\.tsx?$/,
-                loader: 'esbuild-loader',
-                options: {
-                    loader: 'tsx',
-                    target: 'es2015',
-                    tsconfigRaw: require('./tsconfig.json')
-                }
-            },
+            tsxRule,
             {
                 enforce: 'pre',
                 test: /\.js$/,
@@ -102,6 +164,12 @@ const config = {
             })
         }),
         new HtmlWebpackPlugin({ template: 'src/app/index.html' }),
+        new webpack.NormalModuleReplacementPlugin(/^\.\/logs-viewer\/logs-viewer$/, resource => {
+            if (resource.context.endsWith(path.join('argo-ui', 'src', 'components'))) {
+                resource.request = path.resolve(__dirname, 'shims', 'logs-viewer.tsx');
+            }
+        }),
+        new webpack.IgnorePlugin({resourceRegExp: /^\.\/locale$/, contextRegExp: /moment$/}),
         new CopyWebpackPlugin({
             patterns: [{
                     from: 'src/assets',
@@ -116,8 +184,9 @@ const config = {
                     to: 'assets/fonts'
                 },
                 {
-                    from: 'node_modules/redoc/bundles/redoc.standalone.js',
-                    to: 'assets/scripts/redoc.standalone.js'
+                    // consumed by the server-rendered /swagger-ui page; keep in sync with swaggerUIAssetsPath in util/swagger
+                    from: 'node_modules/swagger-ui-dist/{swagger-ui-bundle.js,swagger-ui-standalone-preset.js,swagger-ui.css,favicon-16x16.png,favicon-32x32.png}',
+                    to: 'assets/swagger-ui/[name][ext]'
                 },
                 {
                     from: 'node_modules/monaco-editor/min/vs/base/browser/ui/codicons/codicon',
@@ -175,10 +244,14 @@ const config = {
 if (isProd) {
     config.performance = {
         hints: 'error',
-        // Max size is 6MB before gzip.
-        maxEntrypointSize: 6 * 1024 * 1024,
+        // Sizes are raw bytes before gzip.
+        maxEntrypointSize: 1.75 * 1024 * 1024,
         maxAssetSize: 6 * 1024 * 1024,
     };
+}
+
+if (!isProd && reactCompiler) {
+    config.plugins.push(new ReactRefreshWebpackPlugin());
 }
 
 config.devtool = isProd ? 'source-map' : 'eval-source-map';

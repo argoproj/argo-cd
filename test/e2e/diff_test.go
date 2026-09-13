@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"testing"
 
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 )
 
 // Values of `.data` & `.stringData“ fields in Secret resources are masked in UI/CLI
@@ -86,16 +86,19 @@ data:
 			// Server-Side diff should show a diff with the sensitive value masked
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--server-side-diff", "--exit-code=false")
 			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
 
 			// Local diff with server-side-generate should show a diff with the sensitive value masked
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", localRepoRoot, "--server-side-generate", "--exit-code=false")
 			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
 
 			// Local diff should exclude secret resources completely
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", appPath, "--local-repo-root", localRepoRoot, "--exit-code=false")
 			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Empty(t, diff, "Secret kind should not be displayed in CLI diff output")
 		})
 }
@@ -156,16 +159,19 @@ data:
 			// Server-Side diff should show a diff with the sensitive value masked
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--server-side-diff", "--exit-code=false")
 			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
 
 			// Local diff with server-side-generate should show a diff with the sensitive value masked
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", localRepoRoot, "--server-side-generate", "--exit-code=false")
 			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Contains(t, diff, "===== /Secret")
 
 			// Local diff should exclude secret resources completely
 			diff, err = fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", appPath, "--local-repo-root", localRepoRoot, "--exit-code=false")
 			require.NoError(t, err)
+			assert.False(t, sensitiveData.MatchString(diff))
 			assert.Empty(t, diff, "Secret kind should not be displayed in CLI diff output")
 
 			msg := app.Status.OperationState.Message

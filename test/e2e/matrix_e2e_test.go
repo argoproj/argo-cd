@@ -17,15 +17,11 @@ import (
 func TestListMatrixGenerator(t *testing.T) {
 	generateExpectedApp := func(cluster, name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       fmt.Sprintf("%s-%s", cluster, name),
-				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       fmt.Sprintf("%s-%s", cluster, name),
+			Namespace:  utils.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -137,15 +133,11 @@ func TestListMatrixGenerator(t *testing.T) {
 func TestClusterMatrixGenerator(t *testing.T) {
 	generateExpectedApp := func(cluster, name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       fmt.Sprintf("%s-%s", cluster, name),
-				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       fmt.Sprintf("%s-%s", cluster, name),
+			Namespace:  utils.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -260,15 +252,11 @@ func TestClusterMatrixGenerator(t *testing.T) {
 func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 	generateExpectedApp := func(cluster, name string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       fmt.Sprintf("%s-%s", cluster, name),
-				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       fmt.Sprintf("%s-%s", cluster, name),
+			Namespace:  utils.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -398,15 +386,11 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 	generateExpectedApp := func(name, nameSuffix string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       fmt.Sprintf("%s-%s", name, nameSuffix),
-				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       fmt.Sprintf("%s-%s", name, nameSuffix),
+			Namespace:  utils.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{

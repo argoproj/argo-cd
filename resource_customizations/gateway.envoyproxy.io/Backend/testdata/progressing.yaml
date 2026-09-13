@@ -1,0 +1,10 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: example-backend
+  namespace: default
+spec:
+  endpoints:
+  - ip:
+      address: 10.0.0.1
+      port: 8080
