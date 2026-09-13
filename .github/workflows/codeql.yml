@@ -67,22 +67,14 @@ jobs:
       # Override language selection by uncommenting this and choosing your languages
       # with:
       #   languages: go, javascript, csharp, python, cpp, java
+      with:
+        build-mode: manual
 
-    # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
-    # If this step fails, then you should remove it and run the build manually (see below)
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
-
-    # ℹ️ Command-line programs to run using the OS shell.
-    # 📚 https://git.io/JvXDl
-
-    # ✏️ If the Autobuild fails above, remove it and uncomment the following three lines
-    #    and modify them (or add more) to build your code if your project
-    #    uses a compiled language
-
-    #- run: |
-    #   make bootstrap
-    #   make release
+    # Build Go code manually so CodeQL can observe compilation. The default
+    # autobuild step runs `make cli`, which uses an interactive Docker
+    # container (`docker run -it`) and fails in the non-TTY CodeQL runner.
+    - name: Build Go code for CodeQL
+      run: go build ./...
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
