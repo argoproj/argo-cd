@@ -66,7 +66,21 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	now := metav1.Now()
 	cluster.Info.ConnectionState.ModifiedAt = &now
 
+	db.applyClusterCABundle(cluster)
 	return cluster
+}
+
+func (db *db) applyClusterCABundle(clusters ...*appv1.Cluster) {
+	caBundle, err := db.settingsMgr.GetClusterCABundle()
+	if err != nil {
+		log.Warnf("Failed to load default cluster CA bundle, clusters without their own caData will use system roots: %v", err)
+		return
+	}
+	for _, c := range clusters {
+		if c != nil {
+			c.DefaultCABundle = caBundle
+		}
+	}
 }
 
 // ListClusters returns list of clusters
@@ -100,6 +114,11 @@ func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 	if inClusterEnabled && !hasInClusterCredentials {
 		clusterList.Items = append(clusterList.Items, *db.getLocalCluster())
 	}
+	items := make([]*appv1.Cluster, len(clusterList.Items))
+	for i := range clusterList.Items {
+		items[i] = &clusterList.Items[i]
+	}
+	db.applyClusterCABundle(items...)
 	return &clusterList, nil
 }
 
@@ -177,6 +196,7 @@ func (db *db) WatchClusters(ctx context.Context,
 				log.Errorf("could not unmarshal cluster secret %s", secret.Name)
 				return
 			}
+			db.applyClusterCABundle(cluster)
 			if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
 				if inClusterEnabled {
 					// change local cluster event to modified, since it cannot be added at runtime
@@ -199,6 +219,7 @@ func (db *db) WatchClusters(ctx context.Context,
 				log.Errorf("could not unmarshal cluster secret %s", newSecret.Name)
 				return
 			}
+			db.applyClusterCABundle(oldCluster, newCluster)
 			if newCluster.Server == appv1.KubernetesInternalAPIServerAddr {
 				localCls = newCluster
 			}
@@ -262,6 +283,7 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 		// If so, use that instead of the hardcoded local cluster
 		cluster, err := informer.GetClusterByURL(server)
 		if err == nil {
+			db.applyClusterCABundle(cluster)
 			return cluster, nil
 		}
 		if !apierrors.IsNotFound(err) {
@@ -279,7 +301,7 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 		}
 		return nil, status.Errorf(codes.Internal, "failed to get cluster %q: %v", server, err)
 	}
-
+	db.applyClusterCABundle(cluster)
 	return cluster, nil
 }
 
@@ -293,6 +315,7 @@ func (db *db) GetProjectClusters(_ context.Context, project string) ([]*appv1.Cl
 	if err != nil {
 		return nil, fmt.Errorf("failed to get index by project clusters for project %q: %w", project, err)
 	}
+	db.applyClusterCABundle(clusters...)
 	return clusters, nil
 }
 

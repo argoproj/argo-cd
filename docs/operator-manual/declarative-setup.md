@@ -18,6 +18,7 @@ All resources, including `Application` and `AppProject` specs, have to be instal
 | [`argocd-rbac-cm.yaml`](argocd-rbac-cm-yaml.md)                       | argocd-rbac-cm                                                                     | ConfigMap | RBAC Configuration                                                                   |
 | [`argocd-tls-certs-cm.yaml`](argocd-tls-certs-cm-yaml.md)             | argocd-tls-certs-cm                                                                | ConfigMap | Custom TLS certificates for connecting Git repositories via HTTPS (v1.2 and later)   |
 | [`argocd-ssh-known-hosts-cm.yaml`](argocd-ssh-known-hosts-cm-yaml.md) | argocd-ssh-known-hosts-cm                                                          | ConfigMap | SSH known hosts data for connecting Git repositories via SSH (v1.2 and later)        |
+| [`argocd-cluster-ca-cm.yaml`](argocd-cluster-ca-cm-yaml.md)         | argocd-cluster-ca-cm                                                               | ConfigMap | Default CA bundle for connecting to the Kubernetes API server of clusters (v3.6 and later) |
 
 For each specific kind of ConfigMap and Secret resource, there is only a single supported resource name (as listed in the above table) - if you need to merge things you need to do it before creating them.
 
@@ -421,6 +422,9 @@ You can manage the TLS certificates used to verify the authenticity of your repo
 
 If there are no dedicated certificates configured for a repository server, the system's default trust store is used for validating the server's repository. This should be good enough for most (if not all) public Git repository services such as GitLab, GitHub and Bitbucket as well as most privately hosted sites which use certificates from well-known CAs, including Let's Encrypt certificates.
 
+`argocd-tls-certs-cm` only applies to repository connections. To trust a custom CA for the Kubernetes API server of
+managed clusters, see [Default CA bundle for cluster connections](#default-ca-bundle-for-cluster-connections).
+
 An example ConfigMap object:
 
 ```yaml
@@ -643,6 +647,53 @@ stringData:
       }
     }
 ```
+
+### Default CA bundle for cluster connections
+
+Organizations whose clusters all present API server certificates signed by the same internal CA would otherwise have
+to copy the same CA chain into the `tlsClientConfig.caData` of every cluster secret. Instead, a default CA bundle for
+cluster API server connections can be provided once in a ConfigMap named `argocd-cluster-ca-cm`, under the `ca.crt`
+key, as one or more PEM encoded certificates:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cluster-ca-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: argocd
+data:
+  ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    <root CA certificate>
+    -----END CERTIFICATE-----
+    -----BEGIN CERTIFICATE-----
+    <intermediate CA certificate>
+    -----END CERTIFICATE-----
+```
+
+The bundle is a fallback, not a merge:
+
+- A cluster secret that defines its own `tlsClientConfig.caData` uses only that CA. The default bundle is ignored for
+  that cluster, so clusters that manage their own trust chain are fully isolated from the default bundle.
+- A cluster secret whose `tlsClientConfig.caData` is empty or absent uses the default bundle. This also applies to
+  clusters registered with `argocd cluster add`, which do not store the CA in the secret by default.
+- If neither is configured, the system's default trust store is used, which is the behavior of previous versions.
+
+The bundle only applies to connections to the Kubernetes API server of managed clusters. It does not affect
+repository connections (Git, Helm, OCI), which are configured through
+[`argocd-tls-certs-cm`](#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca), and it does not
+affect the [in-cluster](#clusters) endpoint, which always uses the service account CA of the cluster Argo CD runs in.
+
+Changes to the ConfigMap are picked up at runtime: the application controller and API server reload the bundle and
+rebuild the connections of the clusters that rely on it, so the CA can be rotated by updating the single ConfigMap.
+If `ca.crt` is blank or does not contain a valid PEM certificate, the bundle is treated as absent and a warning is
+logged.
+
+> [!NOTE]
+> The ConfigMap must carry the `app.kubernetes.io/part-of: argocd` label, like the other Argo CD ConfigMaps, to be
+> picked up. An empty `argocd-cluster-ca-cm` is created by the default installation manifests.
 
 ### Skipping Cluster Reconciliation
 
