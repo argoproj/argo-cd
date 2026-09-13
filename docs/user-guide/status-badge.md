@@ -48,7 +48,7 @@ Example: `&revision=true`
 
 By default, displayed revision is truncated to 7 characters.
 
-This parameter allows to display it fully if it exceeds that length.
+This parameter allows you to display it fully if it exceeds that length.
 
 It will also extend the badge width to 400px.
 
