@@ -1,13 +1,12 @@
-import {NotificationType, Tooltip} from 'argo-ui';
+import {Tooltip} from 'argo-ui';
 import * as React from 'react';
 import Moment from 'react-moment';
 import {AuthSettingsCtx, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import * as AppUtils from '../utils';
-import {getApplicationLinkURL, getManagedByURL, getAppSetHealthStatus, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
+import {getAppSetHealthStatus} from '../utils';
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
-import {isValidManagedByURL} from '../../../shared/utils';
 import {CellLink} from '../../../shared/components';
 
 export interface AppSetTableRowProps {
@@ -20,43 +19,15 @@ export interface AppSetTableRowProps {
 export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
+    const isFav = AppUtils.isFavorite(favList, appSet);
     const healthStatus = getAppSetHealthStatus(appSet);
-    const linkInfo = getApplicationLinkURL(appSet, ctx.baseHref);
-    const managedByURL = getManagedByURL(appSet);
-    const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
     // AppSet pages don't support the Application details `view` param, so the link is view-less.
     const appSetLink = AppUtils.getAppListLink(ctx, appSet);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (favList?.includes(appSet.metadata.name)) {
-            favList.splice(favList.indexOf(appSet.metadata.name), 1);
-        } else {
-            favList.push(appSet.metadata.name);
-        }
-        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
-    };
-
-    const handleExternalLinkClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (managedByURLInvalid) {
-            ctx.notifications.show({
-                content: (
-                    <div>
-                        <div style={{fontWeight: 600}}>{MANAGED_BY_URL_INVALID_TEXT}</div>
-                        <div style={{marginTop: 6}}>{MANAGED_BY_URL_INVALID_TOOLTIP}</div>
-                    </div>
-                ),
-                type: NotificationType.Warning
-            });
-            return;
-        }
-        if (linkInfo.isExternal) {
-            window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
-        } else {
-            ctx.navigation.goto(appSetLink.path);
-        }
+        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: AppUtils.toggleFavorite(favList, appSet)}});
     };
 
     return (
@@ -76,13 +47,13 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                 <div className='columns small-4'>
                     <div className='applications-list__meta-column'>
                         <div className='applications-list__fav-col'>
-                            <Tooltip content={favList?.includes(appSet.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
+                            <Tooltip content={isFav ? 'Remove Favorite' : 'Add Favorite'}>
                                 <button type='button' onClick={handleFavoriteToggle}>
                                     <i
-                                        className={favList?.includes(appSet.metadata.name) ? 'fas fa-star' : 'far fa-star'}
+                                        className={isFav ? 'fas fa-star' : 'far fa-star'}
                                         style={{
                                             cursor: 'pointer',
-                                            color: favList?.includes(appSet.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                                            color: isFav ? '#FFCE25' : '#8fa4b1'
                                         }}
                                     />
                                 </button>
@@ -110,13 +81,6 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                                             {appSet.metadata.name}
                                         </a>
                                     </Tooltip>
-                                    <button
-                                        type='button'
-                                        className={`applications-list__open-app-button${managedByURLInvalid ? ' managed-by-url-invalid' : ''}`}
-                                        onClick={handleExternalLinkClick}
-                                        title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
-                                        <i className='fa fa-window-maximize' />
-                                    </button>
                                 </div>
                             </div>
                         </div>
