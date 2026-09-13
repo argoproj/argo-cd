@@ -49,6 +49,64 @@ Verify: run `docker version`
 
 You won't need a fully blown multi-master, multi-node cluster, but you will need something like K3S, K3d, Minikube, Kind or microk8s. You will also need a working Kubernetes client (`kubectl`) configuration in your development environment. The configuration must reside in `~/.kube/config`.
 
+> [!WARNING]
+> **Windows users:** The local development workflow is designed primarily for Linux. If you are using Windows, run **all commands in this guide, including the commands that create or delete clusters, from inside WSL 2**. Do not create the Kind cluster from PowerShell or Command Prompt and then run the Argo CD commands from WSL 2.
+>
+> Docker Desktop must be running and configured to use the WSL 2 engine, with your WSL 2 distribution enabled under Docker Desktop's WSL integration settings. This is only needed when the Argo CD toolchain runs in Docker Desktop while the Kind cluster is created inside WSL 2, because the two environments live on different network stacks and cannot reach each other through the default kubeconfig. The following additional steps allow the Docker container used by Argo CD's virtualized toolchain to reach a Kind API server created in WSL 2.
+
+#### Windows and WSL 2 networking setup
+
+Run these commands from your WSL 2 shell, in the root of the Argo CD repository:
+
+1. Create `kind-config.yaml` with the API server listening on all interfaces:
+
+   ```yaml
+   kind: Cluster
+   apiVersion: kind.x-k8s.io/v1alpha4
+   networking:
+     apiServerAddress: "0.0.0.0"
+   ```
+
+2. Delete any existing Kind cluster and create a new one using this configuration:
+
+   ```shell
+   kind delete cluster
+   kind create cluster --config kind-config.yaml
+   ```
+
+3. Find the WSL 2 gateway address. You will use this address in the next step:
+
+   ```shell
+   WSL_GATEWAY_IP=$(ip route show default | awk '{print $3}')
+   ```
+
+4. Back up the WSL 2 kubeconfig and create a container-specific copy. Kind writes the API server as `127.0.0.1` with a dynamically published port, so replace only the loopback host and preserve that port:
+
+   ```shell
+   cp ~/.kube/config ~/.kube/config.local
+   cp ~/.kube/config ~/.kube/config.container
+   sed -E -i "s#(server: https://)(127\\.0\\.0\\.1|localhost):([0-9]+)#\\1${WSL_GATEWAY_IP}:\\3#" ~/.kube/config.container
+   sed -i '/certificate-authority-data/d' ~/.kube/config.container
+   sed -i '/server:/a \    insecure-skip-tls-verify: true' ~/.kube/config.container
+   cp ~/.kube/config.container ~/.kube/config
+   ```
+
+   The certificate authority data is removed because the API server is now reached through the WSL 2 gateway address rather than its original host name. The client certificate and key remain in the kubeconfig so Kubernetes can authenticate the request.
+
+5. Verify that the virtualized toolchain can reach the cluster:
+
+   ```shell
+   make verify-kube-connect
+   ```
+
+6. Restore your normal kubeconfig immediately after verification:
+
+   ```shell
+   cp ~/.kube/config.local ~/.kube/config
+   ```
+
+   Repeat steps 4 through 6 whenever you need to run a Make target that accesses the Kind cluster from a Docker container. Keep `~/.kube/config.container` private because it disables TLS certificate verification.
+
 #### Kind
 
 ##### [Installation guide](https://kind.sigs.k8s.io/docs/user/quick-start)
