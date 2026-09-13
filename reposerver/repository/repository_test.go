@@ -1872,6 +1872,46 @@ func TestGetAppDetailsHelm_WithNoValuesFile(t *testing.T) {
 	assert.Empty(t, res.Helm.Values)
 }
 
+func TestGetAppDetailsRefSourceCacheKey(t *testing.T) {
+	service, _, cacheMocks := newServiceWithMocks(t, "../../util/helm/testdata/dependency")
+
+	// Call GetAppDetails — first call misses the cache, triggering the operation
+	// closure which should call SetAppDetails with the ref source commit SHAs
+	// resolved by runRepoOperation (here empty map because no RefSources).
+	res, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
+		Repo:   &v1alpha1.Repository{},
+		Source: &v1alpha1.ApplicationSource{Path: "."},
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, res.Helm)
+
+	// Verify that the internal cacheFn wiring does not panic when called with
+	// non-nil ResolvedRevisions (the code before the fix used `_` and nil).
+	handler := service.createGetAppDetailsCacheHandler(&apiclient.RepoAppDetailsResponse{}, &apiclient.RepoServerAppDetailsQuery{
+		Repo:   &v1alpha1.Repository{},
+		Source: &v1alpha1.ApplicationSource{Path: "."},
+		RefSources: v1alpha1.RefTargetRevisionMapping{
+			"$values": &v1alpha1.RefTarget{TargetRevision: "main"},
+		},
+	})
+
+	// Passing a non-nil refSourceCommitSHAs should not panic and should produce
+	// a cache miss (since the key now includes those SHAs and nothing was cached
+	// under that key).
+	hit, err := handler("HEAD", cache.ResolvedRevisions{"https://fake.com/fake_group/fake_repo.git": "abc123"}, false)
+	require.NoError(t, err)
+	assert.False(t, hit, "expected cache miss when ref source SHAs change the cache key")
+
+	// Calling again with the same SHAs after SetAppDetails should hit.
+	_ = cacheMocks.cache.SetAppDetails("HEAD", &v1alpha1.ApplicationSource{Path: "."}, v1alpha1.RefTargetRevisionMapping{
+		"$values": &v1alpha1.RefTarget{TargetRevision: "main"},
+	}, &apiclient.RepoAppDetailsResponse{Type: "Helm"}, v1alpha1.TrackingMethodLabel, cache.ResolvedRevisions{"https://fake.com/fake_group/fake_repo.git": "abc123"})
+
+	hit2, err := handler("HEAD", cache.ResolvedRevisions{"https://fake.com/fake_group/fake_repo.git": "abc123"}, false)
+	require.NoError(t, err)
+	assert.True(t, hit2, "expected cache hit when ref source SHAs match the cached entry")
+}
+
 func TestGetAppDetailsKustomize(t *testing.T) {
 	service := newService(t, "../../util/kustomize/testdata/kustomization_yaml")
 
