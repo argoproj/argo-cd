@@ -1,8 +1,11 @@
 package e2e
 
 import (
+	"bufio"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,11 +13,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 func TestKubectlMetrics(t *testing.T) {
@@ -111,4 +116,63 @@ func TestKubectlMetrics(t *testing.T) {
 	assert.Contains(t, string(body), "argocd_kubectl_requests_total", "metrics should have contained argocd_kubectl_requests_total")
 	assert.Contains(t, string(body), "grpc_server_handled_total", "metrics should have contained grpc_server_handled_total for all the reflected methods")
 	assert.Contains(t, string(body), "grpc_server_msg_received_total", "metrics should have contained grpc_server_msg_received_total for all the reflected methods")
+}
+
+func TestActiveUsersMetric(t *testing.T) {
+	fixture.EnsureCleanState(t)
+
+	baseline := scrapeActiveUsersCount(t)
+
+	require.NoError(t, fixture.SetAccounts(map[string][]string{
+		"active-user-1": {"login"},
+		"active-user-2": {"login"},
+	}))
+
+	for _, username := range []string{"active-user-1", "active-user-2"} {
+		_, err := fixture.RunCli("account", "update-password", "--account", username, "--current-password", fixture.AdminPassword, "--new-password", fixture.DefaultTestUserPassword)
+		require.NoError(t, err)
+	}
+
+	for _, username := range []string{"active-user-1", "active-user-2"} {
+		require.NoError(t, fixture.LoginAs(username))
+		closer, client := fixture.ArgoCDClientset.NewSessionClientOrDie()
+		_, err := client.GetUserInfo(t.Context(), &sessionpkg.GetUserInfoRequest{})
+		utilio.Close(closer)
+		require.NoError(t, err)
+	}
+
+	count := scrapeActiveUsersCount(t)
+	assert.Equal(t, baseline+2, count)
+}
+
+func scrapeActiveUsersCount(t *testing.T) int {
+	t.Helper()
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://127.0.0.1:8083/metrics", http.NoBody)
+	require.NoError(t, err)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, resp.Body.Close())
+	}()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	return parseActiveUsersMetric(t, string(body))
+}
+
+func parseActiveUsersMetric(t *testing.T, body string) int {
+	t.Helper()
+	sc := bufio.NewScanner(strings.NewReader(body))
+	for sc.Scan() {
+		line := sc.Text()
+		if strings.HasPrefix(line, "argocd_server_active_users_24h ") {
+			fields := strings.Fields(line)
+			require.Len(t, fields, 2)
+			val, err := strconv.ParseFloat(fields[1], 64)
+			require.NoError(t, err)
+			return int(val)
+		}
+	}
+	require.NoError(t, sc.Err())
+	return 0
 }

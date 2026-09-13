@@ -133,6 +133,15 @@ func (m *MetricsServer) RecordActiveUser(user string) {
 	}
 }
 
+// ActiveUsersCount returns the current number of distinct active principals
+// tracked by the active user metric.
+func (m *MetricsServer) ActiveUsersCount() int {
+	if m.activeUsersTracker == nil {
+		return 0
+	}
+	return m.activeUsersTracker.Count()
+}
+
 func (m *MetricsServer) IncRedisRequest(command string, failed bool) {
 	m.redisRequestCounter.WithLabelValues("argocd-server", command, strconv.FormatBool(failed)).Inc()
 }
