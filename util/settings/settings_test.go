@@ -82,6 +82,60 @@ func TestGetConfigMapByName(t *testing.T) {
 	})
 }
 
+func TestGetClusterCABundle(t *testing.T) {
+	validCABundle := testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt")
+	clusterCAConfigMap := func(caBundle string) *corev1.ConfigMap {
+		return &corev1.ConfigMap{
+			Name:      common.ArgoCDClusterCAConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+			Data: map[string]string{
+				common.ArgoCDClusterCAConfigMapKey: caBundle,
+			},
+		}
+	}
+
+	t.Run("returns nil when the ConfigMap does not exist", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), nil)
+
+		caBundle, err := settingsManager.GetClusterCABundle()
+		require.NoError(t, err)
+		assert.Nil(t, caBundle)
+	})
+
+	t.Run("returns nil when ca.crt is blank", func(t *testing.T) {
+		kubeClient, settingsManager := fixtures(t.Context(), nil)
+		_, err := kubeClient.CoreV1().ConfigMaps("default").Create(t.Context(), clusterCAConfigMap("   \n"), metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		caBundle, err := settingsManager.GetClusterCABundle()
+		require.NoError(t, err)
+		assert.Nil(t, caBundle)
+	})
+
+	t.Run("returns an error when ca.crt does not contain a valid PEM certificate", func(t *testing.T) {
+		kubeClient, settingsManager := fixtures(t.Context(), nil)
+		_, err := kubeClient.CoreV1().ConfigMaps("default").Create(t.Context(), clusterCAConfigMap("not a certificate"), metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		caBundle, err := settingsManager.GetClusterCABundle()
+		require.ErrorContains(t, err, "does not contain any valid PEM encoded certificate")
+		assert.Nil(t, caBundle)
+	})
+
+	t.Run("returns the trimmed PEM bundle when ca.crt is valid", func(t *testing.T) {
+		kubeClient, settingsManager := fixtures(t.Context(), nil)
+		_, err := kubeClient.CoreV1().ConfigMaps("default").Create(t.Context(), clusterCAConfigMap("\n"+validCABundle+"\n"), metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		caBundle, err := settingsManager.GetClusterCABundle()
+		require.NoError(t, err)
+		assert.Equal(t, []byte(strings.TrimSpace(validCABundle)), caBundle)
+	})
+}
+
 func TestGetSecretByName(t *testing.T) {
 	t.Run("data is never nil", func(t *testing.T) {
 		_, settingsManager := fixtures(t.Context(), nil, func(secret *corev1.Secret) { secret.Data = nil })

@@ -2330,6 +2330,10 @@ type ConnectionState struct {
 type Cluster struct {
 	// ID is an internal field cluster identifier. Not exposed via API.
 	ID string `json:"-"`
+	// DefaultCABundle is the default CA bundle (from the argocd-cluster-ca-cm ConfigMap) used to verify the cluster API
+	// server only when Config.CAData is empty. It is populated at runtime by the DB layer and is neither persisted in the
+	// cluster secret nor exposed via API.
+	DefaultCABundle []byte `json:"-"`
 	// Server is the API server URL of the Kubernetes cluster
 	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
 	// Name of the cluster. If omitted, will use the server address
@@ -4077,12 +4081,18 @@ func (c *Cluster) rawRestConfig() (*rest.Config, error) {
 			config.BearerTokenFile = ""
 		}
 	default:
+		// Fall back to the default cluster CA bundle only when the cluster does not define its own CA. The bundles are
+		// never merged: a cluster that sets caData is fully isolated from the default bundle.
+		caData := c.Config.CAData
+		if len(caData) == 0 {
+			caData = c.DefaultCABundle
+		}
 		tlsClientConfig := rest.TLSClientConfig{
 			Insecure:   c.Config.Insecure,
 			ServerName: c.Config.ServerName,
 			CertData:   c.Config.CertData,
 			KeyData:    c.Config.KeyData,
-			CAData:     c.Config.CAData,
+			CAData:     caData,
 		}
 		switch {
 		case c.Config.AWSAuthConfig != nil:
