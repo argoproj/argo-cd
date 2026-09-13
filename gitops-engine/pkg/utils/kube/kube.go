@@ -447,43 +447,39 @@ func GetDeploymentReplicas(u *unstructured.Unstructured) *int64 {
 }
 
 func GetResourceImages(u *unstructured.Unstructured) []string {
-	var containers []any
-	var found bool
-	var err error
 	var images []string
 
 	containerPaths := [][]string{
-		// Resources without template, like pods
+		// Resources without a template, like Pods.
+		{"spec", "initContainers"},
 		{"spec", "containers"},
-		// Resources with template, like deployments
+		// Resources with a template, like Deployments.
+		{"spec", "template", "spec", "initContainers"},
 		{"spec", "template", "spec", "containers"},
-		// Cronjobs
+		// CronJobs.
+		{"spec", "jobTemplate", "spec", "template", "spec", "initContainers"},
 		{"spec", "jobTemplate", "spec", "template", "spec", "containers"},
 	}
 
 	for _, path := range containerPaths {
-		containers, found, err = unstructured.NestedSlice(u.Object, path...)
-		if found && err == nil {
-			break
-		}
-	}
-
-	if !found || err != nil {
-		return nil
-	}
-
-	for _, container := range containers {
-		containerMap, ok := container.(map[string]any)
-		if !ok {
-			continue
-		}
-
-		image, found, err := unstructured.NestedString(containerMap, "image")
+		containers, found, err := unstructured.NestedSlice(u.Object, path...)
 		if !found || err != nil {
 			continue
 		}
 
-		images = append(images, image)
+		for _, container := range containers {
+			containerMap, ok := container.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			image, found, err := unstructured.NestedString(containerMap, "image")
+			if !found || err != nil {
+				continue
+			}
+
+			images = append(images, image)
+		}
 	}
 
 	return images

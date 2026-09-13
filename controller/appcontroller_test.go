@@ -75,6 +75,7 @@ type fakeData struct {
 	manifestResponses               []*apiclient.ManifestResponse
 	managedLiveObjs                 map[kube.ResourceKey]*unstructured.Unstructured
 	namespacedResources             map[kube.ResourceKey]namespacedResource
+	hierarchyResources              map[kube.ResourceKey][]namespacedResource
 	configMapData                   map[string]string
 	metricsCacheExpiration          time.Duration
 	applicationNamespaces           []string
@@ -286,6 +287,14 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	mockStateCache.EXPECT().GetClusterCache(mock.Anything).Return(clusterCacheMock, nil)
 	mockStateCache.EXPECT().IterateHierarchyV2(mock.Anything, mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Cluster, keys []kube.ResourceKey, action func(_ v1alpha1.ResourceNode, _ string) bool) {
 		for _, key := range keys {
+			if resources, ok := data.hierarchyResources[key]; ok {
+				for _, resource := range resources {
+					if !action(resource.ResourceNode, resource.AppName) {
+						break
+					}
+				}
+				continue
+			}
 			appName := ""
 			if res, ok := data.namespacedResources[key]; ok {
 				appName = res.AppName
@@ -1896,6 +1905,92 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []v1alpha1.ResourceNode{managedDeploy}, tree.Nodes)
 	assert.Equal(t, []v1alpha1.ResourceNode{orphanedDeploy1, orphanedDeploy2}, tree.OrphanedNodes)
+}
+
+func TestGetResourceTree_IncludesDescendantPodImagesInSummary(t *testing.T) {
+	app := newFakeApp()
+	proj := defaultProj.DeepCopy()
+	deploymentKey := kube.NewResourceKey("apps", "Deployment", "default", "nginx-deployment")
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, proj},
+		hierarchyResources: map[kube.ResourceKey][]namespacedResource{
+			deploymentKey: {
+				{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment"},
+				{Group: "apps", Kind: "ReplicaSet", Namespace: "default", Name: "nginx-deployment-abc123"},
+				{
+					Kind:      "Pod",
+					Namespace: "default",
+					Name:      "nginx-deployment-abc123-def45",
+					Images:    []string{"nginx:1.15.4"},
+				},
+			},
+		},
+	}, nil)
+
+	tree, err := ctrl.getResourceTree(
+		&v1alpha1.Cluster{Server: "https://localhost:6443", Name: "fake-cluster"},
+		app,
+		[]*v1alpha1.ResourceDiff{{
+			Namespace: "default",
+			Name:      "nginx-deployment",
+			Kind:      "Deployment",
+			Group:     "apps",
+			LiveState: `{
+				"apiVersion": "apps/v1",
+				"kind": "Deployment",
+				"metadata": {"name": "nginx-deployment", "namespace": "default"},
+				"spec": {"template": {"spec": {"containers": [{"name": "nginx", "image": "nginx:1.16.0"}]}}}
+			}`,
+		}},
+	)
+	require.NoError(t, err)
+
+	summary := tree.GetSummary(app)
+	assert.Equal(t, []string{"nginx:1.15.4"}, summary.Images)
+}
+
+func TestGetResourceTree_UsesManagedWorkloadImagesWhenTreeHasNoImages(t *testing.T) {
+	app := newFakeApp()
+	proj := defaultProj.DeepCopy()
+	deploymentKey := kube.NewResourceKey("apps", "Deployment", "default", "nginx-deployment")
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, proj},
+		hierarchyResources: map[kube.ResourceKey][]namespacedResource{
+			deploymentKey: {
+				{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment"},
+			},
+		},
+	}, nil)
+
+	tree, err := ctrl.getResourceTree(
+		&v1alpha1.Cluster{Server: "https://localhost:6443", Name: "fake-cluster"},
+		app,
+		[]*v1alpha1.ResourceDiff{{
+			Namespace: "default",
+			Name:      "nginx-deployment",
+			Kind:      "Deployment",
+			Group:     "apps",
+			LiveState: `{
+				"apiVersion": "apps/v1",
+				"kind": "Deployment",
+				"metadata": {"name": "nginx-deployment", "namespace": "default"},
+				"spec": {"template": {"spec": {
+					"initContainers": [{"name": "setup", "image": "setup:1.0.0"}],
+					"containers": [{"name": "nginx", "image": "nginx:1.15.4"}]
+				}}}
+			}`,
+		}},
+	)
+	require.NoError(t, err)
+
+	summary := tree.GetSummary(app)
+	assert.Equal(t, []string{"nginx:1.15.4", "setup:1.0.0"}, summary.Images)
+}
+
+func TestGetResourceImagesFromLiveState_InvalidJSON(t *testing.T) {
+	assert.Nil(t, getResourceImagesFromLiveState("{"))
 }
 
 func TestSetOperationStateOnDeletedApp(t *testing.T) {
