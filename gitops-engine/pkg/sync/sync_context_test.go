@@ -388,6 +388,83 @@ func TestSyncSuccessfully_Multistep(t *testing.T) {
 	assert.Len(t, resources, 2)
 }
 
+func TestSyncSuccessfully_MultistepSkipHealthCheck(t *testing.T) {
+	// targetSkip and liveSkip control whether the desired and the live wave-0 Service carry the option.
+	newTest := func(t *testing.T, targetSkip, liveSkip bool) *syncContext {
+		t.Helper()
+		newSvc := testingutils.NewService()
+		newSvc.SetNamespace(testingutils.FakeArgoCDNamespace)
+		testingutils.Annotate(newSvc, synccommon.AnnotationSyncWave, "0")
+		liveSvc := newSvc.DeepCopy()
+		if targetSkip {
+			testingutils.Annotate(newSvc, synccommon.AnnotationSyncOptions, synccommon.SyncOptionSkipHealthCheck)
+		}
+		if liveSkip {
+			testingutils.Annotate(liveSvc, synccommon.AnnotationSyncOptions, synccommon.SyncOptionSkipHealthCheck)
+		}
+
+		newSvc2 := testingutils.NewService()
+		newSvc2.SetNamespace(testingutils.FakeArgoCDNamespace)
+		newSvc2.SetName("new-svc-2")
+		testingutils.Annotate(newSvc2, synccommon.AnnotationSyncWave, "5")
+
+		// The wave 0 resource never becomes healthy.
+		syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false),
+			WithHealthOverride(resourceNameHealthOverride(map[string]health.HealthStatusCode{
+				newSvc.GetName(): health.HealthStatusProgressing,
+			})))
+
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{nil, nil},
+			Target: []*unstructured.Unstructured{newSvc, newSvc2},
+		})
+
+		syncCtx.Sync(t.Context())
+		phase, message, resources := syncCtx.GetState()
+		require.Equal(t, synccommon.OperationRunning, phase)
+		require.Equal(t, "waiting for healthy state of /Service/my-service", message)
+		require.Len(t, resources, 1)
+
+		// Update the live resources for the next sync
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{liveSvc, nil},
+			Target: []*unstructured.Unstructured{newSvc, newSvc2},
+		})
+		return syncCtx
+	}
+
+	t.Run("without SkipHealthCheck the next wave waits for healthy", func(t *testing.T) {
+		syncCtx := newTest(t, false, false)
+		syncCtx.Sync(t.Context())
+		phase, message, resources := syncCtx.GetState()
+		assert.Equal(t, synccommon.OperationRunning, phase)
+		assert.Equal(t, "waiting for healthy state of /Service/my-service", message)
+		assert.Len(t, resources, 1)
+	})
+
+	t.Run("SkipHealthCheck removed from the desired state takes effect in the same sync", func(t *testing.T) {
+		syncCtx := newTest(t, false, true)
+		syncCtx.Sync(t.Context())
+		phase, message, resources := syncCtx.GetState()
+		assert.Equal(t, synccommon.OperationRunning, phase)
+		assert.Equal(t, "waiting for healthy state of /Service/my-service", message)
+		assert.Len(t, resources, 1)
+	})
+
+	t.Run("with SkipHealthCheck the next wave proceeds", func(t *testing.T) {
+		syncCtx := newTest(t, true, false)
+		syncCtx.Sync(t.Context())
+		phase, message, resources := syncCtx.GetState()
+		assert.Equal(t, synccommon.OperationSucceeded, phase)
+		assert.Equal(t, "successfully synced (all tasks run)", message)
+		assert.Len(t, resources, 2)
+		result := getResourceResult(resources, kube.NewResourceKey("", "Service", testingutils.FakeArgoCDNamespace, "my-service"))
+		require.NotNil(t, result)
+		assert.Equal(t, synccommon.ResultCodeSynced, result.Status)
+		assert.Equal(t, synccommon.OperationSucceeded, result.HookPhase)
+	})
+}
+
 func TestSync_MultistepResourceDeletionMidstep(t *testing.T) {
 	pod1 := testingutils.NewPod()
 	pod1.SetName("pod-1")
