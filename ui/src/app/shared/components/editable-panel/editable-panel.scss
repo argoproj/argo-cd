@@ -13,6 +13,16 @@
         top: 30px;
         right: 3em;
         z-index: 12; // above the sticky title
+        white-space: nowrap;
+    }
+
+    &__validation-toggle {
+        margin-right: 1em;
+        white-space: nowrap;
+
+        label {
+            margin-left: 0.3em;
+        }
     }
 
     &__divider {
