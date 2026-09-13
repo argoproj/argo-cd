@@ -3,12 +3,14 @@ package pull_request
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	"os"
 
 	"code.gitea.io/sdk/gitea"
 
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
@@ -50,36 +52,55 @@ func NewGiteaService(token, url, owner, repo string, labels []string, insecure b
 }
 
 func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
-	opts := gitea.ListPullRequestsOptions{
-		State: gitea.StateOpen,
-	}
 	g.client.SetContext(ctx)
 	list := []*PullRequest{}
-	prs, resp, err := g.client.ListRepoPullRequests(g.owner, g.repo, opts)
-	if err != nil {
-		if resp != nil && resp.StatusCode == http.StatusNotFound {
-			// return a custom error indicating that the repository is not found,
-			// but also returning the empty result since the decision to continue or not in this case is made by the caller
-			return list, NewRepositoryNotFoundError(err)
+	fetched := 0
+	firstOfPreviousPage := int64(0)
+	for page := 1; ; page++ {
+		opts := gitea.ListPullRequestsOptions{
+			Page:     page,
+			PageSize: services.GiteaPageSize,
+			State:    gitea.StateOpen,
 		}
-		return nil, err
-	}
+		prs, resp, err := g.client.ListRepoPullRequests(g.owner, g.repo, opts)
+		if err != nil {
+			if resp != nil && resp.StatusCode == http.StatusNotFound {
+				// return a custom error indicating that the repository is not found,
+				// but also returning the empty result since the decision to continue or not in this case is made by the caller
+				return []*PullRequest{}, NewRepositoryNotFoundError(err)
+			}
+			return nil, err
+		}
+		if len(prs) == 0 {
+			return list, nil
+		}
+		if page > services.GiteaMaxPages {
+			return nil, fmt.Errorf("gitea returned more than %d pages of pull requests for repo %q", services.GiteaMaxPages, g.repo)
+		}
+		if page > 1 && prs[0].Index == firstOfPreviousPage {
+			return nil, fmt.Errorf("gitea returned the same pull requests on pages %d and %d for repo %q, the server is not honouring the page parameter", page-1, page, g.repo)
+		}
+		firstOfPreviousPage = prs[0].Index
+		fetched += len(prs)
 
-	for _, pr := range prs {
-		if !giteaContainLabels(g.labels, pr.Labels) {
-			continue
+		for _, pr := range prs {
+			if !giteaContainLabels(g.labels, pr.Labels) {
+				continue
+			}
+			list = append(list, &PullRequest{
+				Number:       int64(pr.Index),
+				Title:        pr.Title,
+				Branch:       pr.Head.Ref,
+				TargetBranch: pr.Base.Ref,
+				HeadSHA:      pr.Head.Sha,
+				Labels:       getGiteaPRLabelNames(pr.Labels),
+				Author:       pr.Poster.UserName,
+			})
 		}
-		list = append(list, &PullRequest{
-			Number:       int64(pr.Index),
-			Title:        pr.Title,
-			Branch:       pr.Head.Ref,
-			TargetBranch: pr.Base.Ref,
-			HeadSHA:      pr.Head.Sha,
-			Labels:       getGiteaPRLabelNames(pr.Labels),
-			Author:       pr.Poster.UserName,
-		})
+		if services.GiteaAllCollected(resp, fetched) {
+			return list, nil
+		}
 	}
-	return list, nil
 }
 
 // containLabels returns true if gotLabels contains expectedLabels
