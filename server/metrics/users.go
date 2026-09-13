@@ -94,10 +94,15 @@ func (t *ActiveUserTracker) Record(user string) {
 func (t *ActiveUserTracker) record(user string, now time.Time) {
 	id := t.Hash(user)
 	t.mu.Lock()
-	t.lastSeen[id] = now
-	count := len(t.lastSeen)
+	// Only advance the stored timestamp so a stale update cannot overwrite a
+	// newer one and cause premature eviction.
+	if prev, ok := t.lastSeen[id]; !ok || now.After(prev) {
+		t.lastSeen[id] = now
+	}
+	// The gauge update happens under the lock so a concurrent record or evict
+	// cannot publish a stale count.
+	t.gauge.Set(float64(len(t.lastSeen)))
 	t.mu.Unlock()
-	t.gauge.Set(float64(count))
 }
 
 // Count returns the number of currently tracked entries.
@@ -139,7 +144,8 @@ func (t *ActiveUserTracker) evict(now time.Time) {
 			delete(t.lastSeen, id)
 		}
 	}
-	count := len(t.lastSeen)
+	// The gauge update happens under the lock so a concurrent record or evict
+	// cannot publish a stale count.
+	t.gauge.Set(float64(len(t.lastSeen)))
 	t.mu.Unlock()
-	t.gauge.Set(float64(count))
 }

@@ -1580,12 +1580,6 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 				log.Warnf("Failed to set %s header", renewTokenKey)
 			}
 		}
-		// Record the authenticated principal for the active user metric.
-		if server.metricServer != nil {
-			if user := util_session.GetUserIdentifier(ctx); user != "" {
-				server.metricServer.RecordActiveUser(user)
-			}
-		}
 	}
 	if claimsErr != nil {
 		//nolint:staticcheck
@@ -1602,6 +1596,15 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 		}
 		//nolint:staticcheck
 		ctx = context.WithValue(ctx, "claims", "")
+	}
+
+	// Record the authenticated principal for the active user metric.
+	if claimsErr == nil {
+		if server.metricServer != nil {
+			if user := util_session.GetUserIdentifier(ctx); user != "" {
+				server.metricServer.RecordActiveUser(user)
+			}
+		}
 	}
 
 	return ctx, nil

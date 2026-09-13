@@ -14,14 +14,14 @@ func TestActiveUserTrackerRecordIncreasesGauge(t *testing.T) {
 	t.Parallel()
 
 	tracker := NewActiveUserTracker(time.Hour, time.Minute)
-	assert.Equal(t, 0.0, testutil.ToFloat64(tracker.Gauge()))
+	assert.InDelta(t, 0.0, testutil.ToFloat64(tracker.Gauge()), 0.0)
 
 	tracker.Record("alice")
-	assert.Equal(t, 1.0, testutil.ToFloat64(tracker.Gauge()))
+	assert.InDelta(t, 1.0, testutil.ToFloat64(tracker.Gauge()), 0.0)
 	assert.Equal(t, 1, tracker.Count())
 
 	tracker.Record("bob")
-	assert.Equal(t, 2.0, testutil.ToFloat64(tracker.Gauge()))
+	assert.InDelta(t, 2.0, testutil.ToFloat64(tracker.Gauge()), 0.0)
 	assert.Equal(t, 2, tracker.Count())
 }
 
@@ -33,7 +33,7 @@ func TestActiveUserTrackerDuplicateUsersDoNotInflateCount(t *testing.T) {
 	tracker.Record("alice")
 	tracker.Record("alice")
 
-	assert.Equal(t, 1.0, testutil.ToFloat64(tracker.Gauge()))
+	assert.InDelta(t, 1.0, testutil.ToFloat64(tracker.Gauge()), 0.0)
 	assert.Equal(t, 1, tracker.Count())
 }
 
@@ -50,12 +50,12 @@ func TestActiveUserTrackerEvictsEntriesOlderThanWindow(t *testing.T) {
 	// Evict at "now": the stale user is beyond the window, the fresh user is not.
 	tracker.evict(time.Now())
 
-	assert.Equal(t, 1.0, testutil.ToFloat64(tracker.Gauge()))
+	assert.InDelta(t, 1.0, testutil.ToFloat64(tracker.Gauge()), 0.0)
 	assert.Equal(t, 1, tracker.Count())
 
 	// Evicting far in the future evicts the remaining entry as well.
 	tracker.evict(time.Now().Add(time.Hour))
-	assert.Equal(t, 0.0, testutil.ToFloat64(tracker.Gauge()))
+	assert.InDelta(t, 0.0, testutil.ToFloat64(tracker.Gauge()), 0.0)
 	assert.Equal(t, 0, tracker.Count())
 }
 
@@ -67,7 +67,7 @@ func TestActiveUserTrackerRunEvictsStaleEntries(t *testing.T) {
 
 	tracker := NewActiveUserTracker(20*time.Millisecond, 10*time.Millisecond)
 	tracker.Record("alice")
-	require.Equal(t, 1.0, testutil.ToFloat64(tracker.Gauge()))
+	require.InDelta(t, 1.0, testutil.ToFloat64(tracker.Gauge()), 0.0)
 
 	go tracker.Run(ctx)
 
@@ -75,7 +75,7 @@ func TestActiveUserTrackerRunEvictsStaleEntries(t *testing.T) {
 	for testutil.ToFloat64(tracker.Gauge()) > 0 && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}
-	assert.Equal(t, 0.0, testutil.ToFloat64(tracker.Gauge()))
+	assert.InDelta(t, 0.0, testutil.ToFloat64(tracker.Gauge()), 0.0)
 }
 
 func TestActiveUserTrackerHashIsStableAndUniquePerUser(t *testing.T) {
@@ -123,6 +123,66 @@ func TestActiveUserTrackerRunStopsOnContextCancel(t *testing.T) {
 	}
 }
 
+func TestActiveUserTrackerZeroArgumentsFallBackToDefaults(t *testing.T) {
+	t.Parallel()
+
+	tracker := NewActiveUserTracker(0, 0)
+	if tracker.window != DefaultActiveUsersWindow {
+		t.Fatalf("window = %v, want %v", tracker.window, DefaultActiveUsersWindow)
+	}
+	if tracker.cleanupInterval != DefaultActiveUsersCleanupInterval {
+		t.Fatalf("cleanupInterval = %v, want %v", tracker.cleanupInterval, DefaultActiveUsersCleanupInterval)
+	}
+
+	// The cleanup loop must start with the (valid, positive) default interval
+	// rather than an invalid ticker duration, and return once cancelled.
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		tracker.Run(ctx)
+	}()
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("tracker.Run did not return after context cancellation")
+	}
+}
+
+func TestActiveUserTrackerOlderTimestampCannotOverwriteNewerOne(t *testing.T) {
+	t.Parallel()
+
+	window := time.Hour
+	tracker := NewActiveUserTracker(window, time.Minute)
+
+	newer := time.Now()
+	tracker.record("alice", newer)
+	// A stale update for the same user must not overwrite the newer timestamp.
+	tracker.record("alice", newer.Add(-2*window))
+
+	tracker.mu.RLock()
+	stored := tracker.lastSeen[tracker.Hash("alice")]
+	tracker.mu.RUnlock()
+	if !stored.Equal(newer) {
+		t.Fatalf("stored lastSeen = %v, want %v", stored, newer)
+	}
+
+	// Evicting inside the window of the newer timestamp must keep the entry;
+	// had the older timestamp won, this sweep would already have evicted it.
+	tracker.evict(newer.Add(-window + time.Millisecond))
+	assert.InDelta(t, 1.0, testutil.ToFloat64(tracker.Gauge()), 0.0)
+	assert.Equal(t, 1, tracker.Count())
+
+	// Evicting past the window of the newer timestamp evicts the entry.
+	tracker.evict(newer.Add(window + time.Millisecond))
+	assert.InDelta(t, 0.0, testutil.ToFloat64(tracker.Gauge()), 0.0)
+	assert.Equal(t, 0, tracker.Count())
+}
+
 func TestMetricsServerRecordActiveUser(t *testing.T) {
 	t.Parallel()
 
@@ -133,7 +193,7 @@ func TestMetricsServerRecordActiveUser(t *testing.T) {
 	m.RecordActiveUser("carol")
 	m.RecordActiveUser("dave")
 
-	assert.Equal(t, 2.0, testutil.ToFloat64(m.activeUsersTracker.Gauge()))
+	assert.InDelta(t, 2.0, testutil.ToFloat64(m.activeUsersTracker.Gauge()), 0.0)
 
 	// A nil tracker must not panic.
 	(&MetricsServer{}).RecordActiveUser("carol")
