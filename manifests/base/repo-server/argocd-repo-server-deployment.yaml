@@ -101,6 +101,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: reposerver.tls.ciphers
                   optional: true
+          - name: ARGOCD_TLS_CURVE_PREFERENCES
+            valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: reposerver.tls.curvepreferences
+                  optional: true
           - name: ARGOCD_REPO_SERVER_CLIENT_CA_PATH
             valueFrom:
               configMapKeyRef:

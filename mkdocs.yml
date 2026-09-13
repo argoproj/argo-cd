@@ -1,3 +1,4 @@
+exclude_docs: assets/lib/README.md
 extra:
   analytics:
     property: G-5Z1VTPDL73
@@ -6,6 +7,8 @@ extra_css:
 - assets/versions.css
 extra_javascript:
 - assets/versions.js
+- assets/lib/mermaid-11.17.2.min.js
+- assets/mermaid-init.js
 markdown_extensions:
 - markdown_include.include
 - attr_list
@@ -14,7 +17,11 @@ markdown_extensions:
 - admonition
 - toc:
     permalink: true
-- pymdownx.superfences
+- pymdownx.superfences:
+    custom_fences:
+    - class: mermaid
+      format: !!python/name:pymdownx.superfences.fence_div_format
+      name: mermaid
 nav:
 - Overview: index.md
 - understand_the_basics.md
@@ -31,6 +38,7 @@ nav:
   - operator-manual/ingress.md
   - High Availability:
     - Overview: operator-manual/high_availability.md
+    - Manifest Compression: operator-manual/manifest-compression.md
     - Dynamic Cluster Distribution: operator-manual/dynamic-cluster-distribution.md
   - User Management:
     - operator-manual/user-management/index.md

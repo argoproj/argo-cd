@@ -276,6 +276,11 @@ metadata:
     argocd.argoproj.io/sync-options: Force=true,Replace=true
 ```
 
+> [!NOTE]
+> `Force=true` only takes effect together with `Replace=true`, or when the resource is applied client-side.
+> With `ServerSideApply=true`, `kubectl apply --server-side` does not support `--force`, so `Force=true` on its own
+> is ignored and the resource is applied with `--force-conflicts` as usual.
+
 ## Server-Side Apply
 
 This option enables Kubernetes
