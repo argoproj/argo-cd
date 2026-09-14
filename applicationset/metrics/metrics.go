@@ -67,7 +67,7 @@ type ApplicationsetMetrics struct {
 	progressiveSyncAppStatusGauge                     *prometheus.GaugeVec
 	progressiveSyncAppSyncCounter                     *prometheus.CounterVec
 	progressiveSyncTriggerSyncAfterDetectionHistogram *prometheus.HistogramVec
-	progressiveSyncAppRefreshTriggeredCounter *prometheus.CounterVec
+	progressiveSyncAppRefreshTriggeredCounter         *prometheus.CounterVec
 }
 
 type appsetCollector struct {
@@ -105,7 +105,7 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 		progressiveSyncAppStatusGauge:                     progressiveSyncAppStatusGauge,
 		progressiveSyncAppSyncCounter:                     progressiveSyncAppSyncCounter,
 		progressiveSyncTriggerSyncAfterDetectionHistogram: progressiveSyncTriggerSyncAfterDetectionHistogram,
-		progressiveSyncAppRefreshTriggeredCounter: progressiveSyncAppRefreshTriggeredCounter,
+		progressiveSyncAppRefreshTriggeredCounter:         progressiveSyncAppRefreshTriggeredCounter,
 	}
 }
 

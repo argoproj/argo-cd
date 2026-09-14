@@ -34,6 +34,9 @@ func (testDeps) SetApplicationSetStatusCondition(_ context.Context, _ *v1alpha1.
 	return nil
 }
 
+func (testDeps) RecordProgressiveSyncTriggered(*v1alpha1.ApplicationSet, string) {
+}
+
 func (testDeps) IncRefreshTriggeredCount(_ *v1alpha1.ApplicationSet, _ string) {}
 
 func TestBuildAppDependencyList(t *testing.T) {

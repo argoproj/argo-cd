@@ -78,9 +78,6 @@ func regressionApp(rev string, automatedEnabled *bool) argov1alpha1.Application 
 
 // these tests assert on the statuses returned by UpdateApplicationSetApplicationStatus, not on their persistence.
 
-func (regressionDeps) RecordProgressiveSyncTriggered(*argov1alpha1.ApplicationSet, string) {
-}
-
 func regressionManager(t *testing.T, appSet *argov1alpha1.ApplicationSet) *Manager {
 	t.Helper()
 	scheme := runtime.NewScheme()
