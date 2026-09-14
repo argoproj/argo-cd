@@ -34,7 +34,7 @@ func init() {
 }
 
 // selectCommand selects the appropriate command based on the binary name.
-// It is a variable so cmd/main_test.go can mock the command for testing the exit error handling.
+// It is a variable so cmd/main_test.go can mock the command selection for testing the exit error handling.
 var selectCommand = func(binaryName string) (command *cobra.Command, isArgocdCLI bool) {
 	switch binaryName {
 	case common.CommandCLI:
