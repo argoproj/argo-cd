@@ -15,7 +15,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
 )
@@ -151,10 +150,8 @@ func TestHandleRegistryEvent_RefreshMatchingHelmOCIChart(t *testing.T) {
 				&reactorDef{"patch", "applications", reaction},
 				[]string{},
 				&v1alpha1.Application{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "oci-app",
-						Namespace: "argocd",
-					},
+					Name:      "oci-app",
+					Namespace: "argocd",
 					Spec: v1alpha1.ApplicationSpec{
 						Sources: v1alpha1.ApplicationSources{
 							{

@@ -15,7 +15,8 @@ import (
 )
 
 func TestDockerhubParser_Parse(t *testing.T) {
-	parser := newDockerHubParser("")
+	const secret = "parse-test-secret"
+	parser := newDockerHubParser(secret)
 	tests := []struct {
 		name       string
 		method     string
@@ -132,7 +133,7 @@ func TestDockerhubParser_Parse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequestWithContext(t.Context(), tt.method, "/", strings.NewReader(tt.body))
+			req := httptest.NewRequestWithContext(t.Context(), tt.method, "/?secret="+secret, strings.NewReader(tt.body))
 			event, err := parser.Parse(req)
 
 			if tt.expectErr {
@@ -154,21 +155,24 @@ func TestDockerhubParser_Parse(t *testing.T) {
 }
 
 func TestDockerhubParser_CanHandle(t *testing.T) {
-	p := newDockerHubParser("")
-
 	tests := []struct {
 		name     string
+		secret   string
 		query    string
 		expected bool
 	}{
-		{"dockerhub type", "type=dockerhub", true},
-		{"ghcr type", "type=ghcr", false},
-		{"empty type", "type=", false},
-		{"missing type", "", false},
+		{"dockerhub type", "configured-secret", "type=dockerhub", true},
+		{"ghcr type", "configured-secret", "type=ghcr", false},
+		{"empty type", "configured-secret", "type=", false},
+		{"missing type", "configured-secret", "", false},
+		// With no secret configured the parser must claim nothing, so the
+		// endpoint is never reachable without authentication.
+		{"no secret configured disables the parser", "", "type=dockerhub", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			p := newDockerHubParser(tt.secret)
 			target := "/api/webhook"
 			if tt.query != "" {
 				target += "?" + tt.query
@@ -181,7 +185,42 @@ func TestDockerhubParser_CanHandle(t *testing.T) {
 
 func TestDockerHubPushEvent(t *testing.T) {
 	hook := test.NewGlobal()
-	h := NewMockHandler(nil, []string{})
+	h := NewMockHandlerWithDockerHubSecret("correct-secret", []string{})
+
+	payload, err := os.ReadFile("testdata/dockerhub-push-event.json")
+	require.NoError(t, err)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook?type=dockerhub&secret=correct-secret", io.NopCloser(bytes.NewReader(payload)))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	h.Shutdown()
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assertLogContains(t, hook, "Received registry webhook event")
+}
+
+func TestDockerHubPushEvent_SecretInAuthorizationHeader(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandlerWithDockerHubSecret("correct-secret", []string{})
+
+	payload, err := os.ReadFile("testdata/dockerhub-push-event.json")
+	require.NoError(t, err)
+
+	// No secret in the URL: a proxy moved it into the Authorization header.
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook?type=dockerhub", io.NopCloser(bytes.NewReader(payload)))
+	req.Header.Set("Authorization", "correct-secret")
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	h.Shutdown()
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assertLogContains(t, hook, "Received registry webhook event")
+}
+
+// With no secret configured the parser claims nothing, so the request falls through
+// to "Unknown webhook event" rather than reaching an unauthenticated endpoint.
+func TestDockerHubPushEvent_DisabledWithoutSecret(t *testing.T) {
+	h := NewMockHandlerWithDockerHubSecret("", []string{})
 
 	payload, err := os.ReadFile("testdata/dockerhub-push-event.json")
 	require.NoError(t, err)
@@ -189,10 +228,8 @@ func TestDockerHubPushEvent(t *testing.T) {
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook?type=dockerhub", io.NopCloser(bytes.NewReader(payload)))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	h.Shutdown()
 
-	assert.Equal(t, http.StatusOK, w.Code)
-	assertLogContains(t, hook, "Received registry webhook event")
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 func TestDockerHubPushEvent_Unauthorized(t *testing.T) {
@@ -215,31 +252,62 @@ func TestDockerhubParser_validateSecret(t *testing.T) {
 		name           string
 		configured     string
 		providedSecret string
+		providedHeader string
 		expectError    bool
-		expectHMAC     bool
+		expectSentinel bool
 	}{
 		{
-			name:           "valid secret",
+			name:           "valid secret in query parameter",
 			configured:     secret,
 			providedSecret: secret,
+		},
+		{
+			name:           "valid secret in Authorization header",
+			configured:     secret,
+			providedHeader: secret,
+		},
+		{
+			name:           "header takes precedence over query parameter",
+			configured:     secret,
+			providedHeader: secret,
+			providedSecret: "wrong-secret",
+		},
+		{
+			name:           "bad header is not rescued by a good query parameter",
+			configured:     secret,
+			providedHeader: "wrong-secret",
+			providedSecret: secret,
+			expectError:    true,
+			expectSentinel: true,
 		},
 		{
 			name:           "invalid secret",
 			configured:     secret,
 			providedSecret: "wrong-secret",
 			expectError:    true,
-			expectHMAC:     true,
+			expectSentinel: true,
 		},
 		{
-			name:        "missing secret",
-			configured:  secret,
-			expectError: true,
-			expectHMAC:  true,
+			name:           "invalid secret in Authorization header",
+			configured:     secret,
+			providedHeader: "wrong-secret",
+			expectError:    true,
+			expectSentinel: true,
 		},
 		{
-			name:           "no secret configured (skip validation)",
+			name:           "missing secret",
+			configured:     secret,
+			expectError:    true,
+			expectSentinel: true,
+		},
+		{
+			// Unreachable in practice (CanHandle refuses first), but validateSecret
+			// must fail closed rather than wave the request through.
+			name:           "no secret configured fails closed",
 			configured:     "",
 			providedSecret: "anything",
+			expectError:    true,
+			expectSentinel: true,
 		},
 	}
 
@@ -252,13 +320,19 @@ func TestDockerhubParser_validateSecret(t *testing.T) {
 				target = "/?secret=" + tt.providedSecret
 			}
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, target, http.NoBody)
+			if tt.providedHeader != "" {
+				req.Header.Set("Authorization", tt.providedHeader)
+			}
 
 			err := parser.validateSecret(req)
 
 			if tt.expectError {
 				require.Error(t, err)
-				if tt.expectHMAC {
-					require.ErrorIs(t, err, ErrHMACVerificationFailed)
+				if tt.expectSentinel {
+					// Docker Hub cannot sign payloads, so a failure here is a
+					// pre-shared secret mismatch, never an HMAC failure.
+					require.ErrorIs(t, err, ErrSecretVerificationFailed)
+					require.NotErrorIs(t, err, ErrHMACVerificationFailed)
 				}
 			} else {
 				assert.NoError(t, err)
