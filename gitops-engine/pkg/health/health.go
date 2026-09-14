@@ -37,8 +37,9 @@ type HealthOverride interface {
 
 // Holds health assessment results
 type HealthStatus struct {
-	Status  HealthStatusCode `json:"status,omitempty"`
-	Message string           `json:"message,omitempty"`
+	Status      HealthStatusCode `json:"status,omitempty"`
+	Message     string           `json:"message,omitempty"`
+	AggregateAs HealthStatusCode `json:"aggregateAs,omitempty"`
 }
 
 // healthOrder is a list of health codes in order of most healthy to least healthy
@@ -49,6 +50,15 @@ var healthOrder = []HealthStatusCode{
 	HealthStatusMissing,
 	HealthStatusDegraded,
 	HealthStatusUnknown,
+}
+
+// IsValidHealthStatusCode returns whether the given code is one of the known health status codes.
+func IsValidHealthStatusCode(statusCode HealthStatusCode) bool {
+	switch statusCode {
+	case HealthStatusUnknown, HealthStatusProgressing, HealthStatusSuspended, HealthStatusHealthy, HealthStatusDegraded, HealthStatusMissing:
+		return true
+	}
+	return false
 }
 
 // IsWorse returns whether or not the new health status code is a worse condition than the current

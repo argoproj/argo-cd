@@ -81,6 +81,38 @@ func TestJob(t *testing.T) {
 	assertAppHealth(t, "./testdata/job-suspended.yaml", HealthStatusSuspended)
 	// A suspended Job should surface its Suspended condition message, not an empty string.
 	assert.Equal(t, "Job suspended", getHealthStatus(t, "./testdata/job-suspended.yaml").Message)
+	// A suspended Job keeps its Suspended status but aggregates as Healthy so it does not
+	// make the parent Application Suspended.
+	assert.Equal(t, HealthStatusHealthy, getHealthStatus(t, "./testdata/job-suspended.yaml").AggregateAs)
+}
+
+func TestIsValidHealthStatusCode(t *testing.T) {
+	validCodes := []HealthStatusCode{
+		HealthStatusUnknown,
+		HealthStatusProgressing,
+		HealthStatusSuspended,
+		HealthStatusHealthy,
+		HealthStatusDegraded,
+		HealthStatusMissing,
+	}
+	for _, code := range validCodes {
+		t.Run(string(code), func(t *testing.T) {
+			assert.True(t, IsValidHealthStatusCode(code))
+		})
+	}
+
+	invalidCodes := []HealthStatusCode{
+		"",
+		"healthy",  // wrong case
+		"Suspend",  // typo
+		"Bogus",    // unknown
+		"Healthy ", // trailing space
+	}
+	for _, code := range invalidCodes {
+		t.Run("invalid/"+string(code), func(t *testing.T) {
+			assert.False(t, IsValidHealthStatusCode(code))
+		})
+	}
 }
 
 func TestHPA(t *testing.T) {

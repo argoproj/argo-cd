@@ -1,30 +1,37 @@
 # Resource Health
 
 ## Overview
+
 Argo CD provides built-in health assessment for several standard Kubernetes types, which is then
 surfaced to the overall Application health status as a whole. The following checks are made for
 specific types of Kubernetes resources:
 
 ### Deployment, ReplicaSet, StatefulSet, DaemonSet
-* Observed generation is equal to desired generation.
-* Number of **updated** replicas equals the number of desired replicas.
+
+- Observed generation is equal to desired generation.
+- Number of **updated** replicas equals the number of desired replicas.
 
 ### Service
-* If service type is of type `LoadBalancer`, the `status.loadBalancer.ingress` list is non-empty,
-with at least one value for `hostname` or `IP`.
+
+- If service type is of type `LoadBalancer`, the `status.loadBalancer.ingress` list is non-empty,
+  with at least one value for `hostname` or `IP`.
 
 ### Ingress
-* The `status.loadBalancer.ingress` list is non-empty, with at least one value for `hostname` or `IP`.
+
+- The `status.loadBalancer.ingress` list is non-empty, with at least one value for `hostname` or `IP`.
 
 ### CronJob
-* If the last scheduled job for this CronJob failed, the CronJob will be marked as "Degraded"
-* If the last scheduled job for this CronJob is running, the CronJob will be marked as "Progressing"
+
+- If the last scheduled job for this CronJob failed, the CronJob will be marked as "Degraded"
+- If the last scheduled job for this CronJob is running, the CronJob will be marked as "Progressing"
 
 ### Job
-* If job `.spec.suspended` is set to 'true', then the job and app health will be marked as suspended.
+
+- If job `.spec.suspended` is set to 'true', then the job and app health will be marked as suspended.
 
 ### PersistentVolumeClaim
-* The `status.phase` is `Bound`
+
+- The `status.phase` is `Bound`
 
 ### Pod
 * A Pod with a `restartPolicy` of `Always` is considered "Healthy" once it is ready, and "Degraded" if a container is in an error state (e.g. `CrashLoopBackOff`, `ImagePullBackOff`) or has terminated.
@@ -87,8 +94,8 @@ data:
 
 Argo CD supports custom health checks written in [Lua](https://www.lua.org/). This is useful if you:
 
-* Are affected by known issues where your `Ingress` or `StatefulSet` resources are stuck in `Progressing` state because of bug in your resource controller.
-* Have a custom resource for which Argo CD does not have a built-in health check.
+- Are affected by known issues where your `Ingress` or `StatefulSet` resources are stuck in `Progressing` state because of bug in your resource controller.
+- Have a custom resource for which Argo CD does not have a built-in health check.
 
 Argo CD relies on the health and status fields provided by Kubernetes CRDs. These fields are defined and maintained by the creators of each CRD, not by Argo CD. Since CRDs do not follow a consistent or standardized status format, Argo CD can only determine their health reliably when custom health checks are explicitly contributed for each CRD.
 
@@ -113,9 +120,11 @@ There are two ways to configure a custom health check. The next two sections des
 ### Way 1. Define a Custom Health Check in `argocd-cm` ConfigMap
 
 Custom health checks can be defined in
+
 ```yaml
-  resource.customizations.health.<group>_<kind>: |
+resource.customizations.health.<group>_<kind>: |
 ```
+
 field of `argocd-cm`. If you are using argocd-operator, this is overridden by [the argocd-operator resourceCustomizations](https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#resource-customizations).
 
 > [!NOTE]
@@ -156,18 +165,18 @@ In order to prevent duplication of custom health checks for potentially multiple
 specify a wildcard in the resource kind, and anywhere in the resource group, like this:
 
 ```yaml
-  resource.customizations: |
-    ec2.aws.crossplane.io/*:
-      health.lua: |
-        ...
+resource.customizations: |
+  ec2.aws.crossplane.io/*:
+    health.lua: |
+      ...
 ```
 
 ```yaml
-  # If a key _begins_ with a wildcard, please ensure that the GVK key is quoted.
-  resource.customizations: |
-    "*.aws.crossplane.io/*":
-      health.lua: |
-        ...
+# If a key _begins_ with a wildcard, please ensure that the GVK key is quoted.
+resource.customizations: |
+  "*.aws.crossplane.io/*":
+    health.lua: |
+      ...
 ```
 
 > [!IMPORTANT]
@@ -177,10 +186,10 @@ specify a wildcard in the resource kind, and anywhere in the resource group, lik
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 The custom health check might return one of the following health statuses:
 
-  * `Healthy` - the resource is healthy
-  * `Progressing` - the resource is not healthy yet but still making progress and might be healthy soon
-  * `Degraded` - the resource is degraded
-  * `Suspended` - the resource is suspended and waiting for some external event to resume (e.g. suspended CronJob or paused Deployment)
+- `Healthy` - the resource is healthy
+- `Progressing` - the resource is not healthy yet but still making progress and might be healthy soon
+- `Degraded` - the resource is degraded
+- `Suspended` - the resource is suspended and waiting for some external event to resume (e.g. suspended CronJob or paused Deployment)
 
 By default, health typically returns a `Progressing` status.
 
@@ -214,10 +223,10 @@ Each health check must have tests defined in `health_test.yaml` file. The `healt
 
 ```yaml
 tests:
-- healthStatus:
-    status: ExpectedStatus
-    message: Expected message
-  inputPath: testdata/test-resource-definition.yaml
+  - healthStatus:
+      status: ExpectedStatus
+      message: Expected message
+    inputPath: testdata/test-resource-definition.yaml
 ```
 For the files you add in `testdata` folder - please make sure those are full K8s manifests, extracted from the cluster where the controller is installed by running `kubectl get ... -oyaml`. If the resulting file is very long, you can omit some of the spec, but it is critical for the files in `testdata` to contain the full `status` sub-resource, extracted from your cluster.
 
@@ -257,16 +266,15 @@ If multiple wildcard checks match, the first one in the directory structure is u
 We use the [doublestar](https://github.com/bmatcuk/doublestar) glob library to match the wildcard checks. We currently
 only treat a path as a wildcard if it contains a `_` character, but this may change in the future.
 
-> [!IMPORTANT]
-> **Avoid Massive Scripts**
+> [!IMPORTANT] > **Avoid Massive Scripts**
 >
 > Avoid writing massive scripts to handle multiple resources. They'll get hard to read and maintain. Instead, just
 > duplicate the relevant parts in resource-specific scripts.
 
 ## Overriding Go-Based Health Checks
 
-Health checks for some resources were [hardcoded as Go code](https://github.com/argoproj/argo-cd/tree/master/gitops-engine/pkg/health) 
-because Lua support was introduced later. Also, the logic of health checks for some resources were too complex, so it 
+Health checks for some resources were [hardcoded as Go code](https://github.com/argoproj/argo-cd/tree/master/gitops-engine/pkg/health)
+because Lua support was introduced later. Also, the logic of health checks for some resources were too complex, so it
 was easier to implement it in Go.
 
 It is possible to override health checks for built-in resource. Argo will prefer the configured health check over the
@@ -274,34 +282,34 @@ Go-based built-in check.
 
 The following resources have Go-based health checks:
 
-* PersistentVolumeClaim
-* Pod
-* Service
-* apiregistration.k8s.io/APIService
-* apps/DaemonSet
-* apps/Deployment
-* apps/ReplicaSet
-* apps/StatefulSet
-* argoproj.io/Workflow
-* autoscaling/HorizontalPodAutoscaler
-* batch/Job
-* extensions/Ingress
-* networking.k8s.io/Ingress
+- PersistentVolumeClaim
+- Pod
+- Service
+- apiregistration.k8s.io/APIService
+- apps/DaemonSet
+- apps/Deployment
+- apps/ReplicaSet
+- apps/StatefulSet
+- argoproj.io/Workflow
+- autoscaling/HorizontalPodAutoscaler
+- batch/Job
+- extensions/Ingress
+- networking.k8s.io/Ingress
 
 ## Health Checks
 
-Argo CD App health is inferred from the health of its immediate child resources as represented in the application source.  
-The App health will be the **worst health of its immediate child resources**, based on the following priority (from most to least healthy):  
-**Healthy, Suspended, Progressing, Missing, Degraded, Unknown.**  
+Argo CD App health is inferred from the health of its immediate child resources as represented in the application source.
+The App health will be the **worst health of its immediate child resources**, based on the following priority (from most to least healthy):
+**Healthy, Suspended, Progressing, Missing, Degraded, Unknown.**
 For example, if an App has a Missing resource and a Degraded resource, the App's health will be **Degraded**.
 
-But the health of a resource is not inherited from child resources - it is calculated using only information about the 
-resource itself. A resource's status field may or may not contain information about the health of a child resource, and 
+But the health of a resource is not inherited from child resources - it is calculated using only information about the
+resource itself. A resource's status field may or may not contain information about the health of a child resource, and
 the resource's health check may or may not take that information into account.
 
 The lack of inheritance is by design. A resource's health can't be inferred from its children because the health of a
 child resource may not be relevant to the health of the parent resource. For example, a Deployment's health is not
-necessarily affected by the health of its Pods. 
+necessarily affected by the health of its Pods.
 
 ```
 App (healthy)
@@ -314,7 +322,7 @@ App (healthy)
 
 If you want the health of a child resource to affect the health of its parent, you need to configure the parent's health
 check to take the child's health into account. Since only the parent resource's state is available to the health check,
-the parent resource's controller needs to make the child resource's health available in the parent resource's status 
+the parent resource's controller needs to make the child resource's health available in the parent resource's status
 field.
 
 ```
@@ -322,6 +330,7 @@ App (healthy)
 └── CustomResource (healthy) <- This resource's health check needs to be fixed to mark the App as unhealthy
     └── CustomChildResource (unhealthy)
 ```
+
 ## Ignoring Child Resource Health Check in Applications
 
 To ignore the health check of an immediate child resource within an Application, set the annotation `argocd.argoproj.io/ignore-healthcheck` to `true`. For example:
@@ -331,7 +340,63 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    argocd.argoproj.io/ignore-healthcheck: "true"
+    argocd.argoproj.io/ignore-healthcheck: 'true'
 ```
 
 By doing this, the health status of the Deployment will not affect the health of its parent Application.
+
+## Customizing Child Resource Health Check in Applications
+
+Ignoring a resource entirely is useful when none of its health states should affect the Application. In other cases, you may want the resource to retain its actual health status while contributing a different status to the Application's aggregated health.
+
+These are separate concepts:
+
+- The resource health status is the status shown for the resource in the resource tree.
+- The aggregated health status is the status used when calculating the health of the parent Application.
+- An aggregation override changes only the status used for the parent Application. It does not change the resource's own health status.
+
+### Using Custom Health Check
+
+You can use a Lua health check to set `hs.aggregateAs` to the status that should be used for Application aggregation. For example, to display a suspended resource as `Suspended` while treating it as `Healthy` for the Application:
+
+```lua
+hs = {}
+if obj.spec.suspend == true then
+  hs.status = "Suspended"    -- Status shown for the resource
+  hs.aggregateAs = "Healthy" -- Status used for Application aggregation
+  return hs
+end
+-- ... rest of health check logic
+return hs
+```
+
+The `aggregateAs` field is optional. When it is not set, the resource's `hs.status` is used for Application aggregation as before.
+
+**Note**: Argo CD includes built-in health checks for Jobs and CronJobs that set `aggregateAs = "Healthy"` when they are suspended. Therefore, suspended Jobs and CronJobs remain `Suspended` individually but do not make the Application `Suspended` by default.
+
+### Using an annotation for a specific resource
+
+For a per-resource override, use the `argocd.argoproj.io/health-aggregate-overrides` annotation. Each mapping has the form `ResourceStatus=ApplicationStatus`:
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: my-job
+  annotations:
+    # The Job remains Suspended, but the Application aggregates it as Progressing
+    argocd.argoproj.io/health-aggregate-overrides: 'Suspended=Progressing'
+spec:
+  suspend: true
+```
+
+Multiple mappings can be specified as a comma-separated list:
+
+```yaml
+annotations:
+  argocd.argoproj.io/health-aggregate-overrides: 'Suspended=Healthy,Progressing=Degraded'
+```
+
+The annotation is evaluated against the resource's actual health status (`hs.status`), not against a previously configured `aggregateAs` value. If the actual status has no matching mapping, the Lua `aggregateAs` value is used when present; otherwise, the actual status is used.
+
+**Precedence**: For a matching status, the annotation override takes precedence over `aggregateAs` from a Lua or built-in health check. This allows a specific resource to override the default aggregation behavior without changing its displayed health.
