@@ -27,21 +27,28 @@ function parseSelectedChildApp(selectedResource: string, application: models.App
 export const ApplicationSyncPanel = ({application, selectedResource, hide}: {application: models.Application; selectedResource: string; hide: () => any}) => {
     const [form, setForm] = React.useState<FormApi>(null);
     const isVisible = !!(selectedResource && application);
-    const [childApp, setChildApp] = React.useState<models.Application | null>(null);
+    const [childApp, setChildApp] = React.useState<{key: string; app: models.Application} | null>(null);
     const childAppRef = parseSelectedChildApp(selectedResource, application);
+    const childAppName = childAppRef?.name;
+    const childAppNamespace = childAppRef?.namespace;
 
     React.useEffect(() => {
-        if (childAppRef) {
-            services.applications.get(childAppRef.name, childAppRef.namespace, 'application').then(app => {
-                setChildApp(app as models.Application);
-            });
-        } else {
-            setChildApp(null);
+        if (!childAppName || !childAppNamespace) {
+            return undefined;
         }
-    }, [selectedResource]);
+        let cancelled = false;
+        services.applications.get(childAppName, childAppNamespace, 'application').then(app => {
+            if (!cancelled) {
+                setChildApp({key: selectedResource, app: app as models.Application});
+            }
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedResource, childAppName, childAppNamespace]);
 
     const [isPending, setPending] = React.useState(false);
-    const targetApp = childAppRef && childApp ? childApp : application;
+    const targetApp = childAppRef && childApp && childApp.key === selectedResource ? childApp.app : application;
 
     return (
         <SlidingPanel
