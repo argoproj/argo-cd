@@ -7,5 +7,6 @@ import (
 )
 
 func TestAuthor(t *testing.T) {
+	t.Parallel()
 	assert.Regexp(t, ".*<.*>", Author)
 }

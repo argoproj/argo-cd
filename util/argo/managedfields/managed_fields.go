@@ -73,7 +73,7 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 // the live and config objects so it is ignored in diffs.
 func normalize(mf metav1.ManagedFieldsEntry, tr *typedResults) error {
 	mfs := &fieldpath.Set{}
-	err := mfs.FromJSON(bytes.NewReader(mf.FieldsV1.Raw))
+	err := mfs.FromJSON(bytes.NewReader(mf.FieldsV1.GetRawBytes()))
 	if err != nil {
 		return err
 	}
@@ -96,6 +96,9 @@ type typedResults struct {
 // and compare them. Returns a typedResults with the converted types and the comparison.
 // If pt is nil, will use the DeducedParseableType.
 func newTypedResults(live, config *unstructured.Unstructured, pt *typed.ParseableType) (*typedResults, error) {
+	if pt == nil {
+		pt = &typed.DeducedParseableType
+	}
 	typedLive, err := pt.FromUnstructured(live.Object)
 	if err != nil {
 		return nil, fmt.Errorf("error creating typedLive: %w", err)

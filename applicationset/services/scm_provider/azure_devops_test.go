@@ -18,6 +18,7 @@ import (
 )
 
 func TestAzureDevopsRepoHasPath(t *testing.T) {
+	t.Parallel()
 	organization := "myorg"
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
@@ -73,6 +74,7 @@ func TestAzureDevopsRepoHasPath(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 			gitClientMock := &azureMock.Client{}
 
 			clientFactoryMock := &mocks.AzureDevOpsClientFactory{}
@@ -105,6 +107,7 @@ func TestAzureDevopsRepoHasPath(t *testing.T) {
 }
 
 func TestGetDefaultBranchOnDisabledRepo(t *testing.T) {
+	t.Parallel()
 	organization := "myorg"
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
@@ -136,6 +139,7 @@ func TestGetDefaultBranchOnDisabledRepo(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 			uuid := uuid.New().String()
 
 			gitClientMock := azureMock.NewClient(t)
@@ -162,6 +166,7 @@ func TestGetDefaultBranchOnDisabledRepo(t *testing.T) {
 }
 
 func TestGetAllBranchesOnDisabledRepo(t *testing.T) {
+	t.Parallel()
 	organization := "myorg"
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
@@ -193,6 +198,7 @@ func TestGetAllBranchesOnDisabledRepo(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 			uuid := uuid.New().String()
 
 			gitClientMock := azureMock.NewClient(t)
@@ -219,7 +225,9 @@ func TestGetAllBranchesOnDisabledRepo(t *testing.T) {
 }
 
 func TestAzureDevOpsGetDefaultBranchStripsRefsName(t *testing.T) {
+	t.Parallel()
 	t.Run("Get branches only default branch removes characters before querying azure devops", func(t *testing.T) {
+		t.Parallel()
 		organization := "myorg"
 		teamProject := "myorg_project"
 		repoName := "myorg_project_repo"
@@ -251,6 +259,7 @@ func TestAzureDevOpsGetDefaultBranchStripsRefsName(t *testing.T) {
 }
 
 func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {
+	t.Parallel()
 	organization := "myorg"
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
@@ -286,6 +295,7 @@ func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 			gitClientMock := &azureMock.Client{}
 
 			clientFactoryMock := &mocks.AzureDevOpsClientFactory{}
@@ -322,6 +332,7 @@ func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {
 }
 
 func TestAzureDevopsGetBranches(t *testing.T) {
+	t.Parallel()
 	organization := "myorg"
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
@@ -370,6 +381,7 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 			gitClientMock := &azureMock.Client{}
 
 			clientFactoryMock := &mocks.AzureDevOpsClientFactory{}
@@ -414,6 +426,7 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 }
 
 func TestGetAzureDevopsRepositories(t *testing.T) {
+	t.Parallel()
 	organization := "myorg"
 	teamProject := "myorg_project"
 
@@ -467,6 +480,7 @@ func TestGetAzureDevopsRepositories(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 			gitClientMock := azureMock.NewClient(t)
 			gitClientMock.EXPECT().GetRepositories(mock.Anything, azureGit.GetRepositoriesArgs{Project: new(teamProject)}).Return(&testCase.repositories, testCase.getRepositoriesError)
 

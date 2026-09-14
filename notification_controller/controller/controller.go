@@ -60,6 +60,7 @@ type notificationController struct {
 	appProjInformer   cache.SharedIndexInformer
 	secretInformer    cache.SharedIndexInformer
 	configMapInformer cache.SharedIndexInformer
+	namespace         string
 }
 
 func NewController(
@@ -92,6 +93,12 @@ func NewController(
 	}
 	secretInformer := k8s.NewSecretInformer(k8sClient, notificationConfigNamespace, secretName)
 	configMapInformer := k8s.NewConfigMapInformer(k8sClient, notificationConfigNamespace, configMapName)
+	// Let the service serve the `appProject` template var from this AppProject
+	// informer cache (keyed on the controller namespace) instead of a per-evaluation
+	// API GET.
+	if argocdService != nil {
+		argocdService.SetAppProjectInformer(appProjInformer)
+	}
 	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, secretName, configMapName, selfServiceNotificationEnabled), namespace, secretInformer, configMapInformer)
 
 	res := &notificationController{
@@ -99,9 +106,10 @@ func NewController(
 		configMapInformer: configMapInformer,
 		appInformer:       appInformer,
 		appProjInformer:   appProjInformer,
+		namespace:         namespace,
 	}
 	skipProcessingOpt := controller.WithSkipProcessing(func(obj metav1.Object) (bool, string) {
-		app, ok := (obj).(*unstructured.Unstructured)
+		app, ok := obj.(*unstructured.Unstructured)
 		if !ok {
 			return false, ""
 		}
@@ -133,12 +141,12 @@ func checkAppNotInAdditionalNamespaces(app *unstructured.Unstructured, namespace
 }
 
 func (c *notificationController) alterDestinations(obj metav1.Object, destinations services.Destinations, cfg api.Config) services.Destinations {
-	app, ok := (obj).(*unstructured.Unstructured)
+	app, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		return destinations
 	}
 
-	if proj := getAppProj(app, c.appProjInformer); proj != nil {
+	if proj := getAppProj(app, c.appProjInformer, c.namespace); proj != nil {
 		destinations.Merge(subscriptions.NewAnnotations(proj.GetAnnotations()).GetDestinations(cfg.DefaultTriggers, cfg.ServiceDefaultTriggers))
 		destinations.Merge(settings.GetLegacyDestinations(proj.GetAnnotations(), cfg.DefaultTriggers, cfg.ServiceDefaultTriggers))
 	}
@@ -148,11 +156,11 @@ func (c *notificationController) alterDestinations(obj metav1.Object, destinatio
 func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string, applicationNamespaces []string, selector string) cache.SharedIndexInformer {
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
 				// We are only interested in apps that exist in namespaces the
 				// user wants to be enabled.
 				options.LabelSelector = selector
-				appList, err := resClient.List(context.TODO(), options)
+				appList, err := resClient.List(ctx, options)
 				if err != nil {
 					return nil, fmt.Errorf("failed to list applications: %w", err)
 				}
@@ -165,9 +173,9 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 				appList.Items = newItems
 				return appList, nil
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
 				options.LabelSelector = selector
-				return resClient.Watch(context.TODO(), options)
+				return resClient.Watch(ctx, options)
 			},
 		},
 		&unstructured.Unstructured{},
@@ -198,12 +206,19 @@ func (c *notificationController) Run(ctx context.Context, processors int) {
 	c.ctrl.Run(processors, ctx.Done())
 }
 
-func getAppProj(app *unstructured.Unstructured, appProjInformer cache.SharedIndexInformer) *unstructured.Unstructured {
-	projName, ok, err := unstructured.NestedString(app.Object, "spec", "project")
-	if !ok || err != nil {
+func getAppProj(app *unstructured.Unstructured, appProjInformer cache.SharedIndexInformer, controllerNamespace string) *unstructured.Unstructured {
+	projName, _, err := unstructured.NestedString(app.Object, "spec", "project")
+	if err != nil {
 		return nil
 	}
-	projObj, ok, err := appProjInformer.GetIndexer().GetByKey(fmt.Sprintf("%s/%s", app.GetNamespace(), projName))
+	// An empty or absent project means the app belongs to the 'default' project.
+	if projName == "" {
+		projName = "default"
+	}
+	// AppProjects live in the controller namespace, and the informer only watches
+	// that namespace, so key on it rather than the application's namespace (which
+	// misses for apps-in-any-namespace). See argoproj/argo-cd#28137.
+	projObj, ok, err := appProjInformer.GetIndexer().GetByKey(fmt.Sprintf("%s/%s", controllerNamespace, projName))
 	if !ok || err != nil {
 		return nil
 	}
@@ -211,6 +226,8 @@ func getAppProj(app *unstructured.Unstructured, appProjInformer cache.SharedInde
 	if !ok {
 		return nil
 	}
+	// Informer cache objects are shared; deep-copy before mutating.
+	proj = proj.DeepCopy()
 	if proj.GetAnnotations() == nil {
 		proj.SetAnnotations(map[string]string{})
 	}

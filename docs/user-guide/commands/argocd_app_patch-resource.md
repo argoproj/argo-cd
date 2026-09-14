@@ -12,6 +12,7 @@ argocd app patch-resource APPNAME [flags]
 
 ```
       --all                    Indicates whether to patch multiple matching of resources
+  -N, --app-namespace string   Namespace of the application
       --group string           Group
   -h, --help                   help for patch-resource
       --kind string            Kind

@@ -247,6 +247,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 }
 
 func TestGiteaContainLabels(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		Name       string
 		Labels     []string
@@ -287,6 +288,7 @@ func TestGiteaContainLabels(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
+			t.Parallel()
 			if got := giteaContainLabels(c.Labels, c.PullLabels); got != c.Expect {
 				t.Errorf("expect: %v, got: %v", c.Expect, got)
 			}
@@ -295,10 +297,11 @@ func TestGiteaContainLabels(t *testing.T) {
 }
 
 func TestGiteaList(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
 	}))
-	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", []string{"label1"}, false)
+	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", []string{"label1"}, false, "", "")
 	require.NoError(t, err)
 	prs, err := host.List(t.Context())
 	require.NoError(t, err)
@@ -312,6 +315,7 @@ func TestGiteaList(t *testing.T) {
 }
 
 func TestGetGiteaPRLabelNames(t *testing.T) {
+	t.Parallel()
 	Tests := []struct {
 		Name           string
 		PullLabels     []*gitea.Label
@@ -334,6 +338,7 @@ func TestGetGiteaPRLabelNames(t *testing.T) {
 	}
 	for _, test := range Tests {
 		t.Run(test.Name, func(t *testing.T) {
+			t.Parallel()
 			labels := getGiteaPRLabelNames(test.PullLabels)
 			assert.Equal(t, test.ExpectedResult, labels)
 		})
@@ -341,6 +346,7 @@ func TestGetGiteaPRLabelNames(t *testing.T) {
 }
 
 func TestGiteaListReturnsRepositoryNotFoundError(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -359,7 +365,7 @@ func TestGiteaListReturnsRepositoryNotFoundError(t *testing.T) {
 		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
 	})
 
-	svc, err := NewGiteaService("", server.URL, "nonexistent", "nonexistent", []string{}, false)
+	svc, err := NewGiteaService("", server.URL, "nonexistent", "nonexistent", []string{}, false, "", "")
 	require.NoError(t, err)
 
 	prs, err := svc.List(t.Context())

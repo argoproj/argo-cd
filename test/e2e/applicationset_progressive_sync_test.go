@@ -9,6 +9,7 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -26,19 +27,15 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 		t.Skip("Skipping progressive sync tests - env variable not set to enable progressive sync")
 	}
 	expectedDevApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "app1-dev",
+		Namespace:  fixture.TestNamespace(),
+		Labels: map[string]string{
+			"environment": "dev",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app1-dev",
-			Namespace: fixture.TestNamespace(),
-			Labels: map[string]string{
-				"environment": "dev",
-			},
-			Finalizers: []string{
-				"resources-finalizer.argocd.argoproj.io",
-			},
+		Finalizers: []string{
+			"resources-finalizer.argocd.argoproj.io",
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -55,19 +52,15 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 	}
 
 	expectedStageApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "app2-staging",
+		Namespace:  fixture.TestNamespace(),
+		Labels: map[string]string{
+			"environment": "staging",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2-staging",
-			Namespace: fixture.TestNamespace(),
-			Labels: map[string]string{
-				"environment": "staging",
-			},
-			Finalizers: []string{
-				"resources-finalizer.argocd.argoproj.io",
-			},
+		Finalizers: []string{
+			"resources-finalizer.argocd.argoproj.io",
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -83,19 +76,15 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 		},
 	}
 	expectedProdApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "app3-prod",
+		Namespace:  fixture.TestNamespace(),
+		Labels: map[string]string{
+			"environment": "prod",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app3-prod",
-			Namespace: fixture.TestNamespace(),
-			Labels: map[string]string{
-				"environment": "prod",
-			},
-			Finalizers: []string{
-				"resources-finalizer.argocd.argoproj.io",
-			},
+		Finalizers: []string{
+			"resources-finalizer.argocd.argoproj.io",
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -114,9 +103,7 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 	Given(t).
 		When().
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "progressive-sync-apps",
-			},
+			Name: "progressive-sync-apps",
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
@@ -175,7 +162,7 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 		ExpectWithDuration(CheckApplicationInRightSteps("3", []string{"app3-prod"}), time.Second*5).
 		// cleanup
 		When().
-		Delete().
+		Delete(metav1.DeletePropagationForeground).
 		Then().
 		ExpectWithDuration(ApplicationsDoNotExist([]v1alpha1.Application{expectedDevApp, expectedStageApp, expectedProdApp}), time.Minute)
 }
@@ -184,9 +171,9 @@ func TestProgressiveSyncHealthGating(t *testing.T) {
 	if os.Getenv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS") != "true" {
 		t.Skip("Skipping progressive sync tests - ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS not enabled")
 	}
-	expectedDevApp := generateExpectedApp("prog-", "progressive-sync/", "dev", "dev")
-	expectedStageApp := generateExpectedApp("prog-", "progressive-sync/", "staging", "staging")
-	expectedProdApp := generateExpectedApp("prog-", "progressive-sync/", "prod", "prod")
+	expectedDevApp := generateExpectedApp("prog-", "progressive-sync/", "dev", "dev", "", false)
+	expectedStageApp := generateExpectedApp("prog-", "progressive-sync/", "staging", "staging", "", false)
+	expectedProdApp := generateExpectedApp("prog-", "progressive-sync/", "prod", "prod", "", false)
 
 	expectedStatusWave1 := map[string]v1alpha1.ApplicationSetApplicationStatus{
 		"prog-dev": {
@@ -251,9 +238,7 @@ func TestProgressiveSyncHealthGating(t *testing.T) {
 	Given(t).
 		When().
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "progressive-sync-gating",
-			},
+			Name: "progressive-sync-gating",
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
@@ -343,7 +328,7 @@ func TestProgressiveSyncHealthGating(t *testing.T) {
 		}).
 		// Cleanup
 		When().
-		Delete().
+		Delete(metav1.DeletePropagationForeground).
 		Then().
 		ExpectWithDuration(ApplicationsDoNotExist([]v1alpha1.Application{expectedDevApp, expectedStageApp, expectedProdApp}), TransitionTimeout)
 }
@@ -356,9 +341,9 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 	expectedConditions := []v1alpha1.ApplicationSetCondition{
 		{
 			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: "All applications have been generated successfully",
-			Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
+			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			Message: "No steps defined for rollout",
+			Reason:  v1alpha1.ApplicationSetReasonApplicationSetRolloutError,
 		},
 		{
 			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
@@ -368,32 +353,26 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 		},
 		{
 			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-			Message: "All applications have been generated successfully",
-			Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
 			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: "ApplicationSet Rollout has completed",
-			Reason:  v1alpha1.ApplicationSetReasonApplicationSetRolloutComplete,
+			Message: "No steps defined for rollout",
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
 		},
 	}
 
 	expectedApps := []v1alpha1.Application{
-		generateExpectedApp("prog-", "progressive-sync/", "dev", "dev"),
-		generateExpectedApp("prog-", "progressive-sync/", "staging", "staging"),
-		generateExpectedApp("prog-", "progressive-sync/", "prod", "prod"),
+		generateExpectedApp("prog-", "progressive-sync/", "dev", "dev", "", false),
+		generateExpectedApp("prog-", "progressive-sync/", "staging", "staging", "", false),
+		generateExpectedApp("prog-", "progressive-sync/", "prod", "prod", "", false),
 	}
 	Given(t).
 		When().
 		Create(appSetInvalidStepConfiguration).
 		Then().
-		Expect(ApplicationSetHasConditions(expectedConditions)). // TODO: when no steps created, condition should reflect that.
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 		Expect(ApplicationSetDoesNotHaveApplicationStatus()).
 		// Cleanup
 		When().
-		Delete().
+		Delete(metav1.DeletePropagationForeground).
 		Then().
 		ExpectWithDuration(ApplicationsDoNotExist(expectedApps), TransitionTimeout)
 }
@@ -403,9 +382,9 @@ func TestNoApplicationStatusWhenNoApplications(t *testing.T) {
 		t.Skip("Skipping progressive sync tests - ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS not enabled")
 	}
 	expectedApps := []v1alpha1.Application{
-		generateExpectedApp("prog-", "progressive-sync/", "dev", "dev"),
-		generateExpectedApp("prog-", "progressive-sync/", "staging", "staging"),
-		generateExpectedApp("prog-", "progressive-sync/", "prod", "prod"),
+		generateExpectedApp("prog-", "progressive-sync/", "dev", "dev", "", false),
+		generateExpectedApp("prog-", "progressive-sync/", "staging", "staging", "", false),
+		generateExpectedApp("prog-", "progressive-sync/", "prod", "prod", "", false),
 	}
 	Given(t).
 		When().
@@ -415,47 +394,180 @@ func TestNoApplicationStatusWhenNoApplications(t *testing.T) {
 		Expect(ApplicationSetDoesNotHaveApplicationStatus()).
 		// Cleanup
 		When().
-		Delete().
+		Delete(metav1.DeletePropagationForeground).
 		Then().
 		Expect(ApplicationsDoNotExist(expectedApps))
 }
 
-func TestProgressiveSyncMultipleAppsPerStep(t *testing.T) {
+func TestProgressiveSyncMultipleAppsPerStepWithReverseDeletionOrder(t *testing.T) {
 	if os.Getenv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS") != "true" {
 		t.Skip("Skipping progressive sync tests - ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS not enabled")
 	}
-	expectedApps := []v1alpha1.Application{
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/dev/", "sketch", "dev"),
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/dev/", "build", "dev"),
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/staging/", "verify", "staging"),
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/staging/", "validate", "staging"),
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/prod/", "ship", "prod"),
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/prod/", "run", "prod"),
+	// Define app groups by step (for reverse deletion: prod -> staging -> dev)
+	prodApps := []string{"prog-ship", "prog-run"}
+	stagingApps := []string{"prog-verify", "prog-validate"}
+	devApps := []string{"prog-sketch", "prog-build"}
+	testFinalizer := "test.e2e.argoproj.io/wait-for-verification"
+	// Create expected app definitions for existence checks
+	expectedProdApps := []v1alpha1.Application{
+		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/prod/", "ship", "prod", testFinalizer, false),
+		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/prod/", "run", "prod", testFinalizer, false),
 	}
+	expectedStagingApps := []v1alpha1.Application{
+		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/staging/", "verify", "staging", testFinalizer, false),
+		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/staging/", "validate", "staging", testFinalizer, false),
+	}
+	expectedDevApps := []v1alpha1.Application{
+		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/dev/", "sketch", "dev", testFinalizer, false),
+		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/dev/", "build", "dev", testFinalizer, false),
+	}
+	var allExpectedApps []v1alpha1.Application
+	allExpectedApps = append(allExpectedApps, expectedProdApps...)
+	allExpectedApps = append(allExpectedApps, expectedStagingApps...)
+	allExpectedApps = append(allExpectedApps, expectedDevApps...)
+
 	Given(t).
 		When().
-		Create(appSetWithMultipleAppsInEachStep).
+		Create(appSetWithReverseDeletionOrder).
 		Then().
-		Expect(ApplicationsExist(expectedApps)).
+		And(func() {
+			t.Log("ApplicationSet with reverse deletion order created")
+		}).
+		Expect(ApplicationsExist(allExpectedApps)).
 		Expect(CheckApplicationInRightSteps("1", []string{"prog-sketch", "prog-build"})).
 		Expect(CheckApplicationInRightSteps("2", []string{"prog-verify", "prog-validate"})).
 		Expect(CheckApplicationInRightSteps("3", []string{"prog-ship", "prog-run"})).
 		ExpectWithDuration(ApplicationSetHasApplicationStatus(6), TransitionTimeout).
+		And(func() {
+			t.Log("All 6 applications exist and are tracked in ApplicationSet status")
+		}).
+		// Delete the ApplicationSet
+		When().
+		Delete(metav1.DeletePropagationBackground).
+		Then().
+		And(func() {
+			t.Log("Starting deletion - should happen in reverse order: prod -> staging -> dev")
+			t.Log("Wave 1: Verifying prod apps (prog-ship, prog-run) are deleted first")
+		}).
+		// Wave 1: Prod apps should be deleted first, others untouched
+		Expect(ApplicationDeletionStarted(prodApps)).
+		Expect(ApplicationsExistAndNotBeingDeleted(append(stagingApps, devApps...))).
+		And(func() {
+			t.Log("Wave 1 confirmed: prod apps deleting/gone, staging and dev apps still exist and not being deleted")
+		}).
+		When().
+		RemoveFinalizerFromApps(prodApps, testFinalizer).
+		Then().
+		And(func() {
+			t.Log("removed finalizer from prod apps, confirm prod apps deleted")
+			t.Log("Wave 2: Verifying staging apps (prog-verify, prog-validate) are deleted second")
+		}).
+		// Wave 2: Staging apps being deleted, dev untouched
+		ExpectWithDuration(ApplicationsDoNotExist(expectedProdApps), TransitionTimeout).
+		Expect(ApplicationDeletionStarted(stagingApps)).
+		Expect(ApplicationsExistAndNotBeingDeleted(devApps)).
+		And(func() {
+			t.Log("Wave 2 confirmed: prod apps gone, staging apps deleting/gone, dev apps still exist and not being deleted")
+		}).
+		When().
+		RemoveFinalizerFromApps(stagingApps, testFinalizer).
+		Then().
+		And(func() {
+			t.Log("removed finalizer from staging apps, confirm staging apps deleted")
+			t.Log("Wave 3: Verifying dev apps (prog-sketch, prog-build) are deleted last")
+		}).
+		// Wave 3: Dev apps deleted last
+		ExpectWithDuration(ApplicationsDoNotExist(expectedStagingApps), TransitionTimeout).
+		Expect(ApplicationDeletionStarted(devApps)).
+		And(func() {
+			t.Log("Wave 3 confirmed: all prod and staging apps gone, dev apps deleting/gone")
+		}).
+		When().
+		RemoveFinalizerFromApps(devApps, testFinalizer).
+		Then().
+		And(func() {
+			t.Log("removed finalizer from dev apps, confirm dev apps deleted")
+			t.Log("Waiting for final cleanup - all applications should be deleted")
+		}).
+		// Final: All applications should be gone
+		ExpectWithDuration(ApplicationsDoNotExist(allExpectedApps), time.Minute).
+		And(func() {
+			t.Log("Reverse deletion order verified successfully!")
+			t.Log("Deletion sequence was: prod -> staging -> dev")
+		})
+}
+
+func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
+	if os.Getenv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS") != "true" {
+		t.Skip("Skipping progressive sync tests - ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS not enabled")
+	}
+
+	// all applications have the same source, simultaneous changes will still be gated
+	expectedApps := []v1alpha1.Application{
+		generateExpectedApp("refresh-dev-", "progressive-sync/updateRevision", "app1", "dev", "", true),
+		generateExpectedApp("refresh-staging-", "progressive-sync/updateRevision", "app2", "staging", "", true),
+		generateExpectedApp("refresh-prod-", "progressive-sync/updateRevision", "app3", "prod", "", true),
+	}
+
+	expectAllHealthy := map[string]v1alpha1.ApplicationSetApplicationStatus{
+		"refresh-dev-app1":     {Application: "refresh-dev-app1", Status: v1alpha1.ProgressiveSyncHealthy},
+		"refresh-staging-app2": {Application: "refresh-staging-app2", Status: v1alpha1.ProgressiveSyncHealthy},
+		"refresh-prod-app3":    {Application: "refresh-prod-app3", Status: v1alpha1.ProgressiveSyncHealthy},
+	}
+
+	expectProgressiveSyncBlocked := map[string]v1alpha1.ApplicationSetApplicationStatus{
+		"refresh-dev-app1":     {Application: "refresh-dev-app1", Status: v1alpha1.ProgressiveSyncHealthy},
+		"refresh-staging-app2": {Application: "refresh-staging-app2", Status: v1alpha1.ProgressiveSyncWaiting},
+		"refresh-prod-app3":    {Application: "refresh-prod-app3", Status: v1alpha1.ProgressiveSyncWaiting},
+	}
+
+	expectedOrder := []string{"refresh-dev-app1", "refresh-staging-app2", "refresh-prod-app3"}
+	var changeTime *metav1.Time
+	Given(t).
+		When().
+		Create(appSetForRefreshAnnotation).
+		Then().
+		Expect(ApplicationsExist(expectedApps)).
+		// Wait for all apps Synced on revisionA
+		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectAllHealthy), TransitionTimeout*3).
+		Expect(ApplicationsTransitionInOrder(expectedOrder)).
+		When().
+		AddAppAnnotation("refresh-dev-app1", common.AnnotationKeyAppSkipReconcile, "true").
+		And(func() {
+			changeTime = new(metav1.Now())
+			t.Log("Updating targetRevision to new revision by patching git")
+			fixture.Patch(t, "progressive-sync/updateRevision/deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)
+			t.Log("Git revision changed to revisionB")
+		}).
+		Then().
+		// Since applications were already healthy, before checking the progressive sync status of all applications, check if all applications were reconciled after changeTime
+		// ensureApplicationsReconciled adds refresh annotations to applications, but processing that annotation happens asynchronously by app controller and thus difficult to check deterministically in e2e tests
+		ExpectWithDuration(CheckApplicationsReconciledAfter([]string{"refresh-prod-app3", "refresh-staging-app2"}, changeTime), TransitionTimeout*4).
+		Expect(CheckApplicationsNotReconciledAfter([]string{"refresh-dev-app1"}, changeTime)).                               // Check application with skip-reconcile was not reconciled
+		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectProgressiveSyncBlocked), TransitionTimeout*3). // This ensures that applications do not sync out of order
+		Expect(AppsTransitionedAfter([]string{"refresh-prod-app3", "refresh-staging-app2"}, changeTime)).
+		// removing the skip reconcile, apps allowed to sync
+		When().
+		AddAppAnnotation("refresh-dev-app1", common.AnnotationKeyAppSkipReconcile, "false").
+		And(func() {
+			now := metav1.Now()
+			changeTime = &now
+		}).
+		Then().
+		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectAllHealthy), TransitionTimeout*3).
+		Expect(AppsTransitionedAfter([]string{"refresh-dev-app1", "refresh-prod-app3", "refresh-staging-app2"}, changeTime)).
+		Expect(ApplicationsTransitionInOrder(expectedOrder)).
 		// Cleanup
 		When().
-		Delete().
+		Delete(metav1.DeletePropagationForeground).
 		Then().
-		Expect(ApplicationsDoNotExist(expectedApps))
+		ExpectWithDuration(ApplicationsDoNotExist(expectedApps), TransitionTimeout)
 }
 
 var appSetInvalidStepConfiguration = v1alpha1.ApplicationSet{
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "invalid-step-configuration",
-	},
-	TypeMeta: metav1.TypeMeta{
-		Kind:       "ApplicationSet",
-		APIVersion: "argoproj.io/v1alpha1",
-	},
+	Name:       "invalid-step-configuration",
+	Kind:       "ApplicationSet",
+	APIVersion: "argoproj.io/v1alpha1",
 	Spec: v1alpha1.ApplicationSetSpec{
 		GoTemplate: true,
 		Template: v1alpha1.ApplicationSetTemplate{
@@ -505,13 +617,9 @@ var appSetInvalidStepConfiguration = v1alpha1.ApplicationSet{
 }
 
 var appSetWithEmptyGenerator = v1alpha1.ApplicationSet{
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "appset-empty-generator",
-	},
-	TypeMeta: metav1.TypeMeta{
-		Kind:       "ApplicationSet",
-		APIVersion: "argoproj.io/v1alpha1",
-	},
+	Name:       "appset-empty-generator",
+	Kind:       "ApplicationSet",
+	APIVersion: "argoproj.io/v1alpha1",
 	Spec: v1alpha1.ApplicationSetSpec{
 		GoTemplate: true,
 		Template: v1alpha1.ApplicationSetTemplate{
@@ -556,10 +664,10 @@ var appSetWithEmptyGenerator = v1alpha1.ApplicationSet{
 	},
 }
 
-var appSetWithMultipleAppsInEachStep = v1alpha1.ApplicationSet{
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "progressive-sync-multi-apps",
-	},
+var appSetWithReverseDeletionOrder = v1alpha1.ApplicationSet{
+	Name:       "appset-reverse-deletion-order",
+	Kind:       "ApplicationSet",
+	APIVersion: "argoproj.io/v1alpha1",
 	Spec: v1alpha1.ApplicationSetSpec{
 		GoTemplate: true,
 		Template: v1alpha1.ApplicationSetTemplate{
@@ -568,6 +676,10 @@ var appSetWithMultipleAppsInEachStep = v1alpha1.ApplicationSet{
 				Namespace: fixture.TestNamespace(),
 				Labels: map[string]string{
 					"environment": "{{.environment}}",
+				},
+				Finalizers: []string{
+					"resources-finalizer.argocd.argoproj.io",
+					"test.e2e.argoproj.io/wait-for-verification",
 				},
 			},
 			Spec: v1alpha1.ApplicationSpec{
@@ -605,31 +717,90 @@ var appSetWithMultipleAppsInEachStep = v1alpha1.ApplicationSet{
 			RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
 				Steps: generateStandardRolloutSyncSteps(),
 			},
+			DeletionOrder: "Reverse",
 		},
 	},
 }
 
-func generateExpectedApp(prefix string, path string, name string, envVar string) v1alpha1.Application {
+var appSetForRefreshAnnotation = v1alpha1.ApplicationSet{
+	Name: "progressive-sync-refresh-test",
+	Spec: v1alpha1.ApplicationSetSpec{
+		GoTemplate: true,
+		Template: v1alpha1.ApplicationSetTemplate{
+			ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+				Name:      "refresh-{{.environment}}-{{.name}}",
+				Namespace: fixture.TestNamespace(),
+				Labels: map[string]string{
+					"environment": "{{.environment}}",
+				},
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "default",
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
+					Path:           "progressive-sync/updateRevision",
+					TargetRevision: "HEAD",
+				},
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: "refresh-{{.environment}}-{{.name}}",
+				},
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					SyncOptions: v1alpha1.SyncOptions{"CreateNamespace=true"},
+				},
+			},
+		},
+		// List Generator in random order is on purpose
+		Generators: []v1alpha1.ApplicationSetGenerator{
+			{
+				List: &v1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{
+						{Raw: []byte(`{"environment": "prod", "name": "app3"}`)},
+						{Raw: []byte(`{"environment": "dev", "name": "app1"}`)},
+						{Raw: []byte(`{"environment": "staging", "name": "app2"}`)},
+					},
+				},
+			},
+		},
+		PreservedFields: &v1alpha1.ApplicationPreservedFields{
+			Annotations: []string{common.AnnotationKeyAppSkipReconcile},
+		},
+		Strategy: &v1alpha1.ApplicationSetStrategy{
+			Type: "RollingSync",
+			RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+				Steps: generateStandardRolloutSyncSteps(),
+			},
+		},
+	},
+}
+
+func generateExpectedApp(prefix string, path string, name string, envVar string, testFinalizer string, samePath bool) v1alpha1.Application {
+	finalizers := []string{
+		"resources-finalizer.argocd.argoproj.io",
+	}
+	if testFinalizer != "" {
+		finalizers = append(finalizers, testFinalizer)
+	}
+	finalPath := ""
+	if samePath {
+		finalPath = path
+	} else {
+		finalPath = path + name
+	}
 	return v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
+		Kind:       "Application",
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       prefix + name,
+		Namespace:  fixture.TestNamespace(),
+		Labels: map[string]string{
+			"environment": envVar,
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      prefix + name,
-			Namespace: fixture.TestNamespace(),
-			Labels: map[string]string{
-				"environment": envVar,
-			},
-			Finalizers: []string{
-				"resources-finalizer.argocd.argoproj.io",
-			},
-		},
+		Finalizers: finalizers,
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
 				RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
-				Path:           path + name,
+				Path:           finalPath,
 				TargetRevision: "HEAD",
 			},
 			Destination: v1alpha1.ApplicationDestination{

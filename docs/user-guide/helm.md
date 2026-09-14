@@ -16,7 +16,7 @@ spec:
   project: default
   source:
     chart: sealed-secrets
-    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    repoURL: https://bitnami.github.io/sealed-secrets
     targetRevision: 1.16.1
     helm:
       releaseName: sealed-secrets
@@ -503,25 +503,25 @@ source:
 Helm hooks are similar to [Argo CD hooks](sync-waves.md). In Helm, a hook
 is any normal Kubernetes resource annotated with the `helm.sh/hook` annotation.
 
-Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations:
+Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations. This is annotation compatibility, not a guarantee that hook lifecycle semantics are identical to Helm's:
 
-| Helm Annotation                 | Notes                                                                                         |
-| ------------------------------- |-----------------------------------------------------------------------------------------------|
-| `helm.sh/hook: crd-install`     | Supported as equivalent to normal Argo CD CRD handling.                                |
-| `helm.sh/hook: pre-delete`      | Supported as equivalent to `argocd.argoproj.io/hook: PreDelete`                               |
-| `helm.sh/hook: pre-rollback`    | Not supported. Never used in Helm stable.                                                     |
-| `helm.sh/hook: pre-install`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
-| `helm.sh/hook: pre-upgrade`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
-| `helm.sh/hook: post-upgrade`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                               |
-| `helm.sh/hook: post-install`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                               |
-| `helm.sh/hook: post-delete`     | Supported as equivalent to `argocd.argoproj.io/hook: PostDelete`.                             |
-| `helm.sh/hook: post-rollback`   | Not supported. Never used in Helm stable.                                                     |
-| `helm.sh/hook: test-success`    | Not supported. No equivalent in Argo CD.                                                      |
-| `helm.sh/hook: test-failure`    | Not supported. No equivalent in Argo CD.                                                      |
-| `helm.sh/hook-delete-policy`    | Supported. See also `argocd.argoproj.io/hook-delete-policy`).                                 |
-| `helm.sh/hook-delete-timeout`   | Not supported. Never used in Helm stable                                                      |
-| `helm.sh/hook-weight`           | Supported as equivalent to `argocd.argoproj.io/sync-wave`.                                    |
-| `helm.sh/resource-policy: keep` | Supported as equivalent to `argocd.argoproj.io/sync-options: Delete=false`.                   |
+| Helm Annotation                 | Notes                                                                                                                                              |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `helm.sh/hook: crd-install`     | Supported as equivalent to normal Argo CD CRD handling.                                                                                            |
+| `helm.sh/hook: pre-delete`      | Supported as equivalent to `argocd.argoproj.io/hook: PreDelete`                                                                                    |
+| `helm.sh/hook: pre-rollback`    | Not supported. Never used in Helm stable.                                                                                                          |
+| `helm.sh/hook: pre-install`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                                                                     |
+| `helm.sh/hook: pre-upgrade`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                                                                     |
+| `helm.sh/hook: post-upgrade`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                                                                                    |
+| `helm.sh/hook: post-install`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                                                                                    |
+| `helm.sh/hook: post-delete`     | Supported as equivalent to `argocd.argoproj.io/hook: PostDelete`.                                                                                  |
+| `helm.sh/hook: post-rollback`   | Not supported. Never used in Helm stable.                                                                                                          |
+| `helm.sh/hook: test-success`    | Not supported. No equivalent in Argo CD.                                                                                                           |
+| `helm.sh/hook: test-failure`    | Not supported. No equivalent in Argo CD.                                                                                                           |
+| `helm.sh/hook-delete-policy`    | Supported. Cleanup still follows Argo CD sync semantics, which can differ from Helm's hook event lifecycle. See also `argocd.argoproj.io/hook-delete-policy`. |
+| `helm.sh/hook-delete-timeout`   | Not supported. Never used in Helm stable                                                                                                           |
+| `helm.sh/hook-weight`           | Supported as equivalent to `argocd.argoproj.io/sync-wave`.                                                                                         |
+| `helm.sh/resource-policy: keep` | Supported as equivalent to `argocd.argoproj.io/sync-options: Delete=false`.                                                                        |
 
 Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl apply`, rather than `kubectl create`. This means that if the hook is named and already exists, it will not change unless you have annotated it with `before-hook-creation`.
 
@@ -534,6 +534,11 @@ Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl a
 > **'install' vs 'upgrade' vs 'sync'**
 >
 > Argo CD cannot know if it is running a first-time "install" or an "upgrade" - every operation is a "sync'. This means that, by default, apps that have `pre-install` and `pre-upgrade` will have those hooks run at the same time.
+
+> [!NOTE]
+> **Hook delete semantics differ from Helm**
+>
+> Helm hook annotations are mapped onto Argo CD hooks, but deletion policies are still evaluated using Argo CD sync phases and sync result semantics. This differs from Helm's per-hook-event lifecycle. In particular, passive resources such as `ServiceAccount` do not have a Kubernetes completion state like `Job` or `Workflow`, so `hook-succeeded`/`HookSucceeded` may be evaluated at a different point than you would observe with Helm.
 
 ### Hook Tips
 
@@ -635,7 +640,7 @@ RUN helm plugin install ${GCS_PLUGIN_REPO} --version ${GCS_PLUGIN_VERSION}
 ENV HELM_PLUGINS="/home/argocd/.local/share/helm/plugins/"
 ```
 
-The `HELM_PLUGINS` environment property required for ArgoCD to locate plugins correctly.
+The `HELM_PLUGINS` environment variable required for Argo CD to locate plugins correctly.
 
 Once built, use the custom image for ArgoCD installation.
 
@@ -684,24 +689,23 @@ repoServer:
           chmod -R 777 $HELM_DATA_HOME;
 ```
 
-## Helm Version
+## Helm Version 
 
-Argo CD will assume that the Helm chart is v3 (even if the apiVersion field in the chart is Helm v2), unless v2 is explicitly specified within the Argo CD Application (see below).
+This field was used in the past, during the transition period from Helm 2 to Helm 3.
+Before Helm 2 became EOL, Argo CD was shipped with both Helm binaries (v2 and v3) and users could specify which Helm binary Argo CD should use to render their charts, by setting this field.
 
-If needed, it is possible to specifically set the Helm version to template with by setting the `helm-version` flag on the cli (either v2 or v3):
+Since Helm 2 became EOL, this field does not need to be configured anymore. It exists for backwards-compatibility only. The only Helm binary used to render charts in Argo CD (starting with version 3.5) is v4.
 
-```bash
-argocd app set helm-guestbook --helm-version v3
-```
-
-Or using declarative syntax:
-
+If you historically have the following setting on your Helm applications:
 ```yaml
 spec:
   source:
     helm:
       version: v3
 ```
+
+you are not required to update or remove this field, and can leave this setting as is.
+
 
 ## Helm `--pass-credentials`
 

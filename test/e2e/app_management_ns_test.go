@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -152,60 +152,6 @@ func TestNamespacedGetLogsAllowNS(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
-}
-
-func TestNamespacedSyncToUnsignedCommit(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	GivenWithNamespace(t, fixture.AppNamespace()).
-		SetTrackingMethod("annotation").
-		Project("gpg").
-		Path(guestbookPath).
-		When().
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
-}
-
-func TestNamespacedSyncToSignedCommitWKK(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		SetAppNamespace(fixture.AppNamespace()).
-		SetTrackingMethod("annotation").
-		Project("gpg").
-		Path(guestbookPath).
-		When().
-		AddSignedFile("test.yaml", "null").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
-}
-
-func TestNamespacedSyncToSignedCommitKWKK(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		SetAppNamespace(fixture.AppNamespace()).
-		SetTrackingMethod("annotation").
-		Project("gpg").
-		Path(guestbookPath).
-		GPGPublicKeyAdded().
-		Sleep(2).
-		When().
-		AddSignedFile("test.yaml", "null").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
 func TestNamespacedAppCreation(t *testing.T) {
@@ -560,6 +506,49 @@ func TestNamespacedManipulateApplicationResources(t *testing.T) {
 			require.NoError(t, err)
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
+}
+
+func TestAppInNamespaceCommands(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		Path(guestbookPath).
+		SetTrackingMethod("annotation").
+		SetAppNamespace(fixture.AppNamespace()).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			manifests, err := fixture.RunCli("app", "manifests", ctx.AppName(), "--app-namespace", ctx.AppNamespace())
+			require.NoError(t, err)
+			resources, err := kube.SplitYAML([]byte(manifests))
+			require.NoError(t, err)
+
+			foundDeployment := false
+			for i := range resources {
+				if resources[i].GetKind() == kube.DeploymentKind && resources[i].GetName() == "guestbook-ui" {
+					foundDeployment = true
+					break
+				}
+			}
+			assert.True(t, foundDeployment)
+
+			resourceList, err := fixture.RunCli("app", "resources", ctx.AppName(), "--app-namespace", ctx.AppNamespace())
+			require.NoError(t, err)
+			assert.Contains(t, resourceList, "Deployment")
+			assert.Contains(t, resourceList, "Service")
+
+			resource, err := fixture.RunCli("app", "get-resource", ctx.AppName(), "--app-namespace", ctx.AppNamespace(), "--kind", "Deployment", "-o", "json")
+			require.NoError(t, err)
+			assert.Contains(t, resource, `"kind": "Deployment"`)
+			assert.Contains(t, resource, `"name": "guestbook-ui"`)
+
+			actions, err := fixture.RunCli("app", "actions", "list", ctx.AppName(), "--app-namespace", ctx.AppNamespace(), "--kind", "Deployment", "-o", "json")
+			require.NoError(t, err)
+			assert.Contains(t, actions, `"Name": "guestbook-ui"`)
+			assert.Contains(t, actions, `"Kind": "Deployment"`)
+		})
 }
 
 func TestNamespacedAppWithSecrets(t *testing.T) {
@@ -1424,9 +1413,7 @@ func TestNamespacedOrphanedResource(t *testing.T) {
 		When().
 		And(func() {
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "orphaned-configmap",
-				},
+				Name: "orphaned-configmap",
 			}, metav1.CreateOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).
@@ -1506,27 +1493,23 @@ func TestNamespacedNotPermittedResources(t *testing.T) {
 	ctx.SetAppNamespace(fixture.AppNamespace())
 	pathType := networkingv1.PathTypePrefix
 	ingress := &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "sample-ingress",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: fmt.Sprintf("%s_%s:networking/Ingress:%s/sample-ingress", fixture.AppNamespace(), ctx.AppName(), ctx.DeploymentNamespace()),
-			},
+		Name: "sample-ingress",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: fmt.Sprintf("%s_%s:networking/Ingress:%s/sample-ingress", fixture.AppNamespace(), ctx.AppName(), ctx.DeploymentNamespace()),
 		},
 		Spec: networkingv1.IngressSpec{
 			Rules: []networkingv1.IngressRule{{
-				IngressRuleValue: networkingv1.IngressRuleValue{
-					HTTP: &networkingv1.HTTPIngressRuleValue{
-						Paths: []networkingv1.HTTPIngressPath{{
-							Path: "/",
-							Backend: networkingv1.IngressBackend{
-								Service: &networkingv1.IngressServiceBackend{
-									Name: "guestbook-ui",
-									Port: networkingv1.ServiceBackendPort{Number: 80},
-								},
+				HTTP: &networkingv1.HTTPIngressRuleValue{
+					Paths: []networkingv1.HTTPIngressPath{{
+						Path: "/",
+						Backend: networkingv1.IngressBackend{
+							Service: &networkingv1.IngressServiceBackend{
+								Name: "guestbook-ui",
+								Port: networkingv1.ServiceBackendPort{Number: 80},
 							},
-							PathType: &pathType,
-						}},
-					},
+						},
+						PathType: &pathType,
+					}},
 				},
 			}},
 		},
@@ -1537,11 +1520,9 @@ func TestNamespacedNotPermittedResources(t *testing.T) {
 	}()
 
 	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "guestbook-ui",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: fmt.Sprintf("%s_%s:Service:%s/guesbook-ui", fixture.TestNamespace(), ctx.AppQualifiedName(), ctx.DeploymentNamespace()),
-			},
+		Name: "guestbook-ui",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: fmt.Sprintf("%s_%s:Service:%s/guesbook-ui", fixture.TestNamespace(), ctx.AppQualifiedName(), ctx.DeploymentNamespace()),
 		},
 		Spec: corev1.ServiceSpec{
 			Ports: []corev1.ServicePort{{
@@ -1710,9 +1691,7 @@ func TestNamespacedListResource(t *testing.T) {
 		When().
 		And(func() {
 			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(t.Context(), &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "orphaned-configmap",
-				},
+				Name: "orphaned-configmap",
 			}, metav1.CreateOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).

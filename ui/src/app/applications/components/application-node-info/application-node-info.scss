@@ -76,4 +76,54 @@
             border-bottom: none;
         }
     }
+
+    &__application-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5em;
+        max-width: 100%;
+    }
+
+    &__application-link {
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0;
+        font: inherit;
+        line-height: inherit;
+        color: $argo-color-teal-6;
+        cursor: pointer;
+        text-align: left;
+
+        &:hover,
+        &:focus-visible {
+            color: $argo-color-teal-5;
+            text-decoration: underline;
+        }
+
+        &:focus {
+            outline: none;
+        }
+    }
+
+    &__application-external-link {
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0;
+        font: inherit;
+        line-height: inherit;
+        color: $argo-color-gray-7;
+        cursor: pointer;
+        flex-shrink: 0;
+
+        &:hover,
+        &:focus-visible {
+            color: $argo-color-teal-5;
+        }
+
+        &:focus {
+            outline: none;
+        }
+    }
 }

@@ -8,6 +8,7 @@ import (
 )
 
 func TestUnique(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		slice []string
@@ -41,6 +42,7 @@ func TestUnique(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := unique(tt.slice)
 			assert.Truef(t, reflect.DeepEqual(got, tt.want), "unique() = %v, want %v", got, tt.want)
 		})

@@ -16,3 +16,7 @@ PATH="${PROJECT_ROOT}/dist:${PATH}"
 mockery version
 
 mockery --config "${PROJECT_ROOT}"/.mockery.yaml
+
+# Generate mocks for gitops-engine
+cd "${PROJECT_ROOT}"/gitops-engine
+mockery --config .mockery.yaml

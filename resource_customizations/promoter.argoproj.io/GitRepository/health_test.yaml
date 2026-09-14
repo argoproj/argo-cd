@@ -1,0 +1,29 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: Initializing Git repository
+  inputPath: testdata/no-status.yaml
+- healthStatus:
+    status: Progressing
+    message: 'GitRepository is being deleted. gitrepository.promoter.argoproj.io/finalizer: Waiting until no non-deleting PullRequests still reference this repository. Risk if removed manually: repository metadata may be removed while promotions still depend on it.'
+  inputPath: testdata/deleting.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for GitRepository spec update to be observed
+  inputPath: testdata/observed-generation-outdated.yaml
+- healthStatus:
+    status: Degraded
+    message: "Git repository validation failed: Reconciliation failed: repository not found"
+  inputPath: testdata/reconcile-error.yaml
+- healthStatus:
+    status: Progressing
+    message: GitRepository Ready condition is missing
+  inputPath: testdata/no-ready-condition.yaml
+- healthStatus:
+    status: Progressing
+    message: "Git repository readiness unknown (ValidationPending): Resolving repository metadata"
+  inputPath: testdata/ready-unknown.yaml
+- healthStatus:
+    status: Healthy
+    message: Git repository is ready
+  inputPath: testdata/healthy.yaml

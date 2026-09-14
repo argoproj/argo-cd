@@ -1,6 +1,7 @@
 import {MockupList, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
-import {DataLoader, EventsList, Expandable, YamlEditor} from '../../../shared/components';
+import {DataLoader, EventsList, Expandable} from '../../../shared/components';
+import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -8,6 +9,7 @@ import {Context} from '../../../shared/context';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import {HealthStatusIcon, getAppSetHealthStatus, getAppSetConditionCategory} from '../utils';
+import {AppSetPreviewTab} from './appset-preview-tab';
 import './resource-details.scss';
 
 interface AppSetResourceDetailsProps {
@@ -112,6 +114,11 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                         </DataLoader>
                     </div>
                 )
+            },
+            {
+                title: 'PREVIEW',
+                key: 'preview',
+                content: <AppSetPreviewTab appSet={appSet} />
             }
         ];
 
@@ -132,10 +139,20 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                     <ResourceIcon group='argoproj.io' kind='ApplicationSet' />
                     {ResourceLabel({kind: 'ApplicationSet'})}
                 </div>
-                <h1>{appSet.metadata.name}</h1>
-                <HealthStatusIcon state={{status: healthStatus, message: ''}} />
+                <div className='resource-details__header-name'>
+                    <h1 className='resource-details__header-title'>{appSet.metadata.name}</h1>
+                    <span className='resource-details__header-status'>
+                        <HealthStatusIcon state={{status: healthStatus, message: ''}} />
+                    </span>
+                </div>
             </div>
-            <Tabs navTransparent={true} tabs={getTabs()} selectedTabKey={tab} onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})} />
+            <Tabs
+                key={tab || 'default'}
+                navTransparent={true}
+                tabs={getTabs()}
+                selectedTabKey={tab}
+                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
+            />
         </div>
     );
 };

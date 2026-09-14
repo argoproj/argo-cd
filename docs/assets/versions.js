@@ -29,6 +29,25 @@ function getCurrentVersion() {
   return null;
 }
 
+/** Same docs page under /en/stable/ (for version warning banner). */
+function getStableDocsUrlForCurrentPage() {
+  try {
+    const url = new URL(window.location.href);
+    const newPath = url.pathname.replace(VERSION_REGEX, '/en/stable/');
+    if (newPath === url.pathname) {
+      return 'https://argo-cd.readthedocs.io/en/stable/';
+    }
+    url.pathname = newPath;
+    return url.href;
+  } catch (e) {
+    return 'https://argo-cd.readthedocs.io/en/stable/';
+  }
+}
+
+function escapeHtmlAttr(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
 function initializeVersionDropdown() {
   const callbackName = 'callback_' + new Date().getTime();
   window[callbackName] = function(response) {
@@ -139,10 +158,11 @@ window.addEventListener("DOMContentLoaded", function() {
   var headerHeight = document.getElementsByClassName("md-header")[0].offsetHeight;
   const currentVersion = getCurrentVersion();
   if (currentVersion && currentVersion !== "stable") {
+    const stablePageUrl = escapeHtmlAttr(getStableDocsUrlForCurrentPage());
     if (currentVersion === "latest") {
-      document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for an unreleased version of Argo CD, <a href='https://argo-cd.readthedocs.io/en/stable/'>view the latest stable version.</a></div>";
+      document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for an unreleased version of Argo CD, <a href=\"" + stablePageUrl + "\">view the latest stable version.</a></div>";
     } else {
-      document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for a previous version of Argo CD, <a href='https://argo-cd.readthedocs.io/en/stable/'>view the latest stable version.</a></div>";
+      document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for a previous version of Argo CD, <a href=\"" + stablePageUrl + "\">view the latest stable version.</a></div>";
     }
     var bannerHeight = document.getElementById('announce-msg').offsetHeight + margin;
     document.querySelector("header.md-header").style.top = bannerHeight + "px";

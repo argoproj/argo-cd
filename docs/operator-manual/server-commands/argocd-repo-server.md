@@ -17,10 +17,11 @@ argocd-repo-server [flags]
 ```
       --address string                                 Listen on given address for incoming connections (default "0.0.0.0")
       --allow-oob-symlinks                             Allow out-of-bounds symlinks in repositories (not recommended)
+      --client-ca-path string                          Path to the client CA certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS is skipped if the file does not exist. (default "/app/config/reposerver/mtls/client-ca.crt")
       --default-cache-expiration duration              Cache expiration default (default 24h0m0s)
       --disable-helm-manifest-max-extracted-size       Disable maximum size of helm manifest archives when extracted
       --disable-oci-manifest-max-extracted-size        Disable maximum size of oci manifest archives when extracted
-      --disable-tls                                    Disable TLS on the gRPC endpoint
+      --disable-tls                                    Disable TLS for the repo-server gRPC endpoint
       --enable-builtin-git-config                      Enable builtin git configuration options that are required for correct argocd-repo-server operation. (default true)
       --helm-manifest-max-extracted-size string        Maximum size of helm manifest archives when extracted (default "1G")
       --helm-registry-max-index-size string            Maximum size of registry index file (default "1G")
@@ -37,6 +38,7 @@ argocd-repo-server [flags]
       --otlp-attrs strings                             List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
       --otlp-headers stringToString                    List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
       --otlp-insecure                                  OpenTelemetry collector insecure mode (default true)
+      --otlp-sample-ratio float                        Fraction of traces to sample, from 0.0 (none) to 1.0 (all). Parent-based, so downstream services honor the upstream sampling decision (default 1)
       --parallelismlimit int                           Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
       --plugin-tar-exclude stringArray                 Globs to filter when sending tarballs to plugins.
       --plugin-use-manifest-generate-paths             Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.
@@ -57,6 +59,7 @@ argocd-repo-server [flags]
       --streamed-manifest-max-extracted-size string    Maximum size of streamed manifest archives when extracted (default "1G")
       --streamed-manifest-max-tar-size string          Maximum size of streamed manifest archives (default "100M")
       --tlsciphers string                              The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
+      --tlscurvepreferences string                     Colon-separated list of TLS curve preferences to be used when establishing TLS connections (e.g. X25519:CurveP256).
       --tlsmaxversion string                           The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
       --tlsminversion string                           The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
 ```

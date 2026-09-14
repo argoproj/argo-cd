@@ -1,7 +1,7 @@
 # Progressive Syncs
 
 > [!WARNING]
-> **Beta Feature (Since v2.6.0)**
+> **Beta Feature (Since v3.3.0)**
 >
 
     This feature is in the [Beta](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta) stage. It is generally considered stable, but there may be unhandled edge cases.

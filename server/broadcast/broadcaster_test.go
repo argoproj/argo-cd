@@ -12,6 +12,7 @@ import (
 )
 
 func TestBroadcasterHandler_SubscribeUnsubscribe(t *testing.T) {
+	t.Parallel()
 	broadcaster := NewHandler[appv1.Application, appv1.ApplicationWatchEvent](
 		func(app *appv1.Application, eventType watch.EventType) *appv1.ApplicationWatchEvent {
 			return &appv1.ApplicationWatchEvent{Application: *app, Type: eventType}
@@ -31,6 +32,7 @@ func TestBroadcasterHandler_SubscribeUnsubscribe(t *testing.T) {
 }
 
 func TestBroadcasterHandler_ReceiveEvents(t *testing.T) {
+	t.Parallel()
 	broadcaster := NewHandler[appv1.Application, appv1.ApplicationWatchEvent](
 		func(app *appv1.Application, eventType watch.EventType) *appv1.ApplicationWatchEvent {
 			return &appv1.ApplicationWatchEvent{Application: *app, Type: eventType}

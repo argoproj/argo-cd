@@ -4,7 +4,7 @@ import {Timestamp} from '../../../shared/components/timestamp';
 import {services} from '../../../shared/services';
 
 export const RevisionMetadataPanel = (props: {appName: string; appNamespace: string; type: string; revision: string; versionId: number}) => {
-    if (props.type === 'helm' || props.type === 'oci') {
+    if (props.type === 'helm') {
         return null;
     }
     if (props.type === 'oci') {
