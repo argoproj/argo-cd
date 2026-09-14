@@ -65,7 +65,7 @@ func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	providerConfig := appSetGenerator.Plugin
 
-	pluginClient, err := g.getPluginFromGenerator(ctx, applicationSetInfo.Name, providerConfig)
+	pluginClient, err := g.getPluginFromGenerator(ctx, applicationSetInfo.Name, applicationSetInfo.Namespace, providerConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error getting plugin from generator: %w", err)
 	}
@@ -83,7 +83,7 @@ func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	return res, nil
 }
 
-func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, appSetName string, generatorConfig *argoprojiov1alpha1.PluginGenerator) (*plugin.Service, error) {
+func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, appSetName string, appSetNamespace string, generatorConfig *argoprojiov1alpha1.PluginGenerator) (*plugin.Service, error) {
 	cm, err := g.getConfigMap(ctx, generatorConfig.ConfigMapRef.Name)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching ConfigMap: %w", err)
@@ -102,7 +102,7 @@ func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, appSetName
 		}
 	}
 
-	pluginClient, err := plugin.NewPluginService(appSetName, cm["baseUrl"], token, requestTimeout)
+	pluginClient, err := plugin.NewPluginService(appSetName, appSetNamespace, cm["baseUrl"], token, requestTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing plugin client: %w", err)
 	}
