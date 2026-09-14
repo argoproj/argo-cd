@@ -81,7 +81,7 @@ const renderWithContext = (element: React.ReactElement) => render(<Context.Provi
 test('collapsed multi-source summary shows plugin env values', () => {
     renderWithContext(<ApplicationParameters application={multiSourceApp()} collapsedSources={[true]} handleCollapse={() => undefined} />);
 
-    expect(screen.getByText(/ENV=FOO=bar ENVIRONMENT=prod/)).toBeInTheDocument();
+    expect(screen.getByText(/ENV=\[FOO=bar, ENVIRONMENT=prod\]/)).toBeInTheDocument();
 });
 
 test('expanded multi-source plugin panel renders NAME and ENV from the per-source plugin', async () => {

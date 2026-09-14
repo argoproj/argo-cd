@@ -310,7 +310,7 @@ export const ApplicationParameters = (props: {
                             appSource.path ? 'PATH=' + appSource.path : '',
                             appSource.chart ? 'CHART=' + appSource.chart : '',
                             appSource.targetRevision ? 'REVISION=' + appSource.targetRevision : '',
-                            appSource.plugin?.env?.length ? 'ENV=' + appSource.plugin.env.map(env => env.name + '=' + env.value).join(' ') : ''
+                            appSource.plugin?.env?.length ? 'ENV=[' + appSource.plugin.env.map(env => env.name + '=' + env.value).join(', ') + ']' : ''
                         ]
                             .filter(part => part !== '')
                             .join(', ')}
