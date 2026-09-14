@@ -726,7 +726,7 @@ func (c *liveStateCache) restConfigUsingDefaultCABundle(server string) *rest.Con
 		log.Warnf("Failed to get cluster %s to refresh its REST config after a default CA bundle change: %v", server, err)
 		return nil
 	}
-	if cluster.Server == appv1.KubernetesInternalAPIServerAddr || len(cluster.Config.CAData) > 0 {
+	if cluster.Server == appv1.KubernetesInternalAPIServerAddr || len(cluster.Config.CAData) > 0 || cluster.Config.Insecure {
 		return nil
 	}
 	restConfig, err := cluster.RESTConfig()
