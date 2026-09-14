@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -194,22 +195,18 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	mockCommitClientset := &mockcommitclient.Clientset{}
 
 	secret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      "argocd-secret",
+		Namespace: test.FakeArgoCDNamespace,
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),
 		},
 	}
 	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: test.FakeArgoCDNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cm",
+		Namespace: test.FakeArgoCDNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: data.configMapData,
 	}
@@ -293,7 +290,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 			if res, ok := data.namespacedResources[key]; ok {
 				appName = res.AppName
 			}
-			_ = action(v1alpha1.ResourceNode{ResourceRef: v1alpha1.ResourceRef{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
+			_ = action(v1alpha1.ResourceNode{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}, appName)
 		}
 	}).Return(nil)
 	return ctrl
@@ -761,6 +758,21 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, app.Operation)
 	})
+	t.Run("ClusterObjectChangeWithDifferingOpRevisionAndNoNewCommitsShouldNotTriggerAutoSync", func(t *testing.T) {
+		app := newFakeMultiSourceApp()
+		app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
+		app.Status.OperationState.SyncResult.Revisions = []string{"z", "x", "v"}
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+		syncStatus := v1alpha1.SyncStatus{
+			Status:    v1alpha1.SyncStatusCodeOutOfSync,
+			Revisions: []string{"a", "b", "c"},
+		}
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, false)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Nil(t, app.Operation)
+	})
 }
 
 func TestAutoSyncNotAllowEmpty(t *testing.T) {
@@ -1051,10 +1063,8 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 func TestFinalizeAppDeletion(t *testing.T) {
 	now := metav1.Now()
 	defaultProj := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "default",
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      "default",
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos: []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{
@@ -1095,10 +1105,8 @@ func TestFinalizeAppDeletion(t *testing.T) {
 	// when app project restriction is in place
 	t.Run("ProjectRestrictionEnforced", func(t *testing.T) {
 		restrictedProj := v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "restricted",
-				Namespace: test.FakeArgoCDNamespace,
-			},
+			Name:      "restricted",
+			Namespace: test.FakeArgoCDNamespace,
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos: []string{"*"},
 				Destinations: []v1alpha1.ApplicationDestination{
@@ -1520,10 +1528,8 @@ func TestFinalizeAppDeletion(t *testing.T) {
 	t.Run("MultiNamespaceCacheClear", func(t *testing.T) {
 		// Create a project that allows apps from other-ns namespace
 		multiNsProj := v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: test.FakeArgoCDNamespace,
-			},
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos: []string{"*"},
 				Destinations: []v1alpha1.ApplicationDestination{
@@ -1551,7 +1557,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 
 		err := ctrl.cache.SetAppManagedResources(instanceName, []*v1alpha1.ResourceDiff{{Name: "test"}})
 		require.NoError(t, err)
-		err = ctrl.cache.SetAppResourcesTree(instanceName, &v1alpha1.ApplicationTree{Nodes: []v1alpha1.ResourceNode{{ResourceRef: v1alpha1.ResourceRef{Name: "test"}}}})
+		err = ctrl.cache.SetAppResourcesTree(instanceName, &v1alpha1.ApplicationTree{Nodes: []v1alpha1.ResourceNode{{Name: "test"}}})
 		require.NoError(t, err)
 
 		// Verify cache is populated
@@ -1596,10 +1602,8 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		app.DeletionTimestamp = &now
 
 		project := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: test.FakeArgoCDNamespace,
-				Name:      "default",
-			},
+			Namespace: test.FakeArgoCDNamespace,
+			Name:      "default",
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos: []string{"*"},
 				Destinations: []v1alpha1.ApplicationDestination{
@@ -1621,10 +1625,8 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		additionalObjs := []runtime.Object{}
 		if serviceAccountName != "" {
 			syncServiceAccount := &corev1.ServiceAccount{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      serviceAccountName,
-					Namespace: test.FakeDestNamespace,
-				},
+				Name:      serviceAccountName,
+				Namespace: test.FakeDestNamespace,
 			}
 			additionalObjs = append(additionalObjs, syncServiceAccount)
 		}
@@ -1696,10 +1698,8 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 // TestNormalizeApplication verifies we normalize an application during reconciliation
 func TestNormalizeApplication(t *testing.T) {
 	defaultProj := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "default",
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      "default",
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos: []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{
@@ -1767,6 +1767,51 @@ func TestNormalizeApplication(t *testing.T) {
 	}
 }
 
+// TestNormalizeApplicationPatchesSpecOnly covers a spec that normalizes and one that is already
+// normalized, on an application carrying a large status.
+func TestNormalizeApplicationPatchesSpecOnly(t *testing.T) {
+	testCases := []struct {
+		name          string
+		project       string
+		expectedPatch string
+	}{
+		{
+			name:          "missing project is normalized",
+			project:       "",
+			expectedPatch: `{"spec":{"project":"default"}}`,
+		},
+		{
+			name:    "normalized spec is not patched",
+			project: "default",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			app := newSyncedFakeApp(500)
+			app.Spec.Project = tc.project
+			proj := defaultProj.DeepCopy()
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, proj}}, nil)
+
+			var patches []string
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			fakeAppCs.ReactionChain = nil
+			fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+				patches = append(patches, string(action.(kubetesting.PatchAction).GetPatch()))
+				return true, &v1alpha1.Application{}, nil
+			})
+
+			ctrl.normalizeApplication(app)
+
+			if tc.expectedPatch == "" {
+				assert.Empty(t, patches)
+				return
+			}
+			assert.Equal(t, []string{tc.expectedPatch}, patches)
+		})
+	}
+}
+
 func TestHandleAppUpdated(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
@@ -1819,16 +1864,16 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 	proj.Spec.OrphanedResources = &v1alpha1.OrphanedResourcesMonitorSettings{}
 
 	managedDeploy := v1alpha1.ResourceNode{
-		ResourceRef: v1alpha1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment", Version: "v1"},
+		Group: "apps", Kind: "Deployment", Namespace: "default", Name: "nginx-deployment", Version: "v1",
 		Health: &v1alpha1.HealthStatus{
 			Status: health.HealthStatusMissing,
 		},
 	}
 	orphanedDeploy1 := v1alpha1.ResourceNode{
-		ResourceRef: v1alpha1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "deploy1"},
+		Group: "apps", Kind: "Deployment", Namespace: "default", Name: "deploy1",
 	}
 	orphanedDeploy2 := v1alpha1.ResourceNode{
-		ResourceRef: v1alpha1.ResourceRef{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "deploy2"},
+		Group: "apps", Kind: "Deployment", Namespace: "default", Name: "deploy2",
 	}
 
 	ctrl := newFakeController(t.Context(), &fakeData{
@@ -2224,12 +2269,68 @@ func TestNeedRefreshAppStatusZeroTimeout(t *testing.T) {
 	assert.False(t, needRefresh, "timeout 0 should disable automatic expiry-based refresh")
 }
 
+// TestNeedRefreshAppStatusDoesNotModifyApp covers the refresh decision across an app that is up to
+// date, one whose comparison expired, and one with the refresh annotation. processAppRefreshQueueItem
+// hands the informer's application to needRefreshAppStatus, so none of them may be modified.
+func TestNeedRefreshAppStatusDoesNotModifyApp(t *testing.T) {
+	syncedApp := newFakeApp()
+	syncedApp.Status.Sync = v1alpha1.SyncStatus{
+		Status: v1alpha1.SyncStatusCodeSynced,
+		ComparedTo: v1alpha1.ComparedTo{
+			Destination:       syncedApp.Spec.Destination,
+			IgnoreDifferences: syncedApp.Spec.IgnoreDifferences,
+			Source:            syncedApp.Spec.GetSource(),
+		},
+	}
+	now := metav1.Now()
+	syncedApp.Status.ReconciledAt = &now
+
+	expiredApp := syncedApp.DeepCopy()
+	past := metav1.NewTime(time.Now().UTC().Add(-2 * time.Hour))
+	expiredApp.Status.ReconciledAt = &past
+
+	annotatedApp := syncedApp.DeepCopy()
+	annotatedApp.Annotations = map[string]string{v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal)}
+
+	testCases := []struct {
+		name          string
+		app           *v1alpha1.Application
+		expectRefresh bool
+	}{
+		{
+			name:          "up to date app",
+			app:           syncedApp,
+			expectRefresh: false,
+		},
+		{
+			name:          "expired comparison",
+			app:           expiredApp,
+			expectRefresh: true,
+		},
+		{
+			name:          "refresh annotation",
+			app:           annotatedApp,
+			expectRefresh: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{}}, nil)
+			before := tc.app.DeepCopy()
+
+			needRefresh, _, _ := ctrl.needRefreshAppStatus(tc.app, 1*time.Hour, 2*time.Hour)
+
+			assert.Equal(t, tc.expectRefresh, needRefresh)
+			assert.Equal(t, before, tc.app)
+		})
+	}
+}
+
 func TestRefreshAppConditions(t *testing.T) {
 	defaultProj := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "default",
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      "default",
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos: []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{
@@ -2351,14 +2452,10 @@ func TestUpdateReconciledAt(t *testing.T) {
 
 func TestUpdateHealthStatus(t *testing.T) {
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "demo",
+		Namespace:  "default",
 	})
 	// The single managed Deployment is the cause of any non-Healthy aggregated app health.
 	deploymentCause := "Caused by apps/Deployment:default/demo"
@@ -2514,14 +2611,10 @@ apps/Deployment:
 func TestUpdateHealthStatusProgression(t *testing.T) {
 	app := newFakeAppWithHealthAndTime(health.HealthStatusDegraded, testTimestamp)
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "demo",
+		Namespace:  "default",
 		Status: appsv1.DeploymentStatus{
 			ObservedGeneration: 0,
 		},
@@ -2657,14 +2750,12 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 	mockCommitClientset := &mockcommitclient.Clientset{}
 
 	secret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: test.FakeArgoCDNamespace},
-		Data:       map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
+		Name: "argocd-secret", Namespace: test.FakeArgoCDNamespace,
+		Data: map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
 	}
 	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "argocd-cm", Namespace: test.FakeArgoCDNamespace,
-			Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
-		},
+		Name: "argocd-cm", Namespace: test.FakeArgoCDNamespace,
+		Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
 	}
 	kubeClient := fake.NewClientset(&clust, &secret, &cm)
 	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
@@ -2672,7 +2763,7 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 
 	app := newFakeApp()
 	proj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Name: "default", Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -2722,14 +2813,12 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 	mockCommitClientset := &mockcommitclient.Clientset{}
 
 	secret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: test.FakeArgoCDNamespace},
-		Data:       map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
+		Name: "argocd-secret", Namespace: test.FakeArgoCDNamespace,
+		Data: map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
 	}
 	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "argocd-cm", Namespace: test.FakeArgoCDNamespace,
-			Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
-		},
+		Name: "argocd-cm", Namespace: test.FakeArgoCDNamespace,
+		Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
 	}
 	kubeClient := fake.NewClientset(&clust, &secret, &cm)
 	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
@@ -2737,7 +2826,7 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 
 	app := newFakeApp()
 	proj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Name: "default", Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -2778,7 +2867,7 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 
 func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
 	app := newFakeApp()
-	proj := &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
+	proj := &v1alpha1.AppProject{Name: "default", Namespace: test.FakeArgoCDNamespace}
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, proj}}, nil)
 
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
@@ -2794,7 +2883,7 @@ func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
 }
 
 func TestFinalizeProjectDeletion_DoesNotHaveApplications(t *testing.T) {
-	proj := &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
+	proj := &v1alpha1.AppProject{Name: "default", Namespace: test.FakeArgoCDNamespace}
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{&defaultProj}}, nil)
 
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
@@ -2819,7 +2908,7 @@ func TestFinalizeProjectDeletion_HasApplicationInOtherNamespace(t *testing.T) {
 	app := newFakeApp()
 	app.Namespace = "team-a"
 	proj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Name: "default", Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceNamespaces: []string{"team-a"},
 		},
@@ -2845,7 +2934,7 @@ func TestFinalizeProjectDeletion_IgnoresAppsInUnmonitoredNamespace(t *testing.T)
 	app := newFakeApp()
 	app.Namespace = "team-b"
 	proj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Name: "default", Namespace: test.FakeArgoCDNamespace,
 	}
 	ctrl := newFakeController(t.Context(), &fakeData{
 		apps:                  []runtime.Object{app, proj},
@@ -2874,7 +2963,7 @@ func TestFinalizeProjectDeletion_IgnoresAppsNotPermittedByProject(t *testing.T) 
 	app := newFakeApp()
 	app.Namespace = "team-b"
 	proj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Name: "default", Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceNamespaces: []string{"team-a"},
 		},
@@ -2956,6 +3045,39 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	assert.Equal(t, synccommon.OperationRunning, patchedApp.Status.OperationState.Phase)
 	assert.Contains(t, patchedApp.Status.OperationState.Message, "Failed to load application project: error getting app project \"invalid-project\": appproject.argoproj.io \"invalid-project\" not found. Retrying attempt #1")
 	assert.EqualValues(t, 1, patchedApp.Status.OperationState.RetryCount)
+}
+
+func TestProcessRequestedAppOperation_FailedRetryMessageTime(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "invalid-project"
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+		Retry: v1alpha1.RetryStrategy{
+			Limit:   1,
+			Backoff: &v1alpha1.Backoff{Duration: "2m", MaxDuration: "1h"},
+		},
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	start := time.Now()
+
+	ctrl.processRequestedAppOperation(app)
+
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	message := patchedApp.Status.OperationState.Message
+
+	assert.Contains(t, message, "Retrying attempt #1 at ")
+
+	// The retry time is absolute rather than relative, because the message is persisted once and
+	// never rewritten until the next attempt fails, so a relative delta would go stale on the object.
+	match := regexp.MustCompile(`Retrying attempt #1 at (\S+)\.`).FindStringSubmatch(message)
+	require.Len(t, match, 2)
+	retryAt, err := time.Parse(time.RFC3339, match[1])
+	require.NoError(t, err)
+	// RFC3339 in UTC, so the time can't be mistaken for the reader's local time.
+	assert.Equal(t, time.UTC, retryAt.Location())
+	assert.WithinDuration(t, start.Add(2*time.Minute), retryAt, time.Minute)
 }
 
 func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
@@ -3589,7 +3711,7 @@ func TestGetAppHosts(t *testing.T) {
 	ctrl.stateCache = mockStateCache
 
 	hosts, err := ctrl.getAppHosts(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, []v1alpha1.ResourceNode{{
-		ResourceRef: v1alpha1.ResourceRef{Name: "pod1", Namespace: "default", Kind: kube.PodKind},
+		Name: "pod1", Namespace: "default", Kind: kube.PodKind,
 		Info: []v1alpha1.InfoItem{{
 			Name:  "Host",
 			Value: "Minikube",

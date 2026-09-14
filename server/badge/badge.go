@@ -229,7 +229,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if adjustWidth {
 		badge = svgWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`<svg width="%d" $2`, svgWidth))
 		if revisionEnabled {
-			xpos := (svgWidthWithoutRevision)*10 + (len(displayedRevision)+1)*textPositionWidthPerChar/2
+			xpos := svgWidthWithoutRevision*10 + (len(displayedRevision)+1)*textPositionWidthPerChar/2
 			badge = revisionRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, svgWidth-svgWidthWithoutRevision))
 			badge = revisionTextXCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, xpos))
 		} else {

@@ -1,0 +1,14 @@
+# A ProviderConfigUsage has no status subresource, so it is Healthy only
+# through the has_no_conditions list. Kept as a fixture because that list is
+# now the only thing standing between a status-less kind and a
+# permanent Progressing.
+apiVersion: aws.upbound.io/v1beta1
+kind: ProviderConfigUsage
+metadata:
+  name: 4d1b2c3d-5e6f-4a7b-8c9d-0e1f2a3b4c5d
+providerConfigRef:
+  name: default
+resourceRef:
+  apiVersion: ec2.aws.upbound.io/v1beta1
+  kind: Instance
+  name: sample-instance

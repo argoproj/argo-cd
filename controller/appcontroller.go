@@ -22,6 +22,7 @@ import (
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubemeta"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	otel_codes "go.opentelemetry.io/otel/codes"
@@ -302,7 +303,7 @@ func NewApplicationController(
 
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 
-	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, readinessHealthCheck, metricsApplicationLabels, metricsApplicationConditions, ctrl.db)
+	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessAppWithDestination, readinessHealthCheck, metricsApplicationLabels, metricsApplicationConditions)
 	if err != nil {
 		return nil, err
 	}
@@ -582,32 +583,28 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 	for i := range managedResources {
 		managedResource := managedResources[i]
 		delete(orphanedNodesMap, kube.NewResourceKey(managedResource.Group, managedResource.Kind, managedResource.Namespace, managedResource.Name))
-		live := &unstructured.Unstructured{}
-		err := json.Unmarshal([]byte(managedResource.LiveState), &live)
+		live, err := kubemeta.NewKubeJson([]byte(managedResource.LiveState))
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal live state of managed resources: %w", err)
 		}
 
-		if live == nil {
-			target := &unstructured.Unstructured{}
-			err = json.Unmarshal([]byte(managedResource.TargetState), &target)
+		if live.IsEmpty() {
+			target, err := kubemeta.NewKubeJson([]byte(managedResource.TargetState))
 			if err != nil {
 				return nil, fmt.Errorf("failed to unmarshal target state of managed resources: %w", err)
 			}
 			nodes = append(nodes, appv1.ResourceNode{
-				ResourceRef: appv1.ResourceRef{
-					Version:   target.GroupVersionKind().Version,
-					Name:      managedResource.Name,
-					Kind:      managedResource.Kind,
-					Group:     managedResource.Group,
-					Namespace: managedResource.Namespace,
-				},
+				Version:   target.GroupVersionKind().Version,
+				Name:      managedResource.Name,
+				Kind:      managedResource.Kind,
+				Group:     managedResource.Group,
+				Namespace: managedResource.Namespace,
 				Health: &appv1.HealthStatus{
 					Status: health.HealthStatusMissing,
 				},
 			})
 		} else {
-			managedResourcesKeys = append(managedResourcesKeys, kube.GetResourceKey(live))
+			managedResourcesKeys = append(managedResourcesKeys, kubemeta.GetResourceKey(live))
 		}
 	}
 	// Process managed resources and their children, including cross-namespace relationships
@@ -1686,7 +1683,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				state.Phase = synccommon.OperationRunning
 				state.FinishedAt = &now
 				state.RetryCount++
-				state.Message = fmt.Sprintf("%s. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.Format(time.Kitchen))
+				state.Message = fmt.Sprintf("%s. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.UTC().Format(time.RFC3339))
 			}
 		} else {
 			if terminating && terminatingCause != "" {
@@ -1851,12 +1848,14 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		log.WithField("appkey", appKey).Warn("Key in index is not an application")
 		return processNext
 	}
-	origApp = origApp.DeepCopy()
+	// needRefreshAppStatus only reads the application, so the informer's copy answers it and the
+	// queue items that need no refresh never pay for a copy.
 	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout, ctrl.statusHardRefreshTimeout)
 
 	if !needRefresh {
 		return processNext
 	}
+	origApp = origApp.DeepCopy()
 	app := origApp.DeepCopy()
 	logCtx := log.WithFields(applog.GetAppLogFields(app)).WithFields(log.Fields{
 		"comparison-level": comparisonLevel,
@@ -2242,11 +2241,17 @@ func (ctrl *ApplicationController) refreshAppConditions(ctx context.Context, app
 
 // normalizeApplication normalizes an application.spec and additionally persists updates if it changed
 func (ctrl *ApplicationController) normalizeApplication(app *appv1.Application) {
-	orig := app.DeepCopy()
+	origSpec := app.Spec.DeepCopy()
 	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 
-	patch, modified, err := diff.CreateTwoWayMergePatch(orig, app, appv1.Application{})
+	// Only the spec can differ, so the patch is built from the spec alone rather than from the
+	// whole application. status.resources and status.history would otherwise be marshaled twice
+	// on every refresh.
+	patch, modified, err := diff.CreateTwoWayMergePatch(
+		appv1.Application{Spec: *origSpec},
+		appv1.Application{Spec: app.Spec},
+		appv1.Application{})
 
 	if err != nil {
 		logCtx.WithError(err).Error("error constructing app spec patch")
@@ -2749,15 +2754,24 @@ func (ctrl *ApplicationController) isAppNamespaceAllowed(app *appv1.Application)
 }
 
 func (ctrl *ApplicationController) canProcessApp(obj any) bool {
+	canProcess, _, _ := ctrl.canProcessAppWithDestination(obj)
+	return canProcess
+}
+
+// canProcessAppWithDestination is canProcessApp plus the destination server it resolved and the
+// error that stopped it resolving, so the metrics collector doesn't have to resolve it again and
+// can still report the failure. Callers on the informer path drop the error, which is why nothing
+// logs per Application event.
+func (ctrl *ApplicationController) canProcessAppWithDestination(obj any) (bool, string, error) {
 	app, ok := obj.(*appv1.Application)
 	if !ok {
-		return false
+		return false, "", nil
 	}
 
 	// Only process given app if it exists in a watched namespace, or in the
 	// control plane's namespace.
 	if !ctrl.isAppNamespaceAllowed(app) {
-		return false
+		return false, "", nil
 	}
 
 	if annotations := app.GetAnnotations(); annotations != nil {
@@ -2766,7 +2780,7 @@ func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 			if skipReconcile, err := strconv.ParseBool(skipVal); err == nil {
 				if skipReconcile {
 					logCtx.Debugf("Skipping Application reconcile based on annotation %s", common.AnnotationKeyAppSkipReconcile)
-					return false
+					return false, "", nil
 				}
 			} else {
 				logCtx.WithError(err).Debugf("Unable to determine if Application should skip reconcile based on annotation %s", common.AnnotationKeyAppSkipReconcile)
@@ -2774,11 +2788,23 @@ func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 		}
 	}
 
+	destServer, err := argo.GetDestinationServer(context.Background(), app.Spec.Destination, ctrl.db)
+	if err != nil {
+		// Destination doesn't resolve to a server: both name and server set, neither set, an
+		// unknown name, or an ambiguous one. GetDestinationCluster returns this same error
+		// unwrapped, so the collector logs exactly what it always did.
+		return ctrl.clusterSharding.IsManagedCluster(nil), "", err
+	}
+	if managed, known := ctrl.clusterSharding.IsManagedClusterByServer(destServer); known {
+		return managed, destServer, nil
+	}
+	// Nothing in the sharding cache for this server, either there is no cluster secret or the cache
+	// hasn't caught up with a new one. Fall back to the full lookup.
 	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db)
 	if err != nil {
-		return ctrl.clusterSharding.IsManagedCluster(nil)
+		return ctrl.clusterSharding.IsManagedCluster(nil), "", err
 	}
-	return ctrl.clusterSharding.IsManagedCluster(destCluster)
+	return ctrl.clusterSharding.IsManagedCluster(destCluster), destCluster.Server, nil
 }
 
 func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {
@@ -2794,10 +2820,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 	}
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (apiruntime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (apiruntime.Object, error) {
 				// We are only interested in apps that exist in namespaces the
 				// user wants to be enabled.
-				appList, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(watchNamespace).List(context.TODO(), options)
+				appList, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(watchNamespace).List(ctx, options)
 				if err != nil {
 					return nil, err
 				}
@@ -2810,8 +2836,8 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				appList.Items = newItems
 				return appList, nil
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return ctrl.applicationClientset.ArgoprojV1alpha1().Applications(watchNamespace).Watch(context.TODO(), options)
+			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
+				return ctrl.applicationClientset.ArgoprojV1alpha1().Applications(watchNamespace).Watch(ctx, options)
 			},
 		},
 		&appv1.Application{},

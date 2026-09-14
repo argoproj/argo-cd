@@ -1,0 +1,25 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "ResourceGraphDefinition is active and serving instances"
+    inputPath: testdata/active.yaml
+  - healthStatus:
+      status: Degraded
+      message: "graph was rejected: validation failed"
+    inputPath: testdata/inactive_degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for KRO to report status"
+    inputPath: testdata/no_status.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for ResourceGraphDefinition to become ready"
+    inputPath: testdata/inactive_progressing.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for ResourceGraphDefinition to become ready"
+    inputPath: testdata/stale_generation.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for ResourceGraphDefinition to become ready"
+    inputPath: testdata/missing_generation.yaml

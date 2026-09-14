@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
-import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
+import {bufferTime, filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 import {DataLoader, EmptyState, Page, Paginate, SearchBar} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -18,13 +18,18 @@ import {createMatcher} from './applications-list-search';
 import {AppSetsStatusBar} from './applications-status-bar';
 import {AppSetTile} from './appset-tile';
 import {AppSetTableRow} from './appset-table-row';
-import {ApplicationSetsSummary} from './application-sets-summary';
 import {FlexTopBar} from '../../../shared/components';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {ViewTypeSwitcher} from './view-type-switcher';
 
 import './applications-list.scss';
 import './applications-table.scss';
 import './applications-tiles.scss';
+
+const ApplicationSetsSummary = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "appset-summary" */ './application-sets-summary').then(m => ({default: m.ApplicationSetsSummary}))),
+    'Failed to load application sets summary. Please reload and try again.'
+);
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
@@ -54,7 +59,7 @@ function loadApplicationSets(projects: string[]): Observable<models.ApplicationS
                 services.applications
                     .watch('applicationset', {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APPSET_WATCH_FIELDS})
                     .pipe(repeat())
-                    .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
+                    .pipe(retry({delay: WATCH_RETRY_TIMEOUT}))
                     .pipe(bufferTime(EVENTS_BUFFER_TIMEOUT))
                     .pipe(
                         map(appChanges => {

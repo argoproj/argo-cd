@@ -15,10 +15,10 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/image-spec/specs-go"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,9 +52,9 @@ func generateManifestWithConfig(t *testing.T, store *memory.Store, configMediaTy
 	}
 
 	manifestBlob, err := json.Marshal(imagev1.Manifest{
-		Config:    configDesc,
-		Layers:    layers,
-		Versioned: specs.Versioned{SchemaVersion: 2},
+		Config:        configDesc,
+		Layers:        layers,
+		SchemaVersion: 2,
 	})
 	require.NoError(t, err)
 	manifestDesc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, manifestBlob)
@@ -130,7 +130,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				manifestMaxExtractedSize:        10,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: errors.New("cannot extract contents of oci image with revision sha256:1b6dfd71e2b35c2f35dffc39007c2276f3c0e235cbae4c39cba74bd406174e22: failed to perform \"Push\" on destination: could not decompress layer: error while iterating on tar reader: unexpected EOF"),
+			expectedError: errors.New(`cannot extract contents of oci image with revision {{digest}}: failed to perform "Push" on destination: could not decompress layer: error while iterating on tar reader: unexpected EOF`),
 		},
 		{
 			name: "extraction fails due to multiple content layers",
@@ -606,7 +606,8 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			path, gotCloser, err := c.Extract(t.Context(), sha)
 
 			if tt.expectedError != nil {
-				require.EqualError(t, err, tt.expectedError.Error())
+				// The digest depends on the Go version's gzip output, so it is substituted rather than hardcoded.
+				require.EqualError(t, err, strings.ReplaceAll(tt.expectedError.Error(), "{{digest}}", sha))
 				return
 			}
 
@@ -776,9 +777,9 @@ func Test_nativeOCIClient_DigestMetadata(t *testing.T) {
 		configBlob := []byte("config")
 		configDesc := content.NewDescriptorFromBytes("application/vnd.cncf.helm.config.v1+json", configBlob)
 		manifestBlob, err := json.Marshal(imagev1.Manifest{
-			Versioned:   specs.Versioned{SchemaVersion: 2},
-			Config:      configDesc,
-			Annotations: annotations,
+			SchemaVersion: 2,
+			Config:        configDesc,
+			Annotations:   annotations,
 		})
 		require.NoError(t, err)
 		manifestDesc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, manifestBlob)

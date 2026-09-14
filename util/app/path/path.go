@@ -123,7 +123,7 @@ func GetSourceRefreshPaths(app *v1alpha1.Application, source v1alpha1.Applicatio
 		syncSource := app.Spec.SourceHydrator.GetSyncSource()
 
 		// if source is syncSource use the source path
-		if (source).Equals(&syncSource) {
+		if source.Equals(&syncSource) {
 			return []string{source.Path}
 		}
 	}
