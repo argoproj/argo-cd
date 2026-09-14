@@ -12,6 +12,8 @@ import (
 	clientcmdapiv1 "k8s.io/client-go/tools/clientcmd/api/v1"
 	"sigs.k8s.io/yaml"
 
+	"github.com/spf13/cobra"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
@@ -80,6 +82,134 @@ func Test_newCluster(t *testing.T) {
 		&v1alpha1.ExecProviderConfig{}, labels, annotations)
 
 	assert.True(t, clusterWithDisableCompression.Config.DisableCompression)
+
+	clusterWithQPSAndBurst := NewCluster("test-cluster", []string{"test-namespace"}, false, &rest.Config{
+		Host:  "test-endpoint.example.com",
+		QPS:   18.5,
+		Burst: 37,
+	}, "test-bearer-token", &v1alpha1.AWSAuthConfig{}, &v1alpha1.ExecProviderConfig{}, nil, nil)
+	assert.Equal(t, float32(18.5), clusterWithQPSAndBurst.Config.QPS)
+	assert.Equal(t, int64(37), clusterWithQPSAndBurst.Config.Burst)
+}
+
+func TestAddClusterFlags_QPSAndBurst(t *testing.T) {
+	tests := []struct {
+		name          string
+		args          []string
+		expectedQPS   float32
+		expectedBurst int
+	}{
+		{
+			name:          "omitted flags default to zero",
+			args:          []string{},
+			expectedQPS:   0,
+			expectedBurst: 0,
+		},
+		{
+			name:          "positive values",
+			args:          []string{"--k8s-client-qps", "25.5", "--k8s-client-burst", "51"},
+			expectedQPS:   25.5,
+			expectedBurst: 51,
+		},
+		{
+			name:          "zero values",
+			args:          []string{"--k8s-client-qps", "0", "--k8s-client-burst", "0"},
+			expectedQPS:   0,
+			expectedBurst: 0,
+		},
+		{
+			name:          "negative values",
+			args:          []string{"--k8s-client-qps", "-5", "--k8s-client-burst", "-10"},
+			expectedQPS:   -5,
+			expectedBurst: -10,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{Use: "test"}
+			opts := &ClusterOptions{}
+			AddClusterFlags(cmd, opts)
+
+			err := cmd.ParseFlags(tt.args)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedQPS, opts.K8sClientQPS)
+			assert.Equal(t, tt.expectedBurst, opts.K8sClientBurst)
+		})
+	}
+}
+
+func TestApplyRateLimitOverrides(t *testing.T) {
+	tests := []struct {
+		name          string
+		opts          *ClusterOptions
+		initialQPS    float32
+		initialBurst  int64
+		expectedQPS   float32
+		expectedBurst int64
+	}{
+		{
+			name:          "positive QPS and Burst overrides existing values",
+			opts:          &ClusterOptions{K8sClientQPS: 30, K8sClientBurst: 60},
+			initialQPS:    10,
+			initialBurst:  20,
+			expectedQPS:   30,
+			expectedBurst: 60,
+		},
+		{
+			name:          "positive QPS only overrides QPS and preserves Burst",
+			opts:          &ClusterOptions{K8sClientQPS: 45, K8sClientBurst: 0},
+			initialQPS:    10,
+			initialBurst:  20,
+			expectedQPS:   45,
+			expectedBurst: 20,
+		},
+		{
+			name:          "positive Burst only overrides Burst and preserves QPS",
+			opts:          &ClusterOptions{K8sClientQPS: 0, K8sClientBurst: 80},
+			initialQPS:    10,
+			initialBurst:  20,
+			expectedQPS:   10,
+			expectedBurst: 80,
+		},
+		{
+			name:          "zero values preserve existing cluster config",
+			opts:          &ClusterOptions{K8sClientQPS: 0, K8sClientBurst: 0},
+			initialQPS:    15,
+			initialBurst:  30,
+			expectedQPS:   15,
+			expectedBurst: 30,
+		},
+		{
+			name:          "negative values preserve existing cluster config",
+			opts:          &ClusterOptions{K8sClientQPS: -1, K8sClientBurst: -5},
+			initialQPS:    15,
+			initialBurst:  30,
+			expectedQPS:   15,
+			expectedBurst: 30,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clst := &v1alpha1.Cluster{
+				Config: v1alpha1.ClusterConfig{
+					QPS:   tt.initialQPS,
+					Burst: tt.initialBurst,
+				},
+			}
+			ApplyRateLimitOverrides(tt.opts, clst)
+			assert.Equal(t, tt.expectedQPS, clst.Config.QPS)
+			assert.Equal(t, tt.expectedBurst, clst.Config.Burst)
+		})
+	}
+
+	t.Run("nil safety", func(t *testing.T) {
+		assert.NotPanics(t, func() {
+			ApplyRateLimitOverrides(nil, &v1alpha1.Cluster{})
+			ApplyRateLimitOverrides(&ClusterOptions{}, nil)
+		})
+	})
 }
 
 func TestGetKubePublicEndpoint(t *testing.T) {

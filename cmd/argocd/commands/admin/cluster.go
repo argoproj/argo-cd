@@ -683,6 +683,8 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			errors.CheckError(err)
 
 			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, bearerToken, awsAuthConf, execProviderConf, labelsMap, annotationsMap)
+			// Override K8s client QPS and Burst if specified via CLI flags
+			cmdutil.ApplyRateLimitOverrides(&clusterOpts, clst)
 			if clusterOpts.InClusterEndpoint() {
 				clst.Server = v1alpha1.KubernetesInternalAPIServerAddr
 			}
