@@ -150,6 +150,12 @@ func (a *Actions) List() *Actions {
 	return a
 }
 
+func (a *Actions) ListWithSelector(selector string) *Actions {
+	a.context.T().Helper()
+	a.runCli("cluster", "list", "--selector", selector)
+	return a
+}
+
 func (a *Actions) Get() *Actions {
 	a.context.T().Helper()
 	a.runCli("cluster", "get", a.context.server)

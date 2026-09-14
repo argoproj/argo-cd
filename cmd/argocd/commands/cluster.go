@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"regexp"
@@ -46,6 +47,11 @@ const (
 	// indicates managing all namespaces
 	allNamespaces = "*"
 )
+
+// newClusterClient is an indirection needed for a client lookup during tests. Mocks are injected here.
+var newClusterClient = func(clientOpts *argocdclient.ClientOptions, c *cobra.Command) (io.Closer, clusterpkg.ClusterServiceClient) {
+	return headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDieWithContext(c.Context())
+}
 
 // NewClusterCommand returns a new instance of an `argocd cluster` command
 func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
@@ -524,15 +530,16 @@ func printClusterServers(clusters []argoappv1.Cluster) {
 // NewClusterListCommand returns a new instance of an `argocd cluster rm` command
 func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var output string
+	var selector string
 	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured clusters",
 		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
-			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDieWithContext(ctx)
+			conn, clusterIf := newClusterClient(clientOpts, c)
 			defer utilio.Close(conn)
-			clusters, err := clusterIf.List(ctx, &clusterpkg.ClusterQuery{})
+			clusters, err := clusterIf.List(ctx, &clusterpkg.ClusterListQuery{Selector: selector})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":
@@ -559,12 +566,19 @@ argocd cluster list -o json --server <ARGOCD_SERVER_ADDRESS>
 # List Clusters in YAML Format
 argocd cluster list -o yaml --server <ARGOCD_SERVER_ADDRESS>
 
-# List Clusters that have been added to your Argo CD 
+# List Clusters that have been added to your Argo CD
 argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
 
+# List clusters by label
+argocd cluster list -l env=prod
+argocd cluster list -l env!=prod
+argocd cluster list -l env
+argocd cluster list -l '!env'
+argocd cluster list -l 'env notin (dev,staging)'
 `,
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|server")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "List clusters by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching clusters must satisfy all of the specified label constraints.")
 	return command
 }
 
