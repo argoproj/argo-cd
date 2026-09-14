@@ -571,6 +571,22 @@ func TestVerifyUsernamePassword(t *testing.T) {
 	}
 }
 
+func TestBuildPasswordMigrationMutatorSkipsConcurrentChange(t *testing.T) {
+	mutator := buildPasswordMigrationMutator("original-hash", "new-hash")
+	acc := &settings.Account{PasswordHash: "changed-concurrently"}
+
+	require.NoError(t, mutator(acc))
+	assert.Equal(t, "changed-concurrently", acc.PasswordHash)
+}
+
+func TestBuildPasswordMigrationMutatorAppliesWhenUnchanged(t *testing.T) {
+	mutator := buildPasswordMigrationMutator("original-hash", "new-hash")
+	acc := &settings.Account{PasswordHash: "original-hash"}
+
+	require.NoError(t, mutator(acc))
+	assert.Equal(t, "new-hash", acc.PasswordHash)
+}
+
 func TestVerifyUsernamePasswordMigratesBcryptPassword(t *testing.T) {
 	const pass = "password"
 
