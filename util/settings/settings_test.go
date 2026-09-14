@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -14,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -134,6 +137,69 @@ func TestGetClusterCABundle(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, []byte(strings.TrimSpace(validCABundle)), caBundle)
 	})
+}
+
+func TestGetClusterCABundle_EvaluatesEachValueOnce(t *testing.T) {
+	validCABundle := strings.TrimSpace(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt"))
+	hook := logtest.NewGlobal()
+	defer hook.Reset()
+	malformedWarnings := func() int {
+		count := 0
+		for _, entry := range hook.AllEntries() {
+			if entry.Level == log.WarnLevel && strings.Contains(entry.Message, common.ArgoCDClusterCAConfigMapName) {
+				count++
+			}
+		}
+		return count
+	}
+	kubeClient, settingsManager := fixtures(t.Context(), nil)
+	cm := &corev1.ConfigMap{
+		Name:      common.ArgoCDClusterCAConfigMapName,
+		Namespace: "default",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
+		},
+		Data: map[string]string{
+			common.ArgoCDClusterCAConfigMapKey: "not a certificate",
+		},
+	}
+	_, err := kubeClient.CoreV1().ConfigMaps("default").Create(t.Context(), cm, metav1.CreateOptions{})
+	require.NoError(t, err)
+	caBundleIs := func(expected []byte) func() bool {
+		return func() bool {
+			caBundle, err := settingsManager.GetClusterCABundle()
+			return err == nil && bytes.Equal(expected, caBundle)
+		}
+	}
+	updateCABundle := func(value string) {
+		t.Helper()
+		cm.Data[common.ArgoCDClusterCAConfigMapKey] = value
+		_, err := kubeClient.CoreV1().ConfigMaps("default").Update(t.Context(), cm, metav1.UpdateOptions{})
+		require.NoError(t, err)
+	}
+
+	for range 5 {
+		caBundle, err := settingsManager.GetClusterCABundle()
+		require.NoError(t, err)
+		assert.Nil(t, caBundle)
+	}
+	assert.Equal(t, 1, malformedWarnings(), "a malformed value must be logged once, not on every lookup")
+
+	updateCABundle(validCABundle)
+	require.Eventually(t, caBundleIs([]byte(validCABundle)), 10*time.Second, 50*time.Millisecond, "a changed value must be evaluated again")
+
+	returned, err := settingsManager.GetClusterCABundle()
+	require.NoError(t, err)
+	returned[0] = 'X'
+	assert.True(t, caBundleIs([]byte(validCABundle))(), "callers must receive a copy of the bundle")
+
+	updateCABundle("still not a certificate")
+	require.Eventually(t, caBundleIs(nil), 10*time.Second, 50*time.Millisecond)
+	for range 3 {
+		_, err := settingsManager.GetClusterCABundle()
+		require.NoError(t, err)
+	}
+	assert.Equal(t, 2, malformedWarnings(), "a new malformed value must be logged once more")
 }
 
 func TestSettingsManager_NotifiesWhenClusterCAConfigMapIsDeleted(t *testing.T) {
