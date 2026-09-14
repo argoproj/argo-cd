@@ -343,7 +343,7 @@ The `targetRevision` field supports exact tags as well as semver constraints (e.
 Docker Hub webhooks are configured per repository and notify Argo CD when a new image tag is pushed.
 
 > [!NOTE]
-> Unlike GitHub, DockerHub neither signs webhook payloads nor sends a provider-specific header. Argo CD therefore identifies DockerHub requests by a `type=dockerhub` query parameter on the webhook URL, and authenticates them with an optional shared secret passed as a `secret` query parameter.
+> Unlike GitHub, DockerHub neither signs webhook payloads nor sends a provider-specific header. Argo CD therefore identifies DockerHub requests by a `type=dockerhub` query parameter on the webhook URL, and authenticates them with a shared secret. The secret is read from the `Authorization` header if present, and otherwise from a `secret` query parameter. Configuring the secret (`webhook.dockerhub.secret`) is **required** for Docker Hub webhook support.
 
 #### Configure the Webhook
 
@@ -351,12 +351,28 @@ Go through the [DockerHub Webhooks](https://docs.docker.com/docker-hub/repos/man
 
 > [!NOTE]
 > Docker Hub webhooks are scoped to a single repository, so add a webhook on every repository whose pushes should refresh an Application. Docker Hub also requires a publicly reachable HTTPS URL, so a cluster-internal or `localhost` address will not work, so expose `argocd-server` (e.g. via a tunnel) when testing locally.
+
 > [!WARNING]
-> Because Docker Hub cannot sign payloads, the shared secret is carried in the webhook URL rather than in a signature header. Always serve the `/api/webhook` endpoint over TLS, and be aware that the secret may be recorded by intermediate proxies or access logs. Configuring a secret is optional but recommended when Argo CD is publicly accessible.
+> Because Docker Hub cannot sign payloads, the shared secret is carried in the webhook URL rather than in a signature header. A captured secret can be replayed, and it does not provide payload integrity guarantees. To reduce risk:
+>
+> - **Always use HTTPS** so the secret cannot be intercepted in transit, and be aware that a secret in the URL may be recorded by intermediate proxies or access logs. Moving it to a header (see below) avoids this.
+> - **Use a strong, randomly generated secret** (e.g. `openssl rand -hex 32`).
+> - **Rotate the secret periodically** by updating both `webhook.dockerhub.secret` in `argocd-secret` and the webhook URL in Docker Hub.
+> - **Restrict network access** to the `/api/webhook` endpoint at the network/firewall level so only Docker Hub can reach it.
+
+#### Passing the Secret in a Header Instead
+
+Docker Hub only lets you configure a URL, so it cannot set request headers itself. If you front `argocd-server` with a proxy, ingress, or API gateway, you can have it strip the `secret` query parameter and forward the value in an `Authorization` header instead, keeping the secret out of URLs and access logs:
+
+```
+Authorization: <your-webhook-secret>
+```
+
+Argo CD prefers this header over the query parameter when both are present, and the header value is compared in constant time exactly like the query parameter. This matches how the [Harbor](#harbor) webhook authenticates. Note that a request carrying an `Authorization` header is validated against that header alone — a wrong header value is rejected even if the query parameter is correct.
 
 #### Configure the Webhook Secret
 
-Configure the secret in the `argocd-secret` Kubernetes secret under `webhook.dockerhub.secret`. It must match the value used in the `secret` query parameter above:
+Configure the secret in the `argocd-secret` Kubernetes secret under `webhook.dockerhub.secret`. It must match the value used in the `secret` query parameter (or `Authorization` header) above:
 
 ```yaml
 apiVersion: v1
@@ -369,7 +385,7 @@ stringData:
   webhook.dockerhub.secret: <your-webhook-secret>
 ```
 
-If no secret is configured, Argo CD accepts Docker Hub events without validation. As with all webhooks, payloads are treated as untrusted and only ever result in a refresh of the matching application.
+If no secret is configured, Docker Hub webhook support is disabled entirely and incoming Docker Hub events are rejected as an unknown webhook event, so the endpoint is never reachable without authentication. As with all webhooks, payloads are treated as untrusted and only ever result in a refresh of the matching application.
 
 #### Example Application
 
