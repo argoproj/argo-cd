@@ -754,17 +754,6 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 }));
                             };
 
-                            // For ApplicationSets, clicking an Application node navigates to its details page; otherwise the node is selected in place.
-                            const handleNodeClick = (fullName: string) => {
-                                const parts = fullName.split('/');
-                                const [group, kind, namespace, name] = parts;
-                                if (!isApplication && group === 'argoproj.io' && kind === 'Application' && namespace && name) {
-                                    appContext.navigation.goto(`/applications/${namespace}/${name}`);
-                                } else {
-                                    selectNode(fullName);
-                                }
-                            };
-
                             // Helper to get ApplicationResourceTree props based on resource type
                             const getResourceTreeProps = () => {
                                 const commonProps = {
@@ -817,7 +806,9 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 } else {
                                     return {
                                         ...commonProps,
-                                        onNodeClick: handleNodeClick,
+                                        onNodeClick: (fullName: string) => {
+                                            selectNode(fullName);
+                                        },
                                         app: application,
                                         showOrphanedResources: false,
                                         useNetworkingHierarchy: false,
@@ -1164,7 +1155,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                     {data => (
                                                                         <ApplicationResourceList
                                                                             pref={pref}
-                                                                            onNodeClick={handleNodeClick}
+                                                                            onNodeClick={(fullName: string) => selectNode(fullName)}
                                                                             selectedNodeFullName={highlightNodeKey || undefined}
                                                                             sortKey={resourceSort.sortKey}
                                                                             requestSort={resourceSort.requestSort}
@@ -1244,8 +1235,20 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                             </SlidingPanel>
                                         )}
                                         {!isApplication && (
-                                            <SlidingPanel isShown={isAppSelected} onClose={() => selectNode('')}>
+                                            <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => selectNode('')}>
                                                 {isAppSelected && <AppSetResourceDetails appSet={application as appModels.ApplicationSet} />}
+                                                {!isAppSelected && selectedNode && (
+                                                    <ResourceDetails
+                                                        tree={tree}
+                                                        application={application as appModels.Application}
+                                                        isAppSelected={isAppSelected}
+                                                        updateApp={(app: models.Application, query: {validate?: boolean}) => updateApp(app, query)}
+                                                        selectedNode={selectedNode}
+                                                        appCxt={{...appContext, apis: appContext} as unknown as AppContext}
+                                                        appChanged={appChanged}
+                                                        generatedAppNode={true}
+                                                    />
+                                                )}
                                             </SlidingPanel>
                                         )}
                                         {isApplication && (

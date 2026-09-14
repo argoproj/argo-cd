@@ -102,6 +102,7 @@ export const ApplicationNodeInfo = (props: {
     links: models.LinksResponse;
     controlled: {summary: models.ResourceStatus; state: models.ResourceDiff};
     showApplicationReference?: boolean;
+    readonly?: boolean;
 }) => {
     const appContext = React.useContext(Context);
     const attributes: {title: string; value: any}[] = [
@@ -288,17 +289,20 @@ export const ApplicationNodeInfo = (props: {
                                         </div>
                                         <YamlEditor
                                             input={live}
-                                            hideModeButtons={!live || props.showApplicationReference}
+                                            hideModeButtons={!live || props.readonly}
                                             vScrollbar={live}
                                             enableWordWrap={pref.appDetails.enableWordWrap}
-                                            onSave={(patch, patchType) =>
-                                                services.applications.patchResource(
-                                                    props.application.metadata.name,
-                                                    props.application.metadata.namespace,
-                                                    props.node,
-                                                    patch,
-                                                    patchType
-                                                )
+                                            onSave={
+                                                props.readonly
+                                                    ? undefined
+                                                    : (patch, patchType) =>
+                                                          services.applications.patchResource(
+                                                              props.application.metadata.name,
+                                                              props.application.metadata.namespace,
+                                                              props.node,
+                                                              patch,
+                                                              patchType
+                                                          )
                                             }
                                         />
                                     </React.Fragment>
