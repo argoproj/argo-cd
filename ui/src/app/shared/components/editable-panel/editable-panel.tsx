@@ -31,6 +31,10 @@ function isSubsection(content: EditablePanelContent): content is EditablePanelSu
     return (content as EditablePanelSubsection).sectionName !== undefined;
 }
 
+function containsValidationErrors(errors: any) {
+    return Object.values(errors || {}).some(error => error !== null && error !== undefined && error !== false && error !== '');
+}
+
 export interface EditablePanelProps<T> {
     title?: string | ReactNode;
     titleCollapsed?: string | ReactNode;
@@ -68,11 +72,13 @@ function EditablePanel<T extends {} = {}>({
 }: EditablePanelProps<T>) {
     const [isEditing, setIsEditing] = useState<boolean>(!!noReadonlyMode);
     const [isSaving, setIsSaving] = useState<boolean>(false);
+    const [hasValidationErrors, setHasValidationErrors] = useState<boolean>(false);
     const [isCollapsed, setIsCollapsed] = useState<boolean>(collapsedProp);
     const [prevCollapsedProp, setPrevCollapsedProp] = useState<boolean>(collapsedProp);
     const ctx = useContext(Context);
     const formApiRef = useRef<FormApi | null>(null);
     const initialValuesRef = useRef<T>(values);
+    const lastObservedValuesRef = useRef(JSON.stringify(values));
 
     // Sync the collapsed state when the controlling prop changes, adjusting
     // during render instead of in an effect to avoid a cascading re-render.
@@ -87,6 +93,7 @@ function EditablePanel<T extends {} = {}>({
 
         if (formApiRef.current && initialValuesString !== valuesString) {
             if (noReadonlyMode) {
+                lastObservedValuesRef.current = valuesString;
                 formApiRef.current.setAllValues(values);
             }
             initialValuesRef.current = values;
@@ -124,6 +131,7 @@ function EditablePanel<T extends {} = {}>({
 
     const handleCancel = useCallback(() => {
         setIsEditing(false);
+        setHasValidationErrors(false);
         onModeSwitch();
     }, [onModeSwitch]);
 
@@ -189,6 +197,7 @@ function EditablePanel<T extends {} = {}>({
                                     <button
                                         onClick={() => {
                                             setIsEditing(true);
+                                            setHasValidationErrors(false);
                                             onModeSwitch();
                                         }}
                                         disabled={hasMultipleSources}
@@ -199,7 +208,10 @@ function EditablePanel<T extends {} = {}>({
                                 )}
                                 {isEditing && (
                                     <>
-                                        <button disabled={isSaving} onClick={() => !isSaving && formApiRef.current?.submitForm(null)} className='argo-button argo-button--base'>
+                                        <button
+                                            disabled={isSaving || hasValidationErrors}
+                                            onClick={() => !isSaving && !hasValidationErrors && formApiRef.current?.submitForm(null)}
+                                            className='argo-button argo-button--base'>
                                             <Spinner show={isSaving} style={{marginRight: '5px'}} />
                                             Save
                                         </button>{' '}
@@ -232,7 +244,11 @@ function EditablePanel<T extends {} = {}>({
                             <Form
                                 getApi={api => (formApiRef.current = api)}
                                 formDidUpdate={async form => {
-                                    if (noReadonlyMode && save) {
+                                    const errors = validate?.(form.values as T) || {};
+                                    setHasValidationErrors(containsValidationErrors(errors));
+                                    const valuesKey = JSON.stringify(form.values);
+                                    if (noReadonlyMode && save && !containsValidationErrors(errors) && lastObservedValuesRef.current !== valuesKey) {
+                                        lastObservedValuesRef.current = valuesKey;
                                         await save(form.values as any, {});
                                     }
                                 }}
