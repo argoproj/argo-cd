@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -643,7 +644,8 @@ type SettingsManager struct {
 	tlsCertCacheSecretName    string
 	tlsCertCacheSecretVersion string
 	// clusterInformer provides optimized cluster lookups using informer transforms
-	clusterInformer *ClusterInformer
+	clusterInformer      *ClusterInformer
+	clusterCABundleCache clusterCABundleCache
 }
 
 type incompleteSettingsError struct {
@@ -2057,7 +2059,8 @@ func (mgr *SettingsManager) SaveGPGPublicKeyData(ctx context.Context, gpgPublicK
 // argocd-cluster-ca-cm ConfigMap under the ca.crt key. It returns nil without an error when the ConfigMap does not
 // exist, when the key is missing or blank, or when the value does not contain a valid PEM encoded certificate (which
 // is logged as a warning), so that a misconfigured bundle is treated as an absent one by every caller. An error is
-// returned only when the ConfigMap cannot be read.
+// returned only when the ConfigMap cannot be read. This is called on every cluster lookup, so each distinct value is
+// parsed, and logged when malformed, only once.
 func (mgr *SettingsManager) GetClusterCABundle() ([]byte, error) {
 	cm, err := mgr.GetConfigMapByName(common.ArgoCDClusterCAConfigMapName)
 	if err != nil {
@@ -2066,15 +2069,35 @@ func (mgr *SettingsManager) GetClusterCABundle() ([]byte, error) {
 		}
 		return nil, fmt.Errorf("failed to get ConfigMap %q: %w", common.ArgoCDClusterCAConfigMapName, err)
 	}
-	caBundle := strings.TrimSpace(cm.Data[common.ArgoCDClusterCAConfigMapKey])
+	return mgr.clusterCABundleCache.get(cm.Data[common.ArgoCDClusterCAConfigMapKey]), nil
+}
+
+type clusterCABundleCache struct {
+	mutex     sync.Mutex
+	evaluated bool
+	raw       string
+	bundle    []byte
+}
+
+func (c *clusterCABundleCache) get(raw string) []byte {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	if !c.evaluated || raw != c.raw {
+		c.raw, c.bundle, c.evaluated = raw, parseClusterCABundle(raw), true
+	}
+	return bytes.Clone(c.bundle)
+}
+
+func parseClusterCABundle(raw string) []byte {
+	caBundle := strings.TrimSpace(raw)
 	if caBundle == "" {
-		return nil, nil
+		return nil
 	}
 	if ok := x509.NewCertPool().AppendCertsFromPEM([]byte(caBundle)); !ok {
 		log.Warnf("Ignoring key %q of ConfigMap %q: it does not contain any valid PEM encoded certificate. Clusters without their own caData will use system roots.", common.ArgoCDClusterCAConfigMapKey, common.ArgoCDClusterCAConfigMapName)
-		return nil, nil
+		return nil
 	}
-	return []byte(caBundle), nil
+	return []byte(caBundle)
 }
 
 type SettingsManagerOpts func(mgs *SettingsManager)
