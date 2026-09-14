@@ -2,9 +2,11 @@ import {DataLoader, DropDown, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
 import {useState} from 'react';
 import {BehaviorSubject} from 'rxjs';
-import {EventsList, YamlEditor} from '../../../shared/components';
+import {EventsList} from '../../../shared/components';
+import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {AppContext, Context} from '../../../shared/context';
 import {Application, ApplicationTree, Event, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -13,16 +15,28 @@ import {NodeInfo, SelectNode} from '../application-details/application-details';
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {ApplicationResourceEvents} from '../application-resource-events/application-resource-events';
-import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
-import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
+import type {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationSummary} from '../application-summary/application-summary';
 import {AppSetResourceNodePreview} from './appset-resource-node-preview';
-import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
-import {PodTerminalViewer} from '../pod-terminal-viewer/pod-terminal-viewer';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import * as AppUtils from '../utils';
 import './resource-details.scss';
+
+const ApplicationResourcesDiff = lazyWithBoundary(
+    React.lazy(() =>
+        import(/* webpackChunkName: "app-resources-diff" */ '../application-resources-diff/application-resources-diff').then(m => ({default: m.ApplicationResourcesDiff}))
+    ),
+    'Failed to load diff. Please reload and try again.'
+);
+const PodsLogsViewer = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "pod-logs" */ '../pod-logs-viewer/pod-logs-viewer').then(m => ({default: m.PodsLogsViewer}))),
+    'Failed to load logs viewer. Please reload and try again.'
+);
+const PodTerminalViewer = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "pod-terminal" */ '../pod-terminal-viewer/pod-terminal-viewer').then(m => ({default: m.PodTerminalViewer}))),
+    'Failed to load terminal. Please reload and try again.'
+);
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -360,98 +374,104 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     <ResourceIcon group={selectedNode.group} kind={selectedNode.kind} />
                                     {ResourceLabel({kind: selectedNode.kind})}
                                 </div>
-                                <h1>{selectedNode.name}</h1>
-                                {props.generatedAppNode ? (
-                                    (() => {
-                                        const generatedApp = data.liveState as unknown as Application;
-                                        return (
+                                <div className='resource-details__header-name'>
+                                    <h1 className='resource-details__header-title'>{selectedNode.name}</h1>
+                                    <span className='resource-details__header-status'>
+                                        {props.generatedAppNode ? (
+                                            (() => {
+                                                const generatedApp = data.liveState as unknown as Application;
+                                                return (
+                                                    <>
+                                                        {generatedApp?.status?.health && <AppUtils.HealthStatusIcon state={generatedApp.status.health} />}
+                                                        {generatedApp?.status?.sync?.status && (
+                                                            <span style={{marginLeft: '5px'}}>
+                                                                <AppUtils.ComparisonStatusIcon status={generatedApp.status.sync.status} />
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()
+                                        ) : (
                                             <>
-                                                {generatedApp?.status?.health && <AppUtils.HealthStatusIcon state={generatedApp.status.health} />}
-                                                {generatedApp?.status?.sync?.status && (
+                                                {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
+                                                {data.controlledState && (
                                                     <span style={{marginLeft: '5px'}}>
-                                                        <AppUtils.ComparisonStatusIcon status={generatedApp.status.sync.status} />
+                                                        <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
                                                     </span>
                                                 )}
                                             </>
-                                        );
-                                    })()
-                                ) : (
-                                    <>
-                                        {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
-                                        {data.controlledState && (
-                                            <span style={{marginLeft: '5px'}}>
-                                                <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
-                                            </span>
                                         )}
-                                    </>
-                                )}
-                                {props.generatedAppNode &&
-                                    (() => {
-                                        const linkInfo = AppUtils.getApplicationLinkURLFromNode(selectedNode, appContext.baseHref);
-                                        return (
-                                            <>
-                                                <a
-                                                    href={linkInfo.url}
-                                                    target={linkInfo.isExternal ? '_blank' : '_self'}
-                                                    rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
-                                                    style={{marginLeft: 'auto', marginRight: '5px'}}
-                                                    className='argo-button argo-button--base'>
-                                                    <i className='fa fa-external-link-alt' /> <span className='show-for-large'>OPEN APPLICATION</span>
-                                                </a>
-                                                <button
-                                                    onClick={() => AppUtils.deleteApplication(selectedNode.name, selectedNode.namespace, appContext)}
-                                                    style={{marginRight: '5px'}}
-                                                    className='argo-button argo-button--base'>
-                                                    <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
-                                                </button>
-                                            </>
-                                        );
-                                    })()}
-                                {showApplicationReference && (
-                                    <button
-                                        onClick={() =>
-                                            appContext.navigation.goto(`/${AppUtils.getAppUrl(application)}`, {
-                                                node: `${AppUtils.nodeKey(selectedNode)}/0`,
-                                                tab: tab || null
-                                            })
-                                        }
-                                        style={{marginLeft: 'auto', marginRight: '5px'}}
-                                        className='argo-button argo-button--base'>
-                                        <i className='fa fa-fw fa-info-circle' /> <span className='show-for-large'>DETAILS</span>
-                                    </button>
-                                )}
-                                {!props.generatedAppNode && !showApplicationReference && (
-                                    <>
-                                        {/* Sync button is only shown if the node is managed directly by an Application */}
-                                        {data.controlledState && (
-                                            <button
-                                                onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
-                                                style={{marginLeft: 'auto', marginRight: '5px'}}
-                                                className='argo-button argo-button--base'>
-                                                <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
-                                            </button>
-                                        )}
+                                    </span>
+                                </div>
+                                <div className='resource-details__header-actions'>
+                                    {props.generatedAppNode &&
+                                        (() => {
+                                            const linkInfo = AppUtils.getApplicationLinkURLFromNode(selectedNode, appContext.baseHref);
+                                            return (
+                                                <>
+                                                    <a
+                                                        href={linkInfo.url}
+                                                        target={linkInfo.isExternal ? '_blank' : '_self'}
+                                                        rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                                        style={{marginLeft: 'auto', marginRight: '5px'}}
+                                                        className='argo-button argo-button--base'>
+                                                        <i className='fa fa-external-link-alt' /> <span className='show-for-large'>OPEN APPLICATION</span>
+                                                    </a>
+                                                    <button
+                                                        onClick={() => AppUtils.deleteApplication(selectedNode.name, selectedNode.namespace, appContext)}
+                                                        style={{marginRight: '5px'}}
+                                                        className='argo-button argo-button--base'>
+                                                        <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
+                                                    </button>
+                                                </>
+                                            );
+                                        })()}
+                                    {showApplicationReference && (
                                         <button
                                             onClick={() =>
-                                                AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources, props.appChanged)
+                                                appContext.navigation.goto(`/${AppUtils.getAppUrl(application)}`, {
+                                                    node: `${AppUtils.nodeKey(selectedNode)}/0`,
+                                                    tab: tab || null
+                                                })
                                             }
                                             style={{marginLeft: data.controlledState ? undefined : 'auto', marginRight: '5px'}}
                                             className='argo-button argo-button--base'>
-                                            <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
+                                            <i className='fa fa-fw fa-info-circle' /> <span className='show-for-large'>DETAILS</span>
                                         </button>
-                                    </>
-                                )}
-                                {data.resourceActionsMenuItems?.length > 0 && !showApplicationReference && !props.generatedAppNode && (
-                                    <DropDown
-                                        isMenu={true}
-                                        anchor={() => (
-                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                <i className='fa fa-ellipsis-v' />
+                                    )}
+                                    {!showApplicationReference && !props.generatedAppNode && (
+                                        <>
+                                            {/* Sync button is only shown if the node is managed directly by an Application */}
+                                            {data.controlledState && (
+                                                <button
+                                                    onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
+                                                    style={{marginLeft: 'auto', marginRight: '5px'}}
+                                                    className='argo-button argo-button--base'>
+                                                    <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() =>
+                                                    AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources, props.appChanged)
+                                                }
+                                                style={{marginLeft: data.controlledState ? undefined : 'auto', marginRight: '5px'}}
+                                                className='argo-button argo-button--base'>
+                                                <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
                                             </button>
-                                        )}>
-                                        {() => AppUtils.renderResourceActionMenu(data.resourceActionsMenuItems)}
-                                    </DropDown>
-                                )}
+                                        </>
+                                    )}
+                                    {data.resourceActionsMenuItems?.length > 0 && !showApplicationReference && !props.generatedAppNode && (
+                                        <DropDown
+                                            isMenu={true}
+                                            anchor={() => (
+                                                <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                    <i className='fa fa-ellipsis-v' />
+                                                </button>
+                                            )}>
+                                            {() => AppUtils.renderResourceActionMenu(data.resourceActionsMenuItems)}
+                                        </DropDown>
+                                    )}
+                                </div>
                             </div>
                             {props.generatedAppNode && data.denied ? (
                                 <div className='white-box'>
