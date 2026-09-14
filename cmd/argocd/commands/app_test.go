@@ -1845,7 +1845,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 
 	output, err := captureOutput(
 		func() error {
-			_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+			_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json", 10)
 			return nil
 		},
 	)
@@ -1853,7 +1853,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	assert.True(t, json.Valid([]byte(output)))
 
 	output, err = captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "yaml")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "yaml", 10)
 		return nil
 	})
 
@@ -1862,7 +1862,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	require.NoError(t, err)
 
 	output, _ = captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "", 10)
 		return nil
 	})
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
@@ -1931,7 +1931,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput_With_Timeout(t *testing.T)
 	watch = getWatchOpts(watch)
 
 	output, _ := captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 5, watch, selectResource, "")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 5, watch, selectResource, "", 10)
 		return nil
 	})
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
@@ -2026,7 +2026,7 @@ func TestCheckAppWaitConditions(t *testing.T) {
 			name:             "pending operation marks operation in progress",
 			app:              &v1alpha1.Application{Operation: &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}, Status: v1alpha1.ApplicationStatus{Sync: v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced}, Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy}}},
 			watch:            syncHealth,
-			wantReady:        false, // !watch.operation || operationStatus == nil → false when operation pending and watch.operation
+			wantReady:        false, // !watch.operation || operationStatus == nil ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ false when operation pending and watch.operation
 			wantOpInProgress: true,
 		},
 		{
@@ -2139,7 +2139,7 @@ func TestWaitOnApplicationStatus_ReturnsImmediatelyWhenAlreadyInDesiredState(t *
 	}
 
 	start := time.Now()
-	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json", 10)
 	elapsed := time.Since(start)
 
 	require.NoError(t, err)
@@ -2148,14 +2148,14 @@ func TestWaitOnApplicationStatus_ReturnsImmediatelyWhenAlreadyInDesiredState(t *
 
 // TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn verifies that
 // `argocd app wait --delete` does not short-circuit on the initial Get and
-// instead consumes the watch for the Deleted event — the Get can only return
+// instead consumes the watch for the Deleted event ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the Get can only return
 // an existing application, so its state cannot satisfy the delete condition.
 func TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn(t *testing.T) {
 	acdClient := &deleteAcdClient{fakeAcdClient: &fakeAcdClient{}}
 	ctx := t.Context()
 	watch := watchOpts{delete: true}
 
-	app, opState, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "")
+	app, opState, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "", 10)
 	require.NoError(t, err)
 	assert.Nil(t, app)
 	assert.Nil(t, opState)
@@ -2170,7 +2170,7 @@ func TestWaitOnApplicationStatus_ReturnsFromWatchLoopWhenEventSatisfiesCondition
 	ctx := t.Context()
 	watch := watchOpts{sync: true, health: true}
 
-	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "json")
+	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "json", 10)
 	require.NoError(t, err)
 	// The function returns via the readiness path inside the watch loop.
 	// The returned app may be re-fetched by printFinalStatus so we only
@@ -2264,7 +2264,7 @@ func (c *readyAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, 
 	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
 	go func() {
 		// Block long enough that the test would clearly fail if the early
-		// return regresses. Never emit an event — mirrors the real-world
+		// return regresses. Never emit an event ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â mirrors the real-world
 		// behavior reported in #12211 where no events arrive because the
 		// application CR is not changing.
 		time.Sleep(time.Duration(c.simulateTimeout) * time.Second)
@@ -2847,4 +2847,306 @@ func TestIsContextCanceledErr(t *testing.T) {
 		t.Parallel()
 		assert.False(t, isContextCanceledErr(errors.New("some other error")))
 	})
+}
+
+// statusAcdClient serves a fixed application status so wait-timeout tests can
+// exercise the pending-resource reporting without duplicating client
+// boilerplate per scenario.
+type statusAcdClient struct {
+	fakeAcdClient
+	status v1alpha1.ApplicationStatus
+}
+
+func newStatusAcdClient(status v1alpha1.ApplicationStatus) *statusAcdClient {
+	return &statusAcdClient{status: status}
+}
+
+func (c *statusAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
+	close(appEventsCh)
+	return appEventsCh
+}
+
+func (c *statusAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &statusFakeAppServiceClient{status: c.status}
+}
+
+func (c *statusAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+func (c *statusAcdClient) NewApplicationClientOrDieWithContext(_ context.Context) (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return c.NewApplicationClientOrDie()
+}
+
+func (c *statusAcdClient) NewSettingsClientOrDieWithContext(_ context.Context) (io.Closer, settingspkg.SettingsServiceClient) {
+	return c.NewSettingsClientOrDie()
+}
+
+type statusFakeAppServiceClient struct {
+	fakeAppServiceClient
+	status v1alpha1.ApplicationStatus
+}
+
+func (c *statusFakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	app := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
+			Project:     "default",
+			Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "test", TargetRevision: "master", Path: "/test"},
+		},
+		Status: c.status,
+	}
+	app.Name = "test"
+	app.Namespace = "argocd"
+	// Mock app.Operation if the test provides a running OperationState
+	if c.status.OperationState != nil && c.status.OperationState.Phase == "Running" {
+		app.Operation = &v1alpha1.Operation{}
+	}
+	return app, nil
+}
+
+func aggregateOnlyAppStatus() v1alpha1.ApplicationStatus {
+	return v1alpha1.ApplicationStatus{
+		Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+		Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+		Resources: []v1alpha1.ResourceStatus{
+			{
+				Kind:      "Service",
+				Namespace: "prod",
+				Name:      "web",
+				Status:    v1alpha1.SyncStatusCodeSynced,
+				Health:    &v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
+			},
+		},
+	}
+}
+
+func TestWaitOnApplicationStatus_Timeout_WithSelectedResources(t *testing.T) {
+	resources := []v1alpha1.ResourceStatus{
+		{
+			Group:     "apps",
+			Kind:      "Deployment",
+			Namespace: "prod",
+			Name:      "web",
+			Status:    v1alpha1.SyncStatusCodeOutOfSync,
+			Health:    &v1alpha1.HealthStatus{Status: health.HealthStatusDegraded},
+		},
+	}
+	status := v1alpha1.ApplicationStatus{
+		Sync:      v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+		Health:    v1alpha1.AppHealthStatus{Status: health.HealthStatusProgressing},
+		Resources: resources,
+		OperationState: &v1alpha1.OperationState{
+			Phase: "Running",
+		},
+	}
+	acdClient := newStatusAcdClient(status)
+	watch := watchOpts{sync: true, operation: true, hydrated: true}
+	selected := []*v1alpha1.SyncOperationResource{
+		{Group: "apps", Kind: "Deployment", Name: "web"},
+	}
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, selected, "wide", 10)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "operation: still in progress")
+	require.ErrorContains(t, err, "hydration: not complete")
+	require.ErrorContains(t, err, "resources not ready: apps/Deployment/prod/web (sync: OutOfSync, health: Degraded)")
+}
+
+func TestWaitOnApplicationStatus_Timeout_ConditionSummary(t *testing.T) {
+	status := v1alpha1.ApplicationStatus{
+		Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+		Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusDegraded},
+		OperationState: &v1alpha1.OperationState{
+			Phase: "Running",
+		},
+	}
+	acdClient := newStatusAcdClient(status)
+	watch := watchOpts{sync: true, health: true, operation: true, hydrated: true}
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, nil, "wide", 10)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "sync status: OutOfSync")
+	require.ErrorContains(t, err, "health status: Degraded")
+	require.ErrorContains(t, err, "operation: still in progress")
+	require.ErrorContains(t, err, "hydration: not complete")
+}
+
+// TestWaitOnApplicationStatus_TimeoutErrorSelectedResources_NoDetail verifies
+// that when watch.delete is used on selected resources, detail can be empty.
+func TestWaitOnApplicationStatus_TimeoutErrorSelectedResources_NoDetail(t *testing.T) {
+	acdClient := newStatusAcdClient(aggregateOnlyAppStatus())
+	selected := []*v1alpha1.SyncOperationResource{
+		{Group: "apps", Kind: "Deployment", Name: "api"},
+	}
+	// Use watch.delete so ready=false but no conditions/pending are appended.
+	watch := watchOpts{delete: true}
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, selected, "wide", 10)
+	require.Error(t, err)
+	require.EqualError(t, err, "timed out (0s) waiting for app \"app-name\" to match desired state")
+}
+
+// TestWaitOnApplicationStatus_TimeoutErrorWithHooks verifies that hook resources
+// are properly labelled and succeeded hooks are excluded.
+func TestWaitOnApplicationStatus_TimeoutErrorWithHooks(t *testing.T) {
+	status := aggregateOnlyAppStatus()
+	status.OperationState = &v1alpha1.OperationState{
+		SyncResult: &v1alpha1.SyncOperationResult{
+			Resources: []*v1alpha1.ResourceResult{
+				{
+					Group:     "batch",
+					Kind:      "Job",
+					Namespace: "prod",
+					Name:      "migrate",
+					HookType:  "PreSync",
+					HookPhase: "Running",
+					Status:    "SyncFailed",
+				},
+				{
+					Group:     "batch",
+					Kind:      "Job",
+					Namespace: "prod",
+					Name:      "cleanup",
+					HookType:  "PostSync",
+					HookPhase: "Succeeded",
+					Status:    "Synced",
+				},
+			},
+		},
+	}
+	acdClient := newStatusAcdClient(status)
+	watch := getWatchOpts(watchOpts{sync: true})
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, nil, "wide", 10)
+	require.Error(t, err)
+	// The running hook should be included with hook-specific label format
+	require.ErrorContains(t, err, "batch/Job/prod/migrate (hook: Running, result: SyncFailed)")
+	// The succeeded hook should be excluded
+	require.NotContains(t, err.Error(), "cleanup")
+}
+
+// TestWaitOnApplicationStatus_Hydrated tests that watch.hydrated causes a timeout
+func TestWaitOnApplicationStatus_Hydrated(t *testing.T) {
+	acdClient := newStatusAcdClient(aggregateOnlyAppStatus())
+	watch := watchOpts{hydrated: true}
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, nil, "wide", 10)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "hydration: not complete")
+}
+
+func TestAppCommands_FlagsCoverage(t *testing.T) {
+	clientOpts := &argocdclient.ClientOptions{}
+	waitCmd := NewApplicationWaitCommand(clientOpts)
+	require.NotNil(t, waitCmd)
+	require.NotNil(t, waitCmd.Flag("max-pending-resources"))
+
+	syncCmd := NewApplicationSyncCommand(clientOpts)
+	require.NotNil(t, syncCmd)
+	require.NotNil(t, syncCmd.Flag("max-pending-resources"))
+
+	rollbackCmd := NewApplicationRollbackCommand(clientOpts)
+	require.NotNil(t, rollbackCmd)
+	require.NotNil(t, rollbackCmd.Flag("max-pending-resources"))
+}
+
+func TestFormatPendingResources(t *testing.T) {
+	pending := []string{"a", "b", "c"}
+	assert.Equal(t, "a, b, c", formatPendingResources(pending, 0))
+	assert.Equal(t, "a, b, c", formatPendingResources(pending, 5))
+	assert.Equal(t, "a, b, c", formatPendingResources(pending, 3))
+	assert.Equal(t, "a, b, ... and 1 more", formatPendingResources(pending, 2))
+	assert.Equal(t, "a, ... and 2 more", formatPendingResources(pending, 1))
+}
+
+func TestFormatResourceStateLabel(t *testing.T) {
+	state1 := &resourceState{
+		Group:  "apps",
+		Kind:   "Deployment",
+		Name:   "my-deploy",
+		Status: string(v1alpha1.SyncStatusCodeOutOfSync),
+		Health: string(health.HealthStatusDegraded),
+	}
+	assert.Equal(t, "apps/Deployment//my-deploy (sync: OutOfSync, health: Degraded)", formatResourceStateLabel(state1))
+
+	state2 := &resourceState{
+		Kind:   "Pod",
+		Name:   "my-hook",
+		Status: string(v1alpha1.SyncStatusCodeSynced),
+		Health: string(health.HealthStatusHealthy),
+		Hook:   "PreSync",
+	}
+	assert.Equal(t, "/Pod//my-hook (hook: Synced, result: Healthy)", formatResourceStateLabel(state2))
+}
+
+func TestWaitOnApplicationStatus_Timeout_SkipsEmptyHealth_Global(t *testing.T) {
+	resources := []v1alpha1.ResourceStatus{
+		{
+			Group:     "",
+			Kind:      "ConfigMap",
+			Namespace: "prod",
+			Name:      "my-config",
+			Status:    v1alpha1.SyncStatusCodeSynced,
+		},
+		{
+			Group:     "apps",
+			Kind:      "Deployment",
+			Namespace: "prod",
+			Name:      "web",
+			Status:    v1alpha1.SyncStatusCodeSynced,
+			Health:    &v1alpha1.HealthStatus{Status: health.HealthStatusDegraded},
+		},
+	}
+	status := v1alpha1.ApplicationStatus{
+		Sync:      v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+		Health:    v1alpha1.AppHealthStatus{Status: health.HealthStatusDegraded},
+		Resources: resources,
+	}
+	acdClient := newStatusAcdClient(status)
+	watch := watchOpts{sync: true, health: true}
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, nil, "wide", 10)
+	require.Error(t, err)
+	// The deployment should be listed because it's degraded
+	require.ErrorContains(t, err, "apps/Deployment/prod/web")
+	// The ConfigMap should NOT be listed because it has empty health and is already Synced
+	require.NotContains(t, err.Error(), "ConfigMap/prod/my-config")
+}
+
+func TestWaitOnApplicationStatus_Timeout_SkipsEmptyHealth_Selected(t *testing.T) {
+	resources := []v1alpha1.ResourceStatus{
+		{
+			Group:     "",
+			Kind:      "ConfigMap",
+			Namespace: "prod",
+			Name:      "my-config",
+			Status:    v1alpha1.SyncStatusCodeSynced,
+		},
+		{
+			Group:     "apps",
+			Kind:      "Deployment",
+			Namespace: "prod",
+			Name:      "web",
+			Status:    v1alpha1.SyncStatusCodeSynced,
+			Health:    &v1alpha1.HealthStatus{Status: health.HealthStatusDegraded},
+		},
+	}
+	status := v1alpha1.ApplicationStatus{
+		Sync:      v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+		Health:    v1alpha1.AppHealthStatus{Status: health.HealthStatusDegraded},
+		Resources: resources,
+	}
+	acdClient := newStatusAcdClient(status)
+	watch := watchOpts{sync: true, health: true}
+	selected := []*v1alpha1.SyncOperationResource{
+		{Kind: "ConfigMap", Name: "my-config"},
+		{Group: "apps", Kind: "Deployment", Name: "web"},
+	}
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, selected, "wide", 10)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "apps/Deployment/prod/web")
+	require.NotContains(t, err.Error(), "ConfigMap/prod/my-config")
 }
