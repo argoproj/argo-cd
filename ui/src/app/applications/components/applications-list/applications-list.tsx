@@ -6,17 +6,17 @@ import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 import {ClusterCtx, DataLoader, EmptyState, Page, Paginate, SearchBar, Spinner} from '../../../shared/components';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewKey, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
-import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
 import {ApplicationsFilter, FilteredApp, getAppFilterResults} from './applications-filter';
 import {createMatcher} from './applications-list-search';
+import {showCreateFirstAppState} from './applications-list-empty-state';
 import {AppsStatusBar} from './applications-status-bar';
-import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
 import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
@@ -24,9 +24,18 @@ import {FlexTopBar} from '../../../shared/components';
 import {ViewTypeSwitcher} from './view-type-switcher';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
-import {isInvalidRegex} from '../../../shared/utils';
+import {isInvalidRegex, queryParamsChanged} from '../../../shared/utils';
 
 import './applications-list.scss';
+
+const ApplicationCreatePanel = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "app-create-panel" */ '../application-create-panel/application-create-panel').then(m => ({default: m.ApplicationCreatePanel}))),
+    'Failed to load application create panel. Please reload and try again.'
+);
+const ApplicationsSummary = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "apps-summary" */ './applications-summary').then(m => ({default: m.ApplicationsSummary}))),
+    'Failed to load applications summary. Please reload and try again.'
+);
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
@@ -60,14 +69,20 @@ const APP_FIELDS = [
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
-function loadApplications(projects: string[], appNamespace: string): Observable<models.Application[]> {
-    return from(services.applications.list(projects, 'application', {appNamespace, fields: APP_LIST_FIELDS})).pipe(
+function loadApplications(projects: string[], appNamespace: string, names?: string[]): Observable<models.Application[]> {
+    // Favorites-only mode with no favorites selected: an empty (but defined) names array means
+    // "match nothing". The server treats an empty filter as "no filter", so short-circuit here to
+    // avoid fetching and continuously watching every application only to hide them client-side.
+    if (names && names.length === 0) {
+        return from([[] as models.Application[]]);
+    }
+    return from(services.applications.list(projects, 'application', {appNamespace, fields: APP_LIST_FIELDS, names})).pipe(
         mergeMap(applicationsList => {
             const applications = applicationsList.items as models.Application[];
             return merge(
                 from([applications]),
                 services.applications
-                    .watch('application', {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
+                    .watch('application', {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS, names})
                     .pipe(repeat())
                     .pipe(retry({delay: WATCH_RETRY_TIMEOUT}))
                     // batch events to avoid constant re-rendering and improve UI performance
@@ -351,25 +366,28 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
 
     function onAppFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
         services.viewPreferences.updatePreferences({appList: newPref});
-        ctx.navigation.goto(
-            '.',
-            {
-                proj: newPref.projectsFilter.join(','),
-                sync: newPref.syncFilter.join(','),
-                autoSync: newPref.autoSyncFilter.join(','),
-                health: newPref.healthFilter.join(','),
-                namespace: newPref.namespacesFilter.join(','),
-                targetRevision: newPref.targetRevisionFilter.map(encodeURIComponent).join(','),
-                repo: newPref.reposFilter.map(encodeURIComponent).join(','),
-                cluster: newPref.clustersFilter.join(','),
-                labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
-                annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),
-                operation: newPref.operationFilter.join(','),
-                // Keep URL and preferences consistent. When false, remove the param entirely.
-                showFavorites: newPref.showFavorites ? 'true' : null
-            },
-            {replace: true}
-        );
+        const params = {
+            proj: newPref.projectsFilter.join(','),
+            sync: newPref.syncFilter.join(','),
+            autoSync: newPref.autoSyncFilter.join(','),
+            health: newPref.healthFilter.join(','),
+            namespace: newPref.namespacesFilter.join(','),
+            targetRevision: newPref.targetRevisionFilter.map(encodeURIComponent).join(','),
+            repo: newPref.reposFilter.map(encodeURIComponent).join(','),
+            cluster: newPref.clustersFilter.join(','),
+            labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
+            annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),
+            operation: newPref.operationFilter.join(','),
+            // Keep URL and preferences consistent. When false, remove the param entirely.
+            showFavorites: newPref.showFavorites ? 'true' : null
+        };
+        // Every filter in the sidebar reports its state up when it mounts, so a remount produces one
+        // call per filter with nothing changed. Browsers rate limit history updates and Safari throws
+        // once the cap is hit, so only navigate when the query string actually changes.
+        if (!queryParamsChanged(window.location.search, params)) {
+            return;
+        }
+        ctx.navigation.goto('.', params, {replace: true});
     }
 
     function getPageTitle(view: string) {
@@ -406,9 +424,18 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                         ]
                                     }}>
                                     <DataLoader
-                                        input={pref.projectsFilter?.join(',')}
+                                        // The favorites list is only part of the query while the favorites filter is on, so
+                                        // starring an application with the filter off must not restart the list and watch.
+                                        input={`${pref.projectsFilter?.join(',')}:${pref.showFavorites}:${pref.showFavorites ? (pref.favoritesAppList || []).join(',') : ''}`}
+                                        // Keep the current list (and with it the filter sidebar) rendered while a filter
+                                        // change reloads the data, instead of dropping to the loading mockup.
+                                        noLoaderOnInputChange={true}
                                         ref={loaderRef}
-                                        load={() => AppUtils.handlePageVisibility(() => loadApplications(pref.projectsFilter, query.get('appNamespace')))}
+                                        load={() =>
+                                            AppUtils.handlePageVisibility(() =>
+                                                loadApplications(pref.projectsFilter, query.get('appNamespace'), pref.showFavorites ? pref.favoritesAppList : undefined)
+                                            )
+                                        }
                                         loadingRenderer={() => (
                                             <div className='argo-container'>
                                                 <MockupList height={100} marginTop={30} />
@@ -464,7 +491,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                         }}
                                                     />
                                                     <div className='applications-list'>
-                                                        {apps.length === 0 && pref.projectsFilter?.length === 0 && (pref.labelsFilter || []).length === 0 ? (
+                                                        {showCreateFirstAppState(apps, pref) ? (
                                                             <EmptyState icon='argo-icon-application'>
                                                                 <h4>No applications available to you just yet</h4>
                                                                 <h5>Create new application to start managing resources in your cluster</h5>
