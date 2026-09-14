@@ -911,6 +911,15 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	targetObjsForSync, hasPreDeleteHooks, hasPostDeleteHooks := partitionTargetObjsForSync(targetObjs)
 
 	reconciliation := sync.Reconcile(targetObjsForSync, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
+	preserveOverrides := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions.HasOption(preserveSourceOverridesOption)
+	for i, targetObj := range reconciliation.Target {
+		if targetObj == nil {
+			continue
+		}
+		if preserveOverrides || resourceutil.HasAnnotationOption(targetObj, synccommon.AnnotationSyncOptions, preserveSourceOverridesOption) {
+			reconciliation.Target[i] = mergeLiveApplicationSources(targetObj, reconciliation.Live[i])
+		}
+	}
 	ts.AddCheckpoint("live_ms")
 
 	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()

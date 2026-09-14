@@ -436,6 +436,37 @@ spec:
 
 The example above shows how an Argo CD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieved by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
 
+## Preserve source overrides on child Applications
+
+In the app-of-apps pattern a parent Application applies child Applications. kubectl applies custom resources with a JSON merge patch, which merges `spec.source` field by field but replaces the `spec.sources` list as a whole. A value that `argocd app set --source-position N -p ...` added to a multi-source child therefore survives a parent sync on `spec.source` but is removed from `spec.sources`, and the child's own resources go `OutOfSync`.
+
+Set `PreserveSourceOverrides=true` on the parent to lay each `spec.sources[i]` from git over the live one before the sync. Keys that git does not declare stay, keys that git declares win. The merged object is also what the parent stores and shows as the desired manifest of the child.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+      - PreserveSourceOverrides=true
+```
+
+To enable it for one child only, put the option in the child's manifest instead:
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: PreserveSourceOverrides=true
+```
+
+> [!WARNING]
+> With this option, anyone who can edit the live child Application can keep any key git does not declare, including `plugin.env`, across parent syncs. This matches what `spec.source` already allows. Enable it only where write access to child Applications is as trusted as write access to the git repository.
+
+> [!NOTE]
+> A source is matched by `repoURL`, `chart`, `path`, `ref`, and `name` at the same index. When git reorders sources, the indexes that no longer match are applied as declared in git and lose their overrides. When git switches a source from one type to another (for example `helm` to `kustomize`), the live block of the old type is dropped. When git adds or removes a source, the whole list is applied as declared in git. To remove an override from git, declare the key (for example `parameters: []`) or run `argocd app unset` on the child.
+
+To keep only named fields instead, list them in `spec.ignoreDifferences` on the parent (for example `jqPathExpressions: ['.spec.sources[0].helm.parameters']` for `group: argoproj.io`, `kind: Application`) and set [`RespectIgnoreDifferences=true`](#respect-ignore-differences-configs).
+
 ## Create Namespace
 
 ```yaml

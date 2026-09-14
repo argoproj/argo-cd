@@ -957,6 +957,142 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 	})
 }
 
+// TestNormalizeTargetResourcesChildApplicationSources covers argoproj/argo-cd#25855: with
+// RespectIgnoreDifferences an ignored key inside spec.sources[i] of a child Application must come
+// from live while the rest of the list stays as git declares it.
+func TestNormalizeTargetResourcesChildApplicationSources(t *testing.T) {
+	doc := loadCRDSchema(t, "testdata/schemas/application-openapi-v2.yaml")
+	oapiResources, err := openapi.NewOpenAPIParser(openapi.NewOpenAPIGetter(&fakeDiscovery{schema: doc})).Parse()
+	require.NoError(t, err)
+
+	for _, expr := range []string{".spec.sources[0].helm.parameters", ".spec.sources[].helm.parameters"} {
+		t.Run(expr, func(t *testing.T) {
+			ignores := []v1alpha1.ResourceIgnoreDifferences{{Group: "argoproj.io", Kind: "Application", JQPathExpressions: []string{expr}}}
+			dc, err := diff.NewDiffConfigBuilder().
+				WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+				WithNoCache().
+				Build()
+			require.NoError(t, err)
+
+			target := appWithSources(t, parentSources)
+			targetSources := sourcesOf(t, target)
+			require.NoError(t, unstructured.SetNestedField(targetSources[0].(map[string]any), "v3", "helm", "valuesObject", "image", "tag"))
+			require.NoError(t, unstructured.SetNestedSlice(target.Object, targetSources, "spec", "sources"))
+
+			// Live carries the ignored parameters plus two non-ignored drifts that must not leak.
+			live := appWithSources(t, liveSourcesWithOverride)
+			liveSources := sourcesOf(t, live)
+			require.NoError(t, unstructured.SetNestedField(liveSources[0].(map[string]any), "drifted", "helm", "releaseName"))
+			require.NoError(t, unstructured.SetNestedField(liveSources[1].(map[string]any), "dev", "targetRevision"))
+			require.NoError(t, unstructured.SetNestedSlice(live.Object, liveSources, "spec", "sources"))
+
+			cr := &comparisonResult{
+				reconciliationResult: sync.ReconciliationResult{
+					Live:   []*unstructured.Unstructured{live},
+					Target: []*unstructured.Unstructured{target},
+				},
+				diffConfig: dc,
+			}
+			patched, err := normalizeTargetResources(oapiResources, cr)
+			require.NoError(t, err)
+			require.Len(t, patched, 1)
+
+			params, _ := helmParamsOf(t, patched[0])
+			assert.Equal(t, []any{map[string]any{"name": "image.tag", "value": "v2"}}, params)
+			sources := sourcesOf(t, patched[0])
+			require.Len(t, sources, 2)
+			assert.Equal(t, "v3", dig(patched[0].Object, "spec", "sources", 0, "helm", "valuesObject", "image", "tag"))
+			_, hasRelease, err := unstructured.NestedString(sources[0].(map[string]any), "helm", "releaseName")
+			require.NoError(t, err)
+			assert.False(t, hasRelease)
+			assert.Equal(t, "main", dig(patched[0].Object, "spec", "sources", 1, "targetRevision"))
+		})
+	}
+}
+
+func TestRestoreNonIgnoredListElements(t *testing.T) {
+	t.Parallel()
+	items := func(elems ...map[string]any) []any {
+		out := make([]any, 0, len(elems))
+		for _, e := range elems {
+			out = append(out, e)
+		}
+		return out
+	}
+
+	t.Run("pairs elements by index and keeps the ignored key", func(t *testing.T) {
+		t.Parallel()
+		patched := items(map[string]any{"name": "a", "image": "live-a", "ignored": "live"})
+		original := items(map[string]any{"name": "a", "image": "git-a"})
+		normalized := items(map[string]any{"name": "a", "image": "git-a"})
+		normalizedLive := items(map[string]any{"name": "a", "image": "live-a"})
+
+		assert.True(t, restoreNonIgnoredListElements(patched, original, normalized, normalizedLive))
+		assert.Equal(t, items(map[string]any{"name": "a", "image": "git-a", "ignored": "live"}), patched)
+	})
+
+	t.Run("reordered live list falls back to leaf", func(t *testing.T) {
+		t.Parallel()
+		patched := items(map[string]any{"name": "b", "image": "live-b"}, map[string]any{"name": "a", "image": "live-a"})
+		original := items(map[string]any{"name": "a", "image": "git-a"}, map[string]any{"name": "b", "image": "git-b"})
+
+		assert.False(t, restoreNonIgnoredListElements(patched, original, original, patched))
+		assert.Equal(t, "live-b", patched[0].(map[string]any)["image"], "must not touch elements before bailing out")
+	})
+
+	t.Run("unnamed sources pair by repoURL and path", func(t *testing.T) {
+		t.Parallel()
+		patched := items(map[string]any{"repoURL": "r", "path": "a", "helm": "live"}, map[string]any{"repoURL": "r", "path": "b"})
+		original := items(map[string]any{"repoURL": "r", "path": "a"}, map[string]any{"repoURL": "r", "path": "b"})
+
+		assert.True(t, restoreNonIgnoredListElements(patched, original, original, original))
+		assert.Equal(t, "live", patched[0].(map[string]any)["helm"])
+	})
+
+	t.Run("reordered unnamed sources fall back to leaf", func(t *testing.T) {
+		t.Parallel()
+		patched := items(map[string]any{"repoURL": "r", "path": "b", "image": "live-b"}, map[string]any{"repoURL": "r", "path": "a", "image": "live-a"})
+		original := items(map[string]any{"repoURL": "r", "path": "a", "image": "git-a"}, map[string]any{"repoURL": "r", "path": "b", "image": "git-b"})
+
+		assert.False(t, restoreNonIgnoredListElements(patched, original, original, patched))
+		assert.Equal(t, "live-b", patched[0].(map[string]any)["image"])
+	})
+
+	t.Run("elements without identity fall back to leaf", func(t *testing.T) {
+		t.Parallel()
+		patched := items(map[string]any{"image": "live-a"}, map[string]any{"image": "live-b"})
+		original := items(map[string]any{"image": "git-a"}, map[string]any{"image": "git-b"})
+
+		assert.False(t, restoreNonIgnoredListElements(patched, original, original, patched))
+		assert.Equal(t, "live-a", patched[0].(map[string]any)["image"])
+	})
+
+	t.Run("duplicate names fall back to leaf", func(t *testing.T) {
+		t.Parallel()
+		patched := items(map[string]any{"name": "a", "image": "live-1"}, map[string]any{"name": "a", "image": "live-2"})
+		original := items(map[string]any{"name": "a", "image": "git-1"}, map[string]any{"name": "a", "image": "git-2"})
+
+		assert.False(t, restoreNonIgnoredListElements(patched, original, original, patched))
+	})
+
+	t.Run("normalized live of another length falls back to leaf", func(t *testing.T) {
+		t.Parallel()
+		patched := items(map[string]any{"name": "a"}, map[string]any{"name": "b", "liveOnly": 1})
+		original := items(map[string]any{"name": "a"}, map[string]any{"name": "b"})
+
+		assert.False(t, restoreNonIgnoredListElements(patched, original, original, items(map[string]any{"name": "a"})))
+	})
+
+	t.Run("non map element falls back to leaf without partial restore", func(t *testing.T) {
+		t.Parallel()
+		patched := []any{map[string]any{"name": "a", "image": "live-a"}, "scalar"}
+		original := []any{map[string]any{"name": "a", "image": "git-a"}, "scalar"}
+
+		assert.False(t, restoreNonIgnoredListElements(patched, original, original, nil))
+		assert.Equal(t, "live-a", patched[0].(map[string]any)["image"])
+	})
+}
+
 // TestNormalizeTargetResourcesPDBSelector reproduces https://github.com/argoproj/argo-cd/issues/18232
 // When a PDB (policy/v1) has an ignoreDifferences rule for a matchLabels sub-field and
 // RespectIgnoreDifferences=true is set, normalizeTargetResources should only patch the
