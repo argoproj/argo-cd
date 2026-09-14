@@ -33,48 +33,45 @@ func init() {
 	klog.SetLogger(log.NewLogrusLogger(log.NewWithCurrentConfig()))
 }
 
-func main() {
-	var command *cobra.Command
+// selectCommand selects the appropriate command based on the binary name.
+// It is a variable so cmd/main_test.go can mock the command for testing the exit error handling.
+var selectCommand = func(binaryName string) (command *cobra.Command, isArgocdCLI bool) {
+	switch binaryName {
+	case common.CommandCLI:
+		return cli.NewCommand(), true
+	case common.CommandServer:
+		return apiserver.NewCommand(), false
+	case common.CommandApplicationController:
+		return appcontroller.NewCommand(), false
+	case common.CommandRepoServer:
+		return reposerver.NewCommand(), false
+	case common.CommandCMPServer:
+		return cmpserver.NewCommand(), true
+	case common.CommandCommitServer:
+		return commitserver.NewCommand(), false
+	case common.CommandDex:
+		return dex.NewCommand(), false
+	case common.CommandNotifications:
+		return notification.NewCommand(), false
+	case common.CommandGitAskPass:
+		return gitaskpass.NewCommand(), true
+	case common.CommandApplicationSetController:
+		return applicationset.NewCommand(), false
+	case common.CommandK8sAuth:
+		return k8sauth.NewCommand(), true
+	default:
+		// "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe" are also valid binary names
+		return cli.NewCommand(), true
+	}
+}
 
+func main() {
 	binaryName := filepath.Base(os.Args[0])
 	if val := os.Getenv(binaryNameEnv); val != "" {
 		binaryName = val
 	}
 
-	isArgocdCLI := false
-
-	switch binaryName {
-	case common.CommandCLI:
-		command = cli.NewCommand()
-		isArgocdCLI = true
-	case common.CommandServer:
-		command = apiserver.NewCommand()
-	case common.CommandApplicationController:
-		command = appcontroller.NewCommand()
-	case common.CommandRepoServer:
-		command = reposerver.NewCommand()
-	case common.CommandCMPServer:
-		command = cmpserver.NewCommand()
-		isArgocdCLI = true
-	case common.CommandCommitServer:
-		command = commitserver.NewCommand()
-	case common.CommandDex:
-		command = dex.NewCommand()
-	case common.CommandNotifications:
-		command = notification.NewCommand()
-	case common.CommandGitAskPass:
-		command = gitaskpass.NewCommand()
-		isArgocdCLI = true
-	case common.CommandApplicationSetController:
-		command = applicationset.NewCommand()
-	case common.CommandK8sAuth:
-		command = k8sauth.NewCommand()
-		isArgocdCLI = true
-	default:
-		// "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe" are also valid binary names
-		command = cli.NewCommand()
-		isArgocdCLI = true
-	}
+	command, isArgocdCLI := selectCommand(binaryName)
 
 	if isArgocdCLI {
 		// silence errors and usages since we'll be printing them manually.
