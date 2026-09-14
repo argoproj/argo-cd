@@ -824,8 +824,8 @@ func TestSyncWindowMetric(t *testing.T) {
 	}
 	newProject := func(windows ...*argoappv1.InlineSyncWindow) *argoappv1.AppProject {
 		return &argoappv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "important-project", Namespace: "argocd"},
-			Spec:       argoappv1.AppProjectSpec{SyncWindows: argoappv1.SyncWindows(windows)},
+			Name: "important-project", Namespace: "argocd",
+			Spec: argoappv1.AppProjectSpec{SyncWindows: argoappv1.SyncWindows(windows)},
 		}
 	}
 
