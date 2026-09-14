@@ -985,11 +985,11 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	// symbolic reference (like HEAD), in which case we will resolve it from the refToHash map
 	refToResolve := ""
 
-	// exactMatch and shortMatch remember hashes of non-symbolic refs matching the supplied revision.
-	// They are only used when the revision does not also resolve to a symbolic reference, so that a
-	// remote branch literally named "HEAD" cannot shadow the symbolic HEAD - git itself follows the
-	// symbolic ref. For the same reason, a match on the full ref name wins over a short name match.
-	exactMatch := ""
+	// A remote can carry a branch literally named "HEAD" alongside the symbolic HEAD. Git follows the
+	// symbolic ref, so "HEAD" must not resolve to refs/heads/HEAD. HEAD is the only advertised ref
+	// living outside refs/, so it is also the only revision whose short name match can be outranked by
+	// a later ref; shortMatch defers that decision. Every other revision still resolves on first match.
+	mayShadowHead := revision == "HEAD"
 	shortMatch := ""
 
 	isShortRef := IsShortRef(revision)
@@ -1004,9 +1004,13 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		// log.Debugf("%s\t%s", hash, refName)
 		if (isShortRef && ref.Name().Short() == revision) || refName == revision {
 			if ref.Type() == plumbing.HashReference {
-				if refName == revision {
-					exactMatch = hash
-				} else if shortMatch == "" {
+				// No other ref can carry this exact name, so nothing later in the listing can outrank
+				// it - not even a symbolic reference, which would have to be this very ref.
+				if refName == revision || !mayShadowHead {
+					log.Debugf("revision '%s' resolved to '%s'", revision, hash)
+					return hash, nil
+				}
+				if shortMatch == "" {
 					shortMatch = hash
 				}
 			}
@@ -1023,11 +1027,6 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 			log.Debugf("symbolic reference '%s' (%s) resolved to '%s'", revision, refToResolve, hash)
 			return hash, nil
 		}
-	}
-
-	if exactMatch != "" {
-		log.Debugf("revision '%s' resolved to '%s'", revision, exactMatch)
-		return exactMatch, nil
 	}
 
 	if shortMatch != "" {
