@@ -1086,6 +1086,20 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		db.AssertNumberOfCalls(t, "GetCluster", 5)
 	})
 
+	t.Run("a bundle-only change invalidates just the clusters relying on the bundle", func(t *testing.T) {
+		t.Parallel()
+		db, clusterCaches, clustersCache := newFixture(caBundle)
+		clusterCaches["https://uses-default-ca"].EXPECT().Invalidate(fiveOpts...).Return().Once()
+
+		clustersCache.invalidateClustersUsingDefaultCABundle(cacheSettings{clusterCABundle: caBundle})
+
+		for _, clusterCache := range clusterCaches {
+			clusterCache.AssertExpectations(t)
+		}
+		db.AssertNumberOfCalls(t, "GetCluster", 5)
+		assert.Equal(t, caBundle, clustersCache.cacheSettings.clusterCABundle)
+	})
+
 	t.Run("REST configs are left untouched when the default bundle did not change", func(t *testing.T) {
 		t.Parallel()
 		db, clusterCaches, clustersCache := newFixture(caBundle)
@@ -1124,4 +1138,40 @@ func TestLoadCacheSettings_InvalidClusterCABundleIsIgnored(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Nil(t, res.clusterCABundle)
+}
+
+func TestCompareCacheSettings(t *testing.T) {
+	t.Parallel()
+	caBundle := []byte("bundle")
+	base := cacheSettings{appInstanceLabelKey: "app", clusterCABundle: caBundle}
+	withLabel := func(s cacheSettings, label string) cacheSettings {
+		s.appInstanceLabelKey = label
+		return s
+	}
+	withBundle := func(s cacheSettings, bundle []byte) cacheSettings {
+		s.clusterCABundle = bundle
+		return s
+	}
+
+	tests := []struct {
+		name                 string
+		next                 cacheSettings
+		otherSettingsChanged bool
+		caBundleChanged      bool
+	}{
+		{name: "identical settings", next: base},
+		{name: "only the bundle changed", next: withBundle(base, []byte("rotated")), caBundleChanged: true},
+		{name: "the bundle was removed", next: withBundle(base, nil), caBundleChanged: true},
+		{name: "another setting changed", next: withLabel(base, "other"), otherSettingsChanged: true},
+		{name: "another setting and the bundle changed", next: withBundle(withLabel(base, "other"), nil), otherSettingsChanged: true, caBundleChanged: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			otherSettingsChanged, caBundleChanged := compareCacheSettings(base, tt.next)
+			assert.Equal(t, tt.otherSettingsChanged, otherSettingsChanged)
+			assert.Equal(t, tt.caBundleChanged, caBundleChanged)
+			assert.Equal(t, caBundle, base.clusterCABundle, "comparing must not modify the caller's settings")
+		})
+	}
 }
