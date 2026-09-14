@@ -61,6 +61,9 @@ type Dependencies interface {
 		parametersGenerated bool,
 	) error
 
+	// RecordProgressiveSyncTriggered increments the sync counter for the given appset and step
+	RecordProgressiveSyncTriggered(applicationSet *argov1alpha1.ApplicationSet, step string)
+
 	// IncRefreshTriggeredCount increments the metric counter when a refresh is triggered for an application
 	IncRefreshTriggeredCount(appset *argov1alpha1.ApplicationSet, step string)
 }
@@ -1026,7 +1029,9 @@ func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *arg
 		// check appsToSync to determine which Applications are ready to be updated and which should be skipped
 		if appsToSync[desiredApplications[i].Name] && appSetStatusPending {
 			logCtx.Infof("triggering sync for application: %v, prune enabled: %v", desiredApplications[i].Name, pruneEnabled)
+
 			desiredApplications[i] = syncApplication(desiredApplications[i], pruneEnabled, pinnedRevisions)
+			m.dependencies.RecordProgressiveSyncTriggered(applicationSet, applicationSet.Status.ApplicationStatus[idx].Step)
 		}
 
 		rolloutApps = append(rolloutApps, desiredApplications[i])

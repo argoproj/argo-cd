@@ -14,9 +14,10 @@ import (
 )
 
 var (
-	descAppsetLabels        *prometheus.Desc
-	descAppsetDefaultLabels = []string{"namespace", "name"}
-	descAppsetInfo          = prometheus.NewDesc(
+	descAppsetLabels          *prometheus.Desc
+	descAppsetDefaultLabels   = []string{"namespace", "name"}
+	progressiveSyncStepLabels = []string{"namespace", "name", "step", "progressiveStatus"}
+	descAppsetInfo            = prometheus.NewDesc(
 		"argocd_appset_info",
 		"Information about applicationset",
 		append(descAppsetDefaultLabels, "resource_update_status"),
@@ -33,14 +34,39 @@ var (
 
 // Counters
 var (
+	progressiveSyncAppSyncCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "argocd_appset_progressive_sync_syncs_triggered_total",
+		Help: "Counts sync operations triggered by progressive sync",
+	}, []string{"namespace", "name", "step"})
+
 	progressiveSyncAppRefreshTriggeredCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "argocd_appset_app_refresh_total",
 		Help: "Counts application refresh triggered per step for progressive sync",
 	}, []string{"namespace", "name", "step"})
 )
 
+// Gauge
+var (
+	progressiveSyncAppStatusGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "argocd_appset_progressive_sync_app_status",
+		Help: "Count of apps per status (Waiting/Pending/Progressing/Healthy) per step",
+	}, progressiveSyncStepLabels)
+)
+
+// Histograms
+var (
+	progressiveSyncTriggerSyncAfterDetectionHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "argocd_appset_progressive_sync_detection_to_trigger_seconds",
+		Help:    "Time between detecting applications to sync and triggering their sync during a progressive sync wave",
+		Buckets: []float64{0.05, 0.1, 0.15, 0.5, 1, 5}, // Default  buckets are {.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10}
+	}, []string{"namespace", "name"})
+)
+
 type ApplicationsetMetrics struct {
-	reconcileHistogram                        *prometheus.HistogramVec
+	reconcileHistogram                                *prometheus.HistogramVec
+	progressiveSyncAppStatusGauge                     *prometheus.GaugeVec
+	progressiveSyncAppSyncCounter                     *prometheus.CounterVec
+	progressiveSyncTriggerSyncAfterDetectionHistogram *prometheus.HistogramVec
 	progressiveSyncAppRefreshTriggeredCounter *prometheus.CounterVec
 }
 
@@ -65,6 +91,9 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 
 	// Register collectors and metrics
 	metrics.Registry.MustRegister(reconcileHistogram)
+	metrics.Registry.MustRegister(progressiveSyncAppStatusGauge)
+	metrics.Registry.MustRegister(progressiveSyncAppSyncCounter)
+	metrics.Registry.MustRegister(progressiveSyncTriggerSyncAfterDetectionHistogram)
 	metrics.Registry.MustRegister(progressiveSyncAppRefreshTriggeredCounter)
 	metrics.Registry.MustRegister(appsetCollector)
 
@@ -72,13 +101,47 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 	kubectl.RegisterWithPrometheus(metrics.Registry)
 
 	return ApplicationsetMetrics{
-		reconcileHistogram:                        reconcileHistogram,
+		reconcileHistogram:                                reconcileHistogram,
+		progressiveSyncAppStatusGauge:                     progressiveSyncAppStatusGauge,
+		progressiveSyncAppSyncCounter:                     progressiveSyncAppSyncCounter,
+		progressiveSyncTriggerSyncAfterDetectionHistogram: progressiveSyncTriggerSyncAfterDetectionHistogram,
 		progressiveSyncAppRefreshTriggeredCounter: progressiveSyncAppRefreshTriggeredCounter,
 	}
 }
 
 func (m *ApplicationsetMetrics) ObserveReconcile(appset *argoappv1.ApplicationSet, duration time.Duration) {
 	m.reconcileHistogram.WithLabelValues(appset.Namespace, appset.Name).Observe(duration.Seconds())
+}
+
+func (m *ApplicationsetMetrics) SetProgressiveSyncAppStatus(appset *argoappv1.ApplicationSet) {
+	m.progressiveSyncAppStatusGauge.DeletePartialMatch(prometheus.Labels{
+		"namespace": appset.Namespace,
+		"name":      appset.Name,
+	})
+
+	counts := map[string]map[string]int{}
+	for _, appStatus := range appset.Status.ApplicationStatus {
+		step := appStatus.Step
+		status := string(appStatus.Status)
+		if counts[step] == nil {
+			counts[step] = map[string]int{}
+		}
+		counts[step][status]++
+	}
+
+	for step, statusCounts := range counts {
+		for status, count := range statusCounts {
+			m.progressiveSyncAppStatusGauge.WithLabelValues(appset.Namespace, appset.Name, step, status).Set(float64(count))
+		}
+	}
+}
+
+func (m *ApplicationsetMetrics) SetProgressiveSyncAppSync(appset *argoappv1.ApplicationSet, step string) {
+	m.progressiveSyncAppSyncCounter.WithLabelValues(appset.Namespace, appset.Name, step).Inc()
+}
+
+func (m *ApplicationsetMetrics) ObserveTimeToStartSyncAfterDetection(appset *argoappv1.ApplicationSet, duration time.Duration) {
+	m.progressiveSyncTriggerSyncAfterDetectionHistogram.WithLabelValues(appset.Namespace, appset.Name).Observe(duration.Seconds())
 }
 
 func (m *ApplicationsetMetrics) IncRefreshTriggeredCount(appset *argoappv1.ApplicationSet, step string) {
