@@ -60,6 +60,16 @@ const (
 	OidcTokenCachePrefix        = "oidc_token"
 )
 
+// OIDCDeviceCodeResponseBody is the response from the device authorization endpoint
+type OIDCDeviceCodeResponseBody struct {
+	DeviceCode              string `json:"device_code"`
+	UserCode                string `json:"user_code"`
+	VerificationURI         string `json:"verification_uri"`
+	VerificationURIComplete string `json:"verification_uri_complete"`
+	ExpiresIn               int    `json:"expires_in"`
+	Interval                int    `json:"interval"`
+}
+
 // OIDCConfiguration holds a subset of interested fields from the OIDC configuration spec
 type OIDCConfiguration struct {
 	Issuer                 string   `json:"issuer"`
