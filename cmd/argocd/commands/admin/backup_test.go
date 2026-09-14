@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -9,8 +10,13 @@ import (
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	dynfake "k8s.io/client-go/dynamic/fake"
+	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-cd/v3/common"
 )
@@ -42,6 +48,21 @@ func newConfigmapObject() *unstructured.Unstructured {
 		Namespace: "argocd",
 		Labels: map[string]string{
 			"app.kubernetes.io/part-of": "argocd",
+		},
+	}
+
+	return kube.MustToUnstructured(&cm)
+}
+
+func newClusterCAConfigmapObject() *unstructured.Unstructured {
+	cm := corev1.ConfigMap{
+		Name:      common.ArgoCDClusterCAConfigMapName,
+		Namespace: "argocd",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
+		},
+		Data: map[string]string{
+			common.ArgoCDClusterCAConfigMapKey: "ca-bundle",
 		},
 	}
 
@@ -146,6 +167,21 @@ metadata:
   labels:
     app.kubernetes.io/part-of: argocd
   name: argocd-cm
+---
+`,
+		},
+		{
+			name:         "Cluster CA bundle ConfigMap should be in the exported manifest",
+			object:       newClusterCAConfigmapObject(),
+			expectExport: true,
+			expectedFileContent: `apiVersion: ""
+data:
+  ca.crt: ca-bundle
+kind: ""
+metadata:
+  labels:
+    app.kubernetes.io/part-of: argocd
+  name: argocd-cluster-ca-cm
 ---
 `,
 		},
@@ -469,6 +505,49 @@ metadata:
 			}
 		})
 	}
+}
+
+func Test_getClusterCAConfigMap(t *testing.T) {
+	configMapsGVR := schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}
+	clusterCAConfigMap := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1",
+		"kind":       "ConfigMap",
+		"metadata": map[string]any{
+			"name":      common.ArgoCDClusterCAConfigMapName,
+			"namespace": "argocd",
+		},
+		"data": map[string]any{
+			common.ArgoCDClusterCAConfigMapKey: "ca-bundle",
+		},
+	}}
+
+	t.Run("returns the resource when it exists", func(t *testing.T) {
+		client := dynfake.NewSimpleDynamicClient(runtime.NewScheme(), clusterCAConfigMap)
+
+		un, err := getClusterCAConfigMap(t.Context(), client.Resource(configMapsGVR).Namespace("argocd"))
+		require.NoError(t, err)
+		require.NotNil(t, un)
+		assert.Equal(t, common.ArgoCDClusterCAConfigMapName, un.GetName())
+	})
+
+	t.Run("returns nil without error when the resource does not exist", func(t *testing.T) {
+		client := dynfake.NewSimpleDynamicClient(runtime.NewScheme())
+
+		un, err := getClusterCAConfigMap(t.Context(), client.Resource(configMapsGVR).Namespace("argocd"))
+		require.NoError(t, err)
+		assert.Nil(t, un)
+	})
+
+	t.Run("returns other errors", func(t *testing.T) {
+		client := dynfake.NewSimpleDynamicClient(runtime.NewScheme())
+		client.PrependReactor("get", "configmaps", func(_ k8stesting.Action) (bool, runtime.Object, error) {
+			return true, nil, errors.New("api unavailable")
+		})
+
+		un, err := getClusterCAConfigMap(t.Context(), client.Resource(configMapsGVR).Namespace("argocd"))
+		require.ErrorContains(t, err, "api unavailable")
+		assert.Nil(t, un)
+	})
 }
 
 func Test_updateTracking(t *testing.T) {
