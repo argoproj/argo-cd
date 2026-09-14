@@ -692,6 +692,12 @@ If `ca.crt` is blank or does not contain a valid PEM certificate, the bundle is 
 logged. This also applies during a rotation: updating the ConfigMap with a malformed value removes the fallback for
 the clusters relying on it until the value is corrected, so check the application controller logs after rotating.
 
+This check only confirms that `ca.crt` contains at least one certificate that can be parsed. It does not check expiry
+dates, or whether the bundle contains the CA that issued the API server certificate of a cluster. Other blocks in the
+value that fail to parse are skipped without a warning, as long as one certificate is valid. A bundle that passes the
+check can still fail to verify a cluster, and those failures show up as `x509` errors in the application conditions
+and in the connection state of the cluster once Argo CD connects to it.
+
 > [!NOTE]
 > The ConfigMap must carry the `app.kubernetes.io/part-of: argocd` label, like the other Argo CD ConfigMaps, to be
 > picked up. An empty `argocd-cluster-ca-cm` is created by the default installation manifests.
