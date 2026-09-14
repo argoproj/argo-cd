@@ -99,7 +99,7 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
             {
                 title: 'MANIFEST',
                 key: 'manifest',
-                content: <YamlEditor minHeight={800} input={appSet.spec} hideModeButtons={true} />
+                content: <YamlEditor minHeight={800} input={appSet} hideModeButtons={true} />
             },
             {
                 title: 'EVENTS',

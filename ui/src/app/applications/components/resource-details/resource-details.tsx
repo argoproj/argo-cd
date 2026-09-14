@@ -361,12 +361,30 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     {ResourceLabel({kind: selectedNode.kind})}
                                 </div>
                                 <h1>{selectedNode.name}</h1>
-                                {data.controlledState && (
-                                    <span style={{marginRight: '5px'}}>
-                                        <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
-                                    </span>
+                                {props.generatedAppNode ? (
+                                    (() => {
+                                        const generatedApp = data.liveState as unknown as Application;
+                                        return (
+                                            <>
+                                                {generatedApp?.status?.health && <AppUtils.HealthStatusIcon state={generatedApp.status.health} />}
+                                                {generatedApp?.status?.sync?.status && (
+                                                    <span style={{marginLeft: '5px'}}>
+                                                        <AppUtils.ComparisonStatusIcon status={generatedApp.status.sync.status} />
+                                                    </span>
+                                                )}
+                                            </>
+                                        );
+                                    })()
+                                ) : (
+                                    <>
+                                        {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
+                                        {data.controlledState && (
+                                            <span style={{marginLeft: '5px'}}>
+                                                <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
+                                            </span>
+                                        )}
+                                    </>
                                 )}
-                                {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
                                 {props.generatedAppNode &&
                                     (() => {
                                         const linkInfo = AppUtils.getApplicationLinkURLFromNode(selectedNode, appContext.baseHref);
@@ -404,7 +422,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 )}
                                 {!props.generatedAppNode && !showApplicationReference && (
                                     <>
-                                        // Sync button is only shown if the node is managed directly by an Application
+                                        {/* Sync button is only shown if the node is managed directly by an Application */}
                                         {data.controlledState && (
                                             <button
                                                 onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
