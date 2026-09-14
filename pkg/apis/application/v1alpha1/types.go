@@ -2331,8 +2331,8 @@ type Cluster struct {
 	// ID is an internal field cluster identifier. Not exposed via API.
 	ID string `json:"-"`
 	// DefaultCABundle is the default CA bundle (from the argocd-cluster-ca-cm ConfigMap) used to verify the cluster API
-	// server only when Config.CAData is empty. It is populated at runtime by the DB layer and is neither persisted in the
-	// cluster secret nor exposed via API.
+	// server only when Config.CAData is empty and Config.Insecure is false. It is populated at runtime by the DB layer
+	// and is neither persisted in the cluster secret nor exposed via API.
 	DefaultCABundle []byte `json:"-"`
 	// Server is the API server URL of the Kubernetes cluster
 	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
@@ -4081,10 +4081,12 @@ func (c *Cluster) rawRestConfig() (*rest.Config, error) {
 			config.BearerTokenFile = ""
 		}
 	default:
-		// Fall back to the default cluster CA bundle only when the cluster does not define its own CA. The bundles are
-		// never merged: a cluster that sets caData is fully isolated from the default bundle.
+		// Fall back to the default cluster CA bundle only when the cluster does not define its own CA and verifies the
+		// server certificate. The bundles are never merged: a cluster that sets caData is fully isolated from the
+		// default bundle. An insecure cluster keeps skipping verification, since client-go rejects a CA combined with
+		// the insecure flag.
 		caData := c.Config.CAData
-		if len(caData) == 0 {
+		if len(caData) == 0 && !c.Config.Insecure {
 			caData = c.DefaultCABundle
 		}
 		tlsClientConfig := rest.TLSClientConfig{

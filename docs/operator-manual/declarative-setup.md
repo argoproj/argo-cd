@@ -677,8 +677,12 @@ The bundle is a fallback, not a merge:
 
 - A cluster secret that defines its own `tlsClientConfig.caData` uses only that CA. The default bundle is ignored for
   that cluster, so clusters that manage their own trust chain are fully isolated from the default bundle.
-- A cluster secret whose `tlsClientConfig.caData` is empty or absent uses the default bundle. This also applies to
-  clusters registered with `argocd cluster add`, which do not store the CA in the secret by default.
+- A cluster secret whose `tlsClientConfig.caData` is empty or absent uses the default bundle. Note that
+  `argocd cluster add` copies the CA of the kubeconfig context into `caData`, so clusters registered that way keep
+  using their own CA. To rely on the default bundle instead, omit `caData` when creating the cluster secret
+  declaratively, or remove it from an existing secret.
+- A cluster secret with `tlsClientConfig.insecure: true` keeps skipping TLS verification and never uses the default
+  bundle, even when it has no `caData`.
 - If neither is configured, the system's default trust store is used, which is the behavior of previous versions.
 
 The bundle only applies to connections to the Kubernetes API server of managed clusters. It does not affect
@@ -689,7 +693,8 @@ affect the [in-cluster](#clusters) endpoint, which always uses the service accou
 Changes to the ConfigMap are picked up at runtime: the application controller and API server reload the bundle and
 rebuild the connections of the clusters that rely on it, so the CA can be rotated by updating the single ConfigMap.
 If `ca.crt` is blank or does not contain a valid PEM certificate, the bundle is treated as absent and a warning is
-logged.
+logged. This also applies during a rotation: updating the ConfigMap with a malformed value removes the fallback for
+the clusters relying on it until the value is corrected, so check the application controller logs after rotating.
 
 > [!NOTE]
 > The ConfigMap must carry the `app.kubernetes.io/part-of: argocd` label, like the other Argo CD ConfigMaps, to be

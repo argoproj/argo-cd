@@ -2047,8 +2047,9 @@ func (mgr *SettingsManager) SaveGPGPublicKeyData(ctx context.Context, gpgPublicK
 
 // GetClusterCABundle returns the PEM encoded default CA bundle for cluster API server connections, stored in the
 // argocd-cluster-ca-cm ConfigMap under the ca.crt key. It returns nil without an error when the ConfigMap does not
-// exist or the key is missing or blank. An error is returned when the ConfigMap cannot be read or when the value
-// does not contain at least one valid PEM encoded certificate.
+// exist, when the key is missing or blank, or when the value does not contain a valid PEM encoded certificate (which
+// is logged as a warning), so that a misconfigured bundle is treated as an absent one by every caller. An error is
+// returned only when the ConfigMap cannot be read.
 func (mgr *SettingsManager) GetClusterCABundle() ([]byte, error) {
 	cm, err := mgr.GetConfigMapByName(common.ArgoCDClusterCAConfigMapName)
 	if err != nil {
@@ -2062,7 +2063,8 @@ func (mgr *SettingsManager) GetClusterCABundle() ([]byte, error) {
 		return nil, nil
 	}
 	if ok := x509.NewCertPool().AppendCertsFromPEM([]byte(caBundle)); !ok {
-		return nil, fmt.Errorf("key %q of ConfigMap %q does not contain any valid PEM encoded certificate", common.ArgoCDClusterCAConfigMapKey, common.ArgoCDClusterCAConfigMapName)
+		log.Warnf("Ignoring key %q of ConfigMap %q: it does not contain any valid PEM encoded certificate. Clusters without their own caData will use system roots.", common.ArgoCDClusterCAConfigMapKey, common.ArgoCDClusterCAConfigMapName)
+		return nil, nil
 	}
 	return []byte(caBundle), nil
 }

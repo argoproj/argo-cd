@@ -6639,6 +6639,7 @@ func TestCluster_RESTConfig_DefaultCABundle(t *testing.T) {
 	tests := []struct {
 		name            string
 		caData          []byte
+		insecure        bool
 		defaultCABundle []byte
 		expectedCAData  []byte
 	}{
@@ -6660,16 +6661,26 @@ func TestCluster_RESTConfig_DefaultCABundle(t *testing.T) {
 			name:            "empty default bundle leaves the CA unset",
 			defaultCABundle: []byte{},
 		},
+		{
+			name:            "insecure cluster ignores the default bundle and keeps skipping verification",
+			insecure:        true,
+			defaultCABundle: defaultCA,
+		},
+		{
+			name:     "insecure cluster without a default bundle is unchanged",
+			insecure: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := &Cluster{
 				Server:          "https://1.2.3.4",
 				DefaultCABundle: tt.defaultCABundle,
-				Config:          ClusterConfig{CAData: tt.caData},
+				Config:          ClusterConfig{CAData: tt.caData, Insecure: tt.insecure},
 			}
 			rawConfig, err := c.RawRestConfig()
 			require.NoError(t, err)
+			assert.Equal(t, tt.insecure, rawConfig.Insecure)
 			tlsConfig, err := rest.TLSConfigFor(rawConfig)
 			require.NoError(t, err)
 			if len(tt.expectedCAData) == 0 {

@@ -115,13 +115,13 @@ func TestGetClusterCABundle(t *testing.T) {
 		assert.Nil(t, caBundle)
 	})
 
-	t.Run("returns an error when ca.crt does not contain a valid PEM certificate", func(t *testing.T) {
+	t.Run("returns nil without error when ca.crt does not contain a valid PEM certificate", func(t *testing.T) {
 		kubeClient, settingsManager := fixtures(t.Context(), nil)
 		_, err := kubeClient.CoreV1().ConfigMaps("default").Create(t.Context(), clusterCAConfigMap("not a certificate"), metav1.CreateOptions{})
 		require.NoError(t, err)
 
 		caBundle, err := settingsManager.GetClusterCABundle()
-		require.ErrorContains(t, err, "does not contain any valid PEM encoded certificate")
+		require.NoError(t, err, "a malformed bundle must be treated as absent, not as an error that could stop callers such as the controller")
 		assert.Nil(t, caBundle)
 	})
 
