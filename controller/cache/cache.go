@@ -786,6 +786,21 @@ func cacheSettingsUpdates(cacheSettings cacheSettings, extraUpdates ...clusterca
 	}, extraUpdates...)
 }
 
+func (c *liveStateCache) applyCacheSettings(nextCacheSettings cacheSettings) {
+	c.lock.Lock()
+	otherSettingsChanged, caBundleChanged := compareCacheSettings(c.cacheSettings, nextCacheSettings)
+	if otherSettingsChanged || caBundleChanged {
+		c.cacheSettings = nextCacheSettings
+	}
+	c.lock.Unlock()
+	switch {
+	case otherSettingsChanged:
+		c.invalidate(nextCacheSettings, caBundleChanged)
+	case caBundleChanged:
+		c.invalidateClustersUsingDefaultCABundle(nextCacheSettings)
+	}
+}
+
 func compareCacheSettings(prev, next cacheSettings) (otherSettingsChanged, caBundleChanged bool) {
 	caBundleChanged = !bytes.Equal(prev.clusterCABundle, next.clusterCABundle)
 	prev.clusterCABundle, next.clusterCABundle = nil, nil
@@ -981,18 +996,7 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 				continue
 			}
 
-			c.lock.Lock()
-			otherSettingsChanged, caBundleChanged := compareCacheSettings(c.cacheSettings, *nextCacheSettings)
-			if otherSettingsChanged || caBundleChanged {
-				c.cacheSettings = *nextCacheSettings
-			}
-			c.lock.Unlock()
-			switch {
-			case otherSettingsChanged:
-				c.invalidate(*nextCacheSettings, caBundleChanged)
-			case caBundleChanged:
-				c.invalidateClustersUsingDefaultCABundle(*nextCacheSettings)
-			}
+			c.applyCacheSettings(*nextCacheSettings)
 		case <-ctx.Done():
 			done = true
 		}
