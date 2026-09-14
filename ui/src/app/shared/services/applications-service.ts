@@ -603,6 +603,7 @@ export class ApplicationsService {
                 {
                     apiVersion: 'argoproj.io/v1alpha1',
                     kind: 'Application',
+                    metadata: {},
                     spec: {
                         project: 'default'
                     },
@@ -620,6 +621,8 @@ export class ApplicationsService {
                 {
                     apiVersion: 'argoproj.io/v1alpha1',
                     kind: 'ApplicationSet',
+                    metadata: {},
+                    spec: {},
                     status: {
                         resources: []
                     }
