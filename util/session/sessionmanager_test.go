@@ -571,6 +571,33 @@ func TestVerifyUsernamePassword(t *testing.T) {
 	}
 }
 
+func TestVerifyUsernamePasswordMigratesBcryptPassword(t *testing.T) {
+	const pass = "password"
+
+	bcryptHash, err := (password.BcryptPasswordHasher{}).HashPassword(pass)
+	require.NoError(t, err)
+
+	clientset := getKubeClientWithConfig(
+		map[string]string{},
+		map[string][]byte{
+			"admin.password": []byte(bcryptHash),
+		},
+	)
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), clientset, "argocd")
+	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
+
+	err = mgr.VerifyUsernamePassword(common.ArgoCDAdminUsername, pass)
+	require.NoError(t, err)
+
+	account, err := settingsMgr.GetAccount(common.ArgoCDAdminUsername)
+	require.NoError(t, err)
+
+	valid, stale := password.VerifyPassword(pass, account.PasswordHash)
+	assert.True(t, valid)
+	assert.False(t, stale)
+}
+
 func TestCacheValueGetters(t *testing.T) {
 	t.Run("Default values", func(t *testing.T) {
 		mlf := getMaxLoginFailures()
