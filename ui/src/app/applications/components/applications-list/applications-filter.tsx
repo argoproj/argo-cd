@@ -82,6 +82,7 @@ function getOperationStateTitleForFilter(app: Application): OperationStateTitle 
 export function getAppFilterResults(applications: Application[], pref: AppsListPreferences, hydratorEnabled: boolean = true): FilteredApp[] {
     const labelSelector = createMetadataSelector(pref.labelsFilter || []);
     const annotationSelector = createMetadataSelector(pref.annotationsFilter || []);
+    const hydrationFilter = pref.hydrationFilter || [];
 
     return applications.map(app => {
         const targetRevisions = getAppAllSources(app)
@@ -94,7 +95,7 @@ export function getAppFilterResults(applications: Application[], pref: AppsListP
                 sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
                 autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
                 health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
-                hydration: !hydratorEnabled || pref.hydrationFilter.length === 0 || pref.hydrationFilter.includes(getHydrationStatus(app)),
+                hydration: !hydratorEnabled || hydrationFilter.length === 0 || hydrationFilter.includes(getHydrationStatus(app)),
                 namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
                 favourite: !pref.showFavorites || isFavorite(pref.favoritesAppList, app),
                 clusters:
