@@ -606,6 +606,19 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
+    app.kubernetes.io/component: application-controller
+    app.kubernetes.io/name: argocd-application-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-application-controller
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: argocd-application-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
     app.kubernetes.io/component: applicationset-controller
     app.kubernetes.io/name: argocd-applicationset-controller
     app.kubernetes.io/part-of: argocd
@@ -1589,6 +1602,12 @@ spec:
               key: reposerver.tls.ciphers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_TLS_CURVE_PREFERENCES
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.tls.curvepreferences
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_SERVER_CLIENT_CA_PATH
           valueFrom:
             configMapKeyRef:
@@ -2138,6 +2157,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.tls.ciphers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_TLS_CURVE_PREFERENCES
+          valueFrom:
+            configMapKeyRef:
+              key: server.tls.curvepreferences
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_SERVER_CONNECTION_STATUS_CACHE_EXPIRATION

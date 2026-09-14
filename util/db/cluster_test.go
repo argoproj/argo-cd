@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -11,7 +12,10 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -64,15 +68,13 @@ func Test_secretToCluster(t *testing.T) {
 	}
 	cluster, err := SecretToCluster(secret)
 	require.NoError(t, err)
-	assert.Equal(t, v1alpha1.Cluster{
-		Name:   "test",
-		Server: "http://mycluster",
-		Config: v1alpha1.ClusterConfig{
-			Username: "foo",
-		},
-		Labels:      labels,
-		Annotations: annotations,
-	}, *cluster)
+	assert.Equal(t, "test", cluster.Name)
+	assert.Equal(t, "http://mycluster", cluster.Server)
+	assert.Equal(t, v1alpha1.ClusterConfig{Username: "foo"}, cluster.Config)
+	assert.Equal(t, labels, cluster.Labels)
+	assert.Equal(t, annotations, cluster.Annotations)
+	assert.NotNil(t, cluster.ConfigHash)
+	assert.NotZero(t, *cluster.ConfigHash)
 }
 
 func Test_secretToCluster_LastAppliedConfigurationDropped(t *testing.T) {
@@ -139,12 +141,12 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 	}
 	cluster, err := SecretToCluster(secret)
 	require.NoError(t, err)
-	assert.Equal(t, v1alpha1.Cluster{
-		Name:        "test",
-		Server:      "http://mycluster",
-		Labels:      map[string]string{},
-		Annotations: map[string]string{},
-	}, *cluster)
+	assert.Equal(t, "test", cluster.Name)
+	assert.Equal(t, "http://mycluster", cluster.Server)
+	assert.Equal(t, map[string]string{}, cluster.Labels)
+	assert.Equal(t, map[string]string{}, cluster.Annotations)
+	assert.NotNil(t, cluster.ConfigHash)
+	assert.NotZero(t, *cluster.ConfigHash)
 }
 
 func Test_secretToCluster_InvalidConfig(t *testing.T) {
@@ -237,7 +239,53 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 	require.Error(t, err)
 }
 
-func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster)) (completed bool) {
+type watchNotifyingClientSet struct {
+	kubernetes.Interface
+	watchStarted chan struct{}
+	once         sync.Once
+}
+
+func newWatchNotifyingClientSet(clientSet kubernetes.Interface) *watchNotifyingClientSet {
+	return &watchNotifyingClientSet{Interface: clientSet, watchStarted: make(chan struct{})}
+}
+
+func (c *watchNotifyingClientSet) CoreV1() corev1client.CoreV1Interface {
+	return &watchNotifyingCoreV1{CoreV1Interface: c.Interface.CoreV1(), clientSet: c}
+}
+
+// waitForSecretWatch reports whether a secret watch was established before the context was done.
+func (c *watchNotifyingClientSet) waitForSecretWatch(ctx context.Context) bool {
+	select {
+	case <-c.watchStarted:
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
+
+type watchNotifyingCoreV1 struct {
+	corev1client.CoreV1Interface
+	clientSet *watchNotifyingClientSet
+}
+
+func (c *watchNotifyingCoreV1) Secrets(namespace string) corev1client.SecretInterface {
+	return &watchNotifyingSecrets{SecretInterface: c.CoreV1Interface.Secrets(namespace), clientSet: c.clientSet}
+}
+
+type watchNotifyingSecrets struct {
+	corev1client.SecretInterface
+	clientSet *watchNotifyingClientSet
+}
+
+func (s *watchNotifyingSecrets) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+	w, err := s.SecretInterface.Watch(ctx, opts)
+	if err == nil {
+		s.clientSet.once.Do(func() { close(s.clientSet.watchStarted) })
+	}
+	return w, err
+}
+
+func runWatchTest(t *testing.T, clientset *watchNotifyingClientSet, db ArgoDB, actions []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster)) (completed bool) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -246,9 +294,16 @@ func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster,
 
 	allDone := make(chan bool, 1)
 
+	firstEvent := true
 	doNext := func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
 		if len(actions) == 0 {
 			assert.Fail(t, "Unexpected event")
+			return
+		}
+		if firstEvent {
+			firstEvent = false
+		} else if !clientset.waitForSecretWatch(ctx) {
+			return
 		}
 		next := actions[0]
 		next(old, new)
@@ -364,6 +419,17 @@ func TestGetCluster(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, cluster.Server)
 		assert.Equal(t, "in-cluster", cluster.Name)
+	})
+
+	t.Run("in-cluster has ConfigHash set", func(t *testing.T) {
+		kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+		cluster, err := db.GetCluster(t.Context(), v1alpha1.KubernetesInternalAPIServerAddr)
+		require.NoError(t, err)
+		assert.NotNil(t, cluster.ConfigHash)
+		assert.NotZero(t, *cluster.ConfigHash)
 	})
 
 	t.Run("in-cluster disabled", func(t *testing.T) {
@@ -868,4 +934,56 @@ func TestClusterRaceConditionClusterSecrets(t *testing.T) {
 		_, _ = db.UpdateCluster(ctx, clusterCopy)
 		time.Sleep(time.Millisecond * 500)
 	}
+}
+
+// ConfigHash tests - configHash is ephemeral and never persisted to secrets
+func Test_clusterToSecret_ConfigHash_NotPersisted(t *testing.T) {
+	// Verify that configHash is never stored in the secret, even when set on the cluster
+	testHash := uint64(12345)
+	cluster := &v1alpha1.Cluster{
+		Server:     "https://example.com",
+		Name:       "test-cluster",
+		ConfigHash: &testHash,
+		Config:     v1alpha1.ClusterConfig{},
+	}
+	s := &corev1.Secret{}
+	err := clusterToSecret(cluster, s)
+	require.NoError(t, err)
+
+	// configHash should never be stored in secret data
+	assert.Empty(t, s.Data["configHash"])
+}
+
+func Test_clusterToSecret_ConfigHash_Nil_NotPersisted(t *testing.T) {
+	cluster := &v1alpha1.Cluster{
+		Server:     "https://example.com",
+		Name:       "test-cluster",
+		ConfigHash: nil,
+		Config:     v1alpha1.ClusterConfig{},
+	}
+	s := &corev1.Secret{}
+	err := clusterToSecret(cluster, s)
+	require.NoError(t, err)
+
+	// configHash should never be stored in secret data
+	assert.Empty(t, s.Data["configHash"])
+}
+
+func Test_secretToCluster_ConfigHash_Computed(t *testing.T) {
+	// Verify that a fresh configHash is computed when loading from secret
+	secret := &corev1.Secret{
+		Name:      "test-cluster-secret",
+		Namespace: fakeNamespace,
+		Data: map[string][]byte{
+			"name":   []byte("test-cluster"),
+			"server": []byte("https://example.com"),
+			"config": []byte("{}"),
+		},
+	}
+	cluster, err := SecretToCluster(secret)
+	require.NoError(t, err)
+
+	// Should have a freshly computed hash based on cluster identity
+	assert.NotNil(t, cluster.ConfigHash)
+	assert.NotZero(t, *cluster.ConfigHash)
 }
