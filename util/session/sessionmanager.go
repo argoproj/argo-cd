@@ -500,6 +500,8 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 			log.Warnf("failed to rehash password for user %s: %v", username, err)
 		} else {
 			err = mgr.settingsMgr.UpdateAccount(username, func(acc *settings.Account) error {
+				// If the password was changed concurrently since we verified it,
+				// skip migration to avoid overwriting the newer password hash.
 				if acc.PasswordHash != originalPasswordHash {
 					return nil
 				}
