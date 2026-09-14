@@ -985,6 +985,13 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	// symbolic reference (like HEAD), in which case we will resolve it from the refToHash map
 	refToResolve := ""
 
+	// exactMatch and shortMatch remember hashes of non-symbolic refs matching the supplied revision.
+	// They are only used when the revision does not also resolve to a symbolic reference, so that a
+	// remote branch literally named "HEAD" cannot shadow the symbolic HEAD - git itself follows the
+	// symbolic ref. For the same reason, a match on the full ref name wins over a short name match.
+	exactMatch := ""
+	shortMatch := ""
+
 	isShortRef := IsShortRef(revision)
 	log.Debugf("Attempting to resolve revision '%s' (is short ref: %t)", revision, isShortRef)
 
@@ -997,8 +1004,11 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		// log.Debugf("%s\t%s", hash, refName)
 		if (isShortRef && ref.Name().Short() == revision) || refName == revision {
 			if ref.Type() == plumbing.HashReference {
-				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
-				return hash, nil
+				if refName == revision {
+					exactMatch = hash
+				} else if shortMatch == "" {
+					shortMatch = hash
+				}
 			}
 			if ref.Type() == plumbing.SymbolicReference {
 				refToResolve = ref.Target().String()
@@ -1013,6 +1023,16 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 			log.Debugf("symbolic reference '%s' (%s) resolved to '%s'", revision, refToResolve, hash)
 			return hash, nil
 		}
+	}
+
+	if exactMatch != "" {
+		log.Debugf("revision '%s' resolved to '%s'", revision, exactMatch)
+		return exactMatch, nil
+	}
+
+	if shortMatch != "" {
+		log.Debugf("revision '%s' resolved to '%s'", revision, shortMatch)
+		return shortMatch, nil
 	}
 
 	// We support the ability to use a truncated commit-SHA (e.g. first 7 characters of a SHA)

@@ -490,6 +490,63 @@ func Test_ChangedFiles(t *testing.T) {
 	assert.ElementsMatch(t, []string{"README"}, changedFiles)
 }
 
+// Test_LsRemoteHeadBranch verifies that a remote branch literally named "HEAD" does not shadow the
+// symbolic HEAD reference. Git clients follow the symbolic ref, and Argo CD must resolve "HEAD" the
+// same way. See https://github.com/argoproj/argo-cd/issues/16433
+func Test_LsRemoteHeadBranch(t *testing.T) {
+	tempDir := t.TempDir()
+	ctx := t.Context()
+
+	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "First commit", "--allow-empty")
+	require.NoError(t, err)
+
+	firstSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+
+	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Second commit", "--allow-empty")
+	require.NoError(t, err)
+
+	tipSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+	require.NotEqual(t, firstSHA, tipSHA)
+
+	// Create a branch literally named "HEAD" pointing at the older commit. `git branch` rejects the
+	// name, but it can still be created - and pushed - through a fully qualified ref.
+	err = runCmd(ctx, client.Root(), "git", "update-ref", "refs/heads/HEAD", firstSHA)
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name     string
+		ref      string
+		expected string
+	}{{
+		name:     "HEAD follows the symbolic ref",
+		ref:      "HEAD",
+		expected: tipSHA,
+	}, {
+		name:     "empty revision follows the symbolic ref",
+		ref:      "",
+		expected: tipSHA,
+	}, {
+		name:     "fully qualified ref still resolves the branch named HEAD",
+		ref:      "refs/heads/HEAD",
+		expected: firstSHA,
+	}} {
+		t.Run(tc.name, func(t *testing.T) {
+			commitSHA, err := client.LsRemote(tc.ref)
+			require.NoError(t, err)
+			assert.True(t, IsCommitSHA(commitSHA))
+			assert.Equal(t, tc.expected, commitSHA)
+		})
+	}
+}
+
 func Test_SemverTags(t *testing.T) {
 	tempDir := t.TempDir()
 	ctx := t.Context()
