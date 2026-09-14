@@ -29,19 +29,21 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
     const isVisible = !!(selectedResource && application);
     const [childApp, setChildApp] = React.useState<models.Application | null>(null);
     const childAppRef = parseSelectedChildApp(selectedResource, application);
+    const childAppRefName = childAppRef?.name;
+    const childAppRefNamespace = childAppRef?.namespace;
 
     React.useEffect(() => {
-        if (childAppRef) {
-            services.applications.get(childAppRef.name, childAppRef.namespace, 'application').then(app => {
-                setChildApp(app as models.Application);
-            });
-        } else {
-            setChildApp(null);
+        if (!childAppRefName || !childAppRefNamespace) {
+            return;
         }
-    }, [selectedResource]);
+        services.applications.get(childAppRefName, childAppRefNamespace, 'application').then(app => {
+            setChildApp(app as models.Application);
+        });
+    }, [childAppRefName, childAppRefNamespace]);
 
     const [isPending, setPending] = React.useState(false);
-    const targetApp = childAppRef && childApp ? childApp : application;
+    // guard against showing a stale child app fetched for a previously selected resource
+    const targetApp = childAppRef && childApp && childApp.metadata.name === childAppRef.name && childApp.metadata.namespace === childAppRef.namespace ? childApp : application;
 
     return (
         <SlidingPanel
