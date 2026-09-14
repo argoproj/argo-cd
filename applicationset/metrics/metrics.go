@@ -80,8 +80,8 @@ type ApplicationsetMetrics struct {
 	progressiveSyncAppStatusGauge                     *prometheus.GaugeVec
 	progressiveSyncAppSyncCounter                     *prometheus.CounterVec
 	progressiveSyncTriggerSyncAfterDetectionHistogram *prometheus.HistogramVec
-	progressiveSyncRolloutDurationHistogram        *prometheus.HistogramVec
-	progressiveSyncStepCompletionDurationHistogram *prometheus.HistogramVec
+	progressiveSyncRolloutDurationHistogram           *prometheus.HistogramVec
+	progressiveSyncStepCompletionDurationHistogram    *prometheus.HistogramVec
 }
 
 type appsetCollector struct {
@@ -120,8 +120,8 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 		progressiveSyncAppStatusGauge:                     progressiveSyncAppStatusGauge,
 		progressiveSyncAppSyncCounter:                     progressiveSyncAppSyncCounter,
 		progressiveSyncTriggerSyncAfterDetectionHistogram: progressiveSyncTriggerSyncAfterDetectionHistogram,
-		progressiveSyncRolloutDurationHistogram:        progressiveSyncRolloutDurationHistogram,
-		progressiveSyncStepCompletionDurationHistogram: progressiveSyncStepCompletionDurationHistogram,
+		progressiveSyncRolloutDurationHistogram:           progressiveSyncRolloutDurationHistogram,
+		progressiveSyncStepCompletionDurationHistogram:    progressiveSyncStepCompletionDurationHistogram,
 	}
 }
 
