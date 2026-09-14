@@ -10,7 +10,7 @@ approvers:
   - TBD
 
 creation-date: 2025-12-10
-last-updated: 2026-09-11
+last-updated: 2026-09-13
 ---
 
 # Repository CRD
@@ -20,28 +20,19 @@ secret-based implementation.
 
 ## Open Questions
 
-* **API version, and the `Repository` name collision behind it.** `argoproj.io/v1alpha0` is an unconventional first
-  version; it is used because `pkg/apis/application/v1alpha1` already declares a `Repository` Go type (the config
-  struct serialized into Secrets and exposed over gRPC/REST), so codegen cannot add a second one there. The clash is
-  purely the Go identifier — `v1alpha1.Repository` is not a `runtime.Object` and that kind is not registered in the
-  scheme — and `RepositoryCredential` has no such clash, but shares `v1alpha0` so the two kinds stay on one version.
-  `v1alpha0` defers rather than resolves it: promoting to
-  `v1alpha1` needs the colliding name. Options, cheapest first:
-  - **Skip `v1alpha1` on promotion** (`v1alpha0` → `v1alpha2`/`v1beta1` → `v1`): free, but the odd version stays.
-  - **New group** `repository.argoproj.io/v1alpha1`: frees the name, keeps kind `Repository` and `kubectl get
-    repositories`; costs a second group to maintain and an `apiGroups` entry in every Role.
-  - **Different kind** (e.g. `RepositoryConfig`): no collision, no new group, loses the `kubectl get repositories` UX.
-  - **Rename the existing structs**: trivial, but technically a breaking change.
+* **SCM-specific blocks.** GitHub App fields currently sit under `git` (`git.githubAppID`, …). Grouping them per
+  SCM instead (`github.appID`, `github.appInstallationID`, …) reads better and leaves room for other providers, at the
+  cost of a second axis (type × SCM) in the spec. Not decided here.
 * **Cache-backed reads.** The CRD backend currently resolves repositories with direct (uncached) LIST calls, one per
   lookup. Backing the lookup with a shared informer/lister would remove the remaining per-reconcile API-server load.
 
 ## Summary
 
 Argo CD stores repository configuration and credentials in Secrets. This proposal adds two namespaced CRDs —
-`Repository` and `RepositoryCredential` (`argoproj.io/v1alpha0`) — holding all *non-secret* configuration
-declaratively, with credential material remaining in a Secret referenced via `spec.secretRef`. Storage is selected per
-component by `--repository-backend-mode` (env `ARGOCD_REPOSITORY_BACKEND`): `secret` (default, existing behavior),
-`crd`, or `hybrid` (read both, CRDs win; writes migrate to CRDs). The CRDs are spec-only: connection health keeps
+`Repository` and `RepositoryCredential` (`argoproj.io/v1alpha1`) — holding all *non-secret* configuration
+declaratively, with credential material remaining in a Secret referenced via `spec.secretRef`. Storage is selected
+fleet-wide by the `repository.backend` key in `argocd-cm`: `secret` (default, existing behavior), `crd`, or `hybrid`
+(read both, CRDs win; writes migrate to CRDs). The CRDs are spec-only: connection health keeps
 being reported the way it is today, and a `status` subresource is deferred to a follow-up (see Non-Goals).
 
 ## Motivation
@@ -65,11 +56,13 @@ being reported the way it is today, and a `status` subresource is deferred to a 
 
 3. **Gradual Migration**
     - Operators can migrate at their own pace by opting into `hybrid` mode
-    - Automatic migration on update: updating a secret-backed repository in hybrid mode creates the CRD and then
-      deletes the legacy Secret. The delete is best-effort — a failure is logged rather than failing the update, and
+    - Automatic migration on update: updating a secret-backed repository in hybrid mode creates the CR, then handles
+      the Secret by ownership (see Secret ownership and lifecycle): an Argo-CD-generated legacy Secret is replaced by
+      one owned by the CR and deleted; a user-provided Secret is kept and referenced via `secretRef`, since it is the
+      credential the CR points at. The delete is best-effort — a failure is logged rather than failing the update, and
       leaves a Secret that components still in `secret` mode keep serving
     - Every component that resolves repositories (API server, application controller, applicationset controller,
-      notifications controller) takes the same flag/env, so the fleet can be switched consistently
+      notifications controller) reads the same `argocd-cm` key, so the fleet switches consistently
 
 4. **Security Parity**
     - Credential material stays in the referenced Secret; everything else lives in the spec
@@ -79,10 +72,11 @@ being reported the way it is today, and a `status` subresource is deferred to a 
 
 ### Non-Goals
 
-1. **Changing internal API types.** `pkg/apis/application/v1alpha1.Repository` is unchanged; a single shared
-   conversion (`util/db/repository_crd_conversion.go`) maps CRD ↔ internal types. The CRD *spec* groups fields by type
-   but maps onto the same structs. The internal `ConnectionState` is untouched and keeps being produced by the
-   existing code path (see non-goal 6).
+1. **Changing internal API types.** The internal repository struct keeps its shape and wire format; it is only
+   renamed to free the `Repository` identifier (see API version and naming). A single shared conversion
+   (`util/db/repository_crd_conversion.go`) maps CRD ↔ internal types. The CRD *spec* groups fields by type but maps
+   onto the same structs. The internal `ConnectionState` is untouched and keeps being produced by the existing code
+   path (see non-goal 7).
 2. **Immediate Secret deprecation.** Secret-based storage stays supported and remains the default; deprecating it
    would be a separate proposal.
 3. **API contract changes.** CLI behavior, the gRPC/REST API and client SDKs are all unaffected.
@@ -90,7 +84,14 @@ being reported the way it is today, and a `status` subresource is deferred to a 
    ("repositories-in-any-namespace") is not addressed — though the namespaced CRD shape leaves room for it.
 5. **Workload identity.** Existing ad-hoc support is carried through as-is (`spec.useAzureWorkloadIdentity`, as
    with secrets today); a holistic solution is future work.
-6. **Repository status.** The CRDs ship spec-only: no `status` subresource and no connection-health controller.
+6. **Other configuration objects.** This proposal covers repositories and credential templates only. It does set a
+   pattern (spec-only CRD, credential material in a labelled Secret) that other configuration could follow, but each
+   object needs its own case: sync windows are already becoming a CRD in
+   [#28840](https://github.com/argoproj/argo-cd/pull/28840); cluster Secrets are untouched here, and a future move
+   would more likely target the upstream
+   [ClusterProfile](https://multicluster.sigs.k8s.io/concepts/cluster-profile-api/) API than a bespoke CRD. Nothing
+   else in `argocd-cm`/`argocd-secret` has a pressing need.
+7. **Repository status.** The CRDs ship spec-only: no `status` subresource and no connection-health controller.
    Connection state keeps being produced exactly as it is today — the API server runs `TestRepository` on a
    connection-state cache miss (`server/repository.List`) — so `argocd repo list` and the UI behave identically in
    every mode. A real status is worth having, especially the multi-controlplane view an agent-based deployment cannot
@@ -112,11 +113,30 @@ clusters.
 
 ### Implementation Details/Notes/Constraints
 
+#### API version and naming
+
+The CRDs ship as `argoproj.io/v1alpha1`, alongside `Application`, `AppProject` and `ApplicationSet`.
+`pkg/apis/application/v1alpha1` already declares `Repository` and `RepositoryList` Go types — the config struct
+serialized into Secrets and the gRPC list response — so codegen cannot add CRD kinds with those names. They are
+renamed to `RepositoryConfig` and `RepositoryConfigList`, following the precedent of
+[#28840](https://github.com/argoproj/argo-cd/pull/28840), which renamed `SyncWindow` to `InlineSyncWindow` to free the
+kind name. The rename is Go-source only: JSON field names, the protobuf wire format and REST paths are unchanged, so
+the CLI, UI and gRPC/REST clients keep working. Consumers importing the Go type update an identifier; Go types carry
+no compatibility guarantee, and a CRD kind is not worth bending around one. `RepoCreds` does not collide and is left
+alone.
+
 #### Backend selection
 
-* The storage backend is resolved at the command edges only: each binary registers a `--repository-backend-mode`
-  flag whose default comes from `ARGOCD_REPOSITORY_BACKEND`. An explicit flag wins over the env var; an invalid or
-  unset value resolves to `secret` with a warning.
+* The storage backend is a single fleet-wide setting, `repository.backend` in `argocd-cm` (`secret` | `crd` |
+  `hybrid`), rather than a per-component flag. `hybrid` already makes mixed fleets safe, so there is no staged-rollout
+  case for per-component modes, and one key removes the failure mode where components disagree about where a
+  repository lives. Every component already constructs `db.NewDB` with a `SettingsManager`, so no new plumbing is
+  needed.
+* The key is read once, when `db.NewDB` runs, not hot-reloaded: switching backends under running reconciles would
+  change lookup results mid-refresh, and `crd`/`hybrid` also need the CRD RBAC to be in place. Changing the key
+  requires a restart of the affected components, which is documented next to the key. An invalid or unset value
+  resolves to `secret` with a warning. `ARGOCD_REPOSITORY_BACKEND` overrides the key when set, for tests and for
+  `argocd admin` invocations that have no `argocd-cm` in reach.
 * `db.NewDB` validates the mode/clientset pairing once: crd/hybrid without an application clientset downgrades to
   the secrets backend with a warning instead of failing at first use. The notifications controller's `argoCDService`
   currently builds `db.NewDB` with only a Kubernetes clientset and so would always take this downgrade; it gains the
@@ -140,11 +160,11 @@ clusters.
   service-principal fields. A `secretRef` is written only when credential material exists, so e.g. a
   workload-identity-only repository has no dangling reference.
 * **`secretRef` resolves only to opted-in Secrets** — those labeled `argocd.argoproj.io/secret-type` with the new
-  value `repository-creds` (credential material only, no `url`), or with the existing `repository`/`repo-creds`
+  value `repository-secret` (credential material only, no `url`), or with the existing `repository`/`repo-creds`
   values, which already publish the Secret to Argo CD and so need no second opt-in; this is what lets migration
-  reference a user-provided legacy Secret without relabelling it. `repository-creds` is a distinct value because the
+  reference a user-provided legacy Secret without relabelling it. `repository-secret` is a distinct value because the
   label is single-valued and `repo-creds` Secrets are listed as URL-prefix templates, where a url-less Secret would
-  match every URL. Otherwise anyone able to create a `Repository` could name an arbitrary Secret in the control-plane
+  match every URL; it deliberately avoids "creds" in the name, which `repo-creds` already uses for a different thing. Otherwise anyone able to create a `Repository` could name an arbitrary Secret in the control-plane
   namespace and have Argo CD send it to a URL of their choosing (see Security Considerations). An existing but
   unlabeled target reports `CredentialsMissing` rather than being silently ignored.
 
@@ -223,7 +243,7 @@ component restart.
 **Git:**
 
 ```yaml
-apiVersion: argoproj.io/v1alpha0
+apiVersion: argoproj.io/v1alpha1
 kind: Repository
 metadata:
   name: my-git-repo
@@ -242,7 +262,7 @@ spec:
 **Helm:**
 
 ```yaml
-apiVersion: argoproj.io/v1alpha0
+apiVersion: argoproj.io/v1alpha1
 kind: Repository
 metadata:
   name: my-helm-repo
@@ -260,7 +280,7 @@ spec:
 **OCI:**
 
 ```yaml
-apiVersion: argoproj.io/v1alpha0
+apiVersion: argoproj.io/v1alpha1
 kind: Repository
 metadata:
   name: my-oci-repo
@@ -277,7 +297,7 @@ spec:
 **Credential template (matches repositories by URL prefix):**
 
 ```yaml
-apiVersion: argoproj.io/v1alpha0
+apiVersion: argoproj.io/v1alpha1
 kind: RepositoryCredential
 metadata:
   name: github-org-creds
@@ -303,7 +323,7 @@ spec:
   does not hold. That exposure is unchanged. `secretRef` adds a *new* one: naming any Secret in the control-plane
   namespace. Unconstrained, anyone permitted to create a `Repository` — but not to read Secrets — could make Argo CD
   read a Secret they cannot see and send it to a URL they control. A reference is therefore honoured only when the
-  target carries an Argo CD `secret-type` label (`repository-creds`, or the pre-existing `repository`/`repo-creds`),
+  target carries an Argo CD `secret-type` label (`repository-secret`, or the pre-existing `repository`/`repo-creds`),
   making exposure an explicit act by the Secret's owner rather than a consequence of granting `repositories` create.
   Labelling a Secret is equivalent to publishing it to every principal who can create a `Repository`, and is documented
   as such. The gate closes only the `secretRef` path; template inheritance keeps its current semantics.
@@ -323,8 +343,8 @@ spec:
 
 ### Upgrade / Downgrade Strategy
 
-* **Upgrading** requires applying the new CRDs (part of the install manifests) but changes no behavior: every component
-  defaults to `secret`.
+* **Upgrading** requires applying the new CRDs (part of the install manifests) but changes no behavior:
+  `repository.backend` defaults to `secret`.
 * **There is no bulk migration.** Repositories become CRDs one at a time, when something updates them, so `hybrid` is
   the only safe way in. Going straight from `secret` to `crd` makes every unmigrated repository invisible (no Secret
   fallback) and their applications fail to resolve sources.
@@ -352,6 +372,16 @@ spec:
 ## Alternatives
 
 * It can be argued that secret-based Repositories has worked well up until now and doesn't need to be changed.
+* **A ConfigMap schema instead of CRDs.** The non-secret configuration could live in `argocd-cm` (or a dedicated
+  ConfigMap) with credential material pulled in via the existing `$<secret>:<key>` reference syntax already used for
+  `oidc.config`. In its favour: no CRD to install, no new RBAC, and the settings hot-reload comes for free. Against
+  it, and why CRDs are proposed: no OpenAPI/CEL validation (a typo is found at refresh time); no per-repository RBAC,
+  so anyone who can edit the ConfigMap can edit every repository; no per-object events or audit trail, only "the
+  ConfigMap changed"; no `kubectl get repositories`; one document for the whole fleet, which makes GitOps ownership
+  of individual repositories awkward and turns every change into a write to a shared, contended object; and no room
+  for a `status` later. The `$secret:key` indirection also solves less than `secretRef` does — it inlines one value
+  at a time, so a credential spanning several keys (TLS cert + key, GitHub App ID + key) is several references rather
+  than one Secret.
 * Alternatively, we could have a single `Repository` CRD instead of having the `Repository`/`RepositoryCredential`
   split. In that case we would need to define how a repository credential template is defined in the context of a
   `Repository` (perhaps with a field denoting it to be a credential template)
