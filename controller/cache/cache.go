@@ -704,20 +704,46 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings, refreshRESTConf
 	c.lock.Unlock()
 
 	for server, clust := range clusters {
-		updateSettings := []clustercache.UpdateSettingsFunc{
-			clustercache.SetSettings(cacheSettings.clusterSettings),
-			clustercache.SetManifestCompressionEnabled(cacheSettings.manifestCompressionEnabled),
-			clustercache.SetManifestStorageType(cacheSettings.manifestStorageType),
-			clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
-		}
+		var extraUpdates []clustercache.UpdateSettingsFunc
 		if refreshRESTConfigs {
 			if restConfig := c.restConfigUsingDefaultCABundle(server); restConfig != nil {
-				updateSettings = append(updateSettings, clustercache.SetConfig(restConfig))
+				extraUpdates = append(extraUpdates, clustercache.SetConfig(restConfig))
 			}
 		}
-		clust.Invalidate(updateSettings...)
+		clust.Invalidate(cacheSettingsUpdates(cacheSettings, extraUpdates...)...)
 	}
 	log.Info("live state cache invalidated")
+}
+
+func (c *liveStateCache) invalidateClustersUsingDefaultCABundle(cacheSettings cacheSettings) {
+	c.lock.Lock()
+	c.cacheSettings = cacheSettings
+	clusters := c.clusters
+	c.lock.Unlock()
+
+	for server, cluster := range clusters {
+		restConfig := c.restConfigUsingDefaultCABundle(server)
+		if restConfig == nil {
+			continue
+		}
+		log.Infof("Default cluster CA bundle changed, invalidating cluster %s", server)
+		cluster.Invalidate(cacheSettingsUpdates(cacheSettings, clustercache.SetConfig(restConfig))...)
+	}
+}
+
+func cacheSettingsUpdates(cacheSettings cacheSettings, extraUpdates ...clustercache.UpdateSettingsFunc) []clustercache.UpdateSettingsFunc {
+	return append([]clustercache.UpdateSettingsFunc{
+		clustercache.SetSettings(cacheSettings.clusterSettings),
+		clustercache.SetManifestCompressionEnabled(cacheSettings.manifestCompressionEnabled),
+		clustercache.SetManifestStorageType(cacheSettings.manifestStorageType),
+		clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
+	}, extraUpdates...)
+}
+
+func compareCacheSettings(prev, next cacheSettings) (otherSettingsChanged, caBundleChanged bool) {
+	caBundleChanged = !bytes.Equal(prev.clusterCABundle, next.clusterCABundle)
+	prev.clusterCABundle, next.clusterCABundle = nil, nil
+	return !reflect.DeepEqual(prev, next), caBundleChanged
 }
 
 func (c *liveStateCache) restConfigUsingDefaultCABundle(server string) *rest.Config {
@@ -840,16 +866,16 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 			}
 
 			c.lock.Lock()
-			needInvalidate := false
-			caBundleChanged := false
-			if !reflect.DeepEqual(c.cacheSettings, *nextCacheSettings) {
-				caBundleChanged = !bytes.Equal(c.cacheSettings.clusterCABundle, nextCacheSettings.clusterCABundle)
+			otherSettingsChanged, caBundleChanged := compareCacheSettings(c.cacheSettings, *nextCacheSettings)
+			if otherSettingsChanged || caBundleChanged {
 				c.cacheSettings = *nextCacheSettings
-				needInvalidate = true
 			}
 			c.lock.Unlock()
-			if needInvalidate {
+			switch {
+			case otherSettingsChanged:
 				c.invalidate(*nextCacheSettings, caBundleChanged)
+			case caBundleChanged:
+				c.invalidateClustersUsingDefaultCABundle(*nextCacheSettings)
 			}
 		case <-ctx.Done():
 			done = true
