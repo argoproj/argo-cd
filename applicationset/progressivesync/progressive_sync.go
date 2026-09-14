@@ -65,6 +65,9 @@ type Dependencies interface {
 		parametersGenerated bool,
 	) error
 
+	// RecordProgressiveSyncTriggered increments the sync counter for the given appset and step
+	RecordProgressiveSyncTriggered(applicationSet *argov1alpha1.ApplicationSet, step string)
+
 	// ObserveRolloutDuration records the duration of a completed progressive sync rollout
 	ObserveRolloutDuration(appset *argov1alpha1.ApplicationSet, duration time.Duration)
 
@@ -1200,7 +1203,9 @@ func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *arg
 		// check appsToSync to determine which Applications are ready to be updated and which should be skipped
 		if appsToSync[desiredApplications[i].Name] && appSetStatusPending {
 			logCtx.Infof("triggering sync for application: %v, prune enabled: %v", desiredApplications[i].Name, pruneEnabled)
+
 			desiredApplications[i] = syncApplication(desiredApplications[i], pruneEnabled, pinnedRevisions)
+			m.dependencies.RecordProgressiveSyncTriggered(applicationSet, applicationSet.Status.ApplicationStatus[idx].Step)
 		}
 
 		rolloutApps = append(rolloutApps, desiredApplications[i])

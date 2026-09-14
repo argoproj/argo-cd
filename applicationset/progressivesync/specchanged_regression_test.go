@@ -90,6 +90,9 @@ func (regressionDeps) SetApplicationSetStatusCondition(_ context.Context, _ *arg
 	return nil
 }
 
+func (regressionDeps) RecordProgressiveSyncTriggered(*argov1alpha1.ApplicationSet, string) {
+}
+
 func (regressionDeps) ObserveRolloutDuration(_ *argov1alpha1.ApplicationSet, _ time.Duration) {}
 
 func (regressionDeps) ObserveStepCompletionDuration(_ *argov1alpha1.ApplicationSet, _ string, _ time.Duration) {

@@ -453,6 +453,82 @@ argocd_appset_owned_applications{name="test2",namespace="argocd"} 0
 	assert.NotContains(t, rr.Body.String(), `name="should-be-filtered-out"`)
 }
 
+func TestSetProgressiveSyncAppStatus(t *testing.T) {
+	appsetList := newFakeAppsets(fakeAppsetList)
+	client := initializeClient(appsetList)
+	metrics.Registry = prometheus.NewRegistry()
+
+	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
+
+	appsetWithStatus := appsetList[3]
+	appsetMetrics.SetProgressiveSyncAppStatus(&appsetWithStatus)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
+	handler.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_app_status{name="appset-progressive-sync-enabled",namespace="argocd",progressiveStatus="Healthy",step="1"} 2`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_app_status{name="appset-progressive-sync-enabled",namespace="argocd",progressiveStatus="Healthy",step="2"} 3`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_app_status{name="appset-progressive-sync-enabled",namespace="argocd",progressiveStatus="Healthy",step="3"} 4`)
+}
+
+func TestSetProgressiveSyncAppSync(t *testing.T) {
+	appsetList := newFakeAppsets(fakeAppsetList)
+	client := initializeClient(appsetList)
+	metrics.Registry = prometheus.NewRegistry()
+
+	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
+
+	appsetWithStatus := &appsetList[3]
+	appsetMetrics.SetProgressiveSyncAppSync(appsetWithStatus, "1")
+	appsetMetrics.SetProgressiveSyncAppSync(appsetWithStatus, "2")
+	appsetMetrics.SetProgressiveSyncAppSync(appsetWithStatus, "3")
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
+	handler.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_syncs_triggered_total{name="appset-progressive-sync-enabled",namespace="argocd",step="1"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_syncs_triggered_total{name="appset-progressive-sync-enabled",namespace="argocd",step="2"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_syncs_triggered_total{name="appset-progressive-sync-enabled",namespace="argocd",step="3"} 1`)
+}
+
+func TestObserveTimeToStartSyncAfterDetection(t *testing.T) {
+	appsetList := newFakeAppsets(fakeAppsetList)
+	client := initializeClient(appsetList)
+	metrics.Registry = prometheus.NewRegistry()
+
+	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
+
+	appsetWithStatus := &appsetList[3]
+	appsetMetrics.ObserveTimeToStartSyncAfterDetection(appsetWithStatus, 5*time.Second)
+	appsetMetrics.ObserveTimeToStartSyncAfterDetection(appsetWithStatus, 5*time.Millisecond)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
+	handler.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_detection_to_trigger_seconds_bucket{name="appset-progressive-sync-enabled",namespace="argocd",le="0.05"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_detection_to_trigger_seconds_bucket{name="appset-progressive-sync-enabled",namespace="argocd",le="0.1"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_detection_to_trigger_seconds_bucket{name="appset-progressive-sync-enabled",namespace="argocd",le="0.15"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_detection_to_trigger_seconds_bucket{name="appset-progressive-sync-enabled",namespace="argocd",le="0.5"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_detection_to_trigger_seconds_bucket{name="appset-progressive-sync-enabled",namespace="argocd",le="1"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_detection_to_trigger_seconds_bucket{name="appset-progressive-sync-enabled",namespace="argocd",le="5"} 2`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_detection_to_trigger_seconds_bucket{name="appset-progressive-sync-enabled",namespace="argocd",le="+Inf"} 2`)
+}
+
 func TestObserveReconcile(t *testing.T) {
 	appsetList := newFakeAppsets(fakeAppsetList)
 	client := initializeClient(appsetList)
@@ -469,7 +545,7 @@ func TestObserveReconcile(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), `
 argocd_appset_reconcile_sum{name="test1",namespace="argocd"} 5
 `)
-	// If there are no resources on the applicationset the owned application gague should return 0
+	// If there are no resources on the applicationset the owned application gauge should return 0
 	assert.Contains(t, rr.Body.String(), `
 argocd_appset_reconcile_count{name="test1",namespace="argocd"} 1
 `)
