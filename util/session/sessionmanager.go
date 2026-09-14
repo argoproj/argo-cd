@@ -499,11 +499,11 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 		if err != nil {
 			log.Warnf("failed to rehash password for user %s: %v", username, err)
 		} else {
-			err = mgr.settingsMgr.UpdateAccount(username, func(account *settings.Account) error {
-				if account.PasswordHash != originalPasswordHash {
+			err = mgr.settingsMgr.UpdateAccount(username, func(acc *settings.Account) error {
+				if acc.PasswordHash != originalPasswordHash {
 					return nil
 				}
-				account.PasswordHash = hashedPassword
+				acc.PasswordHash = hashedPassword
 				return nil
 			})
 			if err != nil {

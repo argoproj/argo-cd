@@ -12,10 +12,10 @@ import (
 
 const (
 	// 600,000 iterations is the OWASP recommendation for PBKDF2-HMAC-SHA256
-	// when FIPS-140 compliance is required.
-	pbkdf2Iterations = 600000
-	pbkdf2SaltLength = 16
-	pbkdf2KeyLength  = 32
+	pbkdf2Iterations    = 600000
+	pbkdf2MaxIterations = 5000000
+	pbkdf2SaltLength    = 16
+	pbkdf2KeyLength     = 32
 )
 
 // PBKDF2PasswordHasher handles password hashing using PBKDF2-HMAC-SHA256.
@@ -58,7 +58,7 @@ func (h PBKDF2PasswordHasher) VerifyPassword(password, hashedPassword string) bo
 	}
 
 	iterations, err := strconv.Atoi(parts[2])
-	if err != nil || iterations != pbkdf2Iterations {
+	if err != nil || iterations < 1 || iterations > pbkdf2MaxIterations {
 		return false
 	}
 

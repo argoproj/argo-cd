@@ -1,7 +1,6 @@
 package password
 
 import (
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -46,7 +45,7 @@ func TestPBKDF2PasswordHasher(t *testing.T) {
 
 	assert.False(t, h.VerifyPassword("Hello, world!", "invalid"))
 	assert.False(t, h.VerifyPassword("Hello, world!", "pbkdf2-sha256$v1$1$invalid$invalid"))
-	assert.False(t, h.VerifyPassword("Hello, world!", "pbkdf2-sha256$v1$"+strconv.Itoa(pbkdf2Iterations+1)+"$c2FsdA==$aGFzaA=="))
+	assert.False(t, h.VerifyPassword("Hello, world!", "pbkdf2-sha256$v1$5000001$c2FsdA==$aGFzaA=="))
 }
 
 func TestPasswordHashingWithPBKDF2Preferred(t *testing.T) {
