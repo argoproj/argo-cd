@@ -136,6 +136,49 @@ func TestGetClusterCABundle(t *testing.T) {
 	})
 }
 
+func TestSettingsManager_NotifiesWhenClusterCAConfigMapIsDeleted(t *testing.T) {
+	caBundle := testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt")
+	kubeClient, settingsManager := fixtures(t.Context(), nil, func(secret *corev1.Secret) {
+		secret.Data["server.secretkey"] = []byte("test-secret-key")
+	})
+	_, err := kubeClient.CoreV1().ConfigMaps("default").Create(t.Context(), &corev1.ConfigMap{
+		Name:      common.ArgoCDClusterCAConfigMapName,
+		Namespace: "default",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
+		},
+		Data: map[string]string{
+			common.ArgoCDClusterCAConfigMapKey: caBundle,
+		},
+	}, metav1.CreateOptions{})
+	require.NoError(t, err)
+
+	before, err := settingsManager.GetClusterCABundle()
+	require.NoError(t, err)
+	require.NotNil(t, before)
+
+	updates := make(chan *ArgoCDSettings, 1)
+	settingsManager.Subscribe(updates)
+	defer settingsManager.Unsubscribe(updates)
+	select {
+	case <-updates:
+		t.Fatal("unexpected settings notification before the ConfigMap was deleted")
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	err = kubeClient.CoreV1().ConfigMaps("default").Delete(t.Context(), common.ArgoCDClusterCAConfigMapName, metav1.DeleteOptions{})
+	require.NoError(t, err)
+
+	select {
+	case <-updates:
+	case <-time.After(10 * time.Second):
+		t.Fatal("deleting argocd-cluster-ca-cm did not notify settings subscribers")
+	}
+	after, err := settingsManager.GetClusterCABundle()
+	require.NoError(t, err)
+	assert.Nil(t, after)
+}
+
 func TestGetSecretByName(t *testing.T) {
 	t.Run("data is never nil", func(t *testing.T) {
 		_, settingsManager := fixtures(t.Context(), nil, func(secret *corev1.Secret) { secret.Data = nil })

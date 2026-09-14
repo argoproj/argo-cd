@@ -252,4 +252,36 @@ func TestSettingsNotificationEventHandler(t *testing.T) {
 		})
 		assert.Zero(t, count)
 	})
+
+	t.Run("delete of a settings object notifies", func(t *testing.T) {
+		now := time.Now()
+		count := 0
+		h := settingsNotificationEventHandler(now, func() { count++ })
+
+		h.OnDelete(settingsObject(now.Add(-time.Hour), "1"))
+		assert.Equal(t, 1, count, "deleting a settings object, or removing its part-of label, must notify")
+	})
+
+	t.Run("delete tombstone of a settings object notifies", func(t *testing.T) {
+		now := time.Now()
+		count := 0
+		h := settingsNotificationEventHandler(now, func() { count++ })
+
+		h.OnDelete(cache.DeletedFinalStateUnknown{Key: "argocd/argocd-secret", Obj: settingsObject(now, "1")})
+		assert.Equal(t, 1, count)
+	})
+
+	t.Run("delete of a non-settings object or unexpected type does not notify", func(t *testing.T) {
+		now := time.Now()
+		count := 0
+		h := settingsNotificationEventHandler(now, func() { count++ })
+
+		nonSettings := &corev1.Secret{Name: "plain"}
+		assert.NotPanics(t, func() {
+			h.OnDelete(nonSettings)
+			h.OnDelete(cache.DeletedFinalStateUnknown{Key: "argocd/plain", Obj: nonSettings})
+			h.OnDelete("not-an-object")
+		})
+		assert.Zero(t, count)
+	})
 }
