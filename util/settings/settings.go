@@ -1626,6 +1626,14 @@ func settingsNotificationEventHandler(now time.Time, tryNotify func()) cache.Res
 				}
 			}
 		},
+		DeleteFunc: func(obj any) {
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+			if isSettingsObject(obj) {
+				tryNotify()
+			}
+		},
 	}
 }
 
