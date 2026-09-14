@@ -22,13 +22,17 @@ const dockerHubWebhookType = "dockerhub"
 // It extracts image push events from Docker Hub repository webhooks and converts
 // them into a normalized RegistryEvent. Docker Hub neither signs its payloads nor
 // sends a distinguishing header, so requests are claimed via a query parameter
-// (see dockerHubWebhookType) and authenticated with an optional shared secret
-// carried in the request URL.
+// (see dockerHubWebhookType) and authenticated with a shared secret carried in the
+// Authorization header or, failing that, the request URL.
+//
+// Configuring the secret is required: an empty secret disables Docker Hub webhook
+// support entirely rather than leaving an unauthenticated endpoint that anyone can
+// flood with refresh-triggering requests.
 type dockerhubParser struct {
 	secret string
 }
 
-// DockerHubPayload represents the subset of the webhook payload Docker Hub sends
+// dockerHubPayload represents the subset of the webhook payload Docker Hub sends
 // for repository push events that we need to identify the pushed image.
 // See https://docs.docker.com/docker-hub/webhooks/.
 type dockerHubPayload struct {
@@ -45,11 +49,12 @@ type dockerHubPayload struct {
 // newDockerHubParser creates a new dockerhubParser instance.
 //
 // Docker Hub cannot sign webhook payloads, so the parser authenticates requests
-// using a shared secret supplied as a query parameter. If no secret is configured,
-// incoming events are accepted without validation and a warning is logged.
+// using a shared secret supplied in the Authorization header or as a query
+// parameter. When secret is empty the parser refuses all requests via CanHandle,
+// which disables Docker Hub webhook support.
 func newDockerHubParser(secret string) *dockerhubParser {
 	if secret == "" {
-		log.Warn("DockerHub webhook secret is not configured; incoming webhook events will not be validated")
+		log.Warn("DockerHub webhook secret is not configured; DockerHub webhook support is disabled")
 	}
 	return &dockerhubParser{
 		secret: secret,
@@ -59,9 +64,14 @@ func newDockerHubParser(secret string) *dockerhubParser {
 // CanHandle reports whether the HTTP request corresponds to a Docker Hub webhook.
 //
 // Docker Hub does not set a provider-specific header (unlike GitHub's
-// X-GitHub-Event), so the request is identified solely by the "type=dockerhub"
-// query parameter the user adds to the configured webhook URL.
+// X-GitHub-Event), so the request is identified by the "type=dockerhub" query
+// parameter the user adds to the configured webhook URL. If no secret is
+// configured this always returns false, disabling Docker Hub webhook support so
+// that the endpoint is never reachable without authentication.
 func (p *dockerhubParser) CanHandle(r *http.Request) bool {
+	if p.secret == "" {
+		return false
+	}
 	return r.URL.Query().Get("type") == dockerHubWebhookType
 }
 
@@ -128,25 +138,38 @@ func (p *dockerhubParser) Parse(r *http.Request) (any, error) {
 	}, nil
 }
 
-// validateSecret verifies the shared secret supplied in the "secret" query
-// parameter.
+// validateSecret verifies the shared secret carried by the request.
 //
-// Docker Hub does not support signing webhook payloads, so the secret is carried
-// in the request URL and compared in constant time. If no secret is configured,
-// validation is skipped (the endpoint is open and a warning was logged at
-// construction). A mismatch returns ErrHMACVerificationFailed, which the handler
-// maps to an HTTP 401 response.
+// Docker Hub does not support signing webhook payloads, so the secret is compared
+// in constant time against one of two sources, in order of preference:
+//
+//  1. The Authorization header, matching how the Harbor parser authenticates. Docker
+//     Hub itself cannot set custom headers, but this lets operators front Argo CD with
+//     a proxy or gateway that moves the secret out of the URL.
+//  2. The "secret" query parameter, which is all Docker Hub can supply on its own.
+//
+// A mismatch returns ErrSecretVerificationFailed, which the handler maps to an HTTP
+// 401 response. The error is deliberately not an HMAC error: no signature is involved
+// here. An unconfigured secret cannot reach this point, because CanHandle already
+// refuses every request in that case.
 func (p *dockerhubParser) validateSecret(r *http.Request) error {
 	if p.secret == "" {
-		log.Debug("DockerHub webhook secret not configured; skipping validation")
-		return nil // open endpoint
+		return fmt.Errorf("%w: DockerHub webhook secret is not configured", ErrSecretVerificationFailed)
 	}
-	provided := r.URL.Query().Get("secret")
+	provided := r.Header.Get("Authorization")
+	source := "header"
+	if provided == "" {
+		provided = r.URL.Query().Get("secret")
+		source = "query"
+	}
 	if subtle.ConstantTimeCompare([]byte(provided), []byte(p.secret)) != 1 {
-		// Never log the secret values; logging whether one was supplied is enough
-		// to distinguish "missing secret query param" from "wrong value".
-		log.WithField("secretProvided", provided != "").Debug("DockerHub webhook secret validation failed")
-		return fmt.Errorf("%w: invalid DockerHub webhook secret", ErrHMACVerificationFailed)
+		// Never log the secret values; logging whether one was supplied, and where it
+		// came from, is enough to distinguish "no secret sent" from "wrong value".
+		log.WithFields(log.Fields{
+			"secretProvided": provided != "",
+			"secretSource":   source,
+		}).Debug("DockerHub webhook secret validation failed")
+		return fmt.Errorf("%w: invalid DockerHub webhook secret", ErrSecretVerificationFailed)
 	}
 	return nil
 }
