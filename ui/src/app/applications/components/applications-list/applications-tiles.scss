@@ -113,7 +113,7 @@
 
         .applications-list__title {
             width: auto;
-            flex: 1 1 auto;
+            flex: 0 1 auto;
             overflow: visible;
         }
     }
@@ -175,14 +175,6 @@
 
             &:hover {
                 color: $argo-color-teal-5;
-            }
-
-            &.managed-by-url-invalid {
-                color: #f4c030;
-
-                &:hover {
-                    color: #f4c030;
-                }
             }
 
             i {

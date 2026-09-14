@@ -1,0 +1,19 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: Backend
+metadata:
+  name: example-backend
+  namespace: default
+  generation: 2
+spec:
+  endpoints:
+  - ip:
+      address: 10.0.0.1
+      port: 8080
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: Backend is accepted
+    observedGeneration: 1
+    reason: Accepted
+    status: "True"
+    type: Accepted

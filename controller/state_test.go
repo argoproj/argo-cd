@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -517,6 +518,74 @@ func TestCompareAppStateMissing(t *testing.T) {
 	assert.Len(t, compRes.resources, 1)
 	assert.Len(t, compRes.managedResources, 1)
 	assert.Empty(t, app.Status.Conditions)
+}
+
+// TestCompareAppStateResourceSelector tests that a managed resource filtered out by a configured
+// resource selector is reported with an ExcludedResourceWarning, as it will never have a live state
+func TestCompareAppStateResourceSelector(t *testing.T) {
+	labeledPodManifest := `{"apiVersion":"v1","kind":"Pod","metadata":{"name":"my-pod","labels":{"app":"my-app"}}}`
+
+	compare := func(t *testing.T, manifest string, selector string) (*comparisonResult, *v1alpha1.Application) {
+		t.Helper()
+		app := newFakeApp()
+		data := fakeData{
+			apps: []runtime.Object{app},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{manifest},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+			configMapData: map[string]string{
+				"resource.selectors": fmt.Sprintf("- kinds: [\"Pod\"]\n  selector: %q\n", selector),
+			},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, false, false, nil, false)
+		require.NoError(t, err)
+		return compRes, app
+	}
+
+	t.Run("resource not matching the selector is reported", func(t *testing.T) {
+		// PodManifest has no labels, so it does not match
+		compRes, app := compare(t, PodManifest, "app=my-app")
+
+		require.Len(t, app.Status.Conditions, 1)
+		assert.Equal(t, v1alpha1.ApplicationConditionExcludedResourceWarning, app.Status.Conditions[0].Type)
+		assert.Contains(t, app.Status.Conditions[0].Message, `Resource /Pod my-pod does not match the resource selector "app=my-app" in the settings`)
+		// the resource stays managed, it is only unwatched
+		assert.Len(t, compRes.resources, 1)
+		assert.Len(t, compRes.managedResources, 1)
+	})
+
+	t.Run("resource matching the selector is not reported", func(t *testing.T) {
+		compRes, app := compare(t, labeledPodManifest, "app=my-app")
+
+		assert.Empty(t, app.Status.Conditions)
+		assert.Len(t, compRes.resources, 1)
+	})
+
+	t.Run("selector of another kind is ignored", func(t *testing.T) {
+		app := newFakeApp()
+		data := fakeData{
+			apps: []runtime.Object{app},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{PodManifest},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+			configMapData: map[string]string{
+				"resource.selectors": "- kinds: [\"Service\"]\n  selector: \"app=my-app\"\n",
+			},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		_, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, false, false, nil, false)
+		require.NoError(t, err)
+		assert.Empty(t, app.Status.Conditions)
+	})
 }
 
 // TestCompareAppStateExtra tests when there is an extra object in live but not defined in git
@@ -2717,6 +2786,87 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 			assert.Equal(t, tc.expectedHasChanges, hasChanges)
 			require.Len(t, resolvedRevisions, len(tc.sources))
 			assert.Equal(t, tc.expectedResolvedRevisions, resolvedRevisions)
+		})
+	}
+}
+
+func TestShouldUseServerSideDiff(t *testing.T) {
+	appWith := func(compareOptions string, syncOptions ...string) *v1alpha1.Application {
+		app := &v1alpha1.Application{}
+		if compareOptions != "" {
+			app.Annotations = map[string]string{common.AnnotationCompareOptions: compareOptions}
+		}
+		if syncOptions != nil {
+			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{SyncOptions: syncOptions}
+		}
+		return app
+	}
+
+	testCases := []struct {
+		name               string
+		app                *v1alpha1.Application
+		controllerLevelSSD bool
+		expected           bool
+	}{
+		{
+			name:               "no controller flag, no annotation, no sync option -> false",
+			app:                appWith(""),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "controller level enabled -> true",
+			app:                appWith(""),
+			controllerLevelSSD: true,
+			expected:           true,
+		},
+		{
+			name:               "ServerSideDiff=true annotation -> true",
+			app:                appWith("ServerSideDiff=true"),
+			controllerLevelSSD: false,
+			expected:           true,
+		},
+		{
+			name:               "ServerSideApply=true sync option -> true",
+			app:                appWith("", "ServerSideApply=true"),
+			controllerLevelSSD: false,
+			expected:           true,
+		},
+		{
+			name:               "other sync options only -> false",
+			app:                appWith("", "Validate=false", "Prune=false"),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "ServerSideDiff=false annotation overrides controller level flag -> false",
+			app:                appWith("ServerSideDiff=false"),
+			controllerLevelSSD: true,
+			expected:           false,
+		},
+		{
+			name:               "ServerSideDiff=false annotation overrides ServerSideApply=true sync option -> false",
+			app:                appWith("ServerSideDiff=false", "ServerSideApply=true"),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "ServerSideDiff=false annotation overrides ServerSideDiff=true annotation -> false",
+			app:                appWith("ServerSideDiff=false,ServerSideDiff=true"),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "nil SyncPolicy is handled gracefully -> false",
+			app:                &v1alpha1.Application{},
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, shouldUseServerSideDiff(tc.app, tc.controllerLevelSSD))
 		})
 	}
 }

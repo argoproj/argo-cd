@@ -2857,3 +2857,135 @@ func BenchmarkIncrementalIndexBuild(b *testing.B) {
 		})
 	}
 }
+
+func TestNewResource_CompressionEnabled_StoresCompressed(t *testing.T) {
+	t.Parallel()
+	un := mustToUnstructured(testDeploy())
+
+	cluster := newClusterWithOptions(t,
+		[]UpdateSettingsFunc{
+			SetManifestCompressionEnabled(true),
+			SetManifestStorageType(ManifestStorageJSON),
+			SetManifestCompressionType(ManifestCompressionGZipBestSpeed),
+			SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (any, bool) {
+				return nil, true
+			}),
+		},
+	)
+
+	res := cluster.newResource(un)
+	assert.True(t, res.HasManifest())
+	assert.Nil(t, res.Resource, "raw Resource field must be nil when compression is enabled")
+	assert.NotEmpty(t, res.compressedManifest)
+
+	got, err := res.GetManifest()
+	require.NoError(t, err)
+	assert.Equal(t, un.GetName(), got.GetName())
+	assert.Equal(t, un.GetKind(), got.GetKind())
+}
+
+func TestNewResource_CompressionDisabled_StoresRaw(t *testing.T) {
+	t.Parallel()
+	un := mustToUnstructured(testDeploy())
+
+	cluster := newClusterWithOptions(t,
+		[]UpdateSettingsFunc{
+			SetManifestCompressionEnabled(false),
+			SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (any, bool) {
+				return nil, true
+			}),
+		},
+	)
+
+	res := cluster.newResource(un)
+	assert.True(t, res.HasManifest())
+	assert.NotNil(t, res.Resource, "raw Resource field must be set when compression is disabled")
+	assert.Empty(t, res.compressedManifest)
+}
+
+func TestNewResource_CompressionFailure_FallsBackToRaw(t *testing.T) {
+	t.Parallel()
+	un := &unstructured.Unstructured{Object: map[string]any{"unsupported": func() {}}}
+	cluster := newClusterWithOptions(t,
+		[]UpdateSettingsFunc{
+			SetManifestCompressionEnabled(true),
+			SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (any, bool) {
+				return nil, true
+			}),
+		},
+	)
+
+	res := cluster.newResource(un)
+	assert.True(t, res.HasManifest())
+	assert.Same(t, un, res.Resource)
+	assert.Empty(t, res.compressedManifest)
+}
+
+func TestGetManagedLiveObjs_CompressionEnabled(t *testing.T) {
+	t.Parallel()
+	cluster := newClusterWithOptions(t,
+		[]UpdateSettingsFunc{
+			SetManifestCompressionEnabled(true),
+			SetManifestStorageType(ManifestStorageJSON),
+			SetManifestCompressionType(ManifestCompressionGZipBestSpeed),
+			SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (any, bool) {
+				return nil, true
+			}),
+		},
+		testPod1(), testRS(), testDeploy(),
+	)
+
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	targetDeploy := strToUnstructured(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helm-guestbook
+  labels:
+    app: helm-guestbook`)
+
+	managedObjs, err := cluster.GetManagedLiveObjs([]*unstructured.Unstructured{targetDeploy}, func(r *Resource) bool {
+		return len(r.OwnerRefs) == 0
+	})
+	require.NoError(t, err)
+	assert.Equal(t, map[kube.ResourceKey]*unstructured.Unstructured{
+		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): mustToUnstructured(testDeploy()),
+	}, managedObjs)
+}
+
+func TestAPIResourceLabelSelectorIsAppliedToList(t *testing.T) {
+	matching := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: matching
+    namespace: default
+    uid: "1"
+    labels:
+      foo: bar`)
+	notMatching := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: not-matching
+    namespace: default
+    uid: "2"`)
+
+	cluster := newCluster(t, matching, notMatching)
+	apiResources := cluster.kubectl.(*kubetest.MockKubectlCmd).APIResources
+	for i := range apiResources {
+		if apiResources[i].GroupKind.Kind == "Pod" {
+			apiResources[i].LabelSelector = "foo=bar"
+		}
+	}
+
+	require.NoError(t, cluster.EnsureSynced())
+
+	resources := cluster.FindResources("default", func(r *Resource) bool {
+		return r.ResourceKey().Kind == "Pod"
+	})
+	assert.Len(t, resources, 1)
+	assert.Contains(t, resources, kube.NewResourceKey("", "Pod", "default", "matching"))
+}
