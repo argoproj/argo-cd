@@ -87,13 +87,6 @@ func (b *DiffConfigBuilder) WithGVKParser(parser *k8smanagedfields.GvkParser) *D
 	return b
 }
 
-// WithStructuredMergeDiff defines if the diff should be calculated using structured
-// merge.
-func (b *DiffConfigBuilder) WithStructuredMergeDiff(smd bool) *DiffConfigBuilder {
-	b.diffConfig.structuredMergeDiff = smd
-	return b
-}
-
 // WithManager defines the manager that should be using during structured
 // merge diffs.
 func (b *DiffConfigBuilder) WithManager(manager string) *DiffConfigBuilder {
@@ -152,14 +145,10 @@ type DiffConfig interface {
 	// Logger used during the diff.
 	Logger() *logr.Logger
 	// GVKParser returns a parser able to build a TypedValue used in
-	// structured merge diffs.
+	// server-side diffs.
 	GVKParser() *k8smanagedfields.GvkParser
-	// StructuredMergeDiff defines if the diff should be calculated using
-	// structured merge diffs. Will use standard 3-way merge diffs if
-	// returns false.
-	StructuredMergeDiff() bool
 	// Manager returns the manager that should be used by the diff while
-	// calculating the structured merge diff.
+	// calculating the server-side diff.
 	Manager() string
 
 	ServerSideDiff() bool
@@ -181,7 +170,6 @@ type diffConfig struct {
 	ignoreAggregatedRoles bool
 	logger                *logr.Logger
 	gvkParser             *k8smanagedfields.GvkParser
-	structuredMergeDiff   bool
 	manager               string
 	serverSideDiff        bool
 	serverSideDryRunner   diff.ServerSideDryRunner
@@ -227,10 +215,6 @@ func (c *diffConfig) Logger() *logr.Logger {
 
 func (c *diffConfig) GVKParser() *k8smanagedfields.GvkParser {
 	return c.gvkParser
-}
-
-func (c *diffConfig) StructuredMergeDiff() bool {
-	return c.structuredMergeDiff
 }
 
 func (c *diffConfig) Manager() string {
@@ -312,7 +296,6 @@ func StateDiffs(ctx context.Context, lives, configs []*unstructured.Unstructured
 	diffOpts := []diff.Option{
 		diff.WithNormalizer(diffNormalizer),
 		diff.IgnoreAggregatedRoles(diffConfig.IgnoreAggregatedRoles()),
-		diff.WithStructuredMergeDiff(diffConfig.StructuredMergeDiff()),
 		diff.WithGVKParser(diffConfig.GVKParser()),
 		diff.WithManager(diffConfig.Manager()),
 		diff.WithServerSideDiff(diffConfig.ServerSideDiff()),
