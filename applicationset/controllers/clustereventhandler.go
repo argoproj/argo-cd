@@ -231,7 +231,7 @@ func hasTemplatedSelector(selector metav1.LabelSelector) bool {
 	}
 
 	for _, req := range selector.MatchExpressions {
-		if isTemplated(req.Key) || slices.ContainsFunc(req.Values, isTemplated) {
+		if isTemplated(req.Key) || isTemplated(string(req.Operator)) || slices.ContainsFunc(req.Values, isTemplated) {
 			return true
 		}
 	}
