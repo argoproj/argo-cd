@@ -226,7 +226,7 @@ function filterApplications(
     pref: AppsListPreferences,
     search: string,
     searchRegex: boolean,
-    hydratorEnabled: boolean = true
+    hydratorEnabled: boolean
 ): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
     const processedApps = applications.map(app => {
         let isAppOfAppsPattern = false;

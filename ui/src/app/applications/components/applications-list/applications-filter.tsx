@@ -79,7 +79,7 @@ function getOperationStateTitleForFilter(app: Application): OperationStateTitle 
     return title;
 }
 
-export function getAppFilterResults(applications: Application[], pref: AppsListPreferences, hydratorEnabled: boolean = true): FilteredApp[] {
+export function getAppFilterResults(applications: Application[], pref: AppsListPreferences, hydratorEnabled: boolean): FilteredApp[] {
     const labelSelector = createMetadataSelector(pref.labelsFilter || []);
     const annotationSelector = createMetadataSelector(pref.annotationsFilter || []);
     const hydrationFilter = pref.hydrationFilter || [];
