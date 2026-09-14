@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
@@ -18,6 +20,18 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials"
 )
+
+var errorHandlerOnce sync.Once
+
+// installErrorHandler routes OTel SDK errors to logrus; the SDK default writes
+// to the stdlib logger, bypassing --logformat.
+func installErrorHandler() {
+	errorHandlerOnce.Do(func() {
+		otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+			log.WithError(err).Error("OpenTelemetry error")
+		}))
+	})
+}
 
 // newResource builds the OTel resource shared by the trace and metric providers.
 // otlpAttrs are colon-separated key:value pairs; malformed entries are skipped.
@@ -77,6 +91,7 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 	if err != nil {
 		return nil, err
 	}
+	installErrorHandler()
 
 	// set up grpc options based on secure/insecure connection
 	var secureOption otlptracegrpc.Option
@@ -110,8 +125,12 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 	otel.SetTracerProvider(provider)
 
 	return func() {
-		if err := exporter.Shutdown(ctx); err != nil {
-			log.Errorf("failed to stop exporter: %v", err)
+		// Provider, not exporter, so the batch processor drains. Not ctx: its
+		// cancellation usually triggers shutdown and would fail the flush.
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := provider.Shutdown(shutdownCtx); err != nil {
+			log.Errorf("failed to stop tracer provider: %v", err)
 		}
 	}, nil
 }
