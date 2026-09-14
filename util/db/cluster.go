@@ -83,6 +83,11 @@ func (db *db) applyClusterCABundle(clusters ...*appv1.Cluster) {
 	}
 }
 
+// GetClusterCABundle returns the default CA bundle for cluster API server connections, or nil if none is configured.
+func (db *db) GetClusterCABundle(_ context.Context) ([]byte, error) {
+	return db.settingsMgr.GetClusterCABundle()
+}
+
 // ListClusters returns list of clusters
 func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 	informer, err := db.settingsMgr.GetClusterInformer()

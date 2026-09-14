@@ -1031,12 +1031,18 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 			Server:          appv1.KubernetesInternalAPIServerAddr,
 			DefaultCABundle: caBundle,
 		}, nil).Maybe()
+		db.EXPECT().GetCluster(mock.Anything, "https://insecure").Return(&appv1.Cluster{
+			Server:          "https://insecure",
+			DefaultCABundle: caBundle,
+			Config:          appv1.ClusterConfig{Insecure: true},
+		}, nil).Maybe()
 		db.EXPECT().GetCluster(mock.Anything, "https://unknown").Return(nil, errors.New("not found")).Maybe()
 
 		clusterCaches := map[string]*mocks.ClusterCache{
 			"https://uses-default-ca":             {},
 			"https://has-own-ca":                  {},
 			appv1.KubernetesInternalAPIServerAddr: {},
+			"https://insecure":                    {},
 			"https://unknown":                     {},
 		}
 		clusters := map[string]cache.ClusterCache{}
@@ -1052,6 +1058,7 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		clusterCaches["https://uses-default-ca"].EXPECT().Invalidate(fiveOpts...).Return().Once()
 		clusterCaches["https://has-own-ca"].EXPECT().Invalidate(fourOpts...).Return().Once()
 		clusterCaches[appv1.KubernetesInternalAPIServerAddr].EXPECT().Invalidate(fourOpts...).Return().Once()
+		clusterCaches["https://insecure"].EXPECT().Invalidate(fourOpts...).Return().Once()
 		clusterCaches["https://unknown"].EXPECT().Invalidate(fourOpts...).Return().Once()
 
 		clustersCache.invalidate(cacheSettings{clusterCABundle: caBundle}, true)
@@ -1059,7 +1066,7 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		for _, clusterCache := range clusterCaches {
 			clusterCache.AssertExpectations(t)
 		}
-		db.AssertNumberOfCalls(t, "GetCluster", 4)
+		db.AssertNumberOfCalls(t, "GetCluster", 5)
 	})
 
 	t.Run("REST configs are left untouched when the default bundle did not change", func(t *testing.T) {
@@ -1076,4 +1083,28 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		}
 		db.AssertNotCalled(t, "GetCluster", mock.Anything, mock.Anything)
 	})
+}
+
+func TestLoadCacheSettings_InvalidClusterCABundleIsIgnored(t *testing.T) {
+	t.Parallel()
+	kubeClient, settingsManager := fixtures(t.Context(), nil)
+	_, err := kubeClient.CoreV1().ConfigMaps("default").Create(t.Context(), &corev1.ConfigMap{
+		Name:      common.ArgoCDClusterCAConfigMapName,
+		Namespace: "default",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
+		},
+		Data: map[string]string{
+			common.ArgoCDClusterCAConfigMapKey: "not a certificate",
+		},
+	}, metav1.CreateOptions{})
+	require.NoError(t, err)
+	ch := liveStateCache{
+		settingsMgr: settingsManager,
+	}
+
+	res, err := ch.loadCacheSettings()
+	require.NoError(t, err)
+
+	assert.Nil(t, res.clusterCABundle)
 }
