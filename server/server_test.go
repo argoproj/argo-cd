@@ -37,6 +37,7 @@ import (
 	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
+	"github.com/argoproj/argo-cd/v3/server/metrics"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/assets"
@@ -633,6 +634,62 @@ func TestAuthenticate(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestAuthenticateRecordsActiveUser(t *testing.T) {
+	tests := []struct {
+		test             string
+		user             string
+		anonymousEnabled bool
+		wantUsers        int
+	}{
+		{
+			test:      "TestSessionRecordsActiveUser",
+			user:      "admin:login",
+			wantUsers: 1,
+		},
+		{
+			test:             "TestNoSessionDoesNotRecordActiveUser",
+			anonymousEnabled: true,
+			wantUsers:        0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.test, func(t *testing.T) {
+			cm := test.NewFakeConfigMap()
+			if tt.anonymousEnabled {
+				cm.Data["users.anonymous.enabled"] = "true"
+			}
+			secret := test.NewFakeSecret()
+			kubeclientset := fake.NewSimpleClientset(cm, secret)
+			appClientSet := apps.NewSimpleClientset()
+			mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+			argoCDOpts := ArgoCDServerOpts{
+				Namespace:     test.FakeArgoCDNamespace,
+				KubeClientset: kubeclientset,
+				AppClientset:  appClientSet,
+				RepoClientset: mockRepoClient,
+			}
+			argocd := NewServer(t.Context(), argoCDOpts, ApplicationSetOpts{})
+
+			metricsPort, err := test.GetFreePort()
+			require.NoError(t, err)
+			argocd.metricServer = metrics.NewMetricsServer("127.0.0.1", metricsPort)
+			t.Cleanup(argocd.metricServer.Stop)
+
+			ctx := t.Context()
+			if tt.user != "" {
+				token, err := argocd.sessionMgr.Create(tt.user, 0, "abc")
+				require.NoError(t, err)
+				ctx = metadata.NewIncomingContext(t.Context(), metadata.Pairs(apiclient.MetaDataTokenKey, token))
+			}
+
+			_, err = argocd.Authenticate(ctx)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantUsers, argocd.metricServer.ActiveUsersCount())
 		})
 	}
 }
