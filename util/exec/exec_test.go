@@ -1,8 +1,11 @@
 package exec
 
 import (
+	"os"
 	"os/exec"
+	"path"
 	"regexp"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -225,4 +228,368 @@ func TestRunWithExecRunOptsCaptureStderr(t *testing.T) {
 	output, err := RunWithExecRunOpts(cmd, ExecRunOpts{CaptureStderr: true})
 	assert.Equal(t, "hello world\nmy-error", output)
 	assert.NoError(t, err)
+}
+
+// TestRunCommandExtTimeoutReapsProcessGroup verifies that a timed-out command is torn down along
+// with its grandchildren. Signalling the shell alone leaves the backgrounded `sleep` holding the
+// inherited stdout pipe, so cmd.Wait blocks until it exits by itself - the same failure mode as a
+// hung `git fetch` whose `git-remote-https` child sits on a dead TCP connection.
+func TestRunCommandExtTimeoutReapsProcessGroup(t *testing.T) {
+	// 15s against a 500ms budget: without group reaping the call blocks ~30x too long.
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "sleep 15 & wait")
+	opts := CmdOpts{
+		Timeout:      250 * time.Millisecond,
+		FatalTimeout: 250 * time.Millisecond,
+		TimeoutBehavior: TimeoutBehavior{
+			Signal:     syscall.SIGTERM,
+			ShouldWait: true,
+		},
+	}
+
+	start := time.Now()
+	_, err := RunCommandExt(cmd, opts)
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	assert.Lessf(t, elapsed, 5*time.Second,
+		"RunCommandExt blocked for %s waiting on an orphaned grandchild; the process group was not reaped", elapsed)
+}
+
+// signalRecorder stands in for SignalProcessGroup, capturing what would have been signalled.
+type signalRecorder struct {
+	mu   sync.Mutex
+	sigs []syscall.Signal
+}
+
+func (r *signalRecorder) signal(_ *exec.Cmd, sig syscall.Signal) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.sigs = append(r.sigs, sig)
+	return nil
+}
+
+func (r *signalRecorder) recorded() []syscall.Signal {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]syscall.Signal(nil), r.sigs...)
+}
+
+func TestTerminateGroupOnCancelEscalates(t *testing.T) {
+	rec := &signalRecorder{}
+	cmd := exec.CommandContext(t.Context(), "true")
+	terminateGroupOnCancel(cmd, 20*time.Millisecond, rec.signal)
+
+	require.NoError(t, cmd.Cancel())
+	assert.Eventually(t, func() bool {
+		return len(rec.recorded()) == 2
+	}, 3*time.Second, 5*time.Millisecond, "escalation to SIGKILL never happened")
+	assert.Equal(t, []syscall.Signal{syscall.SIGTERM, syscall.SIGKILL}, rec.recorded())
+}
+
+// TestTerminateGroupOnCancelStopPreventsEscalation covers why stop exists: an escalation firing
+// after the command was reaped would signal whatever group recycled its PID.
+func TestTerminateGroupOnCancelStopPreventsEscalation(t *testing.T) {
+	rec := &signalRecorder{}
+	cmd := exec.CommandContext(t.Context(), "true")
+	// Long grace: stop must win outright, not race.
+	stop := terminateGroupOnCancel(cmd, time.Hour, rec.signal)
+
+	require.NoError(t, cmd.Cancel())
+	stop()
+
+	assert.Equal(t, []syscall.Signal{syscall.SIGTERM}, rec.recorded(), "escalation outlived the command")
+}
+
+// TestTerminateGroupOnCancelDoneProcessSkipsEscalation covers a command reaped just as its context
+// is cancelled: SIGTERM reports ErrProcessDone, so an escalation would only reach a recycled PID.
+func TestTerminateGroupOnCancelDoneProcessSkipsEscalation(t *testing.T) {
+	rec := &signalRecorder{}
+	reaped := func(cmd *exec.Cmd, sig syscall.Signal) error {
+		_ = rec.signal(cmd, sig)
+		return os.ErrProcessDone
+	}
+	grace := 20 * time.Millisecond
+	cmd := exec.CommandContext(t.Context(), "true")
+	stop := terminateGroupOnCancel(cmd, grace, reaped)
+	defer stop()
+
+	require.ErrorIs(t, cmd.Cancel(), os.ErrProcessDone)
+	// Well past the grace: nothing may follow the SIGTERM, with or without stop.
+	assert.Never(t, func() bool {
+		return len(rec.recorded()) > 1
+	}, 10*grace, grace/2, "escalation was armed against an already reaped process")
+	assert.Equal(t, []syscall.Signal{syscall.SIGTERM}, rec.recorded())
+}
+
+// TestTerminateGroupOnCancelEscalatesBeforeWaitDelay covers a grandchild that survives the SIGTERM
+// holding the inherited pipes: WaitDelay makes Wait return, callers run stop on that return, and stop
+// cancels the escalation - so the group SIGKILL has to be armed strictly earlier.
+func TestTerminateGroupOnCancelEscalatesBeforeWaitDelay(t *testing.T) {
+	cmd := exec.CommandContext(t.Context(), "true")
+	grace := 20 * time.Millisecond
+	stop := terminateGroupOnCancel(cmd, grace, (&signalRecorder{}).signal)
+	defer stop()
+
+	assert.Equal(t, grace, cmd.WaitDelay)
+	assert.Less(t, cancelEscalation(grace), cmd.WaitDelay)
+}
+
+func TestTerminateGroupOnCancelStopIsIdempotent(t *testing.T) {
+	rec := &signalRecorder{}
+	cmd := exec.CommandContext(t.Context(), "true")
+	stop := terminateGroupOnCancel(cmd, time.Hour, rec.signal)
+
+	// Uncancelled commands still call stop, possibly twice via defer chains.
+	stop()
+	stop()
+	// Cancelling afterwards must not signal: the PID may have been recycled, and ErrProcessDone keeps
+	// os/exec from failing a command that finished cleanly.
+	require.ErrorIs(t, cmd.Cancel(), os.ErrProcessDone)
+	stop()
+
+	assert.Empty(t, rec.recorded())
+}
+
+func TestTerminateGroupOnCancelZeroGraceStillEscalates(t *testing.T) {
+	rec := &signalRecorder{}
+	cmd := exec.CommandContext(t.Context(), "true")
+	// ARGOCD_EXEC_FATAL_TIMEOUT=0 must neither kill immediately nor leave nothing to reap the command.
+	stop := terminateGroupOnCancel(cmd, 0, rec.signal)
+	defer stop()
+
+	assert.Equal(t, defaultCancelGrace, cmd.WaitDelay)
+	require.NoError(t, cmd.Cancel())
+	assert.Equal(t, []syscall.Signal{syscall.SIGTERM}, rec.recorded(), "SIGKILL must wait for the grace period")
+}
+
+// TestRunCommandExtBoundsWaitOnHeldPipes covers a grandchild that outlives the command holding its
+// stdout: without a WaitDelay cmd.Wait never returns, and on the shutdown path the repo-server's
+// drain would then block until the kubelet's SIGKILL.
+func TestRunCommandExtBoundsWaitOnHeldPipes(t *testing.T) {
+	t.Cleanup(initTimeout)
+	t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "500ms")
+	initTimeout()
+
+	// The command exits at once; the backgrounded sleep keeps the inherited stdout open.
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "sleep 5 & exit 0")
+
+	start := time.Now()
+	_, err := RunCommandExt(cmd, CmdOpts{Timeout: time.Minute})
+	elapsed := time.Since(start)
+
+	// newCmdError rebuilds the cause from its text, so the sentinel itself does not survive.
+	require.ErrorContains(t, err, exec.ErrWaitDelay.Error())
+	assert.Lessf(t, elapsed, 10*time.Second,
+		"RunCommandExt blocked for %s on pipes held by a grandchild; WaitDelay did not bound the wait", elapsed)
+}
+
+func TestRunCommandExtKeepsCallerWaitDelay(t *testing.T) {
+	cmd := exec.CommandContext(t.Context(), "true")
+	// What TerminateGroupOnCancel installs; RunCommandExt must not overwrite it.
+	cmd.WaitDelay = time.Hour
+	_, err := RunCommandExt(cmd, CmdOpts{Timeout: time.Minute})
+
+	require.NoError(t, err)
+	assert.Equal(t, time.Hour, cmd.WaitDelay)
+}
+
+func TestCancelGrace(t *testing.T) {
+	// Cleanups run LIFO, so registering before t.Setenv is what makes initTimeout re-read the
+	// restored environment rather than the test's own value.
+	t.Run("Falls back when the fatal timeout is disabled", func(t *testing.T) {
+		t.Cleanup(initTimeout)
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "0")
+		initTimeout()
+		assert.Equal(t, defaultCancelGrace, CancelGrace())
+	})
+	t.Run("Uses the configured fatal timeout", func(t *testing.T) {
+		t.Cleanup(initTimeout)
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "3s")
+		initTimeout()
+		assert.Equal(t, 3*time.Second, CancelGrace())
+	})
+}
+
+// resetShutdown re-arms Shutdown, so that a test exercising it does not stop every later command in
+// the run. No test that touches shutdown calls t.Parallel(), and the ones that do - here and in
+// exec_norace_test.go - only resume once every serial test and its cleanups have finished, so the
+// unsynchronised write is safe. Making a shutdown test parallel would have to serialise it against
+// the reads in RunCommandExt.
+func resetShutdown() {
+	shutdown = make(chan struct{})
+	shutdownOnce = sync.Once{}
+}
+
+func TestShutdownTerminatesRunningCommands(t *testing.T) {
+	t.Cleanup(resetShutdown)
+	sentinel := path.Join(t.TempDir(), "started")
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "touch "+sentinel+"; sleep 30")
+	errCh := make(chan error, 1)
+	go func() {
+		// A timeout long enough that only Shutdown can end this command.
+		_, err := RunCommandExt(cmd, CmdOpts{Timeout: time.Minute})
+		errCh <- err
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(sentinel)
+		return err == nil
+	}, 10*time.Second, 5*time.Millisecond, "command never started")
+
+	assert.Equal(t, int64(1), Shutdown())
+	select {
+	case err := <-errCh:
+		require.ErrorContains(t, err, ErrShuttingDown.Error())
+	case <-time.After(10 * time.Second):
+		t.Fatal("command outlived Shutdown")
+	}
+}
+
+// TestShutdownRefusesNewCommands covers the retry that would otherwise defeat the whole thing:
+// checkoutRevision starts a fresh fetch and checkout whenever a checkout fails, so a command started
+// after Shutdown would be left for the kubelet to SIGKILL mid-index-write.
+func TestShutdownRefusesNewCommands(t *testing.T) {
+	t.Cleanup(resetShutdown)
+	Shutdown()
+
+	sentinel := path.Join(t.TempDir(), "ran")
+	_, err := RunCommandExt(exec.CommandContext(t.Context(), "touch", sentinel), CmdOpts{Timeout: time.Minute})
+	require.ErrorIs(t, err, ErrShuttingDown)
+	assert.NoFileExists(t, sentinel, "the command must not have been started")
+}
+
+func TestShutdownReportsRunningCount(t *testing.T) {
+	t.Cleanup(resetShutdown)
+	assert.Zero(t, Shutdown(), "nothing is running")
+}
+
+func TestShutdownErrorMatchesSentinel(t *testing.T) {
+	t.Cleanup(resetShutdown)
+	sentinel := path.Join(t.TempDir(), "started")
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "touch "+sentinel+"; sleep 30")
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := RunCommandExt(cmd, CmdOpts{Timeout: time.Minute})
+		errCh <- err
+	}()
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(sentinel)
+		return err == nil
+	}, 10*time.Second, 5*time.Millisecond, "command never started")
+
+	Shutdown()
+	select {
+	case err := <-errCh:
+		// Callers filter shutdown out - repo-server must not cache it as a generation failure - so it
+		// has to survive the CmdError wrapping.
+		require.ErrorIs(t, err, ErrShuttingDown)
+	case <-time.After(10 * time.Second):
+		t.Fatal("command outlived Shutdown")
+	}
+}
+
+// TestShutdownKeepsSuccessfulResult covers a command that ignores the shutdown SIGTERM and then
+// exits cleanly: reporting it as a shutdown casualty would turn a successful manifest generation into
+// a cached generation failure.
+func TestShutdownKeepsSuccessfulResult(t *testing.T) {
+	t.Cleanup(resetShutdown)
+	sentinel := path.Join(t.TempDir(), "started")
+	// Traps SIGTERM, so the command outlives the signal and exits on its own terms.
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", `trap "" TERM; touch `+sentinel+`; sleep 0.2; echo done`)
+	type result struct {
+		out string
+		err error
+	}
+	resCh := make(chan result, 1)
+	go func() {
+		out, err := RunCommandExt(cmd, CmdOpts{Timeout: time.Minute})
+		resCh <- result{out, err}
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(sentinel)
+		return err == nil
+	}, 10*time.Second, 5*time.Millisecond, "command never started")
+
+	Shutdown()
+	select {
+	case res := <-resCh:
+		require.NoError(t, res.err, "a command that exited 0 was reported as a shutdown casualty")
+		assert.Equal(t, "done", res.out)
+	case <-time.After(10 * time.Second):
+		t.Fatal("command outlived Shutdown")
+	}
+}
+
+// TestShutdownKeepsExitError covers a command that ignores the shutdown SIGTERM and then fails on its
+// own terms: callers read the exit error - util/git takes "exit status 1" from git diff to mean
+// "changes found" - so it has to survive alongside the sentinel.
+func TestShutdownKeepsExitError(t *testing.T) {
+	t.Cleanup(resetShutdown)
+	sentinel := path.Join(t.TempDir(), "started")
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", `trap "" TERM; touch `+sentinel+`; sleep 0.2; exit 1`)
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := RunCommandExt(cmd, CmdOpts{Timeout: time.Minute})
+		errCh <- err
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(sentinel)
+		return err == nil
+	}, 10*time.Second, 5*time.Millisecond, "command never started")
+
+	Shutdown()
+	select {
+	case err := <-errCh:
+		require.ErrorIs(t, err, ErrShuttingDown)
+		assert.Contains(t, err.Error(), "exit status 1")
+	case <-time.After(10 * time.Second):
+		t.Fatal("command outlived Shutdown")
+	}
+}
+
+// TestShutdownRespectsSkipErrorLogging covers callers that suppress command failures - util/git probes
+// revisions with SkipErrorLogging - which would otherwise log one error per in-flight command.
+func TestShutdownRespectsSkipErrorLogging(t *testing.T) {
+	t.Cleanup(resetShutdown)
+	hook := test.NewGlobal()
+	sentinel := path.Join(t.TempDir(), "started")
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "touch "+sentinel+"; sleep 30")
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := RunWithExecRunOpts(cmd, ExecRunOpts{SkipErrorLogging: true})
+		errCh <- err
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(sentinel)
+		return err == nil
+	}, 10*time.Second, 5*time.Millisecond, "command never started")
+
+	Shutdown()
+	select {
+	case err := <-errCh:
+		require.ErrorIs(t, err, ErrShuttingDown)
+	case <-time.After(10 * time.Second):
+		t.Fatal("command outlived Shutdown")
+	}
+	for _, entry := range hook.Entries {
+		assert.NotEqual(t, log.ErrorLevel, entry.Level, "logged %q despite SkipErrorLogging", entry.Message)
+	}
+}
+
+func TestTerminateGroupOnCancelCancelledTwice(t *testing.T) {
+	rec := &signalRecorder{}
+	cmd := exec.CommandContext(t.Context(), "true")
+	// A grace long enough that stop always beats it, short enough that an orphaned timer would fire
+	// well inside the wait below.
+	stop := terminateGroupOnCancel(cmd, 250*time.Millisecond, rec.signal)
+
+	require.NoError(t, cmd.Cancel())
+	require.NoError(t, cmd.Cancel())
+	stop()
+
+	time.Sleep(750 * time.Millisecond)
+	assert.Equal(t, []syscall.Signal{syscall.SIGTERM}, rec.recorded(), "cancelling twice must not re-signal or leave a timer stop cannot reach")
 }

@@ -1867,6 +1867,10 @@ func humanizeAuthPromptError(repoURL string, err error) error {
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {
 	cmd.Dir = m.root
+	// SIGTERM before SIGKILL on cancellation: git removes .git/index.lock only when signalled
+	// gracefully, and nothing ever reclaims a stale one - every later checkout in the repo fails.
+	stopEscalation := executil.TerminateGroupOnCancel(cmd, executil.CancelGrace())
+	defer stopEscalation()
 	cmd.Env = append(os.Environ(), cmd.Env...)
 	// Set $HOME to nowhere, so we can execute Git regardless of any external
 	// authentication keys (e.g. in ~/.ssh) -- this is especially important for
