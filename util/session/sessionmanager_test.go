@@ -593,6 +593,8 @@ func TestVerifyUsernamePasswordMigratesBcryptPassword(t *testing.T) {
 	account, err := settingsMgr.GetAccount(common.ArgoCDAdminUsername)
 	require.NoError(t, err)
 
+	assert.NotEqual(t, bcryptHash, account.PasswordHash)
+
 	valid, stale := password.VerifyPassword(pass, account.PasswordHash)
 	assert.True(t, valid)
 	assert.False(t, stale)
