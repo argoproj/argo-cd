@@ -1,0 +1,33 @@
+apiVersion: druid.apache.org/v1alpha1
+kind: Druid
+metadata:
+  name: druid-test
+  namespace: druid-test
+spec:
+  image: apache/druid:latest
+  nodes:
+    coordinators:
+      kind: Deployment
+      nodeType: coordinator
+      replicas: 1
+      druid.port: 8081
+    brokers:
+      kind: Deployment
+      nodeType: broker
+      replicas: 1
+      druid.port: 8082
+    historicals:
+      kind: StatefulSet
+      nodeType: historical
+      replicas: 1
+      druid.port: 8083
+status:
+  druidNodeStatus:
+    druidNode: All
+    druidNodeConditionStatus: "True"
+    druidNodeConditionType: DruidClusterReady
+    reason: All Druid Nodes are in Ready Condition
+  pods:
+  - druid-test-coordinators-0
+  - druid-test-brokers-0
+  - druid-test-historicals-0
