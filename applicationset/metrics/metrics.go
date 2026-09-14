@@ -42,7 +42,7 @@ var (
 	progressiveSyncAppRefreshTriggeredCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "argocd_appset_app_refresh_total",
 		Help: "Counts application refresh triggered per step for progressive sync",
-	}, []string{"namespace", "name", "step"})
+	}, []string{"namespace", "name"})
 )
 
 // Gauge
@@ -144,8 +144,8 @@ func (m *ApplicationsetMetrics) ObserveTimeToStartSyncAfterDetection(appset *arg
 	m.progressiveSyncTriggerSyncAfterDetectionHistogram.WithLabelValues(appset.Namespace, appset.Name).Observe(duration.Seconds())
 }
 
-func (m *ApplicationsetMetrics) IncRefreshTriggeredCount(appset *argoappv1.ApplicationSet, step string) {
-	m.progressiveSyncAppRefreshTriggeredCounter.WithLabelValues(appset.Namespace, appset.Name, step).Inc()
+func (m *ApplicationsetMetrics) IncRefreshTriggeredCount(appset *argoappv1.ApplicationSet) {
+	m.progressiveSyncAppRefreshTriggeredCounter.WithLabelValues(appset.Namespace, appset.Name).Inc()
 }
 
 func newAppsetCollector(lister applisters.ApplicationSetLister, labels []string, filter func(appset *argoappv1.ApplicationSet) bool) *appsetCollector {

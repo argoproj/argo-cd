@@ -558,9 +558,9 @@ func TestIncRefreshTriggeredCount(t *testing.T) {
 
 	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
 
-	appsetMetrics.IncRefreshTriggeredCount(&appsetList[0], "0")
-	appsetMetrics.IncRefreshTriggeredCount(&appsetList[0], "0")
-	appsetMetrics.IncRefreshTriggeredCount(&appsetList[0], "1")
+	appsetMetrics.IncRefreshTriggeredCount(&appsetList[0])
+	appsetMetrics.IncRefreshTriggeredCount(&appsetList[0])
+	appsetMetrics.IncRefreshTriggeredCount(&appsetList[0])
 
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
@@ -568,8 +568,7 @@ func TestIncRefreshTriggeredCount(t *testing.T) {
 	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
 	handler.ServeHTTP(rr, req)
 
-	assert.Contains(t, rr.Body.String(), `argocd_appset_app_refresh_total{name="test1",namespace="argocd",step="0"} 2`)
-	assert.Contains(t, rr.Body.String(), `argocd_appset_app_refresh_total{name="test1",namespace="argocd",step="1"} 1`)
+	assert.Contains(t, rr.Body.String(), `argocd_appset_app_refresh_total{name="test1",namespace="argocd"} 3`)
 }
 
 func initializeClient(appsets []argoappv1.ApplicationSet) ctrlclient.WithWatch {

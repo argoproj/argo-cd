@@ -37,7 +37,7 @@ func (testDeps) SetApplicationSetStatusCondition(_ context.Context, _ *v1alpha1.
 func (testDeps) RecordProgressiveSyncTriggered(*v1alpha1.ApplicationSet, string) {
 }
 
-func (testDeps) IncRefreshTriggeredCount(_ *v1alpha1.ApplicationSet, _ string) {}
+func (testDeps) IncRefreshTriggeredCount(*v1alpha1.ApplicationSet) {}
 
 func TestBuildAppDependencyList(t *testing.T) {
 	t.Parallel()
@@ -2121,7 +2121,7 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 			appclientSet := appfake.NewSimpleClientset(appObjs...)
 			manager := NewManager(client, client, appclientSet, testDeps{})
 
-			reconciled, err := manager.ensureApplicationsReconciled(log.NewEntry(log.StandardLogger()), &tt.appset, tt.applications, tt.latestTransitionTime, 0, nil)
+			reconciled, err := manager.ensureApplicationsReconciled(log.NewEntry(log.StandardLogger()), &tt.appset, tt.applications, tt.latestTransitionTime, 0)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -2215,7 +2215,7 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 			appClientSet := appfake.NewSimpleClientset(initObjs...)
 			manager := NewManager(nil, nil, appClientSet, testDeps{})
 
-			err := manager.addRefreshAnnotationToApplications(log.NewEntry(log.StandardLogger()), tt.applications, nil, nil)
+			err := manager.addRefreshAnnotationToApplications(log.NewEntry(log.StandardLogger()), tt.applications, nil)
 
 			if tt.expectError {
 				assert.Error(t, err)
