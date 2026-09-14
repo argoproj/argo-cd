@@ -480,6 +480,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                                         links={data.links}
                                                         showApplicationReference={showApplicationReference}
                                                         readonly={props.generatedAppNode || showApplicationReference}
+                                                        generatedAppNode={props.generatedAppNode}
                                                     />
                                                 )
                                             }

@@ -1188,39 +1188,45 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     )}
                                             </div>
                                         </div>
-                                        {isApplication && (
-                                            <SlidingPanel isShown={groupedResources.length > 0} onClose={() => closeGroupedNodesPanel()}>
-                                                <div className='application-details__sliding-panel-pagination-wrap'>
-                                                    {(pref.view === 'tree' || pref.view === 'network') && <ApplicationResourceParentRef resources={groupedResources} tree={tree} />}
-                                                    <Paginate
-                                                        key={highlightNodeKey || 'grouped-resources'}
-                                                        page={state.slidingPanelPage}
-                                                        data={sortResources(groupedResources, groupedResourceSort)}
-                                                        onPageChange={page => setState(prevState => ({...prevState, slidingPanelPage: page}))}
-                                                        preferencesKey={GROUPED_NODES_DETAILS_SORT_KEY}
-                                                        focusItemKey={highlightNodeKey || undefined}
-                                                        getItemKey={res => AppUtils.nodeKey(res)}>
-                                                        {data => (
-                                                            <ApplicationResourceList
-                                                                pref={pref}
-                                                                onNodeClick={fullName => selectNode(fullName)}
-                                                                selectedNodeFullName={highlightNodeKey || undefined}
-                                                                sortKey={groupedResourceSort.sortKey}
-                                                                requestSort={groupedResourceSort.requestSort}
-                                                                sortIcon={groupedResourceSort.sortIcon}
-                                                                resources={data}
-                                                                nodeMenu={node =>
-                                                                    AppUtils.renderResourceMenu(node, application as appModels.Application, tree, appContext, appChanged, () =>
-                                                                        getApplicationActionMenu(application as appModels.Application, false, true)
-                                                                    )
-                                                                }
-                                                                tree={tree}
-                                                            />
-                                                        )}
-                                                    </Paginate>
-                                                </div>
-                                            </SlidingPanel>
-                                        )}
+                                        <SlidingPanel isShown={groupedResources.length > 0} onClose={() => closeGroupedNodesPanel()}>
+                                            <div className='application-details__sliding-panel-pagination-wrap'>
+                                                {(pref.view === 'tree' || pref.view === 'network') && <ApplicationResourceParentRef resources={groupedResources} tree={tree} />}
+                                                <Paginate
+                                                    key={highlightNodeKey || 'grouped-resources'}
+                                                    page={state.slidingPanelPage}
+                                                    data={sortResources(groupedResources, groupedResourceSort)}
+                                                    onPageChange={page => setState(prevState => ({...prevState, slidingPanelPage: page}))}
+                                                    preferencesKey={GROUPED_NODES_DETAILS_SORT_KEY}
+                                                    focusItemKey={highlightNodeKey || undefined}
+                                                    getItemKey={res => AppUtils.nodeKey(res)}>
+                                                    {data => (
+                                                        <ApplicationResourceList
+                                                            pref={pref}
+                                                            onNodeClick={fullName => selectNode(fullName)}
+                                                            selectedNodeFullName={highlightNodeKey || undefined}
+                                                            sortKey={groupedResourceSort.sortKey}
+                                                            requestSort={groupedResourceSort.requestSort}
+                                                            sortIcon={groupedResourceSort.sortIcon}
+                                                            resources={data}
+                                                            nodeMenu={
+                                                                isApplication
+                                                                    ? node =>
+                                                                          AppUtils.renderResourceMenu(
+                                                                              node,
+                                                                              application as appModels.Application,
+                                                                              tree,
+                                                                              appContext,
+                                                                              appChanged,
+                                                                              () => getApplicationActionMenu(application as appModels.Application, false, true)
+                                                                          )
+                                                                    : undefined
+                                                            }
+                                                            tree={tree}
+                                                        />
+                                                    )}
+                                                </Paginate>
+                                            </div>
+                                        </SlidingPanel>
                                         {isApplication && (
                                             <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => selectNode('')}>
                                                 <ResourceDetails
