@@ -189,6 +189,14 @@ func (a *ClientApp) GetTokenSourceFromCache(ctx context.Context, oidcTokenCache 
 		return nil, err
 	}
 	baseTokenSource := config.TokenSource(ctx, oidcTokenCache.Token)
+	if a.useAzureWorkloadIdentity {
+		baseTokenSource = &azureRefreshTokenSource{
+			ctx:                ctx,
+			conf:               config,
+			getClientAssertion: a.azure.getFederatedServiceAccountToken,
+			refreshToken:       oidcTokenCache.Token.RefreshToken,
+		}
+	}
 	tokenRefresher := oauth2.ReuseTokenSourceWithExpiry(oidcTokenCache.Token, baseTokenSource, a.refreshTokenThreshold)
 	return tokenRefresher, nil
 }
@@ -562,7 +570,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		}
 
 		options = []oauth2.AuthCodeOption{
-			oauth2.SetAuthURLParam("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
+			oauth2.SetAuthURLParam("client_assertion_type", clientAssertionType),
 			oauth2.SetAuthURLParam("client_assertion", clientAssertion),
 		}
 	}
