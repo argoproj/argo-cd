@@ -4,12 +4,8 @@ import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
 import {Subscription} from 'rxjs';
-import applications from './applications';
-import resources from './resources';
-import help from './help';
-import login from './login';
-import settings from './settings';
 import {Layout, ThemeWrapper} from './shared/components/layout/layout';
+import {ErrorBoundary} from './shared/components/error-boundary/error-boundary';
 import {Page} from './shared/components';
 import {Spinner} from './shared/components';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
@@ -18,7 +14,6 @@ import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode, isSSOConfigured} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
-import userInfo from './user-info';
 import {AuthSettings, UserInfo} from './shared/models';
 import {SystemLevelExtension} from './shared/services/extensions-service';
 
@@ -28,16 +23,30 @@ const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
 requests.setBaseHRef(base);
 
+// Guards the SSO re-authentication redirect below. Multiple watch streams can emit 401s
+// simultaneously when a session expires; without this, each one reassigns
+// window.location.href and cancels the previous in-flight navigation to the identity
+// provider, so the browser never actually leaves the page. Reset happens naturally: the
+// redirect is a full page load, which discards this module's state.
+let ssoRedirectInProgress = false;
+
 type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
 
+const applications = React.lazy(() => import(/* webpackChunkName: "applications", webpackPrefetch: true */ './applications').then(m => ({default: m.default.component})));
+const help = React.lazy(() => import(/* webpackChunkName: "help" */ './help').then(m => ({default: m.default.component})));
+const login = React.lazy(() => import(/* webpackChunkName: "login", webpackPrefetch: true */ './login').then(m => ({default: m.default.component})));
+const resources = React.lazy(() => import(/* webpackChunkName: "resources" */ './resources').then(m => ({default: m.default.component})));
+const settings = React.lazy(() => import(/* webpackChunkName: "settings" */ './settings').then(m => ({default: m.default.component})));
+const userInfo = React.lazy(() => import(/* webpackChunkName: "user-info" */ './user-info').then(m => ({default: m.default.component})));
+
 const routes: Routes = {
-    '/login': {component: login.component as any, noLayout: true},
-    '/applications': {component: applications.component},
-    '/applicationsets': {component: applications.component},
-    '/resources': {component: resources.component},
-    '/settings': {component: settings.component},
-    '/user-info': {component: userInfo.component},
-    '/help': {component: help.component}
+    '/login': {component: login as any, noLayout: true},
+    '/applications': {component: applications},
+    '/applicationsets': {component: applications},
+    '/resources': {component: resources},
+    '/settings': {component: settings},
+    '/user-info': {component: userInfo},
+    '/help': {component: help}
 };
 
 interface NavItem {
@@ -302,35 +311,47 @@ export class App extends React.Component<
                             </DataLoader>
                             <AuthSettingsCtx.Provider value={this.state.authSettings}>
                                 <Router history={history}>
-                                    <Switch>
-                                        <Redirect exact={true} path='/' to='/applications' />
-                                        {Object.keys(this.routes).map(path => {
-                                            const route = this.routes[path];
-                                            return (
-                                                <Route
-                                                    key={path}
-                                                    path={path}
-                                                    render={routeProps =>
-                                                        route.noLayout ? (
-                                                            <div>
-                                                                <route.component {...routeProps} />
-                                                            </div>
-                                                        ) : (
-                                                            <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                                {pref => (
-                                                                    <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
-                                                                        <Banner>
-                                                                            <route.component {...routeProps} />
-                                                                        </Banner>
-                                                                    </Layout>
-                                                                )}
-                                                            </DataLoader>
-                                                        )
-                                                    }
-                                                />
-                                            );
-                                        })}
-                                    </Switch>
+                                    <ErrorBoundary message='Failed to load this page. Please reload and try again.'>
+                                        <React.Suspense
+                                            fallback={
+                                                <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh'}}>
+                                                    <Spinner show={true} />
+                                                </div>
+                                            }>
+                                            <Switch>
+                                                <Redirect exact={true} path='/' to='/applications' />
+                                                {Object.keys(this.routes).map(path => {
+                                                    const route = this.routes[path];
+                                                    return (
+                                                        <Route
+                                                            key={path}
+                                                            path={path}
+                                                            render={routeProps =>
+                                                                route.noLayout ? (
+                                                                    <div>
+                                                                        <route.component {...routeProps} />
+                                                                    </div>
+                                                                ) : (
+                                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                        {pref => (
+                                                                            <Layout
+                                                                                onVersionClick={() => this.setState({showVersionPanel: true})}
+                                                                                navItems={this.navItems}
+                                                                                pref={pref}>
+                                                                                <Banner>
+                                                                                    <route.component {...routeProps} />
+                                                                                </Banner>
+                                                                            </Layout>
+                                                                        )}
+                                                                    </DataLoader>
+                                                                )
+                                                            }
+                                                        />
+                                                    );
+                                                })}
+                                            </Switch>
+                                        </React.Suspense>
+                                    </ErrorBoundary>
                                 </Router>
                             </AuthSettingsCtx.Provider>
                         </AppContextReact.Provider>
@@ -358,6 +379,15 @@ export class App extends React.Component<
                 // If basehref is the default `/` it will become an empty string.
                 const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
                 if (isSSO) {
+                    if (ssoRedirectInProgress) {
+                        return;
+                    }
+                    ssoRedirectInProgress = true;
+                    // If the redirect fails to navigate away (e.g. network failure), reset the
+                    // flag so a later 401 can retry the redirect instead of being blocked forever.
+                    setTimeout(() => {
+                        ssoRedirectInProgress = false;
+                    }, 5000);
                     window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
                 } else {
                     history.push(`/login?return_url=${encodeURIComponent(location.href)}`);

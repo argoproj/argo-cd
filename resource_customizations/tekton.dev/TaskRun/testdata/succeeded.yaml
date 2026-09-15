@@ -1,0 +1,14 @@
+apiVersion: tekton.dev/v1
+kind: TaskRun
+metadata:
+  name: unit-tests-run
+  namespace: default
+spec:
+  taskRef:
+    name: unit-tests
+status:
+  conditions:
+  - type: Succeeded
+    status: "True"
+    reason: Succeeded
+    message: "All Tasks have completed executing"
