@@ -556,21 +556,9 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		return nil, fmt.Errorf("error getting value for %v: %w", settings.RespectRBAC, err)
 	}
 
-	clusterCacheConfig, err := cluster.RESTConfig()
+	clusterCacheConfig, err := clusterCacheRESTConfig(cluster)
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster RESTConfig: %w", err)
-	}
-	// Controller dynamically fetches all resource types available on the cluster
-	// using a discovery API that may contain deprecated APIs.
-	// This causes log flooding when managing a large number of clusters.
-	// https://github.com/argoproj/argo-cd/issues/11973
-	// However, we can safely suppress deprecation warnings
-	// because we do not rely on resources with a particular API group or version.
-	// https://kubernetes.io/blog/2020/09/03/warnings/#customize-client-handling
-	//
-	// Completely suppress warning logs only for log levels that are less than Debug.
-	if log.GetLevel() < log.DebugLevel {
-		clusterCacheConfig.WarningHandler = rest.NoWarnings{}
 	}
 
 	clusterCacheOpts := []clustercache.UpdateSettingsFunc{
@@ -770,12 +758,23 @@ func (c *liveStateCache) restConfigUsingDefaultCABundle(server string) *rest.Con
 	if cluster.Server == appv1.KubernetesInternalAPIServerAddr || len(cluster.Config.CAData) > 0 || cluster.Config.Insecure {
 		return nil
 	}
-	restConfig, err := cluster.RESTConfig()
+	restConfig, err := clusterCacheRESTConfig(cluster)
 	if err != nil {
 		log.Warnf("Failed to build REST config of cluster %s after a default CA bundle change: %v", server, err)
 		return nil
 	}
 	return restConfig
+}
+
+func clusterCacheRESTConfig(cluster *appv1.Cluster) (*rest.Config, error) {
+	restConfig, err := cluster.RESTConfig()
+	if err != nil {
+		return nil, err
+	}
+	if log.GetLevel() < log.DebugLevel {
+		restConfig.WarningHandler = rest.NoWarnings{}
+	}
+	return restConfig, nil
 }
 
 func (c *liveStateCache) IsNamespaced(server *appv1.Cluster, gk schema.GroupKind) (bool, error) {
@@ -956,7 +955,7 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 
 		var updateSettings []clustercache.UpdateSettingsFunc
 		if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
-			newClusterRESTConfig, err := newCluster.RESTConfig()
+			newClusterRESTConfig, err := clusterCacheRESTConfig(newCluster)
 			if err == nil {
 				updateSettings = append(updateSettings, clustercache.SetConfig(newClusterRESTConfig))
 			} else {
