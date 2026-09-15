@@ -5,7 +5,6 @@ import {useContext, useEffect, useState, useRef} from 'react';
 
 import {Context} from '../../context';
 import {MonacoEditor} from '../monaco-editor';
-import {replaceModelText} from '../monaco-apply-input';
 import {buildYamlMergePatch, cloneAndDumpYaml, dumpYaml, isEmptyPatch} from './yaml-merge-patch';
 import {hasReachedResourceVersion, resourceVersionOf} from './resource-version';
 
@@ -118,9 +117,8 @@ export function YamlEditor<T>(props: YamlEditorProps<T>) {
 
     const handleCancel = () => {
         // The abandoned edits only exist in the buffer, so the props-level refresh cannot clear them.
-        if (modelRef.current) {
-            replaceModelText(modelRef.current, dumpYaml(props.input));
-        }
+        // setValue so undo cannot bring those edits back.
+        modelRef.current?.setValue(dumpYaml(props.input));
         endEdit();
         props.onCancel?.();
     };
