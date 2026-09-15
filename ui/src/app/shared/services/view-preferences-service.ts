@@ -95,6 +95,24 @@ export class AbstractAppsListPreferences {
 }
 
 export class AppsListPreferences extends AbstractAppsListPreferences {
+    public static countEnabledFilters(pref: AppsListPreferences) {
+        return [
+            pref.clustersFilter,
+            pref.healthFilter,
+            pref.labelsFilter,
+            pref.namespacesFilter,
+            pref.projectsFilter,
+            pref.syncFilter,
+            pref.hydrationFilter,
+            pref.operationFilter
+        ].reduce((count, filter) => {
+            if (filter && filter.length > 0) {
+                return count + 1;
+            }
+            return count;
+        }, 0);
+    }
+
     public static clearFilters(pref: AppsListPreferences) {
         super.clearFilters(pref);
 
@@ -106,11 +124,13 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
         pref.syncFilter = [];
         pref.autoSyncFilter = [];
         pref.operationFilter = [];
+        pref.hydrationFilter = [];
     }
 
     public projectsFilter: string[];
     public syncFilter: string[];
     public autoSyncFilter: string[];
+    public hydrationFilter: string[];
     public namespacesFilter: string[];
     public reposFilter: string[];
     public clustersFilter: string[];
@@ -219,6 +239,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         autoSyncFilter: new Array<string>(),
         healthFilter: new Array<string>(),
         operationFilter: new Array<string>(),
+        hydrationFilter: new Array<string>(),
         hideFilters: false,
         showFavorites: false,
         favoritesAppList: new Array<string>(),
