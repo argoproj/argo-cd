@@ -27,8 +27,10 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache/mocks"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 	toolscache "k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -1363,6 +1365,22 @@ func TestLoadCacheSettings_ClusterCABundle(t *testing.T) {
 	assert.Equal(t, []byte(caBundle), res.clusterCABundle)
 }
 
+func TestClusterCacheRESTConfig_WarningHandler(t *testing.T) {
+	previousLevel := log.GetLevel()
+	t.Cleanup(func() { log.SetLevel(previousLevel) })
+	cluster := &appv1.Cluster{Server: "https://example.com"}
+
+	log.SetLevel(log.InfoLevel)
+	restConfig, err := clusterCacheRESTConfig(cluster)
+	require.NoError(t, err)
+	assert.Equal(t, rest.NoWarnings{}, restConfig.WarningHandler, "API warnings must be suppressed below debug level")
+
+	log.SetLevel(log.DebugLevel)
+	restConfig, err = clusterCacheRESTConfig(cluster)
+	require.NoError(t, err)
+	assert.Nil(t, restConfig.WarningHandler, "API warnings must be logged at debug level")
+}
+
 func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 	t.Parallel()
 	caBundle := []byte(strings.TrimSpace(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt")))
@@ -1529,6 +1547,7 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		expectedPool := x509.NewCertPool()
 		require.True(t, expectedPool.AppendCertsFromPEM(caBundle))
 		assert.True(t, tlsConfig.RootCAs.Equal(expectedPool), "the rebuilt REST config must trust exactly the default bundle")
+		assert.Equal(t, rest.NoWarnings{}, restConfig.WarningHandler, "the rebuilt REST config must keep suppressing API warnings")
 	})
 
 	t.Run("the REST config rebuilt after removing the bundle falls back to system roots", func(t *testing.T) {
