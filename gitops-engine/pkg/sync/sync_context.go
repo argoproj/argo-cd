@@ -868,7 +868,19 @@ func (sc *syncContext) terminateHooksPreemptively(ctx context.Context, tasks syn
 
 func (sc *syncContext) removeHookFinalizer(ctx context.Context, task *syncTask) error {
 	if task.liveObj == nil {
-		return nil
+		// The live object may be temporarily missing from the reconciliation cache even though the hook
+		// still exists in the cluster. Look it up directly, so that a completed hook is not silently left
+		// behind with its finalizer, which would block its deletion and, in turn, block cascading deletion
+		// of the Application.
+		liveObj, err := sc.getResource(ctx, task)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				// no live object, so no finalizer to remove
+				return nil
+			}
+			return fmt.Errorf("failed to get resource: %w", err)
+		}
+		task.liveObj = liveObj
 	}
 	removeFinalizerMutation := func(obj *unstructured.Unstructured) bool {
 		finalizers := obj.GetFinalizers()
