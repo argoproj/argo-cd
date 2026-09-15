@@ -775,6 +775,29 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 	})
 }
 
+func TestAutoSyncMultiSourceUsesSpecTargetRevisionsNotStaleSyncStatus(t *testing.T) {
+	app := newFakeMultiSourceApp()
+	for i := range app.Spec.Sources {
+		app.Spec.Sources[i].TargetRevision = "main"
+	}
+	// Stale pinned SHAs from a previous sync (e.g. an unrelated old commit selected
+	// by a rejected same-repo multi-source generation) must not be reused for the
+	// automated sync; the op must target the spec's TargetRevisions instead.
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	syncStatus := v1alpha1.SyncStatus{
+		Status:    v1alpha1.SyncStatusCodeOutOfSync,
+		Revisions: []string{"1111111111111111111111111111111111111111", "2222222222222222222222222222222222222222", "3333333333333333333333333333333333333333"},
+	}
+	cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+	assert.Nil(t, cond)
+	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, app.Operation)
+	require.NotNil(t, app.Operation.Sync)
+	assert.Equal(t, []string{"main", "main", "main"}, app.Operation.Sync.Revisions)
+	assert.Equal(t, "main", app.Operation.Sync.Revision)
+}
+
 func TestAutoSyncNotAllowEmpty(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.SyncPolicy.Automated.Prune = new(true)
@@ -2389,6 +2412,39 @@ func TestRefreshAppConditions(t *testing.T) {
 		assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
 		assert.Contains(t, app.Status.Conditions[0].Message, "does-not-exist")
 	})
+}
+
+// TestAppRefreshSkipsOnLevelThreeRepoError verifies that a force-resolve refresh
+// (Level 3, noRevisionCache=true) whose comparison fails closed returns a nil
+// comparison result without attempting any status update. Regression coverage for
+// the nil-comparisonResult guard added with the #29716 fail-closed change.
+func TestAppRefreshSkipsOnLevelThreeRepoError(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps:              []runtime.Object{app, &defaultProj},
+		manifestResponses: make([]*apiclient.ManifestResponse, 3),
+		managedLiveObjs:   make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}, errors.New("test repo error"))
+
+	key, _ := cache.MetaNamespaceKeyFunc(app)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	patched := false
+	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patched = true
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.requestAppRefresh(app.Name, CompareWithLatestForceResolve.Pointer(), nil)
+	ctrl.appRefreshQueue.AddRateLimited(key)
+	ctrl.processAppRefreshQueueItem()
+
+	// the failed Level 3 comparison must short-circuit the refresh: no status patch
+	// may be attempted, and the informer copy must be untouched
+	assert.False(t, patched)
+	got, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, got.Status.Conditions)
 }
 
 func TestUpdateReconciledAt(t *testing.T) {

@@ -287,6 +287,33 @@ func TestCompareAppStateRepoError(t *testing.T) {
 	assert.Equal(t, v1alpha1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
 }
 
+// TestCompareAppStateRepoErrorFailClosed tests that Level 3 comparisons
+// (noRevisionCache=true: sync or force resolve) fail closed instead of swallowing
+// the repo error and comparing against empty target state. See
+// https://github.com/argoproj/argo-cd/issues/29716
+func TestCompareAppStateRepoErrorFailClosed(t *testing.T) {
+	t.Parallel()
+
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{manifestResponses: make([]*apiclient.ManifestResponse, 3)}, errors.New("test repo error"))
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+
+	// repo error must be returned as-is, not short-circuited through the grace period
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, true, nil, false)
+	assert.Nil(t, compRes)
+	require.ErrorContains(t, err, "test repo error")
+	require.NotErrorIs(t, err, ErrCompareStateRepo)
+
+	// the grace-period short circuit must not kick in for level 3 comparisons
+	compRes, err = ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, true, nil, false)
+	assert.Nil(t, compRes)
+	require.ErrorContains(t, err, "test repo error")
+	require.NotErrorIs(t, err, ErrCompareStateRepo)
+}
+
 // TestCompareAppStateNamespaceMetadataDiffers tests comparison when managed namespace metadata differs
 func TestCompareAppStateNamespaceMetadataDiffers(t *testing.T) {
 	app := newFakeApp()

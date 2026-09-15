@@ -1982,6 +1982,10 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		logCtx.WithError(err).Warn("Ignoring temporary failed attempt to compare app state against repo")
 		return processNext // short circuit if git error is encountered
 	}
+	if compareResult == nil {
+		logCtx.WithError(err).Warn("Skipping refresh: failed to compare app state against repo")
+		return processNext
+	}
 
 	for k, v := range compareResult.timings {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
@@ -2570,19 +2574,29 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 
 	source := new(app.Spec.GetSource())
 	desiredRevisions := []string{syncStatus.Revision}
+	// Defer the revision to the sync operation so that it gets resolved from the
+	// spec's target revision at generation time, instead of reusing the revision
+	// from the comparison result, which may hold a stale pinned SHA from a previous
+	// sync (e.g. when a rejected same-repo multi-source generation fell back to an
+	// unrelated old commit). See https://github.com/argoproj/argo-cd/issues/29716
+	var sourceTargetRevisions []string
 	if app.Spec.HasMultipleSources() {
 		source = nil
 		desiredRevisions = syncStatus.Revisions
+		sourceTargetRevisions = make([]string, 0, len(app.Spec.Sources))
+		for _, s := range app.Spec.Sources {
+			sourceTargetRevisions = append(sourceTargetRevisions, s.TargetRevision)
+		}
 	}
 
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
 			Source:      source,
-			Revision:    syncStatus.Revision,
+			Revision:    app.Spec.GetSource().TargetRevision,
 			Prune:       app.Spec.SyncPolicy.Automated.GetPrune(),
 			SyncOptions: app.Spec.SyncPolicy.SyncOptions,
 			Sources:     app.Spec.Sources,
-			Revisions:   syncStatus.Revisions,
+			Revisions:   sourceTargetRevisions,
 		},
 		InitiatedBy: appv1.OperationInitiator{Automated: true},
 		Retry:       appv1.RetryStrategy{Limit: 5},
