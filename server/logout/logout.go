@@ -116,8 +116,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		id = jwtutil.StringField(mapClaims, "at_hash")
 	}
 
-	if exp, err := jwtutil.ExpirationTime(mapClaims); err == nil && id != "" {
-		ttl := time.Until(exp)
+	if exp, err := jwtutil.ExpirationTime(mapClaims); err == nil && exp != nil && id != "" {
+		ttl := time.Until(*exp)
 		if ttl <= 0 {
 			// Token already expired; no need to persist revocation
 			log.Infof("token '%s' already expired, skipping revocation", id)
