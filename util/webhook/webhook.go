@@ -158,6 +158,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 	}
 	parsers = append(parsers, newHarborParser(set.GetWebhookHarborSecret()))
 	parsers = append(parsers, NewGHCRParser(set.GetWebhookGitHubSecret()))
+	parsers = append(parsers, newDockerHubParser(set.GetWebhookDockerHubSecret()))
 
 	log.Debugf("webhookRefreshJitter=%v", webhookRefreshJitter)
 	log.Debugf("webhookRefreshJitterThreshold=%d", webhookRefreshJitterThreshold)
@@ -981,8 +982,8 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		if errors.Is(err, ErrHMACVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Registry webhook HMAC verification failed")
+		if errors.Is(err, ErrHMACVerificationFailed) || errors.Is(err, ErrSecretVerificationFailed) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Info("Registry webhook authentication failed")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}

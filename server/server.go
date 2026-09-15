@@ -829,6 +829,7 @@ func (server *ArgoCDServer) watchSettings() {
 	errorsutil.CheckError(err)
 	prevDexAuthConnectorID := server.settings.DexAuthConnectorID
 	prevGitHubSecret := server.settings.GetWebhookGitHubSecret()
+	prevDockerHubSecret := server.settings.GetWebhookDockerHubSecret()
 	prevGitLabSecret := server.settings.GetWebhookGitLabSecret()
 	prevBitbucketUUID := server.settings.GetWebhookBitbucketUUID()
 	prevBitbucketServerSecret := server.settings.GetWebhookBitbucketServerSecret()
@@ -871,6 +872,10 @@ func (server *ArgoCDServer) watchSettings() {
 		}
 		if prevGitHubSecret != server.settings.GetWebhookGitHubSecret() {
 			log.Infof("github secret modified. restarting")
+			break
+		}
+		if prevDockerHubSecret != server.settings.GetWebhookDockerHubSecret() {
+			log.Infof("dockerhub secret modified, restarting")
 			break
 		}
 		if prevGitLabSecret != server.settings.GetWebhookGitLabSecret() {
