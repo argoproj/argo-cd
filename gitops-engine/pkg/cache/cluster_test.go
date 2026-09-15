@@ -548,6 +548,81 @@ func TestStatefulSetPVC_WatchEvent_IndexUpdated(t *testing.T) {
 	require.Contains(t, children, pvcKey, "PVC should be in StatefulSet's children (inferred relationship)")
 }
 
+func TestEnsureSyncedConcurrentNoDeadlock(t *testing.T) {
+	t.Parallel()
+	cluster := newCluster(t, &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: "default",
+		},
+	})
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		var wg sync.WaitGroup
+		for i := 0; i < 10; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_ = cluster.EnsureSynced()
+			}()
+		}
+		wg.Wait()
+	}()
+
+	select {
+	case <-done:
+		// Succeeded without deadlock
+	case <-time.After(5 * time.Second):
+		t.Fatal("EnsureSynced deadlocked when called concurrently")
+	}
+}
+
+func TestEnsureSynced_AtomicSwapNoPartialRead(t *testing.T) {
+	t.Parallel()
+	cluster := newCluster(t, &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "guestbook",
+			Namespace: "default",
+		},
+	})
+
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 20; j++ {
+				res := cluster.FindResources("default")
+				if len(res) == 0 {
+					t.Errorf("FindResources returned empty map during re-sync")
+				}
+				time.Sleep(1 * time.Millisecond)
+			}
+		}()
+	}
+
+	for i := 0; i < 5; i++ {
+		cluster.syncStatus.lock.Lock()
+		cluster.syncStatus.syncTime = nil
+		cluster.syncStatus.lock.Unlock()
+		_ = cluster.EnsureSynced()
+	}
+	wg.Wait()
+}
+
 func TestEnsureSyncedSingleNamespace(t *testing.T) {
 	t.Parallel()
 	obj1 := &appsv1.Deployment{
