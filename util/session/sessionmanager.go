@@ -627,9 +627,8 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 		errorMsg := "Failed to verify session token: " + err.Error()
 		span.SetStatus(otel_codes.Error, errorMsg)
 		log.Warn(errorMsg)
-		// Handle expired token specifically for UI hints using errors.As
-		var tokenExpiredError *oidc.TokenExpiredError
-		if errors.As(err, &tokenExpiredError) {
+		// Handle expired token specifically for UI hints using errors.AsType
+		if _, ok := errors.AsType[*oidc.TokenExpiredError](err); ok {
 			// Return minimal claims indicating SSO source for expired tokens
 			// Use issuer variable from above, handle potential error if it wasn't retrieved
 			issForExpired := "sso"

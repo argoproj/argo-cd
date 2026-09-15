@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -162,14 +163,7 @@ func (v *externalTokenVerifier) Verify(ctx context.Context, tokenString string, 
 			// return nil, fmt.Errorf("failed to get audience claim: %w", err)
 			log.Debugf("Failed to get audience claim from external JWT, continuing verification: %v", err)
 		} else {
-			validAud := false
-			for _, aud := range audience {
-				if aud == argoSettings.JWTConfig.Audience {
-					validAud = true
-					break
-				}
-			}
-			if !validAud {
+			if !slices.Contains(audience, argoSettings.JWTConfig.Audience) {
 				return nil, fmt.Errorf("invalid audience claim in external JWT, expected aud %q not found in %v. Perhaps someone is trying to use a token from a different issuer", argoSettings.JWTConfig.Audience, audience)
 			}
 		}

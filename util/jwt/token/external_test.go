@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"log"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -35,9 +36,7 @@ func generateTestToken(signingMethod jwtgo.SigningMethod, key any, kid string, c
 	}
 
 	// Merge provided claims with defaults
-	for k, v := range claims {
-		defaultClaims[k] = v
-	}
+	maps.Copy(defaultClaims, claims)
 
 	token.Claims = defaultClaims
 
@@ -239,13 +238,10 @@ func TestVerify(t *testing.T) {
 	// --- End Test Cases ---
 
 	for _, tt := range tests {
-		tt := tt // capture range variable
 		t.Run(tt.name, func(t *testing.T) {
 			// --- Prepare Test Data ---
 			currentClaims := make(map[string]any)
-			for k, v := range baseClaims {
-				currentClaims[k] = v
-			}
+			maps.Copy(currentClaims, baseClaims)
 			if tt.claims != nil {
 				for k, v := range tt.claims {
 					if v == nil {
@@ -345,7 +341,7 @@ func TestVerify(t *testing.T) {
 						require.Equal(t, expectedGroups, claims["groups"], "Groups claim value mismatch")
 					}
 				}
-				t.Logf("JWT verified successfully.")
+				t.Log("JWT verified successfully.")
 			}
 		})
 	}
