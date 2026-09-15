@@ -2,12 +2,24 @@ package grpc
 
 import (
 	"context"
+	"strings"
 	"sync/atomic"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+// healthServiceMethodPrefix is the fully-qualified method prefix of the gRPC health service.
+// Health-check RPCs are exempt from the concurrency limit: the liveness probe self-dials the
+// repo-server, and if its own health check were rejected while the server is saturated (exactly
+// when this limiter engages), the probe would fail and kubelet would restart an otherwise healthy
+// but busy pod — the opposite of graceful scale-out.
+const healthServiceMethodPrefix = "/grpc.health.v1.Health/"
+
+func isHealthCheckMethod(fullMethod string) bool {
+	return strings.HasPrefix(fullMethod, healthServiceMethodPrefix)
+}
 
 // reportActive is called with the current number of in-flight requests whenever it changes.
 // It is used to keep a metric gauge in sync with the limiter's own counter. It may be nil.
@@ -29,7 +41,11 @@ func report(fn reportActiveFunc, active int64) {
 // reportActive may be nil, in which case no value is reported.
 func ConcurrencyLimiterUnaryServerInterceptor(maxConcurrentRequests int64, reportActive reportActiveFunc) grpc.UnaryServerInterceptor {
 	var active atomic.Int64
-	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		// Health checks bypass the limiter entirely so the liveness probe cannot be starved out.
+		if isHealthCheckMethod(info.FullMethod) {
+			return handler(ctx, req)
+		}
 		current := active.Add(1)
 		if maxConcurrentRequests > 0 && current > maxConcurrentRequests {
 			report(reportActive, active.Add(-1))
@@ -48,7 +64,11 @@ func ConcurrencyLimiterUnaryServerInterceptor(maxConcurrentRequests int64, repor
 // same concurrency tracking and limiting behaviour as ConcurrencyLimiterUnaryServerInterceptor.
 func ConcurrencyLimiterStreamServerInterceptor(maxConcurrentRequests int64, reportActive reportActiveFunc) grpc.StreamServerInterceptor {
 	var active atomic.Int64
-	return func(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		// Health checks bypass the limiter entirely so the liveness probe cannot be starved out.
+		if isHealthCheckMethod(info.FullMethod) {
+			return handler(srv, ss)
+		}
 		current := active.Add(1)
 		if maxConcurrentRequests > 0 && current > maxConcurrentRequests {
 			report(reportActive, active.Add(-1))

@@ -65,6 +65,18 @@ spec:
                 name: argocd-cmd-params-cm
                 key: reposerver.parallelism.limit
                 optional: true
+          - name: ARGOCD_REPO_SERVER_PARALLELISM_LIMIT_FAIL_FAST
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.parallelism.limit.fail.fast
+                optional: true
+          - name: ARGOCD_REPO_SERVER_MAX_CONCURRENT_GRPC_REQUESTS
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.max.concurrent.grpc.requests
+                optional: true
           - name: ARGOCD_REPO_SERVER_LISTEN_ADDRESS
             valueFrom:
               configMapKeyRef:
