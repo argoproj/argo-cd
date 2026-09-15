@@ -18,6 +18,7 @@ export interface AppSetTileProps {
 export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTileProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
+    const isFav = AppUtils.isFavorite(favList, appSet);
 
     const healthStatus = getAppSetHealthStatus(appSet);
 
@@ -26,12 +27,7 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (favList?.includes(appSet.metadata.name)) {
-            favList.splice(favList.indexOf(appSet.metadata.name), 1);
-        } else {
-            favList.push(appSet.metadata.name);
-        }
-        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
+        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: AppUtils.toggleFavorite(favList, appSet)}});
     };
 
     return (
@@ -118,13 +114,13 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
 
             {/* Header buttons — sibling of the anchor (not nested) so the markup stays valid. */}
             <div className='applications-tiles__header-buttons applications-list__external-link'>
-                <button title={favList?.includes(appSet.metadata.name) ? 'Remove Favorite' : 'Add Favorite'} className='large-text-height' onClick={handleFavoriteToggle}>
+                <button title={isFav ? 'Remove Favorite' : 'Add Favorite'} className='large-text-height' onClick={handleFavoriteToggle}>
                     <i
-                        className={favList?.includes(appSet.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
+                        className={isFav ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
                         style={{
                             cursor: 'pointer',
                             margin: '-1px 0px 0px 0px',
-                            color: favList?.includes(appSet.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                            color: isFav ? '#FFCE25' : '#8fa4b1'
                         }}
                     />
                 </button>
