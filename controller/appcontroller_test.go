@@ -2414,6 +2414,39 @@ func TestRefreshAppConditions(t *testing.T) {
 	})
 }
 
+// TestAppRefreshSkipsOnLevelThreeRepoError verifies that a force-resolve refresh
+// (Level 3, noRevisionCache=true) whose comparison fails closed returns a nil
+// comparison result without attempting any status update. Regression coverage for
+// the nil-comparisonResult guard added with the #29716 fail-closed change.
+func TestAppRefreshSkipsOnLevelThreeRepoError(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps:              []runtime.Object{app, &defaultProj},
+		manifestResponses: make([]*apiclient.ManifestResponse, 3),
+		managedLiveObjs:   make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}, errors.New("test repo error"))
+
+	key, _ := cache.MetaNamespaceKeyFunc(app)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	patched := false
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patched = true
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.requestAppRefresh(app.Name, CompareWithLatestForceResolve.Pointer(), nil)
+	ctrl.appRefreshQueue.AddRateLimited(key)
+	ctrl.processAppRefreshQueueItem()
+
+	// the failed Level 3 comparison must short-circuit the refresh: no status patch
+	// may be attempted, and the informer copy must be untouched
+	assert.False(t, patched)
+	got, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, got.Status.Conditions)
+}
+
 func TestUpdateReconciledAt(t *testing.T) {
 	app := newFakeApp()
 	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Second))
