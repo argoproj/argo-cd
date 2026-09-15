@@ -44,6 +44,7 @@ func SendApplicationManifestQueryWithFiles(ctx context.Context, stream Applicati
 	if err != nil {
 		return fmt.Errorf("failed to compress files: %w", err)
 	}
+	defer tgzstream.CloseAndDeleteTempFile(f)
 	if filesWritten == 0 {
 		return errors.New("no files to send")
 	}
