@@ -152,6 +152,11 @@ func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string,
 	if err != nil {
 		return nil, nil, fmt.Errorf("error building app relative path: %w", err)
 	}
+	// The tarball is rooted at rootPath, which may be narrower than the repository
+	// root when the manifest-generate-paths annotation is used. Expose the
+	// tarball-relative path so plugins can reconcile it with the repo-relative
+	// ARGOCD_APP_SOURCE_PATH. See https://github.com/argoproj/argo-cd/issues/29655.
+	env = append(env, fmt.Sprintf("ARGOCD_APP_TARBALL_REL_PATH=%s", appRelPath))
 	// send metadata first
 	mr := appMetadataRequest(filepath.Base(appPath), appRelPath, env, checksum, fi.Size())
 	return tgz, mr, err

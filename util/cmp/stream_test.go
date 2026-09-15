@@ -123,3 +123,28 @@ func getTestDataDir(t *testing.T) string {
 	t.Helper()
 	return filepath.Join(test.GetTestDir(t), "testdata")
 }
+
+func TestGetCompressedRepoAndMetadataExposesTarballRelPath(t *testing.T) {
+	t.Parallel()
+
+	// rootPath is the narrowed common root (as produced by the
+	// manifest-generate-paths annotation), while appPath is a subdirectory of it.
+	rootPath := t.TempDir()
+	appPath := filepath.Join(rootPath, "my-app")
+	require.NoError(t, os.MkdirAll(appPath, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(appPath, "deployment.yaml"), []byte("apiVersion: v1\n"), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(rootPath, "_values"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(rootPath, "_values", "values.yaml"), []byte("foo: bar\n"), 0o644))
+
+	tgz, mr, err := cmp.GetCompressedRepoAndMetadata(rootPath, appPath, []string{"ARGOCD_APP_SOURCE_PATH=team-a/my-app"}, nil, nil)
+	require.NoError(t, err)
+	require.NoError(t, tgz.Close())
+
+	var tarballRelPath string
+	for _, e := range mr.GetMetadata().GetEnv() {
+		if e.GetName() == "ARGOCD_APP_TARBALL_REL_PATH" {
+			tarballRelPath = e.GetValue()
+		}
+	}
+	assert.Equal(t, "my-app", tarballRelPath)
+}
