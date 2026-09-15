@@ -407,13 +407,13 @@ For notifications controller, you need to additionally add following:
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: argocd-notifications-controller
+  name: argocd-notifications-controller-metrics
   labels:
     release: prometheus-operator
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: argocd-notifications-controller-metrics
+      app.kubernetes.io/name: argocd-notifications-controller
   endpoints:
     - port: metrics
 ```
