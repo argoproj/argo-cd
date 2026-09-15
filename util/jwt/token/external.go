@@ -162,10 +162,8 @@ func (v *externalTokenVerifier) Verify(ctx context.Context, tokenString string, 
 			// Consider if audience claim is mandatory based on your policy
 			// return nil, fmt.Errorf("failed to get audience claim: %w", err)
 			log.Debugf("Failed to get audience claim from external JWT, continuing verification: %v", err)
-		} else {
-			if !slices.Contains(audience, argoSettings.JWTConfig.Audience) {
-				return nil, fmt.Errorf("invalid audience claim in external JWT, expected aud %q not found in %v. Perhaps someone is trying to use a token from a different issuer", argoSettings.JWTConfig.Audience, audience)
-			}
+		} else if !slices.Contains(audience, argoSettings.JWTConfig.Audience) {
+			return nil, fmt.Errorf("invalid audience claim in external JWT, expected aud %q not found in %v. Perhaps someone is trying to use a token from a different issuer", argoSettings.JWTConfig.Audience, audience)
 		}
 	}
 
