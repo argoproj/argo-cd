@@ -305,13 +305,13 @@ func TestCompareAppStateRepoErrorFailClosed(t *testing.T) {
 	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, true, nil, false)
 	assert.Nil(t, compRes)
 	require.ErrorContains(t, err, "test repo error")
-	assert.False(t, errors.Is(err, ErrCompareStateRepo))
+	assert.NotErrorIs(t, err, ErrCompareStateRepo)
 
 	// the grace-period short circuit must not kick in for level 3 comparisons
 	compRes, err = ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, true, nil, false)
 	assert.Nil(t, compRes)
 	require.ErrorContains(t, err, "test repo error")
-	assert.False(t, errors.Is(err, ErrCompareStateRepo))
+	assert.NotErrorIs(t, err, ErrCompareStateRepo)
 }
 
 // TestCompareAppStateNamespaceMetadataDiffers tests comparison when managed namespace metadata differs
