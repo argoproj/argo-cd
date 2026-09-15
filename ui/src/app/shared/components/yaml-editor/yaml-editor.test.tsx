@@ -206,6 +206,56 @@ describe('YamlEditor live freeze', () => {
         }
     });
 
+    test('ignores a second Save click while the first request is still in flight', async () => {
+        let resolveSave: (value: unknown) => void = () => undefined;
+        const onSave = jest.fn(
+            () =>
+                new Promise(resolve => {
+                    resolveSave = resolve;
+                })
+        );
+        renderEditor(React.createElement(YamlEditor, {input: liveA, onSave}));
+
+        act(() => {
+            fireEvent.click(screen.getByRole('button', {name: /Edit/i}));
+        });
+        fakeModel.lines = jsYaml.dump({...liveA, spec: {replicas: 3}});
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', {name: /Save/i}));
+            fireEvent.click(screen.getByRole('button', {name: /Save/i}));
+        });
+
+        expect(onSave).toHaveBeenCalledTimes(1);
+        expect(screen.getByRole('button', {name: /Save/i})).toBeDisabled();
+
+        await act(async () => {
+            resolveSave({...liveA, metadata: {...liveA.metadata, resourceVersion: '250'}, spec: {replicas: 3}});
+        });
+        expect(screen.queryByRole('button', {name: /Save/i})).toBeNull();
+    });
+
+    test('lets Save be clicked again after a failed request', async () => {
+        const onSave = jest.fn().mockRejectedValueOnce(new Error('conflict')).mockResolvedValue({...liveA, metadata: {...liveA.metadata, resourceVersion: '250'}, spec: {replicas: 3}});
+        renderEditor(React.createElement(YamlEditor, {input: liveA, onSave}));
+
+        act(() => {
+            fireEvent.click(screen.getByRole('button', {name: /Edit/i}));
+        });
+        fakeModel.lines = jsYaml.dump({...liveA, spec: {replicas: 3}});
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', {name: /Save/i}));
+        });
+        expect(onSave).toHaveBeenCalledTimes(1);
+        expect(screen.getByRole('button', {name: /Save/i})).not.toBeDisabled();
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', {name: /Save/i}));
+        });
+        expect(onSave).toHaveBeenCalledTimes(2);
+    });
+
     test('resumes immediately when the save response carries no resource version', async () => {
         const onSave = jest.fn().mockResolvedValue({replicas: 3});
         const {rerender} = renderEditor(React.createElement(YamlEditor, {input: liveA, onSave}));

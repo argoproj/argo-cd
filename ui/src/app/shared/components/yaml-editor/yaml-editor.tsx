@@ -32,8 +32,10 @@ export function YamlEditor<T>(props: YamlEditorProps<T>) {
     const [editing, setEditing] = useState(!!props.initialEditMode);
     const [frozenYaml, setFrozenYaml] = useState<string | null>(initialSnapshot?.yaml ?? null);
     const [pendingResourceVersion, setPendingResourceVersion] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
     const modelRef = useRef<monacoEditor.editor.ITextModel | null>(null);
     const snapshotRef = useRef<T | null>(initialSnapshot?.snapshot ?? null);
+    const savingRef = useRef(false);
 
     // A save is not visible in the live state until the cluster reports it back. Redrawing before
     // then would replace what was just saved with a resource that predates it, so hold the document
@@ -77,6 +79,11 @@ export function YamlEditor<T>(props: YamlEditorProps<T>) {
     };
 
     const handleSave = async () => {
+        if (savingRef.current) {
+            return;
+        }
+        savingRef.current = true;
+        setSaving(true);
         try {
             const yaml = modelRef.current!.getLinesContent().join('\n');
             const base = snapshotRef.current ?? props.input;
@@ -112,6 +119,9 @@ export function YamlEditor<T>(props: YamlEditorProps<T>) {
                 content: <ErrorNotification title='Unable to validate changes' e={e} />,
                 type: NotificationType.Error
             });
+        } finally {
+            savingRef.current = false;
+            setSaving(false);
         }
     };
 
@@ -129,7 +139,7 @@ export function YamlEditor<T>(props: YamlEditorProps<T>) {
                 <div className='yaml-editor__buttons'>
                     {editing ? (
                         <>
-                            <button onClick={handleSave} className='argo-button argo-button--base'>
+                            <button onClick={handleSave} disabled={saving} className='argo-button argo-button--base'>
                                 Save
                             </button>{' '}
                             <button onClick={handleCancel} className='argo-button argo-button--base-o'>
