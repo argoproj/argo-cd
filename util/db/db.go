@@ -52,6 +52,10 @@ type ArgoDB interface {
 	CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// GetRepository returns a repository by URL
 	GetRepository(ctx context.Context, url, project string) (*appv1.Repository, error)
+	// GetRepositoryForSource returns a repository by URL preferring credentials
+	// whose repository type matches the supplied source. Callers without a
+	// source should call GetRepository.
+	GetRepositoryForSource(ctx context.Context, url, project string, source *appv1.ApplicationSource) (*appv1.Repository, error)
 	// GetProjectRepositories returns project scoped repositories by given project name
 	GetProjectRepositories(project string) ([]*appv1.Repository, error)
 	// RepositoryExists returns whether a repository is configured for the given URL
