@@ -110,7 +110,7 @@ func (c *client) executeRequest(ctx context.Context, fullMethodName string, msg 
 }
 
 func (c *client) startGRPCProxy(ctx context.Context) (*grpc.Server, net.Listener, error) {
-	// Check if /tmp directory exist
+	// Fail with clear message in case the /tmp directory does not exist
 	tmpDir := os.TempDir()
 	if _, err := os.Stat(tmpDir); err != nil {
 		return nil, nil, fmt.Errorf(
