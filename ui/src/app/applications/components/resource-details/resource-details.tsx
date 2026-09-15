@@ -48,6 +48,10 @@ interface ResourceDetailsProps {
     tree: ApplicationTree;
     appCxt: AppContext;
     appChanged?: BehaviorSubject<models.AbstractApplication>;
+    // generatedAppNode renders a read-only view of a generated Application node (e.g. under an ApplicationSet):
+    // its live manifest is loaded from the Application itself, no diff/desired manifest is shown, there are
+    // no sync/resource actions, and only "Open Application" and "Delete" buttons are available.
+    generatedAppNode?: boolean;
 }
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
@@ -281,6 +285,32 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     noLoaderOnInputChange={true}
                     input={selectedNode.resourceVersion}
                     load={async () => {
+                        if (props.generatedAppNode) {
+                            // Read-only view of a generated Application node: load the live manifest from the
+                            // Application itself (the parent object is an ApplicationSet, not an Application).
+                            const loaded = await services.applications
+                                .get(selectedNode.name, selectedNode.namespace, 'application')
+                                .then(app => ({liveState: app as unknown as State, denied: false}))
+                                .catch((err): {liveState: State; denied: boolean} => ({
+                                    liveState: null,
+                                    // Treat 404 as a lack of permission (the API hides existence on RBAC denial).
+                                    denied: err?.status === 403 || err?.status === 404
+                                }));
+                            const events = loaded.liveState ? await services.applications.events(selectedNode.name, selectedNode.namespace).catch((): Event[] => []) : [];
+                            return {
+                                controlledState: null as {summary: models.ResourceStatus; state: models.ResourceDiff} | null,
+                                liveState: loaded.liveState,
+                                events,
+                                podState: undefined as State,
+                                execEnabled: false,
+                                execAllowed: false,
+                                logsAllowed: false,
+                                links: null as models.LinksResponse,
+                                childResources: [] as models.ResourceNode[],
+                                resourceActionsMenuItems: [],
+                                denied: loaded.denied
+                            };
+                        }
                         const managedResources = await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
                             id: {
                                 name: selectedNode.name,
@@ -323,7 +353,19 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', AppUtils.appRBACName(application)));
                         const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch((): null => null);
                         const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);
-                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links, childResources, resourceActionsMenuItems};
+                        return {
+                            controlledState,
+                            liveState,
+                            events,
+                            podState,
+                            execEnabled,
+                            execAllowed,
+                            logsAllowed,
+                            links,
+                            childResources,
+                            resourceActionsMenuItems,
+                            denied: false
+                        };
                     }}>
                     {data => (
                         <React.Fragment>
@@ -335,15 +377,55 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 <div className='resource-details__header-name'>
                                     <h1 className='resource-details__header-title'>{selectedNode.name}</h1>
                                     <span className='resource-details__header-status'>
-                                        {data.controlledState && (
-                                            <span style={{marginRight: '5px'}}>
-                                                <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
-                                            </span>
+                                        {props.generatedAppNode ? (
+                                            (() => {
+                                                const generatedApp = data.liveState as unknown as Application;
+                                                return (
+                                                    <>
+                                                        {generatedApp?.status?.health && <AppUtils.HealthStatusIcon state={generatedApp.status.health} />}
+                                                        {generatedApp?.status?.sync?.status && (
+                                                            <span style={{marginLeft: '5px'}}>
+                                                                <AppUtils.ComparisonStatusIcon status={generatedApp.status.sync.status} />
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()
+                                        ) : (
+                                            <>
+                                                {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
+                                                {data.controlledState && (
+                                                    <span style={{marginLeft: '5px'}}>
+                                                        <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
+                                                    </span>
+                                                )}
+                                            </>
                                         )}
-                                        {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
                                     </span>
                                 </div>
                                 <div className='resource-details__header-actions'>
+                                    {props.generatedAppNode &&
+                                        (() => {
+                                            const linkInfo = AppUtils.getApplicationLinkURLFromNode(selectedNode, appContext.baseHref);
+                                            return (
+                                                <>
+                                                    <a
+                                                        href={linkInfo.url}
+                                                        target={linkInfo.isExternal ? '_blank' : '_self'}
+                                                        rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                                        style={{marginLeft: 'auto', marginRight: '5px'}}
+                                                        className='argo-button argo-button--base'>
+                                                        <i className='fa fa-external-link-alt' /> <span className='show-for-large'>OPEN APPLICATION</span>
+                                                    </a>
+                                                    <button
+                                                        onClick={() => AppUtils.deleteApplication(selectedNode.name, selectedNode.namespace, appContext)}
+                                                        style={{marginRight: '5px'}}
+                                                        className='argo-button argo-button--base'>
+                                                        <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
+                                                    </button>
+                                                </>
+                                            );
+                                        })()}
                                     {showApplicationReference && (
                                         <button
                                             onClick={() =>
@@ -352,30 +434,33 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                                     tab: tab || null
                                                 })
                                             }
-                                            style={{marginRight: '5px'}}
+                                            style={{marginLeft: data.controlledState ? undefined : 'auto', marginRight: '5px'}}
                                             className='argo-button argo-button--base'>
                                             <i className='fa fa-fw fa-info-circle' /> <span className='show-for-large'>DETAILS</span>
                                         </button>
                                     )}
-                                    {!showApplicationReference && (
+                                    {!showApplicationReference && !props.generatedAppNode && (
                                         <>
-                                            <button
-                                                onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
-                                                style={{marginRight: '5px'}}
-                                                className='argo-button argo-button--base'>
-                                                <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
-                                            </button>
+                                            {/* Sync button is only shown if the node is managed directly by an Application */}
+                                            {data.controlledState && (
+                                                <button
+                                                    onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
+                                                    style={{marginLeft: 'auto', marginRight: '5px'}}
+                                                    className='argo-button argo-button--base'>
+                                                    <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() =>
                                                     AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources, props.appChanged)
                                                 }
-                                                style={{marginRight: '5px'}}
+                                                style={{marginLeft: data.controlledState ? undefined : 'auto', marginRight: '5px'}}
                                                 className='argo-button argo-button--base'>
                                                 <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
                                             </button>
                                         </>
                                     )}
-                                    {data.resourceActionsMenuItems?.length > 0 && !showApplicationReference && (
+                                    {data.resourceActionsMenuItems?.length > 0 && !showApplicationReference && !props.generatedAppNode && (
                                         <DropDown
                                             isMenu={true}
                                             anchor={() => (
@@ -388,39 +473,47 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     )}
                                 </div>
                             </div>
-                            <Tabs
-                                navTransparent={true}
-                                tabs={getResourceTabs(
-                                    selectedNode,
-                                    data.liveState,
-                                    data.podState,
-                                    data.events,
-                                    extensions,
-                                    [
-                                        {
-                                            title: 'SUMMARY',
-                                            icon: 'fa fa-file-alt',
-                                            key: 'summary',
-                                            content: (
-                                                <ApplicationNodeInfo
-                                                    application={application}
-                                                    live={data.liveState}
-                                                    controlled={data.controlledState}
-                                                    node={selectedNode}
-                                                    links={data.links}
-                                                    showApplicationReference={showApplicationReference}
-                                                />
-                                            )
-                                        }
-                                    ],
-                                    data.execEnabled,
-                                    data.execAllowed,
-                                    data.logsAllowed,
-                                    data.controlledState
-                                )}
-                                selectedTabKey={tab}
-                                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
-                            />
+                            {props.generatedAppNode && data.denied ? (
+                                <div className='white-box'>
+                                    <div className='white-box__details'>You do not have permission to view this Application.</div>
+                                </div>
+                            ) : (
+                                <Tabs
+                                    navTransparent={true}
+                                    tabs={getResourceTabs(
+                                        selectedNode,
+                                        data.liveState,
+                                        data.podState,
+                                        data.events,
+                                        extensions,
+                                        [
+                                            {
+                                                title: 'SUMMARY',
+                                                icon: 'fa fa-file-alt',
+                                                key: 'summary',
+                                                content: (
+                                                    <ApplicationNodeInfo
+                                                        application={application}
+                                                        live={data.liveState}
+                                                        controlled={data.controlledState}
+                                                        node={selectedNode}
+                                                        links={data.links}
+                                                        showApplicationReference={showApplicationReference}
+                                                        readonly={props.generatedAppNode || showApplicationReference}
+                                                        generatedAppNode={props.generatedAppNode}
+                                                    />
+                                                )
+                                            }
+                                        ],
+                                        data.execEnabled,
+                                        data.execAllowed,
+                                        data.logsAllowed,
+                                        data.controlledState
+                                    )}
+                                    selectedTabKey={tab}
+                                    onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
+                                />
+                            )}
                         </React.Fragment>
                     )}
                 </DataLoader>

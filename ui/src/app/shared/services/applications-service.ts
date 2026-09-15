@@ -33,6 +33,19 @@ function optionsToSearch(options?: QueryOptions): {fields?: string; selector: st
     return {selector: '', appNamespace: ''};
 }
 
+// dropStaleGeneratedAppStatus removes the health and sync (status) fields from the generated
+// Application nodes of an ApplicationSet resource tree.
+//
+// Why this is necessary: the nodes of an ApplicationSet tree are the Applications it generates.
+// Their health/sync values are mirrored from appset.status.resources, which is only refreshed when
+// the ApplicationSet reconciles. With progressive syncs disabled, an owned Application's health/sync
+// change does not trigger an ApplicationSet reconcile at all, so the mirrored values can be stale
+// and out of date compared to the Application's real status. Displaying them would be misleading.
+// Users can open the Application to see its authoritative health/sync status.
+function dropStaleGeneratedAppStatus<T extends {kind?: string; group?: string; status?: models.SyncStatusCode; health?: models.HealthStatus}>(nodes: T[]): T[] {
+    return (nodes || []).map(node => (node.kind === 'Application' && node.group === 'argoproj.io' ? {...node, status: undefined, health: undefined} : node));
+}
+
 function getQuery(projects: string[], isListOfApplications: boolean, options?: QueryOptions): any {
     if (isListOfApplications) {
         return {projects, ...optionsToSearch(options)};
@@ -122,7 +135,13 @@ export class ApplicationsService {
         return requests
             .get(`${endpoint}/${name}/resource-tree`)
             .query(namespaceQuery(objectListKind, appNamespace))
-            .then(res => res.body as models.AbstractApplicationTree);
+            .then(res => {
+                const tree = res.body as models.AbstractApplicationTree;
+                if (!isApplication && tree) {
+                    tree.nodes = dropStaleGeneratedAppStatus(tree.nodes || []);
+                }
+                return tree;
+            });
     }
 
     public watchResourceTree(name: string, appNamespace: string, objectListKind: string): Observable<models.ApplicationTree> {
@@ -134,13 +153,15 @@ export class ApplicationsService {
                 map(watchEvent => {
                     const appset = watchEvent.application;
                     return {
-                        nodes: (appset.status?.resources || []).map(res => ({
-                            ...res,
-                            parentRefs: [] as models.ResourceRef[],
-                            info: [] as models.InfoItem[],
-                            resourceVersion: '',
-                            uid: ''
-                        })),
+                        nodes: dropStaleGeneratedAppStatus(
+                            (appset.status?.resources || []).map(res => ({
+                                ...res,
+                                parentRefs: [] as models.ResourceRef[],
+                                info: [] as models.InfoItem[],
+                                resourceVersion: '',
+                                uid: ''
+                            }))
+                        ),
                         orphanedNodes: [],
                         hosts: []
                     } as models.ApplicationTree;
@@ -608,6 +629,7 @@ export class ApplicationsService {
                 {
                     apiVersion: 'argoproj.io/v1alpha1',
                     kind: 'Application',
+                    metadata: {},
                     spec: {
                         project: 'default'
                     },
@@ -625,6 +647,8 @@ export class ApplicationsService {
                 {
                     apiVersion: 'argoproj.io/v1alpha1',
                     kind: 'ApplicationSet',
+                    metadata: {},
+                    spec: {},
                     status: {
                         resources: []
                     }
