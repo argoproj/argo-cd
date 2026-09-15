@@ -1,13 +1,11 @@
 import * as React from 'react';
 
-import * as monacoEditor from 'monaco-editor';
+import type * as monacoEditor from 'monaco-editor';
+import {applyEditorInput, EditorInput} from './monaco-apply-input';
 import {services} from '../services';
 import {getTheme, useSystemTheme} from '../utils';
 
-export interface EditorInput {
-    text: string;
-    language?: string;
-}
+export type {EditorInput};
 
 export interface MonacoProps {
     minHeight?: number;
@@ -17,10 +15,6 @@ export interface MonacoProps {
         input: EditorInput;
         getApi?: (api: monacoEditor.editor.IEditor) => any;
     };
-}
-
-function IsEqualInput(first?: EditorInput, second?: EditorInput) {
-    return first && second && first.text === second.text && (first.language || '') === (second.language || '');
 }
 
 const DEFAULT_LINE_HEIGHT = 18;
@@ -64,13 +58,15 @@ const MonacoEditorLazy = React.lazy(() =>
                     ref={el => {
                         if (el) {
                             const container = el as {
-                                editorApi?: monacoEditor.editor.IEditor;
+                                editorApi?: monacoEditor.editor.IStandaloneCodeEditor;
                                 prevEditorInput?: EditorInput;
                             };
                             if (props.editor) {
                                 if (!container.editorApi) {
                                     const editor = monaco.editor.create(el, {
                                         ...props.editor.options,
+                                        value: props.editor.input.text,
+                                        language: props.editor.input.language,
                                         scrollBeyondLastLine: props.vScrollBar,
                                         scrollbar: {
                                             alwaysConsumeMouseWheel: false,
@@ -79,16 +75,14 @@ const MonacoEditorLazy = React.lazy(() =>
                                     });
 
                                     container.editorApi = editor;
-                                }
-
-                                const model = monaco.editor.createModel(props.editor.input.text, props.editor.input.language);
-                                const lineCount = model.getLineCount();
-                                setHeight(lineCount * DEFAULT_LINE_HEIGHT);
-
-                                if (!IsEqualInput(container.prevEditorInput, props.editor.input)) {
                                     container.prevEditorInput = props.editor.input;
-                                    container.editorApi.setModel(model);
+                                } else {
+                                    applyEditorInput(monaco, container.editorApi, container.prevEditorInput, props.editor.input);
+                                    container.prevEditorInput = props.editor.input;
                                 }
+
+                                const lineCount = container.editorApi.getModel()?.getLineCount() ?? 0;
+                                setHeight(lineCount * DEFAULT_LINE_HEIGHT);
                                 container.editorApi.updateOptions(props.editor.options);
                                 container.editorApi.layout();
                                 if (props.editor.getApi) {
