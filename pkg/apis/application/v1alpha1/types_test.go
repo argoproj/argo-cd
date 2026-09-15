@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"path"
@@ -6511,4 +6512,147 @@ func TestSetK8SConfigDefaultsAddsServerSideTimeoutToEveryRetryAttempt(t *testing
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, []string{"10ms", "10ms"}, receivedTimeouts)
 	assert.NoError(t, req.Context().Err())
+}
+
+func TestCluster_RESTConfig_QPSAndBurst(t *testing.T) {
+	tests := []struct {
+		name          string
+		config        ClusterConfig
+		expectedQPS   float32
+		expectedBurst int
+	}{
+		{
+			name:          "defaults to global settings when unset",
+			config:        ClusterConfig{},
+			expectedQPS:   K8sClientConfigQPS,
+			expectedBurst: K8sClientConfigBurst,
+		},
+		{
+			name: "custom QPS and Burst",
+			config: ClusterConfig{
+				QPS:   12.5,
+				Burst: 25,
+			},
+			expectedQPS:   12.5,
+			expectedBurst: 25,
+		},
+		{
+			name: "custom QPS only defaults Burst to 2x QPS",
+			config: ClusterConfig{
+				QPS: 15,
+			},
+			expectedQPS:   15,
+			expectedBurst: 30,
+		},
+		{
+			name: "custom QPS with low fractional value ensures minimum Burst of 1",
+			config: ClusterConfig{
+				QPS: 0.2,
+			},
+			expectedQPS:   0.2,
+			expectedBurst: 1,
+		},
+		{
+			name: "custom Burst only falls back QPS to global default",
+			config: ClusterConfig{
+				Burst: 42,
+			},
+			expectedQPS:   K8sClientConfigQPS,
+			expectedBurst: 42,
+		},
+		{
+			name: "negative values fall back to defaults",
+			config: ClusterConfig{
+				QPS:   -5,
+				Burst: -10,
+			},
+			expectedQPS:   K8sClientConfigQPS,
+			expectedBurst: K8sClientConfigBurst,
+		},
+		{
+			name: "explicit Burst exceeding MaxInt32 clamped to MaxInt32",
+			config: ClusterConfig{
+				Burst: math.MaxInt64,
+			},
+			expectedQPS:   K8sClientConfigQPS,
+			expectedBurst: math.MaxInt32,
+		},
+		{
+			name: "derived Burst from very large QPS clamped to MaxInt32",
+			config: ClusterConfig{
+				QPS: math.MaxFloat32,
+			},
+			expectedQPS:   math.MaxFloat32,
+			expectedBurst: math.MaxInt32,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := &Cluster{
+				Server: "https://kubernetes.example",
+				Config: tt.config,
+			}
+
+			rawConfig, err := cluster.RawRestConfig()
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedQPS, rawConfig.QPS)
+			assert.Equal(t, tt.expectedBurst, rawConfig.Burst)
+
+			restConfig, err := cluster.RESTConfig()
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedQPS, restConfig.QPS)
+			assert.Equal(t, tt.expectedBurst, restConfig.Burst)
+		})
+	}
+}
+
+func TestCluster_Sanitized_PreservesQPSAndBurst(t *testing.T) {
+	cluster := &Cluster{
+		Server: "https://kubernetes.example",
+		Config: ClusterConfig{
+			Username:    "sensitive-user",
+			Password:    "sensitive-pass",
+			BearerToken: "sensitive-token",
+			QPS:         30.5,
+			Burst:       61,
+		},
+	}
+
+	sanitized := cluster.Sanitized()
+	assert.Equal(t, float32(30.5), sanitized.Config.QPS)
+	assert.Equal(t, int64(61), sanitized.Config.Burst)
+	assert.Empty(t, sanitized.Config.Username)
+	assert.Empty(t, sanitized.Config.Password)
+	assert.Empty(t, sanitized.Config.BearerToken)
+}
+
+func TestCluster_HashIdentity_IncludesQPSAndBurst(t *testing.T) {
+	base := &Cluster{
+		Server: "https://kubernetes.example",
+		Name:   "example",
+		Config: ClusterConfig{
+			QPS:   10,
+			Burst: 20,
+		},
+	}
+	withDiffQPS := &Cluster{
+		Server: "https://kubernetes.example",
+		Name:   "example",
+		Config: ClusterConfig{
+			QPS:   25,
+			Burst: 20,
+		},
+	}
+	withDiffBurst := &Cluster{
+		Server: "https://kubernetes.example",
+		Name:   "example",
+		Config: ClusterConfig{
+			QPS:   10,
+			Burst: 50,
+		},
+	}
+
+	assert.NotEqual(t, base.HashIdentity(0), withDiffQPS.HashIdentity(0))
+	assert.NotEqual(t, base.HashIdentity(0), withDiffBurst.HashIdentity(0))
 }
