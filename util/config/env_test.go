@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,6 +20,7 @@ func loadInvalidOpts(t *testing.T, opts string) {
 }
 
 func TestNilOpts(t *testing.T) {
+	os.Unsetenv("ARGOCD_OPTS")
 	assert.Equal(t, "foo", GetFlag("foo", "foo"))
 }
 
@@ -80,6 +82,18 @@ func TestIntFlagAtEnd(t *testing.T) {
 	assert.Equal(t, 2, GetIntFlag("foo", 0))
 }
 
+func TestRepeatedScalarFlagKeepsLastValue(t *testing.T) {
+	loadOpts(t, "--http-retry-max 1 --http-retry-max 2")
+
+	assert.Equal(t, 2, GetIntFlag("http-retry-max", 0))
+}
+
+func TestRepeatedServerFlagUsesLastValue(t *testing.T) {
+	loadOpts(t, "--server https://first.example.com --server https://second.example.com")
+
+	assert.Equal(t, "https://second.example.com", GetFlag("server", ""))
+}
+
 func TestStringSliceFlag(t *testing.T) {
 	loadOpts(t, "--header='Content-Type: application/json; charset=utf-8,Strict-Transport-Security: max-age=31536000'")
 	strings := GetStringSliceFlag("header", []string{})
@@ -111,6 +125,15 @@ func TestStringSliceFlagAtEnd(t *testing.T) {
 
 	assert.Len(t, strings, 1)
 	assert.Equal(t, "Strict-Transport-Security: max-age=31536000", strings[0])
+}
+
+func TestRepeatedHeaderFlagsAccumulate(t *testing.T) {
+	loadOpts(t, "--header 'CF-Access-Client-Id: foo' --header 'CF-Access-Client-Secret: bar'")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "CF-Access-Client-Id: foo", strings[0])
+	assert.Equal(t, "CF-Access-Client-Secret: bar", strings[1])
 }
 
 func TestFlagAtStart(t *testing.T) {
