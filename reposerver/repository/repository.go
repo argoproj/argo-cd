@@ -477,7 +477,11 @@ func (s *Service) runRepoOperation(
 			}
 		}
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
-			return &operationContext{chartPath, "", nil}, nil
+			sourceIntegrityResult, err := s.verifyHelmSourceIntegrity(ctx, sourceIntegrity, source, helmClient, revision, settings.noCache || settings.noRevisionCache)
+			if err != nil {
+				return nil, err
+			}
+			return &operationContext{chartPath, "", sourceIntegrityResult}, nil
 		})
 	}
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func(clean bool) (goio.Closer, error) {
@@ -558,6 +562,58 @@ func (s *Service) runRepoOperation(
 
 		return &operationContext{appPath, verificationResult, sourceIntegrityResult}, nil
 	})
+}
+
+func (s *Service) verifyHelmSourceIntegrity(
+	ctx context.Context,
+	sourceIntegrity *v1alpha1.SourceIntegrity,
+	source *v1alpha1.ApplicationSource,
+	helmClient helm.Client,
+	revision string,
+	noCache bool,
+) (*v1alpha1.SourceIntegrityCheckResult, error) {
+	if !sourceintegrity.HasCriteria(sourceIntegrity, *source) {
+		return nil, nil
+	}
+	return s.verifyHelmProvenance(ctx, sourceIntegrity, source, helmClient, revision, noCache)
+}
+
+func readHelmChartAndProvenance(ctx context.Context, helmClient helm.Client, chart, revision string, noCache bool) (chartTgz, provContent []byte, chartFilename string, err error) {
+	tgzPath, err := helmClient.GetChartTgzPath(chart, revision)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	chartTgz, err = os.ReadFile(tgzPath)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	provContent, chartFilename, err = helmClient.FetchProvenance(ctx, chart, noCache, revision)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	return chartTgz, provContent, chartFilename, nil
+}
+
+func (s *Service) verifyHelmProvenance(
+	ctx context.Context,
+	sourceIntegrity *v1alpha1.SourceIntegrity,
+	source *v1alpha1.ApplicationSource,
+	helmClient helm.Client,
+	revision string,
+	noCache bool,
+) (*v1alpha1.SourceIntegrityCheckResult, error) {
+	chartTgz, provContent, chartFilename, err := readHelmChartAndProvenance(ctx, helmClient, source.Chart, revision, noCache)
+	if err != nil {
+		if errors.Is(err, helm.ErrProvenanceNotFound) {
+			// Missing .prov (HTTP 404 from every mirror, or absent after helm pull --prov) is a
+			// definitive policy violation for this chart version, not a transient failure.
+			return sourceintegrity.HelmProvenanceFetchFailed(sourceIntegrity, source.RepoURL, err), nil
+		}
+		// Anything else (network error, 5xx) is transient: propagate it so the failure is cached as a
+		// failed generation with retry accounting instead of as a successful response.
+		return nil, fmt.Errorf("helm provenance verification: %w", err)
+	}
+	return sourceintegrity.VerifyHelm(ctx, sourceIntegrity, source.RepoURL, chartTgz, provContent, chartFilename)
 }
 
 func getRepoSanitizerRegex(rootDir string) *regexp.Regexp {
@@ -2745,7 +2801,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	if err == nil {
 		// The SourceIntegrity criteria could have changed since this was cached - it could have been added, removed, or changed.
 		// If present in request or the cached version, treat this as a cache miss.
-		sourceIntegrity := q.SourceIntegrity != nil || metadata.SourceIntegrityResult != nil
+		sourceIntegrity := (q.SourceIntegrity != nil && q.SourceIntegrity.Git != nil) || metadata.SourceIntegrityResult != nil
 		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 		signatureChecking := q.CheckSignature || metadata.SignatureInfo != "" // nolint:staticcheck
 		if !sourceIntegrity && !signatureChecking {
