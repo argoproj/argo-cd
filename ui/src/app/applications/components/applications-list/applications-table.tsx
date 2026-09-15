@@ -18,6 +18,24 @@ export const ApplicationsTable = (props: {
     deleteApplication: (appName: string, appNamespace: string) => any;
 }) => {
     const [selectedApp, navApp, reset] = useNav(props.applications.length);
+    const [collapsedProjects, setCollapsedProjects] = React.useState<Record<string, boolean>>({});
+
+    const getProjName = (app: models.AbstractApplication) => {
+        return isApp(app) ? app.spec?.project || 'default' : 'default';
+    };
+
+    const groupedApps = React.useMemo(() => {
+        const groupsMap = new Map<string, {app: models.AbstractApplication; index: number}[]>();
+        props.applications.forEach((app, i) => {
+            const proj = getProjName(app);
+            if (!groupsMap.has(proj)) {
+                groupsMap.set(proj, []);
+            }
+            groupsMap.get(proj).push({app, index: i});
+        });
+        return Array.from(groupsMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    }, [props.applications]);
+
     const ctxh = React.useContext(Context);
 
     const {registerKeybinding} = React.useContext(KeybindingContext);
@@ -47,22 +65,71 @@ export const ApplicationsTable = (props: {
             {ctx => (
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
                     {pref => (
-                        <div className='applications-table argo-table-list argo-table-list--clickable'>
-                            {props.applications.map((app, i) =>
-                                isApp(app) ? (
-                                    <ApplicationTableRow
-                                        key={AppUtils.appInstanceName(app)}
-                                        app={app as models.Application}
-                                        selected={selectedApp === i}
-                                        pref={pref}
-                                        ctx={ctx}
-                                        syncApplication={props.syncApplication}
-                                        refreshApplication={props.refreshApplication}
-                                        deleteApplication={props.deleteApplication}
-                                    />
-                                ) : (
-                                    <AppSetTableRow key={AppUtils.appInstanceName(app)} appSet={app as models.ApplicationSet} selected={selectedApp === i} pref={pref} ctx={ctx} />
-                                )
+                        <div>
+                            {pref.appList.groupByProject ? (
+                                groupedApps.map(([project, appsInGroup]) => {
+                                    const isCollapsed = !!collapsedProjects[project];
+                                    return (
+                                        <div key={project} className='project-group'>
+                                            <div className='project-group__header' onClick={() => setCollapsedProjects({...collapsedProjects, [project]: !isCollapsed})}>
+                                                <i className={`fa fa-angle-${isCollapsed ? 'right' : 'down'}`} />
+                                                <span className='project-group__header__title'>{project}</span>
+                                                <span className='project-group__header__count'>{appsInGroup.length}</span>
+                                            </div>
+                                            {!isCollapsed && (
+                                                <div className='applications-table argo-table-list argo-table-list--clickable'>
+                                                    {appsInGroup.map(({app, index}) =>
+                                                        isApp(app) ? (
+                                                            <ApplicationTableRow
+                                                                key={AppUtils.appInstanceName(app)}
+                                                                app={app as models.Application}
+                                                                selected={selectedApp === index}
+                                                                pref={pref}
+                                                                ctx={ctx}
+                                                                syncApplication={props.syncApplication}
+                                                                refreshApplication={props.refreshApplication}
+                                                                deleteApplication={props.deleteApplication}
+                                                            />
+                                                        ) : (
+                                                            <AppSetTableRow
+                                                                key={AppUtils.appInstanceName(app)}
+                                                                appSet={app as models.ApplicationSet}
+                                                                selected={selectedApp === index}
+                                                                pref={pref}
+                                                                ctx={ctx}
+                                                            />
+                                                        )
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <div className='applications-table argo-table-list argo-table-list--clickable'>
+                                    {props.applications.map((app, i) =>
+                                        isApp(app) ? (
+                                            <ApplicationTableRow
+                                                key={AppUtils.appInstanceName(app)}
+                                                app={app as models.Application}
+                                                selected={selectedApp === i}
+                                                pref={pref}
+                                                ctx={ctx}
+                                                syncApplication={props.syncApplication}
+                                                refreshApplication={props.refreshApplication}
+                                                deleteApplication={props.deleteApplication}
+                                            />
+                                        ) : (
+                                            <AppSetTableRow
+                                                key={AppUtils.appInstanceName(app)}
+                                                appSet={app as models.ApplicationSet}
+                                                selected={selectedApp === i}
+                                                pref={pref}
+                                                ctx={ctx}
+                                            />
+                                        )
+                                    )}
+                                </div>
                             )}
                         </div>
                     )}
