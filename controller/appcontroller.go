@@ -2575,6 +2575,13 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 		desiredRevisions = syncStatus.Revisions
 	}
 
+	retryLimit := int64(5)
+	if ctrl.settingsMgr != nil {
+		if limit, err := ctrl.settingsMgr.GetDefaultRetryLimit(); err == nil {
+			retryLimit = limit
+		}
+	}
+
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
 			Source:      source,
@@ -2585,7 +2592,7 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 			Revisions:   syncStatus.Revisions,
 		},
 		InitiatedBy: appv1.OperationInitiator{Automated: true},
-		Retry:       appv1.RetryStrategy{Limit: 5},
+		Retry:       appv1.RetryStrategy{Limit: retryLimit},
 	}
 	if app.Spec.SyncPolicy.Retry != nil {
 		op.Retry = *app.Spec.SyncPolicy.Retry
