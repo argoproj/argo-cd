@@ -1158,9 +1158,8 @@ func (server *ArgoCDServer) jwtHeaderMatcher(key string) (string, bool) {
 	}
 
 	// only check for jwt headers if not matched by default
-	k := strings.ToLower(key)
-	if k == server.settings.JWTConfig.HeaderName {
-		return k, true
+	if strings.EqualFold(key, server.settings.JWTConfig.HeaderName) {
+		return strings.ToLower(key), true
 	}
 
 	return "", false
