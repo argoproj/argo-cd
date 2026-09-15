@@ -79,6 +79,7 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 		URL:             appSetGenerator.Git.RepoURL,
 		Revision:        appSetGenerator.Git.Revision,
 		PathParamPrefix: appSetGenerator.Git.PathParamPrefix,
+		ParamPrefix:     appSetGenerator.Git.ParamPrefix,
 		Values:          appSetGenerator.Git.Values,
 		Directories:     dirs,
 		Files:           files,

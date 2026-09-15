@@ -19,6 +19,7 @@ foo:
 		useGoTemplate     bool
 		goTemplateOptions []string
 		pathParamPrefix   string
+		paramPrefix       string
 	}
 	tests := []struct {
 		name    string
@@ -132,6 +133,28 @@ foo:
 			},
 		},
 		{
+			name: "params are prefixed",
+			args: args{
+				filePath:      "path/dir/file_name.yaml",
+				fileContent:   defaultContent,
+				values:        map[string]string{},
+				useGoTemplate: false,
+				paramPrefix:   "myRepo",
+			},
+			want: []map[string]any{
+				{
+					"myRepo.foo.bar":          "baz",
+					"path":                    "path/dir",
+					"path.basename":           "dir",
+					"path.filename":           "file_name.yaml",
+					"path.basenameNormalized": "dir",
+					"path.filenameNormalized": "file-name.yaml",
+					"path[0]":                 "path",
+					"path[1]":                 "dir",
+				},
+			},
+		},
+		{
 			name: "path parameter are prefixed with go template",
 			args: args{
 				filePath:        "path/dir/file_name.yaml",
@@ -196,10 +219,40 @@ foo:
 				},
 			},
 		},
+		{
+			name: "parameters are prefixed with go template",
+			args: args{
+				filePath:      "path/dir/file_name.yaml",
+				fileContent:   defaultContent,
+				values:        map[string]string{},
+				useGoTemplate: true,
+				paramPrefix:   "myRepo",
+			},
+			want: []map[string]any{
+				{
+					"myRepo": map[string]any{
+						"foo": map[string]any{
+							"bar": "baz",
+						},
+					},
+					"path": map[string]any{
+						"path":               "path/dir",
+						"basename":           "dir",
+						"filename":           "file_name.yaml",
+						"basenameNormalized": "dir",
+						"filenameNormalized": "file-name.yaml",
+						"segments": []string{
+							"path",
+							"dir",
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			params, err := parseFileParams(tt.args.filePath, tt.args.fileContent, tt.args.pathParamPrefix, tt.args.values, tt.args.useGoTemplate, tt.args.goTemplateOptions)
+			params, err := parseFileParams(tt.args.filePath, tt.args.fileContent, tt.args.pathParamPrefix, tt.args.paramPrefix, tt.args.values, tt.args.useGoTemplate, tt.args.goTemplateOptions)
 			if tt.wantErr {
 				assert.Error(t, err, "GitGenerator.parseFileParams()")
 			} else {
