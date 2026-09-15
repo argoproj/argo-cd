@@ -41,7 +41,7 @@ var (
 
 	progressiveSyncAppRefreshTriggeredCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "argocd_appset_app_refresh_total",
-		Help: "Counts application refresh triggered per step for progressive sync",
+		Help: "Counts application refresh triggered by AppSet for progressive sync",
 	}, []string{"namespace", "name"})
 )
 
