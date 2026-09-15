@@ -39,6 +39,7 @@ import (
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	"github.com/argoproj/argo-cd/v3/util/lua"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/syncwindow"
 )
 
 const (
@@ -188,7 +189,17 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		state.SyncResult = newSyncOperationResult(app, syncOp)
 	}
 
-	if isBlocked, err := syncWindowPreventsSync(app, project); isBlocked {
+	projCRDWindows, appWindows := m.resolveSyncWindowCRDRefs(app, project)
+	isManual := false
+	var operationStartTime *time.Time
+	if app.Status.OperationState != nil {
+		isManual = !app.Status.OperationState.Operation.InitiatedBy.Automated
+		if !app.Status.OperationState.StartedAt.IsZero() {
+			t := app.Status.OperationState.StartedAt.Time
+			operationStartTime = &t
+		}
+	}
+	if isBlocked, err := syncWindowPreventsSync(app, project, projCRDWindows, appWindows, isManual, operationStartTime); isBlocked {
 		// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
 		if state.Phase == common.OperationRunning {
 			state.Message = "Sync operation blocked by sync window"
@@ -724,23 +735,69 @@ func delayBetweenSyncWaves(_ common.SyncPhase, _ int, finalWave bool) error {
 	return nil
 }
 
-func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject) (bool, error) {
-	window := proj.Spec.SyncWindows.Matches(app)
-	isManual := false
-	var operationStartTime *time.Time
-	if app.Status.OperationState != nil {
-		isManual = !app.Status.OperationState.Operation.InitiatedBy.Automated
-		if !app.Status.OperationState.StartedAt.IsZero() {
-			t := app.Status.OperationState.StartedAt.Time
-			operationStartTime = &t
+// syncWindowPreventsSync evaluates sync windows in two independent tiers.
+// The AppProject tier (inline windows + project CRD refs) is evaluated first,
+// then the Application tier (app CRD refs). Both tiers must independently
+// permit the sync, neither can override the other.
+func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject, projCRDWindows v1alpha1.SyncWindows, appWindows v1alpha1.SyncWindows, isManual bool, operationStartTime *time.Time) (bool, error) {
+	// Tier 1: AppProject : inline windows + project CRD refs (filtered by app name/ns/cluster).
+	projWindow := proj.Spec.SyncWindows.Matches(app)
+	if len(projCRDWindows) > 0 {
+		matched := projCRDWindows.Matches(app)
+		if matched.HasWindows() {
+			if projWindow == nil {
+				projWindow = matched
+			} else {
+				*projWindow = append(*projWindow, *matched...)
+			}
 		}
 	}
-	canSync, err := window.CanSync(isManual, operationStartTime)
+	canSync, err := projWindow.CanSync(isManual, operationStartTime)
 	if err != nil {
-		// prevents sync because sync window has an error
 		return true, err
 	}
-	return !canSync, nil
+	if !canSync {
+		return true, nil
+	}
+
+	// Tier 2: Application : app CRD refs apply unconditionally to the referencing app.
+	if len(appWindows) > 0 {
+		w := v1alpha1.SyncWindows(appWindows)
+		canSync, err = w.CanSync(isManual, operationStartTime)
+		if err != nil {
+			return true, err
+		}
+		if !canSync {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// resolveSyncWindowCRDRefs resolves SyncWindow CRD references from the project and app.
+// projWindows are project-scoped refs that still need Matches() filtering against the app.
+// appWindows are app-scoped refs that apply unconditionally to the referencing app.
+func (m *appStateManager) resolveSyncWindowCRDRefs(app *v1alpha1.Application, proj *v1alpha1.AppProject) (projWindows v1alpha1.SyncWindows, appWindows v1alpha1.SyncWindows) {
+	resolver := syncwindow.NewResolver(m.syncWindowLister, m.namespace)
+
+	if len(proj.Spec.SyncWindowRefs) > 0 {
+		windows, err := resolver.ResolveProjectRefs(proj.Spec.SyncWindowRefs)
+		if err != nil {
+			log.WithError(err).Warn("Failed to resolve some project sync window refs")
+		}
+		projWindows = append(projWindows, windows...)
+	}
+
+	if len(app.Spec.SyncWindowRefs) > 0 {
+		windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs)
+		if err != nil {
+			log.WithError(err).Warn("Failed to resolve some app sync window refs")
+		}
+		appWindows = append(appWindows, windows...)
+	}
+
+	return projWindows, appWindows
 }
 
 // validateSyncPermissions checks whether the given resource is permitted by the project's

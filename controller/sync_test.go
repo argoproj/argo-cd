@@ -1,9 +1,11 @@
 package controller
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	openapi_v2 "github.com/google/gnostic-models/openapiv2"
 	"k8s.io/kubectl/pkg/util/openapi"
@@ -367,6 +369,130 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 		// then
 		assert.Equal(t, synccommon.OperationRunning, opState.Phase)
 		assert.Contains(t, opState.Message, opMessage)
+	})
+}
+
+// activeSchedule returns a cron schedule that is active right now ("* * * * *" = every minute).
+func activeSchedule() string { return "* * * * *" }
+
+// inactiveSchedule returns a cron schedule that fires 10 hours from now, so it is inactive now.
+func inactiveSchedule() string {
+	h, _, _ := time.Now().Add(10 * time.Hour).Clock()
+	return fmt.Sprintf("0 %d * * *", h)
+}
+
+// makeSyncWindow builds an InlineSyncWindow with wildcard filters so it matches any app.
+func makeSyncWindow(kind, schedule, duration string) *v1alpha1.InlineSyncWindow {
+	return &v1alpha1.InlineSyncWindow{
+		Kind:         kind,
+		Schedule:     schedule,
+		Duration:     duration,
+		Applications: []string{"*"},
+		Namespaces:   []string{"*"},
+		Clusters:     []string{"*"},
+	}
+}
+
+func TestSyncWindowTwoTierEvaluation(t *testing.T) {
+	t.Parallel()
+
+	app := &v1alpha1.Application{
+		Name: "my-app", Namespace: "default",
+		Spec: v1alpha1.ApplicationSpec{
+			Destination: v1alpha1.ApplicationDestination{
+				Namespace: "default",
+				Server:    "https://kubernetes.default.svc",
+			},
+		},
+	}
+
+	// Helpers: "active" means the window is open right now; "inactive" means closed.
+	activeAllow := func() *v1alpha1.InlineSyncWindow { return makeSyncWindow("allow", activeSchedule(), "2h") }
+	activeDeny := func() *v1alpha1.InlineSyncWindow { return makeSyncWindow("deny", activeSchedule(), "2h") }
+	inactiveAllow := func() *v1alpha1.InlineSyncWindow { return makeSyncWindow("allow", inactiveSchedule(), "2h") }
+	inactiveDeny := func() *v1alpha1.InlineSyncWindow { return makeSyncWindow("deny", inactiveSchedule(), "2h") }
+
+	// --- Scenario: AppProject allow 2am–4am / App allow 3am–5am ---
+	// At 3:30am both windows are open both tiers allow, sync permitted.
+	t.Run("2am-4am project allow + 3am-5am app allow: at 3:30am (both open) expects sync permitted", func(t *testing.T) {
+		t.Parallel()
+		proj := &v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{SyncWindows: v1alpha1.SyncWindows{activeAllow()}}}
+		blocked, err := syncWindowPreventsSync(app, proj, nil, v1alpha1.SyncWindows{activeAllow()}, false, nil)
+		require.NoError(t, err)
+		assert.False(t, blocked)
+	})
+
+	// At 2:30am project window is open but app window hasn't started app tier blocks.
+	t.Run("2am-4am project allow + 3am-5am app allow: at 2:30am (project open, app closed) expects sync blocked", func(t *testing.T) {
+		t.Parallel()
+		proj := &v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{SyncWindows: v1alpha1.SyncWindows{activeAllow()}}}
+		blocked, err := syncWindowPreventsSync(app, proj, nil, v1alpha1.SyncWindows{inactiveAllow()}, false, nil)
+		require.NoError(t, err)
+		assert.True(t, blocked)
+	})
+
+	// At 4:30am project window is closed but app window is still open project tier blocks.
+	t.Run("2am-4am project allow + 3am-5am app allow: at 4:30am (project closed, app open) expects sync blocked", func(t *testing.T) {
+		t.Parallel()
+		proj := &v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{SyncWindows: v1alpha1.SyncWindows{inactiveAllow()}}}
+		blocked, err := syncWindowPreventsSync(app, proj, nil, v1alpha1.SyncWindows{activeAllow()}, false, nil)
+		require.NoError(t, err)
+		assert.True(t, blocked)
+	})
+
+	// --- Scenario: AppProject deny 2am–4am / App allow 3am–5am ---
+	// At 3:30am project deny is active project tier blocks regardless of app allow.
+	t.Run("2am-4am project deny + 3am-5am app allow: at 3:30am (project deny active) expects sync blocked", func(t *testing.T) {
+		t.Parallel()
+		proj := &v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{SyncWindows: v1alpha1.SyncWindows{activeDeny()}}}
+		blocked, err := syncWindowPreventsSync(app, proj, nil, v1alpha1.SyncWindows{activeAllow()}, false, nil)
+		require.NoError(t, err)
+		assert.True(t, blocked)
+	})
+
+	// At 4:30am project deny window closed project tier allows, app allow open, sync permitted.
+	t.Run("2am-4am project deny + 3am-5am app allow: at 4:30am (project deny closed) expects sync permitted", func(t *testing.T) {
+		t.Parallel()
+		proj := &v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{SyncWindows: v1alpha1.SyncWindows{inactiveDeny()}}}
+		blocked, err := syncWindowPreventsSync(app, proj, nil, v1alpha1.SyncWindows{activeAllow()}, false, nil)
+		require.NoError(t, err)
+		assert.False(t, blocked)
+	})
+
+	// --- Scenario: App allow 5am–7am only, no AppProject windows ---
+	// At 6am app window is open AppProject tier has no windows, sync permitted.
+	t.Run("5am-7am app allow only: at 6am (app window open, no project windows) expects sync permitted", func(t *testing.T) {
+		t.Parallel()
+		proj := &v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{}}
+		blocked, err := syncWindowPreventsSync(app, proj, nil, v1alpha1.SyncWindows{activeAllow()}, false, nil)
+		require.NoError(t, err)
+		assert.False(t, blocked)
+	})
+
+	// At 8am app window is closed, app tier blocks (inactive allow = implicit deny outside the window).
+	t.Run("5am-7am app allow only: at 8am (app window closed, no project windows) expects sync blocked", func(t *testing.T) {
+		t.Parallel()
+		proj := &v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{}}
+		blocked, err := syncWindowPreventsSync(app, proj, nil, v1alpha1.SyncWindows{inactiveAllow()}, false, nil)
+		require.NoError(t, err)
+		assert.True(t, blocked)
+	})
+
+	// --- Edge cases ---
+	t.Run("AppProject blocks, Application allows expects app allow cannot override project deny", func(t *testing.T) {
+		t.Parallel()
+		proj := &v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{SyncWindows: v1alpha1.SyncWindows{activeDeny()}}}
+		blocked, err := syncWindowPreventsSync(app, proj, nil, v1alpha1.SyncWindows{activeAllow()}, false, nil)
+		require.NoError(t, err)
+		assert.True(t, blocked)
+	})
+
+	t.Run("both tiers empty expects sync permitted", func(t *testing.T) {
+		t.Parallel()
+		proj := &v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{}}
+		blocked, err := syncWindowPreventsSync(app, proj, nil, nil, false, nil)
+		require.NoError(t, err)
+		assert.False(t, blocked)
 	})
 }
 
