@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -46,4 +47,12 @@ func (r *ApplicationSetReconciler) SetApplicationSetStatusCondition(
 
 func (r *ApplicationSetReconciler) IncRefreshTriggeredCount(appset *argov1alpha1.ApplicationSet) {
 	r.Metrics.IncRefreshTriggeredCount(appset)
+}
+
+func (r *ApplicationSetReconciler) ObserveRolloutDuration(appset *argov1alpha1.ApplicationSet, duration time.Duration) {
+	r.Metrics.ObserveRolloutDuration(appset, duration)
+}
+
+func (r *ApplicationSetReconciler) ObserveStepCompletionDuration(appset *argov1alpha1.ApplicationSet, step string, duration time.Duration) {
+	r.Metrics.ObserveStepCompletionDuration(appset, step, duration)
 }
