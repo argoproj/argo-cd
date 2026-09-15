@@ -113,6 +113,21 @@ func TestStringSliceFlagAtEnd(t *testing.T) {
 	assert.Equal(t, "Strict-Transport-Security: max-age=31536000", strings[0])
 }
 
+func TestStringSliceFlagRepeated(t *testing.T) {
+	loadOpts(t, `--header "CF-Access-Client-Id: foo" --header "CF-Access-Client-Secret: bar"`)
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "CF-Access-Client-Id: foo", strings[0])
+	assert.Equal(t, "CF-Access-Client-Secret: bar", strings[1])
+}
+
+func TestFlagRepeatedLastWins(t *testing.T) {
+	loadOpts(t, "--foo bar --foo baz")
+
+	assert.Equal(t, "baz", GetFlag("foo", ""))
+}
+
 func TestFlagAtStart(t *testing.T) {
 	loadOpts(t, "--foo bar")
 
@@ -147,4 +162,34 @@ func TestFlagWithEqualSign(t *testing.T) {
 	loadOpts(t, "--foo=bar")
 
 	assert.Equal(t, "bar", GetFlag("foo", ""))
+}
+
+func TestStringSliceFlagRepeatedWithEqualSign(t *testing.T) {
+	loadOpts(t, "--header='CF-Access-Client-Id: foo' --header='CF-Access-Client-Secret: bar'")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "CF-Access-Client-Id: foo", strings[0])
+	assert.Equal(t, "CF-Access-Client-Secret: bar", strings[1])
+}
+
+func TestStringSliceFlagEmptyValue(t *testing.T) {
+	loadOpts(t, "--header ''")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Empty(t, strings)
+}
+
+func TestStringSliceFlagFallback(t *testing.T) {
+	loadOpts(t, "")
+	strings := GetStringSliceFlag("header", []string{"default"})
+
+	assert.Equal(t, []string{"default"}, strings)
+}
+
+func TestIntFlagEmptySlice(t *testing.T) {
+	loadOpts(t, "")
+	flags["foo"] = []string{}
+
+	assert.Equal(t, 5, GetIntFlag("foo", 5))
 }
