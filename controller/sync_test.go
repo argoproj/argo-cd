@@ -397,7 +397,7 @@ func TestSyncWindowTwoTierEvaluation(t *testing.T) {
 	t.Parallel()
 
 	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "my-app", Namespace: "default"},
+		Name: "my-app", Namespace: "default",
 		Spec: v1alpha1.ApplicationSpec{
 			Destination: v1alpha1.ApplicationDestination{
 				Namespace: "default",
