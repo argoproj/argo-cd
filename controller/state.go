@@ -761,6 +761,12 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 				m.repoErrorCache.Store(app.Name, time.Now())
 				return nil, ErrCompareStateRepo
 			}
+			if noRevisionCache {
+				// Level 3 comparisons (sync or force resolve) fail closed: do not continue
+				// with an empty target state, which could let a stale revision be rendered
+				// and applied. See https://github.com/argoproj/argo-cd/issues/29716
+				return nil, err
+			}
 			failedToLoadObjs = true
 		} else {
 			m.repoErrorCache.Delete(app.Name)
