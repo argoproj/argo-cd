@@ -8,11 +8,13 @@ import (
 	"fmt"
 	goio "io"
 	"io/fs"
+	"maps"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	gosync "sync"
@@ -3217,15 +3219,69 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	}, nil
 }
 
+// requestedFilePatterns returns the include and exclude glob patterns to apply to a
+// file request. Callers that predate multi-pattern support send a single pattern in
+// singlePattern instead.
+//
+// An empty pattern means "everything", so it is replaced with matchAll wherever it
+// appears. Passing one through would not just fail to match: git rejects an empty
+// pathspec outright, and a glob matches nothing, which would turn a generator that
+// used to select every file into an error or an empty result.
+func requestedFilePatterns(includePatterns, excludePatterns []string, singlePattern, matchAll string) ([]string, []string) {
+	if len(includePatterns) == 0 {
+		includePatterns = []string{singlePattern}
+	}
+	return matchAllForEmpty(includePatterns, matchAll), matchAllForEmpty(excludePatterns, matchAll)
+}
+
+func matchAllForEmpty(patterns []string, matchAll string) []string {
+	if !slices.Contains(patterns, "") {
+		return patterns
+	}
+	normalized := slices.Clone(patterns)
+	for i, pattern := range normalized {
+		if pattern == "" {
+			normalized[i] = matchAll
+		}
+	}
+	return normalized
+}
+
+// matchFilePatterns expands every include pattern with match and then drops
+// anything an exclude pattern matches. The returned paths are sorted and
+// deduplicated. Matching happens before any file is read, so excluded files
+// never hit the disk or the response.
+func matchFilePatterns(includePatterns, excludePatterns []string, match func(pattern string) ([]string, error)) ([]string, error) {
+	included := make(map[string]struct{})
+	for _, pattern := range includePatterns {
+		paths, err := match(pattern)
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range paths {
+			included[p] = struct{}{}
+		}
+	}
+
+	for _, pattern := range excludePatterns {
+		paths, err := match(pattern)
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range paths {
+			delete(included, p)
+		}
+	}
+
+	return slices.Sorted(maps.Keys(included)), nil
+}
+
 func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 	repo := request.GetRepo()
 	revision := request.GetRevision()
-	gitPath := request.GetPath()
 	noRevisionCache := request.GetNoRevisionCache()
 	enableNewGitFileGlobbing := request.GetNewGitFileGlobbingEnabled()
-	if gitPath == "" {
-		gitPath = "."
-	}
+	includePatterns, excludePatterns := requestedFilePatterns(request.GetIncludePatterns(), request.GetExcludePatterns(), request.GetPath(), ".")
 
 	if repo == nil {
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
@@ -3237,8 +3293,8 @@ func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRe
 	}
 
 	// check the cache and return the results if present
-	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, gitPath); err == nil {
-		log.Debugf("cache hit for repo: %s revision: %s pattern: %s", repo.Repo, revision, gitPath)
+	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, includePatterns, excludePatterns); err == nil {
+		log.Debugf("cache hit for repo: %s revision: %s include: %v exclude: %v", repo.Repo, revision, includePatterns, excludePatterns)
 		return &apiclient.GitFilesResponse{
 			Map: cachedFiles,
 		}, nil
@@ -3252,7 +3308,7 @@ func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRe
 		return s.checkoutRevision(ctx, gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, clean)
 	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
+		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s patterns %v: %v", repo.Repo, revision, includePatterns, err)
 	}
 	defer utilio.Close(closer)
 
@@ -3270,24 +3326,33 @@ func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRe
 		}
 	}
 
-	gitFiles, err := gitClient.LsFiles(ctx, gitPath, enableNewGitFileGlobbing)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to list files. repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
+	lsFiles := func(pattern string) ([]string, error) {
+		files, err := gitClient.LsFiles(ctx, pattern, enableNewGitFileGlobbing)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "unable to list files. repo %s with revision %s pattern %s: %v", repo.Repo, revision, pattern, err)
+		}
+		return files, nil
 	}
-	log.Debugf("listed %d git files from %s under %s", len(gitFiles), repo.Repo, gitPath)
 
-	res := make(map[string][]byte)
+	// Match and subtract before reading any contents, so excluded files are never read.
+	gitFiles, err := matchFilePatterns(includePatterns, excludePatterns, lsFiles)
+	if err != nil {
+		return nil, err
+	}
+	log.Debugf("listed %d git files from %s under %v", len(gitFiles), repo.Repo, includePatterns)
+
+	res := make(map[string][]byte, len(gitFiles))
 	for _, filePath := range gitFiles {
 		fileContents, err := os.ReadFile(filepath.Join(gitClient.Root(), filePath))
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "unable to read files. repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
+			return nil, status.Errorf(codes.Internal, "unable to read files. repo %s with revision %s patterns %v: %v", repo.Repo, revision, includePatterns, err)
 		}
 		res[filePath] = fileContents
 	}
 
-	err = s.cache.SetGitFiles(repo.Repo, revision, gitPath, res)
+	err = s.cache.SetGitFiles(repo.Repo, revision, includePatterns, excludePatterns, res)
 	if err != nil {
-		log.Warnf("error caching git files for repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
+		log.Warnf("error caching git files for repo %s with revision %s patterns %v: %v", repo.Repo, revision, includePatterns, err)
 	}
 
 	return &apiclient.GitFilesResponse{
@@ -3621,11 +3686,8 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 func (s *Service) GetOciFiles(ctx context.Context, request *apiclient.OciFilesRequest) (*apiclient.OciFilesResponse, error) {
 	repo := request.GetRepo()
 	revision := request.GetRevision()
-	ociPath := request.GetGlob()
 	noRevisionCache := request.GetNoRevisionCache()
-	if ociPath == "" {
-		ociPath = "."
-	}
+	includePatterns, excludePatterns := requestedFilePatterns(request.GetIncludePatterns(), request.GetExcludePatterns(), request.GetGlob(), "**")
 
 	if repo == nil {
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
@@ -3637,8 +3699,8 @@ func (s *Service) GetOciFiles(ctx context.Context, request *apiclient.OciFilesRe
 	}
 
 	// check the cache and return the results if present
-	if cachedFiles, err := s.cache.GetOciFiles(repo.Repo, digest, ociPath); err == nil {
-		log.Debugf("cache hit for OCI repo: %s revision: %s pattern: %s", repo.Repo, digest, ociPath)
+	if cachedFiles, err := s.cache.GetOciFiles(repo.Repo, digest, includePatterns, excludePatterns); err == nil {
+		log.Debugf("cache hit for OCI repo: %s revision: %s include: %v exclude: %v", repo.Repo, digest, includePatterns, excludePatterns)
 		return &apiclient.OciFilesResponse{
 			Files: cachedFiles,
 		}, nil
@@ -3647,29 +3709,38 @@ func (s *Service) GetOciFiles(ctx context.Context, request *apiclient.OciFilesRe
 	s.metricsServer.IncPendingRepoRequest(repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
-	// cache miss, extract the OCI artifact
+	// cache miss, extract the OCI artifact. Every pattern is matched against this one
+	// extraction rather than fetching and decompressing the artifact once per pattern.
 	extractedPath, closer, err := ociClient.Extract(ctx, digest)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to extract OCI artifact %s with revision %s: %v", repo.Repo, digest, err)
 	}
 	defer utilio.Close(closer)
 
-	globPattern := ociPath
-	if globPattern == "." {
-		globPattern = "**"
-	}
 	root, err := os.OpenRoot(extractedPath)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to open extracted path %s: %v", extractedPath, err)
 	}
 	defer root.Close()
 
-	matchedFiles, err := doublestar.Glob(root.FS(), globPattern)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to match files. repo %s with revision %s pattern %s: %v", repo.Repo, digest, ociPath, err)
+	globFiles := func(pattern string) ([]string, error) {
+		if pattern == "." {
+			pattern = "**"
+		}
+		paths, err := doublestar.Glob(root.FS(), pattern)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "unable to match files. repo %s with revision %s pattern %s: %v", repo.Repo, digest, pattern, err)
+		}
+		return paths, nil
 	}
 
-	log.Infof("matched %d OCI files from %s under %s", len(matchedFiles), repo.Repo, ociPath)
+	// Match and subtract before reading any contents, so excluded files are never read.
+	matchedFiles, err := matchFilePatterns(includePatterns, excludePatterns, globFiles)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Infof("matched %d OCI files from %s under %v", len(matchedFiles), repo.Repo, includePatterns)
 
 	res := make(map[string][]byte)
 	for _, filePath := range matchedFiles {
@@ -3692,15 +3763,15 @@ func (s *Service) GetOciFiles(ctx context.Context, request *apiclient.OciFilesRe
 
 		fileContents, err := root.ReadFile(filePath)
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "unable to read file. repo %s with revision %s pattern %s: %v", repo.Repo, digest, ociPath, err)
+			return nil, status.Errorf(codes.Internal, "unable to read file. repo %s with revision %s path %s: %v", repo.Repo, digest, filePath, err)
 		}
 
 		res[filePath] = fileContents
 	}
 
-	err = s.cache.SetOciFiles(repo.Repo, digest, ociPath, res)
+	err = s.cache.SetOciFiles(repo.Repo, digest, includePatterns, excludePatterns, res)
 	if err != nil {
-		log.Warnf("error caching OCI files for repo %s with revision %s pattern %s: %v", repo.Repo, digest, ociPath, err)
+		log.Warnf("error caching OCI files for repo %s with revision %s patterns %v: %v", repo.Repo, digest, includePatterns, err)
 	}
 
 	return &apiclient.OciFilesResponse{
