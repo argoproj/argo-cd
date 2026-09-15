@@ -5704,6 +5704,45 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			ExternalGets:    0,
 			ExternalSets:    0,
 		}},
+		{name: "UntypedHelmSingleSourceShortCircuits", fields: func() fields {
+			// Regression test for issue #29388: a single source application with an
+			// untyped Helm chart source (Type is empty, no ref sources at all) and the
+			// manifest-generate-paths annotation must not be treated as git. Before the
+			// fix, Normalize defaulted the empty type to git and the chart version was
+			// resolved as a git revision against the Helm repository URL, failing with
+			// "unable to resolve git revision : failed to list refs: repository not
+			// found". The mocks below make any git resolution fail so that the test only
+			// passes when the git path is skipped entirely.
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().LsRemote(mock.Anything).Return("", errors.New("failed to list refs: repository not found"))
+				gitClient.EXPECT().Root().Return("")
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:              &v1alpha1.Repository{Repo: "https://charts.example.com"},
+				Revision:          "1.2.3",
+				SyncedRevision:    "1.2.2",
+				Paths:             []string{"."},
+				AppLabelKey:       "app.kubernetes.io/name",
+				AppName:           "untyped-helm-single-source",
+				Namespace:         "default",
+				TrackingMethod:    "annotation+label",
+				ApplicationSource: &v1alpha1.ApplicationSource{Chart: "my-chart", Helm: &v1alpha1.ApplicationSourceHelm{ReleaseName: "test"}},
+				KubeVersion:       "v1.16.0",
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
+			ExternalGets:    0,
+			ExternalSets:    0,
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
