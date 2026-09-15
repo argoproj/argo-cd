@@ -2442,7 +2442,15 @@ func generateManifestsCMP(ctx context.Context, appPath, rootPath string, env []s
 func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
 	res := &apiclient.RepoAppDetailsResponse{}
 
-	cacheFn := s.createGetAppDetailsCacheHandler(res, q)
+	// refSourceCommitSHAs is populated by the cacheFn callback and consumed by
+	// the operation closure so that the cache key reflects the resolved
+	// commit SHAs of all referenced source repositories.
+	var refSourceCommitSHAs cache.ResolvedRevisions
+
+	cacheFn := func(revision string, resolvedRefs cache.ResolvedRevisions, firstInvocation bool) (bool, error) {
+		refSourceCommitSHAs = resolvedRefs
+		return s.createGetAppDetailsCacheHandler(res, q)(revision, resolvedRefs, firstInvocation)
+	}
 	operation := func(repoRoot, commitSHA, revision string, ctxSrc operationContextSrc) error {
 		opContext, err := ctxSrc()
 		if err != nil {
@@ -2472,7 +2480,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				return fmt.Errorf("failed to populate plugin app details: %w", err)
 			}
 		}
-		_ = s.cache.SetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod), nil)
+		_ = s.cache.SetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod), refSourceCommitSHAs)
 		return nil
 	}
 
@@ -2500,8 +2508,8 @@ func toUserInputStatusError(err error) error {
 }
 
 func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery) func(revision string, _ cache.ResolvedRevisions, _ bool) (bool, error) {
-	return func(revision string, _ cache.ResolvedRevisions, _ bool) (bool, error) {
-		err := s.cache.GetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod), nil)
+	return func(revision string, refSourceCommitSHAs cache.ResolvedRevisions, _ bool) (bool, error) {
+		err := s.cache.GetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod), refSourceCommitSHAs)
 		if err == nil {
 			log.Infof("app details cache hit: %s/%s", revision, q.Source.Path)
 			return true, nil
