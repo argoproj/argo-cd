@@ -2539,26 +2539,26 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 
 // syncWindowPreventsAutoSync checks if sync windows (both inline and CRD-based) prevent auto-sync.
 func (ctrl *ApplicationController) syncWindowPreventsAutoSync(app *appv1.Application, project *appv1.AppProject) (bool, error) {
-	var filteredWindows, directWindows appv1.SyncWindows
+	var projCRDWindows, appWindows appv1.SyncWindows
 	resolver := syncwindow.NewResolver(ctrl.syncWindowLister, ctrl.namespace)
 	if len(project.Spec.SyncWindowRefs) > 0 {
 		windows, err := resolver.ResolveProjectRefs(project.Spec.SyncWindowRefs)
 		if err != nil {
 			log.WithError(err).Warn("Failed to resolve some project sync window refs")
 		}
-		filteredWindows = append(filteredWindows, windows...)
+		projCRDWindows = append(projCRDWindows, windows...)
 	}
 	if len(app.Spec.SyncWindowRefs) > 0 {
 		windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs)
 		if err != nil {
 			log.WithError(err).Warn("Failed to resolve some app sync window refs")
 		}
-		directWindows = append(directWindows, windows...)
+		appWindows = append(appWindows, windows...)
 	}
 	// Auto-sync decision path: no operation has started yet, so pass isManual=false
 	// and operationStartTime=nil. status.OperationState here reflects a *previous*
 	// operation and must not influence whether the next auto-sync attempt is allowed.
-	return syncWindowPreventsSync(app, project, filteredWindows, directWindows, false, nil)
+	return syncWindowPreventsSync(app, project, projCRDWindows, appWindows, false, nil)
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync

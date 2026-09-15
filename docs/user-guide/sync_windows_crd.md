@@ -6,9 +6,9 @@ inline in `AppProject.spec.syncWindows`.
 
 > [!NOTE]
 > This is additive and fully backward compatible. Inline `AppProject.spec.syncWindows` continue
-> to work unchanged. CRD-based windows are merged with inline windows and evaluated by the same
-> engine (`SyncWindows.CanSync`), so all existing semantics, including **deny always wins over
-> allow** and `manualSync`, apply identically.
+> to work unchanged. Sync windows are evaluated in **two independent tiers** — the AppProject tier
+> and the Application tier — both of which must independently permit the sync. All existing
+> semantics within each tier (**deny always wins over allow**, `manualSync`, etc.) apply identically.
 
 The `SyncWindow` CRD must be installed in the cluster before the Argo CD application controller and
 API server start. The informer cache for this resource is part of their startup readiness checks.
@@ -103,6 +103,25 @@ Windows resolved from an app ref are **direct**: their `applications`/`namespace
 filters are **cleared** and the window applies to the referencing application **unconditionally**.
 The app already selected itself by referencing the window, so intrinsic filters are meaningless.
 
+### Self-service windows (Application tier)
+
+Because Application-level refs are evaluated as an independent tier, application owners can
+self-impose sync windows on their own app **without any AppProject update access**. The AppProject
+administrator's windows are always honored first — an Application-level allow window cannot bypass
+a deny window set on the AppProject.
+
+```yaml
+# Application owner adds their own maintenance window
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncWindowRefs:
+    - name: team-freeze   # references a pre-existing SyncWindow CR
+```
+
+> [!NOTE]
+> The `SyncWindow` CR itself must exist in the Argo CD namespace.
+
 ### ApplicationSet
 
 `ApplicationSet` has **no** `syncWindowRefs` field of its own. Put the ref in
@@ -121,9 +140,10 @@ ref directly).
 | Field type | `SyncWindowProjectRef` (ref + filters) | `SyncWindowRef` (ref only) |
 | Resolver | `ResolveProjectRefs` | `ResolveAppRefs` |
 | Definition's `applications`/`namespaces`/`clusters` | honored (or overridden by ref filters) | **cleared / ignored** |
-| Enforced via | `Matches(app)` then `CanSync` | appended directly, then `CanSync` |
+| Evaluated in | **Tier 1** (AppProject), via `Matches(app)` then `CanSync` | **Tier 2** (Application), applied unconditionally then `CanSync` |
 | A window with **no** filters | **dropped**, never applies (`Matches` needs ≥1 filter) | **applies** to the app |
 | Scoping question | "which apps in the project?" | already answered, this app |
+| Can override AppProject tier? | n/a | **No** — both tiers must independently pass |
 
 > [!IMPORTANT]
 > A filter-less window referenced from a **project** effectively won't apply, because
@@ -242,7 +262,7 @@ spec:
         selector: { matchLabels: { team: platform } }      # → List(team=platform)
 ```
 
-Both refs resolve independently; all resolved windows are **concatenated** and evaluated together.
+Both refs resolve independently; all resolved windows are **concatenated within the AppProject tier** and evaluated together as Tier 1.
 
 > [!WARNING]
 > **No deduplication.** If `nightly-freeze` itself carries the label `team: platform`, it matches
@@ -283,19 +303,76 @@ differently because of the reference site:
 | App ref (by name) → direct | `ResolveAppRefs` | **cleared** | yes, always |
 | Project ref (by label) → filtered | `ResolveProjectRefs` | **kept**, run through `Matches(app)` | no (`springboot-1` ≠ `prod-*`) |
 
-Net: `springboot-1` **is** gated by the nightly-freeze deny, solely because of its own app-level
-by-name ref, which ignores the CR's `prod-*` filter. The project's by-label ref contributes nothing
-here. If the app were named `prod-1`, both copies would apply (again harmless, two denies equal one).
+Net: `springboot-1` **is** gated by the nightly-freeze deny window, solely through its own
+app-level ref (Tier 2). The project's by-label ref lands in Tier 1 but contributes nothing here
+because `springboot-1` does not match the `prod-*` filter. If the app were named `prod-1`, both
+tiers would independently block it — the project ref via Tier 1 and the app ref via Tier 2.
 
-## Evaluation semantics (unchanged from inline windows)
+### Scenario 3: self-service — user adds a deny window without AppProject access
 
-Once resolved, CRD windows are merged with inline `AppProject.spec.syncWindows` and evaluated by the
-existing engine:
+An application owner wants to block their own deploys without involving the platform team.
 
-- **Deny always wins over allow.** If any active window denies, the sync is blocked.
-- **`manualSync: true`** permits manual syncs during a deny window.
-- Both the **manual sync** path and the **auto-sync** path apply the same logic.
+```yaml
+# SyncWindow CR created by platform team (pre-existing)
+apiVersion: argoproj.io/v1alpha1
+kind: SyncWindow
+metadata:
+  name: weekend-freeze
+  namespace: argocd
+spec:
+  windows:
+    - kind: deny
+      schedule: "0 0 * * 6"   # every Saturday at midnight
+      duration: 48h
+---
+# Application owner adds ref without touching AppProject
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncWindowRefs:
+    - name: weekend-freeze    # Tier 2: app-level, applies unconditionally
+```
+
+The AppProject has an allow window 9am–5pm (Tier 1). On a weekday at 10am:
+- Tier 1 (AppProject): allow window active — passes
+- Tier 2 (Application): deny window inactive — passes
+- **Result: sync permitted**
+
+On Saturday at 10am:
+- Tier 1 (AppProject): allow window active — passes
+- Tier 2 (Application): deny window active — **blocks**
+- **Result: sync blocked**
+
+The user self-imposed a restriction without any AppProject access, and the AppProject allow window
+cannot override the user's own deny.
+
+## Evaluation semantics: two independent tiers
+
+Sync windows are evaluated in **two independent tiers**. A sync is permitted only if **both** tiers
+independently permit it — neither tier can override the other.
+
+**Tier 1 — AppProject:**
+Inline `AppProject.spec.syncWindows` + windows resolved from `AppProject.spec.syncWindowRefs`.
+These windows are filtered via `Matches(app)` before evaluation. This tier is controlled by
+project administrators.
+
+**Tier 2 — Application:**
+Windows resolved from `Application.spec.syncWindowRefs`. These apply unconditionally to the
+referencing application (filters are cleared at resolve time). This tier is controlled by
+the application owner.
+
+Within each tier, standard evaluation rules apply:
+
+- **Deny always wins over allow.** If any active window in a tier denies, that tier blocks the sync.
+- **`manualSync: true`** permits manual syncs during a deny window within that tier.
+- Both the **manual sync** path and the **auto-sync** path apply the same two-tier logic.
 - `andOperator`, `timeZone`, `syncOverrun`, and `description` behave as they do for inline windows.
+
+> [!IMPORTANT]
+> Because the two tiers are ANDed, an Application-level allow window is evaluated independently and
+> **cannot bypass a deny window set on the AppProject**. Both tiers must pass. The AppProject tier
+> acts as a hard ceiling — application owners can further restrict their own syncs, but cannot
+> expand beyond what the AppProject permits.
 
 ## Resolution failure behavior
 
