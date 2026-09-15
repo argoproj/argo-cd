@@ -18,6 +18,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -119,9 +120,16 @@ func (c *clientSet) NewRepoServerClient() (utilio.Closer, RepoServerServiceClien
 }
 
 func NewConnection(address string, timeoutSeconds int, tlsConfig *utiltls.Configuration) (*grpc.ClientConn, error) {
+	// Retry on both Unavailable (transient network errors) and ResourceExhausted (repo-server at
+	// capacity). Exponential backoff with jitter spreads retries when multiple replicas are all
+	// briefly at capacity, which enables graceful scale-out behaviour
+	// (see https://github.com/argoproj/argo-cd/issues/16470). The per-retry wait is bounded so a
+	// persistently failing call surfaces its real error promptly instead of being masked by a
+	// context deadline, and so retries never wait for minutes.
 	retryOpts := []grpc_retry.CallOption{
-		grpc_retry.WithMax(3),
-		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
+		grpc_retry.WithMax(5),
+		grpc_retry.WithCodes(codes.ResourceExhausted, codes.Unavailable),
+		grpc_retry.WithBackoff(grpc_retry.BackoffExponentialWithJitterBounded(200*time.Millisecond, 0.5, 700*time.Millisecond)),
 	}
 	unaryInterceptors := []grpc.UnaryClientInterceptor{grpc_retry.UnaryClientInterceptor(retryOpts...)}
 	if timeoutSeconds > 0 {
