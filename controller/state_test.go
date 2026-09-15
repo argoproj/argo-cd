@@ -262,10 +262,118 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	assert.Empty(t, app.Status.Conditions)
 }
 
+func TestCompareAppStateManifestGenerationErrorPreservesRevision(t *testing.T) {
+	t.Parallel()
+
+	app := newFakeApp()
+	app.Status.Sync = v1alpha1.SyncStatus{
+		Revision: "old-sha",
+		Status:   v1alpha1.SyncStatusCodeSynced,
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{},
+		manifestErr:      errors.New("manifest generation failed"),
+		resolveRevisionResponses: []*apiclient.ResolveRevisionResponse{
+			{
+				Revision: "resolved-sha",
+			},
+		},
+		onGenerateManifest: func(req *apiclient.ManifestRequest) {
+			assert.Equal(t, "resolved-sha", req.Revision)
+		},
+	}
+
+	ctrl := newFakeController(t.Context(), &data, nil)
+
+	sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+	revisions := []string{"HEAD"}
+
+	compRes, err := ctrl.appStateManager.CompareAppState(
+		t.Context(),
+		app,
+		&defaultProj,
+		revisions,
+		sources,
+		false,
+		true,
+		nil,
+		false,
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, compRes)
+	require.NotNil(t, compRes.syncStatus)
+	assert.Equal(t, "resolved-sha", compRes.syncStatus.Revision)
+}
+
+func TestCompareAppStateManifestGenerationErrorPreservesRevisions(t *testing.T) {
+	t.Parallel()
+
+	app := newFakeApp()
+	app.Status.Sync = v1alpha1.SyncStatus{
+		Revisions: []string{"old-sha-1", "old-sha-2"},
+		Status:    v1alpha1.SyncStatusCodeSynced,
+	}
+
+	app.Spec.Sources = v1alpha1.ApplicationSources{
+		{
+			RepoURL:        "https://github.com/example/repo1.git",
+			TargetRevision: "HEAD",
+			Path:           "path1",
+		},
+		{
+			RepoURL:        "https://github.com/example/repo2.git",
+			TargetRevision: "HEAD",
+			Path:           "path2",
+		},
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{},
+		manifestErr:      errors.New("manifest generation failed"),
+		resolveRevisionResponses: []*apiclient.ResolveRevisionResponse{
+			{
+				Revision: "resolved-sha-1",
+			},
+			{
+				Revision: "resolved-sha-2",
+			},
+		},
+	}
+
+	ctrl := newFakeController(t.Context(), &data, nil)
+
+	revisions := []string{"HEAD", "HEAD"}
+
+	compRes, err := ctrl.appStateManager.CompareAppState(
+		t.Context(),
+		app,
+		&defaultProj,
+		revisions,
+		app.Spec.Sources,
+		false,
+		true,
+		nil,
+		true,
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, compRes)
+	require.NotNil(t, compRes.syncStatus)
+	assert.Equal(t, []string{"resolved-sha-1", "resolved-sha-2"}, compRes.syncStatus.Revisions)
+}
+
 // TestCompareAppStateRepoError tests the case when CompareAppState notices a repo error
 func TestCompareAppStateRepoError(t *testing.T) {
 	app := newFakeApp()
-	ctrl := newFakeController(t.Context(), &fakeData{manifestResponses: make([]*apiclient.ManifestResponse, 3)}, errors.New("test repo error"))
+	data := fakeData{
+		manifestResponses: make([]*apiclient.ManifestResponse, 3),
+		resolveRevisionResponses: []*apiclient.ResolveRevisionResponse{
+			{},
+		},
+	}
+	ctrl := newFakeController(t.Context(), &data, errors.New("test repo error"))
 	sources := make([]v1alpha1.ApplicationSource, 0)
 	sources = append(sources, app.Spec.GetSource())
 	revisions := make([]string, 0)
