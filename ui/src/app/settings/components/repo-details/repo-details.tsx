@@ -123,25 +123,25 @@ export const RepoDetails = (props: {item: UnifiedRepo; save?: (params: NewHTTPSR
         depth: repository?.depth || 0
     };
 
-    const baseUpdateParams = repository && {
-        type: repository.type,
-        name: repository.name || '',
-        url: repository.repo,
-        username: repository.username || '',
-        password: repository.password || '',
-        bearerToken: repository.bearerToken || '',
-        tlsClientCertData: repository.tlsClientCertData || '',
-        tlsClientCertKey: repository.tlsClientCertKey || '',
-        insecure: repository.insecure || false,
-        enableLfs: repository.enableLfs || false,
-        proxy: repository.proxy || '',
-        noProxy: repository.noProxy || '',
-        project: repository.project || '',
-        enableOCI: repository.enableOCI || false,
-        forceHttpBasicAuth: repository.forceHttpBasicAuth || false,
-        useAzureWorkloadIdentity: repository.useAzureWorkloadIdentity || false,
-        insecureOCIForceHttp: repository.insecureOCIForceHttp || false,
-        depth: repository.depth || 0
+    const baseUpdateParams = (repository || cred) && {
+        type: repository?.type || cred?.type || 'git',
+        name: repository?.name || '',
+        url: repoUrl,
+        username: repository?.username || cred?.username || '',
+        password: repository?.password || '',
+        bearerToken: repository?.bearerToken || cred?.bearerToken || '',
+        tlsClientCertData: repository?.tlsClientCertData || '',
+        tlsClientCertKey: repository?.tlsClientCertKey || '',
+        insecure: repository?.insecure || false,
+        enableLfs: repository?.enableLfs || false,
+        proxy: repository?.proxy || '',
+        noProxy: repository?.noProxy || '',
+        project: repository?.project || '',
+        enableOCI: repository?.enableOCI || cred?.enableOCI || false,
+        forceHttpBasicAuth: repository?.forceHttpBasicAuth || false,
+        useAzureWorkloadIdentity: repository?.useAzureWorkloadIdentity || false,
+        insecureOCIForceHttp: repository?.insecureOCIForceHttp || false,
+        depth: repository?.depth || 0
     };
 
     return (
