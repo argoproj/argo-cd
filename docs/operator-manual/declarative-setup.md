@@ -1476,7 +1476,7 @@ Users who are comfortable with an increase in kube api-server calls can opt for 
 Notes:
 
 * When set to use `strict` mode controller must have RBAC permission to `create` a `SelfSubjectAccessReview` resource 
-* The `SelfSubjectAccessReview` request will be only made for the `list` verb, it is assumed that if `list` is allowed for a resource then all other permissions are also available to the controller.
+* `strict` mode issues reviews as follows: if the initial list is forbidden/unauthorized it reviews `list` first and stops if that verb is denied; if the list succeeds it only reviews `watch` before starting the informer. `list` alone is not treated as sufficient (some platforms grant `list` without `watch`, which would otherwise cause repeated watch failures). Namespaced reviews are scoped to the namespace being listed or watched.
 
 Example `argocd-cm` ConfigMap with `resource.respectRBAC` set to `strict`:
 
