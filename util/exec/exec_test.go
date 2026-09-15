@@ -1,6 +1,7 @@
 package exec
 
 import (
+	"bytes"
 	"os/exec"
 	"regexp"
 	"syscall"
@@ -225,4 +226,13 @@ func TestRunWithExecRunOptsCaptureStderr(t *testing.T) {
 	output, err := RunWithExecRunOpts(cmd, ExecRunOpts{CaptureStderr: true})
 	assert.Equal(t, "hello world\nmy-error", output)
 	assert.NoError(t, err)
+}
+
+func TestRunWithExecRunOptsStderrWriter(t *testing.T) {
+	var stderr bytes.Buffer
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "printf stdout && printf stderr >&2")
+	output, err := RunWithExecRunOpts(cmd, ExecRunOpts{StderrWriter: &stderr})
+	require.NoError(t, err)
+	assert.Equal(t, "stdout", output)
+	assert.Equal(t, "stderr", stderr.String())
 }

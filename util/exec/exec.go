@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -35,6 +36,8 @@ type ExecRunOpts struct {
 	SkipErrorLogging bool
 	// CaptureStderr determines whether to capture stderr in addition to stdout
 	CaptureStderr bool
+	// StderrWriter receives stderr without adding it to the returned output
+	StderrWriter io.Writer
 }
 
 func init() {
@@ -63,7 +66,15 @@ func RunWithRedactor(cmd *exec.Cmd, redactor func(text string) string) (string, 
 }
 
 func RunWithExecRunOpts(cmd *exec.Cmd, opts ExecRunOpts) (string, error) {
-	cmdOpts := CmdOpts{Timeout: timeout, FatalTimeout: fatalTimeout, Redactor: opts.Redactor, TimeoutBehavior: opts.TimeoutBehavior, SkipErrorLogging: opts.SkipErrorLogging, CaptureStderr: opts.CaptureStderr}
+	cmdOpts := CmdOpts{
+		Timeout:          timeout,
+		FatalTimeout:     fatalTimeout,
+		Redactor:         opts.Redactor,
+		TimeoutBehavior:  opts.TimeoutBehavior,
+		SkipErrorLogging: opts.SkipErrorLogging,
+		CaptureStderr:    opts.CaptureStderr,
+		StderrWriter:     opts.StderrWriter,
+	}
 	span := tracing.NewLoggingTracer(log.NewLogrusLogger(log.NewWithCurrentConfig())).StartSpan(fmt.Sprintf("exec %v", cmd.Args[0]))
 	span.SetBaggageItem("dir", cmd.Dir)
 	if cmdOpts.Redactor != nil {
@@ -146,6 +157,8 @@ type CmdOpts struct {
 	SkipErrorLogging bool
 	// CaptureStderr defines whether to capture stderr in addition to stdout
 	CaptureStderr bool
+	// StderrWriter receives stderr without adding it to the returned output
+	StderrWriter io.Writer
 }
 
 var DefaultCmdOpts = CmdOpts{
@@ -188,6 +201,9 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	if opts.StderrWriter != nil {
+		cmd.Stderr = io.MultiWriter(&stderr, opts.StderrWriter)
+	}
 
 	start := time.Now()
 	err = cmd.Start()
