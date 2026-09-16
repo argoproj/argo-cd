@@ -838,7 +838,7 @@ func TestSyncWindowMetric(t *testing.T) {
 # TYPE argocd_app_sync_window gauge
 # HELP argocd_app_sync_blocked Whether automatic syncs of the application are currently blocked by its project's sync windows. Emitted as a 0/1 gauge: 1 means an automatic sync attempt right now would be rejected. Reports 0 when no sync windows are configured, distinguishing that case from "allow=0, deny=0" caused by inactive allow windows. Also reports 1 when the windows cannot be evaluated, because a real sync attempt would fail in the same state; use argocd_app_sync_window_error to tell the two apart.
 # TYPE argocd_app_sync_blocked gauge
-# HELP argocd_app_sync_window_error Whether the application's sync windows could not be evaluated. Emitted as a 0/1 gauge: 1 means the AppProject could not be resolved or its window schedules could not be parsed, so argocd_app_sync_window does not reflect the configured windows and argocd_app_sync_blocked is reported fail-closed as 1.
+# HELP argocd_app_sync_window_error Whether the application's sync windows could not be evaluated. Emitted as a 0/1 gauge: 1 means the AppProject could not be resolved, or a window matching the application has a schedule or duration that cannot be parsed, so argocd_app_sync_window does not reflect the configured windows and argocd_app_sync_blocked is reported fail-closed as 1.
 # TYPE argocd_app_sync_window_error gauge
 `
 	gauge := func(kind string, value int) string {
@@ -976,6 +976,45 @@ func TestSyncWindowMetricProjectFailureIsResolvedOncePerScrape(t *testing.T) {
 	// The cache lives for one scrape only, so the next scrape retries.
 	scrape()
 	assert.Equal(t, 2, calls, "the cache must not outlive a scrape")
+}
+
+// The controller's sync gate parses only the windows matching the application,
+// so a malformed window the application does not match must not report it as
+// blocked. Failing the whole project here would make the metric disagree with
+// the gate it is meant to mirror.
+func TestSyncWindowMetricMalformedWindowOnlyBlocksWhatItMatches(t *testing.T) {
+	proj := &argoappv1.AppProject{
+		Name: "important-project", Namespace: "argocd",
+		Spec: argoappv1.AppProjectSpec{SyncWindows: argoappv1.SyncWindows{
+			{Kind: "deny", Schedule: "* * * * *", Duration: "24h", Applications: []string{"some-other-app"}},
+			{Kind: "deny", Schedule: "not a cron spec", Duration: "1h", Applications: []string{"some-other-app"}},
+		}},
+	}
+	scrape := newSyncWindowScrape(func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+		return proj, nil
+	})
+
+	app := &argoappv1.Application{
+		Name: "my-app", Namespace: "argocd",
+		Spec: argoappv1.ApplicationSpec{Project: "important-project"},
+	}
+	allowActive, denyActive, blocked, failed, err := scrape.evaluate(app)
+	// The broken window is still reported once, for the project.
+	require.ErrorContains(t, err, "cannot parse schedule")
+	assert.False(t, blocked, "a window this application does not match cannot block it")
+	assert.False(t, failed)
+	assert.False(t, allowActive)
+	assert.False(t, denyActive)
+
+	// The application it does match reports fail-closed.
+	other := &argoappv1.Application{
+		Name: "some-other-app", Namespace: "argocd",
+		Spec: argoappv1.ApplicationSpec{Project: "important-project"},
+	}
+	_, _, blocked, failed, err = scrape.evaluate(other)
+	require.NoError(t, err, "the project was already reported")
+	assert.True(t, blocked)
+	assert.True(t, failed)
 }
 
 // A malformed schedule is a property of the project, not of the application,

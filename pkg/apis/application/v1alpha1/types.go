@@ -3037,13 +3037,24 @@ func cacheSyncWindowValue(cache *sync.Map, count *atomic.Int64, limit int64, key
 	}
 }
 
+// parseSyncWindowSchedule parses spec without caching it, for callers on the API
+// server write path: they see each string once, and caching there would let
+// project writes fill the cache with schedules that are never evaluated.
+func parseSyncWindowSchedule(spec string) (cron.Schedule, error) {
+	schedule, err := syncWindowScheduleParser.Parse(spec)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse schedule '%s': %w", spec, err)
+	}
+	return schedule, nil
+}
+
 func syncWindowSchedule(spec string) (cron.Schedule, error) {
 	if cached, ok := syncWindowScheduleCache.Load(spec); ok {
 		return cached.(cron.Schedule), nil
 	}
-	schedule, err := syncWindowScheduleParser.Parse(spec)
+	schedule, err := parseSyncWindowSchedule(spec)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse schedule '%s': %w", spec, err)
+		return nil, err
 	}
 	cacheSyncWindowValue(&syncWindowScheduleCache, &syncWindowScheduleCount, syncWindowScheduleCacheLimit, spec, schedule)
 	return schedule, nil
@@ -3069,7 +3080,7 @@ func syncWindowLocation(name string) *time.Location {
 
 // isActiveAt reports whether the window is active at currentTime, which the
 // caller must already have converted to UTC.
-func (w InlineSyncWindow) isActiveAt(currentTime time.Time) (bool, error) {
+func (w *InlineSyncWindow) isActiveAt(currentTime time.Time) (bool, error) {
 	schedule, err := syncWindowSchedule(w.Schedule)
 	if err != nil {
 		return false, err
@@ -3080,7 +3091,7 @@ func (w InlineSyncWindow) isActiveAt(currentTime time.Time) (bool, error) {
 	}
 
 	// Offset the nextWindow time to consider the timeZone of the sync window
-	timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
+	timeZoneOffsetDuration := w.scheduleOffsetByTimeZone(currentTime)
 	nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
 	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)), nil
 }
@@ -3179,8 +3190,12 @@ func (w *SyncWindows) partition(currentTime time.Time) (*SyncWindows, *SyncWindo
 	return activeWindows, inactiveAllowWindows, nil
 }
 
-func (w InlineSyncWindow) scheduleOffsetByTimeZone() time.Duration {
-	_, tzOffset := time.Now().In(syncWindowLocation(w.TimeZone)).Zone()
+// scheduleOffsetByTimeZone returns the window's time zone offset at currentTime.
+// It is read at that instant rather than at time.Now() because callers evaluate
+// instants other than the present one, and a DST transition between the two
+// would shift the window by an hour.
+func (w *InlineSyncWindow) scheduleOffsetByTimeZone(currentTime time.Time) time.Duration {
+	_, tzOffset := currentTime.In(syncWindowLocation(w.TimeZone)).Zone()
 	return time.Duration(tzOffset) * time.Second
 }
 
@@ -3320,14 +3335,14 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 //  2. When an allow window ends: If the operation started during an allow window with syncOverrun enabled, the sync can continue
 //     even after the allow window has ended (and no other allow windows are active).
 func (w *SyncWindows) CanSync(isManual bool, operationStartTime *time.Time) (bool, error) {
-	canSync, _, _, err := w.CanSyncWithActiveKinds(isManual, operationStartTime)
+	canSync, _, _, err := w.canSyncWithActiveKinds(isManual, operationStartTime)
 	return canSync, err
 }
 
-// CanSyncWithActiveKinds behaves like CanSync, and also reports whether an allow
+// canSyncWithActiveKinds behaves like CanSync, and also reports whether an allow
 // and/or deny window is currently active. All three come from one evaluation, so
 // a boundary crossed between separate calls cannot make them disagree.
-func (w *SyncWindows) CanSyncWithActiveKinds(isManual bool, operationStartTime *time.Time) (canSync, allowActive, denyActive bool, err error) {
+func (w *SyncWindows) canSyncWithActiveKinds(isManual bool, operationStartTime *time.Time) (canSync, allowActive, denyActive bool, err error) {
 	if !w.HasWindows() {
 		return true, false, false, nil
 	}
@@ -3351,7 +3366,7 @@ func (w *SyncWindows) CanSyncWithActiveKinds(isManual bool, operationStartTime *
 	return canSync, allowActive, denyActive, err
 }
 
-// SyncWindowEvaluator answers CanSyncWithActiveKinds for many applications of
+// SyncWindowEvaluator answers canSyncWithActiveKinds for many applications of
 // one project at a single instant. Every window is classified once up front, so
 // N applications sharing a project cost one schedule evaluation between them
 // rather than one each, and all of them see the same instant: a window boundary
@@ -3359,34 +3374,57 @@ func (w *SyncWindows) CanSyncWithActiveKinds(isManual bool, operationStartTime *
 //
 // It is only valid for the SyncWindows it was built from, and only for the
 // instant it was built at. Build a new one per scrape.
+//
+// It is scratch state rather than API surface: it lives here only to reach the
+// unexported window evaluation this package owns, and its maps are not
+// representable as a deepcopy.
+//
+// +k8s:deepcopy-gen=false
+// +k8s:openapi-gen=false
+// +protobuf=false
 type SyncWindowEvaluator struct {
 	windows SyncWindows
-	// Keyed by pointer, and Matches returns the same pointers, so a matched
-	// window is always found.
+	// Both are keyed by pointer, and Matches returns the same pointers, so a
+	// matched window is always found.
 	active map[*InlineSyncWindow]bool
+	// Windows that could not be resolved. Kept per window rather than failing
+	// the whole project, so a malformed window blocks the applications it
+	// matches and no others, which is what resolving windows per application
+	// did.
+	failed map[*InlineSyncWindow]error
 }
 
-// Evaluator classifies every window at currentTime. Schedules are parsed here,
-// so a malformed window fails once per project instead of once per application.
+// Evaluator classifies every window at currentTime. The error reports every
+// malformed window once, for callers that log per project; the evaluator is
+// still usable, and answers for the applications none of those windows match.
 func (w *SyncWindows) Evaluator(currentTime time.Time) (*SyncWindowEvaluator, error) {
 	if !w.HasWindows() {
 		return &SyncWindowEvaluator{}, nil
 	}
 	currentTime = currentTime.In(time.UTC)
 
-	active := make(map[*InlineSyncWindow]bool, len(*w))
+	evaluator := &SyncWindowEvaluator{windows: *w, active: make(map[*InlineSyncWindow]bool, len(*w))}
+	var errs []error
 	for _, window := range *w {
 		isActive, err := window.isActiveAt(currentTime)
 		if err != nil {
-			return nil, fmt.Errorf("invalid sync windows: %w", err)
+			if evaluator.failed == nil {
+				evaluator.failed = map[*InlineSyncWindow]error{}
+			}
+			evaluator.failed[window] = err
+			errs = append(errs, err)
+			continue
 		}
-		active[window] = isActive
+		evaluator.active[window] = isActive
 	}
-	return &SyncWindowEvaluator{windows: *w, active: active}, nil
+	if len(errs) > 0 {
+		return evaluator, fmt.Errorf("invalid sync windows: %w", errors.Join(errs...))
+	}
+	return evaluator, nil
 }
 
 // CanSyncWithActiveKinds reports the same three values as
-// SyncWindows.CanSyncWithActiveKinds does for the windows matching app, read
+// SyncWindows.canSyncWithActiveKinds does for the windows matching app, read
 // from the instant the evaluator was built at. It takes no operation start
 // time: overrun depends on when a specific operation began, which is not a
 // property the evaluator shares between applications.
@@ -3394,6 +3432,15 @@ func (e *SyncWindowEvaluator) CanSyncWithActiveKinds(app *Application) (canSync,
 	matched := e.windows.Matches(app)
 	if !matched.HasWindows() {
 		return true, false, false, nil
+	}
+
+	// Fail closed on a window this application matches but the evaluator could
+	// not resolve, exactly as resolving it here would have. A window the
+	// application does not match cannot block it.
+	for _, window := range *matched {
+		if err := e.failed[window]; err != nil {
+			return false, false, false, fmt.Errorf("invalid sync windows: %w", err)
+		}
 	}
 
 	// The same partition SyncWindows.partition builds, without re-resolving any
@@ -3604,7 +3651,7 @@ func (w InlineSyncWindow) Active() (bool, error) {
 	return w.active(time.Now())
 }
 
-func (w InlineSyncWindow) active(currentTime time.Time) (bool, error) {
+func (w *InlineSyncWindow) active(currentTime time.Time) (bool, error) {
 	// If InlineSyncWindow.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before search
 	return w.isActiveAt(currentTime.UTC())
@@ -3661,7 +3708,7 @@ func (w *InlineSyncWindow) Validate() error {
 	if w.Kind != "allow" && w.Kind != "deny" {
 		return fmt.Errorf("kind '%s' mismatch: can only be allow or deny", w.Kind)
 	}
-	if _, err := syncWindowSchedule(w.Schedule); err != nil {
+	if _, err := parseSyncWindowSchedule(w.Schedule); err != nil {
 		return err
 	}
 	if _, err := time.ParseDuration(w.Duration); err != nil {

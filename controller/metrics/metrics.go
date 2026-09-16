@@ -84,7 +84,7 @@ var (
 
 	descAppSyncWindowError = prometheus.NewDesc(
 		"argocd_app_sync_window_error",
-		"Whether the application's sync windows could not be evaluated. Emitted as a 0/1 gauge: 1 means the AppProject could not be resolved or its window schedules could not be parsed, so argocd_app_sync_window does not reflect the configured windows and argocd_app_sync_blocked is reported fail-closed as 1.",
+		"Whether the application's sync windows could not be evaluated. Emitted as a 0/1 gauge: 1 means the AppProject could not be resolved, or a window matching the application has a schedule or duration that cannot be parsed, so argocd_app_sync_window does not reflect the configured windows and argocd_app_sync_blocked is reported fail-closed as 1.",
 		descAppDefaultLabels,
 		nil,
 	)
@@ -534,8 +534,10 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		allowActive, denyActive, blocked, failed, err := syncWindows.evaluate(app)
 		if err != nil {
 			// Once per project per scrape: evaluate only returns the error to
-			// the application that built the project's window state.
-			log.Warnf("Reporting syncs of applications in AppProject %s as blocked: %v", app.Spec.GetProject(), err)
+			// the application that built the project's window state. It says
+			// nothing about this application, which may not match the window
+			// that failed.
+			log.Warnf("Sync windows of AppProject %s could not be evaluated, reporting the applications they match as blocked: %v", app.Spec.GetProject(), err)
 		}
 		addGauge(descAppSyncWindow, boolFloat64(allowActive), "allow")
 		addGauge(descAppSyncWindow, boolFloat64(denyActive), "deny")
@@ -545,10 +547,15 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 }
 
 // projectWindows is one project's sync window state for one scrape: an
-// evaluator built from its windows, or a failure to build one.
+// evaluator built from its windows, or a project that could not be resolved at
+// all. A project that resolves but has malformed windows still gets an
+// evaluator: those windows block only the applications they match.
 type projectWindows struct {
-	evaluator *argoappv1.SyncWindowEvaluator
-	failed    bool
+	evaluator    *argoappv1.SyncWindowEvaluator
+	lookupFailed bool
+	// Whether building the evaluator reported malformed windows, which
+	// windows() has already returned once for the project.
+	windowsFailed bool
 }
 
 // syncWindowScrape is the state shared by every application in one scrape.
@@ -590,15 +597,18 @@ func (s *syncWindowScrape) windows(app *argoappv1.Application) (projectWindows, 
 func (s *syncWindowScrape) buildWindows(app *argoappv1.Application) (projectWindows, error) {
 	proj, err := s.getAppProject(app)
 	if err != nil {
-		return projectWindows{failed: true}, fmt.Errorf("failed to get the AppProject of applications in namespace %s: %w", app.Namespace, err)
+		return projectWindows{lookupFailed: true}, fmt.Errorf("failed to get the AppProject of applications in namespace %s: %w", app.Namespace, err)
 	}
 	if proj == nil {
 		// Indistinguishable from a project that configures no windows.
 		return projectWindows{}, nil
 	}
+	// A malformed window only blocks the applications it matches, so the
+	// evaluator stays usable; the error is returned to be logged once for the
+	// project rather than once per application.
 	evaluator, err := proj.Spec.SyncWindows.Evaluator(s.now)
 	if err != nil {
-		return projectWindows{failed: true}, fmt.Errorf("failed to evaluate its sync windows: %w", err)
+		return projectWindows{evaluator: evaluator, windowsFailed: true}, fmt.Errorf("some of its sync windows could not be evaluated: %w", err)
 	}
 	return projectWindows{evaluator: evaluator}, nil
 }
@@ -606,21 +616,34 @@ func (s *syncWindowScrape) buildWindows(app *argoappv1.Application) (projectWind
 // evaluate returns the sync window gauge values for app. Any failure sets
 // blocked and failed, fail-closed, because a real sync would fail in the same
 // state.
+//
+// The gauges come from entry, never from err: err is only the project-level
+// failure the caller logs, and windows() returns it to the one application that
+// built the entry. Every later application in a broken project sees err == nil
+// and must still report fail-closed.
 func (s *syncWindowScrape) evaluate(app *argoappv1.Application) (allowActive, denyActive, blocked, failed bool, err error) {
 	entry, err := s.windows(app)
-	if entry.failed {
+	if entry.lookupFailed {
 		return false, false, true, true, err
 	}
 	if entry.evaluator == nil {
-		return false, false, false, false, nil
+		return false, false, false, false, err
 	}
 	// blocked comes from CanSync, the same call that gates automatic syncs, so
 	// the gauge cannot drift from it. One evaluation feeds all three gauges:
 	// asking separately reads the clock twice, and a boundary in between would
 	// report an active allow window alongside blocked=1.
-	canSync, allowActive, denyActive, err := entry.evaluator.CanSyncWithActiveKinds(app)
-	if err != nil {
+	canSync, allowActive, denyActive, evalErr := entry.evaluator.CanSyncWithActiveKinds(app)
+	if evalErr != nil {
+		// Unreachable today: the evaluator can only fail on a matched window
+		// that Evaluator already reported for the project, so windowsFailed is
+		// always set here and err carries that report. canSyncFrom's own error
+		// paths need an operation start time, which the evaluator never has.
+		// Kept so that a future one cannot pass silently.
+		if !entry.windowsFailed {
+			err = evalErr
+		}
 		return false, false, true, true, err
 	}
-	return allowActive, denyActive, !canSync, false, nil
+	return allowActive, denyActive, !canSync, false, err
 }

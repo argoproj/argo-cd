@@ -3244,7 +3244,7 @@ func TestSyncWindows_partition(t *testing.T) {
 	})
 }
 
-func TestSyncWindows_CanSyncWithActiveKinds(t *testing.T) {
+func TestSyncWindows_canSyncWithActiveKinds(t *testing.T) {
 	always := func(kind string) *InlineSyncWindow {
 		return &InlineSyncWindow{Kind: kind, Schedule: "* * * * *", Duration: "24h", Applications: []string{"*"}}
 	}
@@ -3269,7 +3269,7 @@ func TestSyncWindows_CanSyncWithActiveKinds(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			canSync, allowActive, denyActive, err := c.windows.CanSyncWithActiveKinds(false, nil)
+			canSync, allowActive, denyActive, err := c.windows.canSyncWithActiveKinds(false, nil)
 			require.NoError(t, err)
 			assert.Equal(t, c.canSync, canSync)
 			assert.Equal(t, c.allowActive, allowActive)
@@ -3284,7 +3284,7 @@ func TestSyncWindows_CanSyncWithActiveKinds(t *testing.T) {
 
 	t.Run("InvalidSchedule", func(t *testing.T) {
 		windows := SyncWindows{{Kind: "allow", Schedule: "not a cron spec", Duration: "1h"}}
-		canSync, allowActive, denyActive, err := windows.CanSyncWithActiveKinds(false, nil)
+		canSync, allowActive, denyActive, err := windows.canSyncWithActiveKinds(false, nil)
 		require.ErrorContains(t, err, "cannot parse schedule")
 		assert.False(t, canSync)
 		assert.False(t, allowActive)
@@ -3306,7 +3306,7 @@ func TestSyncWindowEvaluator(t *testing.T) {
 	active := func(kind string, apps ...string) *InlineSyncWindow { return window(kind, "24h", apps...) }
 	inactive := func(kind string, apps ...string) *InlineSyncWindow { return window(kind, "0s", apps...) }
 
-	app := &Application{ObjectMeta: metav1.ObjectMeta{Name: "my-app", Namespace: "argocd"}}
+	app := &Application{Name: "my-app", Namespace: "argocd"}
 
 	cases := map[string]SyncWindows{
 		"NoWindows":              nil,
@@ -3329,7 +3329,7 @@ func TestSyncWindowEvaluator(t *testing.T) {
 			canSync, allowActive, denyActive, err := evaluator.CanSyncWithActiveKinds(app)
 			require.NoError(t, err)
 
-			expectedCanSync, expectedAllow, expectedDeny, err := windows.Matches(app).CanSyncWithActiveKinds(false, nil)
+			expectedCanSync, expectedAllow, expectedDeny, err := windows.Matches(app).canSyncWithActiveKinds(false, nil)
 			require.NoError(t, err)
 
 			assert.Equal(t, expectedCanSync, canSync, "canSync")
@@ -3338,13 +3338,43 @@ func TestSyncWindowEvaluator(t *testing.T) {
 		})
 	}
 
-	// A malformed window fails when the evaluator is built, so it is reported
-	// once per project rather than once per application.
-	t.Run("MalformedWindowFailsAtBuild", func(t *testing.T) {
+	// A malformed window is reported once when the evaluator is built, rather
+	// than once per application.
+	t.Run("MalformedWindowIsReportedAtBuild", func(t *testing.T) {
 		windows := SyncWindows{{Kind: "allow", Schedule: "not a cron spec", Duration: "1h", Applications: []string{"*"}}}
 		evaluator, err := windows.Evaluator(time.Now())
 		require.ErrorContains(t, err, "cannot parse schedule")
-		assert.Nil(t, evaluator)
+		require.NotNil(t, evaluator, "the evaluator stays usable for the applications the window does not match")
+
+		// The application matches it, so it fails closed.
+		canSync, _, _, err := evaluator.CanSyncWithActiveKinds(app)
+		require.ErrorContains(t, err, "cannot parse schedule")
+		assert.False(t, canSync)
+	})
+
+	// A malformed window must only block the applications it matches: the
+	// controller's own gate parses the matched windows and no others, so
+	// failing the whole project would make the metric disagree with it.
+	t.Run("MalformedWindowOnlyBlocksWhatItMatches", func(t *testing.T) {
+		windows := SyncWindows{
+			{Kind: "allow", Schedule: "* * * * *", Duration: "24h", Applications: []string{"my-app"}},
+			{Kind: "deny", Schedule: "not a cron spec", Duration: "1h", Applications: []string{"some-other-app"}},
+		}
+		evaluator, err := windows.Evaluator(time.Now())
+		require.ErrorContains(t, err, "cannot parse schedule", "the project still reports the broken window")
+		require.NotNil(t, evaluator)
+
+		canSync, allowActive, denyActive, err := evaluator.CanSyncWithActiveKinds(app)
+		require.NoError(t, err)
+		assert.True(t, canSync)
+		assert.True(t, allowActive)
+		assert.False(t, denyActive)
+
+		// And the application it does match still fails closed.
+		other := &Application{Name: "some-other-app", Namespace: "argocd"}
+		canSync, _, _, err = evaluator.CanSyncWithActiveKinds(other)
+		require.ErrorContains(t, err, "cannot parse schedule")
+		assert.False(t, canSync)
 	})
 
 	// Every application of a project reads one instant, so a boundary crossed
@@ -3374,6 +3404,58 @@ func TestSyncWindowEvaluator(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, denyActive)
 		assert.False(t, canSync)
+	})
+}
+
+// canSyncAtTime backs the syncOverrun check, which asks whether a sync was
+// allowed when the operation started: a past instant. Reading the time zone
+// offset at time.Now() instead judged that instant with today's offset, so a DST
+// transition between the two moved the window by an hour.
+func TestSyncWindows_canSyncAtTimeAcrossDST(t *testing.T) {
+	// Berlin is CET (+1) until March 29 2026 and CEST (+2) after it. A window
+	// open 09:00-10:00 local, asked about 09:30 local on each side.
+	windows := SyncWindows{{Kind: "allow", Schedule: "0 9 * * *", Duration: "1h", Applications: []string{"*"}, TimeZone: "Europe/Berlin"}}
+
+	for name, checkTime := range map[string]time.Time{
+		"CET":  time.Date(2026, 3, 20, 8, 30, 0, 0, time.UTC), // 09:30 CET
+		"CEST": time.Date(2026, 4, 10, 7, 30, 0, 0, time.UTC), // 09:30 CEST
+	} {
+		t.Run("Inside/"+name, func(t *testing.T) {
+			canSync, err := windows.canSyncAtTime(false, checkTime)
+			require.NoError(t, err)
+			assert.True(t, canSync, "the allow window is open at 09:30 local on both sides of the transition")
+		})
+	}
+
+	for name, checkTime := range map[string]time.Time{
+		"CET":  time.Date(2026, 3, 20, 12, 0, 0, 0, time.UTC),
+		"CEST": time.Date(2026, 4, 10, 12, 0, 0, 0, time.UTC),
+	} {
+		t.Run("Outside/"+name, func(t *testing.T) {
+			canSync, err := windows.canSyncAtTime(false, checkTime)
+			require.NoError(t, err)
+			assert.False(t, canSync)
+		})
+	}
+}
+
+// The offset must come from the instant being evaluated, not from time.Now():
+// canSyncAtTime evaluates a past instant, and the evaluator a fixed one, so a
+// DST transition between the two would shift the window by an hour.
+func TestScheduleOffsetByTimeZone(t *testing.T) {
+	window := &InlineSyncWindow{TimeZone: "America/New_York"}
+
+	// 2026: EST until March 8, EDT until November 1.
+	winter := window.scheduleOffsetByTimeZone(time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC))
+	summer := window.scheduleOffsetByTimeZone(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
+
+	assert.Equal(t, -5*time.Hour, winter)
+	assert.Equal(t, -4*time.Hour, summer)
+
+	t.Run("UTCHasNoOffsetAtAnyInstant", func(t *testing.T) {
+		utc := &InlineSyncWindow{TimeZone: "UTC"}
+		assert.Zero(t, utc.scheduleOffsetByTimeZone(time.Date(2026, 1, 15, 12, 0, 0, 0, time.UTC)))
+		assert.Zero(t, utc.scheduleOffsetByTimeZone(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)))
 	})
 }
 
@@ -3413,11 +3495,9 @@ func TestCacheSyncWindowValue(t *testing.T) {
 
 		var wg sync.WaitGroup
 		for i := range limit * 8 {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				cacheSyncWindowValue(&cache, &count, limit, strconv.Itoa(i), i)
-			}()
+			})
 		}
 		wg.Wait()
 
