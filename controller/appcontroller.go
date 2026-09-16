@@ -999,7 +999,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	}, time.Second, ctx.Done())
 
 	go wait.Until(func() {
-		for ctrl.processProjectQueueItem() {
+		for ctrl.processProjectQueueItem(ctx) {
 		}
 	}, time.Second, ctx.Done())
 
@@ -1185,7 +1185,7 @@ func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processN
 	return processNext
 }
 
-func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) {
+func (ctrl *ApplicationController) processProjectQueueItem(ctx context.Context) (processNext bool) {
 	key, shutdown := ctrl.projectRefreshQueue.Get()
 	processNext = true
 
@@ -1215,7 +1215,7 @@ func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) 
 	}
 
 	if origProj.DeletionTimestamp != nil && origProj.HasFinalizer() {
-		if err := ctrl.finalizeProjectDeletion(context.Background(), origProj.DeepCopy()); err != nil {
+		if err := ctrl.finalizeProjectDeletion(ctx, origProj.DeepCopy()); err != nil {
 			log.WithError(err).Warn("Failed to finalize project deletion")
 			ctrl.projectRefreshQueue.AddRateLimited(key)
 			return processNext
@@ -1237,7 +1237,7 @@ func (ctrl *ApplicationController) finalizeProjectDeletion(ctx context.Context, 
 		}
 	}
 	if len(cached) == 0 {
-		return ctrl.removeProjectFinalizer(proj)
+		return ctrl.removeProjectFinalizer(ctx, proj)
 	}
 	// A cached Application can outlive the real one (see writeBackToInformer), so confirm the references
 	// against the API server before refusing to release the finalizer.
@@ -1250,7 +1250,7 @@ func (ctrl *ApplicationController) finalizeProjectDeletion(ctx context.Context, 
 	}
 	if live == nil {
 		log.Warnf("Removing project '%s' finalizer: none of its %d cached references exist on the API server", proj.Name, len(cached))
-		return ctrl.removeProjectFinalizer(proj)
+		return ctrl.removeProjectFinalizer(ctx, proj)
 	}
 	log.Infof("Cannot remove project '%s' finalizer as it is still referenced by application %s", proj.Name, live.QualifiedName())
 	return nil
@@ -1260,11 +1260,10 @@ func (ctrl *ApplicationController) finalizeProjectDeletion(ctx context.Context, 
 const liveAppLookupTimeout = 30 * time.Second
 
 // firstLiveApp returns the first of apps that still exists on the API server and still references proj, or
-// nil when none do. It issues per-Application Gets rather than a list: the first candidate usually answers,
-// and listing every Application is wasteful on a large instance. A Get without a ResourceVersion is a
-// quorum read, so it cannot be served from the watch cache that may hold the very copies being checked.
-// Copies the API server reports NotFound are evicted. Any other error is returned, so an unreachable API
-// server can never be read as "gone".
+// nil when none do. Per-Application Gets rather than a list: the first candidate usually answers. A Get
+// without a ResourceVersion is a quorum read, so it cannot be served by the watch cache holding the very
+// copies being checked. NotFound copies are evicted; any other error is returned, so an unreachable API
+// server is never read as "gone".
 func (ctrl *ApplicationController) firstLiveApp(ctx context.Context, proj *appv1.AppProject, apps []*appv1.Application) (*appv1.Application, error) {
 	for _, app := range apps {
 		live, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
@@ -1285,11 +1284,13 @@ func (ctrl *ApplicationController) appReferencesProject(app *appv1.Application, 
 	return app.Spec.GetProject() == proj.Name && ctrl.isAppNamespaceAllowed(app) && proj.IsAppNamespacePermitted(app, ctrl.namespace)
 }
 
-// evictDeletedApp drops an Application the API server has reported NotFound from the informer store and
-// cluster sharding. Nothing else prunes such a copy (see writeBackToInformer): it would be reconciled on
-// every resync and counted as a project reference until the next relist.
+// evictDeletedApp drops an Application the API server reported NotFound from the informer store and cluster
+// sharding. Nothing else prunes such a copy (see writeBackToInformer): it would be reconciled on every
+// resync and counted as a project reference until the next relist.
 //
-// The store is matched by UID, not just key, so a replacement created under the same name is left alone.
+// The UID check guards a same-name replacement but cannot guarantee it: Get and Delete are separate store
+// operations and Delete matches by key, so a replacement inserted in that window is evicted too and returns
+// only on relist.
 func (ctrl *ApplicationController) evictDeletedApp(app *appv1.Application) {
 	obj, exists, err := ctrl.appInformer.GetStore().Get(app)
 	if err != nil || !exists {
@@ -1307,7 +1308,7 @@ func (ctrl *ApplicationController) evictDeletedApp(app *appv1.Application) {
 	logCtx.Info("Evicted application from informer store: it no longer exists on the API server")
 }
 
-func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject) error {
+func (ctrl *ApplicationController) removeProjectFinalizer(ctx context.Context, proj *appv1.AppProject) error {
 	proj.RemoveFinalizer()
 	var patch []byte
 	patch, _ = json.Marshal(map[string]any{
@@ -1315,7 +1316,7 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 			"finalizers": proj.Finalizers,
 		},
 	})
-	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().AppProjects(ctrl.namespace).Patch(context.Background(), proj.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().AppProjects(ctrl.namespace).Patch(ctx, proj.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	return err
 }
 
@@ -1873,14 +1874,14 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	}
 }
 
-// writeBackToInformer writes a just recently updated App back into the informer cache.
-// This prevents the situation where the controller operates on a stale app and repeats work.
+// writeBackToInformer writes a just recently updated App back into the informer cache, so the controller
+// does not operate on a stale app and repeat work.
 //
-// The store is shared with the informer's reflector, so an unconditional Update resurrects an Application
-// whose DELETED event the reflector has already processed, and the reflector never prunes that copy.
-// Skipping the write when the Application is gone from the store narrows the window but cannot close it:
-// the check and the update are separate store operations. Any code path that learns an Application is
-// NotFound must therefore evictDeletedApp, and no consumer may treat a store hit as proof of existence.
+// The store is shared with the reflector, so an unconditional Update resurrects an Application whose
+// DELETED event the reflector already processed, and nothing prunes that copy. Skipping the write when the
+// Application is gone narrows the window but cannot close it: Get and Update are separate store operations.
+// So any path that learns an Application is NotFound must evictDeletedApp, and a store hit is not proof of
+// existence.
 func (ctrl *ApplicationController) writeBackToInformer(app *appv1.Application) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app)).WithField("informer-writeBack", true)
 	obj, exists, err := ctrl.appInformer.GetStore().Get(app)

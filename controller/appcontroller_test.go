@@ -4736,14 +4736,14 @@ func TestProcessProjectQueueItem_RequeuesWhenFinalizationFails(t *testing.T) {
 
 	key := test.FakeArgoCDNamespace + "/" + proj.Name
 	ctrl.projectRefreshQueue.Add(key)
-	ctrl.processProjectQueueItem()
+	ctrl.processProjectQueueItem(t.Context())
 	assert.False(t, wasPatched())
 	assert.Eventually(t, func() bool { return ctrl.projectRefreshQueue.Len() == 1 }, 5*time.Second, 10*time.Millisecond,
 		"a transient API error must requeue the project")
 
 	// Once the API server answers, the phantom is evicted and the finalizer goes.
 	failGets = false
-	ctrl.processProjectQueueItem()
+	ctrl.processProjectQueueItem(t.Context())
 	assert.True(t, wasPatched())
 	assert.Equal(t, 0, ctrl.projectRefreshQueue.Len())
 }
