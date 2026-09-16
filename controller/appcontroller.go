@@ -1720,6 +1720,10 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	ts.AddCheckpoint("request_app_refresh_ms")
 }
 
+func isRemoveOnMissingPathError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "remove operation does not apply: doc is missing path")
+}
+
 func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *appv1.Application, state *appv1.OperationState) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	if state.Phase == "" {
@@ -1739,9 +1743,12 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	patchOps := []map[string]any{
 		{"op": "add", "path": "/status/operationState", "value": state},
 	}
-	if state.Phase.Completed() {
-		// If operation is completed, clear the operation field to indicate no operation is in progress.
-		patchOps = append(patchOps, map[string]any{"op": "add", "path": "/operation", "value": nil})
+
+	// The remove operation is kept last so the fallback can retry only the status update.
+	operationRemoveIndex := -1
+	if clearOperation {
+		operationRemoveIndex = len(patchOps)
+		patchOps = append(patchOps, map[string]any{"op": "remove", "path": "/operation"})
 	}
 	patchJSON, err := json.Marshal(patchOps)
 	if err != nil {
@@ -1752,10 +1759,29 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
 		_, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.JSONPatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
+			if operationRemoveIndex >= 0 && isRemoveOnMissingPathError(err) {
+				logCtx.Debug("Operation already removed; retrying operation state update without removal")
+
+				statusOnlyPatch, jsonErr := json.Marshal(patchOps[:operationRemoveIndex])
+				if jsonErr != nil {
+					return jsonErr
+				}
+
+				_, err = ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.JSONPatchType, statusOnlyPatch, metav1.PatchOptions{})
+				if err != nil {
+					if apierrors.IsNotFound(err) {
+						return nil
+					}
+					return err
+				}
+				return nil
+			}
+
 			// Stop retrying updating deleted application
 			if apierrors.IsNotFound(err) {
 				return nil
 			}
+
 			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
 			// warning.
 			logCtx.WithError(err).Warn("error patching application with operation state")

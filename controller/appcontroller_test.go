@@ -1937,6 +1937,128 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 	assert.Contains(t, errorVal.Error(), "fake error")
 }
 
+func TestSetOperationStateClearsOperation(t *testing.T) {
+	app := newFakeApp()
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+	}
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app},
+	}, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+
+	var patch []map[string]any
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &patch))
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.setOperationState(t.Context(), app, &v1alpha1.OperationState{
+		Phase: synccommon.OperationSucceeded,
+	})
+
+	require.Len(t, patch, 2)
+	assert.Equal(t, "add", patch[0]["op"])
+	assert.Equal(t, "/status/operationState", patch[0]["path"])
+
+	assert.Equal(t, "remove", patch[1]["op"])
+	assert.Equal(t, "/operation", patch[1]["path"])
+	assert.NotContains(t, patch[1], "value")
+}
+
+func TestSetOperationStateRetriesWithoutOperationRemoval(t *testing.T) {
+	app := newFakeApp()
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+	}
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app},
+	}, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+
+	var patches [][]map[string]any
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		patchAction, ok := action.(kubetesting.PatchAction)
+		require.True(t, ok)
+
+		var patch []map[string]any
+		require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &patch))
+		patches = append(patches, patch)
+
+		if len(patches) == 1 {
+			return true, &v1alpha1.Application{}, errors.New(
+				`remove operation does not apply: doc is missing path: "/operation": missing value`,
+			)
+		}
+
+		return true, &v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				OperationState: &v1alpha1.OperationState{
+					Phase: synccommon.OperationSucceeded,
+				},
+			},
+		}, nil
+	})
+
+	ctrl.setOperationState(t.Context(), app, &v1alpha1.OperationState{
+		Phase: synccommon.OperationSucceeded,
+	})
+
+	require.Len(t, patches, 2)
+
+	assert.Len(t, patches[0], 2)
+	assert.Equal(t, "/status/operationState", patches[0][0]["path"])
+	assert.Equal(t, "/operation", patches[0][1]["path"])
+
+	assert.Len(t, patches[1], 1)
+	assert.Equal(t, "add", patches[1][0]["op"])
+	assert.Equal(t, "/status/operationState", patches[1][0]["path"])
+}
+
+func TestSetOperationStateStopsOnNotFoundDuringOperationRemovalFallback(t *testing.T) {
+	app := newFakeApp()
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+	}
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app},
+	}, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+
+	patchCalls := 0
+	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+		patchCalls++
+
+		if patchCalls == 1 {
+			return true, &v1alpha1.Application{}, errors.New(
+				`remove operation does not apply: doc is missing path: "/operation": missing value`,
+			)
+		}
+
+		return true, nil, apierrors.NewNotFound(
+			schema.GroupResource{Group: "argoproj.io", Resource: "applications"},
+			app.Name,
+		)
+	})
+
+	ctrl.setOperationState(t.Context(), app, &v1alpha1.OperationState{
+		Phase: synccommon.OperationSucceeded,
+	})
+
+	assert.Equal(t, 2, patchCalls)
+}
+
 func TestNeedRefreshAppStatus(t *testing.T) {
 	testCases := []struct {
 		name string
