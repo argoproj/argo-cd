@@ -43,8 +43,8 @@ spec:
       applications: ["prod-*"]   # glob filters (see note on where they apply)
       namespaces: ["prod"]
       clusters: ["in-cluster"]
-      andOperator: false         # AND across apps/namespaces/clusters instead of OR
-      syncOverrun: false         # let ongoing syncs continue past the window boundary
+      andOperator: false         # use the default OR across
+      syncOverrun: false         # do not let ongoing syncs continue past the window boundary
       description: "No deploys overnight"
 ```
 
@@ -228,9 +228,9 @@ syncWindowRefs:
         matchLabels: { team: platform }
 ```
 
-At resolve time this returns an error
-(`sync window ref cannot specify both name and selector`), and no CRD windows apply for that object
-that cycle (the controller logs a warning and continues). Nothing is silently preferred.
+At resolve time, that reference returns an error
+(`sync window ref cannot specify both name and selector`) and contributes no windows. Resolution
+continues for the remaining refs, and the controller logs a warning.
 
 Using `name` in one ref and `selector` in a **different** ref is fine. Exclusivity is per-ref, not
 per-list:

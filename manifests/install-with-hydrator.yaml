@@ -35041,6 +35041,9 @@ spec:
                     kind:
                       description: Kind defines if the window allows or blocks syncs.
                         Must be "allow" or "deny".
+                      enum:
+                      - allow
+                      - deny
                       type: string
                     manualSync:
                       description: ManualSync enables manual syncs when they would
@@ -35408,6 +35411,14 @@ rules:
   - update
   - delete
   - patch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - syncwindows
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - ""
   resources:

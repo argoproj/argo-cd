@@ -377,7 +377,7 @@ func activeSchedule() string { return "* * * * *" }
 
 // inactiveSchedule returns a cron schedule that fires 10 hours from now, so it is inactive now.
 func inactiveSchedule() string {
-	h, _, _ := time.Now().Add(10 * time.Hour).Clock()
+	h, _, _ := time.Now().UTC().Add(10 * time.Hour).Clock()
 	return fmt.Sprintf("0 %d * * *", h)
 }
 

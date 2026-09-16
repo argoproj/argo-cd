@@ -2984,8 +2984,11 @@ func (ctrl *ApplicationController) syncWindowEventHandlerFuncs() cache.ResourceE
 		}
 	}
 	return cache.ResourceEventHandlerFuncs{
-		AddFunc:    func(obj any) { requeue(obj) },
-		UpdateFunc: func(_, new any) { requeue(new) },
+		AddFunc: func(obj any) { requeue(obj) },
+		UpdateFunc: func(old, new any) {
+			requeue(old)
+			requeue(new)
+		},
 		DeleteFunc: func(obj any) {
 			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
 				obj = tombstone.Obj
@@ -3034,6 +3037,16 @@ func (ctrl *ApplicationController) appReferencesSyncWindow(app *appv1.Applicatio
 	for _, pref := range proj.Spec.SyncWindowRefs {
 		if syncWindowRefMatches(pref.Ref, swName, swLabels) {
 			return true
+		}
+	}
+	// Also check global projects that apply to this app's project, since their
+	// SyncWindowRefs are merged into the effective project at evaluation time.
+	projLister := applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer())
+	for _, gp := range argo.GetGlobalProjects(proj, projLister, ctrl.settingsMgr) {
+		for _, pref := range gp.Spec.SyncWindowRefs {
+			if syncWindowRefMatches(pref.Ref, swName, swLabels) {
+				return true
+			}
 		}
 	}
 	return false

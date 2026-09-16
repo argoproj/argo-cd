@@ -28,6 +28,7 @@ type SyncWindowSpec struct {
 // since the window applies directly to the referencing application.
 type SyncWindowDefinition struct {
 	// Kind defines if the window allows or blocks syncs. Must be "allow" or "deny".
+	// +kubebuilder:validation:Enum=allow;deny
 	Kind string `json:"kind" protobuf:"bytes,1,opt,name=kind"`
 	// Schedule is the time the window will begin, specified in cron format.
 	Schedule string `json:"schedule" protobuf:"bytes,2,opt,name=schedule"`

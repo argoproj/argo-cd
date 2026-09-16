@@ -2991,6 +2991,7 @@ message SyncWindow {
 // since the window applies directly to the referencing application.
 message SyncWindowDefinition {
   // Kind defines if the window allows or blocks syncs. Must be "allow" or "deny".
+  // +kubebuilder:validation:Enum=allow;deny
   optional string kind = 1;
 
   // Schedule is the time the window will begin, specified in cron format.

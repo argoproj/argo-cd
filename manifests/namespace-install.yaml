@@ -318,6 +318,14 @@ rules:
   - delete
   - patch
 - apiGroups:
+  - argoproj.io
+  resources:
+  - syncwindows
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - ""
   resources:
   - events
