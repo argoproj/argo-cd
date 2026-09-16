@@ -991,8 +991,8 @@ func TestSyncWindowMetricEvaluationErrorIsReportedOncePerProject(t *testing.T) {
 	}
 	newApp := func(name, project string) *argoappv1.Application {
 		return &argoappv1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "argocd"},
-			Spec:       argoappv1.ApplicationSpec{Project: project},
+			Name: name, Namespace: "argocd",
+			Spec: argoappv1.ApplicationSpec{Project: project},
 		}
 	}
 	newScrape := func() *syncWindowScrape {
