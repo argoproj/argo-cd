@@ -6,8 +6,11 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -16,17 +19,13 @@ import (
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
-	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/v3/test/e2e/testdata"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 )
 
 // Values of `.data` & `.stringData“ fields in Secret resources are masked in UI/CLI
@@ -649,5 +648,135 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+// TestIgnoreDifferencesAnnotation verifies that the argocd.argoproj.io/ignore-differences annotation
+// on a resource in git causes the specified JSON pointer fields to be ignored during diff comparison.
+// Changes to annotated fields leave the app Synced; changes to non-annotated fields cause OutOfSync.
+func TestIgnoreDifferencesAnnotation(t *testing.T) {
+	const deploymentYAML = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ignore-diff-annot-test
+  annotations:
+    argocd.argoproj.io/ignore-differences: |-
+      jsonPointers:
+      - /spec/replicas
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ignore-diff-annot-test
+  template:
+    metadata:
+      labels:
+        app: ignore-diff-annot-test
+    spec:
+      containers:
+      - name: main
+        image: quay.io/argoprojlabs/argocd-e2e-container:0.1
+        imagePullPolicy: IfNotPresent
+`
+	ctx := Given(t)
+	ctx.Path("empty-dir").
+		When().
+		AddFile("deployment.yaml", deploymentYAML).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		PatchFile("deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": 5}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		// Replicas difference is ignored by the annotation; app stays Synced
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			diff, err := fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--exit-code=false")
+			require.NoError(t, err)
+			assert.Empty(t, diff)
+		}).
+		When().
+		// Change a non-annotated field (/spec/template/spec/containers/0/image) on the live resource
+		PatchFile("deployment.yaml", `[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "different-image:latest"}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		// Image is not in the annotation ignore list; app becomes OutOfSync
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(_ *Application) {
+			diff, err := fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--exit-code=false")
+			require.NoError(t, err)
+			assert.NotEmpty(t, diff)
+		})
+}
+
+// TestIgnoreDifferencesAnnotation_WithAppLevelIgnore verifies that per-resource annotations and
+// app-level ignoreDifferences work together: each mechanism independently suppresses its own fields.
+func TestIgnoreDifferencesAnnotation_WithAppLevelIgnore(t *testing.T) {
+	const deploymentYAML = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ignore-diff-combined-test
+  annotations:
+    argocd.argoproj.io/ignore-differences: |-
+      jsonPointers:
+      - /spec/replicas
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: ignore-diff-combined-test
+  template:
+    metadata:
+      labels:
+        app: ignore-diff-combined-test
+    spec:
+      containers:
+      - name: main
+        image: quay.io/argoprojlabs/argocd-e2e-container:0.1
+        imagePullPolicy: IfNotPresent
+`
+	ctx := Given(t)
+	ctx.Path("empty-dir").
+		When().
+		AddFile("deployment.yaml", deploymentYAML).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		// Ignore /spec/revisionHistoryLimit at app level (annotation handles /spec/replicas)
+		PatchApp(`[{"op": "add", "path": "/spec/ignoreDifferences", "value": [{"group": "apps", "kind": "Deployment", "jsonPointers": ["/spec/revisionHistoryLimit"]}]}]`).
+		Refresh(RefreshTypeNormal).
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		PatchFile("deployment.yaml", `[
+					{"op": "replace", "path": "/spec/replicas", "value": 5},
+					{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 10}
+				]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		// Both annotated (replicas) and app-level (revisionHistoryLimit) fields are ignored
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			diff, err := fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--exit-code=false")
+			require.NoError(t, err)
+			assert.Empty(t, diff)
+		}).
+		// When ignored differences are a subset
+		When().
+		PatchFile("deployment.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/ignore-differences": "jsonPointers:\n  - /spec"}}]`).
+		Refresh(RefreshTypeNormal).
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().PatchFile("deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": 3}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		// replica change is ignored as /spec is subset applied on resource
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
