@@ -56,6 +56,7 @@ argocd repocreds add REPOURL [flags]
       --github-app-installation-id int                 installation id of the GitHub Application (optional, will be auto-discovered if not provided)
       --github-app-private-key-path string             private key of the GitHub Application
   -h, --help                                           help for add
+      --insecure-oci-force-http                        Use http when accessing an OCI repository
       --password string                                password to the repository
       --proxy-url string                               If provided, this URL will be used to connect via proxy
       --ssh-private-key-path string                    path to the private ssh key (e.g. ~/.ssh/id_rsa)

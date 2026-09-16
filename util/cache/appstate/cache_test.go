@@ -24,6 +24,7 @@ func newFixtures() *fixtures {
 }
 
 func TestCache_GetAppManagedResources(t *testing.T) {
+	t.Parallel()
 	cache := newFixtures().Cache
 	// cache miss
 	value := &[]*ResourceDiff{}
@@ -42,6 +43,7 @@ func TestCache_GetAppManagedResources(t *testing.T) {
 }
 
 func TestCache_GetAppResourcesTree(t *testing.T) {
+	t.Parallel()
 	cache := newFixtures().Cache
 	// cache miss
 	value := &ApplicationTree{}
@@ -60,6 +62,7 @@ func TestCache_GetAppResourcesTree(t *testing.T) {
 }
 
 func TestCache_GetClusterInfo(t *testing.T) {
+	t.Parallel()
 	cache := newFixtures().Cache
 	// cache miss
 	res := &ClusterInfo{}
@@ -78,6 +81,7 @@ func TestCache_GetClusterInfo(t *testing.T) {
 }
 
 func TestAddCacheFlagsToCmd(t *testing.T) {
+	t.Parallel()
 	cache, err := AddCacheFlagsToCmd(&cobra.Command{})()
 	require.NoError(t, err)
 	assert.Equal(t, 1*time.Hour, cache.appStateCacheExpiration)

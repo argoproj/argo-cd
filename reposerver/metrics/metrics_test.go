@@ -11,6 +11,7 @@ import (
 )
 
 func TestObserveParallelismWaitDuration(t *testing.T) {
+	t.Parallel()
 	m := NewMetricsServer()
 
 	m.ObserveParallelismWaitDuration(50 * time.Millisecond)
@@ -39,6 +40,7 @@ argocd_repo_parallelism_wait_duration_seconds_count 3
 }
 
 func TestParallelismWaitMetricRegistered(t *testing.T) {
+	t.Parallel()
 	m := NewMetricsServer()
 	count := testutil.CollectAndCount(m.PrometheusRegistry, "argocd_repo_parallelism_wait_duration_seconds")
 	assert.Equal(t, 1, count)

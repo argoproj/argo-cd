@@ -15,10 +15,19 @@ func NewRenderer(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *Renderer {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &Renderer{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -75,7 +84,7 @@ type Renderer_RenderTemplateParams_Call struct {
 //   - params map[string]any
 //   - useGoTemplate bool
 //   - goTemplateOptions []string
-func (_e *Renderer_Expecter) RenderTemplateParams(tmpl interface{}, syncPolicy interface{}, params interface{}, useGoTemplate interface{}, goTemplateOptions interface{}) *Renderer_RenderTemplateParams_Call {
+func (_e *Renderer_Expecter) RenderTemplateParams(tmpl any, syncPolicy any, params any, useGoTemplate any, goTemplateOptions any) *Renderer_RenderTemplateParams_Call {
 	return &Renderer_RenderTemplateParams_Call{Call: _e.mock.On("RenderTemplateParams", tmpl, syncPolicy, params, useGoTemplate, goTemplateOptions)}
 }
 
@@ -158,7 +167,7 @@ type Renderer_Replace_Call struct {
 //   - replaceMap map[string]any
 //   - useGoTemplate bool
 //   - goTemplateOptions []string
-func (_e *Renderer_Expecter) Replace(tmpl interface{}, replaceMap interface{}, useGoTemplate interface{}, goTemplateOptions interface{}) *Renderer_Replace_Call {
+func (_e *Renderer_Expecter) Replace(tmpl any, replaceMap any, useGoTemplate any, goTemplateOptions any) *Renderer_Replace_Call {
 	return &Renderer_Replace_Call{Call: _e.mock.On("Replace", tmpl, replaceMap, useGoTemplate, goTemplateOptions)}
 }
 

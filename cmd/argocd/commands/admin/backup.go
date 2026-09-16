@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,6 +36,7 @@ func NewExportCommand() *cobra.Command {
 		out                      string
 		applicationNamespaces    []string
 		applicationsetNamespaces []string
+		stripStatus              bool
 	)
 	command := cobra.Command{
 		Use:   "export",
@@ -86,29 +87,29 @@ func NewExportCommand() *cobra.Command {
 
 			acdConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
 			errors.CheckError(err)
-			export(writer, *acdConfigMap, namespace)
+			export(writer, *acdConfigMap, namespace, stripStatus)
 			acdRBACConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDRBACConfigMapName, metav1.GetOptions{})
 			errors.CheckError(err)
-			export(writer, *acdRBACConfigMap, namespace)
+			export(writer, *acdRBACConfigMap, namespace, stripStatus)
 			acdKnownHostsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDKnownHostsConfigMapName, metav1.GetOptions{})
 			errors.CheckError(err)
-			export(writer, *acdKnownHostsConfigMap, namespace)
+			export(writer, *acdKnownHostsConfigMap, namespace, stripStatus)
 			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDTLSCertsConfigMapName, metav1.GetOptions{})
 			errors.CheckError(err)
-			export(writer, *acdTLSCertsConfigMap, namespace)
+			export(writer, *acdTLSCertsConfigMap, namespace, stripStatus)
 
 			secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
 			errors.CheckError(err)
 			for _, secret := range secrets.Items {
 				if isArgoCDSecret(secret) {
-					export(writer, secret, namespace)
+					export(writer, secret, namespace, stripStatus)
 				}
 			}
 
 			projects, err := acdClients.projects.List(ctx, metav1.ListOptions{})
 			errors.CheckError(err)
 			for _, proj := range projects.Items {
-				export(writer, proj, namespace)
+				export(writer, proj, namespace, stripStatus)
 			}
 
 			applications, err := acdClients.applications.List(ctx, metav1.ListOptions{})
@@ -116,7 +117,7 @@ func NewExportCommand() *cobra.Command {
 			for _, app := range applications.Items {
 				// Export application only if it is in one of the enabled namespaces
 				if secutil.IsNamespaceEnabled(app.GetNamespace(), namespace, applicationNamespaces) {
-					export(writer, app, namespace)
+					export(writer, app, namespace, stripStatus)
 				}
 			}
 			applicationSets, err := acdClients.applicationSets.List(ctx, metav1.ListOptions{})
@@ -130,7 +131,7 @@ func NewExportCommand() *cobra.Command {
 			if applicationSets != nil {
 				for _, appSet := range applicationSets.Items {
 					if secutil.IsNamespaceEnabled(appSet.GetNamespace(), namespace, applicationsetNamespaces) {
-						export(writer, appSet, namespace)
+						export(writer, appSet, namespace, stripStatus)
 					}
 				}
 			}
@@ -151,6 +152,7 @@ func NewExportCommand() *cobra.Command {
 		"If not specified, the value from '%s' in %s is used (if defined in the ConfigMap). "+
 		"If the ConfigMap value is not set, only ApplicationSets from the control plane namespace are exported.",
 		applicationsetNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
+	command.Flags().BoolVar(&stripStatus, "strip-status", false, "Strip status field from exported resources for a clean, re-creatable manifest set")
 	return &command
 }
 
@@ -452,7 +454,7 @@ func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOpe
 }
 
 // export writes the unstructured object and removes extraneous cruft from output before writing
-func export(w io.Writer, un unstructured.Unstructured, argocdNamespace string) {
+func export(w io.Writer, un unstructured.Unstructured, argocdNamespace string, stripStatus bool) {
 	name := un.GetName()
 	finalizers := un.GetFinalizers()
 	apiVersion := un.GetAPIVersion()
@@ -461,6 +463,9 @@ func export(w io.Writer, un unstructured.Unstructured, argocdNamespace string) {
 	annotations := un.GetAnnotations()
 	namespace := un.GetNamespace()
 	unstructured.RemoveNestedField(un.Object, "metadata")
+	if stripStatus {
+		unstructured.RemoveNestedField(un.Object, "status")
+	}
 	un.SetName(name)
 	un.SetFinalizers(finalizers)
 	un.SetAPIVersion(apiVersion)

@@ -10,16 +10,18 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/scheme"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/scheme"
 
 	"github.com/argoproj/argo-cd/v3/util/argo/managedfields"
 	"github.com/argoproj/argo-cd/v3/util/argo/testdata"
 )
 
 func TestNormalize(t *testing.T) {
+	t.Parallel()
 	parser := scheme.StaticParser()
 	t.Run("will remove conflicting fields if managed by trusted managers", func(t *testing.T) {
 		// given
+		t.Parallel()
 		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
 		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
 		trustedManagers := []string{"kube-controller-manager", "revision-history-manager"}
@@ -51,6 +53,7 @@ func TestNormalize(t *testing.T) {
 	})
 	t.Run("will keep conflicting fields if not from trusted manager", func(t *testing.T) {
 		// given
+		t.Parallel()
 		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
 		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
 		trustedManagers := []string{"another-manager"}
@@ -68,6 +71,7 @@ func TestNormalize(t *testing.T) {
 	})
 	t.Run("no-op if live state is nil", func(t *testing.T) {
 		// given
+		t.Parallel()
 		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
 		trustedManagers := []string{"kube-controller-manager"}
 		pt := parser.Type("io.k8s.api.apps.v1.Deployment")
@@ -84,6 +88,7 @@ func TestNormalize(t *testing.T) {
 	})
 	t.Run("no-op if desired state is nil", func(t *testing.T) {
 		// given
+		t.Parallel()
 		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
 		trustedManagers := []string{"kube-controller-manager"}
 		pt := parser.Type("io.k8s.api.apps.v1.Deployment")
@@ -100,6 +105,7 @@ func TestNormalize(t *testing.T) {
 	})
 	t.Run("no-op if trusted manager list is empty", func(t *testing.T) {
 		// given
+		t.Parallel()
 		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
 		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
 		pt := parser.Type("io.k8s.api.apps.v1.Deployment")
@@ -118,6 +124,7 @@ func TestNormalize(t *testing.T) {
 	})
 	t.Run("will normalize successfully inside a list", func(t *testing.T) {
 		// given
+		t.Parallel()
 		desiredState := StrToUnstructured(testdata.DesiredValidatingWebhookYaml)
 		liveState := StrToUnstructured(testdata.LiveValidatingWebhookYaml)
 		trustedManagers := []string{"external-secrets"}
@@ -144,6 +151,7 @@ func TestNormalize(t *testing.T) {
 		assert.Empty(t, string(vwcConfig.Webhooks[0].ClientConfig.CABundle))
 	})
 	t.Run("does not fail if object fails validation schema", func(t *testing.T) {
+		t.Parallel()
 		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
 		require.NoError(t, unstructured.SetNestedField(desiredState.Object, "spec", "hello", "world"))
 		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
@@ -157,6 +165,7 @@ func TestNormalize(t *testing.T) {
 		// ResolveParseableType can return nil when a CRD's GVK isn't in the
 		// cluster's openapi schema; Normalize must fall back to the deduced
 		// type rather than dereferencing nil.
+		t.Parallel()
 		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
 		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
 		trustedManagers := []string{"kube-controller-manager"}

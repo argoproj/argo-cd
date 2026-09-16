@@ -12,7 +12,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -27,9 +26,7 @@ func TestPrintSyncWindows(t *testing.T) {
 		{
 			name: "Project with multiple sync windows including syncOverrun",
 			project: &v1alpha1.AppProject{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-project",
-				},
+				Name: "test-project",
 				Spec: v1alpha1.AppProjectSpec{
 					SyncWindows: v1alpha1.SyncWindows{
 						{
@@ -68,9 +65,7 @@ func TestPrintSyncWindows(t *testing.T) {
 		{
 			name: "Project with empty sync window lists",
 			project: &v1alpha1.AppProject{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-project",
-				},
+				Name: "test-project",
 				Spec: v1alpha1.AppProjectSpec{
 					SyncWindows: v1alpha1.SyncWindows{
 						{
@@ -96,9 +91,7 @@ func TestPrintSyncWindows(t *testing.T) {
 		{
 			name: "Project with no sync windows",
 			project: &v1alpha1.AppProject{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-project",
-				},
+				Name: "test-project",
 				Spec: v1alpha1.AppProjectSpec{
 					SyncWindows: v1alpha1.SyncWindows{},
 				},

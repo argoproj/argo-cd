@@ -14,6 +14,7 @@ import (
 )
 
 func TestHealthCheck(t *testing.T) {
+	t.Parallel()
 	sentinel := false
 	lc := &net.ListenConfig{}
 	ctx := t.Context()

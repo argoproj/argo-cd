@@ -70,7 +70,7 @@ As is the case with the development process, this document is under constant cha
 
 ### Perform the development cycle 
 - [Set kubectl context to argocd namespace](development-cycle.md#set-kubectl-context-to-argocd-namespace)
-- [Pull in all build dependencies](development-cycle.md#pull-in-all-build-dependencies)
+- [Pull in all build dependencies](development-cycle.md#pull-in-all-ui-build-dependencies)
 - [Generate API glue code and other assets](development-cycle.md#generate-api-glue-code-and-other-assets)
 - [Build your code and run unit tests](development-cycle.md#build-your-code-and-run-unit-tests)
 - [Lint your code base](development-cycle.md#lint-your-code-base)

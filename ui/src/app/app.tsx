@@ -1,23 +1,19 @@
-import {DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
+import {AppContext, AppContextReact, DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
 import {Subscription} from 'rxjs';
-import applications from './applications';
-import help from './help';
-import login from './login';
-import settings from './settings';
 import {Layout, ThemeWrapper} from './shared/components/layout/layout';
-import {Page} from './shared/components/page/page';
-import {Spinner} from './shared/components/spinner';
+import {ErrorBoundary} from './shared/components/error-boundary/error-boundary';
+import {Page} from './shared/components';
+import {Spinner} from './shared/components';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {AuthSettingsCtx, Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode, isSSOConfigured} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
-import userInfo from './user-info';
 import {AuthSettings, UserInfo} from './shared/models';
 import {SystemLevelExtension} from './shared/services/extensions-service';
 
@@ -27,16 +23,30 @@ const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
 requests.setBaseHRef(base);
 
+// Guards the SSO re-authentication redirect below. Multiple watch streams can emit 401s
+// simultaneously when a session expires; without this, each one reassigns
+// window.location.href and cancels the previous in-flight navigation to the identity
+// provider, so the browser never actually leaves the page. Reset happens naturally: the
+// redirect is a full page load, which discards this module's state.
+let ssoRedirectInProgress = false;
+
 type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
 
+const applications = React.lazy(() => import(/* webpackChunkName: "applications", webpackPrefetch: true */ './applications').then(m => ({default: m.default.component})));
+const help = React.lazy(() => import(/* webpackChunkName: "help" */ './help').then(m => ({default: m.default.component})));
+const login = React.lazy(() => import(/* webpackChunkName: "login", webpackPrefetch: true */ './login').then(m => ({default: m.default.component})));
+const resources = React.lazy(() => import(/* webpackChunkName: "resources" */ './resources').then(m => ({default: m.default.component})));
+const settings = React.lazy(() => import(/* webpackChunkName: "settings" */ './settings').then(m => ({default: m.default.component})));
+const userInfo = React.lazy(() => import(/* webpackChunkName: "user-info" */ './user-info').then(m => ({default: m.default.component})));
+
 const routes: Routes = {
-    '/login': {component: login.component as any, noLayout: true},
-    '/applications': {component: applications.component},
-    // TODO: Uncomment when ApplicationSet details page is fully implemented
-    '/applicationsets': {component: applications.component},
-    '/settings': {component: settings.component},
-    '/user-info': {component: userInfo.component},
-    '/help': {component: help.component}
+    '/login': {component: login as any, noLayout: true},
+    '/applications': {component: applications},
+    '/applicationsets': {component: applications},
+    '/resources': {component: resources},
+    '/settings': {component: settings},
+    '/user-info': {component: userInfo},
+    '/help': {component: help}
 };
 
 interface NavItem {
@@ -58,6 +68,12 @@ const navItems: NavItem[] = [
         tooltip: 'Manage your ApplicationSets, and diagnose health problems.',
         path: '/applicationsets',
         iconClassName: 'argo-icon argo-icon-applicationset'
+    },
+    {
+        title: 'Resources',
+        tooltip: 'Display all managed resources.',
+        path: '/resources',
+        iconClassName: 'argo-icon argo-icon-catalog'
     },
     {
         title: 'Settings',
@@ -179,14 +195,14 @@ export class App extends React.Component<
         const {trackingID, anonymizeUsers} = authSettings.googleAnalytics || {trackingID: '', anonymizeUsers: true};
         const {loggedIn: userLoggedIn, username} = userInfoResult;
         if (trackingID) {
-            const ga = await import('react-ga');
+            const {default: ga} = await import('react-ga4');
             ga.initialize(trackingID);
             const trackPageView = () => {
                 if (userLoggedIn && username) {
                     const userId = !anonymizeUsers ? username : hashCode(username).toString();
                     ga.set({userId});
                 }
-                ga.pageview(location.pathname + location.search);
+                ga.send({hitType: 'pageview', page: location.pathname + location.search});
             };
             trackPageView();
             history.listen(trackPageView);
@@ -209,6 +225,9 @@ export class App extends React.Component<
             }
             history.replace(`/login?return_url=${encodeURIComponent(location.href)}`);
         }
+
+        // Remove the Resources item from the navigation if the resource view is disabled.
+        this.navItems = this.navItems.filter(item => item.path !== '/resources' || authSettings.resourceViewEnabled);
 
         this.setState(prev => ({
             ...prev,
@@ -261,6 +280,17 @@ export class App extends React.Component<
             );
         }
 
+        const contextApis = {history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base};
+
+        // argo-ui's AppContext requires a `router`, but this provider sits above <Router> so there is no
+        // route match yet — supply the current location with an empty match. The only fields argo-ui actually
+        // reads off this context are `apis` (DataLoader) and `router` (NavBar, unused in Argo CD).
+        const appContext: AppContext = {
+            history,
+            apis: {popup: this.popupManager, notifications: this.notificationsManager},
+            router: {history, route: {location: history.location, match: {params: {}, isExact: false, path: '', url: ''}}}
+        };
+
         return (
             <React.Fragment>
                 <Helmet>
@@ -268,43 +298,63 @@ export class App extends React.Component<
                     <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-16x16.png`} sizes='16x16' />
                 </Helmet>
                 <PageContext.Provider value={{title: 'Argo CD'}}>
-                    <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
-                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                            {pref => <ThemeWrapper theme={pref.theme}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</ThemeWrapper>}
-                        </DataLoader>
-                        <AuthSettingsCtx.Provider value={this.state.authSettings}>
-                            <Router history={history}>
-                                <Switch>
-                                    <Redirect exact={true} path='/' to='/applications' />
-                                    {Object.keys(this.routes).map(path => {
-                                        const route = this.routes[path];
-                                        return (
-                                            <Route
-                                                key={path}
-                                                path={path}
-                                                render={routeProps =>
-                                                    route.noLayout ? (
-                                                        <div>
-                                                            <route.component {...routeProps} />
-                                                        </div>
-                                                    ) : (
-                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                            {pref => (
-                                                                <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
-                                                                    <Banner>
+                    <Provider value={contextApis}>
+                        {/*
+                          argo-ui's class components (e.g. DataLoader) read context via the modern
+                          `static contextType = AppContextReact`. Without this provider, their `this.context`
+                          is undefined and any error path (e.g. DataLoader.handleError after a failed
+                          save/update/delete) throws "this.appContext is undefined".
+                        */}
+                        <AppContextReact.Provider value={appContext}>
+                            <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                {pref => <ThemeWrapper theme={pref.theme}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</ThemeWrapper>}
+                            </DataLoader>
+                            <AuthSettingsCtx.Provider value={this.state.authSettings}>
+                                <Router history={history}>
+                                    <ErrorBoundary message='Failed to load this page. Please reload and try again.'>
+                                        <React.Suspense
+                                            fallback={
+                                                <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh'}}>
+                                                    <Spinner show={true} />
+                                                </div>
+                                            }>
+                                            <Switch>
+                                                <Redirect exact={true} path='/' to='/applications' />
+                                                {Object.keys(this.routes).map(path => {
+                                                    const route = this.routes[path];
+                                                    return (
+                                                        <Route
+                                                            key={path}
+                                                            path={path}
+                                                            render={routeProps =>
+                                                                route.noLayout ? (
+                                                                    <div>
                                                                         <route.component {...routeProps} />
-                                                                    </Banner>
-                                                                </Layout>
-                                                            )}
-                                                        </DataLoader>
-                                                    )
-                                                }
-                                            />
-                                        );
-                                    })}
-                                </Switch>
-                            </Router>
-                        </AuthSettingsCtx.Provider>
+                                                                    </div>
+                                                                ) : (
+                                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                        {pref => (
+                                                                            <Layout
+                                                                                onVersionClick={() => this.setState({showVersionPanel: true})}
+                                                                                navItems={this.navItems}
+                                                                                pref={pref}>
+                                                                                <Banner>
+                                                                                    <route.component {...routeProps} />
+                                                                                </Banner>
+                                                                            </Layout>
+                                                                        )}
+                                                                    </DataLoader>
+                                                                )
+                                                            }
+                                                        />
+                                                    );
+                                                })}
+                                            </Switch>
+                                        </React.Suspense>
+                                    </ErrorBoundary>
+                                </Router>
+                            </AuthSettingsCtx.Provider>
+                        </AppContextReact.Provider>
                     </Provider>
                 </PageContext.Provider>
                 <Notifications notifications={this.notificationsManager.notifications} />
@@ -329,6 +379,15 @@ export class App extends React.Component<
                 // If basehref is the default `/` it will become an empty string.
                 const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
                 if (isSSO) {
+                    if (ssoRedirectInProgress) {
+                        return;
+                    }
+                    ssoRedirectInProgress = true;
+                    // If the redirect fails to navigate away (e.g. network failure), reset the
+                    // flag so a later 401 can retry the redirect instead of being blocked forever.
+                    setTimeout(() => {
+                        ssoRedirectInProgress = false;
+                    }, 5000);
                     window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
                 } else {
                     history.push(`/login?return_url=${encodeURIComponent(location.href)}`);

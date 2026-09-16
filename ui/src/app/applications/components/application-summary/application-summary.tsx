@@ -410,6 +410,11 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
               ]
             : [
                   {
+                      title: 'TAG PREFIX',
+                      view: source.tagPrefix ? <span>{source.tagPrefix}</span> : null,
+                      edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.tagPrefix' component={Text} />
+                  },
+                  {
                       title: 'TARGET REVISION',
                       view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
                       edit: (formApi: FormApi) => (
@@ -514,10 +519,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             view: (
                 <Revision
                     repoUrl={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)}
-                    revision={
-                        app.spec.sourceHydrator?.hydrateTo?.targetBranch ||
-                        (app.spec.sourceHydrator?.syncSource?.targetBranch ? `${app.spec.sourceHydrator.syncSource.targetBranch}-next` : 'HEAD')
-                    }
+                    revision={app.spec.sourceHydrator?.hydrateTo?.targetBranch || app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'}
                 />
             ),
             edit: (formApi: FormApi) => {

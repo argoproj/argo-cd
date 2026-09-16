@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Cert is a certificate for tests. It was generated like this:
@@ -338,4 +340,31 @@ func (h *LogHook) GetEntries() []string {
 		matches = append(matches, entry.Message)
 	}
 	return matches
+}
+
+type SaneFakeClient struct {
+	client.WithWatch
+}
+
+func (sc SaneFakeClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	ok := obj.GetObjectKind().GroupVersionKind()
+	err := sc.WithWatch.Get(ctx, key, obj, opts...)
+	obj.GetObjectKind().SetGroupVersionKind(ok)
+	return err
+}
+
+// A workaround for backward compatibility of the fake client.  Before
+// v0.22 controller runtime fake client was always filling GVK of the
+// returned objects.  Now it allways clears TypeMeta field in the
+// target object if it's a typed object (see
+// https://github.com/kubernetes-sigs/controller-runtime/pull/3229)
+// The new behavior is purposed to discourage relying on the returned
+// GVK. But, really, this does not completely map to the behaviour of
+// real k8s client, which preserves the values in the target
+// object. Some of our application code actively relies on this
+// behaviour.  This wrapper preserves existing values, thus better
+// simulating behaviour of a real client instance.
+func MakeSaneFakeClient(fakeClient client.WithWatch) client.WithWatch {
+	client := SaneFakeClient{WithWatch: fakeClient}
+	return client
 }

@@ -17,6 +17,8 @@ jest.mock('./resource-customizations', () => ({
         '*.crossplane.io': true,
         '*.fluxcd.io': true,
         'cert-manager.io': true,
+        'nauth.io': true,
+        '*.promoter.argoproj.io': true,
         'promoter.argoproj.io': true
     }
 }));
@@ -26,12 +28,18 @@ describe('ResourceIcon', () => {
         render(<ResourceIcon group={group} kind={kind} />);
     };
 
+    const expectIconBox40x32 = (element: HTMLElement) => {
+        expect(element.style.width).toBe('40px');
+        expect(element.style.height).toBe('32px');
+    };
+
     describe('kind-based icons (no group)', () => {
         it('should show kind-based icon for ConfigMap without group', () => {
             renderResourceIcon('', 'ConfigMap');
             const imgs = screen.getAllByRole('img');
             expect(imgs.length).toBeGreaterThan(0);
             expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/cm.svg');
+            expectIconBox40x32(imgs[0] as HTMLElement);
         });
 
         it('should show kind-based icon for Deployment without group', () => {
@@ -39,6 +47,7 @@ describe('ResourceIcon', () => {
             const imgs = screen.getAllByRole('img');
             expect(imgs.length).toBeGreaterThan(0);
             expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/deploy.svg');
+            expectIconBox40x32(imgs[0] as HTMLElement);
         });
     });
 
@@ -71,11 +80,25 @@ describe('ResourceIcon', () => {
             expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/_.fluxcd.io/icon.svg');
         });
 
+        it('should show group-based icon for nauth.io', () => {
+            render(<ResourceIcon group='nauth.io' kind='Account' />);
+            const imgs = screen.getAllByRole('img');
+            expect(imgs.length).toBeGreaterThan(0);
+            expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/nauth.io/icon.svg');
+        });
+
         it('should show group-based icon for promoter.argoproj.io', () => {
             render(<ResourceIcon group='promoter.argoproj.io' kind='PromotionStrategy' />);
             const imgs = screen.getAllByRole('img');
             expect(imgs.length).toBeGreaterThan(0);
             expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/promoter.argoproj.io/icon.svg');
+        });
+
+        it('should show group-based icon for view.promoter.argoproj.io', () => {
+            render(<ResourceIcon group='view.promoter.argoproj.io' kind='PromotionStrategyDetails' />);
+            const imgs = screen.getAllByRole('img');
+            expect(imgs.length).toBeGreaterThan(0);
+            expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/_.promoter.argoproj.io/icon.svg');
         });
     });
 
@@ -105,6 +128,8 @@ describe('ResourceIcon', () => {
             expect(imgs.length).toBe(0);
             // Should show initials "UR" (uppercase letters from UnknownResource)
             expect(screen.getByText('UR')).toBeInTheDocument();
+            const outer = screen.getByText('UR').parentElement?.parentElement as HTMLElement;
+            expectIconBox40x32(outer);
         });
 
         it('should show initials for MyCustomKind', () => {
@@ -113,6 +138,8 @@ describe('ResourceIcon', () => {
             expect(imgs.length).toBe(0);
             // Should show initials "MCK"
             expect(screen.getByText('MCK')).toBeInTheDocument();
+            const outer = screen.getByText('MCK').parentElement?.parentElement as HTMLElement;
+            expectIconBox40x32(outer);
         });
     });
 
@@ -122,18 +149,25 @@ describe('ResourceIcon', () => {
             const imgs = screen.getAllByRole('img');
             expect(imgs.length).toBeGreaterThan(0);
             expect(imgs[0]).toHaveAttribute('src', 'assets/images/infrastructure_components/node.svg');
+            expectIconBox40x32(imgs[0] as HTMLElement);
         });
 
         it('should show application icon for kind=Application', () => {
             renderResourceIcon('', 'Application');
-            const icon = document.querySelector('i.argo-icon-application');
+            const icon = document.querySelector('i.argo-icon-application') as HTMLElement;
             expect(icon).toBeTruthy();
+            expect(icon).toHaveClass('resource-icon__font-icon');
+            expectIconBox40x32(icon);
+            expect(icon.style.fontSize).toBe('32px');
         });
 
         it('should show applicationset icon for kind=ApplicationSet', () => {
             renderResourceIcon('argoproj.io', 'ApplicationSet');
-            const icon = document.querySelector('i.argo-icon-applicationset');
+            const icon = document.querySelector('i.argo-icon-applicationset') as HTMLElement;
             expect(icon).toBeTruthy();
+            expect(icon).toHaveClass('resource-icon__font-icon');
+            expectIconBox40x32(icon);
+            expect(icon.style.fontSize).toBe('32px');
         });
     });
 });

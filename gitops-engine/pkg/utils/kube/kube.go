@@ -185,6 +185,14 @@ func IsCRD(obj *unstructured.Unstructured) bool {
 	return IsCRDGroupVersionKind(obj.GroupVersionKind())
 }
 
+func IsAPIServiceGroupVersionKind(gvk schema.GroupVersionKind) bool {
+	return gvk.Kind == APIServiceKind && gvk.Group == "apiregistration.k8s.io"
+}
+
+func IsAPIService(obj *unstructured.Unstructured) bool {
+	return IsAPIServiceGroupVersionKind(obj.GroupVersionKind())
+}
+
 // ServerResourceForGroupVersionKind looks up and returns the API resource from
 // the server for a given GVK scheme. If verb is set to the non-empty string,
 // it will return the API resource which supports the verb. There are some edge

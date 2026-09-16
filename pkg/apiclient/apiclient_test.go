@@ -1,7 +1,6 @@
 package apiclient
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -51,6 +50,7 @@ func Test_parseGRPCHeaders(t *testing.T) {
 }
 
 func TestExecuteRequest_ClosesBodyOnHTTPError(t *testing.T) {
+	t.Parallel()
 	bodyClosed := &atomic.Bool{}
 
 	// Create a test server that returns HTTP 500 error
@@ -76,7 +76,7 @@ func TestExecuteRequest_ClosesBodyOnHTTPError(t *testing.T) {
 	}
 
 	// Execute request that should fail with HTTP 500
-	ctx := context.Background()
+	ctx := t.Context()
 	md := metadata.New(map[string]string{})
 	_, err := c.executeRequest(ctx, "/test.Service/Method", []byte("test"), md)
 
@@ -92,6 +92,7 @@ func TestExecuteRequest_ClosesBodyOnHTTPError(t *testing.T) {
 }
 
 func TestExecuteRequest_ClosesBodyOnGRPCError(t *testing.T) {
+	t.Parallel()
 	bodyClosed := &atomic.Bool{}
 
 	// Create a test server that returns HTTP 200 but with gRPC error status
@@ -119,7 +120,7 @@ func TestExecuteRequest_ClosesBodyOnGRPCError(t *testing.T) {
 	}
 
 	// Execute request that should fail with gRPC error
-	ctx := context.Background()
+	ctx := t.Context()
 	md := metadata.New(map[string]string{})
 	_, err := c.executeRequest(ctx, "/test.Service/Method", []byte("test"), md)
 
@@ -135,6 +136,7 @@ func TestExecuteRequest_ClosesBodyOnGRPCError(t *testing.T) {
 }
 
 func TestExecuteRequest_ConcurrentErrorRequests_NoConnectionLeak(t *testing.T) {
+	t.Parallel()
 	// This test simulates the scenario from the test script:
 	// Multiple concurrent requests that fail should all close their response bodies
 
@@ -181,7 +183,7 @@ func TestExecuteRequest_ConcurrentErrorRequests_NoConnectionLeak(t *testing.T) {
 	for range iterations {
 		for range concurrency {
 			wg.Go(func() {
-				ctx := context.Background()
+				ctx := t.Context()
 				md := metadata.New(map[string]string{})
 				_, err := c.executeRequest(ctx, "/application.ApplicationService/ManagedResources", []byte("test"), md)
 				// We expect errors
@@ -201,6 +203,7 @@ func TestExecuteRequest_ConcurrentErrorRequests_NoConnectionLeak(t *testing.T) {
 }
 
 func TestExecuteRequest_SuccessDoesNotCloseBodyPrematurely(t *testing.T) {
+	t.Parallel()
 	// Verify that successful requests do NOT close the body in executeRequest
 	// (caller is responsible for closing in success case)
 
@@ -228,7 +231,7 @@ func TestExecuteRequest_SuccessDoesNotCloseBodyPrematurely(t *testing.T) {
 	}
 
 	// Execute successful request
-	ctx := context.Background()
+	ctx := t.Context()
 	md := metadata.New(map[string]string{})
 	resp, err := c.executeRequest(ctx, "/test.Service/Method", []byte("test"), md)
 

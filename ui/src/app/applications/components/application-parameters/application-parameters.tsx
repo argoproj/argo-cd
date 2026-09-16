@@ -252,7 +252,6 @@ export const ApplicationParameters = (props: {
     } else {
         // For the three other references of ApplicationParameters. They are single source.
         // Create App, Add source, Rollback and History
-        let attributes: EditablePanelItem[] = [];
         if (props.details) {
             const ind = props.multiSourceIndex;
             const isMulti = ind !== undefined;
@@ -264,7 +263,7 @@ export const ApplicationParameters = (props: {
                 gatherDetails(
                     isMulti ? ind : 0,
                     props.details,
-                    attributes,
+                    [],
                     attrSource,
                     app,
                     setRemovedOverrides,
@@ -282,19 +281,7 @@ export const ApplicationParameters = (props: {
             return (
                 <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application)}>
                     {(details: models.RepoAppDetails) => {
-                        attributes = [];
-                        const attr = gatherDetails(
-                            0,
-                            details,
-                            attributes,
-                            source,
-                            app,
-                            setRemovedOverrides,
-                            removedOverrides,
-                            appParamsDeletedState,
-                            setAppParamsDeletedState,
-                            false
-                        );
+                        const attr = gatherDetails(0, details, [], source, app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState, false);
                         return getEditablePanel(attr, details);
                     }}
                 </DataLoader>
@@ -319,7 +306,14 @@ export const ApplicationParameters = (props: {
                 <div className='settings-overview__redirect-panel__content'>
                     <div className='settings-overview__redirect-panel__title'>Source {index + 1 + (appSource.name ? ' - ' + appSource.name : '') + ': ' + appSource.repoURL}</div>
                     <div className='settings-overview__redirect-panel__description'>
-                        {(appSource.path ? 'PATH=' + appSource.path : '') + (appSource.targetRevision ? (appSource.path ? ', ' : '') + 'REVISION=' + appSource.targetRevision : '')}
+                        {[
+                            appSource.path ? 'PATH=' + appSource.path : '',
+                            appSource.chart ? 'CHART=' + appSource.chart : '',
+                            appSource.targetRevision ? 'REVISION=' + appSource.targetRevision : '',
+                            appSource.plugin?.env?.length ? 'ENV=[' + appSource.plugin.env.map(env => env.name + '=' + env.value).join(', ') + ']' : ''
+                        ]
+                            .filter(part => part !== '')
+                            .join(', ')}
                     </div>
                 </div>
             </div>
@@ -874,7 +868,7 @@ function gatherDetails(
     } else if (repoDetails.type === 'Plugin') {
         attributes.push({
             title: 'NAME',
-            view: <div style={{marginTop: 15, marginBottom: 5}}>{ValueEditor(app.spec.source?.plugin?.name, null)}</div>,
+            view: <div style={{marginTop: 15, marginBottom: 5}}>{ValueEditor(source?.plugin?.name, null)}</div>,
             edit: (formApi: FormApi) => (
                 <DataLoader load={() => services.authService.plugins()}>
                     {(plugins: Plugin[]) => (
@@ -892,7 +886,7 @@ function gatherDetails(
             title: 'ENV',
             view: (
                 <div style={{marginTop: 15}}>
-                    {(app.spec.source?.plugin?.env || []).map(val => (
+                    {(source?.plugin?.env || []).map(val => (
                         <span key={val.name} style={{display: 'block', marginBottom: 5}}>
                             {NameValueEditor(val, null)}
                         </span>
@@ -909,8 +903,8 @@ function gatherDetails(
                 parametersSet.add(announcement.name);
             }
         }
-        if (app.spec.source?.plugin?.parameters) {
-            for (const appParameter of app.spec.source.plugin.parameters) {
+        if (source?.plugin?.parameters) {
+            for (const appParameter of source.plugin.parameters) {
                 parametersSet.add(appParameter.name);
             }
         }
@@ -920,7 +914,7 @@ function gatherDetails(
         }
         parametersSet.forEach(name => {
             const announcement = repoDetails.plugin.parametersAnnouncement?.find(param => param.name === name);
-            const liveParam = app.spec.source?.plugin?.parameters?.find(param => param.name === name);
+            const liveParam = source?.plugin?.parameters?.find(param => param.name === name);
             const pluginIcon =
                 announcement && liveParam ? 'This parameter has been provided by plugin, but is overridden in application manifest.' : 'This parameter is provided by the plugin.';
             const isPluginPar = !!announcement;

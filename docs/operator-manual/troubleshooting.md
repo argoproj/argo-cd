@@ -1,6 +1,6 @@
 # Troubleshooting Tools
 
-The document describes how to use `argocd admin` subcommands to simplify Argo CD settings customizations and troubleshot
+The document describes how to use `argocd admin` subcommands to simplify Argo CD settings customizations and troubleshoot
 connectivity issues.
 
 ## Settings

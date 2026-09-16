@@ -67,15 +67,50 @@ argocd proj add-source <PROJECT> !<REPO>
 argocd proj remove-source <PROJECT> !<REPO>
 ```
 
-Declaratively we can do something like this:
+#### Wildcard Patterns in Source Repositories
+
+Source repositories support glob-style wildcard patterns for flexible repository matching:
+
+- `*` - Matches any characters within a single path segment (between slashes)
+- `**` - Matches any characters across multiple path segments (recursive)
+
+Common patterns:
+
+```yaml
+spec:
+  sourceRepos:
+    # Match all repositories (any Git server)
+    - '*'
+
+    # Match all GitHub repositories (using double-wildcard for recursive matching)
+    - 'https://github.com/**'
+
+    # Match all repositories in a specific organization
+    - 'https://github.com/argoproj/*'
+
+    # Match all repositories in organizations starting with 'my-'
+    - 'https://github.com/my-*/*'
+
+    # Match GitLab group repositories with nested subgroups
+    - 'https://gitlab.com/group/**'
+
+    # Match specific nested path depth
+    - 'https://gitlab.com/group/*/*'  # Exactly two levels deep
+```
+
+Negation examples:
 
 ```yaml
 spec:
   sourceRepos:
     # Do not use the test repo in argoproj
     - '!ssh://git@GITHUB.com:argoproj/test'
-    # Nor any Gitlab repo under group/ 
+    # Nor any Gitlab repo under group/
     - '!https://gitlab.com/group/**'
+    # Deny all GitHub repos except those explicitly allowed
+    - '!https://github.com/**'
+    # Allow specific GitHub organization
+    - 'https://github.com/my-org/*'
     # Any other repo is fine though
     - '*'
 ```
@@ -132,6 +167,8 @@ argocd proj allow-namespace-resource <PROJECT> <GROUP> <KIND> [<NAME>]
 argocd proj deny-cluster-resource <PROJECT> <GROUP> <KIND>
 argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND> [<NAME>]
 ```
+
+When a project uses `namespaceResourceWhitelist`, the whitelist also controls which child resources appear in the Application resource tree in the UI. Any child resource whose GroupKind is not permitted by the project is omitted from the tree, even if it exists and is healthy in the cluster. For example, if the whitelist includes only `apps/Deployment` and `Service`, the Deployment node is shown but its `ReplicaSet` and `Pod` children are hidden until `apps/ReplicaSet` and `Pod` are added to the whitelist. This filtering does not affect sync permissions for resources already deployed; it only affects observability in the resource tree.
 
 #### Restrict Cluster-Scoped Resources by Name
 
@@ -392,6 +429,9 @@ stringData:
       }
     }
 ```
+
+> [!NOTE]
+> **Implicit Destinations:** When a project-scoped cluster is defined, an implicit entry is dynamically added to the AppProject's `destinations` list during evaluation. By default, this acts as a wildcard, allowing applications in the project to deploy to all namespaces in the cluster (acting as `namespace: "*"`). If the cluster definition has the `namespaces` field set, only those specific namespaces are implicitly added to the project's destinations instead. Because this happens dynamically during evaluation to facilitate multi-tenancy, these implicit destinations are not reflected in the AppProject's declarative spec or the UI.
 
 With project-scoped clusters we can also restrict projects to only allow applications whose destinations belong to the same project. The default behavior allows for applications to be installed onto clusters which are not a part of the same project, as the example below demonstrates:
 
