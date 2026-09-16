@@ -20,6 +20,7 @@ import (
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 
@@ -4489,6 +4490,66 @@ func TestWriteBackToInformer(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, exists, "write-back must not re-add an application that is no longer in the informer store")
 	})
+
+	t.Run("does not overwrite a replacement created under the same name", func(t *testing.T) {
+		app := newFakeApp()
+		app.UID = "old"
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		replacement := app.DeepCopy()
+		replacement.UID = "new"
+		require.NoError(t, ctrl.appInformer.GetStore().Update(replacement))
+
+		ctrl.writeBackToInformer(app.DeepCopy())
+
+		obj, exists, err := ctrl.appInformer.GetStore().GetByKey(app.QualifiedName())
+		require.NoError(t, err)
+		require.True(t, exists)
+		assert.Equal(t, types.UID("new"), obj.(*v1alpha1.Application).UID)
+	})
+}
+
+func TestEvictDeletedApp(t *testing.T) {
+	t.Run("leaves a replacement created under the same name alone", func(t *testing.T) {
+		app := newFakeApp()
+		app.UID = "old"
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		replacement := app.DeepCopy()
+		replacement.UID = "new"
+		require.NoError(t, ctrl.appInformer.GetStore().Update(replacement))
+
+		ctrl.evictDeletedApp(app)
+
+		obj, exists, err := ctrl.appInformer.GetStore().GetByKey(app.QualifiedName())
+		require.NoError(t, err)
+		require.True(t, exists)
+		assert.Equal(t, types.UID("new"), obj.(*v1alpha1.Application).UID)
+	})
+}
+
+func TestApplicationController_PersistAppStatus_EvictsWhenFallbackPatchFindsAppGone(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+
+	patchCalls := 0
+	fakeAppCs.PrependReactor("patch", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+		patchCalls++
+		if patchCalls == 1 {
+			return true, nil, apierrors.NewRequestEntityTooLargeError("status too large")
+		}
+		return true, nil, apierrors.NewNotFound(v1alpha1.Resource("applications"), app.Name)
+	})
+
+	newStatus := app.Status.DeepCopy()
+	newStatus.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+	ctrl.persistAppStatus(t.Context(), app, newStatus)
+
+	require.Equal(t, 2, patchCalls)
+	_, exists, err := ctrl.appInformer.GetStore().Get(app)
+	require.NoError(t, err)
+	assert.False(t, exists, "a NotFound from the fallback patch must evict the cached application")
 }
 
 // projectFinalizerPatched installs a reactor recording whether a project finalizer patch was issued.

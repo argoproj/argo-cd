@@ -1288,9 +1288,14 @@ func (ctrl *ApplicationController) appReferencesProject(app *appv1.Application, 
 // evictDeletedApp drops an Application the API server has reported NotFound from the informer store and
 // cluster sharding. Nothing else prunes such a copy (see writeBackToInformer): it would be reconciled on
 // every resync and counted as a project reference until the next relist.
+//
+// The store is matched by UID, not just key, so a replacement created under the same name is left alone.
 func (ctrl *ApplicationController) evictDeletedApp(app *appv1.Application) {
-	_, exists, err := ctrl.appInformer.GetStore().Get(app)
+	obj, exists, err := ctrl.appInformer.GetStore().Get(app)
 	if err != nil || !exists {
+		return
+	}
+	if cached, ok := obj.(*appv1.Application); !ok || cached.UID != app.UID {
 		return
 	}
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
@@ -1878,13 +1883,17 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 // NotFound must therefore evictDeletedApp, and no consumer may treat a store hit as proof of existence.
 func (ctrl *ApplicationController) writeBackToInformer(app *appv1.Application) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app)).WithField("informer-writeBack", true)
-	_, exists, err := ctrl.appInformer.GetStore().Get(app)
+	obj, exists, err := ctrl.appInformer.GetStore().Get(app)
 	if err != nil {
 		logCtx.WithError(err).Error("failed to read informer store")
 		return
 	}
 	if !exists {
 		logCtx.Info("Skipping informer write-back: application no longer in informer store")
+		return
+	}
+	if cached, ok := obj.(*appv1.Application); ok && cached.UID != app.UID {
+		logCtx.Info("Skipping informer write-back: application was replaced under the same name")
 		return
 	}
 	if err := ctrl.appInformer.GetStore().Update(app); err != nil {
@@ -2592,15 +2601,15 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 			if !modified {
 				return patchDuration
 			}
-			if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{}); fbErr != nil {
-				logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
+			if _, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{}); err != nil {
+				logCtx.WithError(err).Error("Error persisting fallback status with error condition")
 			}
-			return patchDuration
+		} else {
+			logCtx.WithError(err).Warn("Error updating application")
 		}
 		if apierrors.IsNotFound(err) {
 			ctrl.evictDeletedApp(orig)
 		}
-		logCtx.WithError(err).Warn("Error updating application")
 	} else {
 		logCtx.Infof("Update successful")
 	}
