@@ -25,18 +25,56 @@ permissions:
   contents: read
 
 jobs:
+  seeds:
+    name: Pick shuffle seeds
+    # Gate lives here; the shuffle job needs this one, so skipping it skips the matrix too.
+    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci/e2e-shuffle' }}
+    runs-on: ubuntu-24.04
+    outputs:
+      list: ${{ steps.pick.outputs.list }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Pick seeds
+        id: pick
+        env:
+          SEED_COUNT: '5'
+        # Drawn from /dev/urandom rather than hardcoded, so every run explores fresh
+        # orderings instead of re-testing the same five forever. They are written to the
+        # run summary and carried in the job and artifact names, so each ordering stays
+        # reproducible by anyone who wants to re-run it.
+        run: |
+          set -eu
+          seeds=""
+          for _ in $(seq 1 "$SEED_COUNT"); do
+            s=$(od -An -N4 -tu4 < /dev/urandom | tr -d ' ')
+            seeds="${seeds:+$seeds,}$((s + 1))"
+          done
+          echo "list=[$seeds]" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Shuffle seeds for this run"
+            echo
+            echo 'Reproduce a single ordering locally with:'
+            echo
+            echo '```'
+            echo 'make test-e2e-local ARGOCD_E2E_RERUN_FAILS=0 ARGOCD_E2E_TEST_TIMEOUT="150m -shuffle=<seed>"'
+            echo '```'
+            echo
+            for s in $(echo "$seeds" | tr ',' ' '); do echo "- \`$s\`"; done
+          } >> "$GITHUB_STEP_SUMMARY"
+
   shuffle:
     name: e2e shuffled (seed ${{ matrix.seed }})
-    # Only the one label triggers it; every other label added to a PR is ignored.
-    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci/e2e-shuffle' }}
+    needs: seeds
     runs-on: ${{ github.repository == 'argoproj/argo-cd' && 'oracle-vm-16cpu-64gb-x86-64' || 'ubuntu-24.04' }}
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
-        # Explicit seeds rather than -shuffle=on: the ordering is then reproducible by
-        # anyone re-running with the same number, instead of having to scrape it from logs.
-        seed: [10111, 20222, 30333, 40444, 50555]
+        seed: ${{ fromJSON(needs.seeds.outputs.list) }}
     env:
       ARGOCD_FAKE_IN_CLUSTER: 'true'
       ARGOCD_E2E_K3S: 'true'
@@ -47,6 +85,11 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
         with:
@@ -156,12 +199,17 @@ jobs:
         # The trailing flag rides on ARGOCD_E2E_TEST_TIMEOUT because the Makefile expands it
         # unquoted into the go test command line. Slightly cheeky, but it keeps the tree
         # byte-identical to the PR branch: only the invocation differs.
+        # The seed goes through env rather than being expanded straight into the script:
+        # a ${{ }} expansion inside run: is a template-injection sink, and zizmor flags the
+        # shape regardless of whether this particular value happens to be safe.
+        env:
+          SEED: ${{ matrix.seed }}
         run: |
           set -x
-          echo "shuffle seed: ${{ matrix.seed }}"
+          echo "shuffle seed: ${SEED}"
           make test-e2e-local \
             ARGOCD_E2E_RERUN_FAILS=0 \
-            ARGOCD_E2E_TEST_TIMEOUT="150m -shuffle=${{ matrix.seed }}"
+            ARGOCD_E2E_TEST_TIMEOUT="150m -shuffle=${SEED}"
       - name: Upload results
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
