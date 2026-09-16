@@ -97,3 +97,16 @@ func TestNotificationServer(t *testing.T) {
 		assert.NotEmpty(t, templates.Items[0])
 	})
 }
+
+func TestBuiltInAppSyncSucceededSlackTemplateIncludesRevision(t *testing.T) {
+	t.Parallel()
+	b, err := os.ReadFile("../../notifications_catalog/install.yaml")
+	require.NoError(t, err)
+
+	cm := &corev1.ConfigMap{}
+	_, _, err = scheme.Codecs.UniversalDeserializer().Decode(b, nil, cm)
+	require.NoError(t, err)
+
+	assert.Contains(t, cm.Data["template.app-sync-succeeded"], `"title": "Revision"`)
+	assert.Contains(t, cm.Data["template.app-sync-succeeded"], `"value": "{{.app.status.sync.revision}}"`)
+}
