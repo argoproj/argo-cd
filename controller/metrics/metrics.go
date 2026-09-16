@@ -77,7 +77,14 @@ var (
 
 	descAppSyncBlocked = prometheus.NewDesc(
 		"argocd_app_sync_blocked",
-		"Whether automatic syncs of the application are currently blocked by its project's sync windows. Emitted as a 0/1 gauge: 1 means an automatic sync attempt right now would be rejected (an active deny window applies, or only allow windows are configured and none is active). Reports 0 when no sync windows are configured, distinguishing that case from \"allow=0, deny=0\" caused by inactive allow windows. Reports 1 when the project cannot be resolved or its sync windows cannot be evaluated, because a real sync attempt would fail in the same state.",
+		"Whether automatic syncs of the application are currently blocked by its project's sync windows. Emitted as a 0/1 gauge: 1 means an automatic sync attempt right now would be rejected. Reports 0 when no sync windows are configured, distinguishing that case from \"allow=0, deny=0\" caused by inactive allow windows. Also reports 1 when the windows cannot be evaluated, because a real sync attempt would fail in the same state; use argocd_app_sync_window_error to tell the two apart.",
+		descAppDefaultLabels,
+		nil,
+	)
+
+	descAppSyncWindowError = prometheus.NewDesc(
+		"argocd_app_sync_window_error",
+		"Whether the application's sync windows could not be evaluated. Emitted as a 0/1 gauge: 1 means the AppProject could not be resolved or its window schedules could not be parsed, so argocd_app_sync_window does not reflect the configured windows and argocd_app_sync_blocked is reported fail-closed as 1.",
 		descAppDefaultLabels,
 		nil,
 	)
@@ -426,6 +433,7 @@ func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 	if c.getAppProject != nil {
 		ch <- descAppSyncWindow
 		ch <- descAppSyncBlocked
+		ch <- descAppSyncWindowError
 	}
 }
 
@@ -436,6 +444,10 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 		log.Warnf("Failed to collect applications: %v", err)
 		return
 	}
+	var syncWindows *syncWindowScrape
+	if c.getAppProject != nil {
+		syncWindows = newSyncWindowScrape(c.getAppProject)
+	}
 	for _, app := range apps {
 		keep, destServer, err := c.appFilter(app)
 		if !keep {
@@ -444,7 +456,7 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 		if err != nil {
 			log.Warnf("Failed to get destination cluster for application %s: %v", app.Name, err)
 		}
-		c.collectApps(ch, app, destServer)
+		c.collectApps(ch, app, destServer, syncWindows)
 	}
 }
 
@@ -455,7 +467,7 @@ func boolFloat64(b bool) float64 {
 	return 0
 }
 
-func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application, destServer string) {
+func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application, destServer string, syncWindows *syncWindowScrape) {
 	addConstMetric := func(desc *prometheus.Desc, t prometheus.ValueType, v float64, lv ...string) {
 		project := app.Spec.GetProject()
 		lv = append([]string{app.Namespace, app.Name, project}, lv...)
@@ -518,58 +530,75 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		}
 	}
 
-	if c.getAppProject != nil {
-		allow, deny, blocked := syncWindowMetricValues(c.getAppProject, app)
-		addGauge(descAppSyncWindow, allow, "allow")
-		addGauge(descAppSyncWindow, deny, "deny")
-		addGauge(descAppSyncBlocked, blocked)
+	if syncWindows != nil {
+		allowActive, denyActive, blocked, failed, err := syncWindows.evaluate(app)
+		if err != nil {
+			log.Warnf("Failed to evaluate sync windows for application %s/%s, reporting its sync as blocked: %v", app.Namespace, app.Name, err)
+		}
+		addGauge(descAppSyncWindow, boolFloat64(allowActive), "allow")
+		addGauge(descAppSyncWindow, boolFloat64(denyActive), "deny")
+		addGauge(descAppSyncBlocked, boolFloat64(blocked))
+		addGauge(descAppSyncWindowError, boolFloat64(failed))
 	}
 }
 
-// syncWindowMetricValues returns the gauge values for the
-// argocd_app_sync_window (allow, deny) and argocd_app_sync_blocked series of
-// the given application. allow and deny are each 1 if at least one matching
-// sync window of that kind is currently active, otherwise 0. blocked is 1 if
-// an automatic sync attempt right now would be rejected: an active deny
-// window applies, or matching allow windows are configured and none is
-// currently active. When no sync windows are configured, or only deny windows
-// are configured and none is active, blocked is 0. Errors resolving the
-// project or evaluating window schedules are logged and reported as
-// blocked=1, because a real sync attempt would fail in the same state.
-func syncWindowMetricValues(getAppProject AppProjectGetter, app *argoappv1.Application) (allow, deny, blocked float64) {
-	proj, err := getAppProject(app)
+type projectLookup struct {
+	proj *argoappv1.AppProject
+	err  error
+}
+
+// syncWindowScrape is the state shared by every application in one scrape.
+// AppProjectGetter caches successful project lookups but not failures, so
+// without this a single broken project repeats its lookup once per application
+// on every scrape.
+type syncWindowScrape struct {
+	getAppProject AppProjectGetter
+	projects      map[string]projectLookup
+}
+
+func newSyncWindowScrape(getAppProject AppProjectGetter) *syncWindowScrape {
+	return &syncWindowScrape{
+		getAppProject: getAppProject,
+		projects:      map[string]projectLookup{},
+	}
+}
+
+// project resolves the AppProject for app. Keyed by namespace too, since the
+// getter also checks whether the project permits it. Logging on the cache miss
+// reports a broken project once per scrape, with the project as the subject.
+func (s *syncWindowScrape) project(app *argoappv1.Application) (*argoappv1.AppProject, error) {
+	key := app.Spec.GetProject() + "/" + app.Namespace
+	if cached, ok := s.projects[key]; ok {
+		return cached.proj, cached.err
+	}
+	proj, err := s.getAppProject(app)
 	if err != nil {
-		log.Warnf("Failed to get AppProject for application %s/%s, reporting its sync as blocked: %v", app.Namespace, app.Name, err)
-		return 0, 0, 1
+		log.Warnf("Failed to get AppProject %s for its applications in namespace %s: %v", app.Spec.GetProject(), app.Namespace, err)
+	}
+	s.projects[key] = projectLookup{proj: proj, err: err}
+	return proj, err
+}
+
+// evaluate returns the sync window gauge values for app. Any failure sets
+// blocked and failed, fail-closed, because a real sync would fail in the same
+// state. Only err is the caller's to log: a lookup failure is already reported
+// by project(), once per project rather than once per application.
+func (s *syncWindowScrape) evaluate(app *argoappv1.Application) (allowActive, denyActive, blocked, failed bool, err error) {
+	proj, err := s.project(app)
+	if err != nil {
+		return false, false, true, true, nil
 	}
 	if proj == nil {
-		return 0, 0, 0
+		// Indistinguishable from a project that configures no windows.
+		return false, false, false, false, nil
 	}
-	matched := proj.Spec.SyncWindows.Matches(app)
-	active, err := matched.Active()
+	// blocked comes from CanSync, the same call that gates automatic syncs, so
+	// the gauge cannot drift from it. One evaluation feeds all three gauges:
+	// asking separately reads the clock twice, and a boundary in between would
+	// report an active allow window alongside blocked=1.
+	canSync, allowActive, denyActive, err := proj.Spec.SyncWindows.Matches(app).CanSyncWithActiveKinds(false, nil)
 	if err != nil {
-		log.Warnf("Failed to evaluate sync windows for application %s/%s, reporting its sync as blocked: %v", app.Namespace, app.Name, err)
-		return 0, 0, 1
+		return false, false, true, true, err
 	}
-	if active.HasWindows() {
-		for _, w := range *active {
-			switch w.Kind {
-			case "allow":
-				allow = 1
-			case "deny":
-				deny = 1
-			}
-		}
-	}
-	if deny == 1 {
-		return allow, deny, 1
-	}
-	if allow == 0 && matched.HasWindows() {
-		for _, w := range *matched {
-			if w.Kind == "allow" {
-				return allow, deny, 1
-			}
-		}
-	}
-	return allow, deny, 0
+	return allowActive, denyActive, !canSync, false, nil
 }

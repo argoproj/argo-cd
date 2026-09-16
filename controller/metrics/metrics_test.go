@@ -822,6 +822,10 @@ func TestSyncWindowMetric(t *testing.T) {
 	allowInactiveMatching := func() *argoappv1.InlineSyncWindow {
 		return &argoappv1.InlineSyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "0s", Applications: []string{"*"}}
 	}
+	// Matches the application but cannot be parsed, so evaluation fails.
+	malformedSchedule := func() *argoappv1.InlineSyncWindow {
+		return &argoappv1.InlineSyncWindow{Kind: "allow", Schedule: "not a cron spec", Duration: "1h", Applications: []string{"*"}}
+	}
 	newProject := func(windows ...*argoappv1.InlineSyncWindow) *argoappv1.AppProject {
 		return &argoappv1.AppProject{
 			Name: "important-project", Namespace: "argocd",
@@ -832,14 +836,19 @@ func TestSyncWindowMetric(t *testing.T) {
 	const helpAndType = `
 # HELP argocd_app_sync_window Whether a sync window of the given kind is currently active for the application. Emitted as a 0/1 gauge per window_kind ("allow", "deny"); 1 means at least one matching window of that kind is currently active.
 # TYPE argocd_app_sync_window gauge
-# HELP argocd_app_sync_blocked Whether automatic syncs of the application are currently blocked by its project's sync windows. Emitted as a 0/1 gauge: 1 means an automatic sync attempt right now would be rejected (an active deny window applies, or only allow windows are configured and none is active). Reports 0 when no sync windows are configured, distinguishing that case from "allow=0, deny=0" caused by inactive allow windows. Reports 1 when the project cannot be resolved or its sync windows cannot be evaluated, because a real sync attempt would fail in the same state.
+# HELP argocd_app_sync_blocked Whether automatic syncs of the application are currently blocked by its project's sync windows. Emitted as a 0/1 gauge: 1 means an automatic sync attempt right now would be rejected. Reports 0 when no sync windows are configured, distinguishing that case from "allow=0, deny=0" caused by inactive allow windows. Also reports 1 when the windows cannot be evaluated, because a real sync attempt would fail in the same state; use argocd_app_sync_window_error to tell the two apart.
 # TYPE argocd_app_sync_blocked gauge
+# HELP argocd_app_sync_window_error Whether the application's sync windows could not be evaluated. Emitted as a 0/1 gauge: 1 means the AppProject could not be resolved or its window schedules could not be parsed, so argocd_app_sync_window does not reflect the configured windows and argocd_app_sync_blocked is reported fail-closed as 1.
+# TYPE argocd_app_sync_window_error gauge
 `
 	gauge := func(kind string, value int) string {
 		return fmt.Sprintf(`argocd_app_sync_window{name="my-app",namespace="argocd",project="important-project",window_kind=%q} %d`+"\n", kind, value)
 	}
 	blockedGauge := func(value int) string {
 		return fmt.Sprintf(`argocd_app_sync_blocked{name="my-app",namespace="argocd",project="important-project"} %d`+"\n", value)
+	}
+	errorGauge := func(value int) string {
+		return fmt.Sprintf(`argocd_app_sync_window_error{name="my-app",namespace="argocd",project="important-project"} %d`+"\n", value)
 	}
 
 	cases := []struct {
@@ -852,49 +861,63 @@ func TestSyncWindowMetric(t *testing.T) {
 			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
 				return newProject(denyAlwaysOn()), nil
 			},
-			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 1) + blockedGauge(1),
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 1) + blockedGauge(1) + errorGauge(0),
 		},
 		{
 			description: "active allow window emits allow=1, deny=0, blocked=0",
 			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
 				return newProject(allowAlwaysOn()), nil
 			},
-			expectedResponse: helpAndType + gauge("allow", 1) + gauge("deny", 0) + blockedGauge(0),
+			expectedResponse: helpAndType + gauge("allow", 1) + gauge("deny", 0) + blockedGauge(0) + errorGauge(0),
 		},
 		{
 			description: "active allow + deny windows emit both as 1 and blocked=1 (deny wins)",
 			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
 				return newProject(allowAlwaysOn(), denyAlwaysOn()), nil
 			},
-			expectedResponse: helpAndType + gauge("allow", 1) + gauge("deny", 1) + blockedGauge(1),
+			expectedResponse: helpAndType + gauge("allow", 1) + gauge("deny", 1) + blockedGauge(1) + errorGauge(0),
 		},
 		{
 			description: "window that does not match the application emits 0/0 and blocked=0",
 			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
 				return newProject(denyNonMatching()), nil
 			},
-			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(0),
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(0) + errorGauge(0),
 		},
 		{
 			description: "project with no windows emits 0/0 and blocked=0",
 			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
 				return newProject(), nil
 			},
-			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(0),
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(0) + errorGauge(0),
 		},
 		{
 			description: "inactive but matching allow window emits 0/0 and blocked=1 (disambiguates from \"no windows configured\")",
 			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
 				return newProject(allowInactiveMatching()), nil
 			},
-			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(1),
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(1) + errorGauge(0),
 		},
 		{
-			description: "getAppProject error emits 0/0 and blocked=1 (fail-closed: a real sync would fail here too)",
+			description: "getAppProject error emits 0/0, blocked=1 and error=1 (fail-closed: a real sync would fail here too)",
 			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
 				return nil, stderrors.New("project not found")
 			},
-			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(1),
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(1) + errorGauge(1),
+		},
+		{
+			description: "unparseable window schedule emits 0/0, blocked=1 and error=1",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return newProject(malformedSchedule()), nil
+			},
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(1) + errorGauge(1),
+		},
+		{
+			description: "nil project without an error emits 0/0, blocked=0 and error=0 (no windows to evaluate)",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return nil, nil
+			},
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(0) + errorGauge(0),
 		},
 	}
 
@@ -912,6 +935,47 @@ func TestSyncWindowMetric(t *testing.T) {
 			runTest(t, cfg)
 		})
 	}
+}
+
+// A single broken project must not cost one lookup, and one log line, per
+// application per scrape. AppProjectGetter caches successes but not failures,
+// so the collector has to do it.
+func TestSyncWindowMetricProjectFailureIsResolvedOncePerScrape(t *testing.T) {
+	// All three share namespace argocd and project important-project, so they
+	// resolve to one cache entry.
+	cancel, appLister := newFakeLister(t.Context(), fakeApp, fakeApp2, fakeApp3)
+	defer cancel()
+
+	var calls int
+	getAppProject := func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+		calls++
+		return nil, stderrors.New("project not found")
+	}
+
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, getAppProject)
+	require.NoError(t, err)
+
+	scrape := func() string {
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+		require.NoError(t, err)
+		rr := httptest.NewRecorder()
+		metricsServ.Handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
+		return rr.Body.String()
+	}
+
+	body := scrape()
+	assert.Equal(t, 1, calls, "three applications in one failing project should resolve it once")
+
+	// Every application still reports the failure, fail-closed.
+	for _, name := range []string{"my-app", "my-app-2", "my-app-3"} {
+		assertMetricsPrinted(t, fmt.Sprintf(`argocd_app_sync_blocked{name=%q,namespace="argocd",project="important-project"} 1`, name), body)
+		assertMetricsPrinted(t, fmt.Sprintf(`argocd_app_sync_window_error{name=%q,namespace="argocd",project="important-project"} 1`, name), body)
+	}
+
+	// The cache lives for one scrape only, so the next scrape retries.
+	scrape()
+	assert.Equal(t, 2, calls, "the cache must not outlive a scrape")
 }
 
 func TestMetricsReset(t *testing.T) {

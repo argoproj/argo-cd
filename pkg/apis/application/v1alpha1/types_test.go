@@ -3186,6 +3186,112 @@ func TestSyncWindows_hasDeny(t *testing.T) {
 	})
 }
 
+func TestSyncWindows_partition(t *testing.T) {
+	// Always/never active, so the partition does not depend on the wall clock.
+	always := func(kind string) *InlineSyncWindow {
+		return &InlineSyncWindow{Kind: kind, Schedule: "* * * * *", Duration: "24h", Applications: []string{"*"}}
+	}
+	never := func(kind string) *InlineSyncWindow {
+		return &InlineSyncWindow{Kind: kind, Schedule: "0 0 1 1 *", Duration: "1s", Applications: []string{"*"}}
+	}
+
+	t.Run("NoWindows", func(t *testing.T) {
+		var windows SyncWindows
+		active, inactiveAllows, err := windows.partition(time.Now())
+		require.NoError(t, err)
+		assert.Nil(t, active)
+		assert.Nil(t, inactiveAllows)
+	})
+
+	t.Run("SplitsActiveFromInactiveAllows", func(t *testing.T) {
+		windows := SyncWindows{always("allow"), always("deny"), never("allow"), never("deny")}
+		active, inactiveAllows, err := windows.partition(time.Now())
+		require.NoError(t, err)
+		require.NotNil(t, active)
+		assert.Len(t, *active, 2)
+		// Inactive deny windows are not reported: only allow windows block.
+		require.NotNil(t, inactiveAllows)
+		require.Len(t, *inactiveAllows, 1)
+		assert.Equal(t, "allow", (*inactiveAllows)[0].Kind)
+	})
+
+	t.Run("MatchesActiveAndInactiveAllows", func(t *testing.T) {
+		windows := SyncWindows{always("allow"), always("deny"), never("allow"), never("deny")}
+		now := time.Now()
+
+		active, inactiveAllows, err := windows.partition(now)
+		require.NoError(t, err)
+
+		expectedActive, err := windows.active(now)
+		require.NoError(t, err)
+		expectedInactiveAllows, err := windows.inactiveAllows(now)
+		require.NoError(t, err)
+
+		assert.Equal(t, expectedActive, active)
+		assert.Equal(t, expectedInactiveAllows, inactiveAllows)
+	})
+
+	t.Run("InvalidSchedule", func(t *testing.T) {
+		windows := SyncWindows{{Kind: "allow", Schedule: "not a cron spec", Duration: "1h"}}
+		_, _, err := windows.partition(time.Now())
+		require.ErrorContains(t, err, "cannot parse schedule")
+	})
+
+	t.Run("InvalidDuration", func(t *testing.T) {
+		windows := SyncWindows{{Kind: "allow", Schedule: "* * * * *", Duration: "not a duration"}}
+		_, _, err := windows.partition(time.Now())
+		require.ErrorContains(t, err, "cannot parse duration")
+	})
+}
+
+func TestSyncWindows_CanSyncWithActiveKinds(t *testing.T) {
+	always := func(kind string) *InlineSyncWindow {
+		return &InlineSyncWindow{Kind: kind, Schedule: "* * * * *", Duration: "24h", Applications: []string{"*"}}
+	}
+	never := func(kind string) *InlineSyncWindow {
+		return &InlineSyncWindow{Kind: kind, Schedule: "* * * * *", Duration: "0s", Applications: []string{"*"}}
+	}
+
+	cases := []struct {
+		name        string
+		windows     SyncWindows
+		canSync     bool
+		allowActive bool
+		denyActive  bool
+	}{
+		{name: "NoWindows", windows: nil, canSync: true},
+		{name: "ActiveAllow", windows: SyncWindows{always("allow")}, canSync: true, allowActive: true},
+		{name: "ActiveDeny", windows: SyncWindows{always("deny")}, canSync: false, denyActive: true},
+		{name: "ActiveAllowAndDeny", windows: SyncWindows{always("allow"), always("deny")}, canSync: false, allowActive: true, denyActive: true},
+		{name: "InactiveAllowBlocks", windows: SyncWindows{never("allow")}, canSync: false},
+		{name: "InactiveDenyAllows", windows: SyncWindows{never("deny")}, canSync: true},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			canSync, allowActive, denyActive, err := c.windows.CanSyncWithActiveKinds(false, nil)
+			require.NoError(t, err)
+			assert.Equal(t, c.canSync, canSync)
+			assert.Equal(t, c.allowActive, allowActive)
+			assert.Equal(t, c.denyActive, denyActive)
+
+			// Must not drift from CanSync, which actually gates the sync.
+			expected, err := c.windows.CanSync(false, nil)
+			require.NoError(t, err)
+			assert.Equal(t, expected, canSync)
+		})
+	}
+
+	t.Run("InvalidSchedule", func(t *testing.T) {
+		windows := SyncWindows{{Kind: "allow", Schedule: "not a cron spec", Duration: "1h"}}
+		canSync, allowActive, denyActive, err := windows.CanSyncWithActiveKinds(false, nil)
+		require.ErrorContains(t, err, "cannot parse schedule")
+		assert.False(t, canSync)
+		assert.False(t, allowActive)
+		assert.False(t, denyActive)
+	})
+}
+
 func TestCacheSyncWindowValue(t *testing.T) {
 	t.Run("StopsGrowingAtLimit", func(t *testing.T) {
 		var cache sync.Map

@@ -3129,6 +3129,39 @@ func (w *SyncWindows) inactiveAllows(currentTime time.Time) (*SyncWindows, error
 	return nil, nil
 }
 
+// partition classifies every window once at currentTime, returning the active
+// windows and the inactive allow windows. CanSync needs both; one pass resolves
+// each window's schedule, duration and time zone once rather than twice.
+func (w *SyncWindows) partition(currentTime time.Time) (*SyncWindows, *SyncWindows, error) {
+	if !w.HasWindows() {
+		return nil, nil, nil
+	}
+	currentTime = currentTime.In(time.UTC)
+
+	var active, inactiveAllows SyncWindows
+	for _, window := range *w {
+		isActive, err := window.isActiveAt(currentTime)
+		if err != nil {
+			return nil, nil, err
+		}
+		switch {
+		case isActive:
+			active = append(active, window)
+		case window.Kind == "allow":
+			inactiveAllows = append(inactiveAllows, window)
+		}
+	}
+
+	var activeWindows, inactiveAllowWindows *SyncWindows
+	if len(active) > 0 {
+		activeWindows = &active
+	}
+	if len(inactiveAllows) > 0 {
+		inactiveAllowWindows = &inactiveAllows
+	}
+	return activeWindows, inactiveAllowWindows, nil
+}
+
 func (w InlineSyncWindow) scheduleOffsetByTimeZone() time.Duration {
 	_, tzOffset := time.Now().In(syncWindowLocation(w.TimeZone)).Zone()
 	return time.Duration(tzOffset) * time.Second
@@ -3270,14 +3303,40 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 //  2. When an allow window ends: If the operation started during an allow window with syncOverrun enabled, the sync can continue
 //     even after the allow window has ended (and no other allow windows are active).
 func (w *SyncWindows) CanSync(isManual bool, operationStartTime *time.Time) (bool, error) {
+	canSync, _, _, err := w.CanSyncWithActiveKinds(isManual, operationStartTime)
+	return canSync, err
+}
+
+// CanSyncWithActiveKinds behaves like CanSync, and also reports whether an allow
+// and/or deny window is currently active. All three come from one evaluation, so
+// a boundary crossed between separate calls cannot make them disagree.
+func (w *SyncWindows) CanSyncWithActiveKinds(isManual bool, operationStartTime *time.Time) (canSync, allowActive, denyActive bool, err error) {
 	if !w.HasWindows() {
-		return true, nil
+		return true, false, false, nil
 	}
 
-	active, err := w.Active()
+	active, inactiveAllows, err := w.partition(time.Now())
 	if err != nil {
-		return false, fmt.Errorf("invalid sync windows: %w", err)
+		return false, false, false, fmt.Errorf("invalid sync windows: %w", err)
 	}
+	if active.HasWindows() {
+		for _, window := range *active {
+			switch window.Kind {
+			case "allow":
+				allowActive = true
+			case "deny":
+				denyActive = true
+			}
+		}
+	}
+
+	canSync, err = w.canSyncFrom(isManual, operationStartTime, active, inactiveAllows)
+	return canSync, allowActive, denyActive, err
+}
+
+// canSyncFrom decides from an already-partitioned set, so callers that need the
+// partition too do not evaluate the schedules twice.
+func (w *SyncWindows) canSyncFrom(isManual bool, operationStartTime *time.Time, active, inactiveAllows *SyncWindows) (bool, error) {
 	hasActiveDeny, manualEnabled := active.hasDeny()
 
 	if hasActiveDeny {
@@ -3303,10 +3362,6 @@ func (w *SyncWindows) CanSync(isManual bool, operationStartTime *time.Time) (boo
 		return true, nil
 	}
 
-	inactiveAllows, err := w.InactiveAllows()
-	if err != nil {
-		return false, fmt.Errorf("invalid sync windows: %w", err)
-	}
 	if inactiveAllows.HasWindows() {
 		if isManual && inactiveAllows.manualEnabled() {
 			return true, nil
@@ -3425,7 +3480,7 @@ func (w *SyncWindows) canSyncAtTime(isManual bool, checkTime time.Time) (bool, e
 		return true, nil
 	}
 
-	active, err := w.active(checkTime)
+	active, inactiveAllows, err := w.partition(checkTime)
 	if err != nil {
 		return false, fmt.Errorf("invalid sync windows: %w", err)
 	}
@@ -3442,10 +3497,6 @@ func (w *SyncWindows) canSyncAtTime(isManual bool, checkTime time.Time) (bool, e
 		return true, nil
 	}
 
-	inactiveAllows, err := w.inactiveAllows(checkTime)
-	if err != nil {
-		return false, fmt.Errorf("invalid sync windows: %w", err)
-	}
 	if inactiveAllows.HasWindows() {
 		if isManual && inactiveAllows.manualEnabled() {
 			return true, nil
