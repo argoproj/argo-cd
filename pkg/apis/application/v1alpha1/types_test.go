@@ -3472,25 +3472,6 @@ func TestSyncWindowLocation(t *testing.T) {
 	})
 }
 
-func BenchmarkSyncWindows_CanSync(b *testing.B) {
-	for _, tz := range []string{"", "Europe/Berlin"} {
-		name := "NoTimeZone"
-		if tz != "" {
-			name = "TimeZone"
-		}
-		b.Run(name, func(b *testing.B) {
-			windows := SyncWindows{
-				{Kind: "allow", Schedule: "0 22 * * *", Duration: "1h", TimeZone: tz, Applications: []string{"*"}},
-				{Kind: "deny", Schedule: "0 2 * * *", Duration: "1h", TimeZone: tz, Applications: []string{"*"}},
-			}
-			for b.Loop() {
-				_, err := windows.CanSync(false, nil)
-				require.NoError(b, err)
-			}
-		})
-	}
-}
-
 func TestSyncWindows_hasAllow(t *testing.T) {
 	t.Run("NoWindows", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
