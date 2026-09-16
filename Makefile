@@ -236,8 +236,10 @@ endif
 .PHONY: all
 all: cli image
 
+# mockery resolves the packages it mocks through the module graph, and emits different constructors
+# when it reads them from vendor/ than from the module cache. Vendor first, matching codegen-local.
 .PHONY: mockgen
-mockgen:
+mockgen: mod-vendor-local codegen-go-tools-local
 	./hack/generate-mock.sh
 
 .PHONY: gogen
@@ -249,12 +251,12 @@ gogen:
 protogen: mod-vendor-local protogen-fast
 
 .PHONY: protogen-fast
-protogen-fast:
+protogen-fast: codegen-go-tools-local
 	export GO111MODULE=off
 	./hack/generate-proto.sh
 
 .PHONY: openapigen
-openapigen:
+openapigen: codegen-go-tools-local
 	export GO111MODULE=off
 	./hack/update-openapi.sh
 
@@ -269,7 +271,7 @@ notification-docs:
 
 
 .PHONY: clientgen
-clientgen:
+clientgen: codegen-go-tools-local
 	export GO111MODULE=off
 	./hack/update-codegen.sh
 
@@ -668,6 +670,13 @@ install-test-tools-local:
 .PHONY: install-codegen-tools-local
 install-codegen-tools-local:
 	./hack/install.sh codegen-tools
+	./hack/install.sh codegen-go-tools
+
+# Rebuilds the Go codegen CLIs in dist/ from go.mod and hack/tools/go.mod. Every target that runs a
+# generator depends on this, so the binaries can never be older than the versions they are pinned
+# by. It is a no-op beyond a cache lookup once they are current.
+.PHONY: codegen-go-tools-local
+codegen-go-tools-local:
 	./hack/install.sh codegen-go-tools
 
 # Installs all tools required for running codegen (Go packages)
