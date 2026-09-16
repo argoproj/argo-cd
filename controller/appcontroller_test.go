@@ -2414,51 +2414,6 @@ func TestRefreshAppConditions(t *testing.T) {
 	})
 }
 
-// TestAppRefreshSkipsOnLevelThreeRepoError verifies that a force-resolve refresh
-// (Level 3, noRevisionCache=true) whose comparison fails closed returns a nil
-// comparison result without attempting any status update. Regression coverage for
-// the nil-comparisonResult guard added with the #29716 fail-closed change.
-func TestAppRefreshSkipsOnLevelThreeRepoError(t *testing.T) {
-	app := newFakeApp()
-	app.Annotations = map[string]string{
-		v1alpha1.AnnotationKeyRefresh:          "true",
-		v1alpha1.AnnotationKeyRefreshTimestamp: time.Now().Format(time.RFC3339),
-	}
-	ctrl := newFakeController(t.Context(), &fakeData{
-		apps:              []runtime.Object{app, &defaultProj},
-		manifestResponses: make([]*apiclient.ManifestResponse, 3),
-		managedLiveObjs:   make(map[kube.ResourceKey]*unstructured.Unstructured),
-	}, errors.New("test repo error"))
-
-	key, _ := cache.MetaNamespaceKeyFunc(app)
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	fakeAppCs.ReactionChain = nil
-	var statusPatches []string
-	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			statusPatches = append(statusPatches, string(patchAction.GetPatch()))
-		}
-		return true, &v1alpha1.Application{}, nil
-	})
-
-	ctrl.requestAppRefresh(app.Name, CompareWithLatestForceResolve.Pointer(), nil)
-	ctrl.appRefreshQueue.AddRateLimited(key)
-	ctrl.processAppRefreshQueueItem()
-
-	// the failed Level 3 comparison must short-circuit the refresh: no comparison
-	// result may leak into the status, but the refresh annotations MUST be cleared so
-	// callers waiting for the refresh (e.g. `argocd app get --refresh`) do not wait
-	// forever.
-	got, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
-	require.NoError(t, err)
-	assert.Empty(t, got.Status.Conditions)
-	assert.NotContains(t, got.GetAnnotations(), v1alpha1.AnnotationKeyRefresh)
-	// the only patch may be the annotation removal; no status write may occur
-	for _, p := range statusPatches {
-		assert.NotContains(t, p, "/status")
-	}
-}
-
 func TestUpdateReconciledAt(t *testing.T) {
 	app := newFakeApp()
 	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Second))

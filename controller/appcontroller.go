@@ -1982,16 +1982,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		logCtx.WithError(err).Warn("Ignoring temporary failed attempt to compare app state against repo")
 		return processNext // short circuit if git error is encountered
 	}
-	if compareResult == nil {
-		logCtx.WithError(err).Warn("Skipping refresh: failed to compare app state against repo")
-		// The comparison failed closed and no result was produced, but callers waiting
-		// on the refresh annotation (e.g. `argocd app get --refresh`) would otherwise
-		// wait forever for the refresh to complete. Clear the refresh annotations so
-		// the waiter observes the refresh as processed. See #29716.
-		ctrl.handleRefreshAnnotation(ctx, origApp, appv1.AnnotationKeyRefresh, appv1.AnnotationKeyRefreshTimestamp)
-		ctrl.handleRefreshAnnotation(ctx, origApp, appv1.AnnotationKeyHydrate, appv1.AnnotationKeyHydrateTimestamp)
-		return processNext
-	}
 
 	for k, v := range compareResult.timings {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
