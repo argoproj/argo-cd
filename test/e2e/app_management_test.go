@@ -1629,6 +1629,45 @@ func TestExcludedResource(t *testing.T) {
 		Expect(Condition(ApplicationConditionExcludedResourceWarning, "Resource apps/Deployment guestbook-ui is excluded in the settings"))
 }
 
+// TestResourceSelector makes sure that a label selector configured via resource.selectors removes the
+// matching resources from the cluster cache, while leaving them running in the cluster.
+func TestResourceSelector(t *testing.T) {
+	isDeploymentPod := func(node ResourceNode) bool {
+		return node.Kind == kube.PodKind && node.Group == ""
+	}
+	isDeploymentPodInCluster := func(pod corev1.Pod) bool {
+		return pod.Labels["my-label"] == "whatever"
+	}
+
+	Given(t).
+		Path("one-deployment").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(Pod(isDeploymentPodInCluster)).
+		// the pod is part of the application resource tree
+		Expect(ResourceTreeNode(isDeploymentPod)).
+		When().
+		// filter out the pods of the deployment
+		SetResourceFilter(settings.ResourcesFilter{
+			ResourceSelectors: []settings.FilteredResource{{
+				APIGroups: []string{""},
+				Kinds:     []string{kube.PodKind},
+				Selector:  "my-label!=whatever",
+			}},
+		}).
+		Refresh(RefreshTypeHard).
+		Then().
+		// the pod is gone from the resource tree ...
+		Expect(NotResourceTreeNode(isDeploymentPod)).
+		// ... but is still running in the cluster
+		Expect(Pod(isDeploymentPodInCluster)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
 func TestRevisionHistoryLimit(t *testing.T) {
 	Given(t).
 		Path("config-map").

@@ -594,3 +594,138 @@ func TestIsSkipLabelMatches(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckAppHasNoNeedToStopOperation(t *testing.T) {
+	tests := []struct {
+		name          string
+		liveObj       *unstructured.Unstructured
+		stopOperation bool
+		expected      bool
+	}{
+		{
+			name:          "stopOperation false returns true",
+			liveObj:       newApplication("argocd"),
+			stopOperation: false,
+			expected:      true,
+		},
+		{
+			name:          "stopOperation true with non-Application returns true",
+			liveObj:       newConfigmapObject(),
+			stopOperation: true,
+			expected:      true,
+		},
+		{
+			name:          "stopOperation true with Application having no operation returns true",
+			liveObj:       newApplication("argocd"),
+			stopOperation: true,
+			expected:      true,
+		},
+		{
+			name: "stopOperation true with Application having operation returns false",
+			liveObj: func() *unstructured.Unstructured {
+				app := newApplication("argocd")
+				app.Object["operation"] = map[string]any{}
+				return app
+			}(),
+			stopOperation: true,
+			expected:      false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := checkAppHasNoNeedToStopOperation(*tt.liveObj, tt.stopOperation)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestUpdateLive(t *testing.T) {
+	tests := []struct {
+		name          string
+		backup        *unstructured.Unstructured
+		live          *unstructured.Unstructured
+		stopOperation bool
+		validateFn    func(*testing.T, *unstructured.Unstructured)
+	}{
+		{
+			name:   "ConfigMap data is updated from backup",
+			backup: newBackupObject("backup", false, true),
+			live:   newBackupObject("live", false, true),
+			validateFn: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
+				assert.NotNil(t, result)
+				assert.Equal(t, "my-configmap", result.GetName())
+			},
+		},
+		{
+			name:   "Application spec is updated from backup",
+			backup: newApplication("argocd"),
+			live: func() *unstructured.Unstructured {
+				app := newApplication("argocd")
+				app.Object["spec"] = map[string]any{"project": "modified"}
+				return app
+			}(),
+			validateFn: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
+				assert.NotNil(t, result.Object["spec"])
+				spec, ok := result.Object["spec"].(map[string]any)
+				assert.True(t, ok)
+				assert.Equal(t, "default", spec["project"])
+			},
+		},
+		{
+			name: "Application operation is cleared when stopOperation is true",
+			backup: func() *unstructured.Unstructured {
+				app := newApplication("argocd")
+				return app
+			}(),
+			live: func() *unstructured.Unstructured {
+				app := newApplication("argocd")
+				app.Object["operation"] = map[string]any{"sync": map[string]any{}}
+				return app
+			}(),
+			stopOperation: true,
+			validateFn: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
+				assert.Nil(t, result.Object["operation"])
+			},
+		},
+		{
+			name:   "ApplicationSet spec is updated from backup",
+			backup: newApplicationSet("argocd"),
+			live: func() *unstructured.Unstructured {
+				appset := newApplicationSet("argocd")
+				appset.Object["spec"] = map[string]any{"modified": true}
+				return appset
+			}(),
+			validateFn: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
+				assert.NotNil(t, result.Object["spec"])
+				spec, ok := result.Object["spec"].(map[string]any)
+				assert.True(t, ok)
+				assert.NotNil(t, spec["generators"])
+			},
+		},
+		{
+			name:   "Labels and annotations are updated from backup",
+			backup: newBackupObject("backup-id", true, true),
+			live:   newBackupObject("live-id", true, true),
+			validateFn: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
+				labels := result.GetLabels()
+				assert.NotNil(t, labels)
+				assert.Equal(t, "backup-id", labels[common.LabelKeyAppInstance])
+				annotations := result.GetAnnotations()
+				assert.NotNil(t, annotations)
+				assert.Equal(t, "backup-id", annotations[common.AnnotationKeyAppInstance])
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := updateLive(tt.backup, tt.live, tt.stopOperation)
+			tt.validateFn(t, result)
+			assert.NotNil(t, result)
+		})
+	}
+}

@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // this implements the "when" part of given/when/then
@@ -532,6 +533,12 @@ func (a *Actions) Wait(args ...string) *Actions {
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
 	a.context.T().Helper()
 	require.NoError(a.context.T(), fixture.SetParamInSettingConfigMap(key, value))
+	return a
+}
+
+func (a *Actions) SetResourceFilter(filter settings.ResourcesFilter) *Actions {
+	a.context.T().Helper()
+	require.NoError(a.context.T(), fixture.SetResourceFilter(filter))
 	return a
 }
 

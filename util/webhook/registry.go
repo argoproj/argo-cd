@@ -54,7 +54,7 @@ var ErrHMACVerificationFailed = errors.New("HMAC verification failed")
 // handler configuration.
 func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 	repoURL := event.OCIRepoURL()
-	normalizedRepoURL := normalizeOCI(repoURL)
+	normalizedRepoURL := NormalizeOCI(repoURL)
 	revision := event.Tag
 
 	log.WithFields(log.Fields{
@@ -88,12 +88,12 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 		}
 
 		for _, source := range sources {
-			normalizedSourceURL := normalizeOCI(source.RepoURL)
+			normalizedSourceURL := NormalizeOCI(source.RepoURL)
 			// For Helm OCI sources, repoURL is the registry+project and chart is the chart name.
 			// The effective full OCI URL is repoURL/chart, so also try that when chart is set.
 			normalizedSourceURLWithChart := normalizedSourceURL
 			if source.Chart != "" {
-				normalizedSourceURLWithChart = normalizeOCI(strings.TrimRight(source.RepoURL, "/") + "/" + source.Chart)
+				normalizedSourceURLWithChart = NormalizeOCI(strings.TrimRight(source.RepoURL, "/") + "/" + source.Chart)
 			}
 			if normalizedSourceURL != normalizedRepoURL && normalizedSourceURLWithChart != normalizedRepoURL {
 				fields := log.Fields{
@@ -106,7 +106,7 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 				log.WithFields(fields).Debug("Skipping app: OCI repository URLs do not match")
 				continue
 			}
-			if !compareRevisions(revision, source.TargetRevision) {
+			if !CompareRevisions(revision, source.TargetRevision) {
 				log.WithFields(log.Fields{
 					"revision":       revision,
 					"targetRevision": source.TargetRevision,
@@ -136,12 +136,12 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 	}
 }
 
-// normalizeOCI normalizes an OCI repository URL for comparison.
+// NormalizeOCI normalizes an OCI repository URL for comparison.
 //
 // It removes the oci:// prefix, converts to lowercase, and removes any
 // trailing slash to ensure consistent matching between webhook events
 // and Application source URLs.
-func normalizeOCI(url string) string {
+func NormalizeOCI(url string) string {
 	url = strings.TrimPrefix(url, "oci://")
 	url = strings.TrimSuffix(url, "/")
 	return strings.ToLower(url)

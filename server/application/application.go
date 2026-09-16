@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubemeta"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -310,6 +311,9 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 
 	// Filter applications by source repo URL
 	filteredApps = argo.FilterByRepoP(filteredApps, q.GetRepo())
+
+	// Filter applications by name
+	filteredApps = argo.FilterByNamesP(filteredApps, q.GetNames())
 
 	newItems := make([]v1alpha1.Application, 0)
 	for _, a := range filteredApps {
@@ -623,12 +627,17 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	manifests := &apiclient.ManifestResponse{}
 	for _, manifestInfo := range manifestInfos {
 		for i, manifest := range manifestInfo.Manifests {
-			obj := &unstructured.Unstructured{}
-			err = json.Unmarshal([]byte(manifest), obj)
+			meta, err := kubemeta.NewKubeJson([]byte(manifest))
 			if err != nil {
-				return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+				return nil, fmt.Errorf("error parsing manifest metadata: %w", err)
 			}
-			if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+			if meta.GetKind() == kube.SecretKind && meta.GroupVersionKind().Group == "" {
+				// Only Secrets need the full object, for HideSecretData.
+				obj := &unstructured.Unstructured{}
+				err = json.Unmarshal([]byte(manifest), obj)
+				if err != nil {
+					return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+				}
 				obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
 				if err != nil {
 					return nil, fmt.Errorf("error hiding secret data: %w", err)
@@ -751,12 +760,17 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 	}
 
 	for i, manifest := range manifestInfo.Manifests {
-		obj := &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(manifest), obj)
+		meta, err := kubemeta.NewKubeJson([]byte(manifest))
 		if err != nil {
-			return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+			return fmt.Errorf("error parsing manifest metadata: %w", err)
 		}
-		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+		if meta.GetKind() == kube.SecretKind && meta.GroupVersionKind().Group == "" {
+			// Only Secrets need the full object, for HideSecretData.
+			obj := &unstructured.Unstructured{}
+			err = json.Unmarshal([]byte(manifest), obj)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+			}
 			obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
 			if err != nil {
 				return fmt.Errorf("error hiding secret data: %w", err)
@@ -1219,8 +1233,12 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, a v1alpha1.Application) bool {
+func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, names map[string]bool, a v1alpha1.Application) bool {
 	if len(projects) > 0 && !projects[a.Spec.GetProject()] {
+		return false
+	}
+
+	if len(names) > 0 && !argo.MatchesNameFilter(names, a.Namespace, a.Name) {
 		return false
 	}
 
@@ -1255,6 +1273,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	for _, project := range getProjectsFromApplicationQuery(*q) {
 		projects[project] = true
 	}
+	names := argo.NewNameFilter(q.GetNames())
 	claims := ws.Context().Value("claims")
 	selector, err := labels.Parse(q.GetSelector())
 	if err != nil {
@@ -1270,7 +1289,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(a v1alpha1.Application, eventType watch.EventType) {
-		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, a)
+		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, names, a)
 		if !permitted {
 			return
 		}
