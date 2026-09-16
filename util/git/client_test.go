@@ -1003,6 +1003,7 @@ case "$*" in
     printf '* 0000000000000000000000000000000000000000 2222222222222222222222222222222222222222 FETCH_HEAD\n'
     printf 'warning: filtering not recognized by server, ignoring\n' >&2
     ;;
+  *"rev-parse --verify"*) printf '2222222222222222222222222222222222222222\n' ;;
 esac
 `), 0o755))
 	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -1125,8 +1126,9 @@ printf '%%s\n' "$*" >> "$GIT_LS_REMOTE_CALLS_FILE"
 case "$*" in
   *"ls-remote --heads --tags"*) printf '%s\trefs/heads/main\n' ;;
   *"fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0"*) printf '* 0000000000000000000000000000000000000000 %s FETCH_HEAD\n' ;;
+  *"rev-parse --verify"*) printf '%s\n' ;;
 esac
-`, commitSHA, commitSHA), 0o755))
+`, commitSHA, commitSHA, commitSHA), 0o755))
 	t.Setenv("GIT_LS_REMOTE_CALLS_FILE", callsFile)
 	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
@@ -1153,6 +1155,7 @@ esac
 		"--git-dir=" + os.DevNull + " -c protocol.version=2 ls-remote --heads --tags " + repoURL,
 		"init --bare --quiet .",
 		"--git-dir=. -c protocol.version=2 fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0 " + repoURL + " HEAD",
+		"--git-dir=. rev-parse --verify " + commitSHA + "^{commit}",
 	}, strings.Split(strings.TrimSpace(string(calls)), "\n"))
 	assert.Equal(t, []string{"ls-remote-optimized|" + repoURL + "|HEAD,heads,tags"}, cache.setKeys)
 }
@@ -1364,6 +1367,42 @@ func TestOptimizedLsRemoteAnnotatedTagMatchesDefault(t *testing.T) {
 	assert.Equal(t, defaultSHA, optimizedSHA)
 }
 
+func TestOptimizedLsRemoteAnnotatedTagHeadMatchesDefault(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath := t.TempDir()
+
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "init"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "config", "tag.gpgSign", "false"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "config", "uploadpack.allowFilter", "true"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "checkout", "-b", "main"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "commit", "-m", "main", "--allow-empty"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "tag", "-a", "annotated", "-m", "annotated"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "symbolic-ref", headRevision, "refs/tags/annotated"))
+
+	tagObjectSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "annotated")
+	require.NoError(t, err)
+	commitSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "annotated^{}")
+	require.NoError(t, err)
+	tagObjectSHA := strings.TrimSpace(string(tagObjectSHABytes))
+	commitSHA := strings.TrimSpace(string(commitSHABytes))
+	require.NotEqual(t, tagObjectSHA, commitSHA)
+
+	repoURL := "file://" + sourceRepoPath
+	defaultClient, err := NewClientExt(repoURL, filepath.Join(t.TempDir(), "default"), NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	optimizedClient, err := NewClientExt(repoURL, filepath.Join(t.TempDir(), "optimized"), NopCreds{}, true, false, "", "", WithOptimizedLsRemote(true))
+	require.NoError(t, err)
+
+	defaultSHA, err := defaultClient.LsRemote(headRevision)
+	require.NoError(t, err)
+	optimizedSHA, err := optimizedClient.LsRemote(headRevision)
+	require.NoError(t, err)
+
+	assert.Equal(t, commitSHA, defaultSHA)
+	assert.Equal(t, defaultSHA, optimizedSHA)
+}
+
 func TestOptimizedLsRemoteIgnoresUnusableClientRoot(t *testing.T) {
 	setupGitEnv(t)
 	ctx := t.Context()
@@ -1512,8 +1551,9 @@ case "$*" in
     sleep 0.1
     printf '* 0000000000000000000000000000000000000000 %s FETCH_HEAD\n'
     ;;
+  *"rev-parse --verify"*) printf '%s\n' ;;
 esac
-`, commitSHA, commitSHA), 0o755))
+`, commitSHA, commitSHA, commitSHA), 0o755))
 	t.Setenv("GIT_LS_REMOTE_CALLS_FILE", callsFile)
 	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
@@ -1555,6 +1595,7 @@ esac
 		"--git-dir=" + os.DevNull + " -c protocol.version=2 ls-remote --heads --tags " + repoURL,
 		"init --bare --quiet .",
 		"--git-dir=. -c protocol.version=2 fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0 " + repoURL + " HEAD",
+		"--git-dir=. rev-parse --verify " + commitSHA + "^{commit}",
 	}, strings.Split(strings.TrimSpace(string(calls)), "\n"))
 	assert.EqualValues(t, 1, lsRemoteCalls.Load())
 	assert.Equal(t, 1, cache.setCalls)
