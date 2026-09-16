@@ -350,8 +350,9 @@ jobs:
           GE_TAG="gitops-engine/${GITHUB_REF_NAME}"
           # checkout uses persist-credentials: false, so push with an explicit token URL
           REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          if git ls-remote --exit-code --tags "${REMOTE}" "refs/tags/${GE_TAG}" >/dev/null 2>&1; then
-            echo "Tag ${GE_TAG} already exists on origin; skipping"
+          # checkout with fetch-depth: 0 fetches all tags, so a local lookup is enough
+          if git rev-parse -q --verify "refs/tags/${GE_TAG}" >/dev/null; then
+            echo "Tag ${GE_TAG} already exists; skipping"
           else
             git tag "${GE_TAG}" "${GITHUB_REF_NAME}^{}"
             git push "${REMOTE}" "refs/tags/${GE_TAG}:refs/tags/${GE_TAG}"
