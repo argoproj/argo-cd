@@ -7,15 +7,6 @@
         margin-bottom: 1em;
         align-items: center;
         padding-right: 48px;
-        h1 {
-            @include themify($themes) {
-                color: themed('text-2');
-            }
-            font-size: 23px;
-            font-weight: 500;
-            margin-right: 5px;
-            margin-bottom: 0;
-        }
     }
 
     // The name and the status icons share one inline flow, so the status trails
