@@ -17,7 +17,7 @@ import {NoticeBanner} from '../application-notice/notice-banner';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
 import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
 import {PodGroupType, PodView} from '../application-pod-view/pod-view';
-import {ApplicationResourceTree, ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
+import {ApplicationResourceTree, type ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
 import {ApplicationSetStatusPanel} from '../application-status-panel/appset-status-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
@@ -43,7 +43,6 @@ interface ApplicationDetailsState {
     revision?: string; // Which type of revision panelto show SYNC_STATUS_REVISION or OPERATION_STATE_REVISION
     groupedResourceIds?: string[];
     slidingPanelPage?: number;
-    filteredGraph?: any[];
     truncateNameOnRight?: boolean;
     showFullNodeName?: boolean;
     collapsedNodes?: string[];
@@ -115,7 +114,6 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
         page: 0,
         groupedResourceIds: [],
         slidingPanelPage: 0,
-        filteredGraph: [],
         truncateNameOnRight: false,
         showFullNodeName: false,
         collapsedNodes: [],
@@ -779,8 +777,6 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                     appContext: {...appContext, apis: appContext} as unknown as AppContext,
                                     nameDirection: state.truncateNameOnRight,
                                     nameWrap: state.showFullNodeName,
-                                    filters: pref.resourceFilter || [],
-                                    setTreeFilterGraph: setFilterGraph,
                                     updateUsrHelpTipMsgs: updateHelpTipState,
                                     setShowCompactNodes,
                                     setNodeExpansion: (node: string, isExpanded: boolean) => setNodeExpansion(node, isExpanded),
@@ -836,9 +832,6 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                     targetZoom = 2.0;
                                 }
                                 services.viewPreferences.updatePreferences({appDetails: {...pref, zoom: targetZoom}});
-                            };
-                            const setFilterGraph = (filterGraph: any[]) => {
-                                setState(prevState => ({...prevState, filteredGraph: filterGraph}));
                             };
                             const setShowCompactNodes = (showCompactView: boolean) => {
                                 services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: showCompactView}});
@@ -1041,7 +1034,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                     onSetFilter={setFilter}
                                                                     onClearFilter={clearFilter}
                                                                     collapsed={viewPref.hideSidebar}
-                                                                    resourceNodes={filteredRes}
+                                                                    resourceNodes={allResources}
                                                                     hideKindFilter={!isApplication}
                                                                 />
                                                             )}
@@ -1147,7 +1140,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                         onSetFilter={setFilter}
                                                                         onClearFilter={clearFilter}
                                                                         collapsed={viewPref.hideSidebar}
-                                                                        resourceNodes={filteredRes}
+                                                                        resourceNodes={allResources}
                                                                         hideKindFilter={!isApplication}
                                                                     />
                                                                 )}
