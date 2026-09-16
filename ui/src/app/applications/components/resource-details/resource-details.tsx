@@ -294,11 +294,15 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             const loaded = await services.applications
                                 .get(selectedNode.name, selectedNode.namespace, 'application')
                                 .then(app => ({liveState: app as unknown as State, denied: false}))
-                                .catch((err): {liveState: State; denied: boolean} => ({
-                                    liveState: null,
-                                    // Treat 404 as a lack of permission (the API hides existence on RBAC denial).
-                                    denied: err?.status === 403 || err?.status === 404
-                                }));
+                                .catch((err): {liveState: State; denied: boolean} => {
+                                    // Treat 403/404 as a lack of permission (the API hides existence on RBAC denial).
+                                    if (err?.status === 403 || err?.status === 404) {
+                                        return {liveState: null, denied: true};
+                                    }
+                                    // Re-throw other errors (e.g. 504) so the DataLoader shows the error UI,
+                                    // matching the behavior of the managed-resource path.
+                                    throw err;
+                                });
                             const events = loaded.liveState ? await services.applications.events(selectedNode.name, selectedNode.namespace).catch((): Event[] => []) : [];
                             return {
                                 controlledState: null as {summary: models.ResourceStatus; state: models.ResourceDiff} | null,
