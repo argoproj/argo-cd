@@ -46,10 +46,13 @@ func TestPBKDF2PasswordHasher(t *testing.T) {
 
 	assert.False(t, h.VerifyPassword("Hello, world!", "invalid"))
 	assert.False(t, h.VerifyPassword("Hello, world!", "pbkdf2-sha256$v1$1$invalid$invalid"))
-	assert.False(t, h.VerifyPassword("Hello, world!", "pbkdf2-sha256$v1$5000001$c2FsdA==$aGFzaA=="))
-	assert.False(t, h.VerifyPassword("Hello, world!", "pbkdf2-sha256$v1$99999$c2FsdA==$aGFzaA=="))
 
 	validSalt := "AAAAAAAAAAAAAAAAAAAAAA"
+
+	assert.False(t, h.VerifyPassword(
+		"Hello, world!",
+		"pbkdf2-sha256$v1$599999$"+validSalt+"$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+	))
 
 	assert.False(t, h.VerifyPassword(
 		"Hello, world!",
