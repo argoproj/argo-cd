@@ -3,6 +3,7 @@ package metrics
 import (
 	"net/http"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -17,7 +18,7 @@ type MetricsServer struct {
 	gitRequestCounter             *prometheus.CounterVec
 	gitRequestHistogram           *prometheus.HistogramVec
 	repoPendingRequestsGauge      *prometheus.GaugeVec
-	activeGRPCRequestsGauge       prometheus.Gauge
+	activeGRPCRequests            *atomic.Int64
 	parallelismWaitHistogram      prometheus.Histogram
 	redisRequestCounter           *prometheus.CounterVec
 	redisRequestHistogram         *prometheus.HistogramVec
@@ -90,13 +91,17 @@ func NewMetricsServer() *MetricsServer {
 	)
 	registry.MustRegister(repoPendingRequestsGauge)
 
-	activeGRPCRequestsGauge := prometheus.NewGauge(
+	// activeGRPCRequests is the source of truth for in-flight gRPC requests. The concurrency
+	// limiter updates it and the gauge below reads it on scrape, so the metric can never drift
+	// from the count the limiter enforces (see MetricsServer.ActiveGRPCRequests).
+	activeGRPCRequests := &atomic.Int64{}
+	registry.MustRegister(prometheus.NewGaugeFunc(
 		prometheus.GaugeOpts{
 			Name: "argocd_repo_server_active_requests",
 			Help: "Number of currently active gRPC requests being handled by the repo server. Useful for HPA scaling.",
 		},
-	)
-	registry.MustRegister(activeGRPCRequestsGauge)
+		func() float64 { return float64(activeGRPCRequests.Load()) },
+	))
 
 	parallelismWaitHistogram := prometheus.NewHistogram(
 		prometheus.HistogramOpts{
@@ -197,7 +202,7 @@ func NewMetricsServer() *MetricsServer {
 		gitRequestCounter:             gitRequestCounter,
 		gitRequestHistogram:           gitRequestHistogram,
 		repoPendingRequestsGauge:      repoPendingRequestsGauge,
-		activeGRPCRequestsGauge:       activeGRPCRequestsGauge,
+		activeGRPCRequests:            activeGRPCRequests,
 		parallelismWaitHistogram:      parallelismWaitHistogram,
 		redisRequestCounter:           redisRequestCounter,
 		redisRequestHistogram:         redisRequestHistogram,
@@ -291,9 +296,10 @@ func (m *MetricsServer) IncOCITestRepoFailCounter(repo string) {
 	m.ociTestRepoFailCounter.WithLabelValues(repo).Inc()
 }
 
-// SetActiveGRPCRequests sets the number of active gRPC requests currently being handled by the
-// repo server. The value is supplied by the concurrency limiter so that this gauge and the
-// limiter's own counter never drift apart.
-func (m *MetricsServer) SetActiveGRPCRequests(active int64) {
-	m.activeGRPCRequestsGauge.Set(float64(active))
+// ActiveGRPCRequests returns the shared counter tracking in-flight gRPC requests. It is handed to
+// the concurrency limiter so the limiter and the argocd_repo_server_active_requests gauge are backed
+// by the exact same value; the gauge reads it on scrape rather than being pushed snapshots, which
+// avoids any drift or reordering between the counter and the reported metric.
+func (m *MetricsServer) ActiveGRPCRequests() *atomic.Int64 {
+	return m.activeGRPCRequests
 }

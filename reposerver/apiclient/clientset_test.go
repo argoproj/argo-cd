@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -606,6 +607,51 @@ func newMTLSServer(t *testing.T, clientCAs *x509.CertPool) *mTLSServerFixture {
 	t.Cleanup(srv.Stop)
 
 	return &mTLSServerFixture{addr: lis.Addr().String(), server: srv}
+}
+
+// flakyHealthServer returns ResourceExhausted for the first `failuresRemaining` calls, then serves
+// normally — modelling a repo-server that is briefly at capacity and rejects requests so clients
+// retry (the graceful scale-out mechanism).
+type flakyHealthServer struct {
+	grpc_health_v1.UnimplementedHealthServer
+	failuresRemaining atomic.Int64
+	calls             atomic.Int64
+}
+
+func (s *flakyHealthServer) Check(_ context.Context, _ *grpc_health_v1.HealthCheckRequest) (*grpc_health_v1.HealthCheckResponse, error) {
+	s.calls.Add(1)
+	if s.failuresRemaining.Add(-1) >= 0 {
+		return nil, status.Error(codes.ResourceExhausted, "repo-server is overloaded")
+	}
+	return &grpc_health_v1.HealthCheckResponse{Status: grpc_health_v1.HealthCheckResponse_SERVING}, nil
+}
+
+// TestNewConnection_RetriesResourceExhausted verifies the graceful scale-out retry policy: a unary
+// call that first receives ResourceExhausted is retried transparently with backoff until it
+// succeeds, without the caller observing the transient rejections.
+func TestNewConnection_RetriesResourceExhausted(t *testing.T) {
+	t.Parallel()
+
+	const failuresBeforeSuccess = 2
+	flaky := &flakyHealthServer{}
+	flaky.failuresRemaining.Store(failuresBeforeSuccess)
+
+	lis, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err, "binding test listener")
+
+	srv := grpc.NewServer()
+	grpc_health_v1.RegisterHealthServer(srv, flaky)
+	go func() { _ = srv.Serve(lis) }()
+	t.Cleanup(srv.Stop)
+
+	conn, err := apiclient.NewConnection(lis.Addr().String(), 10, &utilstls.Configuration{DisableTLS: true})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+
+	// The first two Check calls return ResourceExhausted; the retry policy must retry with backoff
+	// until the third call succeeds, so the caller sees success rather than the transient rejects.
+	require.NoError(t, healthCheck(t, conn), "client must retry ResourceExhausted until the server recovers")
+	assert.EqualValues(t, failuresBeforeSuccess+1, flaky.calls.Load(), "expected two retries followed by a successful call")
 }
 
 func healthCheck(t *testing.T, conn *grpc.ClientConn) error {

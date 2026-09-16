@@ -21,64 +21,80 @@ func isHealthCheckMethod(fullMethod string) bool {
 	return strings.HasPrefix(fullMethod, healthServiceMethodPrefix)
 }
 
-// reportActive is called with the current number of in-flight requests whenever it changes.
-// It is used to keep a metric gauge in sync with the limiter's own counter. It may be nil.
-type reportActiveFunc func(active int64)
-
-func report(fn reportActiveFunc, active int64) {
-	if fn != nil {
-		fn(active)
-	}
+// ConcurrencyLimiter caps the number of concurrent gRPC requests the repo-server handles and tracks
+// the current in-flight count. A single shared counter backs both the unary and stream
+// interceptors, so the limit and the tracked count reflect total gRPC concurrency rather than a
+// separate budget per RPC kind. The same counter drives the Prometheus gauge used for HPA
+// scale-out; because the gauge reads the counter on scrape (see ActiveRequests) rather than being
+// pushed a snapshot, it can never drift from the value the limiter actually enforces.
+//
+// Requests that exceed the limit are rejected immediately with codes.ResourceExhausted so clients
+// can retry on a different replica. Health-check RPCs bypass the limiter entirely.
+type ConcurrencyLimiter struct {
+	maxConcurrentRequests int64
+	active                *atomic.Int64
 }
 
-// ConcurrencyLimiterUnaryServerInterceptor returns a gRPC unary server interceptor that:
-//   - Tracks the number of in-flight requests and reports it via reportActive (for metrics/HPA).
-//   - Returns codes.ResourceExhausted immediately if maxConcurrentRequests > 0 and the limit is reached.
-//
-// A single atomic counter is the source of truth for both limit enforcement and the value passed to
-// reportActive, so the metric can never drift from the count the limiter actually acts on. When
-// maxConcurrentRequests <= 0 the interceptor only reports the active count without enforcing a limit.
-// reportActive may be nil, in which case no value is reported.
-func ConcurrencyLimiterUnaryServerInterceptor(maxConcurrentRequests int64, reportActive reportActiveFunc) grpc.UnaryServerInterceptor {
-	var active atomic.Int64
+// NewConcurrencyLimiter returns a limiter that rejects requests once maxConcurrentRequests are in
+// flight; a value <= 0 disables enforcement while still tracking the active count. active is the
+// counter shared with the metric gauge so both always agree; if nil, a private counter is used.
+func NewConcurrencyLimiter(maxConcurrentRequests int64, active *atomic.Int64) *ConcurrencyLimiter {
+	if active == nil {
+		active = &atomic.Int64{}
+	}
+	return &ConcurrencyLimiter{maxConcurrentRequests: maxConcurrentRequests, active: active}
+}
+
+// ActiveRequests returns the number of gRPC requests currently in flight. It is safe for concurrent
+// use and is intended to be read on demand (e.g. by a Prometheus collector), which keeps the
+// reported value consistent with the counter the limiter enforces.
+func (l *ConcurrencyLimiter) ActiveRequests() int64 {
+	return l.active.Load()
+}
+
+// UnaryServerInterceptor returns a unary interceptor that enforces the limit and tracks the active
+// count. Health-check RPCs bypass both.
+func (l *ConcurrencyLimiter) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		// Health checks bypass the limiter entirely so the liveness probe cannot be starved out.
 		if isHealthCheckMethod(info.FullMethod) {
 			return handler(ctx, req)
 		}
-		current := active.Add(1)
-		if maxConcurrentRequests > 0 && current > maxConcurrentRequests {
-			report(reportActive, active.Add(-1))
-			return nil, status.Errorf(codes.ResourceExhausted,
-				"repo-server is overloaded: active requests (%d) exceed limit (%d); retry with backoff",
-				current, maxConcurrentRequests)
+		if err := l.acquire(); err != nil {
+			return nil, err
 		}
-		report(reportActive, current)
-		defer func() { report(reportActive, active.Add(-1)) }()
-
+		defer l.release()
 		return handler(ctx, req)
 	}
 }
 
-// ConcurrencyLimiterStreamServerInterceptor returns a gRPC stream server interceptor with the
-// same concurrency tracking and limiting behaviour as ConcurrencyLimiterUnaryServerInterceptor.
-func ConcurrencyLimiterStreamServerInterceptor(maxConcurrentRequests int64, reportActive reportActiveFunc) grpc.StreamServerInterceptor {
-	var active atomic.Int64
+// StreamServerInterceptor returns a stream interceptor with the same limiting and tracking
+// behaviour as UnaryServerInterceptor, sharing the same counter.
+func (l *ConcurrencyLimiter) StreamServerInterceptor() grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		// Health checks bypass the limiter entirely so the liveness probe cannot be starved out.
 		if isHealthCheckMethod(info.FullMethod) {
 			return handler(srv, ss)
 		}
-		current := active.Add(1)
-		if maxConcurrentRequests > 0 && current > maxConcurrentRequests {
-			report(reportActive, active.Add(-1))
-			return status.Errorf(codes.ResourceExhausted,
-				"repo-server is overloaded: active requests (%d) exceed limit (%d); retry with backoff",
-				current, maxConcurrentRequests)
+		if err := l.acquire(); err != nil {
+			return err
 		}
-		report(reportActive, current)
-		defer func() { report(reportActive, active.Add(-1)) }()
-
+		defer l.release()
 		return handler(srv, ss)
 	}
+}
+
+// acquire reserves a slot, returning codes.ResourceExhausted when the limit is exceeded. On
+// rejection the reserved slot is released so the active count reflects only requests being served.
+func (l *ConcurrencyLimiter) acquire() error {
+	current := l.active.Add(1)
+	if l.maxConcurrentRequests > 0 && current > l.maxConcurrentRequests {
+		l.active.Add(-1)
+		return status.Errorf(codes.ResourceExhausted,
+			"repo-server is overloaded: active requests (%d) exceed limit (%d); retry with backoff",
+			current, l.maxConcurrentRequests)
+	}
+	return nil
+}
+
+func (l *ConcurrencyLimiter) release() {
+	l.active.Add(-1)
 }
