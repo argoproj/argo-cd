@@ -12,8 +12,11 @@ Git repository via file url: `file:///tmp/argo-e2e***`.
 >
 > **Rancher Desktop Volume Sharing**
 >
-> To do enable `/tmp` sharing, add the following to
-> `~/Library/Application\ Support/rancher-desktop/lima/_config/override.yaml` and restart Rancher Desktop:
+> `make start-e2e-local` detects macOS + Rancher Desktop automatically and writes
+> `~/Library/Application Support/rancher-desktop/lima/_config/override.yaml` for you
+> (see `hack/check-rancher-desktop-tmp-sharing.sh`), unless that file already exists.
+> It never overwrites an existing override file, so if you've customized one yourself
+> and still see this error, add the mount below to it and restart Rancher Desktop:
 >
 > ```yaml
 > mounts:
@@ -45,6 +48,8 @@ The Makefile's `start-e2e` target starts instances of ArgoCD on your local machi
 - `ARGOCD_E2E_REPOSERVER_PORT`: Listener port for `argocd-reposerver` (default: `8081`)
 - `ARGOCD_E2E_DEX_PORT`: Listener port for `dex` (default: `5556`)
 - `ARGOCD_E2E_REDIS_PORT`: Listener port for `redis` (default: `6379`)
+- `ARGOCD_E2E_HELM_REGISTRY_PORT`: Listener port for the Helm/OCI registry used by e2e tests (default: `5050`, deliberately avoiding port `5000`, which is commonly taken by macOS's AirPlay Receiver service)
+- `ARGOCD_E2E_OCI_REGISTRY_PORT`: Listener port for the authenticated OCI registry used by e2e tests (default: `5001`)
 - `ARGOCD_E2E_PNPM_CMD`: Command to use for starting the UI via pnpm (default: `pnpm`)
 - `ARGOCD_E2E_DIR`: Local path to the repository to use for ephemeral test data
 

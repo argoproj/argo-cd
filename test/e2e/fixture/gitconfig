@@ -1,8 +1,24 @@
 # Git configuration for e2e tests
 # This file ensures reproducible test behavior by disabling system credential helpers
+# and commit/tag signing, so a contributor's personal signing setup (GPG, 1Password
+# SSH signing, etc.) can't hang or fail test fixture commits that were never meant
+# to be signed.
 
 [credential]
     helper =
 
 [core]
     askPass =
+
+[commit]
+    gpgsign = false
+
+[tag]
+    gpgsign = false
+
+# Matches the identity CI sets up via `git config --global` before running
+# the e2e suite (see .github/workflows/ci-build.yaml), so commits made by the
+# test fixtures don't depend on a contributor's own git identity.
+[user]
+    name = John Doe
+    email = john.doe@example.com

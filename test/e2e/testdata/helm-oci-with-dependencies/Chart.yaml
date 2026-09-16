@@ -3,5 +3,5 @@ name: helm-oci-with-dependencies
 version: 1.0.0
 dependencies:
   - name: helm-values
-    repository: "oci://localhost:5000/myrepo"
+    repository: "oci://localhost:5050/myrepo"
     version: 1.0.0

@@ -404,7 +404,7 @@ func TestOCISourceIgnoredWithSourceIntegrity(t *testing.T) {
 		HTTPSInsecureRepoURLWithClientCertAdded().
 		PushImageToOCIRegistry("testdata/guestbook", "1.0.0").
 		OCIRepoAdded("my-oci-repo", "guestbook").
-		OCIRegistry(fixture.OCIHostURL).
+		OCIRegistry(fixture.OCIHostURL()).
 		OCIRegistryPath("guestbook").
 		RepoURLType(fixture.RepoURLTypeOCI).
 		Revision("1.0.0").
