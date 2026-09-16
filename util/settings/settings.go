@@ -2046,9 +2046,19 @@ func (mgr *SettingsManager) loadTLSCertificate(settings *ArgoCDSettings, externa
 	if externalSecret != nil {
 		cert, err := mgr.loadTLSCertificateFromSecret(externalSecret)
 
-		if err != nil {
+		switch {
+		case err != nil && isManagedByArgoCD(externalSecret):
+			// Argo CD owns this certificate, so an unparseable key pair is something it
+			// can recover from by generating a new one. Treating it as "no certificate"
+			// keeps the server from crash-looping on material only Argo CD wrote.
+			log.Warnf("could not parse the Argo CD-managed TLS certificate in secret %s/%s, "+
+				"a new self-signed certificate will be generated: %v",
+				mgr.namespace, externalSecret.Name, err)
+		case err != nil:
+			// The certificate is operator-provided, so failing loudly is correct: Argo CD
+			// must not quietly replace it with a self-signed one.
 			return err
-		} else if cert != nil {
+		case cert != nil:
 			settings.Certificate = cert
 			// If the annotation is present, it means the secret is managed by Argo CD
 			// and can be renewed otherwise it's a user-provided secret

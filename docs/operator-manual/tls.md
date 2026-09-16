@@ -128,8 +128,8 @@ Argo CD owns from one you own:
 
 | Annotation | Who owns the certificate | What Argo CD does |
 |------------|--------------------------|-------------------|
-| Present | Argo CD | Serves the certificate, and regenerates it on startup once it has expired |
-| Absent | You (or a tool such as `cert-manager`) | Serves the certificate, and never writes to the secret |
+| Present | Argo CD | Serves the certificate, and regenerates it on startup once it has expired or if the key pair cannot be parsed |
+| Absent | You (or a tool such as `cert-manager`) | Serves the certificate, and never writes to the secret. An unparseable key pair is reported as an error rather than replaced |
 
 > [!WARNING]
 > Do not add or remove this annotation by hand, and make sure your GitOps tooling

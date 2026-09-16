@@ -1803,6 +1803,100 @@ func TestInitializeSettings_RefusesToOverwriteOperatorManagedSecret(t *testing.T
 	})
 }
 
+func TestCorruptCertInServerTLSSecret(t *testing.T) {
+	baseObjects := func() []runtime.Object {
+		return []runtime.Object{
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{},
+			},
+		}
+	}
+	corruptTLSSecret := func(annotations map[string]string) *corev1.Secret {
+		return &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        externalServerTLSSecretName,
+				Namespace:   "default",
+				Annotations: annotations,
+			},
+			Data: map[string][]byte{
+				settingServerCertificate: []byte("not a pem certificate"),
+				settingServerPrivateKey:  []byte("not a pem key"),
+			},
+		}
+	}
+
+	t.Run("regenerates when the corrupt cert is Argo CD-managed", func(t *testing.T) {
+		objects := append(baseObjects(), corruptTLSSecret(map[string]string{
+			annotationTLSManagedByArgoCD: "true",
+		}))
+		kubeClient := fake.NewClientset(objects...)
+
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		settings, err := settingsManager.InitializeSettings(false)
+		// Argo CD wrote this material itself, so it must recover rather than
+		// crash-loop the server on a secret only it manages.
+		require.NoError(t, err)
+		require.NotNil(t, settings.Certificate)
+		assert.False(t, settings.CertificateIsExternal)
+
+		tlsSecret, err := kubeClient.CoreV1().Secrets("default").Get(t.Context(), externalServerTLSSecretName, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.NotEqual(t, []byte("not a pem certificate"), tlsSecret.Data[settingServerCertificate], "corrupt cert should have been replaced")
+	})
+
+	t.Run("surfaces the error when the corrupt cert is operator-managed", func(t *testing.T) {
+		objects := append(baseObjects(), corruptTLSSecret(nil))
+		kubeClient := fake.NewClientset(objects...)
+
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		argoCDSecret, err := settingsManager.GetSecretByName(common.ArgoCDSecretName)
+		require.NoError(t, err)
+		externalSecret, err := settingsManager.GetSecretByName(externalServerTLSSecretName)
+		require.NoError(t, err)
+
+		// Without the annotation the certificate belongs to the operator. Argo CD must
+		// surface the problem instead of quietly replacing it with a self-signed one.
+		settings := &ArgoCDSettings{}
+		err = settingsManager.loadTLSCertificate(settings, externalSecret, argoCDSecret)
+		require.Error(t, err)
+		assert.Nil(t, settings.Certificate)
+	})
+
+	t.Run("reports no cert when the corrupt cert is Argo CD-managed", func(t *testing.T) {
+		objects := append(baseObjects(), corruptTLSSecret(map[string]string{
+			annotationTLSManagedByArgoCD: "true",
+		}))
+		kubeClient := fake.NewClientset(objects...)
+
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		argoCDSecret, err := settingsManager.GetSecretByName(common.ArgoCDSecretName)
+		require.NoError(t, err)
+		externalSecret, err := settingsManager.GetSecretByName(externalServerTLSSecretName)
+		require.NoError(t, err)
+
+		settings := &ArgoCDSettings{}
+		err = settingsManager.loadTLSCertificate(settings, externalSecret, argoCDSecret)
+		require.NoError(t, err)
+		assert.Nil(t, settings.Certificate, "caller must see no certificate so a fresh one is generated")
+	})
+}
+
 func TestInitializeSettings_RenewsExpiredManagedCert(t *testing.T) {
 	t.Run("regenerates expired Argo CD-managed cert in argocd-server-tls", func(t *testing.T) {
 		// generate a cert that is already expired
