@@ -9,7 +9,7 @@ import (
 // Interface provides access to all the informers in this group version.
 type Interface interface {
 	// Applications returns a ApplicationInformer.
-	Applications() ApplicationInformer
+	Applications() TypedApplicationInformer
 }
 
 type version struct {
@@ -23,7 +23,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// Applications returns a ApplicationInformer.
-func (v *version) Applications() ApplicationInformer {
+// Applications returns a TypedApplicationInformer.
+func (v *version) Applications() TypedApplicationInformer {
 	return &applicationInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
