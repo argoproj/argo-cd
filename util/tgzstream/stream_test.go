@@ -11,7 +11,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 )
 
-func TestCloseAndDeleteTempFileRemovesParentDirectory(t *testing.T) {
+func TestCloseAndDeleteRemovesParentDirectory(t *testing.T) {
 	tempRoot := t.TempDir()
 	t.Setenv("TMP", tempRoot)
 	t.Setenv("TEMP", tempRoot)
@@ -21,19 +21,19 @@ func TestCloseAndDeleteTempFileRemovesParentDirectory(t *testing.T) {
 	file, err := os.CreateTemp(parent, "archive")
 	require.NoError(t, err)
 
-	CloseAndDeleteTempFile(file)
+	CloseAndDelete(file)
 
 	_, err = os.Stat(parent)
 	assert.ErrorIs(t, err, os.ErrNotExist)
 }
 
-func TestCloseAndDeleteTempFilePreservesUnownedParentDirectory(t *testing.T) {
+func TestCloseAndDeletePreservesUnownedParentDirectory(t *testing.T) {
 	parent := filepath.Join(t.TempDir(), "shared")
 	require.NoError(t, os.Mkdir(parent, 0o755))
 	file, err := os.CreateTemp(parent, "archive")
 	require.NoError(t, err)
 
-	CloseAndDeleteTempFile(file)
+	CloseAndDelete(file)
 
 	_, err = os.Stat(parent)
 	assert.NoError(t, err)
@@ -78,7 +78,7 @@ func TestCompressFilesCleanupRemovesTemporaryDirectory(t *testing.T) {
 	parent := filepath.Dir(file.Name())
 	require.DirExists(t, parent)
 
-	CloseAndDeleteTempFile(file)
+	CloseAndDelete(file)
 
 	assert.NoDirExists(t, parent)
 }
