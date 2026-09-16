@@ -3292,31 +3292,142 @@ func TestSyncWindows_CanSyncWithActiveKinds(t *testing.T) {
 	})
 }
 
+// The evaluator exists only to avoid re-resolving schedules per application, so
+// what matters is that it agrees with the direct path on every window shape.
+func TestSyncWindowEvaluator(t *testing.T) {
+	window := func(kind, duration string, apps ...string) *InlineSyncWindow {
+		if len(apps) == 0 {
+			apps = []string{"*"}
+		}
+		return &InlineSyncWindow{Kind: kind, Schedule: "* * * * *", Duration: duration, Applications: apps}
+	}
+	// Duration "0s" is never active: schedule.Next(currentTime) is always
+	// strictly after currentTime. "24h" is always active.
+	active := func(kind string, apps ...string) *InlineSyncWindow { return window(kind, "24h", apps...) }
+	inactive := func(kind string, apps ...string) *InlineSyncWindow { return window(kind, "0s", apps...) }
+
+	app := &Application{ObjectMeta: metav1.ObjectMeta{Name: "my-app", Namespace: "argocd"}}
+
+	cases := map[string]SyncWindows{
+		"NoWindows":              nil,
+		"ActiveAllow":            {active("allow")},
+		"ActiveDeny":             {active("deny")},
+		"ActiveAllowAndDeny":     {active("allow"), active("deny")},
+		"InactiveAllow":          {inactive("allow")},
+		"InactiveDeny":           {inactive("deny")},
+		"InactiveAllowAndActive": {inactive("allow"), active("allow")},
+		"NonMatching":            {active("deny", "some-other-app")},
+		"MatchingAndNot":         {active("deny", "some-other-app"), inactive("allow", "my-app")},
+		"Mixed":                  {active("allow"), inactive("allow"), active("deny", "some-other-app"), inactive("deny")},
+	}
+
+	for name, windows := range cases {
+		t.Run(name, func(t *testing.T) {
+			evaluator, err := windows.Evaluator(time.Now())
+			require.NoError(t, err)
+
+			canSync, allowActive, denyActive, err := evaluator.CanSyncWithActiveKinds(app)
+			require.NoError(t, err)
+
+			expectedCanSync, expectedAllow, expectedDeny, err := windows.Matches(app).CanSyncWithActiveKinds(false, nil)
+			require.NoError(t, err)
+
+			assert.Equal(t, expectedCanSync, canSync, "canSync")
+			assert.Equal(t, expectedAllow, allowActive, "allowActive")
+			assert.Equal(t, expectedDeny, denyActive, "denyActive")
+		})
+	}
+
+	// A malformed window fails when the evaluator is built, so it is reported
+	// once per project rather than once per application.
+	t.Run("MalformedWindowFailsAtBuild", func(t *testing.T) {
+		windows := SyncWindows{{Kind: "allow", Schedule: "not a cron spec", Duration: "1h", Applications: []string{"*"}}}
+		evaluator, err := windows.Evaluator(time.Now())
+		require.ErrorContains(t, err, "cannot parse schedule")
+		assert.Nil(t, evaluator)
+	})
+
+	// Every application of a project reads one instant, so a boundary crossed
+	// mid-scrape cannot split them.
+	t.Run("ReadsTheInstantItWasBuiltAt", func(t *testing.T) {
+		// Active for one hour from midnight, in a window built at 00:30.
+		windows := SyncWindows{{Kind: "deny", Schedule: "0 0 * * *", Duration: "1h", Applications: []string{"*"}}}
+		midnight := time.Date(2026, 1, 1, 0, 30, 0, 0, time.UTC)
+
+		evaluator, err := windows.Evaluator(midnight)
+		require.NoError(t, err)
+		canSync, _, denyActive, err := evaluator.CanSyncWithActiveKinds(app)
+		require.NoError(t, err)
+		assert.True(t, denyActive)
+		assert.False(t, canSync)
+
+		// Two hours later the same window is inactive, and a fresh evaluator
+		// says so, but the old one keeps reporting its own instant.
+		later, err := windows.Evaluator(midnight.Add(2 * time.Hour))
+		require.NoError(t, err)
+		canSync, _, denyActive, err = later.CanSyncWithActiveKinds(app)
+		require.NoError(t, err)
+		assert.False(t, denyActive)
+		assert.True(t, canSync)
+
+		canSync, _, denyActive, err = evaluator.CanSyncWithActiveKinds(app)
+		require.NoError(t, err)
+		assert.True(t, denyActive)
+		assert.False(t, canSync)
+	})
+}
+
 func TestCacheSyncWindowValue(t *testing.T) {
+	const limit = 16
+
 	t.Run("StopsGrowingAtLimit", func(t *testing.T) {
 		var cache sync.Map
 		var count atomic.Int64
 
-		for i := range syncWindowCacheLimit + 10 {
-			cacheSyncWindowValue(&cache, &count, strconv.Itoa(i), i)
+		for i := range limit + 10 {
+			cacheSyncWindowValue(&cache, &count, limit, strconv.Itoa(i), i)
 		}
-		assert.Equal(t, int64(syncWindowCacheLimit), count.Load())
+		assert.Equal(t, int64(limit), count.Load())
 
 		stored := 0
 		cache.Range(func(_, _ any) bool {
 			stored++
 			return true
 		})
-		assert.Equal(t, syncWindowCacheLimit, stored)
+		assert.Equal(t, limit, stored)
 	})
 
 	t.Run("DoesNotDoubleCountRepeatedKeys", func(t *testing.T) {
 		var cache sync.Map
 		var count atomic.Int64
 
-		cacheSyncWindowValue(&cache, &count, "same", 1)
-		cacheSyncWindowValue(&cache, &count, "same", 1)
+		cacheSyncWindowValue(&cache, &count, limit, "same", 1)
+		cacheSyncWindowValue(&cache, &count, limit, "same", 1)
 		assert.Equal(t, int64(1), count.Load())
+	})
+
+	// Concurrent callers must not each see room under the limit and all insert.
+	t.Run("HoldsTheLimitUnderConcurrency", func(t *testing.T) {
+		var cache sync.Map
+		var count atomic.Int64
+
+		var wg sync.WaitGroup
+		for i := range limit * 8 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				cacheSyncWindowValue(&cache, &count, limit, strconv.Itoa(i), i)
+			}()
+		}
+		wg.Wait()
+
+		assert.LessOrEqual(t, count.Load(), int64(limit))
+		stored := 0
+		cache.Range(func(_, _ any) bool {
+			stored++
+			return true
+		})
+		assert.Equal(t, int(count.Load()), stored, "the count must track what is stored")
 	})
 }
 

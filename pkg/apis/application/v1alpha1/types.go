@@ -2989,14 +2989,16 @@ func (w *SyncWindows) HasWindows() bool {
 // is stateless, so one package-level instance is reused.
 var syncWindowScheduleParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 
-// syncWindowCacheLimit bounds the caches below. Both are keyed by strings from
-// AppProject.spec.syncWindows, which Validate does not constrain to a fixed set,
-// so past the limit they stop growing and fall back to parsing: slower, never
-// wrong.
-const syncWindowCacheLimit = 1024
+// The caches below are keyed by strings from AppProject.spec.syncWindows, which
+// Validate does not constrain to a fixed set, so each is bounded: past its limit
+// it stops growing and falls back to parsing, which is slower but never wrong.
 
 // Parsed schedules are immutable and safe to share. Parse failures are not
-// cached, so callers keep seeing the error.
+// cached, so callers keep seeing the error. An entry is 64 bytes, so the limit
+// is set well above the number of distinct schedules any fleet is likely to
+// write; a full cache costs ~512KB.
+const syncWindowScheduleCacheLimit = 8192
+
 var (
 	syncWindowScheduleCache sync.Map // string -> cron.Schedule
 	syncWindowScheduleCount atomic.Int64
@@ -3005,6 +3007,12 @@ var (
 // LoadLocation re-reads and re-parses the zoneinfo file on every call (~15us),
 // which dominates sync window evaluation: the controller evaluates once per
 // window per application on every scrape and reconciliation.
+//
+// An entry is ~1.5KB, but the key space of valid names is the ~600 zones in the
+// IANA database, so the limit only bounds invalid ones. Those share the UTC
+// fallback and cost just the key.
+const syncWindowLocationCacheLimit = 1024
+
 var (
 	syncWindowLocationCache sync.Map // string -> *time.Location
 	syncWindowLocationCount atomic.Int64
@@ -3013,10 +3021,10 @@ var (
 // count tracks the size, since sync.Map does not. The slot is reserved before
 // the store, so concurrent callers cannot each see room under the limit and
 // then all insert.
-func cacheSyncWindowValue(cache *sync.Map, count *atomic.Int64, key string, value any) {
+func cacheSyncWindowValue(cache *sync.Map, count *atomic.Int64, limit int64, key string, value any) {
 	for {
 		n := count.Load()
-		if n >= syncWindowCacheLimit {
+		if n >= limit {
 			return
 		}
 		if count.CompareAndSwap(n, n+1) {
@@ -3037,7 +3045,7 @@ func syncWindowSchedule(spec string) (cron.Schedule, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse schedule '%s': %w", spec, err)
 	}
-	cacheSyncWindowValue(&syncWindowScheduleCache, &syncWindowScheduleCount, spec, schedule)
+	cacheSyncWindowValue(&syncWindowScheduleCache, &syncWindowScheduleCount, syncWindowScheduleCacheLimit, spec, schedule)
 	return schedule, nil
 }
 
@@ -3055,7 +3063,7 @@ func syncWindowLocation(name string) *time.Location {
 		log.Warnf("Invalid time zone %s specified. Using UTC as default time zone", name)
 		loc = time.UTC
 	}
-	cacheSyncWindowValue(&syncWindowLocationCache, &syncWindowLocationCount, name, loc)
+	cacheSyncWindowValue(&syncWindowLocationCache, &syncWindowLocationCount, syncWindowLocationCacheLimit, name, loc)
 	return loc
 }
 
@@ -3340,6 +3348,81 @@ func (w *SyncWindows) CanSyncWithActiveKinds(isManual bool, operationStartTime *
 	}
 
 	canSync, err = w.canSyncFrom(isManual, operationStartTime, active, inactiveAllows)
+	return canSync, allowActive, denyActive, err
+}
+
+// SyncWindowEvaluator answers CanSyncWithActiveKinds for many applications of
+// one project at a single instant. Every window is classified once up front, so
+// N applications sharing a project cost one schedule evaluation between them
+// rather than one each, and all of them see the same instant: a window boundary
+// crossed midway through a scrape cannot split them.
+//
+// It is only valid for the SyncWindows it was built from, and only for the
+// instant it was built at. Build a new one per scrape.
+type SyncWindowEvaluator struct {
+	windows SyncWindows
+	// Keyed by pointer, and Matches returns the same pointers, so a matched
+	// window is always found.
+	active map[*InlineSyncWindow]bool
+}
+
+// Evaluator classifies every window at currentTime. Schedules are parsed here,
+// so a malformed window fails once per project instead of once per application.
+func (w *SyncWindows) Evaluator(currentTime time.Time) (*SyncWindowEvaluator, error) {
+	if !w.HasWindows() {
+		return &SyncWindowEvaluator{}, nil
+	}
+	currentTime = currentTime.In(time.UTC)
+
+	active := make(map[*InlineSyncWindow]bool, len(*w))
+	for _, window := range *w {
+		isActive, err := window.isActiveAt(currentTime)
+		if err != nil {
+			return nil, fmt.Errorf("invalid sync windows: %w", err)
+		}
+		active[window] = isActive
+	}
+	return &SyncWindowEvaluator{windows: *w, active: active}, nil
+}
+
+// CanSyncWithActiveKinds reports the same three values as
+// SyncWindows.CanSyncWithActiveKinds does for the windows matching app, read
+// from the instant the evaluator was built at. It takes no operation start
+// time: overrun depends on when a specific operation began, which is not a
+// property the evaluator shares between applications.
+func (e *SyncWindowEvaluator) CanSyncWithActiveKinds(app *Application) (canSync, allowActive, denyActive bool, err error) {
+	matched := e.windows.Matches(app)
+	if !matched.HasWindows() {
+		return true, false, false, nil
+	}
+
+	// The same partition SyncWindows.partition builds, without re-resolving any
+	// schedule, duration or time zone.
+	var active, inactiveAllows SyncWindows
+	for _, window := range *matched {
+		switch {
+		case e.active[window]:
+			active = append(active, window)
+			switch window.Kind {
+			case "allow":
+				allowActive = true
+			case "deny":
+				denyActive = true
+			}
+		case window.Kind == "allow":
+			inactiveAllows = append(inactiveAllows, window)
+		}
+	}
+
+	var activeWindows, inactiveAllowWindows *SyncWindows
+	if len(active) > 0 {
+		activeWindows = &active
+	}
+	if len(inactiveAllows) > 0 {
+		inactiveAllowWindows = &inactiveAllows
+	}
+
+	canSync, err = matched.canSyncFrom(false, nil, activeWindows, inactiveAllowWindows)
 	return canSync, allowActive, denyActive, err
 }
 

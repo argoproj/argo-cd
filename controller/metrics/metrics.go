@@ -533,8 +533,9 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 	if syncWindows != nil {
 		allowActive, denyActive, blocked, failed, err := syncWindows.evaluate(app)
 		if err != nil {
-			// this will only log once per app project due to err being nil after the first error
-			log.Warnf("Failed to evaluate sync windows of AppProject %s, reporting syncs of its applications as blocked: %v", app.Spec.GetProject(), err)
+			// Once per project per scrape: evaluate only returns the error to
+			// the application that built the project's window state.
+			log.Warnf("Reporting syncs of applications in AppProject %s as blocked: %v", app.Spec.GetProject(), err)
 		}
 		addGauge(descAppSyncWindow, boolFloat64(allowActive), "allow")
 		addGauge(descAppSyncWindow, boolFloat64(denyActive), "deny")
@@ -543,79 +544,83 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 	}
 }
 
-type projectLookup struct {
-	proj *argoappv1.AppProject
-	err  error
+// projectWindows is one project's sync window state for one scrape: an
+// evaluator built from its windows, or a failure to build one.
+type projectWindows struct {
+	evaluator *argoappv1.SyncWindowEvaluator
+	failed    bool
 }
 
 // syncWindowScrape is the state shared by every application in one scrape.
-// AppProjectGetter caches successful project lookups but not failures, so
-// without this a single broken project repeats its lookup once per application
-// on every scrape.
+// Window state is per project, but collection walks applications, so without
+// this a project shared by N applications resolves and evaluates its windows N
+// times per scrape. AppProjectGetter caches successful lookups but not
+// failures, and caches nothing about the windows themselves.
 type syncWindowScrape struct {
 	getAppProject AppProjectGetter
-	projects      map[string]projectLookup
-	reportedErr   map[string]bool
+	// One instant for the whole scrape, so applications cannot disagree about
+	// a window boundary crossed while it runs.
+	now      time.Time
+	projects map[string]projectWindows
 }
 
 func newSyncWindowScrape(getAppProject AppProjectGetter) *syncWindowScrape {
 	return &syncWindowScrape{
 		getAppProject: getAppProject,
-		projects:      map[string]projectLookup{},
-		reportedErr:   map[string]bool{},
+		now:           time.Now(),
+		projects:      map[string]projectWindows{},
 	}
 }
 
-// project resolves the AppProject for app. Keyed by namespace too, since the
-// getter also checks whether the project permits it. Logging on the cache miss
-// reports a broken project once per scrape, with the project as the subject.
-func (s *syncWindowScrape) project(app *argoappv1.Application) (*argoappv1.AppProject, error) {
+// windows resolves app's project and builds its evaluator, once per project per
+// scrape. Keyed by namespace too, since the getter also checks whether the
+// project permits it. The error is returned only on that first build, so a
+// broken project is reported once per scrape rather than once per application;
+// later applications still see failed and report fail-closed.
+func (s *syncWindowScrape) windows(app *argoappv1.Application) (projectWindows, error) {
 	key := app.Spec.GetProject() + "/" + app.Namespace
 	if cached, ok := s.projects[key]; ok {
-		return cached.proj, cached.err
+		return cached, nil
 	}
-	proj, err := s.getAppProject(app)
-	if err != nil {
-		log.Warnf("Failed to get AppProject %s for its applications in namespace %s: %v", app.Spec.GetProject(), app.Namespace, err)
-	}
-	s.projects[key] = projectLookup{proj: proj, err: err}
-	return proj, err
+	entry, err := s.buildWindows(app)
+	s.projects[key] = entry
+	return entry, err
 }
 
-// evaluationErr returns err the first time a project fails to evaluate in this
-// scrape and nil afterwards. A malformed schedule is a property of the project,
-// so without this every application in it repeats the same warning on every
-// scrape: a schedule the API server never saw is only rejected here, and the
-// CRD has no validation rule for it.
-func (s *syncWindowScrape) evaluationErr(project string, err error) error {
-	if s.reportedErr[project] {
-		return nil
+func (s *syncWindowScrape) buildWindows(app *argoappv1.Application) (projectWindows, error) {
+	proj, err := s.getAppProject(app)
+	if err != nil {
+		return projectWindows{failed: true}, fmt.Errorf("failed to get the AppProject of applications in namespace %s: %w", app.Namespace, err)
 	}
-	s.reportedErr[project] = true
-	return err
+	if proj == nil {
+		// Indistinguishable from a project that configures no windows.
+		return projectWindows{}, nil
+	}
+	evaluator, err := proj.Spec.SyncWindows.Evaluator(s.now)
+	if err != nil {
+		return projectWindows{failed: true}, fmt.Errorf("failed to evaluate its sync windows: %w", err)
+	}
+	return projectWindows{evaluator: evaluator}, nil
 }
 
 // evaluate returns the sync window gauge values for app. Any failure sets
 // blocked and failed, fail-closed, because a real sync would fail in the same
-// state. Only err is the caller's to log, and it is returned once per project
-// rather than once per application: a lookup failure is already reported by
-// project(), an evaluation failure is deduped by evaluationErr().
+// state.
 func (s *syncWindowScrape) evaluate(app *argoappv1.Application) (allowActive, denyActive, blocked, failed bool, err error) {
-	proj, err := s.project(app)
-	if err != nil {
-		return false, false, true, true, nil
+	entry, err := s.windows(app)
+	if entry.failed {
+		return false, false, true, true, err
 	}
-	if proj == nil {
-		// Indistinguishable from a project that configures no windows.
+	if entry.evaluator == nil {
 		return false, false, false, false, nil
 	}
 	// blocked comes from CanSync, the same call that gates automatic syncs, so
 	// the gauge cannot drift from it. One evaluation feeds all three gauges:
 	// asking separately reads the clock twice, and a boundary in between would
 	// report an active allow window alongside blocked=1.
-	canSync, allowActive, denyActive, err := proj.Spec.SyncWindows.Matches(app).CanSyncWithActiveKinds(false, nil)
+	canSync, allowActive, denyActive, err := entry.evaluator.CanSyncWithActiveKinds(app)
 	if err != nil {
-		return false, false, true, true, s.evaluationErr(app.Spec.GetProject(), err)
+		return false, false, true, true, err
 	}
 	return allowActive, denyActive, !canSync, false, nil
 }
