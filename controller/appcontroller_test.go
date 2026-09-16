@@ -71,14 +71,17 @@ type namespacedResource struct {
 }
 
 type fakeData struct {
-	apps                            []runtime.Object
-	manifestResponse                *apiclient.ManifestResponse
-	manifestResponses               []*apiclient.ManifestResponse
-	managedLiveObjs                 map[kube.ResourceKey]*unstructured.Unstructured
-	namespacedResources             map[kube.ResourceKey]namespacedResource
-	configMapData                   map[string]string
-	metricsCacheExpiration          time.Duration
-	applicationNamespaces           []string
+	apps                   []runtime.Object
+	manifestResponse       *apiclient.ManifestResponse
+	manifestResponses      []*apiclient.ManifestResponse
+	managedLiveObjs        map[kube.ResourceKey]*unstructured.Unstructured
+	namespacedResources    map[kube.ResourceKey]namespacedResource
+	configMapData          map[string]string
+	metricsCacheExpiration time.Duration
+	applicationNamespaces  []string
+	// wrapProjectRefreshQueue, when set, replaces the controller's project refresh queue before the
+	// informers start, so tests can observe enqueues without racing the informer event handlers.
+	wrapProjectRefreshQueue         func(workqueue.TypedRateLimitingInterface[string]) workqueue.TypedRateLimitingInterface[string]
 	updateRevisionForPathsResponse  *apiclient.UpdateRevisionForPathsResponse
 	updateRevisionForPathsResponses []*apiclient.UpdateRevisionForPathsResponse
 	resolveRevisionResponses        []*apiclient.ResolveRevisionResponse
@@ -263,6 +266,9 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	ctrl.clusterSharding = sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
 	if err != nil {
 		panic(err)
+	}
+	if data.wrapProjectRefreshQueue != nil {
+		ctrl.projectRefreshQueue = data.wrapProjectRefreshQueue(ctrl.projectRefreshQueue)
 	}
 	cancelProj := test.StartInformer(ctrl.projInformer)
 	defer cancelProj()
@@ -4719,9 +4725,36 @@ func TestFinalizeProjectDeletion(t *testing.T) {
 	})
 }
 
+// recordingProjectQueue embeds a real rate-limiting queue but records AddAfter calls instead of
+// forwarding them, so tests can assert the retry (item and delay) without waiting for the timer.
+type recordingProjectQueue struct {
+	workqueue.TypedRateLimitingInterface[string]
+	mu      sync.Mutex
+	retries []operationRequeue
+}
+
+func (q *recordingProjectQueue) AddAfter(item string, d time.Duration) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.retries = append(q.retries, operationRequeue{item: item, delay: d})
+}
+
+func (q *recordingProjectQueue) recorded() []operationRequeue {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return append([]operationRequeue(nil), q.retries...)
+}
+
 func TestProcessProjectQueueItem_RequeuesWhenFinalizationFails(t *testing.T) {
 	proj := newTerminatingProj(v1alpha1.AppProjectSpec{})
-	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{proj}}, nil)
+	var projQueue *recordingProjectQueue
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{proj},
+		wrapProjectRefreshQueue: func(q workqueue.TypedRateLimitingInterface[string]) workqueue.TypedRateLimitingInterface[string] {
+			projQueue = &recordingProjectQueue{TypedRateLimitingInterface: q}
+			return projQueue
+		},
+	}, nil)
 	wasPatched := projectFinalizerPatched(t, ctrl)
 	require.NoError(t, ctrl.appInformer.GetStore().Add(newFakeApp()))
 
@@ -4738,13 +4771,15 @@ func TestProcessProjectQueueItem_RequeuesWhenFinalizationFails(t *testing.T) {
 	ctrl.projectRefreshQueue.Add(key)
 	ctrl.processProjectQueueItem(t.Context())
 	assert.False(t, wasPatched())
-	assert.Eventually(t, func() bool { return ctrl.projectRefreshQueue.Len() == 1 }, 5*time.Second, 10*time.Millisecond,
-		"a transient API error must requeue the project")
+	assert.Equal(t, []operationRequeue{{item: key, delay: projectFinalizeRetryDelay}}, projQueue.recorded(),
+		"a transient API error must retry the project after a fixed delay, not immediately")
 
 	// Once the API server answers, the phantom is evicted and the finalizer goes.
 	failGets = false
+	ctrl.projectRefreshQueue.Add(key)
 	ctrl.processProjectQueueItem(t.Context())
 	assert.True(t, wasPatched())
+	assert.Len(t, projQueue.recorded(), 1, "a successful pass must not schedule another retry")
 	assert.Equal(t, 0, ctrl.projectRefreshQueue.Len())
 }
 

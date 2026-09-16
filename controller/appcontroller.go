@@ -1217,7 +1217,10 @@ func (ctrl *ApplicationController) processProjectQueueItem(ctx context.Context) 
 	if origProj.DeletionTimestamp != nil && origProj.HasFinalizer() {
 		if err := ctrl.finalizeProjectDeletion(ctx, origProj.DeepCopy()); err != nil {
 			log.WithError(err).Warn("Failed to finalize project deletion")
-			ctrl.projectRefreshQueue.AddRateLimited(key)
+			// A fixed delay rather than AddRateLimited: the controller's default rate limiter has no
+			// per-item backoff (WORKQUEUE_FAILURE_COOLDOWN is 0), so AddRateLimited would retry within a
+			// millisecond and the single project worker would spin against an unreachable API server.
+			ctrl.projectRefreshQueue.AddAfter(key, projectFinalizeRetryDelay)
 			return processNext
 		}
 	}
@@ -1241,9 +1244,9 @@ func (ctrl *ApplicationController) finalizeProjectDeletion(ctx context.Context, 
 	}
 	// A cached Application can outlive the real one (see writeBackToInformer), so confirm the references
 	// against the API server before refusing to release the finalizer.
-	ctx, cancel := context.WithTimeout(ctx, liveAppLookupTimeout)
+	lookupCtx, cancel := context.WithTimeout(ctx, liveAppLookupTimeout)
 	defer cancel()
-	live, err := ctrl.firstLiveApp(ctx, proj, cached)
+	live, err := ctrl.firstLiveApp(lookupCtx, proj, cached)
 	if err != nil {
 		// Fail closed: the finalizer stays and the caller requeues.
 		return fmt.Errorf("cannot confirm the %d applications referencing project %q: %w", len(cached), proj.Name, err)
@@ -1256,8 +1259,13 @@ func (ctrl *ApplicationController) finalizeProjectDeletion(ctx context.Context, 
 	return nil
 }
 
-// liveAppLookupTimeout bounds firstLiveApp, which runs on the single project worker.
+// liveAppLookupTimeout bounds firstLiveApp, which runs on the single project worker. It does not cover the
+// finalizer patch that may follow, which runs on the worker's own context.
 const liveAppLookupTimeout = 30 * time.Second
+
+// projectFinalizeRetryDelay is how long processProjectQueueItem waits before retrying a project whose
+// finalization failed. The project informer's resync re-drives the project independently of this.
+const projectFinalizeRetryDelay = 10 * time.Second
 
 // firstLiveApp returns the first of apps that still exists on the API server and still references proj, or
 // nil when none do. Per-Application Gets rather than a list: the first candidate usually answers. A Get
