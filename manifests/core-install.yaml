@@ -14250,6 +14250,10 @@ spec:
         - metadata
         - spec
         type: object
+    selectableFields:
+    - jsonPath: .spec.project
+    - jsonPath: .spec.destination.name
+    - jsonPath: .spec.destination.server
     served: true
     storage: false
     subresources:

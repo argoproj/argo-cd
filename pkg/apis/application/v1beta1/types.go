@@ -15,6 +15,9 @@ import (
 // +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
 // +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
 // +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.spec.project`,priority=10
+// +kubebuilder:selectablefield:JSONPath=`.spec.project`
+// +kubebuilder:selectablefield:JSONPath=`.spec.destination.name`
+// +kubebuilder:selectablefield:JSONPath=`.spec.destination.server`
 type Application struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
