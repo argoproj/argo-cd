@@ -1106,7 +1106,23 @@ func (m *nativeGitClient) runTargetedHeadFetch() (*plumbing.Reference, error) {
 	if strings.Contains(stderrOutput, "filtering not recognized by server") {
 		log.Warnf("Git server for %s ignored object filtering; targeted HEAD resolution may transfer the full tip tree", SanitizeRepoURL(m.repoURL))
 	}
-	return parseTargetedHeadFetchOutput(out)
+	headRef, err := parseTargetedHeadFetchOutput(out)
+	if err != nil {
+		return nil, err
+	}
+
+	// The fetch output contains the tag object hash when HEAD points to an
+	// annotated tag. Peel it to a commit to match the existing go-git resolver.
+	peelCmd := exec.CommandContext(ctx, "git", "--git-dir=.", "rev-parse", "--verify", headRef.Hash().String()+"^{commit}")
+	peeledOutput, err := m.runCmdOutput(peelCmd, runOpts{Dir: gitDir})
+	if err != nil {
+		return nil, fmt.Errorf("failed to peel targeted Git HEAD query result: %w", err)
+	}
+	peeledHash := strings.TrimSpace(peeledOutput)
+	if !plumbing.IsHash(peeledHash) {
+		return nil, fmt.Errorf("targeted Git HEAD query returned malformed peeled hash: %q", peeledHash)
+	}
+	return plumbing.NewHashReference(headRevision, plumbing.NewHash(peeledHash)), nil
 }
 
 func parseTargetedHeadFetchOutput(out string) (*plumbing.Reference, error) {
