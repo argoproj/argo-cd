@@ -2387,6 +2387,7 @@ func TestServerPopulatedMetadataStrippedFromBothSides(t *testing.T) {
 
 	assertStripped := func(t *testing.T, result *DiffResult) {
 		t.Helper()
+		assert.False(t, result.Modified, "server-populated metadata must not make the resource appear modified")
 		for side, b := range map[string][]byte{
 			"PredictedLive":  result.PredictedLive,
 			"NormalizedLive": result.NormalizedLive,
@@ -2481,6 +2482,11 @@ func TestRemoveServerPopulatedMetadata(t *testing.T) {
 			name:     "leaves other annotations untouched when the annotation is absent",
 			metadata: map[string]any{"annotations": map[string]any{"keep": "me"}},
 			expected: map[string]any{"annotations": map[string]any{"keep": "me"}},
+		},
+		{
+			name:     "leaves a malformed annotations value in place",
+			metadata: map[string]any{"annotations": "wrong value"},
+			expected: map[string]any{"annotations": "wrong value"},
 		},
 	}
 

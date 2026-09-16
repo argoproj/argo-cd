@@ -654,9 +654,13 @@ func removeServerPopulatedMetadata(un *unstructured.Unstructured) {
 	}
 	annotations, ok := annotationsIf.(map[string]any)
 	if !ok {
-		// A nil or otherwise unusable annotations map carries no annotations, so
-		// drop it to keep every side of the comparison symmetric.
-		delete(metadata, "annotations")
+		// A nil annotations map carries no annotations, so drop it to keep every
+		// side of the comparison symmetric. Any other non-map value is malformed
+		// user input rather than an empty annotation set: it is left in place so
+		// that the diff keeps exposing it, matching removeNamespaceAnnotation.
+		if annotationsIf == nil {
+			delete(metadata, "annotations")
+		}
 		return
 	}
 	delete(annotations, AnnotationLastAppliedConfig)
