@@ -71,10 +71,13 @@ func isStatefulSetChild(un *unstructured.Unstructured) (func(kube.ResourceKey) b
 	}
 
 	templates := sts.Spec.VolumeClaimTemplates
+	// Capture the name rather than un itself: this closure is retained for the lifetime of the
+	// cached Resource, and capturing un would keep the whole StatefulSet manifest alive with it.
+	name := un.GetName()
 	return func(key kube.ResourceKey) bool {
 		if key.Kind == kube.PersistentVolumeClaimKind && key.GroupKind().Group == "" {
 			for _, templ := range templates {
-				if match, _ := regexp.MatchString(fmt.Sprintf(`%s-%s-\d+$`, templ.Name, un.GetName()), key.Name); match {
+				if match, _ := regexp.MatchString(fmt.Sprintf(`%s-%s-\d+$`, templ.Name, name), key.Name); match {
 					return true
 				}
 			}

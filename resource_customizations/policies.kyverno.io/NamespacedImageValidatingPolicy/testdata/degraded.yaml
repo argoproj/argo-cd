@@ -1,0 +1,14 @@
+apiVersion: policies.kyverno.io/v1alpha1
+kind: NamespacedImageValidatingPolicy
+metadata:
+  name: sample-namespaced-image-validating-policy
+  namespace: test-namespace
+spec: {}
+status:
+  conditionStatus:
+    ready: false
+    conditions:
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      message: webhook configuration failed
+      status: "False"
+      type: WebhookConfigured

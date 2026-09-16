@@ -292,7 +292,7 @@ func (g GracefulRestartSignal) Signal() {}
 // initializeDefaultProject creates the default project if it does not already exist
 func initializeDefaultProject(opts ArgoCDServerOpts) error {
 	defaultProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.DefaultAppProjectName, Namespace: opts.Namespace},
+		Name: v1alpha1.DefaultAppProjectName, Namespace: opts.Namespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:              []string{"*"},
 			Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -812,6 +812,7 @@ func (server *ArgoCDServer) watchSettings() {
 	errorsutil.CheckError(err)
 	prevDexAuthConnectorID := server.settings.DexAuthConnectorID
 	prevGitHubSecret := server.settings.GetWebhookGitHubSecret()
+	prevDockerHubSecret := server.settings.GetWebhookDockerHubSecret()
 	prevGitLabSecret := server.settings.GetWebhookGitLabSecret()
 	prevBitbucketUUID := server.settings.GetWebhookBitbucketUUID()
 	prevBitbucketServerSecret := server.settings.GetWebhookBitbucketServerSecret()
@@ -850,6 +851,10 @@ func (server *ArgoCDServer) watchSettings() {
 		}
 		if prevGitHubSecret != server.settings.GetWebhookGitHubSecret() {
 			log.Infof("github secret modified. restarting")
+			break
+		}
+		if prevDockerHubSecret != server.settings.GetWebhookDockerHubSecret() {
+			log.Infof("dockerhub secret modified, restarting")
 			break
 		}
 		if prevGitLabSecret != server.settings.GetWebhookGitLabSecret() {
@@ -1076,6 +1081,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.enf,
 		a.RepoClientset,
 		a.AppClientset,
+		a.appLister,
 		a.appsetInformer,
 		a.appsetLister,
 		nil,
