@@ -283,7 +283,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
             {selectedNode && (
                 <DataLoader
                     noLoaderOnInputChange={true}
-                    input={selectedNode.resourceVersion}
+                    // Include the node's stable identity so switching between nodes (notably generated
+                    // ApplicationSet nodes, which all share an empty resourceVersion) triggers a reload,
+                    // while still refreshing normal managed resources when their resourceVersion changes.
+                    input={`${AppUtils.nodeKey(selectedNode)}|${selectedNode.resourceVersion || ''}`}
                     load={async () => {
                         if (props.generatedAppNode) {
                             // Read-only view of a generated Application node: load the live manifest from the
