@@ -31,12 +31,13 @@ export interface FiltersProps {
     onClearFilter: () => void;
     collapsed?: boolean;
     hideKindFilter?: boolean;
+    hideHealthAndSyncFilters?: boolean;
 }
 
 export const Filters = (props: FiltersProps) => {
     const ctx = React.useContext(Context);
 
-    const {pref, tree, onSetFilter, hideKindFilter} = props;
+    const {pref, tree, onSetFilter, hideKindFilter, hideHealthAndSyncFilters} = props;
 
     const onClearFilter = () => {
         setLoading(true);
@@ -152,24 +153,26 @@ export const Filters = (props: FiltersProps) => {
                     abbreviations: resources,
                     field: true
                 })}
-            {ResourceFilter({
-                label: 'SYNC STATUS',
-                prefix: 'sync',
-                options: ['Synced', 'OutOfSync'].map(label => ({
-                    label,
-                    count: getOptionCount(label, 'Sync'),
-                    icon: <ComparisonStatusIcon status={label as SyncStatusCode} noSpin={true} />
-                }))
-            })}
-            {ResourceFilter({
-                label: 'HEALTH STATUS',
-                prefix: 'health',
-                options: ['Progressing', 'Suspended', 'Healthy', 'Degraded', 'Missing', 'Unknown'].map(label => ({
-                    label,
-                    count: getOptionCount(label, 'Health'),
-                    icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />
-                }))
-            })}
+            {!hideHealthAndSyncFilters &&
+                ResourceFilter({
+                    label: 'SYNC STATUS',
+                    prefix: 'sync',
+                    options: ['Synced', 'OutOfSync'].map(label => ({
+                        label,
+                        count: getOptionCount(label, 'Sync'),
+                        icon: <ComparisonStatusIcon status={label as SyncStatusCode} noSpin={true} />
+                    }))
+                })}
+            {!hideHealthAndSyncFilters &&
+                ResourceFilter({
+                    label: 'HEALTH STATUS',
+                    prefix: 'health',
+                    options: ['Progressing', 'Suspended', 'Healthy', 'Degraded', 'Missing', 'Unknown'].map(label => ({
+                        label,
+                        count: getOptionCount(label, 'Health'),
+                        icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />
+                    }))
+                })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
             {(tree.orphanedNodes || []).length > 0 && (
                 <div className={`filter filter__item ${pref.orphanedResources ? 'filter__item--selected' : ''}`}>
