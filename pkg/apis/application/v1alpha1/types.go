@@ -17,6 +17,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -2983,6 +2985,89 @@ func (w *SyncWindows) HasWindows() bool {
 	return w != nil && len(*w) > 0
 }
 
+// syncWindowScheduleParser parses the cron specs of sync windows. cron.Parser
+// is stateless, so one package-level instance is reused.
+var syncWindowScheduleParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+
+// syncWindowCacheLimit bounds the caches below. Both are keyed by strings from
+// AppProject.spec.syncWindows, which Validate does not constrain to a fixed set,
+// so past the limit they stop growing and fall back to parsing: slower, never
+// wrong.
+const syncWindowCacheLimit = 1024
+
+// Parsed schedules are immutable and safe to share. Parse failures are not
+// cached, so callers keep seeing the error.
+var (
+	syncWindowScheduleCache sync.Map // string -> cron.Schedule
+	syncWindowScheduleCount atomic.Int64
+)
+
+// LoadLocation re-reads and re-parses the zoneinfo file on every call (~15us),
+// which dominates sync window evaluation: the controller evaluates once per
+// window per application on every scrape and reconciliation.
+var (
+	syncWindowLocationCache sync.Map // string -> *time.Location
+	syncWindowLocationCount atomic.Int64
+)
+
+// count tracks the size, since sync.Map does not.
+func cacheSyncWindowValue(cache *sync.Map, count *atomic.Int64, key string, value any) {
+	if count.Load() >= syncWindowCacheLimit {
+		return
+	}
+	if _, loaded := cache.LoadOrStore(key, value); !loaded {
+		count.Add(1)
+	}
+}
+
+func syncWindowSchedule(spec string) (cron.Schedule, error) {
+	if cached, ok := syncWindowScheduleCache.Load(spec); ok {
+		return cached.(cron.Schedule), nil
+	}
+	schedule, err := syncWindowScheduleParser.Parse(spec)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse schedule '%s': %w", spec, err)
+	}
+	cacheSyncWindowValue(&syncWindowScheduleCache, &syncWindowScheduleCount, spec, schedule)
+	return schedule, nil
+}
+
+func syncWindowLocation(name string) *time.Location {
+	if name == "" || name == "UTC" {
+		return time.UTC
+	}
+	if cached, ok := syncWindowLocationCache.Load(name); ok {
+		return cached.(*time.Location)
+	}
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		// Caching the fallback warns once per bad name instead of per
+		// evaluation, and is what makes the key space unbounded.
+		log.Warnf("Invalid time zone %s specified. Using UTC as default time zone", name)
+		loc = time.UTC
+	}
+	cacheSyncWindowValue(&syncWindowLocationCache, &syncWindowLocationCount, name, loc)
+	return loc
+}
+
+// isActiveAt reports whether the window is active at currentTime, which the
+// caller must already have converted to UTC.
+func (w InlineSyncWindow) isActiveAt(currentTime time.Time) (bool, error) {
+	schedule, err := syncWindowSchedule(w.Schedule)
+	if err != nil {
+		return false, err
+	}
+	duration, err := time.ParseDuration(w.Duration)
+	if err != nil {
+		return false, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, err)
+	}
+
+	// Offset the nextWindow time to consider the timeZone of the sync window
+	timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
+	nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
+	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)), nil
+}
+
 // Active returns a list of sync windows that are currently active
 func (w *SyncWindows) Active() (*SyncWindows, error) {
 	return w.active(time.Now())
@@ -2995,21 +3080,12 @@ func (w *SyncWindows) active(currentTime time.Time) (*SyncWindows, error) {
 
 	if w.HasWindows() {
 		var active SyncWindows
-		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *w {
-			schedule, sErr := specParser.Parse(w.Schedule)
-			if sErr != nil {
-				return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+			isActive, err := w.isActiveAt(currentTime)
+			if err != nil {
+				return nil, err
 			}
-			duration, dErr := time.ParseDuration(w.Duration)
-			if dErr != nil {
-				return nil, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
-			}
-
-			// Offset the nextWindow time to consider the timeZone of the sync window
-			timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
-			nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
-			if nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) {
+			if isActive {
 				active = append(active, w)
 			}
 		}
@@ -3034,24 +3110,15 @@ func (w *SyncWindows) inactiveAllows(currentTime time.Time) (*SyncWindows, error
 
 	if w.HasWindows() {
 		var inactive SyncWindows
-		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *w {
 			if w.Kind != "allow" {
 				continue
 			}
-			schedule, sErr := specParser.Parse(w.Schedule)
-			if sErr != nil {
-				return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+			isActive, err := w.isActiveAt(currentTime)
+			if err != nil {
+				return nil, err
 			}
-			duration, dErr := time.ParseDuration(w.Duration)
-			if dErr != nil {
-				return nil, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
-			}
-			// Offset the nextWindow time to consider the timeZone of the sync window
-			timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
-			nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
-
-			if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) {
+			if !isActive {
 				inactive = append(inactive, w)
 			}
 		}
@@ -3062,13 +3129,8 @@ func (w *SyncWindows) inactiveAllows(currentTime time.Time) (*SyncWindows, error
 	return nil, nil
 }
 
-func (w *InlineSyncWindow) scheduleOffsetByTimeZone() time.Duration {
-	loc, err := time.LoadLocation(w.TimeZone)
-	if err != nil {
-		log.Warnf("Invalid time zone %s specified. Using UTC as default time zone", w.TimeZone)
-		loc = time.Now().UTC().Location()
-	}
-	_, tzOffset := time.Now().In(loc).Zone()
+func (w InlineSyncWindow) scheduleOffsetByTimeZone() time.Duration {
+	_, tzOffset := time.Now().In(syncWindowLocation(w.TimeZone)).Zone()
 	return time.Duration(tzOffset) * time.Second
 }
 
@@ -3402,23 +3464,7 @@ func (w InlineSyncWindow) Active() (bool, error) {
 func (w InlineSyncWindow) active(currentTime time.Time) (bool, error) {
 	// If InlineSyncWindow.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before search
-	currentTime = currentTime.UTC()
-
-	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	schedule, sErr := specParser.Parse(w.Schedule)
-	if sErr != nil {
-		return false, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
-	}
-	duration, dErr := time.ParseDuration(w.Duration)
-	if dErr != nil {
-		return false, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
-	}
-
-	// Offset the nextWindow time to consider the timeZone of the sync window
-	timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
-	nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
-
-	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)), nil
+	return w.isActiveAt(currentTime.UTC())
 }
 
 // Update updates a sync window's settings with the given parameter

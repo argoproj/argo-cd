@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -3181,6 +3184,94 @@ func TestSyncWindows_hasDeny(t *testing.T) {
 		assert.False(t, hasDeny)
 		assert.False(t, manualEnabled)
 	})
+}
+
+func TestCacheSyncWindowValue(t *testing.T) {
+	t.Run("StopsGrowingAtLimit", func(t *testing.T) {
+		var cache sync.Map
+		var count atomic.Int64
+
+		for i := range syncWindowCacheLimit + 10 {
+			cacheSyncWindowValue(&cache, &count, strconv.Itoa(i), i)
+		}
+		assert.Equal(t, int64(syncWindowCacheLimit), count.Load())
+
+		stored := 0
+		cache.Range(func(_, _ any) bool {
+			stored++
+			return true
+		})
+		assert.Equal(t, syncWindowCacheLimit, stored)
+	})
+
+	t.Run("DoesNotDoubleCountRepeatedKeys", func(t *testing.T) {
+		var cache sync.Map
+		var count atomic.Int64
+
+		cacheSyncWindowValue(&cache, &count, "same", 1)
+		cacheSyncWindowValue(&cache, &count, "same", 1)
+		assert.Equal(t, int64(1), count.Load())
+	})
+}
+
+func TestSyncWindowSchedule(t *testing.T) {
+	t.Run("CachedScheduleIsReused", func(t *testing.T) {
+		first, err := syncWindowSchedule("0 22 * * *")
+		require.NoError(t, err)
+		second, err := syncWindowSchedule("0 22 * * *")
+		require.NoError(t, err)
+		assert.Same(t, first, second)
+	})
+
+	t.Run("ParseErrorsAreNotCached", func(t *testing.T) {
+		for range 2 {
+			schedule, err := syncWindowSchedule("not a cron spec")
+			require.ErrorContains(t, err, "cannot parse schedule")
+			assert.Nil(t, schedule)
+		}
+	})
+}
+
+func TestSyncWindowLocation(t *testing.T) {
+	t.Run("UTC", func(t *testing.T) {
+		assert.Equal(t, time.UTC, syncWindowLocation(""))
+		assert.Equal(t, time.UTC, syncWindowLocation("UTC"))
+	})
+
+	t.Run("NamedZoneMatchesLoadLocation", func(t *testing.T) {
+		expected, err := time.LoadLocation("America/New_York")
+		require.NoError(t, err)
+		// The second call comes from the cache and must report the same offset.
+		for range 2 {
+			loc := syncWindowLocation("America/New_York")
+			_, cached := time.Now().In(loc).Zone()
+			_, fresh := time.Now().In(expected).Zone()
+			assert.Equal(t, fresh, cached)
+		}
+	})
+
+	t.Run("InvalidZoneFallsBackToUTC", func(t *testing.T) {
+		assert.Equal(t, time.UTC, syncWindowLocation("Not/AZone"))
+	})
+}
+
+func BenchmarkSyncWindows_CanSync(b *testing.B) {
+	for _, tz := range []string{"", "Europe/Berlin"} {
+		name := "NoTimeZone"
+		if tz != "" {
+			name = "TimeZone"
+		}
+		b.Run(name, func(b *testing.B) {
+			windows := SyncWindows{
+				{Kind: "allow", Schedule: "0 22 * * *", Duration: "1h", TimeZone: tz, Applications: []string{"*"}},
+				{Kind: "deny", Schedule: "0 2 * * *", Duration: "1h", TimeZone: tz, Applications: []string{"*"}},
+			}
+			for b.Loop() {
+				_, err := windows.CanSync(false, nil)
+				require.NoError(b, err)
+			}
+		})
+	}
 }
 
 func TestSyncWindows_hasAllow(t *testing.T) {
