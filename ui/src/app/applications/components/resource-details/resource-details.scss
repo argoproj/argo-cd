@@ -15,6 +15,7 @@
             font-weight: 500;
             margin-right: 5px;
             margin-bottom: 0;
+        }
     }
 
     // The name and the status icons share one inline flow, so the status trails
@@ -27,7 +28,7 @@
     }
 
     &__header-title {
-        @include themify($themes){
+        @include themify($themes) {
             color: themed('text-2');
         }
         display: inline;
