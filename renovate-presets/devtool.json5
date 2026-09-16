@@ -22,6 +22,16 @@
       "enabled": true
     },
     {
+      "description": "Update the codegen tools in hack/tools/go.mod. Go records tool directives as indirect requirements, which Renovate skips by default.",
+      "matchFileNames": [
+        "hack/tools/go.mod"
+      ],
+      "matchDepTypes": [
+        "indirect"
+      ],
+      "enabled": true
+    },
+    {
       "description": "Run make mockgen after updating mockery",
       "matchDatasources": [
         "go"
