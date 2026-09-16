@@ -978,6 +978,51 @@ func TestSyncWindowMetricProjectFailureIsResolvedOncePerScrape(t *testing.T) {
 	assert.Equal(t, 2, calls, "the cache must not outlive a scrape")
 }
 
+// A malformed schedule is a property of the project, not of the application,
+// so the warning it produces must not repeat once per application per scrape.
+func TestSyncWindowMetricEvaluationErrorIsReportedOncePerProject(t *testing.T) {
+	newProject := func(name string) *argoappv1.AppProject {
+		return &argoappv1.AppProject{
+			Name: name, Namespace: "argocd",
+			Spec: argoappv1.AppProjectSpec{SyncWindows: argoappv1.SyncWindows{
+				{Kind: "allow", Schedule: "not a cron spec", Duration: "1h", Applications: []string{"*"}},
+			}},
+		}
+	}
+	newApp := func(name, project string) *argoappv1.Application {
+		return &argoappv1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "argocd"},
+			Spec:       argoappv1.ApplicationSpec{Project: project},
+		}
+	}
+	newScrape := func() *syncWindowScrape {
+		return newSyncWindowScrape(func(app *argoappv1.Application) (*argoappv1.AppProject, error) {
+			return newProject(app.Spec.GetProject()), nil
+		})
+	}
+
+	// Every application reports fail-closed regardless; only the error the
+	// caller logs is deduped.
+	evaluate := func(t *testing.T, scrape *syncWindowScrape, app *argoappv1.Application) error {
+		t.Helper()
+		_, _, blocked, failed, err := scrape.evaluate(app)
+		assert.True(t, blocked, "an unparseable schedule must report the sync as blocked")
+		assert.True(t, failed)
+		return err
+	}
+
+	scrape := newScrape()
+	require.Error(t, evaluate(t, scrape, newApp("my-app", "important-project")))
+	require.NoError(t, evaluate(t, scrape, newApp("my-app-2", "important-project")))
+	require.NoError(t, evaluate(t, scrape, newApp("my-app-3", "important-project")))
+
+	// Deduped per project, not globally.
+	require.Error(t, evaluate(t, scrape, newApp("my-app-4", "other-project")))
+
+	// The dedup lives for one scrape only, so the next scrape reports again.
+	require.Error(t, evaluate(t, newScrape(), newApp("my-app", "important-project")))
+}
+
 func TestMetricsReset(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()

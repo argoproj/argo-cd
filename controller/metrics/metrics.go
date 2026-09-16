@@ -533,7 +533,8 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 	if syncWindows != nil {
 		allowActive, denyActive, blocked, failed, err := syncWindows.evaluate(app)
 		if err != nil {
-			log.Warnf("Failed to evaluate sync windows for application %s/%s, reporting its sync as blocked: %v", app.Namespace, app.Name, err)
+			// this will only log once per app project due to err being nil after the first error
+			log.Warnf("Failed to evaluate sync windows of AppProject %s, reporting syncs of its applications as blocked: %v", app.Spec.GetProject(), err)
 		}
 		addGauge(descAppSyncWindow, boolFloat64(allowActive), "allow")
 		addGauge(descAppSyncWindow, boolFloat64(denyActive), "deny")
@@ -554,12 +555,14 @@ type projectLookup struct {
 type syncWindowScrape struct {
 	getAppProject AppProjectGetter
 	projects      map[string]projectLookup
+	reportedErr   map[string]bool
 }
 
 func newSyncWindowScrape(getAppProject AppProjectGetter) *syncWindowScrape {
 	return &syncWindowScrape{
 		getAppProject: getAppProject,
 		projects:      map[string]projectLookup{},
+		reportedErr:   map[string]bool{},
 	}
 }
 
@@ -579,10 +582,24 @@ func (s *syncWindowScrape) project(app *argoappv1.Application) (*argoappv1.AppPr
 	return proj, err
 }
 
+// evaluationErr returns err the first time a project fails to evaluate in this
+// scrape and nil afterwards. A malformed schedule is a property of the project,
+// so without this every application in it repeats the same warning on every
+// scrape: a schedule the API server never saw is only rejected here, and the
+// CRD has no validation rule for it.
+func (s *syncWindowScrape) evaluationErr(project string, err error) error {
+	if s.reportedErr[project] {
+		return nil
+	}
+	s.reportedErr[project] = true
+	return err
+}
+
 // evaluate returns the sync window gauge values for app. Any failure sets
 // blocked and failed, fail-closed, because a real sync would fail in the same
-// state. Only err is the caller's to log: a lookup failure is already reported
-// by project(), once per project rather than once per application.
+// state. Only err is the caller's to log, and it is returned once per project
+// rather than once per application: a lookup failure is already reported by
+// project(), an evaluation failure is deduped by evaluationErr().
 func (s *syncWindowScrape) evaluate(app *argoappv1.Application) (allowActive, denyActive, blocked, failed bool, err error) {
 	proj, err := s.project(app)
 	if err != nil {
@@ -598,7 +615,7 @@ func (s *syncWindowScrape) evaluate(app *argoappv1.Application) (allowActive, de
 	// report an active allow window alongside blocked=1.
 	canSync, allowActive, denyActive, err := proj.Spec.SyncWindows.Matches(app).CanSyncWithActiveKinds(false, nil)
 	if err != nil {
-		return false, false, true, true, err
+		return false, false, true, true, s.evaluationErr(app.Spec.GetProject(), err)
 	}
 	return allowActive, denyActive, !canSync, false, nil
 }

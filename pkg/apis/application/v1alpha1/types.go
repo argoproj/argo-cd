@@ -3010,13 +3010,22 @@ var (
 	syncWindowLocationCount atomic.Int64
 )
 
-// count tracks the size, since sync.Map does not.
+// count tracks the size, since sync.Map does not. The slot is reserved before
+// the store, so concurrent callers cannot each see room under the limit and
+// then all insert.
 func cacheSyncWindowValue(cache *sync.Map, count *atomic.Int64, key string, value any) {
-	if count.Load() >= syncWindowCacheLimit {
-		return
+	for {
+		n := count.Load()
+		if n >= syncWindowCacheLimit {
+			return
+		}
+		if count.CompareAndSwap(n, n+1) {
+			break
+		}
 	}
-	if _, loaded := cache.LoadOrStore(key, value); !loaded {
-		count.Add(1)
+	if _, loaded := cache.LoadOrStore(key, value); loaded {
+		// Another caller cached this key first; release the reservation.
+		count.Add(-1)
 	}
 }
 
@@ -3569,13 +3578,10 @@ func (w *InlineSyncWindow) Validate() error {
 	if w.Kind != "allow" && w.Kind != "deny" {
 		return fmt.Errorf("kind '%s' mismatch: can only be allow or deny", w.Kind)
 	}
-	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	_, err := specParser.Parse(w.Schedule)
-	if err != nil {
-		return fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, err)
+	if _, err := syncWindowSchedule(w.Schedule); err != nil {
+		return err
 	}
-	_, err = time.ParseDuration(w.Duration)
-	if err != nil {
+	if _, err := time.ParseDuration(w.Duration); err != nil {
 		return fmt.Errorf("cannot parse duration '%s': %w", w.Duration, err)
 	}
 

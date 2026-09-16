@@ -3192,7 +3192,7 @@ func TestSyncWindows_partition(t *testing.T) {
 		return &InlineSyncWindow{Kind: kind, Schedule: "* * * * *", Duration: "24h", Applications: []string{"*"}}
 	}
 	never := func(kind string) *InlineSyncWindow {
-		return &InlineSyncWindow{Kind: kind, Schedule: "0 0 1 1 *", Duration: "1s", Applications: []string{"*"}}
+		return &InlineSyncWindow{Kind: kind, Schedule: "* * * * *", Duration: "0s", Applications: []string{"*"}}
 	}
 
 	t.Run("NoWindows", func(t *testing.T) {
