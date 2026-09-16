@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"os"
 	"strconv"
 	"testing"
@@ -225,13 +226,16 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		controller  *ApplicationController
 	}
 
-	setup := func(liveObjects map[kube.ResourceKey]*unstructured.Unstructured) *fixture {
+	setup := func(liveObjects map[kube.ResourceKey]*unstructured.Unstructured, targetManifests ...string) *fixture {
 		app := newFakeApp()
 		app.Status.OperationState = nil
 		app.Status.History = nil
 
 		if liveObjects == nil {
 			liveObjects = make(map[kube.ResourceKey]*unstructured.Unstructured)
+		}
+		if targetManifests == nil {
+			targetManifests = []string{}
 		}
 
 		project := &v1alpha1.AppProject{
@@ -250,7 +254,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		data := fakeData{
 			apps: []runtime.Object{app, project},
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{},
+				Manifests: targetManifests,
 				Namespace: test.FakeDestNamespace,
 				Server:    test.FakeClusterURL,
 				Revision:  "abc123",
@@ -297,6 +301,57 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		// then
 		assert.Equal(t, synccommon.OperationFailed, opState.Phase)
 		assert.Contains(t, opState.Message, "ConfigMap/configmap1 is part of applications fake-argocd-ns/my-app and guestbook")
+	})
+
+	t.Run("will not force-replace a resource owned by another application, even without FailOnSharedResource", func(t *testing.T) {
+		// given: a ConfigMap that this app also declares in git, but whose live tracking
+		// annotation shows it is actually owned by a different application ("guestbook") -
+		// the same conflict as above, but this time reached through a manual force-sync with
+		// no FailOnSharedResource opt-in, which is the path #29739 reports as unprotected.
+		t.Parallel()
+
+		sharedObject := kube.MustToUnstructured(&corev1.ConfigMap{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+			Name:       "configmap1",
+			Namespace:  "default",
+			Annotations: map[string]string{
+				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
+			},
+		})
+		liveObjects := make(map[kube.ResourceKey]*unstructured.Unstructured)
+		liveObjects[kube.GetResourceKey(sharedObject)] = sharedObject
+
+		targetObject := kube.MustToUnstructured(&corev1.ConfigMap{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+			Name:       "configmap1",
+			Namespace:  "default",
+		})
+		targetBytes, err := json.Marshal(targetObject)
+		require.NoError(t, err)
+		f := setup(liveObjects, string(targetBytes))
+
+		// Manual force-sync, no FailOnSharedResource option set.
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{},
+				SyncStrategy: &v1alpha1.SyncStrategy{
+					Apply: &v1alpha1.SyncStrategyApply{Force: true},
+				},
+			},
+		}}
+
+		// when
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
+
+		// then: the sync must not have queued a task against the shared ConfigMap - neither a
+		// replace nor a prune - because it belongs to another application's tracking ID. It
+		// must not appear in the sync result at all.
+		require.NotEqual(t, synccommon.OperationFailed, opState.Phase)
+		for _, res := range opState.SyncResult.Resources {
+			assert.NotEqual(t, "configmap1", res.Name, "shared ConfigMap owned by another app must not be touched by a force-sync: %+v", res)
+		}
 	})
 }
 
