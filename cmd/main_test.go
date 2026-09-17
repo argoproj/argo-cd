@@ -13,6 +13,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v3/cmd/util"
 )
 
 func TestExitErrorHandling(t *testing.T) {
@@ -33,6 +35,18 @@ func TestExitErrorHandling(t *testing.T) {
 		{
 			name:             "generic error",
 			cmdError:         errors.New("test error"),
+			expectedExitCode: 1,
+			expectedOutput:   "Error: test error\n",
+		},
+		{
+			name:             "exit error 1 without message",
+			cmdError:         util.NewExitError(1, nil),
+			expectedExitCode: 1,
+			expectedOutput:   "",
+		},
+		{
+			name:             "exit error 1 with message",
+			cmdError:         util.NewExitError(1, errors.New("test error")),
 			expectedExitCode: 1,
 			expectedOutput:   "Error: test error\n",
 		},
@@ -190,6 +204,18 @@ func TestExitErrorHandlingNotIsArgocdCLI(t *testing.T) {
 		{
 			name:             "generic error",
 			cmdError:         errors.New("test error"),
+			expectedExitCode: 1,
+			expectedOutput:   "Error: test error\n",
+		},
+		{
+			name:             "exit error 1 without message",
+			cmdError:         util.NewExitError(1, nil),
+			expectedExitCode: 1,
+			expectedOutput:   "",
+		},
+		{
+			name:             "exit error 1 with message",
+			cmdError:         util.NewExitError(1, errors.New("test error")),
 			expectedExitCode: 1,
 			expectedOutput:   "Error: test error\n",
 		},
