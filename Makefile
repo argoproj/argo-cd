@@ -454,9 +454,9 @@ test-local: test-gitops-engine
 # run if TEST_MODULE is empty or does not point to gitops-engine tests
 ifneq ($(if $(TEST_MODULE),,ALL)$(filter-out github.com/argoproj/argo-cd/gitops-engine% ./gitops-engine%,$(TEST_MODULE)),)
 	if test "$(TEST_MODULE)" = ""; then \
-		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -coverprofile="$(PWD)/test-results/unit-coverage.out"; \
+		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -args -test.gocoverdir="$(PWD)/test-results"; \
 	else \
-		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -coverprofile="$(PWD)/test-results/unit-coverage.out"; \
+		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -args -test.gocoverdir="$(PWD)/test-results" "$(TEST_MODULE)"; \
 	fi
 endif
 
@@ -465,8 +465,8 @@ endif
 test-gitops-engine:
 # run if TEST_MODULE is empty or points to gitops-engine tests
 ifneq ($(if $(TEST_MODULE),,ALL)$(filter github.com/argoproj/argo-cd/gitops-engine% ./gitops-engine%,$(TEST_MODULE)),)
-	mkdir -p $(PWD)/test-results
-	cd gitops-engine && go test -race -coverprofile="$(PWD)/test-results/gitops-engine-coverage.out" ./...
+	mkdir -p $(PWD)/test-results/gitops-engine
+	cd gitops-engine && go test -race -cover ./... -args -test.gocoverdir="$(PWD)/test-results/gitops-engine"
 endif
 
 .PHONY: test-race
@@ -478,9 +478,9 @@ test-race: test-tools-image
 .PHONY: test-race-local
 test-race-local:
 	if test "$(TEST_MODULE)" = ""; then \
-		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -race -coverprofile="$(PWD)/test-results/unit-coverage.out"; \
+		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -race -args -test.gocoverdir="$(PWD)/test-results"; \
 	else \
-		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -race -coverprofile="$(PWD)/test-results/unit-coverage.out"; \
+		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -race -args -test.gocoverdir="$(PWD)/test-results"; \
 	fi
 
 # Run the E2E test suite. E2E test servers (see start-e2e target) must be
