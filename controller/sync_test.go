@@ -353,6 +353,92 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 			assert.NotEqual(t, "configmap1", res.Name, "shared ConfigMap owned by another app must not be touched by a force-sync: %+v", res)
 		}
 	})
+
+	t.Run("still force-syncs a resource with no tracking conflict", func(t *testing.T) {
+		// given: this app's own ConfigMap, not present live at all (first sync). The ownership
+		// guard must not withhold resources that have nothing to conflict with, or every
+		// ordinary force-sync would silently do nothing.
+		t.Parallel()
+
+		targetObject := kube.MustToUnstructured(&corev1.ConfigMap{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+			Name:       "configmap2",
+			Namespace:  "default",
+		})
+		targetBytes, err := json.Marshal(targetObject)
+		require.NoError(t, err)
+		f := setup(nil, string(targetBytes))
+
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{},
+				SyncStrategy: &v1alpha1.SyncStrategy{
+					Apply: &v1alpha1.SyncStrategyApply{Force: true},
+				},
+			},
+		}}
+
+		// when
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
+
+		// then: the resource must still have been handed to the sync engine as a task. This
+		// fixture's fake cluster has no real API server behind it, so a resource that reaches
+		// the engine's dry-run apply fails on server discovery rather than succeeding - that
+		// failure is exactly the signal that a task was generated for it. The excluded-resource
+		// cases above complete with zero tasks and no discovery attempt at all, which is what
+		// distinguishes "filtered out" from "reached the engine and failed on network I/O".
+		assert.Equal(t, synccommon.OperationFailed, opState.Phase)
+		assert.Contains(t, opState.Message, "failed to discover server resources")
+	})
+
+	t.Run("will not replace a resource owned by another application via a per-resource Force=true sync option", func(t *testing.T) {
+		// given: the same tracking-ID conflict as above, but this time the operation itself is
+		// a plain (non-force) sync - the Force=true comes only from a sync-options annotation on
+		// the live object, which gitops-engine's own sync_context.go treats as force too
+		// (sc.force || Force=true on target || Force=true on live). Checking only the
+		// operation-level strategy would miss this path.
+		t.Parallel()
+
+		sharedObject := kube.MustToUnstructured(&corev1.ConfigMap{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+			Name:       "configmap3",
+			Namespace:  "default",
+			Annotations: map[string]string{
+				common.AnnotationKeyAppInstance:  "guestbook:/ConfigMap:default/configmap3",
+				synccommon.AnnotationSyncOptions: synccommon.SyncOptionForce,
+			},
+		})
+		liveObjects := make(map[kube.ResourceKey]*unstructured.Unstructured)
+		liveObjects[kube.GetResourceKey(sharedObject)] = sharedObject
+
+		targetObject := kube.MustToUnstructured(&corev1.ConfigMap{
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+			Name:       "configmap3",
+			Namespace:  "default",
+		})
+		targetBytes, err := json.Marshal(targetObject)
+		require.NoError(t, err)
+		f := setup(liveObjects, string(targetBytes))
+
+		// Plain sync, no SyncStrategy.Apply.Force and no FailOnSharedResource.
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{},
+			},
+		}}
+
+		// when
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
+
+		// then
+		require.NotEqual(t, synccommon.OperationFailed, opState.Phase)
+		for _, res := range opState.SyncResult.Resources {
+			assert.NotEqual(t, "configmap3", res.Name, "a resource forced only via its own sync-options annotation must still be protected: %+v", res)
+		}
+	})
 }
 
 func TestSyncWindowDeniesSync(t *testing.T) {
