@@ -23,22 +23,21 @@ func liveSecretWithCredentials(t *testing.T, namespace string) string {
 	t.Helper()
 	live, err := fixture.KubeClientset.CoreV1().Secrets(namespace).Get(t.Context(), "generated-credentials", metav1.GetOptions{})
 	require.NoError(t, err)
-	annotations := map[string]string{}
-	for k, v := range live.Annotations {
-		if k != corev1.LastAppliedConfigAnnotation {
-			annotations[k] = v
-		}
+
+	seed := live.DeepCopy()
+	seed.APIVersion = "v1"
+	seed.Kind = "Secret"
+	seed.ResourceVersion = ""
+	seed.UID = ""
+	seed.ManagedFields = nil
+	delete(seed.Annotations, corev1.LastAppliedConfigAnnotation)
+	seed.StringData = nil
+	seed.Data = map[string][]byte{
+		"ACCESS_KEY": []byte("live-access"),
+		"SECRET_KEY": []byte("live-secret"),
+		"ENDPOINT":   []byte("live-endpoint"),
 	}
-	seed := corev1.Secret{
-		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "Secret"},
-		ObjectMeta: metav1.ObjectMeta{Name: live.Name, Namespace: live.Namespace, Labels: live.Labels, Annotations: annotations},
-		Type:       live.Type,
-		Data: map[string][]byte{
-			"ACCESS_KEY": []byte("live-access"),
-			"SECRET_KEY": []byte("live-secret"),
-			"ENDPOINT":   []byte("live-endpoint"),
-		},
-	}
+
 	manifest, err := json.Marshal(seed)
 	require.NoError(t, err)
 	return string(manifest)
