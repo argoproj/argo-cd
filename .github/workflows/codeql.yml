@@ -31,6 +31,7 @@ permissions:
 env:
   # a workaround to disable harden runner
   STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+  # renovate: datasource=golang-version packageName=golang
   GOLANG_VERSION: '1.27.1'
   
 jobs:
