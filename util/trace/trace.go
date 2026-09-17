@@ -3,7 +3,10 @@ package trace
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
+	"sync"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
@@ -17,6 +20,57 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials"
 )
+
+var errorHandlerOnce sync.Once
+
+// installErrorHandler routes OTel SDK errors to logrus; the SDK default writes
+// to the stdlib logger, bypassing --logformat.
+func installErrorHandler() {
+	errorHandlerOnce.Do(func() {
+		otel.SetErrorHandler(otel.ErrorHandlerFunc(func(err error) {
+			log.WithError(err).Error("OpenTelemetry error")
+		}))
+	})
+}
+
+// newResource builds the OTel resource shared by the trace and metric providers.
+// otlpAttrs are colon-separated key:value pairs; malformed entries are skipped.
+//
+// service.instance.id is set to the hostname (the pod name under Kubernetes) so
+// telemetry from separate replicas stays distinguishable. Without it every replica
+// of a component reports an identical resource, and because metrics are pushed
+// rather than scraped there is no per-target `instance` label to fall back on:
+// cumulative series from different replicas collide and overwrite each other.
+func newResource(ctx context.Context, serviceName string, otlpAttrs []string) (*resource.Resource, error) {
+	attrs := make([]attribute.KeyValue, 0, len(otlpAttrs))
+	for i := range otlpAttrs {
+		attr := otlpAttrs[i]
+		slice := strings.Split(attr, ":")
+		if len(slice) != 2 {
+			log.Warnf("OTLP attr '%s' split with ':' length not 2", attr)
+			continue
+		}
+		attrs = append(attrs, attribute.String(slice[0], slice[1]))
+	}
+
+	baseAttrs := []attribute.KeyValue{semconv.ServiceNameKey.String(serviceName)}
+	if hostname, err := os.Hostname(); err == nil {
+		baseAttrs = append(baseAttrs, semconv.ServiceInstanceIDKey.String(hostname))
+	} else {
+		// Not fatal: every caller treats an init failure as fatal, and telemetry
+		// missing one attribute beats the component refusing to start.
+		log.Warnf("failed to determine hostname, telemetry from separate replicas may be indistinguishable: %v", err)
+	}
+
+	res, err := resource.New(ctx,
+		resource.WithAttributes(baseAttrs...),
+		resource.WithAttributes(attrs...),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create resource: %w", err)
+	}
+	return res, nil
+}
 
 // InitTracer initializes the trace provider and the otel grpc exporter.
 //
@@ -33,26 +87,11 @@ import (
 // the upstream sampling decision wins. This differs from the previous always-on
 // sampler, which recorded every request regardless of any inbound sampling flag.
 func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecure bool, otlpHeaders map[string]string, otlpAttrs []string, sampleRatio float64) (func(), error) {
-	attrs := make([]attribute.KeyValue, 0, len(otlpAttrs))
-	for i := range otlpAttrs {
-		attr := otlpAttrs[i]
-		slice := strings.Split(attr, ":")
-		if len(slice) != 2 {
-			log.Warnf("OTLP attr '%s' split with ':' length not 2", attr)
-			continue
-		}
-		attrs = append(attrs, attribute.String(slice[0], slice[1]))
-	}
-
-	res, err := resource.New(ctx,
-		resource.WithAttributes(
-			semconv.ServiceNameKey.String(serviceName),
-		),
-		resource.WithAttributes(attrs...),
-	)
+	res, err := newResource(ctx, serviceName, otlpAttrs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create resource: %w", err)
+		return nil, err
 	}
+	installErrorHandler()
 
 	// set up grpc options based on secure/insecure connection
 	var secureOption otlptracegrpc.Option
@@ -86,8 +125,12 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 	otel.SetTracerProvider(provider)
 
 	return func() {
-		if err := exporter.Shutdown(ctx); err != nil {
-			log.Errorf("failed to stop exporter: %v", err)
+		// Provider, not exporter, so the batch processor drains. Not ctx: its
+		// cancellation usually triggers shutdown and would fail the flush.
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := provider.Shutdown(shutdownCtx); err != nil {
+			log.Errorf("failed to stop tracer provider: %v", err)
 		}
 	}, nil
 }
