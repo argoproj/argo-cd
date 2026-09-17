@@ -1,8 +1,9 @@
-import {SlidingPanel} from 'argo-ui';
+import {ErrorNotification, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {FormApi} from 'argo-ui';
 
 import {Spinner} from '../../../shared/components';
+import {Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationSyncPanelBody} from './application-sync-panel-body';
@@ -25,30 +26,34 @@ function parseSelectedChildApp(selectedResource: string, application: models.App
 }
 
 export const ApplicationSyncPanel = ({application, selectedResource, hide}: {application: models.Application; selectedResource: string; hide: () => any}) => {
+    const ctx = React.useContext(Context);
     const [form, setForm] = React.useState<FormApi>(null);
     const isVisible = !!(selectedResource && application);
-    const [childApp, setChildApp] = React.useState<{key: string; app: models.Application} | null>(null);
+    const [childApp, setChildApp] = React.useState<models.Application | null>(null);
+    const [failedAppRef, setFailedAppRef] = React.useState<{name: string; namespace: string} | null>(null);
     const childAppRef = parseSelectedChildApp(selectedResource, application);
-    const childAppName = childAppRef?.name;
-    const childAppNamespace = childAppRef?.namespace;
+    const childAppRefName = childAppRef?.name;
+    const childAppRefNamespace = childAppRef?.namespace;
 
     React.useEffect(() => {
-        if (!childAppName || !childAppNamespace) {
-            return undefined;
+        if (!childAppRefName || !childAppRefNamespace) {
+            return;
         }
-        let cancelled = false;
-        services.applications.get(childAppName, childAppNamespace, 'application').then(app => {
-            if (!cancelled) {
-                setChildApp({key: selectedResource, app: app as models.Application});
-            }
-        });
-        return () => {
-            cancelled = true;
-        };
-    }, [selectedResource, childAppName, childAppNamespace]);
+        services.applications
+            .get(childAppRefName, childAppRefNamespace, 'application')
+            .then(app => setChildApp(app as models.Application))
+            .catch(e => {
+                setFailedAppRef({name: childAppRefName, namespace: childAppRefNamespace});
+                ctx.notifications.show({
+                    content: <ErrorNotification title={`Unable to load child application '${childAppRefName}'`} e={e} />,
+                    type: NotificationType.Error
+                });
+            });
+    }, [childAppRefName, childAppRefNamespace, ctx.notifications]);
 
     const [isPending, setPending] = React.useState(false);
-    const targetApp = childAppRef && childApp && childApp.key === selectedResource ? childApp.app : application;
+    const targetApp = childAppRef && childApp && childApp.metadata.name === childAppRef.name && childApp.metadata.namespace === childAppRef.namespace ? childApp : application;
+    const canSync = !(failedAppRef && failedAppRef.name === childAppRefName && failedAppRef.namespace === childAppRefNamespace);
 
     return (
         <SlidingPanel
@@ -57,20 +62,38 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
             onClose={() => hide()}
             header={
                 <div>
-                    <button
-                        qe-id='application-sync-panel-button-synchronize'
-                        className='argo-button argo-button--base'
-                        disabled={isPending || !form}
-                        onClick={() => form.submitForm(null)}>
-                        <Spinner show={isPending} style={{marginRight: '5px'}} />
-                        Synchronize
-                    </button>{' '}
+                    {canSync && (
+                        <>
+                            <button
+                                qe-id='application-sync-panel-button-synchronize'
+                                className='argo-button argo-button--base'
+                                disabled={isPending || !form}
+                                onClick={() => form.submitForm(null)}>
+                                <Spinner show={isPending} style={{marginRight: '5px'}} />
+                                Synchronize
+                            </button>{' '}
+                        </>
+                    )}
                     <button onClick={() => hide()} qe-id='application-sync-panel-button-cancel' className='argo-button argo-button--base-o'>
                         Cancel
                     </button>
                 </div>
             }>
-            {isVisible && <ApplicationSyncPanelBody application={targetApp} selectedResource={selectedResource} hide={hide} getApi={setForm} setPending={setPending} />}
+            {isVisible && canSync && (
+                <ApplicationSyncPanelBody
+                    key={`${targetApp.metadata.namespace}/${targetApp.metadata.name}`}
+                    application={targetApp}
+                    selectedResource={selectedResource}
+                    hide={hide}
+                    getApi={setForm}
+                    setPending={setPending}
+                />
+            )}
+            {isVisible && !canSync && (
+                <div className='white-box'>
+                    <p>Unable to load application '{childAppRefName}'. You may not have permission to view it, or it no longer exists.</p>
+                </div>
+            )}
         </SlidingPanel>
     );
 };

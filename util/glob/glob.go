@@ -75,7 +75,7 @@ func getOrCompile(pattern string, compiler compileFn, separators ...rune) (*glob
 		globCacheLock.Lock()
 		if cached, ok := globCache.Get(key); ok {
 			globCacheLock.Unlock()
-			return cached.(glob.Glob), nil
+			return cached.(*glob.Pattern), nil
 		}
 		globCacheLock.Unlock()
 
