@@ -1,8 +1,13 @@
 package generators
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"reflect"
+	"slices"
 	"time"
 
 	"dario.cat/mergo"
@@ -51,10 +56,35 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	if err != nil {
 		return nil, fmt.Errorf("error failed to get params for first generator in matrix generator: %w", err)
 	}
-	for _, a := range g0 {
-		g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, a, client)
+
+	// The second generator runs once per parameter set of the first. When its spec holds no
+	// template placeholders the outer parameters cannot change what it produces, so it runs once
+	// and the rest of the iterations reuse the result. An error here is left for getParams to
+	// report inside the loop, with the wrapping it already has.
+	reusable := false
+	if childSpec, specErr := nestedGeneratorSpec(appSetGenerator.Matrix.Generators[1]); specErr == nil {
+		reusable = !specUsesTemplates(childSpec)
+	}
+
+	var reusedParams []map[string]any
+	if reusable && len(g0) > 0 {
+		reusedParams, err = m.getParams(appSetGenerator.Matrix.Generators[1], appSet, g0[0], client)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get params for second generator in the matrix generator: %w", err)
+		}
+	}
+
+	for _, a := range g0 {
+		var g1 []map[string]any
+		if reusable {
+			// The merge below writes into the parameters it is given, so each iteration gets a
+			// copy rather than the parameters themselves.
+			g1 = deepCopyParams(reusedParams)
+		} else {
+			g1, err = m.getParams(appSetGenerator.Matrix.Generators[1], appSet, a, client)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get params for second generator in the matrix generator: %w", err)
+			}
 		}
 		for _, b := range g1 {
 			if appSet.Spec.GoTemplate {
@@ -80,29 +110,13 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 }
 
 func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet, params map[string]any, client client.Client) ([]map[string]any, error) {
-	matrixGen, err := getMatrixGenerator(appSetBaseGenerator)
+	requestedGenerator, err := nestedGeneratorSpec(appSetBaseGenerator)
 	if err != nil {
 		return nil, err
 	}
-	mergeGen, err := getMergeGenerator(appSetBaseGenerator)
-	if err != nil {
-		return nil, fmt.Errorf("error retrieving merge generator: %w", err)
-	}
 
 	t, err := Transform(
-		argoprojiov1alpha1.ApplicationSetGenerator{
-			List:                    appSetBaseGenerator.List,
-			Clusters:                appSetBaseGenerator.Clusters,
-			Git:                     appSetBaseGenerator.Git,
-			SCMProvider:             appSetBaseGenerator.SCMProvider,
-			ClusterDecisionResource: appSetBaseGenerator.ClusterDecisionResource,
-			PullRequest:             appSetBaseGenerator.PullRequest,
-			Plugin:                  appSetBaseGenerator.Plugin,
-			Oci:                     appSetBaseGenerator.Oci,
-			Matrix:                  matrixGen,
-			Merge:                   mergeGen,
-			Selector:                appSetBaseGenerator.Selector,
-		},
+		requestedGenerator,
 		m.supportedGenerators,
 		argoprojiov1alpha1.ApplicationSetTemplate{},
 		appSet,
@@ -121,6 +135,136 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 	}
 
 	return t[0].Params, nil
+}
+
+// nestedGeneratorSpec builds the generator that a nested matrix entry describes.
+func nestedGeneratorSpec(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator) (argoprojiov1alpha1.ApplicationSetGenerator, error) {
+	matrixGen, err := getMatrixGenerator(appSetBaseGenerator)
+	if err != nil {
+		return argoprojiov1alpha1.ApplicationSetGenerator{}, err
+	}
+	mergeGen, err := getMergeGenerator(appSetBaseGenerator)
+	if err != nil {
+		return argoprojiov1alpha1.ApplicationSetGenerator{}, fmt.Errorf("error retrieving merge generator: %w", err)
+	}
+
+	return argoprojiov1alpha1.ApplicationSetGenerator{
+		List:                    appSetBaseGenerator.List,
+		Clusters:                appSetBaseGenerator.Clusters,
+		Git:                     appSetBaseGenerator.Git,
+		SCMProvider:             appSetBaseGenerator.SCMProvider,
+		ClusterDecisionResource: appSetBaseGenerator.ClusterDecisionResource,
+		PullRequest:             appSetBaseGenerator.PullRequest,
+		Plugin:                  appSetBaseGenerator.Plugin,
+		Oci:                     appSetBaseGenerator.Oci,
+		Matrix:                  matrixGen,
+		Merge:                   mergeGen,
+		Selector:                appSetBaseGenerator.Selector,
+	}, nil
+}
+
+// specUsesTemplates reports whether interpolating the generator with parameters could change it.
+// Interpolation only substitutes template placeholders, so a spec holding none is left untouched.
+func specUsesTemplates(generator argoprojiov1alpha1.ApplicationSetGenerator) bool {
+	raw, err := json.Marshal(generator)
+	if err != nil {
+		// Cannot tell, so assume the parameters matter.
+		return true
+	}
+	return bytes.Contains(raw, []byte("{{"))
+}
+
+func deepCopyParams(params []map[string]any) []map[string]any {
+	if params == nil {
+		return nil
+	}
+	out := make([]map[string]any, len(params))
+	for i, param := range params {
+		out[i] = deepCopyParamMap(param)
+	}
+	return out
+}
+
+func deepCopyParamMap(params map[string]any) map[string]any {
+	if params == nil {
+		return nil
+	}
+	out := make(map[string]any, len(params))
+	for key, value := range params {
+		out[key] = deepCopyParamValue(value)
+	}
+	return out
+}
+
+func deepCopyParamValue(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		return deepCopyParamMap(v)
+	case map[string]string:
+		return maps.Clone(v)
+	case []any:
+		// Clone rather than allocate, so a nil list stays nil. A nil list and an empty one
+		// serialize differently, and one parameter set must not disagree with the next.
+		out := slices.Clone(v)
+		for i, item := range out {
+			out[i] = deepCopyParamValue(item)
+		}
+		return out
+	case []map[string]any:
+		// The cluster generator's flat list mode puts every cluster under one key in this shape,
+		// and hands back a nil list when it matched none.
+		out := slices.Clone(v)
+		for i, item := range out {
+			out[i] = deepCopyParamMap(item)
+		}
+		return out
+	case []string:
+		return slices.Clone(v)
+	default:
+		return deepCopyReflected(value)
+	}
+}
+
+// deepCopyReflected copies maps and slices whose concrete type is not handled above, so that a
+// generator producing an unanticipated shape does not end up sharing it between parameter sets.
+// Anything else is returned as it is, which is what a scalar needs.
+func deepCopyReflected(value any) any {
+	original := reflect.ValueOf(value)
+	switch original.Kind() {
+	case reflect.Map, reflect.Slice:
+		// Same reason as the explicit branches above: nil is not the same value as empty, and a
+		// nil map or slice has nothing to share anyway.
+		if original.IsNil() {
+			return value
+		}
+	}
+
+	switch original.Kind() {
+	case reflect.Map:
+		out := reflect.MakeMapWithSize(original.Type(), original.Len())
+		for iter := original.MapRange(); iter.Next(); {
+			out.SetMapIndex(iter.Key(), copiedOrOriginal(iter.Value(), original.Type().Elem()))
+		}
+		return out.Interface()
+	case reflect.Slice:
+		out := reflect.MakeSlice(original.Type(), original.Len(), original.Len())
+		for i := range original.Len() {
+			out.Index(i).Set(copiedOrOriginal(original.Index(i), original.Type().Elem()))
+		}
+		return out.Interface()
+	default:
+		return value
+	}
+}
+
+// copiedOrOriginal deep copies an element, falling back to the element itself when the copy cannot
+// be assigned back, which is what a nil interface element gives.
+func copiedOrOriginal(element reflect.Value, elementType reflect.Type) reflect.Value {
+	copied := reflect.ValueOf(deepCopyParamValue(element.Interface()))
+	if !copied.IsValid() || !copied.Type().AssignableTo(elementType) {
+		return element
+	}
+	return copied
 }
 
 const maxDuration time.Duration = 1<<63 - 1
