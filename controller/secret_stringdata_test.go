@@ -123,6 +123,23 @@ spec:
       effect: NoExecute
 `
 
+const livePodWithOneTolerationYaml = `
+apiVersion: v1
+kind: Pod
+metadata:
+  name: p
+  namespace: default
+spec:
+  containers:
+    - name: app
+      image: app:1
+  tolerations:
+    - key: dedicated
+      operator: Equal
+      value: ignored
+      effect: NoSchedule
+`
+
 const targetPodWithoutTolerationsYaml = `
 apiVersion: v1
 kind: Pod
@@ -135,12 +152,12 @@ spec:
       image: app:1
 `
 
-func TestNormalizeTargetResourcesLiveOnlyArray(t *testing.T) {
-	// The rendered manifest has no `spec.tolerations`; live has two and the
-	// first one is ignored. Tolerations carry no merge key, so the live patch
-	// copies the whole list into the target, which would leak the non-ignored
-	// second entry. Non-map values cannot be pruned selectively, so the list
-	// must be dropped from the apply target, as before this fix.
+// normalizePodWithIgnoredToleration runs normalizeTargetResources for a Pod
+// whose rendered manifest has no `spec.tolerations` while live has some, with
+// the first live toleration ignored. Tolerations carry no merge key, so the
+// live patch copies the whole list into the target.
+func normalizePodWithIgnoredToleration(t *testing.T, liveYaml string) *unstructured.Unstructured {
+	t.Helper()
 	dc, err := diff.NewDiffConfigBuilder().
 		WithDiffSettings([]v1alpha1.ResourceIgnoreDifferences{{
 			Group:             "",
@@ -153,7 +170,7 @@ func TestNormalizeTargetResourcesLiveOnlyArray(t *testing.T) {
 
 	cr := &comparisonResult{
 		reconciliationResult: sync.ReconciliationResult{
-			Live:   []*unstructured.Unstructured{test.YamlToUnstructured(livePodWithTolerationsYaml)},
+			Live:   []*unstructured.Unstructured{test.YamlToUnstructured(liveYaml)},
 			Target: []*unstructured.Unstructured{test.YamlToUnstructured(targetPodWithoutTolerationsYaml)},
 		},
 		diffConfig: dc,
@@ -163,12 +180,35 @@ func TestNormalizeTargetResourcesLiveOnlyArray(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, targets, 1)
 
-	_, found, err := unstructured.NestedSlice(targets[0].Object, "spec", "tolerations")
-	require.NoError(t, err)
-	assert.False(t, found, "live-only list with non-ignored entries must not be copied into the apply target")
-
 	containers, found, err := unstructured.NestedSlice(targets[0].Object, "spec", "containers")
 	require.NoError(t, err)
 	require.True(t, found)
 	assert.Len(t, containers, 1)
+	return targets[0]
+}
+
+func TestNormalizeTargetResourcesLiveOnlyArray(t *testing.T) {
+	t.Run("partially ignored live-only list is dropped", func(t *testing.T) {
+		// Live has two tolerations and only the first is ignored. Keeping the
+		// list would leak the non-ignored second entry, and non-map values
+		// cannot be pruned selectively, so the list is dropped as before.
+		target := normalizePodWithIgnoredToleration(t, livePodWithTolerationsYaml)
+
+		_, found, err := unstructured.NestedSlice(target.Object, "spec", "tolerations")
+		require.NoError(t, err)
+		assert.False(t, found, "live-only list with non-ignored entries must not be copied into the apply target")
+	})
+
+	t.Run("wholly ignored live-only list is kept", func(t *testing.T) {
+		// Live has a single toleration and it is ignored. The normalizer empties
+		// the live list, so everything in the patched list is ignored live state
+		// that RespectIgnoreDifferences must carry over.
+		target := normalizePodWithIgnoredToleration(t, livePodWithOneTolerationYaml)
+
+		tolerations, found, err := unstructured.NestedSlice(target.Object, "spec", "tolerations")
+		require.NoError(t, err)
+		require.True(t, found, "wholly ignored live-only list must be kept in the apply target")
+		require.Len(t, tolerations, 1)
+		assert.Equal(t, "dedicated", tolerations[0].(map[string]any)["key"])
+	})
 }
