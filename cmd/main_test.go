@@ -69,40 +69,18 @@ func TestExitErrorHandling(t *testing.T) {
 			t.Parallel()
 
 			if os.Getenv("BE_CRASHER") == "1" {
-				dummyCmd := &cobra.Command{
-					RunE: func(_ *cobra.Command, _ []string) error {
-						return test.cmdError
-					},
-				}
-
-				// mock command selection in main
-				selectCommand = func(_ string) (*cobra.Command, bool) {
-					return dummyCmd, true
-				}
-
-				main()     // in case of error calls os.Exit
-				os.Exit(0) // when here, no error - exit OK
+				execDummyCommandInMain(t, test.cmdError, true)
+				// unreachable
 			}
 
 			cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^"+t.Name()+"$")
 			cmd.Env = append(os.Environ(), "BE_CRASHER=1")
 			var stdout bytes.Buffer
 			cmd.Stdout = &stdout
-			err := cmd.Run()
+			execExitError := cmd.Run()
 
-			if test.expectedExitCode == 0 {
-				require.NoError(t, err, "expected command to exit successfully")
-				assert.Equal(t, test.expectedOutput, stdout.String())
-				return // passed
-			}
-
-			if e, ok := errors.AsType[*exec.ExitError](err); ok && !e.Success() {
-				assert.Equal(t, test.expectedExitCode, e.ExitCode(), "expected exit code to be %d but got %d", test.expectedExitCode, e.ExitCode())
-				assert.Equal(t, test.expectedOutput, stdout.String())
-				return
-			}
-
-			t.Fatalf("process ran with err %v, want exit status %d", err, test.expectedExitCode)
+			assertExitCode(t, test.expectedExitCode, execExitError)
+			assert.Equal(t, test.expectedOutput, stdout.String())
 		})
 	}
 }
@@ -156,21 +134,10 @@ func TestExitErrorHandlingWithPlugin(t *testing.T) {
 			t.Parallel()
 
 			if os.Getenv("BE_CRASHER_PLUGIN") == "1" {
-				dummyCmd := &cobra.Command{
-					DisableFlagParsing: true,
-					RunE: func(_ *cobra.Command, _ []string) error {
-						return test.cmdError // unknown command error triggers the plugin handling
-					},
-				}
-
-				selectCommand = func(_ string) (*cobra.Command, bool) {
-					return dummyCmd, true
-				}
-
 				os.Args = test.args
 
-				main()
-				os.Exit(0) // when here, no error - exit OK
+				execDummyCommandInMain(t, test.cmdError, true)
+				// unreachable
 			}
 
 			cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^"+t.Name()+"$")
@@ -178,21 +145,10 @@ func TestExitErrorHandlingWithPlugin(t *testing.T) {
 			cmd.Env = append(cmd.Env, "BE_CRASHER_PLUGIN=1")
 			var stdout bytes.Buffer
 			cmd.Stdout = &stdout
-			err := cmd.Run()
+			execExitError := cmd.Run()
 
-			if test.expectedExitCode == 0 {
-				require.NoError(t, err, "expected command to exit successfully")
-				assert.Equal(t, test.expectedOutput, stdout.String())
-				return
-			}
-
-			if e, ok := errors.AsType[*exec.ExitError](err); ok && !e.Success() {
-				assert.Equal(t, test.expectedExitCode, e.ExitCode(), "expected exit code to be %d but got %d", test.expectedExitCode, e.ExitCode())
-				assert.Equal(t, test.expectedOutput, stdout.String())
-				return
-			}
-
-			t.Fatalf("process ran with err %v, want exit status %d", err, test.expectedExitCode)
+			assertExitCode(t, test.expectedExitCode, execExitError)
+			assert.Equal(t, test.expectedOutput, stdout.String())
 		})
 	}
 }
@@ -250,41 +206,54 @@ func TestExitErrorHandlingNotIsArgocdCLI(t *testing.T) {
 			t.Parallel()
 
 			if os.Getenv("BE_CRASHER_NOT_IS_ARG_CLI") == "1" {
-				dummyCmd := &cobra.Command{
-					RunE: func(_ *cobra.Command, _ []string) error {
-						return test.cmdError
-					},
-				}
-
-				selectCommand = func(_ string) (*cobra.Command, bool) {
-					return dummyCmd, false
-				}
-
-				main()
-				os.Exit(0) // when here, no error - exit OK
+				execDummyCommandInMain(t, test.cmdError, false)
+				// unreachable
 			}
 
 			cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^"+t.Name()+"$")
 			cmd.Env = append(os.Environ(), "BE_CRASHER_NOT_IS_ARG_CLI=1")
 			var stdout bytes.Buffer
 			cmd.Stdout = &stdout
-			err := cmd.Run()
+			execExitError := cmd.Run()
 
-			if test.expectedExitCode == 0 {
-				require.NoError(t, err, "expected command to exit successfully")
-				assert.Equal(t, test.expectedOutput, stdout.String())
-				return
-			}
-
-			if e, ok := errors.AsType[*exec.ExitError](err); ok && !e.Success() {
-				assert.Equal(t, test.expectedExitCode, e.ExitCode(), "expected exit code to be %d but got %d", test.expectedExitCode, e.ExitCode())
-				assert.Equal(t, test.expectedOutput, stdout.String())
-				return
-			}
-
-			t.Fatalf("process ran with err %v, want exit status %d", err, test.expectedExitCode)
+			assertExitCode(t, test.expectedExitCode, execExitError)
+			assert.Equal(t, test.expectedOutput, stdout.String())
 		})
 	}
+}
+
+func assertExitCode(t *testing.T, expectedExitCode int, execExitError error) {
+	t.Helper()
+
+	if expectedExitCode == 0 {
+		require.NoError(t, execExitError, "expected command to exit successfully")
+		return
+	}
+
+	if e, ok := errors.AsType[*exec.ExitError](execExitError); ok && !e.Success() {
+		assert.Equal(t, expectedExitCode, e.ExitCode(), "expected exit code to be %d but got %d", expectedExitCode, e.ExitCode())
+		return
+	}
+
+	t.Fatalf("process ran with err %v, want exit status %d", execExitError, expectedExitCode)
+}
+
+func execDummyCommandInMain(t *testing.T, cmdError error, isArgocdCLI bool) {
+	t.Helper()
+
+	dummyCmd := &cobra.Command{
+		DisableFlagParsing: true,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return cmdError
+		},
+	}
+
+	selectCommand = func(_ string) (*cobra.Command, bool) {
+		return dummyCmd, isArgocdCLI
+	}
+
+	main()
+	os.Exit(0) // when here, no error - exit OK
 }
 
 func getTestPluginsPath(t *testing.T) string {
