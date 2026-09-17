@@ -1,9 +1,7 @@
 package main
 
 import (
-	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -20,6 +18,7 @@ import (
 	reposerver "github.com/argoproj/argo-cd/v3/cmd/argocd-repo-server/commands"
 	apiserver "github.com/argoproj/argo-cd/v3/cmd/argocd-server/commands"
 	cli "github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
+	"github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/log"
 )
@@ -91,12 +90,7 @@ func main() {
 			if errMsg != "" {
 				os.Stdout.WriteString(errMsg + "\n")
 			}
-			if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
-				// Return the actual plugin exit code
-				os.Exit(exitErr.ExitCode())
-			}
-			// Fallback to exit code 1 if the error isn't an exec.ExitError
-			os.Exit(1)
+			os.Exit(util.ExitCodeForError(err))
 		}
 	}
 }

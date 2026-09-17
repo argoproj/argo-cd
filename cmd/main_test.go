@@ -50,6 +50,18 @@ func TestExitErrorHandling(t *testing.T) {
 			expectedExitCode: 1,
 			expectedOutput:   "Error: test error\n",
 		},
+		{
+			name:             "exit error 42 without message",
+			cmdError:         util.NewExitError(42, nil),
+			expectedExitCode: 42,
+			expectedOutput:   "",
+		},
+		{
+			name:             "exit error 42 with message",
+			cmdError:         util.NewExitError(42, errors.New("test error")),
+			expectedExitCode: 42,
+			expectedOutput:   "Error: test error\n",
+		},
 	}
 
 	for _, test := range tests {
@@ -217,6 +229,18 @@ func TestExitErrorHandlingNotIsArgocdCLI(t *testing.T) {
 			name:             "exit error 1 with message",
 			cmdError:         util.NewExitError(1, errors.New("test error")),
 			expectedExitCode: 1,
+			expectedOutput:   "Error: test error\n",
+		},
+		{
+			name:             "exit error 42 without message",
+			cmdError:         util.NewExitError(42, nil),
+			expectedExitCode: 42,
+			expectedOutput:   "",
+		},
+		{
+			name:             "exit error 42 with message",
+			cmdError:         util.NewExitError(42, errors.New("test error")),
+			expectedExitCode: 42,
 			expectedOutput:   "Error: test error\n",
 		},
 	}

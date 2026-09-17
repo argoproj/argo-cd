@@ -42,15 +42,20 @@ func NewExitError(exitCode int, err error) error {
 
 // ExitCodeForError returns the exit code for the given error for the CLI to exit with.
 // If no error (nil) is provided, then 0 is returned.
-// If the error is an ExitError, the exit code will be returned.
+// If the error is an error with ExitCode() int method, the result of the method is returned.
 // Otherwise, exit code 1 is returned.
 func ExitCodeForError(err error) int {
 	if err == nil {
 		return 0
 	}
-	if e, ok := errors.AsType[*ExitError](err); ok {
-		return e.ExitCode()
+
+	if exitErr, ok := errors.AsType[interface {
+		error
+		ExitCode() int
+	}](err); ok {
+		return exitErr.ExitCode()
 	}
+
 	return 1
 }
 
