@@ -1,0 +1,14 @@
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: daily-backup
+  namespace: velero
+spec:
+  schedule: 0 1 * * *
+  template:
+    includedNamespaces:
+    - '*'
+    ttl: 720h0m0s
+status:
+  phase: Enabled
+  lastBackup: "2026-06-27T01:00:00Z"

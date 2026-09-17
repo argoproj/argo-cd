@@ -401,6 +401,16 @@ The following keys are valid to refer to credential secrets:
 * `githubAppEnterpriseBaseUrl` refers to the base api URL for GitHub Enterprise (e.g. `https://ghe.example.com/api/v3`)
 * `tlsClientCertData` and `tlsClientCertKey` refer to secrets where a TLS client certificate (`tlsClientCertData`) and the corresponding private key `tlsClientCertKey` are stored for accessing GitHub Enterprise if custom certificates are used.
 
+#### Azure Service Principal repositories
+
+* `azureServicePrincipalClientID` or `azureServicePrincipalClientId` refers to the client ID.
+* `azureServicePrincipalTenantID` or `azureServicePrincipalTenantId` refers to the tenant ID.
+* `azureServicePrincipalClientSecret` refers to the client secret.
+* `azureActiveDirectoryEndpoint` optionally specifies the Microsoft Entra authority endpoint.
+
+> [!NOTE]
+> If both forms of a client or tenant ID key have values, the uppercase-`ID` form takes precedence.
+
 #### Helm Chart repositories
 
 See the [Helm](#helm) section for the properties that apply to Helm repositories and charts sourced from OCI registries.
