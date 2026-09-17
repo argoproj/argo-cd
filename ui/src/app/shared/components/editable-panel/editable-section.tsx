@@ -6,7 +6,7 @@ import {Form} from 'argo-ui';
 import {ContextApis} from '../../context';
 import {EditablePanelItem} from './editable-panel';
 import {Spinner} from '../spinner';
-import {helpTip} from '../../../applications/components/utils';
+import {helpTip} from '../app-utils';
 
 export interface EditableSectionProps<T> {
     title?: string | React.ReactNode;
