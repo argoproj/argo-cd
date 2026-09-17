@@ -43,7 +43,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
@@ -4935,6 +4934,8 @@ func TestSetOperationStateTooLargeRequest_MinimalFallbackClearsSyncResult(t *tes
 	finishedAt, _, err := unstructured.NestedString(patchedObj, "status", "operationState", "finishedAt")
 	require.NoError(t, err)
 	assert.NotEmpty(t, finishedAt, "minimal fallback finalizes as OperationError, so finishedAt must be set even though the intermediate fallback never reached a completed phase")
+}
+
 func TestWriteBackToInformer(t *testing.T) {
 	t.Run("updates an application that is still in the store", func(t *testing.T) {
 		app := newFakeApp()
