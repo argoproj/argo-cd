@@ -89,7 +89,7 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-build-v2-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-build-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-build-v2-
       - name: Download all Go modules
@@ -126,7 +126,7 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-build-v2-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-build-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-build-v2-
       - name: Download Go modules
@@ -165,7 +165,7 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-build-v2-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-build-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-build-v2-
       - name: Run golangci-lint
@@ -227,7 +227,7 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-test-v2-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-test-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-test-v2-
             ${{ runner.os }}-go-build-v2-
@@ -305,7 +305,7 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-race-v2-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-race-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-race-v2-
             ${{ runner.os }}-go-build-v2-
@@ -358,7 +358,7 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-build-v2-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-build-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-build-v2-
       - name: Create symlink in GOPATH
@@ -659,7 +659,7 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-build-v2-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-build-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-build-v2-
       - name: Add ~/go/bin to PATH

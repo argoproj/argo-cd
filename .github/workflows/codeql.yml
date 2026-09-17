@@ -72,7 +72,7 @@ jobs:
         path: |
           ~/.cache/go-build
           ~/go/pkg/mod
-        key: ${{ runner.os }}-go-build-v2-${{ hashFiles('**/go.sum') }}
+        key: ${{ runner.os }}-go-build-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-build-v2-
     - name: Initialize CodeQL
