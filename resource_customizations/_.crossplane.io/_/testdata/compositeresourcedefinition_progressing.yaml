@@ -1,0 +1,20 @@
+# Accepted by the API server, not yet reconciled: no status at all. This
+# is the case the has_no_conditions precedence governs -- a kind that will
+# get a status but has not yet must report Progressing, and reported
+# Healthy while the condition read as `A or (B and C)`.
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xpostgresqlinstances.example.org
+spec:
+  group: example.org
+  names:
+    kind: XPostgreSQLInstance
+    plural: xpostgresqlinstances
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object

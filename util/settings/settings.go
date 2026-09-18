@@ -110,6 +110,8 @@ type ArgoCDSettings struct {
 	CertificateIsExternal bool `json:"-"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitHub webhook events
 	WebhookGitHubSecret string `json:"webhookGitHubSecret,omitempty"`
+	// WebhookDockerHubSecret holds the shared secret for authenticating DockerHub webhook events
+	WebhookDockerHubSecret string `json:"webhookDockerHubSecret,omitempty"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitLab webhook events
 	WebhookGitLabSecret string `json:"webhookGitLabSecret,omitempty"`
 	// WebhookBitbucketUUID holds the UUID for authenticating Bitbucket webhook events
@@ -459,6 +461,8 @@ const (
 	statusBadgeRootURLKey = "statusbadge.url"
 	// settingsWebhookGitHubSecret is the key for the GitHub shared webhook secret
 	settingsWebhookGitHubSecretKey = "webhook.github.secret"
+	// settingsWebhookDockerHubSecret is the key for the DockerHub shared webhook secret
+	settingsWebhookDockerHubSecretKey = "webhook.dockerhub.secret"
 	// settingsWebhookGitLabSecret is the key for the GitLab shared webhook secret
 	settingsWebhookGitLabSecretKey = "webhook.gitlab.secret"
 	// settingsWebhookBitbucketUUID is the key for Bitbucket webhook UUID
@@ -497,6 +501,12 @@ const (
 	resourceSelectorsKey = "resource.selectors"
 	// resourceIgnoreResourceUpdatesEnabledKey is the key to a boolean determining whether the resourceIgnoreUpdates feature is enabled
 	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
+	// manifestCompressionEnabledKey is the key to a boolean determining whether manifest compression is enabled
+	manifestCompressionEnabledKey = "resource.manifest.compression.enabled"
+	// manifestStorageKey configures the serialization format for cached manifests
+	manifestStorageKey = "resource.manifest.storage"
+	// manifestCompressionKey configures the compression algorithm for cached manifests
+	manifestCompressionKey = "resource.manifest.compression"
 	// resourceSensitiveAnnotationsKey is the key to list of annotations to mask in secret resource
 	resourceSensitiveAnnotationsKey = "resource.sensitive.mask.annotations"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
@@ -1082,6 +1092,35 @@ func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey])
+}
+
+func (mgr *SettingsManager) GetIsManifestCompressionEnabled() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, fmt.Errorf("error retrieving config map: %w", err)
+	}
+
+	if argoCDCM.Data[manifestCompressionEnabledKey] == "" {
+		return false, nil
+	}
+
+	return strconv.ParseBool(argoCDCM.Data[manifestCompressionEnabledKey])
+}
+
+func (mgr *SettingsManager) GetManifestStorage() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", fmt.Errorf("error retrieving config map: %w", err)
+	}
+	return argoCDCM.Data[manifestStorageKey], nil
+}
+
+func (mgr *SettingsManager) GetManifestCompression() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", fmt.Errorf("error retrieving config map: %w", err)
+	}
+	return argoCDCM.Data[manifestCompressionKey], nil
 }
 
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
@@ -1715,7 +1754,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	if settings.OIDCConfigRAW == "" {
 		settings.DexAuthConnectorID = getDexAuthConnectorID(argoCDCM.Data)
 	}
-	if err := ValidateOIDCConfig(settings.OIDCConfigRAW); err != nil {
+	if err := validateOIDCConfigWithSecrets(settings.OIDCConfigRAW, settings.Secrets); err != nil {
 		log.Warnf("Failed to validate OIDC config: %v", err)
 	}
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
@@ -1874,6 +1913,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	settings.Secrets = secretValues
 
 	settings.WebhookGitHubSecret = string(argoCDSecret.Data[settingsWebhookGitHubSecretKey])
+	settings.WebhookDockerHubSecret = string(argoCDSecret.Data[settingsWebhookDockerHubSecretKey])
 	settings.WebhookGitLabSecret = string(argoCDSecret.Data[settingsWebhookGitLabSecretKey])
 	settings.WebhookBitbucketUUID = string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey])
 	settings.WebhookBitbucketServerSecret = string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey])
@@ -2107,6 +2147,11 @@ func (a *ArgoCDSettings) GetWebhookGitHubSecret() string {
 	return ReplaceStringSecret(a.WebhookGitHubSecret, a.Secrets)
 }
 
+// GetWebhookDockerHubSecret returns the resolved DockerHub webhook secret
+func (a *ArgoCDSettings) GetWebhookDockerHubSecret() string {
+	return ReplaceStringSecret(a.WebhookDockerHubSecret, a.Secrets)
+}
+
 // GetWebhookGitLabSecret returns the resolved GitLab webhook secret
 func (a *ArgoCDSettings) GetWebhookGitLabSecret() string {
 	return ReplaceStringSecret(a.WebhookGitLabSecret, a.Secrets)
@@ -2165,6 +2210,25 @@ func ValidateOIDCConfig(configStr string) error {
 		if err := ValidateAzureGraphAPIEndpoint(settings.Azure.GraphAPIEndpoint); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func validateOIDCConfigWithSecrets(configStr string, secrets map[string]string) error {
+	configMap := map[string]any{}
+	if err := yaml.Unmarshal([]byte(configStr), &configMap); err != nil {
+		return err
+	}
+
+	configMap = ReplaceMapSecrets(configMap, secrets)
+
+	resolvedConfig, err := yaml.Marshal(configMap)
+	if err != nil {
+		return errors.New("failed to marshal config after replacing secrets")
+	}
+
+	if err := ValidateOIDCConfig(string(resolvedConfig)); err != nil {
+		return errors.New("invalid OIDC config")
 	}
 	return nil
 }

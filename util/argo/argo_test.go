@@ -1403,6 +1403,86 @@ func TestFilterByNameP(t *testing.T) {
 	})
 }
 
+func TestFilterByNamesP(t *testing.T) {
+	t.Parallel()
+	apps := []*argoappv1.Application{
+		{
+			Name: "foo",
+		},
+		{
+			Name: "bar",
+		},
+	}
+	// Applications sharing a name across namespaces, as possible with apps-in-any-namespace.
+	namespacedApps := []*argoappv1.Application{
+		{
+			Name:      "foo",
+			Namespace: "ns1",
+		},
+		{
+			Name:      "foo",
+			Namespace: "ns2",
+		},
+		{
+			Name:      "bar",
+			Namespace: "ns1",
+		},
+	}
+
+	t.Run("Empty names returns all apps", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(apps, nil)
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Single matching name", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(apps, []string{"foo"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "foo", res[0].Name)
+	})
+
+	t.Run("Multiple matching names", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(apps, []string{"foo", "bar"})
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Non-matching name is ignored", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(apps, []string{"foo", "does-not-exist"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "foo", res[0].Name)
+	})
+
+	t.Run("Namespace qualified name only matches the app in that namespace", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(namespacedApps, []string{"ns1/foo"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "ns1", res[0].Namespace)
+	})
+
+	t.Run("Unqualified name matches the app in every namespace", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(namespacedApps, []string{"foo"})
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Qualified and unqualified names can be mixed", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(namespacedApps, []string{"ns2/foo", "bar"})
+		assert.Len(t, res, 2)
+		assert.Equal(t, "ns2", res[0].Namespace)
+		assert.Equal(t, "bar", res[1].Name)
+	})
+
+	t.Run("Namespace qualified name does not match a different namespace", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(namespacedApps, []string{"ns3/foo"})
+		assert.Empty(t, res)
+	})
+}
+
 func TestFilterByCluster(t *testing.T) {
 	t.Parallel()
 	apps := []argoappv1.Application{

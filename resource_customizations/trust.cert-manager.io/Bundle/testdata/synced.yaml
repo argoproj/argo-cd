@@ -1,0 +1,18 @@
+apiVersion: trust.cert-manager.io/v1alpha1
+kind: Bundle
+metadata:
+  name: trust-bundle
+spec:
+  sources:
+  - useDefaultCAs: true
+  target:
+    configMap:
+      key: root-certs.pem
+status:
+  conditions:
+  - lastTransitionTime: "2025-05-01T10:00:00Z"
+    message: Successfully synced Bundle to all namespaces
+    observedGeneration: 1
+    reason: Synced
+    status: "True"
+    type: Synced
