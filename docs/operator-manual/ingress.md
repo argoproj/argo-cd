@@ -99,7 +99,7 @@ It is also possible to provide an internal-only ingress path and an external-onl
 
 This provides the opportunity to deploy the Argo CD UI privately but still allow for SSO callbacks to succeed.
 
-### Private Argo CD UI with  Multiple Ingress Objects and BYO Certificate
+### Private Argo CD UI with Multiple Ingress Objects and BYO Certificate
 Since Contour Ingress supports only a single protocol per Ingress object, define three Ingress objects. One for private HTTP/HTTPS, one for private gRPC, and one for public HTTPS SSO callbacks.
 
 Internal HTTP/HTTPS Ingress:
