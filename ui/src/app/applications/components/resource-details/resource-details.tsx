@@ -20,6 +20,7 @@ import {AppSetResourceNodePreview} from './appset-resource-node-preview';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import * as AppUtils from '../utils';
+import {usePolledEvents} from './use-polled-events';
 import './resource-details.scss';
 
 const ApplicationResourcesDiff = lazyWithBoundary(
@@ -70,18 +71,11 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const [pageNumber, setPageNumber] = React.useState(0);
     const [collapsedSources, setCollapsedSources] = React.useState(new Array<boolean>()); // For Sources tab to save collapse states
 
-    // Load application events once so both the EVENTS tab list and its badge (number of warning/error events) share a single fetch
-    const [appEvents, setAppEvents] = React.useState<Event[] | null>(null);
-    React.useEffect(() => {
-        let cancelled = false;
-        services.applications
-            .events(application.metadata.name, application.metadata.namespace)
-            .then(events => !cancelled && setAppEvents(events))
-            .catch(() => !cancelled && setAppEvents([]));
-        return () => {
-            cancelled = true;
-        };
-    }, [application.metadata.name, application.metadata.namespace, application.metadata.resourceVersion]);
+    // Load application events once so both the EVENTS tab list and its badge (number of warning/error events) share a single fetch.
+    const appEvents = usePolledEvents(() => services.applications.events(application.metadata.name, application.metadata.namespace), isAppSelected, [
+        application.metadata.name,
+        application.metadata.namespace
+    ]);
 
     const handleCollapse = (i: number, isCollapsed: boolean) => {
         const v = collapsedSources.slice();

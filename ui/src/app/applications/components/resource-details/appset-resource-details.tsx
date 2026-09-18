@@ -10,6 +10,7 @@ import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import {HealthStatusIcon, getAppSetHealthStatus, getAppSetConditionCategory} from '../utils';
 import {AppSetPreviewTab} from './appset-preview-tab';
+import {usePolledEvents} from './use-polled-events';
 import './resource-details.scss';
 
 interface AppSetResourceDetailsProps {
@@ -26,18 +27,11 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
     const conditions = appSet.status?.conditions || [];
     const conditionCounts = getConditionCounts(conditions);
 
-    // Load ApplicationSet events once so both the EVENTS tab list and its badge (number of warning/error events) share a single fetch
-    const [appSetEvents, setAppSetEvents] = React.useState<models.Event[] | null>(null);
-    React.useEffect(() => {
-        let cancelled = false;
-        services.applications
-            .appSetEvents(appSet.metadata.name, appSet.metadata.namespace)
-            .then(events => !cancelled && setAppSetEvents(events))
-            .catch(() => !cancelled && setAppSetEvents([]));
-        return () => {
-            cancelled = true;
-        };
-    }, [appSet.metadata.name, appSet.metadata.namespace, appSet.metadata.resourceVersion]);
+    // Load ApplicationSet events so both the EVENTS tab list and its badge (number of warning/error events) share a single fetch
+    const appSetEvents = usePolledEvents(() => services.applications.appSetEvents(appSet.metadata.name, appSet.metadata.namespace), true, [
+        appSet.metadata.name,
+        appSet.metadata.namespace
+    ]);
     const numEventErrors = (appSetEvents || []).filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
 
     const getTabs = (): Tab[] => {
