@@ -302,7 +302,15 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 		_ = os.RemoveAll(tempDir)
 		return "", nil, fmt.Errorf("error untarring chart: %w", err)
 	}
-	return path.Join(tempDir, normalizeChartName(chart)), utilio.NewCloser(func() error {
+	// The extracted directory is named after the chart's Chart.yaml name, which an OCI chart
+	// may publish under a repository path with a different basename; read it back rather than
+	// deriving the name from the reference.
+	chartDir, err := extractedChartDir(tempDir)
+	if err != nil {
+		_ = os.RemoveAll(tempDir)
+		return "", nil, err
+	}
+	return chartDir, utilio.NewCloser(func() error {
 		return os.RemoveAll(tempDir)
 	}), nil
 }
@@ -452,16 +460,18 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-// Normalize a chart name for file system use, that is, if chart name is foo/bar/baz, returns the last component as chart name.
-func normalizeChartName(chart string) string {
-	strings.Join(strings.Split(chart, "/"), "_")
-	_, nc := path.Split(chart)
-	// We do not want to return the empty string or something else related to filesystem access
-	// Instead, return original string
-	if nc == "" || nc == "." || nc == ".." {
-		return chart
+// extractedChartDir returns the single chart directory extracted into dir. A packaged Helm chart
+// has exactly one top-level directory, named after its Chart.yaml name — which need not match the
+// reference's last path segment (e.g. an OCI chart under a differently-named repository path).
+func extractedChartDir(dir string) (string, error) {
+	infos, err := os.ReadDir(dir)
+	if err != nil {
+		return "", fmt.Errorf("error reading extracted chart directory %s: %w", dir, err)
 	}
-	return nc
+	if len(infos) != 1 || !infos[0].IsDir() {
+		return "", fmt.Errorf("expected a single chart directory after extraction, found %d entries in %s", len(infos), dir)
+	}
+	return filepath.Join(dir, infos[0].Name()), nil
 }
 
 func (c *nativeHelmChart) getCachedChartPath(chart string, version string) (string, error) {
