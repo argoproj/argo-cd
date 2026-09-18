@@ -341,7 +341,7 @@ func TestCachedManifestResponse_ShallowCopyExpectedFields(t *testing.T) {
 	}
 
 	expectedFields := []string{
-		"cacheEntryHash", "manifestResponse", "mostRecentError", "firstFailureTimestamp",
+		"cacheEntryHash", "generationPolicyHash", "manifestResponse", "mostRecentError", "firstFailureTimestamp",
 		"numberOfConsecutiveFailures", "numberOfCachedResponsesReturned",
 	}
 
@@ -353,6 +353,50 @@ func TestCachedManifestResponse_ShallowCopyExpectedFields(t *testing.T) {
 	for _, expectedField := range expectedFields {
 		assert.Containsf(t, string(str), "\""+expectedField+"\"", "Missing field: %s", expectedField)
 	}
+}
+
+func TestManifestGenerationPolicyHash(t *testing.T) {
+	t.Parallel()
+
+	requestWithPolicy := func(kustomizeBuildOptions string, helmSchemes []string, generatePaths string) *apiclient.ManifestRequest {
+		req := &apiclient.ManifestRequest{}
+		if kustomizeBuildOptions != `` {
+			req.KustomizeOptions = &v1alpha1.KustomizeOptions{BuildOptions: kustomizeBuildOptions}
+		}
+		if helmSchemes != nil {
+			req.HelmOptions = &v1alpha1.HelmOptions{ValuesFileSchemes: helmSchemes}
+		}
+		req.AnnotationManifestGeneratePaths = generatePaths
+		return req
+	}
+
+	assert.Empty(t, ManifestGenerationPolicyHash(nil), `a nil policy runs under the default policy`)
+	assert.Empty(t, ManifestGenerationPolicyHash(&apiclient.ManifestRequest{}), `a request without any policy values runs under the default policy`)
+
+	permissive := requestWithPolicy(`--load-restrictor LoadRestrictionsNone`, nil, ``)
+	assert.NotEmpty(t, ManifestGenerationPolicyHash(permissive), `a request with policy values gets a hash`)
+	assert.Equal(t,
+		ManifestGenerationPolicyHash(permissive),
+		ManifestGenerationPolicyHash(requestWithPolicy(`--load-restrictor LoadRestrictionsNone`, nil, ``)),
+		`equal policies produce equal hashes`)
+
+	assert.NotEqual(t,
+		ManifestGenerationPolicyHash(permissive),
+		ManifestGenerationPolicyHash(requestWithPolicy(`--load-restrictor LoadRestrictionsRootOnly`, nil, ``)),
+		`different kustomize build options produce different hashes`)
+	assert.NotEqual(t,
+		ManifestGenerationPolicyHash(permissive),
+		ManifestGenerationPolicyHash(requestWithPolicy(``, []string{`https`}, ``)),
+		`different helm options produce different hashes`)
+	assert.NotEqual(t,
+		ManifestGenerationPolicyHash(permissive),
+		ManifestGenerationPolicyHash(requestWithPolicy(``, nil, `apps/*.yaml`)),
+		`different manifest generate paths produce different hashes`)
+
+	assert.Equal(t,
+		ManifestGenerationPolicyHash(requestWithPolicy(``, []string{`https`, `file`}, ``)),
+		ManifestGenerationPolicyHash(requestWithPolicy(``, []string{`file`, `https`}, ``)),
+		`the same helm value file schemes in a different order run the same policy`)
 }
 
 func TestGetGitReferences(t *testing.T) {

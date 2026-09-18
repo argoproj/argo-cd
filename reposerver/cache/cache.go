@@ -8,6 +8,7 @@ import (
 	"hash/fnv"
 	"math"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -49,12 +50,68 @@ type ClusterRuntimeInfo interface {
 	GetKubeVersion() string
 }
 
+// ManifestGenerationPolicy carries the request values that change what manifest generation
+// is allowed to read and emit (Kustomize build options, Helm value file schemes, the
+// manifest-generate-paths annotation for sidecar plugins) without being part of the
+// application source itself. *apiclient.ManifestRequest implements it.
+type ManifestGenerationPolicy interface {
+	GetKustomizeOptions() *appv1.KustomizeOptions
+	GetHelmOptions() *appv1.HelmOptions
+	GetAnnotationManifestGeneratePaths() string
+}
+
+// manifestGenerationPolicySnapshot is the serializable form of the policy values that drive
+// ManifestGenerationPolicyHash. Field order and json tags are part of the hash, keep them stable.
+type manifestGenerationPolicySnapshot struct {
+	KustomizeOptions *appv1.KustomizeOptions `json:"kustomizeOptions,omitempty"`
+	HelmOptions      *appv1.HelmOptions      `json:"helmOptions,omitempty"`
+	GeneratePaths    string                  `json:"generatePaths,omitempty"`
+}
+
+// ManifestGenerationPolicyHash summarizes the manifest generation policy of a request. Cached
+// manifests are only valid while this value is unchanged, so a policy change results in a cache
+// miss and a fresh generation instead of a stale response.
+func ManifestGenerationPolicyHash(policy ManifestGenerationPolicy) string {
+	if policy == nil {
+		return ``
+	}
+	helmOptions := policy.GetHelmOptions()
+	if helmOptions != nil {
+		// Value file schemes are an allow-list, so the same schemes in a different order run the
+		// same policy: normalize the order before hashing to avoid spurious cache misses.
+		normalized := *helmOptions
+		normalized.ValuesFileSchemes = slices.Clone(helmOptions.ValuesFileSchemes)
+		slices.Sort(normalized.ValuesFileSchemes)
+		helmOptions = &normalized
+	}
+	payload, err := json.Marshal(manifestGenerationPolicySnapshot{
+		KustomizeOptions: policy.GetKustomizeOptions(),
+		HelmOptions:      helmOptions,
+		GeneratePaths:    policy.GetAnnotationManifestGeneratePaths(),
+	})
+	if err != nil {
+		// json.Marshal cannot fail for these plain structs, but a stable fallback keeps the
+		// return value well-defined instead of silently matching the no-policy value.
+		return `unmarshalable`
+	}
+	if string(payload) == "{}" {
+		// A request without any policy values runs under the same default policy as entries
+		// stored before GenerationPolicyHash existed, so keep the empty value for them.
+		return ``
+	}
+	return strconv.FormatUint(uint64(hash.FNVa(string(payload))), 10)
+}
+
 // CachedManifestResponse represents a cached result of a previous manifest generation operation, including the caching
 // of a manifest generation error, plus additional information on previous failures
 type CachedManifestResponse struct {
 	// NOTE: When adding fields to this struct, you MUST also update shallowCopy()
 
-	CacheEntryHash                  string                      `json:"cacheEntryHash"`
+	CacheEntryHash string `json:"cacheEntryHash"`
+	// GenerationPolicyHash summarizes the manifest generation policy this entry was created under
+	// (see ManifestGenerationPolicyHash). Entries stored before this field existed carry the empty
+	// value and are missed exactly once, after which the entry is rewritten under the current policy.
+	GenerationPolicyHash            string                      `json:"generationPolicyHash"`
 	ManifestResponse                *apiclient.ManifestResponse `json:"manifestResponse"`
 	MostRecentError                 string                      `json:"mostRecentError"`
 	FirstFailureTimestamp           int64                       `json:"firstFailureTimestamp"`
@@ -619,6 +676,7 @@ func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {
 
 	return &CachedManifestResponse{
 		CacheEntryHash:                  cmr.CacheEntryHash,
+		GenerationPolicyHash:            cmr.GenerationPolicyHash,
 		FirstFailureTimestamp:           cmr.FirstFailureTimestamp,
 		ManifestResponse:                cmr.ManifestResponse,
 		MostRecentError:                 cmr.MostRecentError,
