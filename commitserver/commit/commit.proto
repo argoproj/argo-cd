@@ -51,8 +51,37 @@ message CommitHydratedManifestsResponse {
   string hydratedSha = 1;
 }
 
+// AdvanceHydratorNoteRequest is the request to advance the hydrator git note
+// without performing a full hydration.
+message AdvanceHydratorNoteRequest {
+  // Repo contains repository information including, at minimum, the URL of the repository.
+  github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
+
+  // SyncBranch is the hydrated branch to read the HEAD from.
+  string syncBranch = 2;
+
+  // TargetBranch is the branch whose commit notes are associated with.
+  string targetBranch = 3;
+
+  // DrySha is the commit SHA from the dry branch.
+  string drySha = 4;
+}
+
+// AdvanceHydratorNoteResponse is the response after attempting to advance the
+// hydrator git note.
+message AdvanceHydratorNoteResponse {
+  // HydratedSha is the existing HEAD commit SHA.
+  string hydratedSha = 1;
+
+  // NoteAdvanced indicates whether a new git note was written.
+  bool noteAdvanced = 2;
+}
+
 // CommitService is the service for committing hydrated manifests to a repository.
 service CommitService {
   // Commit commits hydrated manifests to a repository.
   rpc CommitHydratedManifests (CommitHydratedManifestsRequest) returns (CommitHydratedManifestsResponse);
+
+  // AdvanceHydratorNote advances the hydrator git note without performing full hydration. 
+  rpc AdvanceHydratorNote(AdvanceHydratorNoteRequest) returns (AdvanceHydratorNoteResponse);
 }
