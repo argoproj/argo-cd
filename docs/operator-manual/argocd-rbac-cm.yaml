@@ -33,9 +33,10 @@ data:
   # but will see no apps, projects, etc...
   policy.default: role:readonly
 
-  # scopes controls which OIDC scopes to examine during rbac enforcement (in addition to `sub` scope).
-  # If omitted, defaults to: '[groups]'. The scope value can be a string, or a list of strings.
-  scopes: '[cognito:groups, email]'
+  # claims controls which OIDC claims to examine during rbac enforcement (in addition to the `sub` claim).
+  # If omitted, defaults to: '[groups]'. The value can be a string, or a list of strings.
+  # `scopes` is accepted as a deprecated alias for backward compatibility.
+  claims: '[cognito:groups, email]'
 
   # matchMode configures the matchers function for casbin.
   # There are two options for this, 'glob' for glob matcher or 'regex' for regex matcher. If omitted or mis-configured,
