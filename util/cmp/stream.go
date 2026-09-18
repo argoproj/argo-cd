@@ -118,6 +118,7 @@ func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string,
 		return nil, nil, fmt.Errorf("error compressing repo files: %w", err)
 	}
 	if filesWritten == 0 {
+		tgzstream.CloseAndDelete(tgz)
 		return nil, nil, fmt.Errorf("no files to send(%s)", rootPath)
 	}
 	if opt != nil && opt.tarDoneChan != nil {
@@ -127,10 +128,12 @@ func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string,
 
 	fi, err := tgz.Stat()
 	if err != nil {
+		tgzstream.CloseAndDelete(tgz)
 		return nil, nil, fmt.Errorf("error getting tgz stat: %w", err)
 	}
 	appRelPath, err := files.RelativePath(appPath, rootPath)
 	if err != nil {
+		tgzstream.CloseAndDelete(tgz)
 		return nil, nil, fmt.Errorf("error building app relative path: %w", err)
 	}
 	// send metadata first
