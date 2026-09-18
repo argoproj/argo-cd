@@ -316,10 +316,10 @@ the web UI, in the Project configuration. Navigate to the **Settings** page
 and select the **Projects** module, then click on the project you want to
 configure.
 
-From the project's details page, click **Edit** and find the
-**Required signature keys** section, where you can add or remove the key IDs
-for signature verification. After you have modified your project, click
-**Update** to save the changes.
+From the project's details page navigate to the **Source Integrity** tab and find
+the **[DEPRECATED] GPG SIGNATURE KEYS** section, where you can add or remove
+the key IDs for signature verification. After you have modified your project,
+click **Save** to save the changes.
 
 ## Troubleshooting
 
