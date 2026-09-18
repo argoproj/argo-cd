@@ -33,9 +33,7 @@ func getInstallationClient(g github_app_auth.Authentication, url string, httpCli
 		return nil, fmt.Errorf("failed to create GitHub installation transport: %w", err)
 	}
 
-	if url == "" {
-		url = g.EnterpriseBaseURL
-	}
+	url = resolveAPIURL(g, url)
 
 	var client *github.Client
 	if url == "" {
@@ -53,9 +51,7 @@ func getInstallationClient(g github_app_auth.Authentication, url string, httpCli
 
 // Client builds a github client for the given app authentication.
 func Client(ctx context.Context, g github_app_auth.Authentication, url, org string, optionalHTTPClient ...*http.Client) (*github.Client, error) {
-	if url == "" {
-		url = g.EnterpriseBaseURL
-	}
+	url = resolveAPIURL(g, url)
 
 	// If an installation ID is already provided, use it directly.
 	if g.InstallationId != 0 {
@@ -71,4 +67,11 @@ func Client(ctx context.Context, g github_app_auth.Authentication, url, org stri
 
 	g.InstallationId = installationId
 	return getInstallationClient(g, url, optionalHTTPClient...)
+}
+
+func resolveAPIURL(g github_app_auth.Authentication, configuredURL string) string {
+	if g.EnterpriseBaseURL != "" {
+		return g.EnterpriseBaseURL
+	}
+	return configuredURL
 }
