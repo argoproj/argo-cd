@@ -37,6 +37,7 @@ type repoSourceSpec struct {
 	URL             string
 	Revision        string
 	PathParamPrefix string
+	ParamPrefix     string
 	Values          map[string]string
 	Directories     []pathPattern
 	Files           []pathPattern
@@ -163,6 +164,7 @@ func parseFileParams(
 	filePath string,
 	fileContent []byte,
 	pathParamPrefix string,
+	paramPrefix string,
 	values map[string]string,
 	useGoTemplate bool,
 	goTemplateOptions []string,
@@ -192,7 +194,11 @@ func parseFileParams(
 		params := map[string]any{}
 
 		if useGoTemplate {
-			maps.Copy(params, objectFound)
+			if paramPrefix != "" {
+				params[paramPrefix] = objectFound
+			} else {
+				maps.Copy(params, objectFound)
+			}
 
 			paramPath := map[string]any{}
 			paramPath["path"] = path.Dir(filePath)
@@ -208,7 +214,11 @@ func parseFileParams(
 				params["path"] = paramPath
 			}
 		} else {
-			flat, err := flatten.Flatten(objectFound, "", flatten.DotStyle)
+			flattenPrefix := ""
+			if paramPrefix != "" {
+				flattenPrefix = paramPrefix + "."
+			}
+			flat, err := flatten.Flatten(objectFound, flattenPrefix, flatten.DotStyle)
 			if err != nil {
 				return nil, fmt.Errorf("error flattening object: %w", err)
 			}
@@ -361,7 +371,7 @@ func generateRepoSourceFileParams(ctx context.Context, params repoSourceCallPara
 
 	var allParams []map[string]any
 	for _, filePath := range filePaths {
-		paramsFromFileArray, err := parseFileParams(filePath, fileContentMap[filePath], params.spec.PathParamPrefix, params.spec.Values, params.useGoTemplate, params.goTemplateOptions)
+		paramsFromFileArray, err := parseFileParams(filePath, fileContentMap[filePath], params.spec.PathParamPrefix, params.spec.ParamPrefix, params.spec.Values, params.useGoTemplate, params.goTemplateOptions)
 		if err != nil {
 			return nil, fmt.Errorf("unable to process file '%s' from repository '%s': %w", filePath, params.spec.URL, err)
 		}
