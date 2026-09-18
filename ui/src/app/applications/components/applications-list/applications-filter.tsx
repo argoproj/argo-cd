@@ -586,6 +586,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
     const appliedFilter = [
         ...(props.pref.syncFilter || []),
         ...(props.pref.healthFilter || []),
+        ...(props.hydratorEnabled ? props.pref.hydrationFilter || [] : []),
         ...(props.pref.operationFilter || []),
         ...(props.pref.labelsFilter || []),
         ...(props.pref.annotationsFilter || []),
