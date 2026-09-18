@@ -2176,7 +2176,7 @@ func TestDiscoveryGetters_ConcurrentWithResync(t *testing.T) {
 			})
 			cluster.Invalidate()
 			require.NoError(t, cluster.EnsureSynced())
-			require.NoError(t, cluster.reloadOpenAPISchema())
+			require.NoError(t, runSynced(&cluster.lock, cluster.reloadOpenAPISchema))
 			// As the CRD watch does.
 			require.NoError(t, runSynced(&cluster.lock, func() error {
 				cluster.appendAPIResource(crdInfo)
