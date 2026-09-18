@@ -16,6 +16,7 @@ type GithubProvider struct {
 	organization         string
 	allBranches          bool
 	excludeArchivedRepos bool
+	repoSizes            map[string]int
 }
 
 var _ SCMProviderService = &GithubProvider{}
@@ -46,7 +47,13 @@ func NewGithubProvider(organization string, token string, url string, allBranche
 			return nil, err
 		}
 	}
-	return &GithubProvider{client: client, organization: organization, allBranches: allBranches, excludeArchivedRepos: excludeArchivedRepos}, nil
+	return &GithubProvider{
+		client:               client,
+		organization:         organization,
+		allBranches:          allBranches,
+		excludeArchivedRepos: excludeArchivedRepos,
+		repoSizes:            make(map[string]int),
+	}, nil
 }
 
 func (g *GithubProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
@@ -104,6 +111,7 @@ func (g *GithubProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 				Labels:       githubRepo.Topics,
 				RepositoryId: githubRepo.ID,
 			})
+			g.repoSizes[githubRepo.GetName()] = githubRepo.GetSize()
 		}
 		if resp.NextPage == 0 {
 			break
@@ -132,7 +140,7 @@ func (g *GithubProvider) listBranches(ctx context.Context, repo *Repository) ([]
 	if !g.allBranches {
 		defaultBranch, resp, err := g.client.Repositories.GetBranch(ctx, repo.Organization, repo.Repository, repo.Branch, 0)
 		if err != nil {
-			if resp.StatusCode == http.StatusNotFound {
+			if resp != nil && resp.StatusCode == http.StatusNotFound && g.repoSizes[repo.Repository] == 0 {
 				// Default branch doesn't exist, so the repo is empty.
 				return []github.Branch{}, nil
 			}
