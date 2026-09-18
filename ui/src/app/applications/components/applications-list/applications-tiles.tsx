@@ -23,6 +23,7 @@ import {
     TILE_HEIGHT,
     TILE_MIN_WIDTH,
     TILE_OVERSCAN_ROW_COUNT,
+    TILE_VERTICAL_MARGIN,
     useWindowScrollerPosition
 } from './virtual-scroll';
 
@@ -99,7 +100,11 @@ const VirtualizedTilesGrid = ({
                         const app = applications[index];
                         const cellStyle: React.CSSProperties = {
                             ...style,
-                            width: tileWidth
+                            width: tileWidth,
+                            height:
+                                typeof style.height === 'number'
+                                    ? style.height - TILE_VERTICAL_MARGIN - (rowIndex < rowCount - 1 ? TILE_GAP : 0)
+                                    : style.height
                         };
 
                         return (

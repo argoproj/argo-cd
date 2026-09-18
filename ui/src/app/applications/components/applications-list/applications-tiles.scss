@@ -13,6 +13,10 @@
         // Containing block for absolute header/action buttons on the tile.
         position: relative;
         overflow: visible;
+
+        > .argo-table-list__row {
+            height: 100%;
+        }
     }
 
     .ReactVirtualized__Grid {

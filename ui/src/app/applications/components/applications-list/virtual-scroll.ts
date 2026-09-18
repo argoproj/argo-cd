@@ -37,6 +37,9 @@ export const TILE_HEIGHT = 360;
 export const TILE_GAP = 24;
 export const TILE_MIN_WIDTH = 370;
 
+/** argo-table-list rows include an 8px margin on both vertical sides. */
+export const TILE_VERTICAL_MARGIN = 16;
+
 export function shouldUseVirtualScroll(useVirtualScrolling: boolean | undefined, length: number): boolean {
     return !!useVirtualScrolling && length > VIRTUAL_THRESHOLD;
 }
