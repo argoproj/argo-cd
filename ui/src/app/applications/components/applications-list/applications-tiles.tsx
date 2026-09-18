@@ -23,7 +23,6 @@ import {
     TILE_HEIGHT,
     TILE_MIN_WIDTH,
     TILE_OVERSCAN_ROW_COUNT,
-    TILE_VERTICAL_MARGIN,
     useWindowScrollerPosition
 } from './virtual-scroll';
 
@@ -66,7 +65,7 @@ const useItemsPerContainer = (itemRef: React.RefObject<HTMLDivElement | null>, c
     return itemsPer || 1;
 };
 
-const VirtualizedTilesGrid = ({
+export const VirtualizedTilesGrid = ({
     applications,
     cellCache,
     getRowHeight,
@@ -100,17 +99,15 @@ const VirtualizedTilesGrid = ({
                         const app = applications[index];
                         const cellStyle: React.CSSProperties = {
                             ...style,
-                            width: tileWidth,
-                            height:
-                                typeof style.height === 'number'
-                                    ? style.height - TILE_VERTICAL_MARGIN - (rowIndex < rowCount - 1 ? TILE_GAP : 0)
-                                    : style.height
+                            width: tileWidth
                         };
 
                         return (
                             <CellMeasurer cache={cellCache} columnIndex={columnIndex} key={key} parent={parent} rowIndex={rowIndex}>
                                 <div style={cellStyle} className='applications-tiles__virtual-cell'>
-                                    {renderTile(app, index)}
+                                    <div className='applications-tiles__virtual-content' style={{height: rowIndex < rowCount - 1 ? `calc(100% - ${TILE_GAP}px)` : '100%'}}>
+                                        {renderTile(app, index)}
+                                    </div>
                                 </div>
                             </CellMeasurer>
                         );

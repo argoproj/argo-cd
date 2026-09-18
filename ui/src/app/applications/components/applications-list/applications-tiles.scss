@@ -13,9 +13,14 @@
         // Containing block for absolute header/action buttons on the tile.
         position: relative;
         overflow: visible;
+    }
+
+    .applications-tiles__virtual-content {
+        display: flex;
+        flex-direction: column;
 
         > .argo-table-list__row {
-            height: 100%;
+            flex: 1;
         }
     }
 
