@@ -141,12 +141,44 @@ const (
 	GithubAppID                     = "2978632978"
 	GithubAppInstallationID         = "7893789433789"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
-	HelmOCIRegistryURL              = "localhost:5000/myrepo"
-	HelmAuthenticatedOCIRegistryURL = "localhost:5001/myrepo"
-	OCIRegistryURL                  = "oci://localhost:5000/my-oci-repo"
-	OCIHostURL                      = "oci://localhost:5000"
-	AuthenticatedOCIHostURL         = "oci://localhost:5001"
+	EnvHelmRegistryPort             = "ARGOCD_E2E_HELM_REGISTRY_PORT"
+	EnvOCIRegistryPort              = "ARGOCD_E2E_OCI_REGISTRY_PORT"
 )
+
+// HelmRegistryPort returns the port of the (unauthenticated) Helm/OCI registry used by e2e
+// tests. It can be overridden via the ARGOCD_E2E_HELM_REGISTRY_PORT environment variable. The
+// default deliberately avoids port 5000, which is commonly taken by macOS's AirPlay Receiver
+// service; keep this in sync with the default in the Makefile and in
+// test/fixture/testrepos/start-helm-registry.sh.
+func HelmRegistryPort() string {
+	return GetEnvWithDefault(EnvHelmRegistryPort, "5050")
+}
+
+// OCIRegistryPort returns the port of the authenticated OCI registry used by e2e tests. It can
+// be overridden via the ARGOCD_E2E_OCI_REGISTRY_PORT environment variable.
+func OCIRegistryPort() string {
+	return GetEnvWithDefault(EnvOCIRegistryPort, "5001")
+}
+
+func HelmOCIRegistryURL() string {
+	return "localhost:" + HelmRegistryPort() + "/myrepo"
+}
+
+func HelmAuthenticatedOCIRegistryURL() string {
+	return "localhost:" + OCIRegistryPort() + "/myrepo"
+}
+
+func OCIRegistryURL() string {
+	return "oci://localhost:" + HelmRegistryPort() + "/my-oci-repo"
+}
+
+func OCIHostURL() string {
+	return "oci://localhost:" + HelmRegistryPort()
+}
+
+func AuthenticatedOCIHostURL() string {
+	return "oci://localhost:" + OCIRegistryPort()
+}
 
 // TestNamespace returns the namespace where Argo CD E2E test instance will be
 // running in.
@@ -368,9 +400,9 @@ func RepoURL(urlType RepoURLType) string {
 	case RepoURLTypeHelmParent:
 		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo")
 	case RepoURLTypeOCI:
-		return OCIRegistryURL
+		return OCIRegistryURL()
 	case RepoURLTypeHelmOCI:
-		return HelmOCIRegistryURL
+		return HelmOCIRegistryURL()
 	default:
 		return GetEnvWithDefault(EnvRepoURLDefault, "file://"+repoDirectory())
 	}

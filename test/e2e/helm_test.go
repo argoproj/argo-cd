@@ -550,7 +550,7 @@ func TestHelmDependenciesPermissionDenied(t *testing.T) {
 		Create().
 		AddSource(fixture.RepoURL(fixture.RepoURLTypeFile))
 
-	expectedErr := fmt.Sprintf("helm repos localhost:5000/myrepo are not permitted in project '%s'", ctx.GetName())
+	expectedErr := fmt.Sprintf("helm repos localhost:%s/myrepo are not permitted in project '%s'", fixture.HelmRegistryPort(), ctx.GetName())
 	GivenWithSameState(ctx).
 		Project(ctx.GetName()).
 		Path("helm-oci-with-dependencies").

@@ -10,10 +10,16 @@ PATH="${DIST_PATH}:${PATH}"
 OS=$(go env GOOS)
 case $OS in
   darwin)
-    # For macOS, the x86_64 binary is used even on Apple Silicon (it is run through rosetta), so
-    # we download and install the x86_64 version. See: https://github.com/protocolbuffers/protobuf/pull/8557
     protoc_os=osx
-    protoc_arch=x86_64
+    case $ARCHITECTURE in
+      arm64)
+        protoc_arch=aarch_64
+        ;;
+      *)
+        # x86_64 binary, also used on Intel Macs natively.
+        protoc_arch=x86_64
+        ;;
+    esac
     ;;
   *)
     protoc_os=linux

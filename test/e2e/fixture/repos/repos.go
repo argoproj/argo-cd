@@ -124,7 +124,7 @@ func AddOCIRepo(t *testing.T, name, imagePath string) {
 	args := []string{
 		"repo",
 		"add",
-		fmt.Sprintf("%s/%s", fixture.OCIHostURL, imagePath),
+		fmt.Sprintf("%s/%s", fixture.OCIHostURL(), imagePath),
 		"--type", "oci",
 		"--name", name,
 		"--insecure-oci-force-http",
@@ -137,7 +137,7 @@ func AddAuthenticatedOCIRepo(t *testing.T, name, imagePath string) {
 	args := []string{
 		"repo",
 		"add",
-		fmt.Sprintf("%s/%s", fixture.AuthenticatedOCIHostURL, imagePath),
+		fmt.Sprintf("%s/%s", fixture.AuthenticatedOCIHostURL(), imagePath),
 		"--username", fixture.GitUsername,
 		"--password", fixture.GitPassword,
 		"--type", "oci",
@@ -152,7 +152,7 @@ func AddHelmOCIRepo(t *testing.T, name string) {
 	args := []string{
 		"repo",
 		"add",
-		fixture.HelmOCIRegistryURL,
+		fixture.HelmOCIRegistryURL(),
 		"--type", "helm",
 		"--name", name,
 		"--enable-oci",
@@ -248,7 +248,7 @@ func PushChartToOCIRegistry(t *testing.T, chartPathName, chartName, chartVersion
 		"push",
 		"--plain-http",
 		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
-		"oci://"+fixture.HelmOCIRegistryURL,
+		"oci://"+fixture.HelmOCIRegistryURL(),
 	))
 }
 
@@ -275,7 +275,7 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 		"--plain-http",
 		"--username", fixture.GitUsername,
 		"--password", fixture.GitPassword,
-		"localhost:5001",
+		"localhost:"+fixture.OCIRegistryPort(),
 	))
 
 	errors.NewHandler(t).FailOnErr(fixture.Run(
@@ -284,7 +284,7 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 		"push",
 		"--plain-http",
 		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
-		"oci://"+fixture.HelmAuthenticatedOCIRegistryURL,
+		"oci://"+fixture.HelmAuthenticatedOCIRegistryURL(),
 	))
 
 	errors.NewHandler(t).FailOnErr(fixture.Run(
@@ -292,7 +292,7 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 		"helm",
 		"registry",
 		"logout",
-		"localhost:5001",
+		"localhost:"+fixture.OCIRegistryPort(),
 	))
 }
 
@@ -312,7 +312,7 @@ func PushImageToOCIRegistry(t *testing.T, pathName, tag string, pushPath ...stri
 		imagePath,
 		"oras",
 		"push",
-		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.OCIHostURL, "oci://"), filepath.Base(pathName)), tag),
+		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.OCIHostURL(), "oci://"), filepath.Base(pathName)), tag),
 		pathToPush,
 	))
 }
@@ -326,7 +326,7 @@ func PushImageToAuthenticatedOCIRegistry(t *testing.T, pathName, tag string) {
 		imagePath,
 		"oras",
 		"push",
-		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.AuthenticatedOCIHostURL, "oci://"), filepath.Base(pathName)), tag),
+		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.AuthenticatedOCIHostURL(), "oci://"), filepath.Base(pathName)), tag),
 		".",
 	))
 }

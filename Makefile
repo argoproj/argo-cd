@@ -74,6 +74,9 @@ ARGOCD_E2E_APISERVER_PORT?=8080
 ARGOCD_E2E_REPOSERVER_PORT?=8081
 ARGOCD_E2E_REDIS_PORT?=6379
 ARGOCD_E2E_DEX_PORT?=5556
+# Port 5000 is commonly already taken on macOS by the AirPlay Receiver service, so the Helm/OCI
+# registry used by e2e tests defaults to a different port here.
+ARGOCD_E2E_HELM_REGISTRY_PORT?=5050
 ARGOCD_E2E_JS_HOST?=localhost
 ARGOCD_E2E_DISABLE_AUTH?=
 ARGOCD_E2E_DIR?=/tmp/argo-e2e
@@ -494,7 +497,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS=$${ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS:-true}  DIST_DIR=${DIST_DIR} RERUN_FAILS=$(ARGOCD_E2E_RERUN_FAILS) PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_CONFIG_DIR=$(HOME)/.config/argocd-e2e ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
+	ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS=$${ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS:-true}  DIST_DIR=${DIST_DIR} RERUN_FAILS=$(ARGOCD_E2E_RERUN_FAILS) PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_CONFIG_DIR=$(HOME)/.config/argocd-e2e ARGOCD_GPG_ENABLED=true ARGOCD_E2E_HELM_REGISTRY_PORT=$(ARGOCD_E2E_HELM_REGISTRY_PORT) GIT_CONFIG_GLOBAL=$(PWD)/test/e2e/fixture/gitconfig NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
@@ -514,6 +517,7 @@ start-e2e: test-tools-image
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
 start-e2e-local: mod-vendor-local dep-ui-local cli-local
+	@hack/check-rancher-desktop-tmp-sharing.sh
 	kubectl create ns argocd-e2e || true
 	kubectl create ns argocd-e2e-external || true
 	kubectl create ns argocd-e2e-external-2 || true
@@ -542,6 +546,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_PLUGINCONFIGFILEPATH=$(ARGOCD_E2E_DIR)/app/config/plugin \
 	ARGOCD_PLUGINSOCKFILEPATH=$(ARGOCD_E2E_DIR)/app/config/plugin \
 	ARGOCD_GIT_CONFIG=$(PWD)/test/e2e/fixture/gitconfig \
+	ARGOCD_E2E_HELM_REGISTRY_PORT=$(ARGOCD_E2E_HELM_REGISTRY_PORT) \
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \

@@ -17,7 +17,7 @@ func TestOCIImage(t *testing.T) {
 		PushImageToOCIRegistry("testdata/guestbook", "1.0.0").
 		OCIRepoAdded("guestbook", "guestbook").
 		Revision("1.0.0").
-		OCIRegistry(fixture.OCIHostURL).
+		OCIRegistry(fixture.OCIHostURL()).
 		OCIRegistryPath("guestbook").
 		Path(".").
 		When().
@@ -39,7 +39,7 @@ func TestOCIWithOCIHelmRegistryDependencies(t *testing.T) {
 		RepoURLType(fixture.RepoURLTypeOCI).
 		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
 		PushImageToOCIRegistry("testdata/helm-oci-with-dependencies", "1.0.0").
-		OCIRegistry(fixture.OCIHostURL).
+		OCIRegistry(fixture.OCIHostURL()).
 		OCIRepoAdded("helm-oci-with-dependencies", "helm-oci-with-dependencies").
 		OCIRepoAdded("helm-values", "myrepo").
 		OCIRegistryPath("helm-oci-with-dependencies").
@@ -63,7 +63,7 @@ func TestOCIWithAuthedOCIHelmRegistryDeps(t *testing.T) {
 		PushImageToOCIRegistry("testdata/helm-oci-authed-with-dependencies", "1.0.0").
 		OCIRepoAdded("helm-oci-authed-with-dependencies", "helm-oci-authed-with-dependencies").
 		AuthenticatedOCIRepoAdded("helm-values", "myrepo/helm-values").
-		OCIRegistry(fixture.OCIHostURL).
+		OCIRegistry(fixture.OCIHostURL()).
 		OCIRegistryPath("helm-oci-authed-with-dependencies").
 		Revision("1.0.0").
 		Path(".").
@@ -84,7 +84,7 @@ func TestOCIImageWithOutOfBoundsSymlink(t *testing.T) {
 		PushImageToOCIRegistry("testdata3/symlink-out-of-bounds", "1.0.0").
 		OCIRepoAdded("symlink-out-of-bounds", "symlink-out-of-bounds").
 		Revision("1.0.0").
-		OCIRegistry(fixture.OCIHostURL).
+		OCIRegistry(fixture.OCIHostURL()).
 		OCIRegistryPath("symlink-out-of-bounds").
 		Path(".").
 		When().

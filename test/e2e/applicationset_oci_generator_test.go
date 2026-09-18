@@ -22,7 +22,7 @@ func TestSimpleOciDirectoryGenerator(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        "oci://localhost:5000/testdata",
+					RepoURL:        "oci://localhost:" + fixture.HelmRegistryPort() + "/testdata",
 					TargetRevision: "1.0.0",
 					Path:           name,
 				},
@@ -49,7 +49,7 @@ func TestSimpleOciDirectoryGenerator(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        "oci://localhost:5000/testdata",
+							RepoURL:        "oci://localhost:" + fixture.HelmRegistryPort() + "/testdata",
 							TargetRevision: "1.0.0",
 							Path:           "{{path}}",
 						},
@@ -62,7 +62,7 @@ func TestSimpleOciDirectoryGenerator(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Oci: &v1alpha1.OciGenerator{
-							RepoURL:  "oci://localhost:5000/testdata",
+							RepoURL:  "oci://localhost:" + fixture.HelmRegistryPort() + "/testdata",
 							Revision: "1.0.0",
 							Directories: []v1alpha1.OciDirectoryGeneratorItem{
 								{
