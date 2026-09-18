@@ -3,6 +3,9 @@ import * as ReactDOM from 'react-dom';
 import {createRoot} from 'react-dom/client';
 import * as Moment from 'moment';
 import {App} from './app';
+import {configureMomentRelativeTime} from './shared/components/timestamp';
+
+configureMomentRelativeTime();
 
 const container = document.getElementById('app');
 const root = createRoot(container!);
