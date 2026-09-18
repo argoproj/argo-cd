@@ -9,6 +9,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {AuthSettingsCtx} from '../../../shared/context';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
+import {validateHelmValues} from '../application-parameters/helm-values';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {SetFinalizerOnApplication} from './set-finalizer-on-application';
@@ -281,6 +282,7 @@ export const ApplicationCreatePanel = (props: {
                                             errs[`spec.sources[${i}].targetRevision`] = !s?.targetRevision && s?.hasOwnProperty('chart') ? 'Version is required' : undefined;
                                             errs[`spec.sources[${i}].path`] = !s?.path && !s?.chart ? 'Path is required' : undefined;
                                             errs[`spec.sources[${i}].chart`] = !s?.path && !s?.chart ? 'Chart is required' : undefined;
+                                            errs[`spec.sources[${i}].helm.values`] = validateHelmValues(s?.helm?.values);
                                         }
                                         return errs;
                                     }
@@ -293,6 +295,7 @@ export const ApplicationCreatePanel = (props: {
                                             !hasHydrator && !source?.targetRevision && source?.hasOwnProperty('chart') ? 'Version is required' : undefined,
                                         'spec.source.path': !hasHydrator && !source?.path && !source?.chart ? 'Path is required' : undefined,
                                         'spec.source.chart': !hasHydrator && !source?.path && !source?.chart ? 'Chart is required' : undefined,
+                                        'spec.source.helm.values': validateHelmValues(source?.helm?.values),
                                         ...destinationErrors
                                     };
                                 }}

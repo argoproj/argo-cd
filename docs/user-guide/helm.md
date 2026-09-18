@@ -47,6 +47,8 @@ spec:
 >
 > Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml`. [Value precedence](./helm.md#helm-value-precedence) has a more detailed example.
 
+When editing Helm values in the application's **Parameters** tab, the values must be valid YAML representing a map. The UI displays a validation error and prevents saving while the YAML is invalid, including while editing an intermediate state. This behavior applies to both single-source and multi-source applications.
+
 The [Declarative Setup section on Helm](../operator-manual/declarative-setup.md#helm) has more info about how to configure private Helm repositories and private OCI registries.
 
 ## Values Files
