@@ -275,7 +275,7 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 		"--plain-http",
 		"--username", fixture.GitUsername,
 		"--password", fixture.GitPassword,
-		fmt.Sprintf("localhost:%s", fixture.OCIRegistryPort()),
+		"localhost:"+fixture.OCIRegistryPort(),
 	))
 
 	errors.NewHandler(t).FailOnErr(fixture.Run(
@@ -292,7 +292,7 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 		"helm",
 		"registry",
 		"logout",
-		fmt.Sprintf("localhost:%s", fixture.OCIRegistryPort()),
+		"localhost:"+fixture.OCIRegistryPort(),
 	))
 }
 
