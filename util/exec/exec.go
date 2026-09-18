@@ -58,6 +58,9 @@ func initTimeout() {
 // disables the timeout path's SIGKILL, but cancellation has no other backstop.
 const defaultCancelGrace = 10 * time.Second
 
+// probeSignal asks whether a process group still exists without touching it. See kill(2).
+const probeSignal = syscall.Signal(0)
+
 // isolateProcessGroups gates SetChildProcessGroup. See DisableProcessGroupIsolation.
 var isolateProcessGroups = true
 
@@ -85,20 +88,17 @@ func CancelGrace() time.Duration {
 // then SIGKILL partway through grace. os/exec instead SIGKILLs the command at once, skipping its cleanup - git
 // leaves .git/index.lock behind, and nothing ever reclaims a stale one.
 //
-// cmd must come from exec.CommandContext. grace bounds the whole sequence as cmd.WaitDelay and falls
-// back to defaultCancelGrace; the SIGKILL lands partway through it, see cancelEscalation. Call the
-// returned stop once cmd.Wait has returned, so a pending escalation cannot signal a process group that
-// has since recycled the PID.
+// cmd must come from exec.CommandContext. grace is cmd.WaitDelay and falls back to defaultCancelGrace;
+// the SIGKILL lands partway through it, see cancelEscalation. Call the returned stop once cmd.Wait has
+// returned: it drops a pending escalation if the group is already empty, and keeps a later cmd.Cancel
+// from signalling a PID that has since been recycled.
 func TerminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration) (stop func()) {
 	return terminateGroupOnCancel(cmd, grace, SignalProcessGroup)
 }
 
-// cancelEscalation is when the SIGKILL fires within grace. It has to land strictly before WaitDelay,
-// which lets Wait return - with a grandchild still holding the inherited pipes, os/exec reports
-// ErrWaitDelay at exactly WaitDelay - because callers run stop on that return and it would cancel the
-// escalation the surviving group still needs. So the SIGTERM gets the first half of grace to clean up
-// and the SIGKILL the second half to take effect, leaving CancelGrace the whole window callers budget
-// around.
+// cancelEscalation is when the SIGKILL fires within grace. The SIGTERM gets the first half of grace to
+// clean up and the SIGKILL the second half to take effect, leaving CancelGrace the whole window callers
+// budget around.
 func cancelEscalation(grace time.Duration) time.Duration {
 	return grace / 2
 }
@@ -118,13 +118,14 @@ func terminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration, signal func(*exe
 		mu.Lock()
 		defer mu.Unlock()
 		if stopped {
-			// Already waited for: signalling could hit whatever recycled the PID, and reporting an
-			// error would fail a command that finished cleanly. os/exec skips both for ErrProcessDone.
+			// Already waited for: reporting an error here would fail a command that finished
+			// cleanly, and a fresh SIGTERM has nothing left to reach. os/exec skips both for
+			// ErrProcessDone.
 			return os.ErrProcessDone
 		}
 		if cancelled {
-			// Already cancelled. os/exec cancels once, but a direct caller signalling again would
-			// orphan the timer stop needs to reach.
+			// os/exec cancels once, but a direct caller signalling again would arm a second
+			// escalation against the same group.
 			return nil
 		}
 		cancelled = true
@@ -134,11 +135,15 @@ func terminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration, signal func(*exe
 			// only reach whatever recycled the PID.
 			return err
 		}
-		// Reap whatever ignored SIGTERM, as the timeout path does.
+		// Reap whatever ignored SIGTERM, as the timeout path does. This outlives stop when the group
+		// is still populated: a grandchild that ignores SIGTERM without holding the command's pipes
+		// lets Wait - and so stop - return within milliseconds, far too early to reap it.
 		escalation = time.AfterFunc(cancelEscalation(grace), func() {
 			mu.Lock()
 			defer mu.Unlock()
-			if stopped {
+			// stop's probe only sampled the group when Wait returned; the last member may have
+			// exited since, freeing the ID. Re-probe, so the SIGKILL cannot land on a recycled one.
+			if errors.Is(signal(cmd, probeSignal), os.ErrProcessDone) {
 				return
 			}
 			_ = signal(cmd, syscall.SIGKILL)
@@ -152,7 +157,13 @@ func terminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration, signal func(*exe
 		mu.Lock()
 		defer mu.Unlock()
 		stopped = true
-		if escalation != nil {
+		if escalation == nil {
+			return
+		}
+		// Signal 0 only probes. An empty group has nothing left to reap, and its ID stays allocated
+		// until it is empty, so dropping the timer exactly here is what keeps the SIGKILL off a group
+		// that recycled the PID - while a group that still has members keeps the timer it needs.
+		if errors.Is(signal(cmd, probeSignal), os.ErrProcessDone) {
 			escalation.Stop()
 		}
 	}
@@ -301,11 +312,15 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	// Own process group, so a timeout reaps grandchildren too. See SignalProcessGroup.
 	SetChildProcessGroup(cmd)
 	if cmd.WaitDelay == 0 {
-		// Bound cmd.Wait. A grandchild that left the group survives the SIGKILL still holding the
-		// inherited pipes, and every <-done below would then block forever - including the one on the
-		// shutdown path, which the repo-server's drain waits on. Callers that installed
-		// TerminateGroupOnCancel already set this, so leave theirs alone.
-		cmd.WaitDelay = CancelGrace()
+		// A non-zero WaitDelay is how a caller marks that it installed its own policy - git and the
+		// cmp-server do, with graces of their own - so this is every other command: helm, kustomize,
+		// and whatever they spawn. Without it os/exec would SIGKILL the direct child alone and orphan
+		// its group, which for `kustomize build` means the git it runs for remote bases. Bounding
+		// cmd.Wait comes with it: a grandchild that left the group survives the SIGKILL still holding
+		// the inherited pipes, and every <-done below would then block forever - including the one on
+		// the shutdown path, which the repo-server's drain waits on.
+		stopEscalation := TerminateGroupOnCancel(cmd, CancelGrace())
+		defer stopEscalation()
 	}
 
 	select {
@@ -439,15 +454,18 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			return finish(waitErr)
 		default:
 		}
-		// Signal the group so the command can clean up, then reap it if it ignores SIGTERM.
-		signalGroup(syscall.SIGTERM)
-		var waitErr error
-		select {
-		case waitErr = <-done:
-		case <-time.After(CancelGrace()):
-			signalGroup(syscall.SIGKILL)
-			waitErr = <-done
+		// Every command reaching here has the group-terminating Cancel - its own, or the one installed
+		// above - so this runs the same SIGTERM-then-SIGKILL sequence cancellation does. Waiting on
+		// done is bounded without the context ever being cancelled: once the process is reaped, Wait
+		// bounds the drain of pipes a grandchild still holds by cmd.WaitDelay. A caller that set only
+		// WaitDelay keyed itself out of that install and has no Cancel to call, so it gets the signal
+		// without the escalation rather than a nil dereference.
+		if cmd.Cancel != nil {
+			_ = cmd.Cancel()
+		} else {
+			signalGroup(syscall.SIGTERM)
 		}
+		waitErr := <-done
 		if waitErr == nil {
 			// Finished on its own between the check above and the SIGTERM, so it is no casualty.
 			return finish(nil)

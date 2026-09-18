@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
+	"slices"
 	"sync"
 	"syscall"
 	"testing"
@@ -51,6 +52,7 @@ func TestHideUsernamePassword(t *testing.T) {
 
 // This tests a cmd that properly handles a SIGTERM signal
 func TestRunWithExecRunOpts(t *testing.T) {
+	t.Cleanup(initTimeout)
 	t.Setenv("ARGOCD_EXEC_TIMEOUT", "200ms")
 	initTimeout()
 
@@ -66,6 +68,9 @@ func TestRunWithExecRunOpts(t *testing.T) {
 
 // This tests a mis-behaved cmd that stalls on SIGTERM and requires a SIGKILL
 func TestRunWithExecRunOptsFatal(t *testing.T) {
+	// fatalTimeout feeds CancelGrace, and so every command's WaitDelay: leaking it shortens the
+	// shutdown SIGTERM-to-SIGKILL window of whichever test runs next.
+	t.Cleanup(initTimeout)
 	t.Setenv("ARGOCD_EXEC_TIMEOUT", "200ms")
 	t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "100ms")
 
@@ -281,23 +286,54 @@ func TestTerminateGroupOnCancelEscalates(t *testing.T) {
 
 	require.NoError(t, cmd.Cancel())
 	assert.Eventually(t, func() bool {
-		return len(rec.recorded()) == 2
+		return len(rec.recorded()) == 3
 	}, 3*time.Second, 5*time.Millisecond, "escalation to SIGKILL never happened")
-	assert.Equal(t, []syscall.Signal{syscall.SIGTERM, syscall.SIGKILL}, rec.recorded())
+	assert.Equal(t, []syscall.Signal{syscall.SIGTERM, probeSignal, syscall.SIGKILL}, rec.recorded())
 }
 
-// TestTerminateGroupOnCancelStopPreventsEscalation covers why stop exists: an escalation firing
-// after the command was reaped would signal whatever group recycled its PID.
-func TestTerminateGroupOnCancelStopPreventsEscalation(t *testing.T) {
+// TestTerminateGroupOnCancelStopKeepsEscalation covers the grandchild that ignores SIGTERM without
+// holding the command's pipes: Wait returns as soon as the command itself exits, so stop runs long
+// before the group is reaped and must not cancel the SIGKILL that reaps it.
+func TestTerminateGroupOnCancelStopKeepsEscalation(t *testing.T) {
 	rec := &signalRecorder{}
 	cmd := exec.CommandContext(t.Context(), "true")
-	// Long grace: stop must win outright, not race.
-	stop := terminateGroupOnCancel(cmd, time.Hour, rec.signal)
+	grace := 20 * time.Millisecond
+	stop := terminateGroupOnCancel(cmd, grace, rec.signal)
+
+	require.NoError(t, cmd.Cancel())
+	// rec reports success for the probe, standing in for a group that still has members.
+	stop()
+
+	assert.Eventually(t, func() bool {
+		return len(rec.recorded()) == 4
+	}, 3*time.Second, 5*time.Millisecond, "stop cancelled the escalation the surviving group needs")
+	assert.Equal(t, []syscall.Signal{syscall.SIGTERM, probeSignal, probeSignal, syscall.SIGKILL}, rec.recorded())
+}
+
+// TestTerminateGroupOnCancelStopDropsEscalationOnEmptyGroup covers the common path: everything exited
+// on the SIGTERM, so there is nothing left to reap and the PID is free to be recycled - a SIGKILL
+// landing seconds later could only reach whatever took it over.
+func TestTerminateGroupOnCancelStopDropsEscalationOnEmptyGroup(t *testing.T) {
+	rec := &signalRecorder{}
+	// Reports the group as gone, as SignalProcessGroup does once nothing is left in it.
+	empty := func(cmd *exec.Cmd, sig syscall.Signal) error {
+		_ = rec.signal(cmd, sig)
+		if sig == probeSignal {
+			return os.ErrProcessDone
+		}
+		return nil
+	}
+	cmd := exec.CommandContext(t.Context(), "true")
+	grace := 20 * time.Millisecond
+	stop := terminateGroupOnCancel(cmd, grace, empty)
 
 	require.NoError(t, cmd.Cancel())
 	stop()
 
-	assert.Equal(t, []syscall.Signal{syscall.SIGTERM}, rec.recorded(), "escalation outlived the command")
+	assert.Never(t, func() bool {
+		return slices.Contains(rec.recorded(), syscall.SIGKILL)
+	}, 20*grace, grace/2, "escalated against a group that was already empty")
+	assert.Equal(t, []syscall.Signal{syscall.SIGTERM, probeSignal}, rec.recorded())
 }
 
 // TestTerminateGroupOnCancelDoneProcessSkipsEscalation covers a command reaped just as its context
@@ -322,8 +358,8 @@ func TestTerminateGroupOnCancelDoneProcessSkipsEscalation(t *testing.T) {
 }
 
 // TestTerminateGroupOnCancelEscalatesBeforeWaitDelay covers a grandchild that survives the SIGTERM
-// holding the inherited pipes: WaitDelay makes Wait return, callers run stop on that return, and stop
-// cancels the escalation - so the group SIGKILL has to be armed strictly earlier.
+// holding the inherited pipes: the SIGKILL has to be armed strictly before WaitDelay, so the group is
+// reaped while Wait can still report the command's own exit rather than ErrWaitDelay.
 func TestTerminateGroupOnCancelEscalatesBeforeWaitDelay(t *testing.T) {
 	cmd := exec.CommandContext(t.Context(), "true")
 	grace := 20 * time.Millisecond
@@ -579,11 +615,44 @@ func TestShutdownRespectsSkipErrorLogging(t *testing.T) {
 	}
 }
 
+// TestShutdownEscalatesToSIGKILL covers a command that ignores the shutdown SIGTERM outright. The
+// escalation cmd.Cancel arms is the only thing that reaps it: WaitDelay bounds the drain of pipes
+// after the process exits, so it never ends a process that simply refuses to.
+func TestShutdownEscalatesToSIGKILL(t *testing.T) {
+	t.Cleanup(resetShutdown)
+	// Registered before t.Setenv so the LIFO cleanup re-reads the restored environment.
+	t.Cleanup(initTimeout)
+	t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "500ms")
+	initTimeout()
+
+	sentinel := path.Join(t.TempDir(), "started")
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", `trap "" TERM; touch `+sentinel+`; while :; do sleep 0.05; done`)
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := RunCommandExt(cmd, CmdOpts{Timeout: time.Minute})
+		errCh <- err
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(sentinel)
+		return err == nil
+	}, 10*time.Second, 5*time.Millisecond, "command never started")
+
+	start := time.Now()
+	Shutdown()
+	select {
+	case err := <-errCh:
+		require.ErrorIs(t, err, ErrShuttingDown)
+		assert.Less(t, time.Since(start), 3*time.Second, "escalation did not reap the command promptly")
+	case <-time.After(10 * time.Second):
+		t.Fatal("command outlived Shutdown: nothing escalated to SIGKILL")
+	}
+}
+
 func TestTerminateGroupOnCancelCancelledTwice(t *testing.T) {
 	rec := &signalRecorder{}
 	cmd := exec.CommandContext(t.Context(), "true")
-	// A grace long enough that stop always beats it, short enough that an orphaned timer would fire
-	// well inside the wait below.
+	// Short enough that both escalations would have fired well inside the wait below.
 	stop := terminateGroupOnCancel(cmd, 250*time.Millisecond, rec.signal)
 
 	require.NoError(t, cmd.Cancel())
@@ -591,5 +660,5 @@ func TestTerminateGroupOnCancelCancelledTwice(t *testing.T) {
 	stop()
 
 	time.Sleep(750 * time.Millisecond)
-	assert.Equal(t, []syscall.Signal{syscall.SIGTERM}, rec.recorded(), "cancelling twice must not re-signal or leave a timer stop cannot reach")
+	assert.Equal(t, []syscall.Signal{syscall.SIGTERM, probeSignal, probeSignal, syscall.SIGKILL}, rec.recorded(), "cancelling twice must arm only one escalation")
 }

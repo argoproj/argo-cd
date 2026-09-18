@@ -425,7 +425,9 @@ func TestRunCommandContextCancelSignalsOrphans(t *testing.T) {
 	// The grandchild redirects its output, so it is not one of the processes cmd.Wait blocks on.
 	command := Command{
 		Command: []string{"sh", "-c"},
-		Args:    []string{fmt.Sprintf(`sh -c 'trap "touch %s; exit" TERM; sleep 30' >/dev/null 2>&1 & sleep 30`, marker)},
+		// Short sleeps rather than one long one: a shell defers a trap until the running command
+		// finishes, so a SIGTERM landing just before a `sleep 30` starts would not be serviced for 30s.
+		Args: []string{fmt.Sprintf(`sh -c 'trap "touch %s; exit" TERM; while :; do sleep 0.05; done' >/dev/null 2>&1 & while :; do sleep 0.05; done`, marker)},
 	}
 	_, err := runCommand(ctx, command, "", []string{})
 	require.Error(t, err)
@@ -434,6 +436,31 @@ func TestRunCommandContextCancelSignalsOrphans(t *testing.T) {
 		_, err := os.Stat(marker)
 		return err == nil
 	}, 3*time.Second, 20*time.Millisecond, "grandchild was never signalled")
+}
+
+// TestRunCommandContextCancelReturnsBeforeEscalation covers a plugin that ignores SIGTERM: waiting
+// out the group's escalation would return long after the deadline, leaving cmpTimeoutBuffer no room
+// to send the client a real error before its own deadline expires.
+func TestRunCommandContextCancelReturnsBeforeEscalation(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(t.Context(), 200*time.Millisecond)
+	defer cancel()
+
+	// The shell ignores SIGTERM and keeps running, so only the SIGKILL ends it. Its sleeps are short
+	// enough that none of them holds the command's pipes for long - that would make Wait block on I/O
+	// rather than on the escalation this is about.
+	command := Command{
+		Command: []string{"sh", "-c"},
+		Args:    []string{`trap "" TERM; while :; do sleep 0.05; done`},
+	}
+	start := time.Now()
+	_, err := runCommand(ctx, command, "", []string{})
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	// Comfortably under the escalation at half of pluginCleanupTimeout, which is the wait this guards
+	// against; the correct path returns in milliseconds.
+	assert.Lessf(t, elapsed, 2*time.Second, "runCommand took %s: it waited out the SIGKILL escalation instead of reaping the plugin at once", elapsed)
 }
 
 func Test_getParametersAnnouncement_empty_command(t *testing.T) {
