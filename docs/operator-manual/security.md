@@ -257,8 +257,55 @@ Argo CD logs payloads of most API requests except request that are considered se
 `/cluster.ClusterService/Create`, `/session.SessionService/Create` etc. The full list of method
 can be found in [server/server.go](https://github.com/argoproj/argo-cd/blob/abba8dddce8cd897ba23320e3715690f465b4a95/server/server.go#L516).
 
-Argo CD does not log IP addresses of clients requesting API endpoints, since the API server is typically behind a proxy. Instead, it is recommended
-to configure IP addresses logging in the proxy server that sits in front of the API server.
+### Source IP logging
+
+Every API call line already carries the address of the gRPC peer as `peer.address`, whatever this setting is. For
+`argocd` CLI traffic that is the client's own address, but for the UI and the REST API it is only grpc-gateway's
+connection to the API server's listener, so the client's address appears nowhere. Enabling source IP logging
+identifies the client for all traffic, and repeats it on the line that carries the authenticated user's claims.
+
+It is off by default, on the grounds that the API server is typically behind a proxy that can log the same thing.
+To turn it on, set the `server.enable.source.ip.logging` config option in `argocd-cmd-params-cm`:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  server.enable.source.ip.logging: "true"
+```
+
+This can also be set via the `--enable-source-ip-logging` flag or the `ARGOCD_SERVER_ENABLE_SOURCE_IP_LOGGING`
+environment variable. Once enabled, the `started call` and `finished call` log lines, and the payload log lines that
+carry `grpc.request.claims`, gain up to two extra fields:
+
+* *source.ip*: the address the API server observed the request arriving from. Clients cannot choose this value.
+* *forwarded.for*: the `X-Forwarded-For` chain the request arrived with, if any. Behind a proxy that sets the
+  header, the leftmost entry is the original client.
+
+UI and REST requests are relayed to the gRPC services by grpc-gateway, which dials the API server's own listener on
+`localhost`, so for those the gRPC peer address is never the client's. The gateway identifies itself to the
+interceptors with a secret generated at startup and passes on the address it saw at the HTTP layer. Requests that do
+not carry that secret are attributed to the address of their socket peer, whatever metadata they supply.
+
+> [!WARNING]
+> `source.ip` is the address of the last hop, not necessarily of the client. If Argo CD sits behind an ingress
+> controller, a load balancer or a service mesh sidecar, that is the address you will see, and the client's own
+> address is somewhere in `forwarded.for`.
+
+> [!WARNING]
+> Every `forwarded.for` entry is supplied by the client or by an intermediate proxy, so it is only trustworthy if
+> the proxy in front of Argo CD overwrites the header rather than appending to it. There is currently no way to tell
+> Argo CD which proxies to trust, so the chain cannot be validated, and platform headers such as `CF-Connecting-IP`,
+> `True-Client-IP` and `X-Real-IP` are not read at all.
+
+The endpoints that are not served through grpc-gateway (`/api/webhook`, `/api/badge`, `/auth/callback`,
+`/terminal`) do not carry these fields.
+
+> [!NOTE]
+> IP addresses are personal data under several privacy regimes, which is why this is opt-in. Check your retention
+> obligations before enabling it, bearing in mind that `peer.address` is logged either way.
 
 ### Standard Application log fields
 

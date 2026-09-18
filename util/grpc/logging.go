@@ -3,8 +3,12 @@ package grpc
 import (
 	"bytes"
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gogo/protobuf/jsonpb"
@@ -15,6 +19,8 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/selector"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 )
 
 func logRequest(ctx context.Context, entry *logrus.Entry, info string, pbMsg any, logClaims bool) {
@@ -31,6 +37,15 @@ func logRequest(ctx context.Context, entry *logrus.Entry, info string, pbMsg any
 			if data, err := json.Marshal(claimsCopy); err == nil {
 				entry = entry.WithField("grpc.request.claims", string(data))
 			}
+		}
+	}
+	// The logging interceptor runs ahead of this one and injects its fields into the context, so the
+	// source IP ends up on the same line as the claims rather than only on the call lines.
+	it := logging.ExtractFields(ctx).Iterator()
+	for it.Next() {
+		switch k, v := it.At(); k {
+		case sourceIPField, forwardedForField:
+			entry = entry.WithField(k, v)
 		}
 	}
 	if p, ok := pbMsg.(proto.Message); ok {
@@ -112,5 +127,131 @@ func InterceptorLogger(l logrus.FieldLogger) logging.Logger {
 		default:
 			panic(fmt.Sprintf("unknown level %v", lvl))
 		}
+	})
+}
+
+const (
+	// GatewayTokenMetadataKey carries a per-process secret proving that a call was relayed by this
+	// process's own grpc-gateway, and ClientIPMetadataKey the address that gateway observed.
+	GatewayTokenMetadataKey = "x-argocd-gateway"
+	ClientIPMetadataKey     = "x-argocd-client-ip"
+
+	sourceIPField     = "source.ip"
+	forwardedForField = "forwarded.for"
+
+	// X-Forwarded-For is unauthenticated caller-controlled input -- the logging interceptor runs ahead
+	// of grpc_auth, and net/http accepts around a megabyte of headers -- so bound both the parse and
+	// the log line rather than letting a caller decide how much work we do per request.
+	maxForwardedForEntries = 32
+	maxForwardedForLen     = 512
+)
+
+// HTTPClientIP returns the address an HTTP request arrived from, without its port.
+func HTTPClientIP(r *http.Request) string {
+	return stripPort(r.RemoteAddr)
+}
+
+// sourceIPFields returns the client address observed by the API server and, separately, the
+// X-Forwarded-For chain that the caller supplied.
+//
+// The gateway serving REST and UI traffic dials the API server's own listener over localhost, so its
+// gRPC peer address says nothing about the client. It identifies itself with gatewayToken instead and
+// passes on the address it saw; anything else is taken at face value from its socket peer, because
+// every part of an x-forwarded-for chain is caller-controlled.
+func sourceIPFields(ctx context.Context, gatewayToken string) (sourceIP string, forwardedFor string) {
+	md, _ := metadata.FromIncomingContext(ctx)
+
+	// Only the last value counts, for the same reason the token does: grpc-gateway forwards a caller's
+	// Grpc-Metadata-X-Forwarded-For ahead of the chain it assembles itself, so earlier values are
+	// entries the caller prepended.
+	var xff []string
+	truncated := false
+	for e := range strings.SplitSeq(lastValue(md, "x-forwarded-for"), ",") {
+		if e = strings.TrimSpace(e); e == "" {
+			continue
+		}
+		if len(xff) == maxForwardedForEntries {
+			truncated = true
+			break
+		}
+		xff = append(xff, e)
+	}
+
+	if !fromGateway(md, gatewayToken) {
+		return peerIPFromContext(ctx), joinForwardedFor(xff, truncated)
+	}
+
+	sourceIP = stripPort(lastValue(md, ClientIPMetadataKey))
+	// grpc-gateway appends the address it observed to the chain it received. Report only what the
+	// client actually sent, since sourceIP already carries that address.
+	if n := len(xff); !truncated && n > 0 && xff[n-1] == sourceIP {
+		xff = xff[:n-1]
+	}
+	return sourceIP, joinForwardedFor(xff, truncated)
+}
+
+// joinForwardedFor renders the chain, keeping the leftmost entries: those name the original client,
+// whereas the tail is the hops nearest to us, which peer.address and source.ip already cover.
+func joinForwardedFor(xff []string, truncated bool) string {
+	joined := strings.Join(xff, ", ")
+	if len(joined) > maxForwardedForLen {
+		// grpc-gateway does not check this header for valid UTF-8 the way it checks the others, so a
+		// byte-boundary cut can split a rune.
+		joined, truncated = strings.ToValidUTF8(joined[:maxForwardedForLen], ""), true
+	}
+	if truncated {
+		joined += "..."
+	}
+	return joined
+}
+
+// fromGateway reports whether md carries this process's gateway token. Only the last value counts:
+// grpc-gateway forwards Grpc-Metadata-* request headers too, and those are joined ahead of the ones
+// its own annotator adds, so a client can put a value of its choosing first.
+func fromGateway(md metadata.MD, gatewayToken string) bool {
+	if gatewayToken == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(lastValue(md, GatewayTokenMetadataKey)), []byte(gatewayToken)) == 1
+}
+
+func lastValue(md metadata.MD, key string) string {
+	v := md.Get(key)
+	if len(v) == 0 {
+		return ""
+	}
+	return v[len(v)-1]
+}
+
+func peerIPFromContext(ctx context.Context) string {
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		return ""
+	}
+	return stripPort(p.Addr.String())
+}
+
+// stripPort drops the port from an address. Values that are not host:port (a bare IPv6 address, a
+// Unix socket path) are returned unchanged.
+func stripPort(addr string) string {
+	if host, _, err := net.SplitHostPort(addr); err == nil {
+		return host
+	}
+	return addr
+}
+
+// SourceIPLoggingOption adds the source IP of the client to every gRPC log line. gatewayToken is the
+// secret this process's grpc-gateway identifies itself with.
+func SourceIPLoggingOption(gatewayToken string) logging.Option {
+	return logging.WithFieldsFromContext(func(ctx context.Context) logging.Fields {
+		sourceIP, forwardedFor := sourceIPFields(ctx, gatewayToken)
+		var fields logging.Fields
+		if sourceIP != "" {
+			fields = append(fields, sourceIPField, sourceIP)
+		}
+		if forwardedFor != "" {
+			fields = append(fields, forwardedForField, forwardedFor)
+		}
+		return fields
 	})
 }
