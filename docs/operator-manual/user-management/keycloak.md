@@ -3,8 +3,8 @@ Keycloak and Argo CD integration can be configured in two ways with Client authe
 
 If you need to authenticate with __argo-cd command line__, you must choose PKCE way.
 
-* [Keycloak and Argo CD with Client authentication](#keycloak-and-argocd-with-client-authentication)
-* [Keycloak and Argo CD with PKCE](#keycloak-and-argocd-with-pkce)
+* [Keycloak and Argo CD with Client authentication](#keycloak-and-argo-cd-with-client-authentication)
+* [Keycloak and Argo CD with PKCE](#keycloak-and-argo-cd-with-pkce)
 
 ## Keycloak and Argo CD with Client authentication
 

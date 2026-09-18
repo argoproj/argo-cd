@@ -60,6 +60,12 @@ type Dependencies interface {
 		conditions []argov1alpha1.ApplicationSetCondition,
 		parametersGenerated bool,
 	) error
+
+	// RecordProgressiveSyncTriggered increments the sync counter for the given appset and step
+	RecordProgressiveSyncTriggered(applicationSet *argov1alpha1.ApplicationSet, step string)
+
+	// IncRefreshTriggeredCount increments the metric counter when a refresh is triggered for an application
+	IncRefreshTriggeredCount(appset *argov1alpha1.ApplicationSet)
 }
 
 type Manager struct {
@@ -523,7 +529,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			if currentAppStatus.Status == argov1alpha1.ProgressiveSyncPending {
 				// No need to evaluate status health further if the application did not change since our last transition
 				if app.Status.ReconciledAt == nil || (newAppStatus.LastTransitionTime != nil && app.Status.ReconciledAt.After(newAppStatus.LastTransitionTime.Time)) {
-					// Validate that at least one sync was trigerred after the pending transition time
+					// Validate that at least one sync was triggered after the pending transition time
 					if app.Status.OperationState != nil && app.Status.OperationState.StartedAt.After(currentAppStatus.LastTransitionTime.Time) {
 						statusLogCtx = statusLogCtx.WithField("app.operation", app.Status.OperationState.Phase)
 						newAppStatus.LastTransitionTime = &now
@@ -687,7 +693,7 @@ func hasPendingChanges(appStatus argov1alpha1.ApplicationSetApplicationStatus) b
 }
 
 // addRefreshAnnotationToApplications adds the refresh annotation to all Applications owned by the ApplicationSet
-func (m *Manager) addRefreshAnnotationToApplications(logCtx *log.Entry, applications []argov1alpha1.Application) error {
+func (m *Manager) addRefreshAnnotationToApplications(logCtx *log.Entry, applications []argov1alpha1.Application, appset *argov1alpha1.ApplicationSet) error {
 	for _, app := range applications {
 		// Check if annotation already exists
 		if app.Annotations != nil && app.Annotations[argov1alpha1.AnnotationKeyRefresh] != "" {
@@ -701,6 +707,9 @@ func (m *Manager) addRefreshAnnotationToApplications(logCtx *log.Entry, applicat
 		if err != nil {
 			return fmt.Errorf("error adding refresh annotation to app %s: %w", app.Name, err)
 		}
+
+		m.dependencies.IncRefreshTriggeredCount(appset)
+
 		logCtx.WithField("app", app.Name).Debug("Added refresh annotation to Application")
 	}
 	return nil
@@ -783,7 +792,7 @@ func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1
 	}
 
 	// add refresh annotations to trigger reconciliation
-	err := m.addRefreshAnnotationToApplications(logCtx, appsNeedReconcile)
+	err := m.addRefreshAnnotationToApplications(logCtx, appsNeedReconcile, appset)
 	if err != nil {
 		return false, fmt.Errorf("failed to add refresh annotations: %w", err)
 	}
@@ -1019,7 +1028,9 @@ func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *arg
 		// check appsToSync to determine which Applications are ready to be updated and which should be skipped
 		if appsToSync[desiredApplications[i].Name] && appSetStatusPending {
 			logCtx.Infof("triggering sync for application: %v, prune enabled: %v", desiredApplications[i].Name, pruneEnabled)
+
 			desiredApplications[i] = syncApplication(desiredApplications[i], pruneEnabled, pinnedRevisions)
+			m.dependencies.RecordProgressiveSyncTriggered(applicationSet, applicationSet.Status.ApplicationStatus[idx].Step)
 		}
 
 		rolloutApps = append(rolloutApps, desiredApplications[i])

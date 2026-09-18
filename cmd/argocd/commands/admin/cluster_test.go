@@ -79,7 +79,8 @@ func Test_loadClustersSkipsApplicationWithRemovedCluster(t *testing.T) {
 	}
 	assert.True(t, foundWarning, "expected a warning about the application with a removed destination cluster")
 	for i := range clusters {
-		// This changes, nil it to avoid testing it.
+		// These change, nil them to avoid testing them.
+		clusters[i].ConfigHash = nil
 		clusters[i].Info.ConnectionState.ModifiedAt = nil
 	}
 	expected := []ClusterWithInfo{{
