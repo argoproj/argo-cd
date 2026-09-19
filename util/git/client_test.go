@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"net/mail"
@@ -2188,4 +2189,425 @@ func Test_fetch_authPromptRewrite(t *testing.T) {
 	assert.Contains(t, err.Error(), "terminal prompts disabled", "expected to reproduce the raw git auth-prompt failure")
 	// ... and the fix surfaces it as an actionable authentication error (the fix).
 	assert.Contains(t, err.Error(), "failed to authenticate to git repository", "expected the humanized authentication error")
+}
+
+func TestStaleGitLockPath(t *testing.T) {
+	root := t.TempDir()
+	gitDir := filepath.Join(root, ".git")
+
+	tests := []struct {
+		name   string
+		output string
+		want   string
+		wantOk bool
+	}{
+		{
+			name:   "ref lock under .git is removable",
+			output: fmt.Sprintf("error: cannot lock ref 'HEAD': Unable to create '%s/HEAD.lock': File exists.", gitDir),
+			want:   filepath.Join(gitDir, "HEAD.lock"),
+			wantOk: true,
+		},
+		{
+			name:   "index lock under .git is removable",
+			output: fmt.Sprintf("fatal: Unable to create '%s/index.lock': File exists.", gitDir),
+			want:   filepath.Join(gitDir, "index.lock"),
+			wantOk: true,
+		},
+		{
+			name:   "shallow lock under .git is removable",
+			output: fmt.Sprintf("fatal: Unable to create '%s/shallow.lock': File exists.", gitDir),
+			want:   filepath.Join(gitDir, "shallow.lock"),
+			wantOk: true,
+		},
+		{
+			name:   "nested ref lock under .git is removable",
+			output: fmt.Sprintf("fatal: Unable to create '%s/refs/heads/main.lock': File exists.", gitDir),
+			want:   filepath.Join(gitDir, "refs", "heads", "main.lock"),
+			wantOk: true,
+		},
+		{
+			name:   "working-tree Chart.lock is NOT removable",
+			output: fmt.Sprintf("Unable to create '%s/charts/foo/Chart.lock': File exists.", root),
+			wantOk: false,
+		},
+		{
+			name:   "lock outside the repo root is NOT removable",
+			output: "Unable to create '/etc/something/.git/evil.lock': File exists.",
+			wantOk: false,
+		},
+		{
+			name:   "non-lock file is NOT removable",
+			output: fmt.Sprintf("Unable to create '%s/HEAD': File exists.", gitDir),
+			wantOk: false,
+		},
+		{
+			name:   "unrelated error yields no path",
+			output: "fatal: could not read from remote repository",
+			wantOk: false,
+		},
+		{
+			name:   "sibling directory sharing the .git prefix is NOT removable",
+			output: fmt.Sprintf("Unable to create '%s.backup/HEAD.lock': File exists.", gitDir),
+			wantOk: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := staleGitLockPaths(root, tt.output)
+			assert.Equal(t, tt.wantOk, len(got) > 0)
+			if tt.wantOk {
+				assert.Equal(t, []string{tt.want}, got)
+			}
+		})
+	}
+}
+
+// TestStaleGitLockPathsAllRefs covers the output of the case that strands more
+// than one lock: a killed `git fetch --prune` takes a lock per ref it is
+// updating, and git names every one it could not create. Collecting only the
+// first would leave the repository wedged on the next one after the retry.
+func TestStaleGitLockPathsAllRefs(t *testing.T) {
+	root := t.TempDir()
+	refDir := filepath.Join(root, ".git", "refs", "remotes", "origin")
+
+	var sb strings.Builder
+	var want []string
+	for _, ref := range []string{"b1", "b2", "b3", "b4"} {
+		lock := filepath.Join(refDir, ref+".lock")
+		fmt.Fprintf(&sb, "error: cannot lock ref 'refs/remotes/origin/%s': Unable to create '%s': File exists.\n\n"+
+			"Another git process seems to be running in this repository, or the lock file may be stale\n", ref, lock)
+		want = append(want, lock)
+	}
+
+	assert.Equal(t, want, staleGitLockPaths(root, sb.String()))
+}
+
+func TestStaleGitLockPathsIgnoresServerSuppliedOutput(t *testing.T) {
+	root := t.TempDir()
+	lock := filepath.Join(root, ".git", "HEAD.lock")
+	hostile := fmt.Sprintf("remote: error: Unable to create '%s': File exists.\n", lock)
+
+	assert.Empty(t, staleGitLockPaths(root, hostile))
+	// CmdError glues the first line of stderr onto its own prefix, so the marker
+	// is not always at the start of a line.
+	assert.Empty(t, staleGitLockPaths(root, "`git fetch origin` failed exit status 128: "+hostile))
+
+	assert.Equal(t, []string{lock},
+		staleGitLockPaths(root, fmt.Sprintf("fatal: Unable to create '%s': File exists.\n", lock)))
+}
+
+// TestStaleGitLockPathsDeduplicates covers a lock named in both the error and the
+// command output, which must not be attempted twice.
+func TestStaleGitLockPathsDeduplicates(t *testing.T) {
+	root := t.TempDir()
+	lock := filepath.Join(root, ".git", "HEAD.lock")
+	out := fmt.Sprintf("Unable to create '%s': File exists.", lock)
+
+	assert.Equal(t, []string{lock}, staleGitLockPaths(root, out, out))
+}
+
+// TestSaturatingDouble covers the grace-period arithmetic at the top of the range
+// the timeout parser accepts, where a plain 2*d wraps negative and the floor turns
+// the longest configured timeout into the shortest grace period.
+func TestSaturatingDouble(t *testing.T) {
+	assert.Equal(t, 3*time.Minute, saturatingDouble(90*time.Second))
+	assert.Equal(t, time.Duration(0), saturatingDouble(0))
+	assert.Equal(t, time.Duration(math.MaxInt64), saturatingDouble(math.MaxInt64))
+	assert.Equal(t, time.Duration(math.MaxInt64), saturatingDouble(math.MaxInt64/2+1))
+	assert.Positive(t, max(saturatingDouble(math.MaxInt64), time.Minute))
+}
+
+// TestStaleGitLockPathRootContainingGitDir covers a root whose own path has a
+// .git component. Matching on a ".git" path component anywhere would make every
+// working-tree file under such a root eligible for removal.
+func TestStaleGitLockPathRootContainingGitDir(t *testing.T) {
+	root := filepath.Join(t.TempDir(), ".git", "worktree")
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "charts"), 0o755))
+
+	assert.Empty(t, staleGitLockPaths(root, fmt.Sprintf("Unable to create '%s/charts/Chart.lock': File exists.", root)),
+		"a working-tree lock must stay ineligible under a root that contains .git")
+
+	assert.Equal(t, []string{filepath.Join(root, ".git", "HEAD.lock")},
+		staleGitLockPaths(root, fmt.Sprintf("Unable to create '%s/.git/HEAD.lock': File exists.", root)),
+		"the repository's own .git lock is still removable")
+}
+
+// Test_nativeGitClient_CheckoutRecoversStaleLock exercises the full recovery
+// path (reExecOnStaleLock driving real git) that TestStaleGitLockPath's string
+// matrix does not. A stale, plain-file HEAD.lock — left when a git child is
+// killed mid-checkout — wedges every later checkout with exit 128 until the pod
+// is restarted. Checkout must remove that one lock and succeed on the retry.
+func Test_nativeGitClient_CheckoutRecoversStaleLock(t *testing.T) {
+	ctx := t.Context()
+
+	originDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, originDir, "git", "commit", "-m", "Second commit", "--allow-empty"))
+
+	client, err := NewClient("file://"+originDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(ctx, "", 0))
+
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+
+	// first checkout populates the cache and HEAD
+	_, err = client.Checkout(ctx, commitSHA, false, true)
+	require.NoError(t, err)
+
+	// simulate a git child killed between creating HEAD.lock and renaming it
+	lockPath := filepath.Join(client.Root(), ".git", "HEAD.lock")
+	require.NoError(t, os.WriteFile(lockPath, nil, 0o600))
+	ageStaleLock(t, lockPath)
+
+	// precondition: the stale lock wedges a raw checkout with exit 128 and the
+	// lock survives, exactly as in the wedged repo-server cache
+	require.Error(t, runCmd(ctx, client.Root(), "git", "checkout", "--force", commitSHA))
+	require.FileExists(t, lockPath)
+
+	// Checkout must transparently remove the stale lock and succeed
+	out, err := client.Checkout(ctx, commitSHA, false, true)
+	require.NoError(t, err, "error output: %s", out)
+	require.NoFileExists(t, lockPath)
+}
+
+// ageStaleLock backdates a lock past gitLockRecoveryGracePeriod. In production the
+// window simply elapses before the next reconcile; a test cannot wait it out.
+func ageStaleLock(t *testing.T, lockPath string) {
+	t.Helper()
+	old := time.Now().Add(-2 * gitLockRecoveryGracePeriod)
+	require.NoError(t, os.Chtimes(lockPath, old, old))
+}
+
+// Test_nativeGitClient_FetchRecoversStaleLock covers the fetch half of the
+// recovery. fetch's wrapped operation yields no output, so the lock path has to
+// come from the error alone; this fails if git's stderr ever stops reaching it.
+func Test_nativeGitClient_FetchRecoversStaleLock(t *testing.T) {
+	ctx := t.Context()
+
+	originDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, originDir, "git", "commit", "-m", "Second commit", "--allow-empty"))
+
+	client, err := NewClient("file://"+originDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(ctx, "", 0))
+
+	lockPath := filepath.Join(client.Root(), ".git", "shallow.lock")
+	require.NoError(t, os.WriteFile(lockPath, nil, 0o600))
+	ageStaleLock(t, lockPath)
+
+	// precondition: the stale lock wedges a shallow fetch and survives it
+	require.Error(t, runCmd(ctx, client.Root(), "git", "fetch", "origin", "--depth", "1", "--force", "--prune"))
+	require.FileExists(t, lockPath)
+
+	require.NoError(t, client.Fetch(ctx, "", 1))
+	require.NoFileExists(t, lockPath)
+}
+
+// Test_nativeGitClient_CheckoutLeavesFreshLock covers the case that separates a
+// wedged cache from a busy one: repo-server replicas can share an RWX cache
+// volume, so a lock younger than the grace period may still be held by a live
+// git process in another replica. Unlinking it lets both processes write the
+// working tree and leaves it inconsistent with the checked-out revision, so the
+// recovery must decline and surface git's own error instead.
+func Test_nativeGitClient_CheckoutLeavesFreshLock(t *testing.T) {
+	ctx := t.Context()
+
+	originDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, originDir, "git", "commit", "-m", "Second commit", "--allow-empty"))
+
+	client, err := NewClient("file://"+originDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(ctx, "", 0))
+
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+
+	_, err = client.Checkout(ctx, commitSHA, false, true)
+	require.NoError(t, err)
+
+	lockPath := filepath.Join(client.Root(), ".git", "HEAD.lock")
+	require.NoError(t, os.WriteFile(lockPath, nil, 0o600))
+
+	_, err = client.Checkout(ctx, commitSHA, false, true)
+	require.Error(t, err, "a lock inside the grace period must not be recovered")
+	require.FileExists(t, lockPath, "a lock a live git process may hold must survive")
+}
+
+// Test_nativeGitClient_CheckoutLeavesNonRegularLock proves the recovery only ever
+// unlinks a plain file: a lock path that is a symlink is left alone and the
+// checkout still fails, so the symlink target can never be deleted.
+func Test_nativeGitClient_CheckoutLeavesNonRegularLock(t *testing.T) {
+	ctx := t.Context()
+
+	originDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, originDir, "git", "commit", "-m", "Second commit", "--allow-empty"))
+
+	client, err := NewClient("file://"+originDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(ctx, "", 0))
+
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+
+	_, err = client.Checkout(ctx, commitSHA, false, true)
+	require.NoError(t, err)
+
+	target := filepath.Join(t.TempDir(), "innocent-bystander")
+	require.NoError(t, os.WriteFile(target, []byte("must survive"), 0o600))
+
+	lockPath := filepath.Join(client.Root(), ".git", "HEAD.lock")
+	require.NoError(t, os.Symlink(target, lockPath))
+
+	_, err = client.Checkout(ctx, commitSHA, false, true)
+	require.Error(t, err, "a non-regular lock path must not be recovered")
+	require.FileExists(t, target, "the symlink target must not be removed")
+}
+
+// Test_nativeGitClient_FetchRecoversAllStrandedLocks covers the multi-lock form of
+// the wedge. A killed `git fetch --prune` takes a lock per ref it is updating, so
+// removing only the first one git names leaves the retry failing on the next and
+// the cache still wedged.
+func Test_nativeGitClient_FetchRecoversAllStrandedLocks(t *testing.T) {
+	ctx := t.Context()
+
+	originDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, originDir, "git", "commit", "-m", "Second commit", "--allow-empty"))
+	branches := []string{"b1", "b2", "b3", "b4"}
+	for _, b := range branches {
+		require.NoError(t, runCmd(ctx, originDir, "git", "branch", b))
+	}
+
+	client, err := NewClient("file://"+originDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(ctx, "", 0))
+
+	// move every branch so the next fetch has to update every remote-tracking ref
+	for _, b := range branches {
+		require.NoError(t, runCmd(ctx, originDir, "git", "checkout", b))
+		require.NoError(t, runCmd(ctx, originDir, "git", "commit", "-m", "on "+b, "--allow-empty"))
+	}
+
+	refDir := filepath.Join(client.Root(), ".git", "refs", "remotes", "origin")
+	require.NoError(t, os.MkdirAll(refDir, 0o755))
+	var locks []string
+	for _, b := range branches {
+		lock := filepath.Join(refDir, b+".lock")
+		require.NoError(t, os.WriteFile(lock, nil, 0o600))
+		ageStaleLock(t, lock)
+		locks = append(locks, lock)
+	}
+
+	require.NoError(t, client.Fetch(ctx, "", 0))
+	for _, lock := range locks {
+		assert.NoFileExists(t, lock)
+	}
+}
+
+// Test_nativeGitClient_CheckoutRecoversStaleLockUnderLocale covers a repo-server
+// whose environment sets a locale. git translates its own messages, so without a
+// fixed locale the error naming the lock never matches and the repository stays
+// wedged. French translates this message; several other locales leave it in
+// English, which is what makes the failure look intermittent.
+func Test_nativeGitClient_CheckoutRecoversStaleLockUnderLocale(t *testing.T) {
+	ctx := t.Context()
+
+	originDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, originDir, "git", "commit", "-m", "Second commit", "--allow-empty"))
+
+	client, err := NewClient("file://"+originDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(ctx, "", 0))
+
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+	_, err = client.Checkout(ctx, commitSHA, false, true)
+	require.NoError(t, err)
+
+	lockPath := filepath.Join(client.Root(), ".git", "HEAD.lock")
+	require.NoError(t, os.WriteFile(lockPath, nil, 0o600))
+	ageStaleLock(t, lockPath)
+
+	requireTranslatedGitLockError(t, ctx, client.Root(), commitSHA)
+
+	t.Setenv("LC_ALL", "fr_FR.UTF-8")
+	t.Setenv("LANG", "fr_FR.UTF-8")
+
+	out, err := client.Checkout(ctx, commitSHA, false, true)
+	require.NoError(t, err, "error output: %s", out)
+	assert.NoFileExists(t, lockPath)
+}
+
+// requireTranslatedGitLockError skips unless this machine's git actually
+// translates the lock error. Without the check the test would pass on a git with
+// no message catalogs by never exercising a translated message at all.
+func requireTranslatedGitLockError(t *testing.T, ctx context.Context, root string, revision string) {
+	t.Helper()
+
+	cmd := exec.CommandContext(ctx, "git", "checkout", "--force", revision)
+	cmd.Dir = root
+	cmd.Env = append(os.Environ(), "LC_ALL=fr_FR.UTF-8", "LANG=fr_FR.UTF-8")
+	out, err := cmd.CombinedOutput()
+	require.Error(t, err, "the planted lock must wedge a raw checkout")
+	if gitLockFileErrRe.Match(out) {
+		t.Skipf("git on this machine does not translate the lock error, so a locale cannot break the match: %s", out)
+	}
+}
+
+// TestLockRecoveryGracePeriod covers how the exec timeout maps onto the window,
+// including the zero case. A zero timeout starts no kill timer at all, so a live
+// git may hold a lock indefinitely and no elapsed time can establish that a lock
+// is dead; the recovery has to be off rather than at its most aggressive.
+func TestLockRecoveryGracePeriod(t *testing.T) {
+	assert.Equal(t, 3*time.Minute, lockRecoveryGracePeriod(90*time.Second), "the default timeout doubles")
+	assert.Equal(t, time.Minute, lockRecoveryGracePeriod(10*time.Second), "a short timeout takes the floor")
+	assert.Equal(t, time.Duration(math.MaxInt64), lockRecoveryGracePeriod(math.MaxInt64), "the largest timeout saturates")
+	assert.Equal(t, time.Duration(0), lockRecoveryGracePeriod(0), "an unbounded timeout disables recovery")
+	assert.Equal(t, time.Duration(0), lockRecoveryGracePeriod(-1), "a negative timeout disables recovery")
+}
+
+// Test_nativeGitClient_CheckoutLeavesLockWhenUnbounded covers a repo-server whose
+// exec timeout is zero. git is then never killed, so a lock of any age may still
+// be held by a live process and removing it would let two of them write one
+// working tree; the recovery must decline and surface git's own error.
+func Test_nativeGitClient_CheckoutLeavesLockWhenUnbounded(t *testing.T) {
+	ctx := t.Context()
+
+	originDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, originDir, "git", "commit", "-m", "Second commit", "--allow-empty"))
+
+	client, err := NewClient("file://"+originDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(ctx, "", 0))
+
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+	_, err = client.Checkout(ctx, commitSHA, false, true)
+	require.NoError(t, err)
+
+	lockPath := filepath.Join(client.Root(), ".git", "HEAD.lock")
+	require.NoError(t, os.WriteFile(lockPath, nil, 0o600))
+	ageStaleLock(t, lockPath)
+
+	original := gitLockRecoveryGracePeriod
+	gitLockRecoveryGracePeriod = lockRecoveryGracePeriod(0)
+	t.Cleanup(func() { gitLockRecoveryGracePeriod = original })
+
+	_, err = client.Checkout(ctx, commitSHA, false, true)
+	require.Error(t, err, "recovery must be off when git is never killed")
+	assert.FileExists(t, lockPath, "a lock a live git process may hold must survive")
 }
