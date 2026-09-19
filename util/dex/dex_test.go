@@ -1100,3 +1100,29 @@ connectors: []
 		})
 	}
 }
+
+func Test_GenerateDexConfigYAML_WebTLSCiphersAndCurvePreferences(t *testing.T) {
+	settings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		DexConfig: `
+connectors: []
+web:
+  tlsMinVersion: "1.3"
+  tlsCiphers:
+    - "TLS_AES_128_GCM_SHA256"
+    - "TLS_AES_256_GCM_SHA384"
+  tlsCurvePreferences:
+    - "X25519MLKEM768"
+    - "X25519"
+`,
+	}
+	out, err := GenerateDexConfigYAML(settings, false)
+	require.NoError(t, err)
+	var cfg map[string]any
+	require.NoError(t, yaml.Unmarshal(out, &cfg))
+	webCfg, ok := cfg["web"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "1.3", webCfg["tlsMinVersion"])
+	assert.Equal(t, []any{"TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384"}, webCfg["tlsCiphers"])
+	assert.Equal(t, []any{"X25519MLKEM768", "X25519"}, webCfg["tlsCurvePreferences"])
+}
