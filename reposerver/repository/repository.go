@@ -989,6 +989,17 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 				return
 			}
 
+			// A cached failure produced under a different manifest generation policy says nothing
+			// about the current one, so start a fresh failure state instead of extending it.
+			if cacheErr == nil && innerRes.GenerationPolicyHash != cache.ManifestGenerationPolicyHash(q) {
+				innerRes = &cache.CachedManifestResponse{}
+			}
+
+			// The failure entry must be stored under the current generation policy so the next
+			// attempt extends this failure state instead of discarding it and never reaching
+			// the pause threshold.
+			innerRes.GenerationPolicyHash = cache.ManifestGenerationPolicyHash(q)
+
 			// If this is the first error we have seen, store the time (we only use the first failure, as this
 			// value is used for PauseGenerationOnFailureForMinutes)
 			if innerRes.FirstFailureTimestamp == 0 {
@@ -1017,6 +1028,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	// Otherwise, no error occurred, so ensure the manifest generation error data in the cache entry is reset before we cache the value
 	manifestGenCacheEntry := cache.CachedManifestResponse{
 		ManifestResponse:                manifestGenResult,
+		GenerationPolicyHash:            cache.ManifestGenerationPolicyHash(q),
 		NumberOfCachedResponsesReturned: 0,
 		NumberOfConsecutiveFailures:     0,
 		FirstFailureTimestamp:           0,
@@ -1053,6 +1065,13 @@ func (s *Service) getManifestCacheEntry(revision string, q *apiclient.ManifestRe
 	res := cache.CachedManifestResponse{}
 	err := s.cache.GetManifests(cacheKey, &res)
 	if err == nil {
+		// The cached entry is only valid while the manifest generation policy that produced it is
+		// still in effect (Kustomize build options, Helm value file schemes, manifest-generate-paths).
+		if res.GenerationPolicyHash != cache.ManifestGenerationPolicyHash(q) {
+			logCtx.Info("manifest cache hit ignored: manifest generation policy changed since the entry was stored")
+			return false, nil, nil
+		}
+
 		// The cache contains an existing value
 
 		// If caching of manifest generation errors is enabled, and res is a cached manifest generation error...
