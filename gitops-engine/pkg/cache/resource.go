@@ -24,8 +24,16 @@ type Resource struct {
 	CreationTimestamp *metav1.Time
 	// Optional additional information about the resource
 	Info any
-	// Optional whole resource manifest
+	// Resource stores the raw manifest when compression is disabled (original behavior)
 	Resource *unstructured.Unstructured
+	// compressedManifest stores the compressed serialized manifest when compression is enabled.
+	// Use SetManifest/GetManifest to access.
+	compressedManifest []byte
+
+	// manifestStorage records which serialization format was used
+	manifestStorage ManifestStorageType
+	// manifestCompression records which compression algorithm was used
+	manifestCompression ManifestCompressionType
 
 	// answers if resource is inferred parent of provided resource
 	isInferredParentOf func(key kube.ResourceKey) bool
@@ -104,4 +112,70 @@ func (r *Resource) iterateChildrenV2(graph map[kube.ResourceKey]map[types.UID]*R
 			}
 		}
 	}
+}
+
+// SetManifest compresses and stores the resource manifest using the default codec
+// (JSON serialization + gzip-bestspeed compression).
+// Pass nil to clear the stored manifest.
+func (r *Resource) SetManifest(un *unstructured.Unstructured) error {
+	if un == nil {
+		r.compressedManifest = nil
+		return nil
+	}
+	return r.SetManifestWithCodec(un, ManifestStorageJSON, ManifestCompressionGZipBestSpeed)
+}
+
+// SetManifestWithCodec serializes and compresses the resource manifest using the specified
+// storage type and compression type.
+func (r *Resource) SetManifestWithCodec(un *unstructured.Unstructured, storageType ManifestStorageType, compressionType ManifestCompressionType) error {
+	if un == nil {
+		r.compressedManifest = nil
+		return nil
+	}
+
+	storageType = normalizeManifestStorageType(storageType)
+	compressionType = normalizeManifestCompressionType(compressionType)
+
+	data, err := serializeManifestObject(un.Object, storageType)
+	if err != nil {
+		return fmt.Errorf("failed to serialize manifest (storage=%s): %w", storageType, err)
+	}
+
+	compressed, err := compressManifestData(data, compressionType)
+	if err != nil {
+		return fmt.Errorf("failed to compress manifest (compression=%s): %w", compressionType, err)
+	}
+
+	r.compressedManifest = compressed
+	r.manifestStorage = storageType
+	r.manifestCompression = compressionType
+	return nil
+}
+
+// GetManifest returns the stored resource manifest.
+// Always returns a new object; callers may mutate it without affecting the cache.
+func (r *Resource) GetManifest() (*unstructured.Unstructured, error) {
+	if r.Resource != nil {
+		return r.Resource.DeepCopy(), nil
+	}
+	if r.compressedManifest == nil {
+		return nil, nil
+	}
+
+	data, err := decompressManifestData(r.compressedManifest, r.manifestCompression)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decompress manifest (compression=%s): %w", r.manifestCompression, err)
+	}
+
+	obj, err := deserializeManifestObject(data, r.manifestStorage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to deserialize manifest (storage=%s): %w", r.manifestStorage, err)
+	}
+
+	return &unstructured.Unstructured{Object: obj}, nil
+}
+
+// HasManifest returns true if a manifest is stored (either raw or compressed).
+func (r *Resource) HasManifest() bool {
+	return r.Resource != nil || r.compressedManifest != nil
 }

@@ -220,6 +220,8 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		listRetryLimit:          1,
 		listRetryUseBackoff:     false,
 		listRetryFunc:           ListRetryFuncNever,
+		manifestStorageType:     ManifestStorageJSON,
+		manifestCompressionType: ManifestCompressionGZipBestSpeed,
 		parentUIDToChildren:     make(map[types.UID]map[kube.ResourceKey]struct{}),
 	}
 	for i := range opts {
@@ -279,6 +281,13 @@ type clusterCache struct {
 	gvkParser                   *managedfields.GvkParser
 
 	respectRBAC int
+
+	// manifestCompressionEnabled controls whether manifests are stored compressed or as raw *unstructured.Unstructured
+	manifestCompressionEnabled bool
+	// manifestStorageType controls the serialization format for cached manifests
+	manifestStorageType ManifestStorageType
+	// manifestCompressionType controls the compression algorithm for cached manifests
+	manifestCompressionType ManifestCompressionType
 
 	// Parent-to-children index for O(1) child lookup during hierarchy traversal
 	// Maps any resource's UID to a set of its direct children's ResourceKeys
@@ -455,12 +464,16 @@ func (c *clusterCache) replaceResourceCache(gk schema.GroupKind, resources []*Re
 }
 
 func (c *clusterCache) newResource(un *unstructured.Unstructured) *Resource {
+	return c.newResourceWithManifestSettings(un, c.populateResourceInfoHandler, c.manifestCompressionEnabled, c.manifestStorageType, c.manifestCompressionType)
+}
+
+func (c *clusterCache) newResourceWithManifestSettings(un *unstructured.Unstructured, populateResourceInfoHandler OnPopulateResourceInfoHandler, manifestCompressionEnabled bool, manifestStorageType ManifestStorageType, manifestCompressionType ManifestCompressionType) *Resource {
 	ownerRefs, isInferredParentOf := c.resolveResourceReferences(un)
 
 	cacheManifest := false
 	var info any
-	if c.populateResourceInfoHandler != nil {
-		info, cacheManifest = c.populateResourceInfoHandler(un, len(ownerRefs) == 0)
+	if populateResourceInfoHandler != nil {
+		info, cacheManifest = populateResourceInfoHandler(un, len(ownerRefs) == 0)
 	}
 	var creationTimestamp *metav1.Time
 	ct := un.GetCreationTimestamp()
@@ -476,7 +489,14 @@ func (c *clusterCache) newResource(un *unstructured.Unstructured) *Resource {
 		isInferredParentOf: isInferredParentOf,
 	}
 	if cacheManifest {
-		resource.Resource = un
+		if manifestCompressionEnabled {
+			if err := resource.SetManifestWithCodec(un, manifestStorageType, manifestCompressionType); err != nil {
+				c.log.Error(err, "Failed to compress manifest", "resource", kube.GetObjectRef(un))
+				resource.Resource = un // fall back to uncompressed
+			}
+		} else {
+			resource.Resource = un
+		}
 	}
 
 	return resource
@@ -1561,23 +1581,42 @@ func (c *clusterCache) managesNamespace(namespace string) bool {
 // specified in targetObjs list.
 func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isManaged func(r *Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	c.lock.RLock()
-	defer c.lock.RUnlock()
 
 	for _, o := range targetObjs {
 		if len(c.namespaces) > 0 {
 			if o.GetNamespace() == "" && !c.clusterResources {
+				c.lock.RUnlock()
 				return nil, fmt.Errorf("cluster level %s %q can not be managed when in namespaced mode", o.GetKind(), o.GetName())
 			} else if o.GetNamespace() != "" && !c.managesNamespace(o.GetNamespace()) {
+				c.lock.RUnlock()
 				return nil, fmt.Errorf("namespace %q for %s %q is not managed", o.GetNamespace(), o.GetKind(), o.GetName())
 			}
 		}
 	}
 
+	// Snapshot resource values while protecting mutable fields from concurrent updates.
+	resources := make(map[kube.ResourceKey]*Resource, len(c.resources))
+	for k, v := range c.resources {
+		resource := *v
+		resource.OwnerRefs = append([]metav1.OwnerReference(nil), v.OwnerRefs...)
+		resources[k] = &resource
+	}
+	watchedGKs := make(map[schema.GroupKind]struct{}, len(c.apisMeta))
+	for gk := range c.apisMeta {
+		watchedGKs[gk] = struct{}{}
+	}
+
+	c.lock.RUnlock()
+
 	managedObjs := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	// iterate all objects in live state cache to find ones associated with app
-	for key, o := range c.resources {
-		if isManaged(o) && o.Resource != nil && len(o.OwnerRefs) == 0 {
-			managedObjs[key] = o.Resource
+	for key, o := range resources {
+		if isManaged(o) && o.HasManifest() && len(o.OwnerRefs) == 0 {
+			if manifest, err := o.GetManifest(); err != nil {
+				c.log.Error(err, "Failed to decompress manifest", "resource", o.Ref)
+			} else {
+				managedObjs[key] = manifest
+			}
 		}
 	}
 	// but are simply missing our label
@@ -1590,9 +1629,13 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 		lock.Unlock()
 
 		if managedObj == nil {
-			if existingObj, exists := c.resources[key]; exists {
-				if existingObj.Resource != nil {
-					managedObj = existingObj.Resource
+			if existingObj, exists := resources[key]; exists {
+				if existingObj.HasManifest() {
+					if manifest, err := existingObj.GetManifest(); err != nil {
+						return fmt.Errorf("failed to decompress manifest: %w", err)
+					} else {
+						managedObj = manifest
+					}
 				} else {
 					var err error
 					managedObj, err = c.kubectl.GetResource(context.TODO(), c.config, targetObj.GroupVersionKind(), existingObj.Ref.Name, existingObj.Ref.Namespace)
@@ -1603,7 +1646,7 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 						return fmt.Errorf("unexpected error getting managed object: %w", err)
 					}
 				}
-			} else if _, watched := c.apisMeta[key.GroupKind()]; !watched {
+			} else if _, watched := watchedGKs[key.GroupKind()]; !watched {
 				var err error
 				managedObj, err = c.kubectl.GetResource(context.TODO(), c.config, targetObj.GroupVersionKind(), targetObj.GetName(), targetObj.GetNamespace())
 				if err != nil {
@@ -1693,6 +1736,20 @@ func (c *clusterCache) processEvents() {
 func (c *clusterCache) processEventsBatch(eventMetas []eventMeta) {
 	log := c.log.WithValues("functionName", "processEventsBatch")
 	start := time.Now()
+	c.lock.RLock()
+	populateResourceInfoHandler := c.populateResourceInfoHandler
+	manifestCompressionEnabled := c.manifestCompressionEnabled
+	manifestStorageType := c.manifestStorageType
+	manifestCompressionType := c.manifestCompressionType
+	c.lock.RUnlock()
+
+	resources := make([]*Resource, len(eventMetas))
+	for i, evMeta := range eventMetas {
+		if evMeta.event != watch.Deleted {
+			resources[i] = c.newResourceWithManifestSettings(evMeta.un, populateResourceInfoHandler, manifestCompressionEnabled, manifestStorageType, manifestCompressionType)
+		}
+	}
+
 	c.lock.Lock()
 	log.V(1).Info("Lock acquired (ms)", "duration", time.Since(start).Milliseconds())
 	defer func() {
@@ -1704,22 +1761,29 @@ func (c *clusterCache) processEventsBatch(eventMetas []eventMeta) {
 		}
 	}()
 
-	for _, evMeta := range eventMetas {
+	for i, evMeta := range eventMetas {
 		key := kube.GetResourceKey(evMeta.un)
-		c.processEvent(key, evMeta)
+		c.processEventWithResource(key, evMeta, resources[i])
 	}
 
 	log.V(1).Info("Processed events (ms)", "count", len(eventMetas), "duration", time.Since(start).Milliseconds())
 }
 
 func (c *clusterCache) processEvent(key kube.ResourceKey, evMeta eventMeta) {
+	c.processEventWithResource(key, evMeta, nil)
+}
+
+func (c *clusterCache) processEventWithResource(key kube.ResourceKey, evMeta eventMeta, resource *Resource) {
 	existingNode, exists := c.resources[key]
 	if evMeta.event == watch.Deleted {
 		if exists {
 			c.onNodeRemoved(key)
 		}
 	} else {
-		c.onNodeUpdated(existingNode, c.newResource(evMeta.un))
+		if resource == nil {
+			resource = c.newResource(evMeta.un)
+		}
+		c.onNodeUpdated(existingNode, resource)
 	}
 }
 
