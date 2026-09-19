@@ -75,7 +75,8 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 			if !containLabels(g.labels, pull.Labels) {
 				continue
 			}
-			if containsAnyExcludedLabels(g.excludedLabels, getGithubPRLabelNames(pull.Labels)) {
+			labelNames := getGithubPRLabelNames(pull.Labels)
+			if containsAnyExcludedLabels(g.excludedLabels, labelNames) {
 				continue
 			}
 			pullRequests = append(pullRequests, &PullRequest{
@@ -84,7 +85,7 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 				Branch:       *pull.Head.Ref,
 				TargetBranch: *pull.Base.Ref,
 				HeadSHA:      *pull.Head.SHA,
-				Labels:       getGithubPRLabelNames(pull.Labels),
+				Labels:       labelNames,
 				Author:       *pull.User.Login,
 			})
 		}
