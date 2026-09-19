@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -948,6 +949,59 @@ func TestResyncClearsStaleNamespaceIndex(t *testing.T) {
 	for _, child := range getChildren(cluster, mustToUnstructured(testRS())) {
 		assert.NotEqual(t, podKey, child.ResourceKey(), "stale pod must not appear in the resource hierarchy")
 	}
+}
+
+// TestRecordEventDuringResync delivers watch events while the cache is invalidated and
+// resynced underneath them. Each resync retires the channel recordEvent sends on, and
+// recordEvent used to read that channel without holding the lock: the send could land on
+// a channel sync had just closed, which panics, or on a nil one, which blocks the watch
+// goroutine for good.
+func TestRecordEventDuringResync(t *testing.T) {
+	cluster := newClusterWithOptions(t, []UpdateSettingsFunc{
+		SetBatchEventsProcessing(true),
+		SetEventProcessingInterval(time.Millisecond),
+	}, testPod1(), testRS(), testDeploy())
+	t.Cleanup(func() { cluster.Invalidate() })
+	require.NoError(t, cluster.EnsureSynced())
+
+	var panicked atomic.Int64
+	stop := make(chan struct{})
+	var senders sync.WaitGroup
+	for range 4 {
+		senders.Go(func() {
+			defer func() {
+				if r := recover(); r != nil {
+					panicked.Add(1)
+				}
+			}()
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				cluster.recordEvent(watch.Added, mustToUnstructured(testPod2()))
+			}
+		})
+	}
+
+	for range 20 {
+		cluster.Invalidate()
+		require.NoError(t, cluster.EnsureSynced())
+	}
+	close(stop)
+
+	stopped := make(chan struct{})
+	go func() {
+		senders.Wait()
+		close(stopped)
+	}()
+	select {
+	case <-stopped:
+	case <-time.After(30 * time.Second):
+		t.Fatal("recordEvent is still blocked after the resyncs finished")
+	}
+	assert.Zero(t, panicked.Load(), "recordEvent panicked while the cache was being resynced")
 }
 
 func TestProcessNewChildEvent(t *testing.T) {
