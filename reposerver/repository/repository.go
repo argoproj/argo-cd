@@ -2371,10 +2371,16 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	defer utilio.Close(conn)
 
 	rootPath := repoPath
+	var includePaths []string
 	if useManifestGeneratePaths {
-		// Transmit the files under the common root path for all paths related to the manifest generate paths annotation.
+		// Transmit the paths related to the manifest generate paths annotation,
+		// rooted at their common root path so that relative paths keep working.
 		rootPath = getApplicationRootPath(q, appPath, repoPath)
-		log.Debugf("common root path calculated for application %s: %s", q.AppName, rootPath)
+		includePaths, err = getManifestGenerateIncludePaths(q, appPath, rootPath, repoPath)
+		if err != nil {
+			return nil, fmt.Errorf("error computing manifest generate include paths: %w", err)
+		}
+		log.Debugf("common root path calculated for application %s: %s (included paths: %v)", q.AppName, rootPath, includePaths)
 	}
 
 	pluginConfigResponse, err := cmpClient.CheckPluginConfiguration(ctx, &emptypb.Empty{})
@@ -2394,7 +2400,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	}
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
-	cmpManifests, err := generateManifestsCMP(ctx, appPath, rootPath, env, cmpClient, tarDoneCh, tarExcludedGlobs)
+	cmpManifests, err := generateManifestsCMP(ctx, appPath, rootPath, env, cmpClient, tarDoneCh, tarExcludedGlobs, includePaths)
 	if err != nil {
 		return nil, fmt.Errorf("error generating manifests in cmp: %w", err)
 	}
@@ -2417,7 +2423,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 // generateManifestsCMP will send the appPath files to the cmp-server over a gRPC stream.
 // The cmp-server will generate the manifests. Returns a response object with the generated
 // manifests.
-func generateManifestsCMP(ctx context.Context, appPath, rootPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs []string) (*pluginclient.ManifestResponse, error) {
+func generateManifestsCMP(ctx context.Context, appPath, rootPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs []string, includePaths []string) (*pluginclient.ManifestResponse, error) {
 	ctx, span := tracer.Start(ctx, "repository.generateManifestsCMP")
 	defer span.End()
 
@@ -2427,6 +2433,9 @@ func generateManifestsCMP(ctx context.Context, appPath, rootPath string, env []s
 	}
 	opts := []cmp.SenderOption{
 		cmp.WithTarDoneChan(tarDoneCh),
+	}
+	if len(includePaths) > 0 {
+		opts = append(opts, cmp.WithIncludePaths(includePaths))
 	}
 
 	// Use the request context (ctx) rather than stream.Context() to avoid prematurely sending into a stream whose
