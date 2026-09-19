@@ -39,6 +39,11 @@ func (testDeps) RecordProgressiveSyncTriggered(*v1alpha1.ApplicationSet, string)
 
 func (testDeps) IncRefreshTriggeredCount(*v1alpha1.ApplicationSet) {}
 
+func (testDeps) ObserveRolloutDuration(_ *v1alpha1.ApplicationSet, _ time.Duration) {}
+
+func (testDeps) ObserveStepCompletionDuration(_ *v1alpha1.ApplicationSet, _ string, _ time.Duration) {
+}
+
 func TestBuildAppDependencyList(t *testing.T) {
 	t.Parallel()
 	scheme := runtime.NewScheme()

@@ -186,7 +186,7 @@ spec:
           values:
           - dev
       - matchExpressions:
-        - key: environmen
+        - key: environment
           operator: In
           values:
           - staging
@@ -569,6 +569,56 @@ func TestIncRefreshTriggeredCount(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	assert.Contains(t, rr.Body.String(), `argocd_appset_app_refresh_total{name="test1",namespace="argocd"} 3`)
+}
+
+func TestObserveRolloutDuration(t *testing.T) {
+	appsetList := newFakeAppsets(fakeAppsetList)
+	client := initializeClient(appsetList)
+	metrics.Registry = prometheus.NewRegistry()
+
+	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
+
+	appsetMetrics.ObserveRolloutDuration(&appsetList[3], 120*time.Second)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
+	handler.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	assert.Contains(t, body, `argocd_appset_progressive_sync_rollout_duration_seconds_bucket{name="appset-progressive-sync-enabled",namespace="argocd",le="120"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_rollout_duration_seconds_count{name="appset-progressive-sync-enabled",namespace="argocd"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_rollout_duration_seconds_sum{name="appset-progressive-sync-enabled",namespace="argocd"} 120`)
+}
+
+func TestObserveStepCompletionDuration(t *testing.T) {
+	appsetList := newFakeAppsets(fakeAppsetList)
+	client := initializeClient(appsetList)
+	metrics.Registry = prometheus.NewRegistry()
+
+	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
+
+	appsetMetrics.ObserveStepCompletionDuration(&appsetList[3], "1", 45*time.Second)
+	appsetMetrics.ObserveStepCompletionDuration(&appsetList[3], "2", 10*time.Second)
+	appsetMetrics.ObserveStepCompletionDuration(&appsetList[3], "3", 30*time.Second)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
+	handler.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_bucket{name="appset-progressive-sync-enabled",namespace="argocd",step="1",le="60"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_count{name="appset-progressive-sync-enabled",namespace="argocd",step="1"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_sum{name="appset-progressive-sync-enabled",namespace="argocd",step="1"} 45`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_bucket{name="appset-progressive-sync-enabled",namespace="argocd",step="2",le="10"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_count{name="appset-progressive-sync-enabled",namespace="argocd",step="2"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_sum{name="appset-progressive-sync-enabled",namespace="argocd",step="2"} 10`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_bucket{name="appset-progressive-sync-enabled",namespace="argocd",step="3",le="30"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_count{name="appset-progressive-sync-enabled",namespace="argocd",step="3"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_sum{name="appset-progressive-sync-enabled",namespace="argocd",step="3"} 30`)
 }
 
 func initializeClient(appsets []argoappv1.ApplicationSet) ctrlclient.WithWatch {
