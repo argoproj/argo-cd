@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	stderrors "errors"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -449,6 +450,7 @@ type TestMetricServerConfig struct {
 	ClusterLabels    []string
 	ClustersInfo     []gitopsCache.ClusterInfo
 	ClusterLister    ClusterLister
+	GetAppProject    AppProjectGetter
 }
 
 func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, appLabels []string, appConditions []string) {
@@ -468,7 +470,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	t.Helper()
 	cancel, appLister := newFakeLister(t.Context(), cfg.FakeAppYAMLs...)
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppConditions)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppConditions, cfg.GetAppProject)
 	require.NoError(t, err)
 
 	if len(cfg.ClustersInfo) > 0 {
@@ -649,7 +651,7 @@ argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespa
 func TestMetricsSyncCounter(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil)
 	require.NoError(t, err)
 
 	appSyncTotal := `
@@ -702,7 +704,7 @@ func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
 func TestMetricsSyncDuration(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil)
 	require.NoError(t, err)
 
 	t.Run("metric is not generated during Operation Running.", func(t *testing.T) {
@@ -742,7 +744,7 @@ argocd_app_sync_duration_seconds_total{dest_server="https://localhost:6443",name
 func TestReconcileMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil)
 	require.NoError(t, err)
 
 	appReconcileMetrics := `
@@ -775,7 +777,7 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 func TestOrphanedResourcesMetric(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil)
 	require.NoError(t, err)
 
 	expectedMetrics := `
@@ -797,10 +799,273 @@ argocd_app_orphaned_resources_count{name="my-app-4",namespace="argocd",project="
 	assertMetricsPrinted(t, expectedMetrics, body)
 }
 
+func TestSyncWindowMetric(t *testing.T) {
+	// Schedules used here are deterministic and do not depend on the wall clock:
+	//   - alwaysOn: "* * * * *" + 24h duration matches every minute, so the window
+	//     is active for any test execution time.
+	//   - "alwaysOff" is expressed via a non-matching Applications selector; the
+	//     SyncWindows.Matches(app) call filters it out before any time-based
+	//     evaluation runs, so the result is independent of the test clock.
+	denyAlwaysOn := func() *argoappv1.InlineSyncWindow {
+		return &argoappv1.InlineSyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "24h", Applications: []string{"*"}}
+	}
+	allowAlwaysOn := func() *argoappv1.InlineSyncWindow {
+		return &argoappv1.InlineSyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "24h", Applications: []string{"*"}}
+	}
+	denyNonMatching := func() *argoappv1.InlineSyncWindow {
+		return &argoappv1.InlineSyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "24h", Applications: []string{"some-other-app"}}
+	}
+	// allowInactiveMatching is an allow window that matches the application
+	// but is never active: Duration "0s" makes InlineSyncWindow.active() report
+	// false at every wall-clock time, since schedule.Next(currentTime) is
+	// always strictly after currentTime.
+	allowInactiveMatching := func() *argoappv1.InlineSyncWindow {
+		return &argoappv1.InlineSyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "0s", Applications: []string{"*"}}
+	}
+	// Matches the application but cannot be parsed, so evaluation fails.
+	malformedSchedule := func() *argoappv1.InlineSyncWindow {
+		return &argoappv1.InlineSyncWindow{Kind: "allow", Schedule: "not a cron spec", Duration: "1h", Applications: []string{"*"}}
+	}
+	newProject := func(windows ...*argoappv1.InlineSyncWindow) *argoappv1.AppProject {
+		return &argoappv1.AppProject{
+			Name: "important-project", Namespace: "argocd",
+			Spec: argoappv1.AppProjectSpec{SyncWindows: argoappv1.SyncWindows(windows)},
+		}
+	}
+
+	const helpAndType = `
+# HELP argocd_app_sync_window Whether a sync window of the given kind is currently active for the application. Emitted as a 0/1 gauge per window_kind ("allow", "deny"); 1 means at least one matching window of that kind is currently active.
+# TYPE argocd_app_sync_window gauge
+# HELP argocd_app_sync_blocked Whether automatic syncs of the application are currently blocked by its project's sync windows. Emitted as a 0/1 gauge: 1 means an automatic sync attempt right now would be rejected. Reports 0 when no sync windows are configured, distinguishing that case from "allow=0, deny=0" caused by inactive allow windows. Also reports 1 when the windows cannot be evaluated, because a real sync attempt would fail in the same state; use argocd_app_sync_window_error to tell the two apart.
+# TYPE argocd_app_sync_blocked gauge
+# HELP argocd_app_sync_window_error Whether the application's sync windows could not be evaluated. Emitted as a 0/1 gauge: 1 means the AppProject could not be resolved, or a window matching the application has a schedule or duration that cannot be parsed, so argocd_app_sync_window does not reflect the configured windows and argocd_app_sync_blocked is reported fail-closed as 1.
+# TYPE argocd_app_sync_window_error gauge
+`
+	gauge := func(kind string, value int) string {
+		return fmt.Sprintf(`argocd_app_sync_window{name="my-app",namespace="argocd",project="important-project",window_kind=%q} %d`+"\n", kind, value)
+	}
+	blockedGauge := func(value int) string {
+		return fmt.Sprintf(`argocd_app_sync_blocked{name="my-app",namespace="argocd",project="important-project"} %d`+"\n", value)
+	}
+	errorGauge := func(value int) string {
+		return fmt.Sprintf(`argocd_app_sync_window_error{name="my-app",namespace="argocd",project="important-project"} %d`+"\n", value)
+	}
+
+	cases := []struct {
+		description      string
+		getAppProject    AppProjectGetter
+		expectedResponse string
+	}{
+		{
+			description: "active deny window emits deny=1, allow=0, blocked=1",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return newProject(denyAlwaysOn()), nil
+			},
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 1) + blockedGauge(1) + errorGauge(0),
+		},
+		{
+			description: "active allow window emits allow=1, deny=0, blocked=0",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return newProject(allowAlwaysOn()), nil
+			},
+			expectedResponse: helpAndType + gauge("allow", 1) + gauge("deny", 0) + blockedGauge(0) + errorGauge(0),
+		},
+		{
+			description: "active allow + deny windows emit both as 1 and blocked=1 (deny wins)",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return newProject(allowAlwaysOn(), denyAlwaysOn()), nil
+			},
+			expectedResponse: helpAndType + gauge("allow", 1) + gauge("deny", 1) + blockedGauge(1) + errorGauge(0),
+		},
+		{
+			description: "window that does not match the application emits 0/0 and blocked=0",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return newProject(denyNonMatching()), nil
+			},
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(0) + errorGauge(0),
+		},
+		{
+			description: "project with no windows emits 0/0 and blocked=0",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return newProject(), nil
+			},
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(0) + errorGauge(0),
+		},
+		{
+			description: "inactive but matching allow window emits 0/0 and blocked=1 (disambiguates from \"no windows configured\")",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return newProject(allowInactiveMatching()), nil
+			},
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(1) + errorGauge(0),
+		},
+		{
+			description: "getAppProject error emits 0/0, blocked=1 and error=1 (fail-closed: a real sync would fail here too)",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return nil, stderrors.New("project not found")
+			},
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(1) + errorGauge(1),
+		},
+		{
+			description: "unparseable window schedule emits 0/0, blocked=1 and error=1",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return newProject(malformedSchedule()), nil
+			},
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(1) + errorGauge(1),
+		},
+		{
+			description: "nil project without an error emits 0/0, blocked=0 and error=0 (no windows to evaluate)",
+			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+				return nil, nil
+			},
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(0) + errorGauge(0),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.description, func(t *testing.T) {
+			cfg := TestMetricServerConfig{
+				FakeAppYAMLs:     []string{fakeApp},
+				ExpectedResponse: c.expectedResponse,
+				AppLabels:        []string{},
+				AppConditions:    []string{},
+				ClusterLabels:    []string{},
+				ClustersInfo:     []gitopsCache.ClusterInfo{},
+				GetAppProject:    c.getAppProject,
+			}
+			runTest(t, cfg)
+		})
+	}
+}
+
+// A single broken project must not cost one lookup, and one log line, per
+// application per scrape. AppProjectGetter caches successes but not failures,
+// so the collector has to do it.
+func TestSyncWindowMetricProjectFailureIsResolvedOncePerScrape(t *testing.T) {
+	// All three share namespace argocd and project important-project, so they
+	// resolve to one cache entry.
+	cancel, appLister := newFakeLister(t.Context(), fakeApp, fakeApp2, fakeApp3)
+	defer cancel()
+
+	var calls int
+	getAppProject := func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+		calls++
+		return nil, stderrors.New("project not found")
+	}
+
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, getAppProject)
+	require.NoError(t, err)
+
+	scrape := func() string {
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+		require.NoError(t, err)
+		rr := httptest.NewRecorder()
+		metricsServ.Handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
+		return rr.Body.String()
+	}
+
+	body := scrape()
+	assert.Equal(t, 1, calls, "three applications in one failing project should resolve it once")
+
+	// Every application still reports the failure, fail-closed.
+	for _, name := range []string{"my-app", "my-app-2", "my-app-3"} {
+		assertMetricsPrinted(t, fmt.Sprintf(`argocd_app_sync_blocked{name=%q,namespace="argocd",project="important-project"} 1`, name), body)
+		assertMetricsPrinted(t, fmt.Sprintf(`argocd_app_sync_window_error{name=%q,namespace="argocd",project="important-project"} 1`, name), body)
+	}
+
+	// The cache lives for one scrape only, so the next scrape retries.
+	scrape()
+	assert.Equal(t, 2, calls, "the cache must not outlive a scrape")
+}
+
+// The controller's sync gate parses only the windows matching the application,
+// so a malformed window the application does not match must not report it as
+// blocked. Failing the whole project here would make the metric disagree with
+// the gate it is meant to mirror.
+func TestSyncWindowMetricMalformedWindowOnlyBlocksWhatItMatches(t *testing.T) {
+	proj := &argoappv1.AppProject{
+		Name: "important-project", Namespace: "argocd",
+		Spec: argoappv1.AppProjectSpec{SyncWindows: argoappv1.SyncWindows{
+			{Kind: "deny", Schedule: "* * * * *", Duration: "24h", Applications: []string{"some-other-app"}},
+			{Kind: "deny", Schedule: "not a cron spec", Duration: "1h", Applications: []string{"some-other-app"}},
+		}},
+	}
+	scrape := newSyncWindowScrape(func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
+		return proj, nil
+	})
+
+	app := &argoappv1.Application{
+		Name: "my-app", Namespace: "argocd",
+		Spec: argoappv1.ApplicationSpec{Project: "important-project"},
+	}
+	allowActive, denyActive, blocked, failed, err := scrape.evaluate(app)
+	// The broken window is still reported once, for the project.
+	require.ErrorContains(t, err, "cannot parse schedule")
+	assert.False(t, blocked, "a window this application does not match cannot block it")
+	assert.False(t, failed)
+	assert.False(t, allowActive)
+	assert.False(t, denyActive)
+
+	// The application it does match reports fail-closed.
+	other := &argoappv1.Application{
+		Name: "some-other-app", Namespace: "argocd",
+		Spec: argoappv1.ApplicationSpec{Project: "important-project"},
+	}
+	_, _, blocked, failed, err = scrape.evaluate(other)
+	require.NoError(t, err, "the project was already reported")
+	assert.True(t, blocked)
+	assert.True(t, failed)
+}
+
+// A malformed schedule is a property of the project, not of the application,
+// so the warning it produces must not repeat once per application per scrape.
+func TestSyncWindowMetricEvaluationErrorIsReportedOncePerProject(t *testing.T) {
+	newProject := func(name string) *argoappv1.AppProject {
+		return &argoappv1.AppProject{
+			Name: name, Namespace: "argocd",
+			Spec: argoappv1.AppProjectSpec{SyncWindows: argoappv1.SyncWindows{
+				{Kind: "allow", Schedule: "not a cron spec", Duration: "1h", Applications: []string{"*"}},
+			}},
+		}
+	}
+	newApp := func(name, project string) *argoappv1.Application {
+		return &argoappv1.Application{
+			Name: name, Namespace: "argocd",
+			Spec: argoappv1.ApplicationSpec{Project: project},
+		}
+	}
+	newScrape := func() *syncWindowScrape {
+		return newSyncWindowScrape(func(app *argoappv1.Application) (*argoappv1.AppProject, error) {
+			return newProject(app.Spec.GetProject()), nil
+		})
+	}
+
+	// Every application reports fail-closed regardless; only the error the
+	// caller logs is deduped.
+	evaluate := func(t *testing.T, scrape *syncWindowScrape, app *argoappv1.Application) error {
+		t.Helper()
+		_, _, blocked, failed, err := scrape.evaluate(app)
+		assert.True(t, blocked, "an unparseable schedule must report the sync as blocked")
+		assert.True(t, failed)
+		return err
+	}
+
+	scrape := newScrape()
+	require.Error(t, evaluate(t, scrape, newApp("my-app", "important-project")))
+	require.NoError(t, evaluate(t, scrape, newApp("my-app-2", "important-project")))
+	require.NoError(t, evaluate(t, scrape, newApp("my-app-3", "important-project")))
+
+	// Deduped per project, not globally.
+	require.Error(t, evaluate(t, scrape, newApp("my-app-4", "other-project")))
+
+	// The dedup lives for one scrape only, so the next scrape reports again.
+	require.Error(t, evaluate(t, newScrape(), newApp("my-app", "important-project")))
+}
+
 func TestMetricsReset(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil)
 	require.NoError(t, err)
 
 	appSyncTotal := `
@@ -837,7 +1102,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=
 func TestWorkqueueMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil)
 	require.NoError(t, err)
 
 	expectedMetrics := `
@@ -867,7 +1132,7 @@ workqueue_unfinished_work_seconds{controller="test",name="test"}
 func TestGoMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil)
 	require.NoError(t, err)
 
 	expectedMetrics := `
@@ -911,7 +1176,7 @@ func TestAppCollector_WarnsOnDestinationResolutionFailure(t *testing.T) {
 		return true, "", resolutionErr
 	})
 
-	registry := NewAppRegistry(appLister, failingFilter, []string{}, []string{})
+	registry := NewAppRegistry(appLister, failingFilter, []string{}, []string{}, nil)
 	families, err := registry.Gather()
 	require.NoError(t, err)
 

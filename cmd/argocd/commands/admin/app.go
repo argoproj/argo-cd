@@ -392,7 +392,7 @@ func reconcileApplications(
 		return true, "", nil
 	}, func(_ *http.Request) error {
 		return nil
-	}, []string{}, []string{})
+	}, []string{}, []string{}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error starting new metrics server: %w", err)
 	}

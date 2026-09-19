@@ -14,8 +14,11 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | `argocd_app_labels`                               |   gauge   | Argo Application labels converted to Prometheus labels. Disabled by default. See section below about how to enable it.                                                                                  |
 | `argocd_app_orphaned_resources_count`             |   gauge   | Number of orphaned resources per application.                                                                                                                                                           |
 | `argocd_app_reconcile`                            | histogram | Application reconciliation performance in seconds.                                                                                                                                                      |
-| `argocd_app_sync_total`                           |  counter  | Counter for application sync history                                                                                                                                                                    |
+| `argocd_app_sync_blocked`                         |   gauge   | Whether automatic syncs of the application are currently blocked by its project sync windows. 1 means an automatic sync attempt right now would be rejected. 0 when no sync windows are configured. Also 1 when the windows cannot be evaluated; see `argocd_app_sync_window_error`. |
 | `argocd_app_sync_duration_seconds_total`          |  counter  | Application sync performance in seconds total.                                                                                                                                                          |
+| `argocd_app_sync_total`                           |  counter  | Counter for application sync history                                                                                                                                                                    |
+| `argocd_app_sync_window`                          |   gauge   | Whether a sync window of the given kind is currently active for the application. Emitted as a 0/1 gauge per `window_kind` (`allow`, `deny`); 1 means at least one matching window of that kind is currently active.                        |
+| `argocd_app_sync_window_error`                    |   gauge   | Whether the application's sync windows could not be evaluated. 1 means the `AppProject` could not be resolved, or a window matching the application has a schedule or duration that cannot be parsed, so `argocd_app_sync_window` does not reflect the configured windows and `argocd_app_sync_blocked` is reported fail-closed as 1. |
 | `argocd_cluster_api_resource_objects`             |   gauge   | Number of k8s resource objects in the cache.                                                                                                                                                            |
 | `argocd_cluster_api_resources`                    |   gauge   | Number of monitored Kubernetes API resources.                                                                                                                                                           |
 | `argocd_cluster_cache_age_seconds`                |   gauge   | Cluster cache age in seconds.                                                                                                                                                                           |
@@ -39,6 +42,15 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | `argocd_kubectl_request_retries_total`            |  counter  | Number of kubectl request retries.                                                                                                                                                                      |
 | `argocd_kubectl_transport_cache_entries`          |   gauge   | Number of kubectl transport cache entries.                                                                                                                                                              |
 | `argocd_kubectl_transport_create_calls_total`     |  counter  | Number of kubectl transport create calls.                                                                                                                                                               |
+
+> [!NOTE]
+> The sync window metrics are emitted for every Application, whether or not its
+> `AppProject` configures any sync windows: four series each
+> (`argocd_app_sync_window` per `window_kind`, `argocd_app_sync_blocked` and
+> `argocd_app_sync_window_error`). An installation with no sync windows at all
+> still pays that cardinality, with every series at 0. The zeros are deliberate:
+> `argocd_app_sync_blocked` reporting 0 is what distinguishes "no windows
+> configured" from "blocked because a matching allow window is inactive".
 
 ### Labels
 
@@ -66,6 +78,7 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | result             | hit                             | Result of an attempt to get a transport from the kubectl (client-go) transport cache. Possible values are: hit, miss, unreachable.                                                              |
 | server             | https://example.com             | Server where the operation is performed.                                                                                                                                                        |
 | verb               | List                            | Kubernetes API verb used in the request. Possible values are: Get, Watch, List, Create, Delete, Patch, Update.                                                                                  |
+| window_kind        | deny                            | Kind of sync window reported by `argocd_app_sync_window`. Possible values are: allow, deny.                                                                                                     |
 
 ### Metrics Cache Expiration
 
