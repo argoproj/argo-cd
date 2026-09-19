@@ -137,3 +137,61 @@ func assertServerSideDiffSecretMasked(t *testing.T, manifest, field string) {
 			"%s: secret key %q must be masked with '+' characters, got %q", field, k, v)
 	}
 }
+
+// TestServerSideDiffTypedSecret is a regression test for #29740. Secret values are
+// masked before they leave the API server, so the target manifest a client sends
+// back to the ServerSideDiff endpoint carries a run of plus signs instead of the
+// real payload. Running a server-side apply dry run on a typed Secret with that
+// mask made the Kubernetes API server reject the request, and the whole diff
+// failed rather than just that resource.
+func TestServerSideDiffTypedSecret(t *testing.T) {
+	closer, client, err := ArgoCDClientset.NewApplicationClient()
+	require.NoError(t, err)
+	defer utilio.Close(closer)
+
+	Given(t).
+		Path("secrets-dockerconfig").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			ns := app.Spec.Destination.Namespace
+
+			resources, err := client.ManagedResources(t.Context(), &applicationpkg.ResourcesQuery{
+				ApplicationName: &app.Name,
+			})
+			require.NoError(t, err)
+
+			var liveState, targetState string
+			for _, r := range resources.Items {
+				if r.Kind == "Secret" && r.Name == "test-pull-secret" {
+					liveState = r.LiveState
+					targetState = r.TargetState
+					break
+				}
+			}
+			require.NotEmpty(t, liveState, "test-pull-secret not found in managed resources")
+			require.NotEmpty(t, targetState, "test-pull-secret has no target state")
+
+			// Send back exactly what the API just handed out, which is what the CLI
+			// does. Before the fix this failed with "invalid character ... looking
+			// for beginning of value" from the dry-run apply.
+			resp, err := client.ServerSideDiff(t.Context(), &applicationpkg.ApplicationServerSideDiffQuery{
+				AppName: &app.Name,
+				Project: &app.Spec.Project,
+				LiveResources: []*ResourceDiff{{
+					Kind:      "Secret",
+					Namespace: ns,
+					Name:      "test-pull-secret",
+					LiveState: liveState,
+				}},
+				TargetManifests: []string{targetState},
+			})
+			require.NoError(t, err, "server-side diff must not fail on a masked dockerconfigjson Secret")
+			require.Len(t, resp.Items, 1)
+			assertServerSideDiffSecretMasked(t, resp.Items[0].TargetState, "targetState")
+			assertServerSideDiffSecretMasked(t, resp.Items[0].LiveState, "liveState")
+		})
+}

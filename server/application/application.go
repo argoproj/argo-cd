@@ -3141,11 +3141,15 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 	// what argocd app diff already does when server-side diff is off. The dry runner
 	// is left unset rather than only turning the flag off, so that a Secret carrying
 	// the ServerSideApply=true sync option cannot opt itself back into the dry run.
+	// The GVK parser is still supplied, because pre-diff normalization uses it to
+	// resolve the built-in Secret schema when ignoreDifferences names managed fields
+	// managers; without it that normalization falls back to a deduced atomic type.
 	secretDiffConfig, err := argodiff.NewDiffConfigBuilder().
 		WithDiffSettings(a.Spec.IgnoreDifferences, overrides, ignoreAggregatedRoles, normalizers.IgnoreNormalizerOpts{}).
 		WithTracking(appLabelKey, argoSettings.TrackingMethod).
 		WithNoCache().
 		WithManager(argocommon.ArgoCDSSAManager).
+		WithGVKParser(gvkParser).
 		Build()
 	if err != nil {
 		return nil, fmt.Errorf("error building secret diff config: %w", err)
