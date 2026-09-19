@@ -123,6 +123,16 @@ func SetWatchResyncTimeout(timeout time.Duration) UpdateSettingsFunc {
 	}
 }
 
+// SetWatchResyncTimeoutJitterFactor sets the random jitter factor applied on top of
+// watchResyncTimeout each time a watch is (re)started. Pass 0 to disable jitter and always use
+// exactly watchResyncTimeout, matching pre-jitter behavior. See wait.Jitter for exact semantics:
+// the effective timeout is chosen uniformly from [timeout, timeout+timeout*factor).
+func SetWatchResyncTimeoutJitterFactor(factor float64) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.watchResyncTimeoutJitterFactor = factor
+	}
+}
+
 // SetClusterSyncRetryTimeout updates cluster sync retry timeout when sync error happens
 func SetClusterSyncRetryTimeout(timeout time.Duration) UpdateSettingsFunc {
 	return func(cache *clusterCache) {

@@ -70,6 +70,14 @@ const (
 	// default duration before restarting individual resource watch
 	defaultWatchResyncTimeout = 10 * time.Minute
 
+	// default jitter factor applied on top of watchResyncTimeout, expressed as a fraction of
+	// watchResyncTimeout (see wait.Jitter). Without jitter, all "group/kind x namespace" watches
+	// started around the same time (e.g. right after a controller restart, which starts tens of
+	// thousands of watches for large multi-cluster deployments) will keep re-triggering their
+	// relist+rewatch in lockstep every watchResyncTimeout, causing a recurring "thundering herd"
+	// of concurrent List+Decode calls instead of a steady, spread-out load.
+	defaultWatchResyncTimeoutJitterFactor = 0.1
+
 	// Same page size as in k8s.io/client-go/tools/pager/pager.go
 	defaultListPageSize = 500
 	// Prefetch only a single page
@@ -210,19 +218,20 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 			resyncTimeout: defaultClusterResyncTimeout,
 			syncTime:      nil,
 		},
-		watchResyncTimeout:      defaultWatchResyncTimeout,
-		clusterSyncRetryTimeout: ClusterRetryTimeout,
-		eventProcessingInterval: defaultEventProcessingInterval,
-		resourceUpdatedHandlers: map[uint64]OnResourceUpdatedHandler{},
-		eventHandlers:           map[uint64]OnEventHandler{},
-		processEventsHandlers:   map[uint64]OnProcessEventsHandler{},
-		log:                     log,
-		listRetryLimit:          1,
-		listRetryUseBackoff:     false,
-		listRetryFunc:           ListRetryFuncNever,
-		manifestStorageType:     ManifestStorageJSON,
-		manifestCompressionType: ManifestCompressionGZipBestSpeed,
-		parentUIDToChildren:     make(map[types.UID]map[kube.ResourceKey]struct{}),
+		watchResyncTimeout:             defaultWatchResyncTimeout,
+		watchResyncTimeoutJitterFactor: defaultWatchResyncTimeoutJitterFactor,
+		clusterSyncRetryTimeout:        ClusterRetryTimeout,
+		eventProcessingInterval:        defaultEventProcessingInterval,
+		resourceUpdatedHandlers:        map[uint64]OnResourceUpdatedHandler{},
+		eventHandlers:                  map[uint64]OnEventHandler{},
+		processEventsHandlers:          map[uint64]OnProcessEventsHandler{},
+		log:                            log,
+		listRetryLimit:                 1,
+		listRetryUseBackoff:            false,
+		listRetryFunc:                  ListRetryFuncNever,
+		manifestStorageType:            ManifestStorageJSON,
+		manifestCompressionType:        ManifestCompressionGZipBestSpeed,
+		parentUIDToChildren:            make(map[types.UID]map[kube.ResourceKey]struct{}),
 	}
 	for i := range opts {
 		opts[i](cache)
@@ -243,6 +252,10 @@ type clusterCache struct {
 
 	// maximum time we allow watches to run before relisting the group/kind and restarting the watch
 	watchResyncTimeout time.Duration
+	// random jitter factor (0 disables) applied on top of watchResyncTimeout each time a watch is
+	// (re)started, to avoid many watches restarted around the same time (e.g. after a controller
+	// restart) from resyncing in lockstep forever afterwards. See wait.Jitter for semantics.
+	watchResyncTimeoutJitterFactor float64
 	// sync retry timeout for cluster when sync error happens
 	clusterSyncRetryTimeout time.Duration
 	// ticker interval for events processing
@@ -850,7 +863,15 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 
 		var watchResyncTimeoutCh <-chan time.Time
 		if c.watchResyncTimeout > 0 {
-			shouldResync := time.NewTimer(c.watchResyncTimeout)
+			// Jitter avoids a "thundering herd": without it, all watches (re)started around the
+			// same time (e.g. after a controller restart with many clusters/resource kinds) would
+			// keep relisting in lockstep every watchResyncTimeout, producing a recurring spike of
+			// concurrent List+Decode calls instead of a steady, spread-out load.
+			resyncTimeout := c.watchResyncTimeout
+			if c.watchResyncTimeoutJitterFactor > 0 {
+				resyncTimeout = wait.Jitter(c.watchResyncTimeout, c.watchResyncTimeoutJitterFactor)
+			}
+			shouldResync := time.NewTimer(resyncTimeout)
 			defer shouldResync.Stop()
 			watchResyncTimeoutCh = shouldResync.C
 		}
