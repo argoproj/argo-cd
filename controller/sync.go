@@ -667,6 +667,16 @@ func restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive
 			continue
 		}
 
+		patchedSlice, patchedIsSlice := patchedVal.([]any)
+		originalSlice, originalIsSlice := originalVal.([]any)
+		normalizedSlice, normalizedIsSlice := normalizedVal.([]any)
+
+		if inPatched && patchedIsSlice && originalIsSlice && normalizedIsSlice {
+			normalizedLiveSlice, _ := normalizedLive[key].([]any)
+			restoreNonIgnoredFieldsInSlice(patchedSlice, originalSlice, normalizedSlice, normalizedLiveSlice)
+			continue
+		}
+
 		// Leaf, type-changed, or missing field.
 		// If normalized == original, the normalizer did not touch this field,
 		// so it is not ignored and should keep the original (target) value.
@@ -688,6 +698,77 @@ func restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive
 			delete(patched, key)
 		}
 	}
+}
+
+// restoreNonIgnoredFieldsInSlice mirrors restoreNonIgnoredFields for list fields,
+// matching elements by "name" (Kubernetes' own merge key for containers/ports/
+// volumes) and falling back to index alignment when that isn't usable.
+func restoreNonIgnoredFieldsInSlice(patched, original, normalizedTarget, normalizedLive []any) {
+	patchedByName := indexSliceByName(patched)
+	originalByName := indexSliceByName(original)
+	normalizedTargetByName := indexSliceByName(normalizedTarget)
+	if patchedByName != nil && originalByName != nil && normalizedTargetByName != nil {
+		normalizedLiveByName := indexSliceByName(normalizedLive)
+		for name, originalMap := range originalByName {
+			patchedMap, ok := patchedByName[name]
+			if !ok {
+				continue
+			}
+			normalizedMap, ok := normalizedTargetByName[name]
+			if !ok {
+				continue
+			}
+			restoreNonIgnoredFields(patchedMap, originalMap, normalizedMap, normalizedLiveByName[name])
+		}
+		return
+	}
+
+	for i, originalVal := range original {
+		if i >= len(patched) || i >= len(normalizedTarget) {
+			continue
+		}
+		patchedMap, ok := patched[i].(map[string]any)
+		if !ok {
+			continue
+		}
+		originalMap, ok := originalVal.(map[string]any)
+		if !ok {
+			continue
+		}
+		normalizedMap, ok := normalizedTarget[i].(map[string]any)
+		if !ok {
+			continue
+		}
+		var normalizedLiveMap map[string]any
+		if i < len(normalizedLive) {
+			normalizedLiveMap, _ = normalizedLive[i].(map[string]any)
+		}
+		restoreNonIgnoredFields(patchedMap, originalMap, normalizedMap, normalizedLiveMap)
+	}
+}
+
+// indexSliceByName keys elements by "name", or returns nil if any element
+// isn't an object or lacks a unique string "name".
+func indexSliceByName(list []any) map[string]map[string]any {
+	if len(list) == 0 {
+		return nil
+	}
+	out := make(map[string]map[string]any, len(list))
+	for _, item := range list {
+		obj, ok := item.(map[string]any)
+		if !ok {
+			return nil
+		}
+		name, ok := obj["name"].(string)
+		if !ok {
+			return nil
+		}
+		if _, dup := out[name]; dup {
+			return nil
+		}
+		out[name] = obj
+	}
+	return out
 }
 
 // hasSharedResourceCondition will check if the Application has any resource that has already

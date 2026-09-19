@@ -1106,6 +1106,70 @@ func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
 	})
 }
 
+// TestRestoreNonIgnoredFieldsListElements covers the CRD list case from
+// https://github.com/argoproj/argo-cd/issues/23283 (restoreNonIgnoredFields recurses into maps, not lists).
+func TestRestoreNonIgnoredFieldsListElements(t *testing.T) {
+	t.Run("ignoring image should not drop a non-ignored resources bump in a list element", func(t *testing.T) {
+		// original is the target as rendered from git, with a bumped resources.requests.
+		original := map[string]any{
+			"containers": []any{
+				map[string]any{
+					"name":  "nginx",
+					"image": "nginx:target",
+					"resources": map[string]any{
+						"requests": map[string]any{"cpu": "28m", "memory": "80Mi"},
+					},
+				},
+			},
+		}
+		normalizedTarget := map[string]any{
+			"containers": []any{
+				map[string]any{
+					"name": "nginx",
+					"resources": map[string]any{
+						"requests": map[string]any{"cpu": "28m", "memory": "80Mi"},
+					},
+				},
+			},
+		}
+		normalizedLive := map[string]any{
+			"containers": []any{
+				map[string]any{
+					"name": "nginx",
+					"resources": map[string]any{
+						"requests": map[string]any{"cpu": "25m", "memory": "70Mi"},
+					},
+				},
+			},
+		}
+		// patched is what the strategic merge patch produced for a CRD without a patch-merge-key on containers.
+		patched := map[string]any{
+			"containers": []any{
+				map[string]any{
+					"name":  "nginx",
+					"image": "nginx:live",
+					"resources": map[string]any{
+						"requests": map[string]any{"cpu": "25m", "memory": "70Mi"},
+					},
+				},
+			},
+		}
+
+		restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive)
+
+		containers := patched["containers"].([]any)
+		require.Len(t, containers, 1)
+		container := containers[0].(map[string]any)
+
+		assert.Equal(t, "nginx:live", container["image"], "ignored field 'image' should keep the live value")
+
+		resources := container["resources"].(map[string]any)
+		requests := resources["requests"].(map[string]any)
+		assert.Equal(t, "28m", requests["cpu"], "non-ignored 'resources.requests.cpu' was clobbered by live value")
+		assert.Equal(t, "80Mi", requests["memory"], "non-ignored 'resources.requests.memory' was clobbered by live value")
+	})
+}
+
 func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 	t.Parallel()
 
