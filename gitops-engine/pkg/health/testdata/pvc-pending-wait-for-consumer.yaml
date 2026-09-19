@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: testpvc-wait-for-consumer
+  namespace: argocd
+  labels:
+    app.kubernetes.io/instance: working-pvc
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: wait-for-consumer-sc
+status:
+  phase: Pending
+  conditions:
+  - type: FileSystemResizePending
+    status: "False"
+    reason: WaitForFirstConsumer
+    message: waiting for first consumer to be created before binding
