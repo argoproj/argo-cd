@@ -117,7 +117,7 @@ func TestEnforceProjectToken(t *testing.T) {
 	jwtTokenByRole[roleName] = v1alpha1.JWTTokens{Items: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}, {ID: defaultId}}}
 
 	existingProj := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: projectName, Namespace: test.FakeArgoCDNamespace},
+		Name: projectName, Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			Roles: []v1alpha1.ProjectRole{role},
 		},
@@ -265,8 +265,8 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewClientset(cm, secret)
 	defaultProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.DefaultAppProjectName, Namespace: test.FakeArgoCDNamespace},
-		Spec:       v1alpha1.AppProjectSpec{},
+		Name: v1alpha1.DefaultAppProjectName, Namespace: test.FakeArgoCDNamespace,
+		Spec: v1alpha1.AppProjectSpec{},
 	}
 	appClientSet := apps.NewSimpleClientset(defaultProj)
 
@@ -326,10 +326,8 @@ func TestEnforceProjectGroups(t *testing.T) {
 	defaultPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, defaultObject, defaultEffect)
 
 	existingProj := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      projectName,
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      projectName,
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			Roles: []v1alpha1.ProjectRole{
 				{
@@ -384,10 +382,8 @@ func TestRevokedToken(t *testing.T) {
 	jwtTokenByRole[roleName] = v1alpha1.JWTTokens{Items: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}}}
 
 	existingProj := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      projectName,
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      projectName,
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			Roles: []v1alpha1.ProjectRole{
 				{
@@ -1416,10 +1412,8 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 
 func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 	existingDefaultProject := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      v1alpha1.DefaultAppProjectName,
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      v1alpha1.DefaultAppProjectName,
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"some repo"},
 			Destinations: []v1alpha1.ApplicationDestination{{Server: "some cluster", Namespace: "*"}},

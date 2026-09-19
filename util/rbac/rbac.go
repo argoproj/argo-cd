@@ -79,6 +79,7 @@ const (
 	ActionOverride = "override"
 	ActionAction   = "action"
 	ActionInvoke   = "invoke"
+	ActionRollback = "rollback"
 )
 
 var (
@@ -103,6 +104,7 @@ var (
 		ActionUpdate,
 		ActionDelete,
 		ActionSync,
+		ActionRollback,
 		ActionOverride,
 		ActionAction,
 		ActionInvoke,

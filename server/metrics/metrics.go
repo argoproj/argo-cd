@@ -30,7 +30,7 @@ var (
 			Name: "argocd_redis_request_total",
 			Help: "Number of kubernetes requests executed during application reconciliation.",
 		},
-		[]string{"initiator", "failed"},
+		[]string{"initiator", "command", "failed"},
 	)
 	redisRequestHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -107,8 +107,8 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	}
 }
 
-func (m *MetricsServer) IncRedisRequest(failed bool) {
-	m.redisRequestCounter.WithLabelValues("argocd-server", strconv.FormatBool(failed)).Inc()
+func (m *MetricsServer) IncRedisRequest(command string, failed bool) {
+	m.redisRequestCounter.WithLabelValues("argocd-server", command, strconv.FormatBool(failed)).Inc()
 }
 
 // ObserveRedisRequestDuration observes redis request duration

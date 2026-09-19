@@ -1,0 +1,16 @@
+apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+kind: AWSManagedControlPlane
+metadata:
+  name: test
+  namespace: ns-test
+  ownerReferences:
+    - apiVersion: cluster.x-k8s.io/v1beta1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Cluster
+      name: test
+spec:
+  version: "1.29"
+status:
+  failureMessage: "EKS cluster in unexpected FAILED state"
+  ready: false

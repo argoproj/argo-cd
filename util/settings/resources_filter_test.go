@@ -64,3 +64,46 @@ func TestResourceInclusionsExclusionMultiCluster(t *testing.T) {
 	assert.True(t, filter.IsExcludedResource("whitelisted-resource", "", "cluster-two"))
 	assert.False(t, filter.IsExcludedResource("whitelisted-resource", "", "cluster-three"))
 }
+
+func TestGetLabelSelector(t *testing.T) {
+	t.Run("no selectors configured", func(t *testing.T) {
+		filter := &ResourcesFilter{}
+		assert.Empty(t, filter.GetLabelSelector("", "Pod", "cluster-one"))
+	})
+
+	t.Run("selector of the matching rule is returned", func(t *testing.T) {
+		filter := &ResourcesFilter{
+			ResourceSelectors: []FilteredResource{
+				{Kinds: []string{"Pod"}, Clusters: []string{"cluster-one"}, Selector: "!foo"},
+			},
+		}
+		assert.Equal(t, "!foo", filter.GetLabelSelector("", "Pod", "cluster-one"))
+		assert.Empty(t, filter.GetLabelSelector("", "Service", "cluster-one"))
+		assert.Empty(t, filter.GetLabelSelector("", "Pod", "cluster-two"))
+	})
+
+	t.Run("rule without group, kind and cluster matches everything", func(t *testing.T) {
+		filter := &ResourcesFilter{
+			ResourceSelectors: []FilteredResource{{Selector: "foo=bar"}},
+		}
+		assert.Equal(t, "foo=bar", filter.GetLabelSelector("apps", "Deployment", "cluster-one"))
+	})
+
+	t.Run("selectors of matching rules are ANDed", func(t *testing.T) {
+		filter := &ResourcesFilter{
+			ResourceSelectors: []FilteredResource{
+				{Selector: "foo=bar"},
+				{Kinds: []string{"Pod"}, Selector: "!baz"},
+				{Kinds: []string{"Service"}, Selector: "ignored=true"},
+			},
+		}
+		assert.Equal(t, "foo=bar,!baz", filter.GetLabelSelector("", "Pod", "cluster-one"))
+	})
+
+	t.Run("rule without a selector is skipped", func(t *testing.T) {
+		filter := &ResourcesFilter{
+			ResourceSelectors: []FilteredResource{{Kinds: []string{"Pod"}}},
+		}
+		assert.Empty(t, filter.GetLabelSelector("", "Pod", "cluster-one"))
+	})
+}

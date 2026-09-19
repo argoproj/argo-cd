@@ -116,8 +116,7 @@ func removeDescription(v any) {
 
 func checkErr(err error) {
 	if err != nil {
-		var execError *exec.ExitError
-		if errors.As(err, &execError) {
+		if execError, ok := errors.AsType[*exec.ExitError](err); ok {
 			fmt.Println(string(execError.Stderr))
 		}
 		panic(err)

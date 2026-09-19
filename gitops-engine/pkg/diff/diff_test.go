@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -22,7 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/klog/v2/textlogger"
 	openapiproto "k8s.io/kube-openapi/pkg/util/proto"
@@ -175,6 +173,98 @@ func TestDiff(t *testing.T) {
 	if ascii != "" {
 		t.Log(ascii)
 	}
+}
+
+func TestDiffServerSideApplyAnnotation(t *testing.T) {
+	// The ServerSideApply=true sync-options annotation on the desired state
+	// resource requests Server-Side Diff. It used to select the (now
+	// discontinued) structured-merge-diff strategy.
+	withSSAAnnotation := func(un *unstructured.Unstructured) *unstructured.Unstructured {
+		un = un.DeepCopy()
+		annotations := un.GetAnnotations()
+		if annotations == nil {
+			annotations = map[string]string{}
+		}
+		annotations["argocd.argoproj.io/sync-options"] = "ServerSideApply=true"
+		un.SetAnnotations(annotations)
+		return un
+	}
+
+	t.Run("uses ServerSideDiff when a dry-run runner is configured", func(t *testing.T) {
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ServiceLiveYAMLSSD)
+		desiredState := withSSAAnnotation(StrToUnstructured(testdata.ServiceConfigYAMLSSD))
+
+		dryRunner := mocks.NewServerSideDryRunner(t)
+		// The runner being invoked proves the ServerSideDiff path was taken.
+		dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), "argocd-controller").
+			Return(testdata.ServicePredictedLiveJSONSSD, nil)
+		opts := []Option{
+			WithGVKParser(buildGVKParser(t)),
+			WithManager("argocd-controller"),
+			WithServerSideDryRunner(dryRunner),
+		}
+
+		result, err := Diff(t.Context(), desiredState, liveState, opts...)
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+
+	t.Run("annotation only falls through to client-side diff when no dry-run runner is configured", func(t *testing.T) {
+		t.Parallel()
+		annotated := withSSAAnnotation(mustToUnstructured(newDeployment()))
+
+		// The annotation alone (without the serverSideDiff option) must not cause
+		// an error when no runner is configured: the caller may be a client-side
+		// consumer, so it falls through to the regular three-way / two-way diff.
+		// Diffing an identical config and live confirms the fall-through path
+		// completes successfully rather than erroring on the missing runner.
+		result, err := Diff(t.Context(), annotated, annotated, diffOptionsForTest()...)
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.Modified)
+	})
+
+	t.Run("annotation only still applies full normalization on the client-side fallback", func(t *testing.T) {
+		t.Parallel()
+		// The SSA annotation implies server-side diff, but with no runner configured
+		// the diff falls back to the client-side path. Full normalization (including
+		// the ignore-differences normalizer) must still be applied there; otherwise a
+		// field the user asked to ignore would surface as a spurious diff.
+		config := withSSAAnnotation(mustToUnstructured(newDeployment()))
+		live := config.DeepCopy()
+		// Introduce a difference only in a field that the normalizer removes.
+		require.NoError(t, unstructured.SetNestedField(live.Object, int64(99), "spec", "replicas"))
+
+		normalizer := &testIgnoreDifferencesNormalizer{
+			fieldsToRemove: [][]string{{"spec", "replicas"}},
+		}
+		opts := append(diffOptionsForTest(), WithNormalizer(normalizer))
+
+		result, err := Diff(t.Context(), config, live, opts...)
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		// If normalization were skipped on the fallback path (the bug), the differing
+		// replicas field would remain and the diff would be Modified.
+		assert.False(t, result.Modified,
+			"ignore-differences normalization must be applied on the client-side fallback path")
+	})
+
+	t.Run("explicit serverSideDiff option errors when no dry-run runner is configured", func(t *testing.T) {
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ServiceLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ServiceConfigYAMLSSD)
+
+		// When Server-Side Diff is explicitly requested but no runner is available,
+		// it must error rather than silently degrade to a client-side diff.
+		opts := append(diffOptionsForTest(), WithServerSideDiff(true))
+		_, err := Diff(t.Context(), desiredState, liveState, opts...)
+
+		require.Error(t, err)
+	})
 }
 
 func TestDiff_KnownTypeInvalidValue(t *testing.T) {
@@ -481,7 +571,7 @@ func TestThreeWayDiffExample2WithDifference(t *testing.T) {
 	showsMissing := 0
 	showsExtra := 0
 	showsChanged := 0
-	for _, line := range strings.Split(ascii, "\n") {
+	for line := range strings.SplitSeq(ascii, "\n") {
 		if strings.HasPrefix(line, `>     foo: bar`) {
 			showsMissing++
 		}
@@ -767,124 +857,6 @@ func buildGVKParser(t *testing.T) *managedfields.GvkParser {
 	gvkParser, err := managedfields.NewGVKParser(models, false)
 	require.NoErrorf(t, err, "error building gvkParser: %s", err)
 	return gvkParser
-}
-
-func TestStructuredMergeDiff(t *testing.T) {
-	buildParams := func(live, config *unstructured.Unstructured) *SMDParams {
-		gvkParser := buildGVKParser(t)
-		manager := "argocd-controller"
-		return &SMDParams{
-			config:    config,
-			live:      live,
-			gvkParser: gvkParser,
-			manager:   manager,
-		}
-	}
-
-	t.Run("will apply default values", func(t *testing.T) {
-		// given
-		t.Parallel()
-		liveState := StrToUnstructured(testdata.ServiceLiveYAML)
-		desiredState := StrToUnstructured(testdata.ServiceConfigYAML)
-		params := buildParams(liveState, desiredState)
-
-		// when
-		result, err := structuredMergeDiff(params)
-
-		// then
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.True(t, result.Modified)
-		predictedSVC := YamlToSvc(t, result.PredictedLive)
-		liveSVC := YamlToSvc(t, result.NormalizedLive)
-		require.NotNil(t, predictedSVC.Spec.InternalTrafficPolicy)
-		require.NotNil(t, liveSVC.Spec.InternalTrafficPolicy)
-		assert.Equal(t, "Cluster", string(*predictedSVC.Spec.InternalTrafficPolicy))
-		assert.Equal(t, "Cluster", string(*liveSVC.Spec.InternalTrafficPolicy))
-		assert.Empty(t, predictedSVC.Annotations[AnnotationLastAppliedConfig])
-		assert.Empty(t, liveSVC.Annotations[AnnotationLastAppliedConfig])
-	})
-	t.Run("will remove entries in list", func(t *testing.T) {
-		// given
-		t.Parallel()
-		liveState := StrToUnstructured(testdata.ServiceLiveYAML)
-		desiredState := StrToUnstructured(testdata.ServiceConfigWith2Ports)
-		params := buildParams(liveState, desiredState)
-
-		// when
-		result, err := structuredMergeDiff(params)
-
-		// then
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.True(t, result.Modified)
-		svc := YamlToSvc(t, result.PredictedLive)
-		assert.Len(t, svc.Spec.Ports, 2)
-	})
-	t.Run("will remove previously added fields not present in desired state", func(t *testing.T) {
-		// given
-		t.Parallel()
-		liveState := StrToUnstructured(testdata.LiveServiceWithTypeYAML)
-		desiredState := StrToUnstructured(testdata.ServiceConfigYAML)
-		params := buildParams(liveState, desiredState)
-
-		// when
-		result, err := structuredMergeDiff(params)
-
-		// then
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.True(t, result.Modified)
-		svc := YamlToSvc(t, result.PredictedLive)
-		assert.Equal(t, corev1.ServiceTypeClusterIP, svc.Spec.Type)
-	})
-	t.Run("will apply service with multiple ports", func(t *testing.T) {
-		// given
-		t.Parallel()
-		liveState := StrToUnstructured(testdata.ServiceLiveYAML)
-		desiredState := StrToUnstructured(testdata.ServiceConfigWithSamePortsYAML)
-		params := buildParams(liveState, desiredState)
-
-		// when
-		result, err := structuredMergeDiff(params)
-
-		// then
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.True(t, result.Modified)
-		svc := YamlToSvc(t, result.PredictedLive)
-		assert.Len(t, svc.Spec.Ports, 5)
-	})
-	t.Run("will apply deployment defaults correctly", func(t *testing.T) {
-		// given
-		t.Parallel()
-		liveState := StrToUnstructured(testdata.DeploymentLiveYAML)
-		desiredState := StrToUnstructured(testdata.DeploymentConfigYAML)
-		params := buildParams(liveState, desiredState)
-
-		// when
-		result, err := structuredMergeDiff(params)
-
-		// then
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.False(t, result.Modified)
-		deploy := YamlToDeploy(t, result.PredictedLive)
-		assert.Len(t, deploy.Spec.Template.Spec.Containers, 1)
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().String())
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().String())
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Requests.Storage().String())
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().String())
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().String())
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Limits.Storage().String())
-		require.NotNil(t, deploy.Spec.Strategy.RollingUpdate)
-		expectedMaxSurge := &intstr.IntOrString{
-			Type:   intstr.String,
-			StrVal: "25%",
-		}
-		assert.Equal(t, expectedMaxSurge, deploy.Spec.Strategy.RollingUpdate.MaxSurge)
-		assert.Equal(t, "ClusterFirst", string(deploy.Spec.Template.Spec.DNSPolicy))
-	})
 }
 
 func TestServerSideDiff(t *testing.T) {
@@ -1256,135 +1228,25 @@ func TestServerSideDiff(t *testing.T) {
 		assert.Contains(t, liveData, "key3", "key3 should still be in live state")
 	})
 
-	t.Run("will mask Secret data symmetrically so identical values do not produce a spurious diff", func(t *testing.T) {
+	t.Run("will strip last-applied-configuration annotation from a non-Secret resource on both sides", func(t *testing.T) {
+		// given
 		t.Parallel()
-
-		desired := buildSecret("test-secret", "default", map[string]string{"password": "vault:secret/foo"}, nil)
-		live := buildSecret("test-secret", "default", map[string]string{"password": "injected-by-webhook"}, nil)
-		predictedLiveJSON := mustMarshalJSON(t, buildSecret("test-secret", "default", map[string]string{"password": "injected-by-webhook"}, nil))
-
-		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
-		result, err := serverSideDiff(t.Context(), desired, live, opts...)
-		require.NoError(t, err)
-		require.NotNil(t, result)
-
-		assert.False(t, result.Modified, "identical secret values on both sides must not be flagged as modified after masking")
-
-		predictedData := mustGetSecretData(t, result.PredictedLive)
-		liveData := mustGetSecretData(t, result.NormalizedLive)
-		assert.Equal(t, "++++++++", predictedData["password"], "predicted data must be masked, not raw")
-		assert.Equal(t, "++++++++", liveData["password"], "live data must be masked, not raw")
-	})
-
-	t.Run("will keep Secret data masked but still detect genuine value differences", func(t *testing.T) {
-		t.Parallel()
-
-		desired := buildSecret("test-secret", "default", map[string]string{"password": "vault:secret/foo"}, nil)
-		live := buildSecret("test-secret", "default", map[string]string{"password": "old-value"}, nil)
-		predictedLiveJSON := mustMarshalJSON(t, buildSecret("test-secret", "default", map[string]string{"password": "new-value"}, nil))
-
-		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
-		result, err := serverSideDiff(t.Context(), desired, live, opts...)
-		require.NoError(t, err)
-		require.NotNil(t, result)
-
-		assert.True(t, result.Modified, "different secret values must still be flagged as modified")
-
-		predictedData := mustGetSecretData(t, result.PredictedLive)
-		liveData := mustGetSecretData(t, result.NormalizedLive)
-		// HideSecretData yields different placeholder lengths for different values, so the
-		// data field is masked on both sides and the two placeholders differ.
-		assert.NotEqual(t, "new-value", predictedData["password"], "raw new value must not leak into PredictedLive")
-		assert.NotEqual(t, "old-value", liveData["password"], "raw old value must not leak into NormalizedLive")
-		assert.NotEqual(t, predictedData["password"], liveData["password"], "differing values must yield differing placeholders")
-	})
-
-	t.Run("will detect Secret key additions and removals", func(t *testing.T) {
-		t.Parallel()
-
-		desired := buildSecret("test-secret", "default", map[string]string{"password": "x", "token": "y"}, nil)
-		live := buildSecret("test-secret", "default", map[string]string{"password": "x"}, nil)
-		predictedLiveJSON := mustMarshalJSON(t, buildSecret("test-secret", "default", map[string]string{"password": "x", "token": "y"}, nil))
-
-		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
-		result, err := serverSideDiff(t.Context(), desired, live, opts...)
-		require.NoError(t, err)
-		require.NotNil(t, result)
-
-		assert.True(t, result.Modified, "added Secret keys must still be flagged as modified after masking")
-	})
-
-	t.Run("will not mask non-core Secret resources", func(t *testing.T) {
-		// Resources whose Kind is "Secret" but whose Group is non-empty (e.g. CRDs)
-		// must not be touched by the core/v1 Secret masking path.
-		t.Parallel()
-
-		desired := buildSecret("test-secret", "default", map[string]string{"password": "raw-value"}, nil)
-		desired.SetAPIVersion("custom.io/v1")
-		live := buildSecret("test-secret", "default", map[string]string{"password": "raw-value"}, nil)
-		live.SetAPIVersion("custom.io/v1")
-		predictedLiveJSON := mustMarshalJSON(t, desired)
-
-		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
-		result, err := serverSideDiff(t.Context(), desired, live, opts...)
-		require.NoError(t, err)
-		require.NotNil(t, result)
-
-		predictedData := mustGetSecretData(t, result.PredictedLive)
-		assert.Equal(t, "raw-value", predictedData["password"], "non-core Secret data must be left untouched")
-	})
-	t.Run("will strip kubectl.kubernetes.io/last-applied-configuration from both sides", func(t *testing.T) {
-		t.Parallel()
-
-		const lastAppliedRaw = `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"secret","namespace":"default","annotations":{"app":"test"}},"data":{"password":"U0VDUkVUVkFM"},"stringData":{"username":"SECRETVAL"}}`
-
+		const lastApplied = `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"my-cm","namespace":"default"},"data":{"key1":"value1"}}`
 		liveState := StrToUnstructured(`{
 			"apiVersion": "v1",
-			"kind": "Secret",
-			"metadata": {
-				"name": "secret",
-				"namespace": "default",
-				"annotations": {
-					"app": "test",
-					"kubectl.kubernetes.io/last-applied-configuration": ` + strconv.Quote(lastAppliedRaw) + `
-				}
-			},
-			"type": "Opaque",
-			"data": {
-				"password": "U0VDUkVUVkFM"
-			}
+			"kind": "ConfigMap",
+			"metadata": {"name": "my-cm", "namespace": "default"}
 		}`)
+		liveState.SetAnnotations(map[string]string{AnnotationLastAppliedConfig: lastApplied})
 		desiredState := StrToUnstructured(`{
 			"apiVersion": "v1",
-			"kind": "Secret",
-			"metadata": {
-				"name": "secret",
-				"namespace": "default",
-				"annotations": {
-					"app": "test"
-				}
-			},
-			"type": "Opaque",
-			"data": {
-				"password": "U0VDUkVUVkFM"
-			}
+			"kind": "ConfigMap",
+			"metadata": {"name": "my-cm", "namespace": "default"},
+			"data": {"key1": "value1"}
 		}`)
-		predictedLiveJSON := `{
-			"apiVersion": "v1",
-			"kind": "Secret",
-			"metadata": {
-				"name": "secret",
-				"namespace": "default",
-				"annotations": {
-					"app": "test",
-					"kubectl.kubernetes.io/last-applied-configuration": ` + strconv.Quote(lastAppliedRaw) + `
-				}
-			},
-			"type": "Opaque",
-			"data": {
-				"password": "U0VDUkVUVkFM"
-			}
-		}`
+		predictedLiveObj := desiredState.DeepCopy()
+		predictedLiveObj.SetAnnotations(map[string]string{AnnotationLastAppliedConfig: lastApplied})
+		predictedLiveJSON := mustMarshalUnstructured(t, predictedLiveObj)
 		opts := buildOpts(predictedLiveJSON)
 		opts = append(opts, WithIgnoreMutationWebhook(false))
 
@@ -1393,58 +1255,65 @@ func TestServerSideDiff(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.NotNil(t, result)
-		assert.NotContains(t, string(result.PredictedLive), "kubectl.kubernetes.io/last-applied-configuration",
+		assert.NotNil(t, result)
+		assert.NotContains(t, string(result.PredictedLive), AnnotationLastAppliedConfig,
 			"PredictedLive must not contain the last-applied-configuration annotation")
-		assert.NotContains(t, string(result.NormalizedLive), "kubectl.kubernetes.io/last-applied-configuration",
+		assert.NotContains(t, string(result.NormalizedLive), AnnotationLastAppliedConfig,
 			"NormalizedLive must not contain the last-applied-configuration annotation")
-		assert.NotContains(t, string(result.PredictedLive), "U0VDUkVUVkFM",
-			"PredictedLive must not contain raw secret values from last-applied-configuration")
-		assert.NotContains(t, string(result.PredictedLive), "SECRETVAL",
-			"PredictedLive must not contain raw secret values from last-applied-configuration")
+	})
+
+	t.Run("will strip last-applied-configuration annotation from a Secret resource on both sides", func(t *testing.T) {
+		// given
+		t.Parallel()
+		// The annotation embeds a secret value that does not otherwise appear in the object,
+		// so we can assert the annotation (and its contents) is stripped. Masking of the Secret
+		// data field itself is the caller's responsibility and is covered by TestHideSecretData.
+		const annotationOnlySecret = "QU5OT1RBVElPTk9OTFk="
+		lastApplied := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"my-secret","namespace":"default"},"data":{"password":"` + annotationOnlySecret + `"}}`
+		liveState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {"name": "my-secret", "namespace": "default"},
+			"type": "Opaque",
+			"data": {"password": "U0VDUkVUVkFM"}
+		}`)
+		liveState.SetAnnotations(map[string]string{AnnotationLastAppliedConfig: lastApplied})
+		desiredState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {"name": "my-secret", "namespace": "default"},
+			"type": "Opaque",
+			"data": {"password": "U0VDUkVUVkFM"}
+		}`)
+		predictedLiveObj := desiredState.DeepCopy()
+		predictedLiveObj.SetAnnotations(map[string]string{AnnotationLastAppliedConfig: lastApplied})
+		predictedLiveJSON := mustMarshalUnstructured(t, predictedLiveObj)
+		opts := buildOpts(predictedLiveJSON)
+		opts = append(opts, WithIgnoreMutationWebhook(false))
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotContains(t, string(result.PredictedLive), AnnotationLastAppliedConfig,
+			"PredictedLive must not contain the last-applied-configuration annotation")
+		assert.NotContains(t, string(result.NormalizedLive), AnnotationLastAppliedConfig,
+			"NormalizedLive must not contain the last-applied-configuration annotation")
+		assert.NotContains(t, string(result.PredictedLive), annotationOnlySecret,
+			"PredictedLive must not contain secret values embedded only in last-applied-configuration")
+		assert.NotContains(t, string(result.NormalizedLive), annotationOnlySecret,
+			"NormalizedLive must not contain secret values embedded only in last-applied-configuration")
 	})
 }
 
-// buildSecret returns a core/v1 Secret as an *unstructured.Unstructured.
-func buildSecret(name, namespace string, data map[string]string, annotations map[string]string) *unstructured.Unstructured {
-	dataField := make(map[string]any, len(data))
-	for k, v := range data {
-		dataField[k] = v
-	}
-	metadata := map[string]any{
-		"name":      name,
-		"namespace": namespace,
-	}
-	if len(annotations) > 0 {
-		annField := make(map[string]any, len(annotations))
-		for k, v := range annotations {
-			annField[k] = v
-		}
-		metadata["annotations"] = annField
-	}
-	return &unstructured.Unstructured{Object: map[string]any{
-		"apiVersion": "v1",
-		"kind":       "Secret",
-		"metadata":   metadata,
-		"type":       "Opaque",
-		"data":       dataField,
-	}}
-}
-
-func mustMarshalJSON(t *testing.T, obj *unstructured.Unstructured) string {
+// mustMarshalUnstructured marshals an unstructured object to a JSON string, failing the test on error.
+func mustMarshalUnstructured(t *testing.T, obj *unstructured.Unstructured) string {
 	t.Helper()
-	bytes, err := json.Marshal(obj)
+	data, err := json.Marshal(obj)
 	require.NoError(t, err)
-	return string(bytes)
-}
-
-func mustGetSecretData(t *testing.T, secretBytes []byte) map[string]any {
-	t.Helper()
-	var obj map[string]any
-	require.NoError(t, json.Unmarshal(secretBytes, &obj))
-	data, ok := obj["data"].(map[string]any)
-	require.True(t, ok, "expected data field to be a map")
-	return data
+	return string(data)
 }
 
 // testIgnoreDifferencesNormalizer implements a simple normalizer that removes specified fields
@@ -1663,85 +1532,241 @@ spec:
 	assert.True(t, result.Modified, "the desired value change must be reflected in the diff")
 }
 
-func TestHideSecretDataSameKeysDifferentValues(t *testing.T) {
-	target, live, err := HideSecretData(
-		createSecret(map[string]string{"key1": "test", "key2": "test"}),
-		createSecret(map[string]string{"key1": "test-1", "key2": "test-1"}),
-		nil,
-	)
-	require.NoError(t, err)
+func TestHideSecretData(t *testing.T) {
+	t.Run("same keys different values", func(t *testing.T) {
+		target, live, err := HideSecretData(
+			createSecret(map[string]string{"key1": "test", "key2": "test"}),
+			createSecret(map[string]string{"key1": "test-1", "key2": "test-1"}),
+			nil,
+		)
+		require.NoError(t, err)
 
-	assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(target))
-	assert.Equal(t, map[string]any{"key1": replacement2, "key2": replacement2}, secretData(live))
-}
+		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(target))
+		assert.Equal(t, map[string]any{"key1": replacement2, "key2": replacement2}, secretData(live))
+	})
 
-func TestHideSecretDataSameKeysSameValues(t *testing.T) {
-	target, live, err := HideSecretData(
-		createSecret(map[string]string{"key1": "test", "key2": "test"}),
-		createSecret(map[string]string{"key1": "test", "key2": "test"}),
-		nil,
-	)
-	require.NoError(t, err)
+	t.Run("same keys same values", func(t *testing.T) {
+		target, live, err := HideSecretData(
+			createSecret(map[string]string{"key1": "test", "key2": "test"}),
+			createSecret(map[string]string{"key1": "test", "key2": "test"}),
+			nil,
+		)
+		require.NoError(t, err)
 
-	assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(target))
-	assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(live))
-}
+		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(target))
+		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(live))
+	})
 
-func TestHideSecretDataDifferentKeysDifferentValues(t *testing.T) {
-	target, live, err := HideSecretData(
-		createSecret(map[string]string{"key1": "test", "key2": "test"}),
-		createSecret(map[string]string{"key2": "test-1", "key3": "test-1"}),
-		nil,
-	)
-	require.NoError(t, err)
+	t.Run("different keys different values", func(t *testing.T) {
+		target, live, err := HideSecretData(
+			createSecret(map[string]string{"key1": "test", "key2": "test"}),
+			createSecret(map[string]string{"key2": "test-1", "key3": "test-1"}),
+			nil,
+		)
+		require.NoError(t, err)
 
-	assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(target))
-	assert.Equal(t, map[string]any{"key2": replacement2, "key3": replacement1}, secretData(live))
-}
+		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(target))
+		assert.Equal(t, map[string]any{"key2": replacement2, "key3": replacement1}, secretData(live))
+	})
 
-func TestHideStringDataInInvalidSecret(t *testing.T) {
-	liveUn := &unstructured.Unstructured{
-		Object: map[string]any{
-			"apiVersion": "v1",
-			"kind":       "Secret",
-			"metadata": map[string]any{
-				"name": "test-secret",
+	t.Run("handle empty target secret", func(t *testing.T) {
+		// given
+		targetSecret := bytesToUnstructured(t, getTargetSecretJsonBytes())
+		liveSecret := bytesToUnstructured(t, getLiveSecretJsonBytes())
+
+		// when
+		target, live, err := HideSecretData(targetSecret, liveSecret, nil)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, target)
+		assert.NotNil(t, live)
+		assert.Nil(t, target.Object["data"])
+		assert.Equal(t, map[string]any{"namespace": replacement1, "token": replacement1}, secretData(live))
+	})
+
+	t.Run("handle empty live secret", func(t *testing.T) {
+		// given
+		targetSecret := bytesToUnstructured(t, getTargetSecretJsonBytes())
+		liveSecret := bytesToUnstructured(t, getLiveSecretJsonBytes())
+		targetSecret.Object["data"] = liveSecret.Object["data"]
+		liveSecret.Object["data"] = nil
+
+		// when
+		target, live, err := HideSecretData(targetSecret, liveSecret, nil)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, target)
+		assert.NotNil(t, live)
+		assert.Nil(t, live.Object["data"])
+		assert.Equal(t, map[string]any{"namespace": replacement1, "token": replacement1}, secretData(target))
+	})
+
+	t.Run("live last applied config", func(t *testing.T) {
+		lastAppliedSecret := createSecret(map[string]string{"key1": "test1"})
+		targetSecret := createSecret(map[string]string{"key1": "test2"})
+		liveSecret := createSecret(map[string]string{"key1": "test3"})
+		lastAppliedStr, err := json.Marshal(lastAppliedSecret)
+		require.NoError(t, err)
+		liveSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: string(lastAppliedStr)})
+
+		target, live, err := HideSecretData(targetSecret, liveSecret, nil)
+		require.NoError(t, err)
+		err = json.Unmarshal([]byte(live.GetAnnotations()[corev1.LastAppliedConfigAnnotation]), &lastAppliedSecret)
+		require.NoError(t, err)
+
+		assert.Equal(t, map[string]any{"key1": replacement1}, secretData(target))
+		assert.Equal(t, map[string]any{"key1": replacement2}, secretData(live))
+		assert.Equal(t, map[string]any{"key1": replacement3}, secretData(lastAppliedSecret))
+	})
+
+	t.Run("target last applied config", func(t *testing.T) {
+		// Test case where target also has a last-applied-configuration annotation with secret data
+		// This can happen during server-side diff when the dry-run returns a predictedLive with this annotation
+		targetLastAppliedSecret := createSecret(map[string]string{"key1": "test1"})
+		targetLastAppliedStr, err := json.Marshal(targetLastAppliedSecret)
+		require.NoError(t, err)
+
+		targetSecret := createSecret(map[string]string{"key1": "test1"}) // Same value as in last-applied
+		targetSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: string(targetLastAppliedStr)})
+
+		liveSecret := createSecret(map[string]string{"key1": "test2"})
+
+		target, live, err := HideSecretData(targetSecret, liveSecret, nil)
+		require.NoError(t, err)
+
+		// Verify target's last-applied-config is masked
+		targetLastAppliedAnnotation := target.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+		require.NotEmpty(t, targetLastAppliedAnnotation)
+		err = json.Unmarshal([]byte(targetLastAppliedAnnotation), &targetLastAppliedSecret)
+		require.NoError(t, err)
+
+		// target.key1 and targetLastApplied.key1 have the same value "test1", so they should get the same replacement
+		// live.key1 has a different value "test2", so it should get a different replacement
+		assert.Equal(t, map[string]any{"key1": replacement1}, secretData(target))
+		assert.Equal(t, map[string]any{"key1": replacement2}, secretData(live))
+		assert.Equal(t, map[string]any{"key1": replacement1}, secretData(targetLastAppliedSecret))
+	})
+
+	t.Run("both target and live last applied config", func(t *testing.T) {
+		// Test case where both target and live have last-applied-configuration annotations
+		// Use the same value "test1" in targetLastApplied.key1 and target.key1
+		// Use the same value "test2" in both target.key2 and targetLastApplied.key2
+		// Use a different value "test3" in live.key1 and liveLastApplied.key1
+		targetLastAppliedSecret := createSecret(map[string]string{"key1": "test1", "key2": "test2"})
+		targetLastAppliedStr, err := json.Marshal(targetLastAppliedSecret)
+		require.NoError(t, err)
+
+		liveLastAppliedSecret := createSecret(map[string]string{"key1": "test3"})
+		liveLastAppliedStr, err := json.Marshal(liveLastAppliedSecret)
+		require.NoError(t, err)
+
+		targetSecret := createSecret(map[string]string{"key1": "test1", "key2": "test2"})
+		targetSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: string(targetLastAppliedStr)})
+
+		liveSecret := createSecret(map[string]string{"key1": "test3"})
+		liveSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: string(liveLastAppliedStr)})
+
+		target, live, err := HideSecretData(targetSecret, liveSecret, nil)
+		require.NoError(t, err)
+
+		// Verify target's last-applied-config is masked
+		targetLastAppliedAnnotation := target.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+		require.NotEmpty(t, targetLastAppliedAnnotation)
+		err = json.Unmarshal([]byte(targetLastAppliedAnnotation), &targetLastAppliedSecret)
+		require.NoError(t, err)
+
+		// Verify live's last-applied-config is masked
+		liveLastAppliedAnnotation := live.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+		require.NotEmpty(t, liveLastAppliedAnnotation)
+		err = json.Unmarshal([]byte(liveLastAppliedAnnotation), &liveLastAppliedSecret)
+		require.NoError(t, err)
+
+		// The algorithm processes keys separately and resets valToReplacement for each key
+		// For key1: "test1" (in target and targetLastApplied) gets replacement1, "test3" (in live and liveLastApplied) gets replacement2
+		// For key2: "test2" (in target and targetLastApplied) gets replacement1 (per-key valToReplacement)
+		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(target))
+		assert.Equal(t, map[string]any{"key1": replacement2}, secretData(live))
+		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(targetLastAppliedSecret))
+		assert.Equal(t, map[string]any{"key1": replacement2}, secretData(liveLastAppliedSecret))
+	})
+
+	t.Run("malformed live last applied config is masked (fail closed)", func(t *testing.T) {
+		// A last-applied-configuration annotation that is not valid JSON may still embed raw
+		// Secret material. It must be replaced with the placeholder rather than left untouched.
+		const malformed = `{"data":{"password":"U0VDUkVUVkFM"` // truncated JSON, unparseable
+		targetSecret := createSecret(map[string]string{"key1": "test1"})
+		liveSecret := createSecret(map[string]string{"key1": "test1"})
+		liveSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: malformed})
+
+		_, live, err := HideSecretData(targetSecret, liveSecret, nil)
+		require.NoError(t, err)
+
+		annotation := live.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+		assert.Equal(t, replacement, annotation, "malformed live annotation must be fully masked")
+		assert.NotContains(t, annotation, "U0VDUkVUVkFM", "raw secret material must not survive")
+	})
+
+	t.Run("malformed target last applied config is masked (fail closed)", func(t *testing.T) {
+		// Same as above, but for the target object (e.g. a predictedLive from a server-side dry-run).
+		const malformed = `{"data":{"password":"U0VDUkVUVkFM"` // truncated JSON, unparseable
+		targetSecret := createSecret(map[string]string{"key1": "test1"})
+		targetSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: malformed})
+		liveSecret := createSecret(map[string]string{"key1": "test1"})
+
+		target, _, err := HideSecretData(targetSecret, liveSecret, nil)
+		require.NoError(t, err)
+
+		annotation := target.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+		assert.Equal(t, replacement, annotation, "malformed target annotation must be fully masked")
+		assert.NotContains(t, annotation, "U0VDUkVUVkFM", "raw secret material must not survive")
+	})
+
+	t.Run("invalid secret", func(t *testing.T) {
+		liveUn := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "v1",
+				"kind":       "Secret",
+				"metadata": map[string]any{
+					"name": "test-secret",
+				},
+				"type": "Opaque",
+				"data": map[string]any{
+					"key1": "a2V5MQ==",
+					"key2": "a2V5MQ==",
+				},
 			},
-			"type": "Opaque",
-			"data": map[string]any{
-				"key1": "a2V5MQ==",
-				"key2": "a2V5MQ==",
+		}
+		targetUn := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "v1",
+				"kind":       "Secret",
+				"metadata": map[string]any{
+					"name": "test-secret",
+				},
+				"type": "Opaque",
+				"data": map[string]any{
+					"key1": "a2V5MQ==",
+					"key2": "a2V5Mg==",
+					"key3": false,
+				},
+				"stringData": map[string]any{
+					"key4": "key4",
+					"key5": 5,
+				},
 			},
-		},
-	}
-	targetUn := &unstructured.Unstructured{
-		Object: map[string]any{
-			"apiVersion": "v1",
-			"kind":       "Secret",
-			"metadata": map[string]any{
-				"name": "test-secret",
-			},
-			"type": "Opaque",
-			"data": map[string]any{
-				"key1": "a2V5MQ==",
-				"key2": "a2V5Mg==",
-				"key3": false,
-			},
-			"stringData": map[string]any{
-				"key4": "key4",
-				"key5": 5,
-			},
-		},
-	}
+		}
 
-	liveUn = remarshal(liveUn, applyOptions(diffOptionsForTest()))
-	targetUn = remarshal(targetUn, applyOptions(diffOptionsForTest()))
+		liveUn = remarshal(liveUn, applyOptions(diffOptionsForTest()))
+		targetUn = remarshal(targetUn, applyOptions(diffOptionsForTest()))
 
-	target, live, err := HideSecretData(targetUn, liveUn, nil)
-	require.NoError(t, err)
+		target, live, err := HideSecretData(targetUn, liveUn, nil)
+		require.NoError(t, err)
 
-	assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement2}, secretData(live))
-	assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1, "key3": replacement1, "key4": replacement1, "key5": replacement1}, secretData(target))
+		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement2}, secretData(live))
+		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1, "key3": replacement1, "key4": replacement1, "key5": replacement1}, secretData(target))
+	})
 }
 
 // stringData in secrets should be normalized even if it is invalid
@@ -1819,7 +1844,7 @@ func TestNormalizeSecret(t *testing.T) {
 	}
 }
 
-func TestHideSecretAnnotations(t *testing.T) {
+func TestHideSecretData_HideAnnotations(t *testing.T) {
 	tests := []struct {
 		name           string
 		hideAnnots     map[string]bool
@@ -1915,7 +1940,7 @@ func TestHideSecretAnnotations(t *testing.T) {
 	}
 }
 
-func TestHideSecretAnnotationsPreserveDifference(t *testing.T) {
+func TestHideSecretData_HideAnnotations_PreserveDifference(t *testing.T) {
 	hideAnnots := map[string]bool{"token/value": true}
 
 	liveUn := &unstructured.Unstructured{
@@ -2012,40 +2037,6 @@ func bytesToUnstructured(t *testing.T, jsonBytes []byte) *unstructured.Unstructu
 	return &unstructured.Unstructured{
 		Object: jsonMap,
 	}
-}
-
-func TestHideSecretDataHandleEmptySecret(t *testing.T) {
-	// given
-	targetSecret := bytesToUnstructured(t, getTargetSecretJsonBytes())
-	liveSecret := bytesToUnstructured(t, getLiveSecretJsonBytes())
-
-	// when
-	target, live, err := HideSecretData(targetSecret, liveSecret, nil)
-
-	// then
-	require.NoError(t, err)
-	assert.NotNil(t, target)
-	assert.NotNil(t, live)
-	assert.Nil(t, target.Object["data"])
-	assert.Equal(t, map[string]any{"namespace": "++++++++", "token": "++++++++"}, secretData(live))
-}
-
-func TestHideSecretDataLastAppliedConfig(t *testing.T) {
-	lastAppliedSecret := createSecret(map[string]string{"key1": "test1"})
-	targetSecret := createSecret(map[string]string{"key1": "test2"})
-	liveSecret := createSecret(map[string]string{"key1": "test3"})
-	lastAppliedStr, err := json.Marshal(lastAppliedSecret)
-	require.NoError(t, err)
-	liveSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: string(lastAppliedStr)})
-
-	target, live, err := HideSecretData(targetSecret, liveSecret, nil)
-	require.NoError(t, err)
-	err = json.Unmarshal([]byte(live.GetAnnotations()[corev1.LastAppliedConfigAnnotation]), &lastAppliedSecret)
-	require.NoError(t, err)
-
-	assert.Equal(t, map[string]any{"key1": replacement1}, secretData(target))
-	assert.Equal(t, map[string]any{"key1": replacement2}, secretData(live))
-	assert.Equal(t, map[string]any{"key1": replacement3}, secretData(lastAppliedSecret))
 }
 
 func TestRemarshal(t *testing.T) {
@@ -2386,152 +2377,4 @@ spec:
 		assert.Contains(t, predictedLiveStr, "sessionAffinity", "sessionAffinity should still appear in output (no output normalization)")
 		assert.Contains(t, normalizedLiveStr, "sessionAffinity", "sessionAffinity should still appear in output (no output normalization)")
 	})
-}
-
-func TestStructuredMergeDiff_HPAv2ToV1Conversion(t *testing.T) {
-	// Reproduces https://github.com/argoproj/argo-cd/issues/17795
-	gvkParser := buildGVKParser(t)
-
-	config := StrToUnstructured(`
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: test-hpa
-  namespace: default
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: test-deploy
-  minReplicas: 1
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 50
-`)
-
-	live := StrToUnstructured(`
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: test-hpa
-  namespace: default
-  managedFields:
-  - apiVersion: autoscaling/v1
-    fieldsType: FieldsV1
-    fieldsV1:
-      f:spec:
-        f:maxReplicas: {}
-        f:minReplicas: {}
-        f:scaleTargetRef: {}
-    manager: helm
-    operation: Apply
-    time: "2024-01-01T00:00:00Z"
-  - apiVersion: autoscaling/v2
-    fieldsType: FieldsV1
-    fieldsV1:
-      f:spec:
-        f:metrics: {}
-    manager: argocd-controller
-    operation: Apply
-    time: "2024-01-02T00:00:00Z"
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: test-deploy
-  minReplicas: 1
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 50
-`)
-
-	// Identical config and live should not be modified
-	result, err := StructuredMergeDiff(config, live, gvkParser, "argocd-controller")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.False(t, result.Modified, "identical config and live should not show as modified")
-}
-
-func TestStructuredMergeDiff_HPAv2ToV1Conversion_Modified(t *testing.T) {
-	// Verifies that a real change is detected when config differs from live
-	// with cross-version managed fields
-	gvkParser := buildGVKParser(t)
-
-	config := StrToUnstructured(`
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: test-hpa
-  namespace: default
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: test-deploy
-  minReplicas: 2
-  maxReplicas: 20
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 80
-`)
-
-	live := StrToUnstructured(`
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: test-hpa
-  namespace: default
-  managedFields:
-  - apiVersion: autoscaling/v1
-    fieldsType: FieldsV1
-    fieldsV1:
-      f:spec:
-        f:maxReplicas: {}
-        f:minReplicas: {}
-        f:scaleTargetRef: {}
-    manager: helm
-    operation: Apply
-    time: "2024-01-01T00:00:00Z"
-  - apiVersion: autoscaling/v2
-    fieldsType: FieldsV1
-    fieldsV1:
-      f:spec:
-        f:metrics: {}
-    manager: argocd-controller
-    operation: Apply
-    time: "2024-01-02T00:00:00Z"
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: test-deploy
-  minReplicas: 1
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 50
-`)
-
-	result, err := StructuredMergeDiff(config, live, gvkParser, "argocd-controller")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.True(t, result.Modified, "different config and live should show as modified")
 }

@@ -4,6 +4,8 @@ module.exports = {
     allowPostUpgradeCommandTemplating: true,
     allowedPostUpgradeCommands: [
         "make mockgen",
+        "env INSTALL_SUDO=env BIN=\\./dist \\./hack/install\\.sh kustomize helm",
+        "sh -c PATH=`pwd`/dist:\\$PATH;\\./hack/update-manifests\\.sh",
         "./hack/install.sh kustomize && make manifests-local",
         "hack/installers/checksums/add-helm-checksums.sh",
         "hack/installers/checksums/add-kustomize-checksums.sh",
@@ -14,10 +16,12 @@ module.exports = {
         "github>argoproj/argo-cd//renovate-presets/commons.json5",
         "github>argoproj/argo-cd//renovate-presets/custom-managers/shell.json5",
         "github>argoproj/argo-cd//renovate-presets/custom-managers/yaml.json5",
+        "github>argoproj/argo-cd//renovate-presets/custom-managers/renovate-action.json5",
         "github>argoproj/argo-cd//renovate-presets/fix/disable-all-updates.json5",
         "github>argoproj/argo-cd//renovate-presets/devtool.json5",
         "github>argoproj/argo-cd//renovate-presets/production-binaries.json5",
         "github>argoproj/argo-cd//renovate-presets/dex.json5",
+        "github>argoproj/argo-cd//renovate-presets/redis.json5",
         "github>argoproj/argo-cd//renovate-presets/docs.json5",
         "group:aws-sdk-go-v2Monorepo",
         "github>argoproj/argo-cd//renovate-presets/fix/ignore-paths.json5"

@@ -90,11 +90,9 @@ func createClusterSecretWithShard(ctx *Context, shard int, ns string) string {
 	require.NoError(ctx.T(), err)
 
 	clusterRole := rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: DnsFriendly("allow-all-shard"+strconv.Itoa(shard), "-"+ctx.ShortID()),
-			Labels: map[string]string{
-				TestingLabel: "true",
-			},
+		Name: DnsFriendly("allow-all-shard"+strconv.Itoa(shard), "-"+ctx.ShortID()),
+		Labels: map[string]string{
+			TestingLabel: "true",
 		},
 		Rules: []rbacv1.PolicyRule{{
 			Verbs:     []string{"*"},
@@ -106,11 +104,9 @@ func createClusterSecretWithShard(ctx *Context, shard int, ns string) string {
 	require.NoError(ctx.T(), err)
 
 	clusterRoleBinding := rbacv1.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: DnsFriendly("allow-all-binding-shard"+strconv.Itoa(shard), "-"+ctx.ShortID()),
-			Labels: map[string]string{
-				TestingLabel: "true",
-			},
+		Name: DnsFriendly("allow-all-binding-shard"+strconv.Itoa(shard), "-"+ctx.ShortID()),
+		Labels: map[string]string{
+			TestingLabel: "true",
 		},
 		Subjects: []rbacv1.Subject{{
 			Kind:      rbacv1.ServiceAccountKind,
@@ -145,9 +141,7 @@ func createClusterSecretWithShard(ctx *Context, shard int, ns string) string {
 
 	clusterSecretConfigJSON := ClusterConfig{
 		BearerToken: token,
-		TLSClientConfig: TLSClientConfig{
-			Insecure: true,
-		},
+		Insecure:    true,
 	}
 
 	jsonStringBytes, err := json.Marshal(clusterSecretConfigJSON)

@@ -1,0 +1,9 @@
+apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  name: llama-3-8b
+  namespace: kserve-test
+  generation: 1
+spec:
+  model:
+    uri: hf://meta-llama/Meta-Llama-3-8B-Instruct

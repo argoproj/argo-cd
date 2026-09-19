@@ -1,5 +1,5 @@
 import {useData, Checkbox} from 'argo-ui/v2';
-import * as minimatch from 'minimatch';
+import {minimatch} from 'minimatch';
 import * as React from 'react';
 import {
     Application,
@@ -17,7 +17,7 @@ import {
 import {AppsListPreferences, AppSetsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import {createMetadataSelector} from '../selectors';
-import {ComparisonStatusIcon, getAppAllSources, getAppSetHealthStatus, HealthStatusIcon, getOperationStateTitle} from '../utils';
+import {ComparisonStatusIcon, getAppAllSources, getAppSetHealthStatus, HealthStatusIcon, getOperationStateTitle, isFavorite} from '../utils';
 import {formatClusterQueryParam} from '../../../shared/utils';
 import {COLORS} from '../../../shared/components/colors';
 
@@ -84,7 +84,7 @@ export function getAppFilterResults(applications: Application[], pref: AppsListP
                 autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
                 health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
                 namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
-                favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
+                favourite: !pref.showFavorites || isFavorite(pref.favoritesAppList, app),
                 clusters:
                     pref.clustersFilter.length === 0 ||
                     pref.clustersFilter.some(filterString => {
@@ -118,7 +118,7 @@ export function getAppSetFilterResults(appSets: ApplicationSet[], pref: AppSetsL
         ...appSet,
         filterResult: {
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(getAppSetHealthStatus(appSet)),
-            favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(appSet.metadata.name)),
+            favourite: !pref.showFavorites || isFavorite(pref.favoritesAppList, appSet),
             labels: pref.labelsFilter.length === 0 || labelSelector(appSet.metadata.labels)
         }
     }));
@@ -544,8 +544,8 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
     return (
         <FiltersGroup title='Application filters' content={props.children} appliedFilter={appliedFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
             <FavoriteFilter value={!!props.pref.showFavorites} onChange={val => props.onChange({...props.pref, showFavorites: val})} />
-            <SyncFilter {...props} />
             <AppHealthFilter {...props} />
+            <SyncFilter {...props} />
             <OperationFilter {...props} />
             <LabelsFilter apps={props.apps} pref={props.pref} onChange={labelsFilter => props.onChange({...props.pref, labelsFilter})} />
             <AnnotationsFilter {...props} />

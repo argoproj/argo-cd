@@ -45,12 +45,10 @@ func (ku *kubeUtil) CreateOrUpdateSecret(ns string, name string, update updateFn
 
 	if create {
 		s = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        name,
-				Namespace:   ns,
-				Labels:      ku.labels,
-				Annotations: ku.annotations,
-			},
+			Name:        name,
+			Namespace:   ns,
+			Labels:      ku.labels,
+			Annotations: ku.annotations,
 		}
 		s.Data = make(map[string][]byte)
 	}
