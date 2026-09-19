@@ -106,11 +106,13 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
         pref.syncFilter = [];
         pref.autoSyncFilter = [];
         pref.operationFilter = [];
+        pref.hydrationFilter = [];
     }
 
     public projectsFilter: string[];
     public syncFilter: string[];
     public autoSyncFilter: string[];
+    public hydrationFilter: string[];
     public namespacesFilter: string[];
     public reposFilter: string[];
     public clustersFilter: string[];
@@ -219,6 +221,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         autoSyncFilter: new Array<string>(),
         healthFilter: new Array<string>(),
         operationFilter: new Array<string>(),
+        hydrationFilter: new Array<string>(),
         hideFilters: false,
         showFavorites: false,
         favoritesAppList: new Array<string>(),
