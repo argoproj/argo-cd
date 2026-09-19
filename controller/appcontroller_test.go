@@ -782,6 +782,29 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 	})
 }
 
+func TestAutoSyncMultiSourceUsesSpecTargetRevisionsNotStaleSyncStatus(t *testing.T) {
+	app := newFakeMultiSourceApp()
+	for i := range app.Spec.Sources {
+		app.Spec.Sources[i].TargetRevision = "main"
+	}
+	// Stale pinned SHAs from a previous sync (e.g. an unrelated old commit selected
+	// by a rejected same-repo multi-source generation) must not be reused for the
+	// automated sync; the op must target the spec's TargetRevisions instead.
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	syncStatus := v1alpha1.SyncStatus{
+		Status:    v1alpha1.SyncStatusCodeOutOfSync,
+		Revisions: []string{"1111111111111111111111111111111111111111", "2222222222222222222222222222222222222222", "3333333333333333333333333333333333333333"},
+	}
+	cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+	assert.Nil(t, cond)
+	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, app.Operation)
+	require.NotNil(t, app.Operation.Sync)
+	assert.Equal(t, []string{"main", "main", "main"}, app.Operation.Sync.Revisions)
+	assert.Equal(t, "main", app.Operation.Sync.Revision)
+}
+
 func TestAutoSyncNotAllowEmpty(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.SyncPolicy.Automated.Prune = new(true)
