@@ -24,6 +24,8 @@ The resource actions act on a single object.
 
 You can define your own custom resource actions in the `argocd-cm` ConfigMap.
 
+See [Lua scripting](lua.md) for available libraries, resource fields, action parameters, and execution limits.
+
 ### Custom Resource Action Types
 
 #### An action that modifies the source resource
