@@ -964,11 +964,18 @@ func TestRecordEventDuringResync(t *testing.T) {
 	t.Cleanup(func() { cluster.Invalidate() })
 	require.NoError(t, cluster.EnsureSynced())
 
-	var panicked atomic.Int64
+	const senderCount = 4
+	var attempts, panicked atomic.Int64
 	stop := make(chan struct{})
+	delivering := make(chan struct{}, senderCount)
 	var senders sync.WaitGroup
-	for range 4 {
+	for range senderCount {
 		senders.Go(func() {
+			var once sync.Once
+			reportDelivering := func() { once.Do(func() { delivering <- struct{}{} }) }
+			// Runs last, so a sender that dies on its first call still releases the
+			// barrier below instead of stalling the test for 30s.
+			defer reportDelivering()
 			defer func() {
 				if r := recover(); r != nil {
 					panicked.Add(1)
@@ -980,9 +987,21 @@ func TestRecordEventDuringResync(t *testing.T) {
 					return
 				default:
 				}
+				attempts.Add(1)
 				cluster.recordEvent(watch.Added, mustToUnstructured(testPod2()))
+				reportDelivering()
 			}
 		})
+	}
+
+	// Every sender has to be through recordEvent at least once before the resyncs
+	// start, otherwise the assertions below could pass on a run that never exercised it.
+	for range senderCount {
+		select {
+		case <-delivering:
+		case <-time.After(30 * time.Second):
+			t.Fatal("not every sender got through recordEvent; it is likely blocked")
+		}
 	}
 
 	for range 20 {
@@ -1002,6 +1021,38 @@ func TestRecordEventDuringResync(t *testing.T) {
 		t.Fatal("recordEvent is still blocked after the resyncs finished")
 	}
 	assert.Zero(t, panicked.Load(), "recordEvent panicked while the cache was being resynced")
+	assert.Positive(t, attempts.Load(), "no events were delivered during the resyncs")
+}
+
+// TestProcessEventsBatchDropsRetiredGeneration covers a batch that was collected before a
+// resync and only reaches the lock after it. The resync has already relisted every
+// resource, so replaying those events would write stale state over the fresh cache.
+func TestProcessEventsBatchDropsRetiredGeneration(t *testing.T) {
+	t.Parallel()
+	pod := testPod1()
+	podKey := kube.GetResourceKey(mustToUnstructured(pod))
+	deletePod := []eventMeta{{watch.Deleted, mustToUnstructured(pod)}}
+
+	cluster := newCluster(t, pod, testRS(), testDeploy())
+	require.NoError(t, cluster.EnsureSynced())
+
+	retired := make(chan struct{})
+	close(retired)
+	cluster.processEventsBatch(deletePod, retired)
+
+	cluster.lock.RLock()
+	_, cached := cluster.resources[podKey]
+	cluster.lock.RUnlock()
+	assert.True(t, cached, "a batch from a retired generation must not touch the fresh cache")
+
+	// The same batch on a live generation still applies, so the check above is not
+	// passing because the batch was a no-op.
+	cluster.processEventsBatch(deletePod, make(chan struct{}))
+
+	cluster.lock.RLock()
+	_, cached = cluster.resources[podKey]
+	cluster.lock.RUnlock()
+	assert.False(t, cached, "a batch from the current generation must still apply")
 }
 
 func TestProcessNewChildEvent(t *testing.T) {

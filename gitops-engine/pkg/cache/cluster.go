@@ -1750,14 +1750,17 @@ func (c *clusterCache) processEvents(ch <-chan eventMeta, done <-chan struct{}) 
 			eventMetas = append(eventMetas, evMeta)
 		case <-ticker.C:
 			if len(eventMetas) > 0 {
-				c.processEventsBatch(eventMetas)
+				c.processEventsBatch(eventMetas, done)
 				eventMetas = eventMetas[:0]
 			}
 		}
 	}
 }
 
-func (c *clusterCache) processEventsBatch(eventMetas []eventMeta) {
+// processEventsBatch applies a batch of watch events. done belongs to the generation
+// the events were collected for; a batch whose generation was retired while it waited
+// for the lock is dropped rather than applied.
+func (c *clusterCache) processEventsBatch(eventMetas []eventMeta, done <-chan struct{}) {
 	log := c.log.WithValues("functionName", "processEventsBatch")
 	start := time.Now()
 	c.lock.RLock()
@@ -1784,6 +1787,17 @@ func (c *clusterCache) processEventsBatch(eventMetas []eventMeta) {
 			handler(duration, len(eventMetas))
 		}
 	}()
+
+	// invalidateEventMeta closes done while holding this lock, so the check is
+	// authoritative: if the generation is current here, it stays current until we
+	// unlock. A resync has already relisted every resource, so applying events
+	// collected before it would write stale state over the fresh cache.
+	select {
+	case <-done:
+		log.V(2).Info("Dropping events from a retired generation", "count", len(eventMetas))
+		return
+	default:
+	}
 
 	for i, evMeta := range eventMetas {
 		key := kube.GetResourceKey(evMeta.un)
