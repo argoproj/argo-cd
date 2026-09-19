@@ -30,7 +30,7 @@ Each type of script has a different return value:
 
 | Script | Return value |
 | --- | --- |
-| Health check (`health.lua`) | A table containing `status` and an optional `message`. See [custom health checks](health.md#custom-health-checks). |
+| Health check (`health.lua`) | A table containing `status` and optional `message` and `deletionMessage` fields. See [custom health checks](health.md#custom-health-checks) and [terminating resources](health.md#terminating-resources). |
 | Action discovery (`discovery.lua`) | A table keyed by action name, with the action's properties, such as `disabled`. |
 | Resource action (`action.lua`) | The modified `obj`, or a list of resources and operations. See [resource action types](resource_actions.md#custom-resource-action-types). |
 
@@ -46,9 +46,9 @@ By default, scripts have access to these libraries:
 | Argo CD's limited OS module | `time` and `date`, available through `local os = require("os")` |
 
 Other standard libraries, such as `string`, `math`, and `io`, are not loaded by default.
-The limited OS module provides only `time` and `date`; it does not provide functions such as
-`execute` or `getenv`. Import it explicitly with `require("os")`. For example, this resource
-action records a UTC timestamp in an annotation:
+With standard libraries disabled, the limited OS module provides only `time` and `date`;
+it does not provide functions such as `execute` or `getenv`. Import it explicitly with
+`require("os")`. For example, this resource action records a UTC timestamp in an annotation:
 
 ```lua
 local os = require("os")
@@ -63,6 +63,10 @@ The `resource.customizations.useOpenLibs.<group>_<kind>` setting in `argocd-cm` 
 GopherLua standard libraries for a custom health check. For a resource in the core API group,
 omit `<group>_`, as in `resource.customizations.useOpenLibs.ConfigMap`.
 ConfigMap `data` values must be strings, so quote `"true"`.
+
+Enabling standard libraries exposes GopherLua's full global `os` library, including
+`os.execute` and `os.getenv`. The module returned by `require("os")` remains Argo CD's
+limited module containing only `time` and `date`.
 
 | Script source | Standard library availability |
 | --- | --- |
