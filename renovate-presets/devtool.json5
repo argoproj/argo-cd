@@ -22,6 +22,16 @@
       "enabled": true
     },
     {
+      "description": "Update the codegen tools in hack/tools/go.mod. Renovate reports a Go tool directive under its own `tool` depType, so matching the module's indirect requirements would miss all three while enabling every transitive dependency.",
+      "matchFileNames": [
+        "hack/tools/go.mod"
+      ],
+      "matchDepTypes": [
+        "tool"
+      ],
+      "enabled": true
+    },
+    {
       "description": "Run make mockgen after updating mockery",
       "matchDatasources": [
         "go"
