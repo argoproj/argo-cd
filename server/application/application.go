@@ -3011,6 +3011,58 @@ func isCoreSecret(obj *unstructured.Unstructured) bool {
 	return gvk.Group == "" && gvk.Kind == kube.SecretKind
 }
 
+// stateDiffsSkippingSecretDryRun calculates the diffs for the given aligned live
+// and target arrays, sending core Secrets through secretConfig and everything
+// else through dryRunConfig. See the secretDiffConfig comment in ServerSideDiff
+// for why a Secret cannot go through the server-side apply dry run.
+func stateDiffsSkippingSecretDryRun(ctx context.Context, lives, targets []*unstructured.Unstructured, dryRunConfig, secretConfig argodiff.DiffConfig) (*diff.DiffResultList, error) {
+	if len(lives) != len(targets) {
+		return nil, fmt.Errorf("live resources (%d) and target manifests (%d) must have the same length", len(lives), len(targets))
+	}
+
+	var dryRunIndexes, secretIndexes []int
+	for i := range targets {
+		if isCoreSecret(targets[i]) || isCoreSecret(lives[i]) {
+			secretIndexes = append(secretIndexes, i)
+		} else {
+			dryRunIndexes = append(dryRunIndexes, i)
+		}
+	}
+
+	results := &diff.DiffResultList{Diffs: make([]diff.DiffResult, len(targets))}
+	for _, group := range []struct {
+		indexes []int
+		config  argodiff.DiffConfig
+	}{
+		{indexes: dryRunIndexes, config: dryRunConfig},
+		{indexes: secretIndexes, config: secretConfig},
+	} {
+		if len(group.indexes) == 0 {
+			continue
+		}
+		groupLives := make([]*unstructured.Unstructured, 0, len(group.indexes))
+		groupTargets := make([]*unstructured.Unstructured, 0, len(group.indexes))
+		for _, i := range group.indexes {
+			groupLives = append(groupLives, lives[i])
+			groupTargets = append(groupTargets, targets[i])
+		}
+		groupResults, err := argodiff.StateDiffs(ctx, groupLives, groupTargets, group.config)
+		if err != nil {
+			return nil, err
+		}
+		if len(groupResults.Diffs) != len(group.indexes) {
+			return nil, fmt.Errorf("unexpected number of diff results: expected %d, got %d", len(group.indexes), len(groupResults.Diffs))
+		}
+		for n, i := range group.indexes {
+			results.Diffs[i] = groupResults.Diffs[n]
+			if groupResults.Diffs[n].Modified {
+				results.Modified = true
+			}
+		}
+	}
+	return results, nil
+}
+
 // ServerSideDiff gets the destination cluster and creates a server-side dry run applier and performs the diff
 // It returns the diff result in the form of a list of ResourceDiffs.
 func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationServerSideDiffQuery) (*application.ApplicationServerSideDiffResponse, error) {
@@ -3079,6 +3131,26 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, fmt.Errorf("error building diff config: %w", err)
 	}
 
+	// Secret data never reaches this endpoint in the clear: GetManifests and the
+	// managed resources cache both replace every value under "data" with a run of
+	// plus signs, and the CLI sends those masked manifests back here as the target
+	// state. A dry-run apply of one compares invented data against the cluster, and
+	// for a typed Secret the API server rejects the request outright, because the
+	// mask does not base64-decode to the JSON a kubernetes.io/dockerconfigjson
+	// Secret is required to hold. Secrets are diffed client-side instead, which is
+	// what argocd app diff already does when server-side diff is off. The dry runner
+	// is left unset rather than only turning the flag off, so that a Secret carrying
+	// the ServerSideApply=true sync option cannot opt itself back into the dry run.
+	secretDiffConfig, err := argodiff.NewDiffConfigBuilder().
+		WithDiffSettings(a.Spec.IgnoreDifferences, overrides, ignoreAggregatedRoles, normalizers.IgnoreNormalizerOpts{}).
+		WithTracking(appLabelKey, argoSettings.TrackingMethod).
+		WithNoCache().
+		WithManager(argocommon.ArgoCDSSAManager).
+		Build()
+	if err != nil {
+		return nil, fmt.Errorf("error building secret diff config: %w", err)
+	}
+
 	managedResources := make([]*v1alpha1.ResourceDiff, 0)
 	err = s.getCachedAppState(ctx, a, func() error {
 		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &managedResources)
@@ -3135,7 +3207,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		targetObjs = append(targetObjs, obj)
 	}
 
-	diffResults, err := argodiff.StateDiffs(ctx, liveObjs, targetObjs, diffConfig)
+	diffResults, err := stateDiffsSkippingSecretDryRun(ctx, liveObjs, targetObjs, diffConfig, secretDiffConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error performing state diffs: %w", err)
 	}
