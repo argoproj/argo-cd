@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,11 +30,7 @@ import (
 // MaxGRPCMessageSize contains max grpc message size
 var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 100, 0, math.MaxInt32) * 1024 * 1024
 
-// roundRobinServiceConfig spreads requests (and their retries) across every address the resolver
-// returns for the target. With the default ClusterIP Service that's a single VIP, so it's a no-op.
-// Point the client at the headless Service (dns:///argocd-repo-server-headless:8081) and DNS returns
-// one address per pod, so a ResourceExhausted retry lands on a different, newly scaled-out pod
-// instead of the same saturated one (#16470).
+// Enables round-robin load balancing for headless DNS targets, allowing retries across repo-server replicas.
 const roundRobinServiceConfig = `{"loadBalancingConfig":[{"round_robin":{}}]}`
 
 // Clientset represents repository server api clients
@@ -146,8 +143,10 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *utiltls.Config
 		grpc.WithStreamInterceptor(grpc_util.RetryOnlyForServerStreamInterceptor(retryOpts...)),
 		grpc.WithChainUnaryInterceptor(unaryInterceptors...),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
-		grpc.WithDefaultServiceConfig(roundRobinServiceConfig),
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
+	}
+	if strings.Contains(address, ":///") {
+		opts = append(opts, grpc.WithDefaultServiceConfig(roundRobinServiceConfig))
 	}
 
 	if tlsConfig.DisableTLS {
