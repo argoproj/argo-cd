@@ -65,7 +65,7 @@ Please prefix the title of your PR with one of the valid categories. For example
 
 Upon opening a PR, the details will contain a checklist from a template. Please read the checklist, and tick those marks that apply to you.
 
-## Automated builds & tests
+## Automated builds and tests
 
 After you have submitted your PR, and whenever you push new commits to that branch, GitHub will run a number of Continuous Integration checks against your code. It will execute the following actions, and each of them has to pass:
 
