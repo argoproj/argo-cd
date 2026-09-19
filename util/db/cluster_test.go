@@ -2,6 +2,8 @@ package db
 
 import (
 	"context"
+	"encoding/base64"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -12,6 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -19,6 +22,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	testutil "github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -986,4 +990,130 @@ func Test_secretToCluster_ConfigHash_Computed(t *testing.T) {
 	// Should have a freshly computed hash based on cluster identity
 	assert.NotNil(t, cluster.ConfigHash)
 	assert.NotZero(t, *cluster.ConfigHash)
+}
+
+func TestGetCluster_DefaultCABundle(t *testing.T) {
+	caBundle := []byte(strings.TrimSpace(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt")))
+	ownCA := []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt"))
+	argoCDConfigMap := &corev1.ConfigMap{
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
+		},
+		Data: map[string]string{},
+	}
+	argoCDSecret := &corev1.Secret{
+		Name:      common.ArgoCDSecretName,
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
+		},
+		Data: map[string][]byte{},
+	}
+	clusterCAConfigMap := func(caBundle string) *corev1.ConfigMap {
+		return &corev1.ConfigMap{
+			Name:      common.ArgoCDClusterCAConfigMapName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+			Data: map[string]string{
+				common.ArgoCDClusterCAConfigMapKey: caBundle,
+			},
+		}
+	}
+	clusterWithoutCA := &corev1.Secret{
+		Name:      "cluster-without-ca",
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+		},
+		Data: map[string][]byte{
+			"server":  []byte("https://without-ca"),
+			"name":    []byte("without-ca"),
+			"project": []byte("team-a"),
+			"config":  []byte(`{"tlsClientConfig":{"insecure":false}}`),
+		},
+	}
+	clusterWithCA := &corev1.Secret{
+		Name:      "cluster-with-ca",
+		Namespace: fakeNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+		},
+		Data: map[string][]byte{
+			"server": []byte("https://with-ca"),
+			"name":   []byte("with-ca"),
+			"config": []byte(`{"tlsClientConfig":{"caData":"` + base64.StdEncoding.EncodeToString(ownCA) + `"}}`),
+		},
+	}
+	newDB := func(t *testing.T, objects ...runtime.Object) ArgoDB {
+		t.Helper()
+		kubeclientset := fake.NewClientset(objects...)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+		return NewDB(fakeNamespace, settingsManager, kubeclientset)
+	}
+
+	t.Run("GetCluster falls back to the default bundle only for clusters without caData", func(t *testing.T) {
+		db := newDB(t, argoCDConfigMap, argoCDSecret, clusterCAConfigMap(string(caBundle)), clusterWithoutCA, clusterWithCA)
+
+		withoutCA, err := db.GetCluster(t.Context(), "https://without-ca")
+		require.NoError(t, err)
+		assert.Equal(t, caBundle, withoutCA.DefaultCABundle)
+		restConfig, err := withoutCA.RawRestConfig()
+		require.NoError(t, err)
+		assert.Equal(t, caBundle, restConfig.CAData)
+
+		withCA, err := db.GetCluster(t.Context(), "https://with-ca")
+		require.NoError(t, err)
+		assert.Equal(t, caBundle, withCA.DefaultCABundle)
+		restConfig, err = withCA.RawRestConfig()
+		require.NoError(t, err)
+		assert.Equal(t, ownCA, restConfig.CAData, "the cluster's own caData must win and must not be merged with the default bundle")
+	})
+
+	t.Run("local cluster gets the default bundle", func(t *testing.T) {
+		db := newDB(t, argoCDConfigMap, argoCDSecret, clusterCAConfigMap(string(caBundle)))
+
+		local, err := db.GetCluster(t.Context(), v1alpha1.KubernetesInternalAPIServerAddr)
+		require.NoError(t, err)
+		assert.Equal(t, caBundle, local.DefaultCABundle)
+	})
+
+	t.Run("ListClusters and GetProjectClusters apply the default bundle to every cluster", func(t *testing.T) {
+		db := newDB(t, argoCDConfigMap, argoCDSecret, clusterCAConfigMap(string(caBundle)), clusterWithoutCA, clusterWithCA)
+
+		list, err := db.ListClusters(t.Context())
+		require.NoError(t, err)
+		require.Len(t, list.Items, 3)
+		for _, cluster := range list.Items {
+			assert.Equal(t, caBundle, cluster.DefaultCABundle, cluster.Server)
+		}
+
+		projectClusters, err := db.GetProjectClusters(t.Context(), "team-a")
+		require.NoError(t, err)
+		require.Len(t, projectClusters, 1)
+		assert.Equal(t, "https://without-ca", projectClusters[0].Server)
+		assert.Equal(t, caBundle, projectClusters[0].DefaultCABundle)
+	})
+
+	t.Run("clusters are unaffected when the ConfigMap is missing", func(t *testing.T) {
+		db := newDB(t, argoCDConfigMap, argoCDSecret, clusterWithoutCA)
+
+		cluster, err := db.GetCluster(t.Context(), "https://without-ca")
+		require.NoError(t, err)
+		assert.Nil(t, cluster.DefaultCABundle)
+		restConfig, err := cluster.RawRestConfig()
+		require.NoError(t, err)
+		assert.Empty(t, restConfig.CAData)
+	})
+
+	t.Run("clusters are unaffected when the bundle is invalid", func(t *testing.T) {
+		db := newDB(t, argoCDConfigMap, argoCDSecret, clusterCAConfigMap("not a certificate"), clusterWithoutCA)
+
+		cluster, err := db.GetCluster(t.Context(), "https://without-ca")
+		require.NoError(t, err)
+		assert.Nil(t, cluster.DefaultCABundle)
+	})
 }
