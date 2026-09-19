@@ -322,18 +322,17 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 	// Previously, if the proxy URL was invalid, a temporary file would be left in /dev/shm. This ensures the file is cleaned up in this case.
 
-	// argoio.TempDir will be /dev/shm or "" (on an OS without /dev/shm).
-	// In this case os.CreateTemp(), which is used by creds.Environ(),
-	// will use os.TempDir for the temporary directory.
-	// Reproducing this logic here:
-	argoioTempDir := argoio.TempDir
-	if argoioTempDir == "" {
-		argoioTempDir = os.TempDir()
-	}
+	origArgoioTempDir := argoio.TempDir
+	t.Cleanup(func() { argoio.TempDir = origArgoioTempDir })
 
-	// countDev returns the number of files in the temporary directory
-	countFilesInDevShm := func() int {
-		entries, err := os.ReadDir(argoioTempDir)
+	// Redirect argoio.TempDir to a test-private directory. Production uses /dev/shm
+	// or the OS temp dir, which other processes (and parallel tests) can modify,
+	// so counting entries there before/after creds.Environ() would be flaky.
+	argoio.TempDir = t.TempDir()
+
+	// countFilesInArgoioTempDir returns the number of files in the argoio.TempDir
+	countFilesInArgoioTempDir := func() int {
+		entries, err := os.ReadDir(argoio.TempDir)
 		require.NoError(t, err)
 
 		return len(entries)
@@ -346,14 +345,14 @@ func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 		require.NoError(t, err)
 		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, ":invalid-proxy-url")
 
-		filesInDevShmBeforeInvocation := countFilesInDevShm()
+		filesInArgoioTempDirBeforeInvocation := countFilesInArgoioTempDir()
 
 		_, _, err = creds.Environ()
 		require.Error(t, err)
 
-		filesInDevShmAfterInvocation := countFilesInDevShm()
+		filesInArgoioTempDirAfterInvocation := countFilesInArgoioTempDir()
 
-		assert.Equal(t, filesInDevShmBeforeInvocation, filesInDevShmAfterInvocation, "no temporary files should leak if the proxy url cannot be parsed")
+		assert.Equal(t, filesInArgoioTempDirBeforeInvocation, filesInArgoioTempDirAfterInvocation, "no temporary files should leak if the proxy url cannot be parsed")
 	}
 }
 
