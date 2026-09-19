@@ -31,6 +31,8 @@ permissions:
 env:
   # a workaround to disable harden runner
   STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+  # renovate: datasource=golang-version packageName=golang
+  GOLANG_VERSION: '1.27.1'
   
 jobs:
   CodeQL-Build:
@@ -59,9 +61,20 @@ jobs:
     - name: Setup Golang
       uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version-file: go.mod
-      
-    # Initializes the CodeQL tools for scanning.
+        # Build with the toolchain we ship, not go.mod's version -- that one is the
+        # minimum we promise library consumers and deliberately lags. #1842 only needs
+        # a Go new enough to parse go.mod, which GOLANG_VERSION always is.
+        go-version: ${{ env.GOLANG_VERSION }}
+        cache: false
+    - name: Restore go build and module cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-build-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-build-v2-
     - name: Initialize CodeQL
       uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
       # Override language selection by uncommenting this and choosing your languages
