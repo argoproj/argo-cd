@@ -145,6 +145,7 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *utiltls.Config
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	}
+	// round-robin only helps for multi-address dns:/// targets, not a plain host:port
 	if strings.Contains(address, ":///") {
 		opts = append(opts, grpc.WithDefaultServiceConfig(roundRobinServiceConfig))
 	}
