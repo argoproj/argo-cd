@@ -24,6 +24,7 @@ import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-p
 import {isApp} from '../utils';
 import {ResourceDetails} from '../resource-details/resource-details';
 import {AppSetResourceDetails} from '../resource-details/appset-resource-details';
+import {AppSetGeneratedAppDetails} from '../resource-details/appset-generated-app-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList, ApplicationResourceParentRef} from './application-resource-list';
 import {APPLICATION_DETAILS_SORT_KEY, ApplicationResourceSortKey, compareApplicationResource, GROUPED_NODES_DETAILS_SORT_KEY} from './application-resource-sort';
@@ -752,16 +753,9 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 }));
                             };
 
-                            // For ApplicationSets, clicking an Application node navigates to its details page; otherwise the node is selected in place.
-                            const handleNodeClick = (fullName: string) => {
-                                const parts = fullName.split('/');
-                                const [group, kind, namespace, name] = parts;
-                                if (!isApplication && group === 'argoproj.io' && kind === 'Application' && namespace && name) {
-                                    appContext.navigation.goto(`/applications/${namespace}/${name}`);
-                                } else {
-                                    selectNode(fullName);
-                                }
-                            };
+                            // Clicking any node, including a generated Application, selects it in place and shows its
+                            // manifest in the details panel, matching the app-of-apps resource view behavior.
+                            const handleNodeClick = (fullName: string) => selectNode(fullName);
 
                             // Helper to get ApplicationResourceTree props based on resource type
                             const getResourceTreeProps = () => {
@@ -1237,8 +1231,9 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                             </SlidingPanel>
                                         )}
                                         {!isApplication && (
-                                            <SlidingPanel isShown={isAppSelected} onClose={() => selectNode('')}>
+                                            <SlidingPanel isShown={selectedNode != null || isAppSelected} onClose={() => selectNode('')}>
                                                 {isAppSelected && <AppSetResourceDetails appSet={application as appModels.ApplicationSet} />}
+                                                {selectedNode?.kind === 'Application' && <AppSetGeneratedAppDetails node={selectedNode} />}
                                             </SlidingPanel>
                                         )}
                                         {isApplication && (
