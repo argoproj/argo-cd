@@ -17,13 +17,15 @@ import (
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 )
 
-// Info values passed to the interceptors under test. A regular (non-health) method is used unless a
-// test specifically exercises the health-check exemption.
+// Info values passed to the interceptors under test.
 var (
-	unaryInfo       = &grpc.UnaryServerInfo{FullMethod: "/repository.RepoServerService/GenerateManifest"}
-	streamInfo      = &grpc.StreamServerInfo{FullMethod: "/repository.RepoServerService/GenerateManifestWithFiles"}
-	unaryHealthInfo = &grpc.UnaryServerInfo{FullMethod: "/grpc.health.v1.Health/Check"}
-	streamHealthCfg = &grpc.StreamServerInfo{FullMethod: "/grpc.health.v1.Health/Watch"}
+	unaryInfo = &grpc.UnaryServerInfo{FullMethod: "/repository.RepoServerService/GenerateManifest"}
+	// Server-streaming: limited, because these get retried on another replica.
+	streamInfo = &grpc.StreamServerInfo{FullMethod: "/test.RepoServerService/ServerStream", IsServerStream: true}
+	// Client-streaming: exempt, because it's never retried (rejecting it would be a hard failure).
+	clientStreamInfo = &grpc.StreamServerInfo{FullMethod: "/repository.RepoServerService/GenerateManifestWithFiles", IsClientStream: true}
+	unaryHealthInfo  = &grpc.UnaryServerInfo{FullMethod: "/grpc.health.v1.Health/Check"}
+	streamHealthCfg  = &grpc.StreamServerInfo{FullMethod: "/grpc.health.v1.Health/Watch"}
 )
 
 // nopUnaryHandler is a gRPC unary handler that succeeds immediately.
@@ -32,7 +34,7 @@ var nopUnaryHandler grpc.UnaryHandler = func(_ context.Context, _ any) (any, err
 }
 
 func TestConcurrencyLimiterUnaryServerInterceptor_NoLimit(t *testing.T) {
-	limiter := grpc_util.NewConcurrencyLimiter(0, nil)
+	limiter := grpc_util.NewConcurrencyLimiter(0)
 	interceptor := limiter.UnaryServerInterceptor()
 
 	// Without a limit, requests should always succeed.
@@ -46,7 +48,7 @@ func TestConcurrencyLimiterUnaryServerInterceptor_NoLimit(t *testing.T) {
 
 func TestConcurrencyLimiterUnaryServerInterceptor_WithinLimit(t *testing.T) {
 	const limit = 5
-	limiter := grpc_util.NewConcurrencyLimiter(limit, nil)
+	limiter := grpc_util.NewConcurrencyLimiter(limit)
 	interceptor := limiter.UnaryServerInterceptor()
 
 	for i := range int(limit) {
@@ -58,7 +60,7 @@ func TestConcurrencyLimiterUnaryServerInterceptor_WithinLimit(t *testing.T) {
 
 func TestConcurrencyLimiterUnaryServerInterceptor_ExceedLimit(t *testing.T) {
 	const limit = 2
-	limiter := grpc_util.NewConcurrencyLimiter(limit, nil)
+	limiter := grpc_util.NewConcurrencyLimiter(limit)
 	interceptor := limiter.UnaryServerInterceptor()
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -91,7 +93,7 @@ func TestConcurrencyLimiterUnaryServerInterceptor_ExceedLimit(t *testing.T) {
 }
 
 func TestConcurrencyLimiterUnaryServerInterceptor_ActiveReportedCorrectly(t *testing.T) {
-	limiter := grpc_util.NewConcurrencyLimiter(0, nil) // no limit, only tracking
+	limiter := grpc_util.NewConcurrencyLimiter(0) // no limit, only tracking
 	interceptor := limiter.UnaryServerInterceptor()
 
 	var activeAtHandler atomic.Int64
@@ -108,7 +110,7 @@ func TestConcurrencyLimiterUnaryServerInterceptor_ActiveReportedCorrectly(t *tes
 // own liveness probe (which self-dials and would otherwise be rejected with ResourceExhausted).
 func TestConcurrencyLimiterUnaryServerInterceptor_HealthCheckExempt(t *testing.T) {
 	const limit = 1
-	limiter := grpc_util.NewConcurrencyLimiter(limit, nil)
+	limiter := grpc_util.NewConcurrencyLimiter(limit)
 	interceptor := limiter.UnaryServerInterceptor()
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -127,8 +129,7 @@ func TestConcurrencyLimiterUnaryServerInterceptor_HealthCheckExempt(t *testing.T
 	}()
 	<-started
 
-	// The health check must still succeed even though the limiter is at capacity, and it must not
-	// perturb the active count.
+	// Health check must succeed at capacity, without perturbing the active count.
 	_, err := interceptor(t.Context(), nil, unaryHealthInfo, nopUnaryHandler)
 	require.NoError(t, err)
 	assert.EqualValues(t, 1, limiter.ActiveRequests(), "health check must not change the active count")
@@ -140,7 +141,7 @@ func TestConcurrencyLimiterUnaryServerInterceptor_HealthCheckExempt(t *testing.T
 
 func TestConcurrencyLimiterStreamServerInterceptor_ExceedLimit(t *testing.T) {
 	const limit = 1
-	limiter := grpc_util.NewConcurrencyLimiter(limit, nil)
+	limiter := grpc_util.NewConcurrencyLimiter(limit)
 	interceptor := limiter.StreamServerInterceptor()
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -171,7 +172,7 @@ func TestConcurrencyLimiterStreamServerInterceptor_ExceedLimit(t *testing.T) {
 }
 
 func TestConcurrencyLimiterStreamServerInterceptor_ActiveReportedCorrectly(t *testing.T) {
-	limiter := grpc_util.NewConcurrencyLimiter(0, nil)
+	limiter := grpc_util.NewConcurrencyLimiter(0)
 	interceptor := limiter.StreamServerInterceptor()
 
 	var activeAtHandler atomic.Int64
@@ -187,7 +188,7 @@ func TestConcurrencyLimiterStreamServerInterceptor_ActiveReportedCorrectly(t *te
 // The streaming health watch must also bypass the limiter.
 func TestConcurrencyLimiterStreamServerInterceptor_HealthCheckExempt(t *testing.T) {
 	const limit = 1
-	limiter := grpc_util.NewConcurrencyLimiter(limit, nil)
+	limiter := grpc_util.NewConcurrencyLimiter(limit)
 	interceptor := limiter.StreamServerInterceptor()
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -214,11 +215,44 @@ func TestConcurrencyLimiterStreamServerInterceptor_HealthCheckExempt(t *testing.
 	close(release)
 }
 
+// Client-streaming RPCs bypass the limiter: they're never retried, so rejecting them would be a hard
+// failure rather than backpressure.
+func TestConcurrencyLimiterStreamServerInterceptor_ClientStreamExempt(t *testing.T) {
+	const limit = 1
+	limiter := grpc_util.NewConcurrencyLimiter(limit)
+	interceptor := limiter.StreamServerInterceptor()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+
+	// A server-streaming request occupies the only slot.
+	go func() {
+		_ = interceptor(nil, &mockServerStream{ctx: ctx}, streamInfo, func(_ any, _ grpc.ServerStream) error {
+			close(started)
+			<-release
+			return nil
+		})
+	}()
+	<-started
+
+	// Client-streaming request must succeed at capacity, without perturbing the active count.
+	err := interceptor(nil, &mockServerStream{ctx: t.Context()}, clientStreamInfo, func(_ any, _ grpc.ServerStream) error {
+		return nil
+	})
+	require.NoError(t, err)
+	assert.EqualValues(t, 1, limiter.ActiveRequests(), "client-streaming RPC must not change the active count")
+
+	close(release)
+}
+
 // The unary and stream interceptors must share a single counter, so a mixed workload is limited by
 // total gRPC concurrency rather than a separate budget per RPC kind.
 func TestConcurrencyLimiter_UnaryAndStreamShareCounter(t *testing.T) {
 	const limit = 2
-	limiter := grpc_util.NewConcurrencyLimiter(limit, nil)
+	limiter := grpc_util.NewConcurrencyLimiter(limit)
 	unary := limiter.UnaryServerInterceptor()
 	stream := limiter.StreamServerInterceptor()
 
@@ -261,22 +295,20 @@ func TestConcurrencyLimiter_UnaryAndStreamShareCounter(t *testing.T) {
 	close(release)
 }
 
-// A caller-supplied counter (e.g. the one backing the metric gauge) must reflect the exact same
-// value the limiter enforces, and must return to zero once all work completes.
-func TestConcurrencyLimiter_SharedCounterTracksMetric(t *testing.T) {
-	shared := &atomic.Int64{}
-	limiter := grpc_util.NewConcurrencyLimiter(0, shared)
+// ActiveRequests is what the metric gauge reads on each scrape, so it must reflect the in-flight
+// request while a handler runs and return to zero once all work completes.
+func TestConcurrencyLimiter_ActiveRequestsTracksMetric(t *testing.T) {
+	limiter := grpc_util.NewConcurrencyLimiter(0)
 	interceptor := limiter.UnaryServerInterceptor()
 
 	var duringHandler int64
 	_, err := interceptor(t.Context(), nil, unaryInfo, func(_ context.Context, _ any) (any, error) {
-		duringHandler = shared.Load()
+		duringHandler = limiter.ActiveRequests()
 		return nil, nil
 	})
 	require.NoError(t, err)
-	assert.EqualValues(t, 1, duringHandler, "shared counter must reflect the in-flight request")
-	assert.EqualValues(t, 0, shared.Load(), "shared counter must return to zero after completion")
-	assert.Equal(t, shared.Load(), limiter.ActiveRequests(), "ActiveRequests must read the shared counter")
+	assert.EqualValues(t, 1, duringHandler, "ActiveRequests must reflect the in-flight request")
+	assert.EqualValues(t, 0, limiter.ActiveRequests(), "ActiveRequests must return to zero after completion")
 }
 
 // mockServerStream implements grpc.ServerStream minimally.
@@ -297,7 +329,7 @@ var _ grpc.ServerStream = (*mockServerStream)(nil)
 // --- Regression: a rejected request must not leave the active count inflated. ---
 func TestConcurrencyLimiterUnaryServerInterceptor_RejectedRequestNotCounted(t *testing.T) {
 	const limit = 1
-	limiter := grpc_util.NewConcurrencyLimiter(limit, nil)
+	limiter := grpc_util.NewConcurrencyLimiter(limit)
 	interceptor := limiter.UnaryServerInterceptor()
 
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)

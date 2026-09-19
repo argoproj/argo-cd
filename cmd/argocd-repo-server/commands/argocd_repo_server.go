@@ -148,6 +148,7 @@ func NewCommand() *cobra.Command {
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
 				ParallelismLimit:                             parallelismLimit,
 				ParallelismLimitFailFast:                     parallelismLimitFailFast,
+				MaxConcurrentGRPCRequests:                    maxConcurrentGRPCRequests,
 				PauseGenerationAfterFailedGenerationAttempts: pauseGenerationAfterFailedGenerationAttempts,
 				PauseGenerationOnFailureForMinutes:           pauseGenerationOnFailureForMinutes,
 				PauseGenerationOnFailureForRequests:          pauseGenerationOnFailureForRequests,
@@ -167,7 +168,7 @@ func NewCommand() *cobra.Command {
 				EnableBuiltinGitConfig:                       enableBuiltinGitConfig,
 				HelmUserAgent:                                helmUserAgent,
 				HelmChartCacheExpiration:                     repoCacheExpiration,
-			}, askPassServer, clientCAPath, disableTLS, maxConcurrentGRPCRequests)
+			}, askPassServer, clientCAPath, disableTLS)
 			errors.CheckError(err)
 
 			if otlpAddress != "" {

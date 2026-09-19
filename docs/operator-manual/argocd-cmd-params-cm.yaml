@@ -7,6 +7,9 @@ metadata:
     app.kubernetes.io/part-of: argocd
 data:
   # Repo server address. (default "argocd-repo-server:8081")
+  # To spread requests (and ResourceExhausted retries) across all repo-server pods for graceful
+  # scale-out, point this at the headless Service with round-robin load balancing:
+  #   repo.server: "dns:///argocd-repo-server-headless:8081"
   repo.server: "argocd-repo-server:8081"
 
   # Commit server address. (default "argocd-commit-server:8086")

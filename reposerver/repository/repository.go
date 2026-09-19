@@ -114,6 +114,7 @@ type RepoServerInitConstants struct {
 	OCIMediaTypes                                []string
 	ParallelismLimit                             int64
 	ParallelismLimitFailFast                     bool
+	MaxConcurrentGRPCRequests                    int64
 	PauseGenerationAfterFailedGenerationAttempts int
 	PauseGenerationOnFailureForMinutes           int
 	PauseGenerationOnFailureForRequests          int

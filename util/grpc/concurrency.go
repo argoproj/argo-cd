@@ -10,44 +10,35 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// healthServiceMethodPrefix is the fully-qualified method prefix of the gRPC health service.
-// Health-check RPCs are exempt from the concurrency limit: the liveness probe self-dials the
-// repo-server, and if its own health check were rejected while the server is saturated (exactly
-// when this limiter engages), the probe would fail and kubelet would restart an otherwise healthy
-// but busy pod — the opposite of graceful scale-out.
+// healthServiceMethodPrefix is the method prefix of the gRPC health service. Health-check RPCs are
+// exempt from the limit: the liveness probe self-dials the repo-server, so rejecting its health check
+// while the server is saturated would restart an otherwise healthy pod — the opposite of scale-out.
 const healthServiceMethodPrefix = "/grpc.health.v1.Health/"
 
 func isHealthCheckMethod(fullMethod string) bool {
 	return strings.HasPrefix(fullMethod, healthServiceMethodPrefix)
 }
 
-// ConcurrencyLimiter caps the number of concurrent gRPC requests the repo-server handles and tracks
-// the current in-flight count. A single shared counter backs both the unary and stream
-// interceptors, so the limit and the tracked count reflect total gRPC concurrency rather than a
-// separate budget per RPC kind. The same counter drives the Prometheus gauge used for HPA
-// scale-out; because the gauge reads the counter on scrape (see ActiveRequests) rather than being
-// pushed a snapshot, it can never drift from the value the limiter actually enforces.
+// ConcurrencyLimiter caps concurrent gRPC requests and tracks the in-flight count. One counter backs
+// both interceptors, so the limit covers total gRPC concurrency rather than a budget per RPC kind.
+// The limiter owns the counter; the HPA gauge reads it on scrape via ActiveRequests, so the reported
+// value can't drift from what the limiter enforces.
 //
-// Requests that exceed the limit are rejected immediately with codes.ResourceExhausted so clients
-// can retry on a different replica. Health-check RPCs bypass the limiter entirely.
+// Requests over the limit are rejected with codes.ResourceExhausted so clients retry on another
+// replica. Health-check and client-streaming RPCs bypass the limiter (see StreamServerInterceptor).
 type ConcurrencyLimiter struct {
 	maxConcurrentRequests int64
-	active                *atomic.Int64
+	active                atomic.Int64
 }
 
 // NewConcurrencyLimiter returns a limiter that rejects requests once maxConcurrentRequests are in
-// flight; a value <= 0 disables enforcement while still tracking the active count. active is the
-// counter shared with the metric gauge so both always agree; if nil, a private counter is used.
-func NewConcurrencyLimiter(maxConcurrentRequests int64, active *atomic.Int64) *ConcurrencyLimiter {
-	if active == nil {
-		active = &atomic.Int64{}
-	}
-	return &ConcurrencyLimiter{maxConcurrentRequests: maxConcurrentRequests, active: active}
+// flight; a value <= 0 disables enforcement while still tracking the active count.
+func NewConcurrencyLimiter(maxConcurrentRequests int64) *ConcurrencyLimiter {
+	return &ConcurrencyLimiter{maxConcurrentRequests: maxConcurrentRequests}
 }
 
-// ActiveRequests returns the number of gRPC requests currently in flight. It is safe for concurrent
-// use and is intended to be read on demand (e.g. by a Prometheus collector), which keeps the
-// reported value consistent with the counter the limiter enforces.
+// ActiveRequests returns the number of gRPC requests currently in flight. Safe for concurrent use;
+// intended to be read on demand by the Prometheus collector.
 func (l *ConcurrencyLimiter) ActiveRequests() int64 {
 	return l.active.Load()
 }
@@ -67,11 +58,15 @@ func (l *ConcurrencyLimiter) UnaryServerInterceptor() grpc.UnaryServerIntercepto
 	}
 }
 
-// StreamServerInterceptor returns a stream interceptor with the same limiting and tracking
-// behaviour as UnaryServerInterceptor, sharing the same counter.
+// StreamServerInterceptor limits and tracks streaming RPCs, sharing UnaryServerInterceptor's counter.
+//
+// Client-streaming RPCs (info.IsClientStream, which also covers bidi) are exempt: the client only
+// retries server-streaming calls (RetryOnlyForServerStreamInterceptor), so rejecting a client stream
+// like GenerateManifestWithFiles would be a hard failure rather than a retry on another replica.
+// --parallelism-limit-fail-fast provides backpressure for that manifest path instead.
 func (l *ConcurrencyLimiter) StreamServerInterceptor() grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		if isHealthCheckMethod(info.FullMethod) {
+		if isHealthCheckMethod(info.FullMethod) || info.IsClientStream {
 			return handler(srv, ss)
 		}
 		if err := l.acquire(); err != nil {

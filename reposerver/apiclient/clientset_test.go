@@ -20,6 +20,8 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/resolver"
+	"google.golang.org/grpc/resolver/manual"
 	"google.golang.org/grpc/status"
 
 	utilstls "github.com/argoproj/argo-cd/v3/util/tls"
@@ -610,8 +612,7 @@ func newMTLSServer(t *testing.T, clientCAs *x509.CertPool) *mTLSServerFixture {
 }
 
 // flakyHealthServer returns ResourceExhausted for the first `failuresRemaining` calls, then serves
-// normally — modelling a repo-server that is briefly at capacity and rejects requests so clients
-// retry (the graceful scale-out mechanism).
+// normally. Models a repo-server that's briefly at capacity.
 type flakyHealthServer struct {
 	grpc_health_v1.UnimplementedHealthServer
 	failuresRemaining atomic.Int64
@@ -626,32 +627,60 @@ func (s *flakyHealthServer) Check(_ context.Context, _ *grpc_health_v1.HealthChe
 	return &grpc_health_v1.HealthCheckResponse{Status: grpc_health_v1.HealthCheckResponse_SERVING}, nil
 }
 
-// TestNewConnection_RetriesResourceExhausted verifies the graceful scale-out retry policy: a unary
-// call that first receives ResourceExhausted is retried transparently with backoff until it
-// succeeds, without the caller observing the transient rejections.
+// startHealthServer starts an in-process gRPC health server on a random port. A backend with
+// failuresRemaining == 0 always serves and just counts calls.
+func startHealthServer(t *testing.T) (string, *flakyHealthServer) {
+	t.Helper()
+	lis, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err, "binding test listener")
+
+	backend := &flakyHealthServer{}
+	srv := grpc.NewServer()
+	grpc_health_v1.RegisterHealthServer(srv, backend)
+	go func() { _ = srv.Serve(lis) }()
+	t.Cleanup(srv.Stop)
+
+	return lis.Addr().String(), backend
+}
+
+// A unary call that first gets ResourceExhausted must be retried until it succeeds, without the
+// caller seeing the transient rejections.
 func TestNewConnection_RetriesResourceExhausted(t *testing.T) {
 	t.Parallel()
 
 	const failuresBeforeSuccess = 2
-	flaky := &flakyHealthServer{}
+	addr, flaky := startHealthServer(t)
 	flaky.failuresRemaining.Store(failuresBeforeSuccess)
 
-	lis, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
-	require.NoError(t, err, "binding test listener")
-
-	srv := grpc.NewServer()
-	grpc_health_v1.RegisterHealthServer(srv, flaky)
-	go func() { _ = srv.Serve(lis) }()
-	t.Cleanup(srv.Stop)
-
-	conn, err := apiclient.NewConnection(lis.Addr().String(), 10, &utilstls.Configuration{DisableTLS: true})
+	conn, err := apiclient.NewConnection(addr, 10, &utilstls.Configuration{DisableTLS: true})
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = conn.Close() })
 
-	// The first two Check calls return ResourceExhausted; the retry policy must retry with backoff
-	// until the third call succeeds, so the caller sees success rather than the transient rejects.
+	// First two calls fail; the retry must reach the third, which succeeds.
 	require.NoError(t, healthCheck(t, conn), "client must retry ResourceExhausted until the server recovers")
-	assert.EqualValues(t, failuresBeforeSuccess+1, flaky.calls.Load(), "expected two retries followed by a successful call")
+	assert.EqualValues(t, failuresBeforeSuccess+1, flaky.calls.Load(), "expected two retries then success")
+}
+
+// With two backends behind one target, calls must reach both rather than pinning to one. This is the
+// headless-Service opt-in for graceful scale-out (#16470).
+func TestNewConnection_RoundRobinSpreadsAcrossBackends(t *testing.T) {
+	addr1, backend1 := startHealthServer(t)
+	addr2, backend2 := startHealthServer(t)
+
+	// Manual resolver returning both addresses for one target, like a headless Service's DNS record.
+	mr := manual.NewBuilderWithScheme("roundrobintest")
+	mr.InitialState(resolver.State{Addresses: []resolver.Address{{Addr: addr1}, {Addr: addr2}}})
+	resolver.Register(mr)
+
+	conn, err := apiclient.NewConnection(mr.Scheme()+":///repo-server", 10, &utilstls.Configuration{DisableTLS: true})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+
+	// Subchannels connect asynchronously, so keep calling until both have served at least once.
+	require.Eventually(t, func() bool {
+		require.NoError(t, healthCheck(t, conn))
+		return backend1.calls.Load() > 0 && backend2.calls.Load() > 0
+	}, 5*time.Second, 10*time.Millisecond, "round-robin must spread calls across both backends, got backend1=%d backend2=%d", backend1.calls.Load(), backend2.calls.Load())
 }
 
 func healthCheck(t *testing.T, conn *grpc.ClientConn) error {

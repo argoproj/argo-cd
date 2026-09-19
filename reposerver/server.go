@@ -46,7 +46,7 @@ type ArgoCDRepoServer struct {
 var tlsHostList = []string{"localhost", "reposerver"}
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore, clientCAPath string, disableTLS bool, maxConcurrentGRPCRequests int64) (*ArgoCDRepoServer, error) {
+func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore, clientCAPath string, disableTLS bool) (*ArgoCDRepoServer, error) {
 	var tlsConfig *tls.Config
 	var healthCheckClientCert *tls.Certificate
 
@@ -93,9 +93,10 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 
 	serverLog := log.NewEntry(log.StandardLogger())
 	// A single limiter backs both the unary and stream interceptors so the limit and the
-	// argocd_repo_server_active_requests gauge cover total gRPC concurrency, sharing the metric's
-	// counter so the two never diverge.
-	concurrencyLimiter := grpc_util.NewConcurrencyLimiter(maxConcurrentGRPCRequests, metricsServer.ActiveGRPCRequests())
+	// argocd_repo_server_active_requests gauge cover total gRPC concurrency. The limiter owns the
+	// in-flight counter and the gauge reads it on scrape, so the two never diverge.
+	concurrencyLimiter := grpc_util.NewConcurrencyLimiter(initConstants.MaxConcurrentGRPCRequests)
+	metricsServer.RegisterActiveGRPCRequestsGauge(concurrencyLimiter.ActiveRequests)
 	// The concurrency limiter is placed after the logging and metrics interceptors so that
 	// requests rejected with ResourceExhausted are still logged and counted, and before the
 	// recovery interceptor so the latter continues to wrap the actual handler.
