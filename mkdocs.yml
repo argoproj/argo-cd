@@ -68,6 +68,7 @@ nav:
   - operator-manual/webhook.md
   - operator-manual/health.md
   - operator-manual/resource_actions.md
+  - operator-manual/lua.md
   - operator-manual/custom_tools.md
   - operator-manual/custom-styles.md
   - operator-manual/ui-customization.md
