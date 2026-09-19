@@ -8,6 +8,7 @@ import (
 	"fmt"
 	goio "io"
 	"io/fs"
+	"maps"
 	"net/mail"
 	"os"
 	"os/exec"
@@ -5115,6 +5116,167 @@ func TestGetGitFiles(t *testing.T) {
 	})
 }
 
+func TestGetGitFilesIncludeExcludePatterns(t *testing.T) {
+	root := ""
+	matches := map[string][]string{
+		"**/config.yaml": {"./testdata/git-files-dirs/somedir/config.yaml", "./testdata/git-files-dirs/config.yaml"},
+		"app/**/*.yaml":  {"./testdata/git-files-dirs/app/foo/bar/config.yaml"},
+		"somedir/*":      {"./testdata/git-files-dirs/somedir/config.yaml"},
+	}
+
+	s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		// A single checkout covers every pattern in the request.
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Once().Return("", nil)
+		gitClient.EXPECT().LsRemote("HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+		gitClient.EXPECT().Root().Return(root)
+		for pattern, files := range matches {
+			gitClient.EXPECT().LsFiles(mock.Anything, pattern, mock.Anything).Once().Return(files, nil)
+		}
+		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
+	}, root)
+
+	fileResponse, err := s.GetGitFiles(t.Context(), &apiclient.GitFilesRequest{
+		Repo:            &v1alpha1.Repository{Repo: "a-url.com"},
+		Revision:        "HEAD",
+		IncludePatterns: []string{"**/config.yaml", "app/**/*.yaml"},
+		ExcludePatterns: []string{"somedir/*"},
+	})
+	require.NoError(t, err)
+
+	// Union of the two includes, minus the file the exclude matched.
+	assert.Equal(t, []string{
+		"./testdata/git-files-dirs/app/foo/bar/config.yaml",
+		"./testdata/git-files-dirs/config.yaml",
+	}, slices.Sorted(maps.Keys(fileResponse.GetMap())))
+}
+
+func TestGetOciFilesIncludeExcludePatterns(t *testing.T) {
+	tmpDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "config"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "config", "prod.json"), []byte(`{"cluster": "production"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "config", "staging.json"), []byte(`{"cluster": "staging"}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "config", "values.yaml"), []byte("foo: bar"), 0o644))
+
+	s, _, cacheMocks := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+		ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("sha256:abc123", nil)
+		// The artifact is fetched and decompressed once for the whole pattern set, not once per pattern.
+		ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Once().Return(tmpDir, utilio.NopCloser, nil)
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+	}, ".")
+
+	filesRequest := &apiclient.OciFilesRequest{
+		Repo:            &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
+		Revision:        "v1.0.0",
+		IncludePatterns: []string{"config/*.json", "config/*.yaml"},
+		ExcludePatterns: []string{"config/staging.json"},
+	}
+
+	fileResponse, err := s.GetOciFiles(t.Context(), filesRequest)
+	require.NoError(t, err)
+
+	files := fileResponse.GetFiles()
+	assert.Equal(t, []string{"config/prod.json", "config/values.yaml"}, slices.Sorted(maps.Keys(files)))
+	assert.JSONEq(t, `{"cluster": "production"}`, string(files["config/prod.json"]))
+
+	// The whole set is cached under one key, so a repeat request needs no second extraction.
+	fileResponse2, err := s.GetOciFiles(t.Context(), filesRequest)
+	require.NoError(t, err)
+	assert.Equal(t, files, fileResponse2.GetFiles())
+	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+		ExternalSets: 1,
+		ExternalGets: 2,
+	})
+}
+
+func TestRequestedFilePatterns(t *testing.T) {
+	t.Parallel()
+
+	t.Run("include patterns are used as given", func(t *testing.T) {
+		t.Parallel()
+		include, exclude := requestedFilePatterns([]string{"a/*", "b/*"}, []string{"c/*"}, "ignored", "**")
+		assert.Equal(t, []string{"a/*", "b/*"}, include)
+		assert.Equal(t, []string{"c/*"}, exclude)
+	})
+
+	t.Run("falls back to the single pattern of an older client", func(t *testing.T) {
+		t.Parallel()
+		include, exclude := requestedFilePatterns(nil, nil, "a/*", "**")
+		assert.Equal(t, []string{"a/*"}, include)
+		assert.Empty(t, exclude)
+	})
+
+	t.Run("an empty single pattern matches everything", func(t *testing.T) {
+		t.Parallel()
+		include, _ := requestedFilePatterns(nil, nil, "", "**")
+		assert.Equal(t, []string{"**"}, include)
+	})
+
+	t.Run("an empty pattern in a set matches everything", func(t *testing.T) {
+		t.Parallel()
+		// git rejects an empty pathspec and a glob matches nothing, so an empty entry
+		// has to keep meaning "everything" as it did when requests carried one pattern.
+		include, exclude := requestedFilePatterns([]string{"a/*", ""}, []string{""}, "", "**")
+		assert.Equal(t, []string{"a/*", "**"}, include)
+		assert.Equal(t, []string{"**"}, exclude)
+	})
+
+	t.Run("patterns are not normalized in place", func(t *testing.T) {
+		t.Parallel()
+		given := []string{""}
+		include, _ := requestedFilePatterns(given, nil, "", "**")
+		assert.Equal(t, []string{"**"}, include)
+		assert.Equal(t, []string{""}, given, "the caller's slice must be left alone")
+	})
+}
+
+func TestMatchFilePatterns(t *testing.T) {
+	t.Parallel()
+
+	matches := map[string][]string{
+		"a/*":         {"a/one.yaml", "a/two.yaml"},
+		"b/*":         {"b/one.yaml", "a/two.yaml"}, // overlaps with a/*
+		"**/two.yaml": {"a/two.yaml"},
+		"boom":        nil,
+	}
+	match := func(pattern string) ([]string, error) {
+		if pattern == "boom" {
+			return nil, errors.New("match failed")
+		}
+		return matches[pattern], nil
+	}
+
+	t.Run("includes are unioned and deduplicated", func(t *testing.T) {
+		t.Parallel()
+		paths, err := matchFilePatterns([]string{"a/*", "b/*"}, nil, match)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"a/one.yaml", "a/two.yaml", "b/one.yaml"}, paths)
+	})
+
+	t.Run("excludes are subtracted from the union", func(t *testing.T) {
+		t.Parallel()
+		paths, err := matchFilePatterns([]string{"a/*", "b/*"}, []string{"**/two.yaml"}, match)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"a/one.yaml", "b/one.yaml"}, paths)
+	})
+
+	t.Run("a failing include pattern surfaces", func(t *testing.T) {
+		t.Parallel()
+		_, err := matchFilePatterns([]string{"boom"}, nil, match)
+		require.EqualError(t, err, "match failed")
+	})
+
+	t.Run("a failing exclude pattern surfaces", func(t *testing.T) {
+		t.Parallel()
+		_, err := matchFilePatterns([]string{"a/*"}, []string{"boom"}, match)
+		require.EqualError(t, err, "match failed")
+	})
+}
+
 func TestErrorUpdateRevisionForPaths(t *testing.T) {
 	// test not using the cache
 	root := ""
@@ -6619,11 +6781,14 @@ func TestGetOciFiles(t *testing.T) {
 
 	t.Run("dot glob returns all regular files", func(t *testing.T) {
 		cases := []struct {
-			name string
-			glob string
+			name            string
+			glob            string
+			includePatterns []string
 		}{
 			{name: "empty string defaults to dot", glob: ""},
 			{name: "explicit dot", glob: "."},
+			{name: "empty include pattern", includePatterns: []string{""}},
+			{name: "explicit dot include pattern", includePatterns: []string{"."}},
 		}
 
 		for _, tc := range cases {
@@ -6644,9 +6809,10 @@ func TestGetOciFiles(t *testing.T) {
 				}, ".")
 
 				req := &apiclient.OciFilesRequest{
-					Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
-					Revision: "v1.0.0",
-					Glob:     tc.glob,
+					Repo:            &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
+					Revision:        "v1.0.0",
+					Glob:            tc.glob,
+					IncludePatterns: tc.includePatterns,
 				}
 
 				resp, err := s.GetOciFiles(t.Context(), req)
