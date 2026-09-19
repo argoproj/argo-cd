@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cmp"
 	argoexec "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
+	"github.com/argoproj/argo-cd/v3/util/reaper"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -108,10 +109,13 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	cmd.SysProcAttr = newSysProcAttr(true)
 
 	start := time.Now()
-	err = cmd.Start()
+	// Start tracked so the PID-1 zombie reaper never steals this command's
+	// exit status from cmd.Wait below.
+	reapToken, err := reaper.StartTracked(cmd)
 	if err != nil {
 		return "", err
 	}
+	defer reaper.Untrack(cmd.Process.Pid, reapToken)
 
 	go func() {
 		<-ctx.Done()
