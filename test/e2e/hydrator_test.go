@@ -681,3 +681,28 @@ func TestHydratorNestedRequest(t *testing.T) {
 	// it is expected to take a long time if runner is slow
 	acts.ThenWithTimeout(80).Expect(All(HydrationPhaseIs(HydrateOperationPhaseHydrated), DryRevisionIs(revision)))
 }
+
+func TestWaitOperationWithSelectedResource(t *testing.T) {
+	Given(t).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Then().
+		Given().
+		// Run sync asynchronously so the operation is pending while we wait
+		Async(true).
+		When().
+		Sync().
+		// Wait for the operation to complete and the selected resource to be healthy/synced.
+		// Without the global operation check, this would evaluate the resource prematurely
+		// or timeout if the operation takes a while.
+		Wait("--operation", "--resource", "apps:Deployment:guestbook-ui").
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
