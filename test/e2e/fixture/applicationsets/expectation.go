@@ -3,12 +3,13 @@ package applicationsets
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -24,7 +25,7 @@ const (
 	succeeded = "succeeded"
 )
 
-// Expectation returns succeeded on succes condition, or pending/failed on failure, along with
+// Expectation returns succeeded on success condition, or pending/failed on failure, along with
 // a message to describe the success/failure condition.
 type Expectation func(c *Consequences) (state state, message string)
 
@@ -119,6 +120,23 @@ func ApplicationSetHasConditions(expectedConditions []v1alpha1.ApplicationSetCon
 	}
 }
 
+func ApplicationSetHasCondition(expType v1alpha1.ApplicationSetConditionType, expStatus v1alpha1.ApplicationSetConditionStatus, expMessage *regexp.Regexp, expReason string) Expectation {
+	return func(c *Consequences) (state, string) {
+		foundApplicationSet := c.applicationSet(c.context.GetName())
+		if foundApplicationSet == nil {
+			return pending, fmt.Sprintf("application set '%s' not found", c.context.GetName())
+		}
+		got := foundApplicationSet.Status.Conditions
+		message := fmt.Sprintf("condition {%s %s %s %s} in %v", expType, expMessage, expStatus, expReason, got)
+		for _, condition := range got {
+			if expType == condition.Type && expStatus == condition.Status && expReason == condition.Reason && expMessage.MatchString(condition.Message) {
+				return succeeded, message
+			}
+		}
+		return pending, message
+	}
+}
+
 // ApplicationsDoNotExist checks that each of the 'expectedApps' no longer exist in the namespace
 func ApplicationsDoNotExist(expectedApps []v1alpha1.Application) Expectation {
 	return func(c *Consequences) (state, string) {
@@ -130,6 +148,82 @@ func ApplicationsDoNotExist(expectedApps []v1alpha1.Application) Expectation {
 		}
 
 		return succeeded, "all apps do not exist"
+	}
+}
+
+// ApplicationsTransitionInOrder sorts the application in appset's ApplicationSetApplicationStatus by LastTransitionTime and compares it to be in expectedOrder
+func ApplicationsTransitionInOrder(expectedOrderApps []string) Expectation {
+	return func(c *Consequences) (state, string) {
+		foundAppsetStatus := c.applicationSet(c.context.GetName()).Status.ApplicationStatus
+		slices.SortFunc(foundAppsetStatus, func(a, b v1alpha1.ApplicationSetApplicationStatus) int {
+			return a.LastTransitionTime.Compare(b.LastTransitionTime.Time)
+		})
+		for i, expectedappName := range expectedOrderApps {
+			appName := foundAppsetStatus[i].Application
+			if appName != expectedappName {
+				return failed, fmt.Sprintf("app %v transitioned before app %v", appName, expectedappName)
+			}
+		}
+		return succeeded, "all apps lastTransitionTime is in expected order"
+	}
+}
+
+// CheckApplicationsReconciledAfter expects all apps in expectedApps to have reconciled after changeTime
+func CheckApplicationsReconciledAfter(expectedApps []string, changeTime *metav1.Time) Expectation {
+	return func(c *Consequences) (state, string) {
+		for _, expectedApp := range expectedApps {
+			foundApp := c.app(expectedApp)
+			if foundApp == nil {
+				return pending, fmt.Sprintf("application '%s' not found", expectedApp)
+			}
+			if foundApp.Status.ReconciledAt != nil && foundApp.Status.ReconciledAt.Before(changeTime) {
+				return pending, fmt.Sprintf("application '%s' has not reconciled yet", foundApp.Name)
+			}
+		}
+		return succeeded, "all applications have reconciled after changeTime"
+	}
+}
+
+// CheckApplicationsNotReconciledAfter expects all apps in appNames to have ReconciledAt before changeTime
+func CheckApplicationsNotReconciledAfter(appNames []string, changeTime *metav1.Time) Expectation {
+	return func(c *Consequences) (state, string) {
+		for _, appName := range appNames {
+			foundApp := c.app(appName)
+			if foundApp == nil {
+				return pending, fmt.Sprintf("application '%s' not found", appName)
+			}
+			if foundApp.Status.ReconciledAt != nil && !foundApp.Status.ReconciledAt.Before(changeTime) {
+				return failed, fmt.Sprintf("application '%s' reconciled after changeTime at %s", appName, foundApp.Status.ReconciledAt)
+			}
+		}
+		return succeeded, "all applications have not reconciled after changeTime"
+	}
+}
+
+// AppsTransitionedAfter expects all apps in appNames to have transitioned after changeTime
+// compares app's LastTransitionTime from appset's ApplicationSetApplicationStatus for provided appNames
+func AppsTransitionedAfter(appNames []string, changeTime *metav1.Time) Expectation {
+	return func(c *Consequences) (state, string) {
+		retrievedAppset := c.applicationSet(c.context.GetName())
+
+		// Build a map for O(1) lookup instead
+		statusMap := make(map[string]v1alpha1.ApplicationSetApplicationStatus, len(retrievedAppset.Status.ApplicationStatus))
+		for _, appStatus := range retrievedAppset.Status.ApplicationStatus {
+			statusMap[appStatus.Application] = appStatus
+		}
+
+		for _, appName := range appNames {
+			appStatus, found := statusMap[appName]
+			if !found {
+				return failed, fmt.Sprintf("application '%s' not found in ApplicationSet status", appName)
+			}
+
+			lastTransitionTime := appStatus.LastTransitionTime
+			if lastTransitionTime == nil || lastTransitionTime.Before(changeTime) {
+				return failed, fmt.Sprintf("application '%s' did not transition after expected change at time '%s'", appName, changeTime)
+			}
+		}
+		return succeeded, "all applications have transitioned after change"
 	}
 }
 
@@ -194,13 +288,11 @@ func filterFields(input v1alpha1.Application) v1alpha1.Application {
 	metaCopy := input.ObjectMeta.DeepCopy()
 
 	output := v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels:      metaCopy.Labels,
-			Annotations: metaCopy.Annotations,
-			Name:        metaCopy.Name,
-			Namespace:   metaCopy.Namespace,
-			Finalizers:  metaCopy.Finalizers,
-		},
+		Labels:      metaCopy.Labels,
+		Annotations: metaCopy.Annotations,
+		Name:        metaCopy.Name,
+		Namespace:   metaCopy.Namespace,
+		Finalizers:  metaCopy.Finalizers,
 		Spec: v1alpha1.ApplicationSpec{
 			Source: &v1alpha1.ApplicationSource{
 				Path:           spec.GetSource().Path,

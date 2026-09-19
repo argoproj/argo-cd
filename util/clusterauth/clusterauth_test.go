@@ -56,29 +56,26 @@ func newServiceAccountSecret(t *testing.T) *corev1.Secret {
 }
 
 func TestParseServiceAccountToken(t *testing.T) {
+	t.Parallel()
 	claims, err := ParseServiceAccountToken(testToken)
 	require.NoError(t, err)
 	assert.Equal(t, testClaims, *claims)
 }
 
 func TestCreateServiceAccount(t *testing.T) {
+	t.Parallel()
 	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "kube-system",
-		},
+		Name: "kube-system",
 	}
 	sa := &corev1.ServiceAccount{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ServiceAccount",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-manager",
-			Namespace: "kube-system",
-		},
+		APIVersion: "v1",
+		Kind:       "ServiceAccount",
+		Name:       "argocd-manager",
+		Namespace:  "kube-system",
 	}
 
 	t.Run("New SA", func(t *testing.T) {
+		t.Parallel()
 		cs := fake.NewClientset(ns)
 		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
 		require.NoError(t, err)
@@ -88,6 +85,7 @@ func TestCreateServiceAccount(t *testing.T) {
 	})
 
 	t.Run("SA exists already", func(t *testing.T) {
+		t.Parallel()
 		cs := fake.NewClientset(ns, sa)
 		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
 		require.NoError(t, err)
@@ -97,6 +95,7 @@ func TestCreateServiceAccount(t *testing.T) {
 	})
 
 	t.Run("Invalid namespace", func(t *testing.T) {
+		t.Parallel()
 		cs := fake.NewClientset()
 		err := CreateServiceAccount(cs, "argocd-manager", "invalid")
 		require.NoError(t, err)
@@ -107,7 +106,7 @@ func TestCreateServiceAccount(t *testing.T) {
 }
 
 func _MockK8STokenController(objects kubetesting.ObjectTracker) kubetesting.ReactionFunc {
-	return (func(action kubetesting.Action) (bool, runtime.Object, error) {
+	return func(action kubetesting.Action) (bool, runtime.Object, error) {
 		secret, ok := action.(kubetesting.CreateAction).GetObject().(*corev1.Secret)
 		if !ok {
 			return false, nil, nil
@@ -126,30 +125,25 @@ func _MockK8STokenController(objects kubetesting.ObjectTracker) kubetesting.Reac
 			secret.Data[corev1.ServiceAccountTokenKey] = []byte(testToken)
 		}
 		return false, secret, nil
-	})
+	}
 }
 
 func TestInstallClusterManagerRBAC(t *testing.T) {
+	t.Parallel()
 	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test",
-		},
+		Name: "test",
 	}
 	legacyAutoSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "sa-secret",
-			Namespace: "test",
-		},
-		Type: corev1.SecretTypeServiceAccountToken,
+		Name:      "sa-secret",
+		Namespace: "test",
+		Type:      corev1.SecretTypeServiceAccountToken,
 		Data: map[string][]byte{
 			"token": []byte("foobar"),
 		},
 	}
 	sa := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ArgoCDManagerServiceAccount,
-			Namespace: "test",
-		},
+		Name:      ArgoCDManagerServiceAccount,
+		Namespace: "test",
 		Secrets: []corev1.ObjectReference{
 			{
 				Kind:            legacyAutoSecret.GetObjectKind().GroupVersionKind().Kind,
@@ -162,12 +156,10 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 		},
 	}
 	longLivedSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      sa.Name + SATokenSecretSuffix,
-			Namespace: "test",
-			Annotations: map[string]string{
-				corev1.ServiceAccountNameKey: sa.Name,
-			},
+		Name:      sa.Name + SATokenSecretSuffix,
+		Namespace: "test",
+		Annotations: map[string]string{
+			corev1.ServiceAccountNameKey: sa.Name,
 		},
 		Type: corev1.SecretTypeServiceAccountToken,
 		Data: map[string][]byte{
@@ -176,6 +168,7 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 	}
 
 	t.Run("Cluster Scope - Success", func(t *testing.T) {
+		t.Parallel()
 		cs := fake.NewClientset(ns, legacyAutoSecret, sa)
 		cs.PrependReactor("create", "secrets", _MockK8STokenController(cs.Tracker()))
 		token, err := InstallClusterManagerRBAC(cs, "test", nil, testBearerTokenTimeout)
@@ -184,6 +177,7 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 	})
 
 	t.Run("Cluster Scope - Missing data in secret", func(t *testing.T) {
+		t.Parallel()
 		nsecret := legacyAutoSecret.DeepCopy()
 		nsecret.Data = make(map[string][]byte)
 		cs := fake.NewClientset(ns, nsecret, sa)
@@ -193,6 +187,7 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 	})
 
 	t.Run("Namespace Scope - Success", func(t *testing.T) {
+		t.Parallel()
 		cs := fake.NewClientset(ns, sa, longLivedSecret)
 		cs.PrependReactor("create", "secrets", _MockK8STokenController(cs.Tracker()))
 		token, err := InstallClusterManagerRBAC(cs, "test", []string{"nsa"}, testBearerTokenTimeout)
@@ -201,6 +196,7 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 	})
 
 	t.Run("Namespace Scope - Missing data in secret", func(t *testing.T) {
+		t.Parallel()
 		nsecret := legacyAutoSecret.DeepCopy()
 		nsecret.Data = make(map[string][]byte)
 		cs := fake.NewClientset(ns, nsecret, sa)
@@ -211,7 +207,9 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 }
 
 func TestUninstallClusterManagerRBAC(t *testing.T) {
+	t.Parallel()
 	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
 		cs := fake.NewClientset(newServiceAccountSecret(t))
 		err := UninstallClusterManagerRBAC(cs)
 		require.NoError(t, err)
@@ -219,6 +217,7 @@ func TestUninstallClusterManagerRBAC(t *testing.T) {
 }
 
 func TestGenerateNewClusterManagerSecret(t *testing.T) {
+	t.Parallel()
 	kubeclientset := fake.NewClientset(newServiceAccountSecret(t))
 	kubeclientset.ReactionChain = nil
 
@@ -239,6 +238,7 @@ func TestGenerateNewClusterManagerSecret(t *testing.T) {
 }
 
 func TestRotateServiceAccountSecrets(t *testing.T) {
+	t.Parallel()
 	generatedSecret := newServiceAccountSecret(t)
 	generatedSecret.Name = "argocd-manager-token-abc123"
 	generatedSecret.Data = map[string][]byte{
@@ -265,14 +265,13 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 }
 
 func TestGetServiceAccountBearerToken(t *testing.T) {
+	t.Parallel()
 	sa := newServiceAccount(t)
 	tokenSecret := newServiceAccountSecret(t)
 	dockercfgSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-manager-dockercfg-d8j66",
-			Namespace: "kube-system",
-		},
-		Type: corev1.SecretTypeDockercfg,
+		Name:      "argocd-manager-dockercfg-d8j66",
+		Namespace: "kube-system",
+		Type:      corev1.SecretTypeDockercfg,
 		// Skipping data, doesn't really matter.
 	}
 	sa.Secrets = []corev1.ObjectReference{
@@ -290,23 +289,17 @@ func TestGetServiceAccountBearerToken(t *testing.T) {
 
 func Test_getOrCreateServiceAccountTokenSecret_NoSecretForSA(t *testing.T) {
 	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "kube-system",
-		},
+		Name: "kube-system",
 	}
 	sa := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ArgoCDManagerServiceAccount,
-			Namespace: ns.Name,
-		},
+		Name:      ArgoCDManagerServiceAccount,
+		Namespace: ns.Name,
 	}
 	manualSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ArgoCDManagerServiceAccount + SATokenSecretSuffix,
-			Namespace: ns.Name,
-			Annotations: map[string]string{
-				corev1.ServiceAccountNameKey: sa.Name,
-			},
+		Name:      ArgoCDManagerServiceAccount + SATokenSecretSuffix,
+		Namespace: ns.Name,
+		Annotations: map[string]string{
+			corev1.ServiceAccountNameKey: sa.Name,
 		},
 		Type: corev1.SecretTypeServiceAccountToken,
 	}
@@ -352,27 +345,21 @@ func Test_getOrCreateServiceAccountTokenSecret_NoSecretForSA(t *testing.T) {
 
 func Test_getOrCreateServiceAccountTokenSecret_SAHasSecret(t *testing.T) {
 	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "kube-system",
-		},
+		Name: "kube-system",
 	}
 
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "sa-secret",
-			Namespace: ns.Name,
-		},
-		Type: corev1.SecretTypeServiceAccountToken,
+		Name:      "sa-secret",
+		Namespace: ns.Name,
+		Type:      corev1.SecretTypeServiceAccountToken,
 		Data: map[string][]byte{
 			"token": []byte("foobar"),
 		},
 	}
 
 	saWithSecret := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ArgoCDManagerServiceAccount,
-			Namespace: ns.Name,
-		},
+		Name:      ArgoCDManagerServiceAccount,
+		Namespace: ns.Name,
 		Secrets: []corev1.ObjectReference{
 			{
 				Kind:            secret.GetObjectKind().GroupVersionKind().Kind,

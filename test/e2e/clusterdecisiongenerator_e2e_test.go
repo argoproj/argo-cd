@@ -14,21 +14,15 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
-var tenSec = int64(10)
-
 func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 	externalNamespace := string(utils.ArgoCDExternalNamespace)
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "cluster1-guestbook",
-			Namespace:  externalNamespace,
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       "Application",
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "cluster1-guestbook",
+		Namespace:  externalNamespace,
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -124,15 +118,11 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 
 func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "cluster1-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "cluster1-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -223,15 +213,11 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 
 func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 	expectedAppTemplate := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "{{name}}-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "{{name}}-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -296,7 +282,7 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 						ClusterDecisionResource: &v1alpha1.DuckTypeGenerator{
 							ConfigMapRef:        "my-configmap",
 							Name:                "my-placementdecision",
-							RequeueAfterSeconds: &tenSec,
+							RequeueAfterSeconds: new(int64(10)),
 						},
 					},
 				},
@@ -315,15 +301,11 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 
 func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.T) {
 	expectedAppTemplate := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "{{name}}-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "{{name}}-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -389,7 +371,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 						ClusterDecisionResource: &v1alpha1.DuckTypeGenerator{
 							ConfigMapRef:        "my-configmap",
 							Name:                "my-placementdecision",
-							RequeueAfterSeconds: &tenSec,
+							RequeueAfterSeconds: new(int64(10)),
 						},
 					},
 				},
@@ -409,15 +391,11 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 
 func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *testing.T) {
 	expectedAppTemplate := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "{{name}}-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "{{name}}-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -490,7 +468,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 						ClusterDecisionResource: &v1alpha1.DuckTypeGenerator{
 							ConfigMapRef:        "my-configmap",
 							Name:                "my-placementdecision",
-							RequeueAfterSeconds: &tenSec,
+							RequeueAfterSeconds: new(int64(10)),
 						},
 					},
 				},

@@ -1,9 +1,8 @@
 import {models, DataLoader, FormField, MenuItem, NotificationType, Tooltip, HelpIcon} from 'argo-ui';
 import {ActionButton} from 'argo-ui/v2';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as React from 'react';
-import * as ReactForm from 'react-form';
-import {FormApi, Text} from 'react-form';
+import {ReactForm, FormApi, Text} from 'argo-ui';
 import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
@@ -12,9 +11,23 @@ import {isValidManagedByURL} from '../../shared/utils';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
+import {
+    appInstanceName,
+    appQualifiedName,
+    ComparisonStatusIcon,
+    getAppOperationState,
+    getOperationStateTitle,
+    getOperationType,
+    getRootPathByApp,
+    HealthStatusIcon,
+    helpTip,
+    isApp,
+    OperationPhaseIcon,
+    SpinningIcon,
+    SyncWindowStatusIcon
+} from '../../shared/components/app-utils';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
-import {ApplicationSource} from '../../shared/models';
 
 require('./utils.scss');
 
@@ -64,31 +77,40 @@ export function isSameNode(first: NodeId, second: NodeId) {
     return nodeKey(first) === nodeKey(second);
 }
 
-export function helpTip(text: string) {
-    return (
-        <Tooltip content={text}>
-            <span style={{fontSize: 'smaller'}}>
-                {' '}
-                <i className='fas fa-info-circle' />
-            </span>
-        </Tooltip>
-    );
+export {
+    appInstanceName,
+    appQualifiedName,
+    ComparisonStatusIcon,
+    getAppOperationState,
+    getOperationStateTitle,
+    getOperationType,
+    getRootPathByApp,
+    HealthStatusIcon,
+    helpTip,
+    isApp,
+    OperationPhaseIcon,
+    SpinningIcon,
+    SyncWindowStatusIcon
+};
+
+/**
+ * Builds the class list for the Application (and ApplicationSet) details container.
+ *
+ * The per-application class is a styling hook that lets operators target a specific
+ * application's page from custom CSS (see docs/operator-manual/custom-styles.md, added in #13279).
+ * It is prefixed with `user-app-` so that an application whose name matches a built-in component
+ * class cannot collide with that component's styles. For example, an application named `login`
+ * previously rendered the class `application-details login`, which pulled in the login page's
+ * `.login` styles and broke the page (issue #24220).
+ */
+export function getApplicationDetailsContainerClass(appName: string): string {
+    return `application-details user-app-${appName}`;
 }
 
-//CLassic Solid circle-notch icon
-//<!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
-//this will replace all <i> fa-spin </i> icons as they are currently misbehaving with no fix available.
-
-export const SpinningIcon = ({color, qeId}: {color: string; qeId: string}) => {
-    return (
-        <svg className='icon spin' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' style={{color}} qe-id={qeId}>
-            <path
-                fill={color}
-                d='M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z'
-            />
-        </svg>
-    );
-};
+export function nameConfirmationError(entered: string, expected: string, emptyMessage: string, mismatchMessage: string): string | false {
+    if (entered === expected) return false;
+    return !entered ? emptyMessage : mismatchMessage;
+}
 
 export async function deleteApplication(appName: string, appNamespace: string, apis: ContextApis, application?: appModels.Application): Promise<boolean> {
     let confirmed = false;
@@ -165,7 +187,7 @@ export async function deleteApplication(appName: string, appNamespace: string, a
         ),
         {
             validate: vals => ({
-                applicationName: vals.applicationName !== appName && 'Enter the application name to confirm the deletion'
+                applicationName: nameConfirmationError(vals.applicationName, appName, 'Enter the application name to confirm the deletion', 'Application name does not match')
             }),
             submit: async (vals, _, close) => {
                 try {
@@ -212,7 +234,7 @@ export async function confirmSyncingAppOfApps(apps: appModels.Application[], api
         ),
         {
             validate: vals => ({
-                applicationName: vals.applicationName !== appNameList && 'Enter the application name(s) to confirm syncing'
+                applicationName: nameConfirmationError(vals.applicationName, appNameList, 'Enter the application name(s) to confirm syncing', 'Application name does not match')
             }),
             submit: async (_vals, _, close) => {
                 try {
@@ -256,38 +278,6 @@ const PropagationPolicyOption = ReactForm.FormField((props: {fieldApi: ReactForm
     );
 });
 
-export const OperationPhaseIcon = ({app, isButton}: {app: appModels.Application; isButton?: boolean}) => {
-    const operationState = getAppOperationState(app);
-    if (operationState === undefined) {
-        return null;
-    }
-    let className = '';
-    let color = '';
-    switch (operationState.phase) {
-        case appModels.OperationPhases.Succeeded:
-            className = `fa fa-check-circle${isButton ? ' status-button' : ''}`;
-            color = COLORS.operation.success;
-            break;
-        case appModels.OperationPhases.Error:
-            className = `fa fa-times-circle${isButton ? ' status-button' : ''}`;
-            color = COLORS.operation.error;
-            break;
-        case appModels.OperationPhases.Failed:
-            className = `fa fa-times-circle${isButton ? ' status-button' : ''}`;
-            color = COLORS.operation.failed;
-            break;
-        default:
-            className = 'fa fa-circle-notch fa-spin';
-            color = COLORS.operation.running;
-            break;
-    }
-    return className.includes('fa-spin') ? (
-        <SpinningIcon color={color} qeId='utils-operations-status-title' />
-    ) : (
-        <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />
-    );
-};
-
 export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operationState?: appModels.HydrateOperation; isButton?: boolean}) => {
     if (operationState === undefined) {
         return null;
@@ -312,51 +302,6 @@ export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operation
         <SpinningIcon color={color} qeId='utils-operations-status-title' />
     ) : (
         <i title={operationState.phase} qe-id='utils-operations-status-title' className={className} style={{color}} />
-    );
-};
-
-export const ComparisonStatusIcon = ({
-    status,
-    resource,
-    label,
-    noSpin,
-    isButton
-}: {
-    status: appModels.SyncStatusCode;
-    resource?: {requiresPruning?: boolean};
-    label?: boolean;
-    noSpin?: boolean;
-    isButton?: boolean;
-}) => {
-    let className = 'fas fa-question-circle';
-    let color = COLORS.sync.unknown;
-    let title: string = 'Unknown';
-    switch (status) {
-        case appModels.SyncStatuses.Synced:
-            className = `fa fa-check-circle${isButton ? ' status-button' : ''}`;
-            color = COLORS.sync.synced;
-            title = 'Synced';
-            break;
-        case appModels.SyncStatuses.OutOfSync:
-            // eslint-disable-next-line no-case-declarations
-            const requiresPruning = resource && resource.requiresPruning;
-            className = requiresPruning ? `fa fa-trash${isButton ? ' status-button' : ''}` : `fa fa-arrow-alt-circle-up${isButton ? ' status-button' : ''}`;
-            title = 'OutOfSync';
-            if (requiresPruning) {
-                title = `${title} (This resource is not present in the application's source. It will be deleted from Kubernetes if the prune option is enabled during sync.)`;
-            }
-            color = COLORS.sync.out_of_sync;
-            break;
-        case appModels.SyncStatuses.Unknown:
-            className = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}${isButton ? ' status-button' : ''}`;
-            break;
-    }
-    return className.includes('fa-spin') ? (
-        <SpinningIcon color={color} qeId='utils-sync-status-title' />
-    ) : (
-        <React.Fragment>
-            <i qe-id='utils-sync-status-title' title={title} className={className} style={{color}} /> {label && title}
-        </React.Fragment>
     );
 };
 
@@ -606,7 +551,7 @@ export const deletePopup = async (
         {
             validate: vals =>
                 isManaged && {
-                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
+                    resourceName: nameConfirmationError(vals.resourceName, resource.name, 'Enter the resource name to confirm the deletion', 'Resource name does not match')
                 },
             submit: async (vals, _, close) => {
                 const force = deleteOptions.option === 'force';
@@ -749,7 +694,7 @@ function getActionItems(
 
     const logsAction = isApp(application)
         ? services.accounts
-              .canI('logs', 'get', application.spec.project + '/' + application.metadata.name)
+              .canI('logs', 'get', appRBACName(application))
               .then(async allowed => {
                   if (allowed && (isPod || findChildPod(resource, tree as appModels.ApplicationTree))) {
                       return [
@@ -776,7 +721,7 @@ function getActionItems(
         ? services.authService
               .settings()
               .then(async settings => {
-                  const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
+                  const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', appRBACName(application)));
                   if (isPod && execAllowed) {
                       return [
                           {
@@ -932,27 +877,42 @@ export function renderResourceButtons(
     );
 }
 
+export function getSyncRevisionLabelSuffix(repoUrl: string, targetRevision: string, revision: string, chart?: string) {
+    if (!revision) {
+        return '';
+    }
+
+    if (chart) {
+        return revision;
+    }
+
+    if (revision.length >= 7 && !revision.startsWith(targetRevision)) {
+        if (repoUrl.startsWith('oci://')) {
+            // Show "sha256:" plus the first 7 actual characters of the digest.
+            if (revision.startsWith('sha256:')) {
+                return revision.substring(0, 14);
+            }
+            return revision.substring(0, 7);
+        }
+
+        return revision.substring(0, 7);
+    }
+
+    return '';
+}
+
 export function syncStatusMessage(app: appModels.Application) {
     const source = getAppDefaultSource(app);
     const revision = getAppDefaultSyncRevision(app);
     const rev = app.status.sync.revision || (source ? source.targetRevision || 'HEAD' : 'Unknown');
     let message = source ? source?.targetRevision || 'HEAD' : 'Unknown';
+    if (source?.tagPrefix) {
+        message = source.tagPrefix + message;
+    }
+    const suffix = revision && source ? getSyncRevisionLabelSuffix(source.repoURL, source.targetRevision, revision, source.chart) : '';
 
-    if (revision && source) {
-        if (source.chart) {
-            message += ' (' + revision + ')';
-        } else if (revision.length >= 7 && !revision.startsWith(source.targetRevision)) {
-            if (source.repoURL.startsWith('oci://')) {
-                // Show "sha256: " plus the first 7 actual characters of the digest.
-                if (revision.startsWith('sha256:')) {
-                    message += ' (' + revision.substring(0, 14) + ')';
-                } else {
-                    message += ' (' + revision.substring(0, 7) + ')';
-                }
-            } else {
-                message += ' (' + revision.substring(0, 7) + ')';
-            }
-        }
+    if (suffix) {
+        message += ` (${suffix})`;
     }
 
     switch (app.status.sync.status) {
@@ -982,14 +942,10 @@ export function syncStatusMessage(app: appModels.Application) {
 }
 
 export function hydrationStatusMessage(app: appModels.Application) {
-    const drySource = app.status.sourceHydrator.currentOperation.sourceHydrator.drySource;
+    const sourceHydrator = app.status.sourceHydrator.currentOperation.sourceHydrator;
+    const drySource = sourceHydrator.drySource;
     const dryCommit = app.status.sourceHydrator.currentOperation.drySHA;
-    const syncSource: ApplicationSource = {
-        repoURL: drySource.repoURL,
-        targetRevision:
-            app.status.sourceHydrator.currentOperation.sourceHydrator.hydrateTo?.targetBranch || app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.targetBranch,
-        path: app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.path
-    };
+    const hydrateToSource = getAppHydrateToSource(sourceHydrator);
     const hydratedCommit = app.status.sourceHydrator.currentOperation.hydratedSHA || '';
 
     switch (app.status.sourceHydrator.currentOperation.phase) {
@@ -1002,8 +958,8 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     </Revision>
                     <br />
                     to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={hydratedCommit}>
-                        {syncSource.targetRevision + ' (' + hydratedCommit.substr(0, 7) + ')'}
+                    <Revision repoUrl={hydrateToSource.repoURL} revision={hydratedCommit}>
+                        {hydrateToSource.targetRevision + ' (' + hydratedCommit.substr(0, 7) + ')'}
                     </Revision>
                 </span>
             );
@@ -1016,8 +972,8 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     </Revision>
                     <br />
                     to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
-                        {syncSource.targetRevision}
+                    <Revision repoUrl={hydrateToSource.repoURL} revision={hydrateToSource.targetRevision}>
+                        {hydrateToSource.targetRevision}
                     </Revision>
                 </span>
             );
@@ -1031,8 +987,8 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     </Revision>
                     <br />
                     to{' '}
-                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
-                        {syncSource.targetRevision}
+                    <Revision repoUrl={hydrateToSource.repoURL} revision={hydrateToSource.targetRevision}>
+                        {hydrateToSource.targetRevision}
                     </Revision>
                 </span>
             );
@@ -1040,43 +996,6 @@ export function hydrationStatusMessage(app: appModels.Application) {
             return <span>{}</span>;
     }
 }
-
-export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus; noSpin?: boolean}) => {
-    let color = COLORS.health.unknown;
-    let icon = 'fa-question-circle';
-
-    switch (state.status) {
-        case appModels.HealthStatuses.Healthy:
-            color = COLORS.health.healthy;
-            icon = 'fa-heart';
-            break;
-        case appModels.HealthStatuses.Suspended:
-            color = COLORS.health.suspended;
-            icon = 'fa-pause-circle';
-            break;
-        case appModels.HealthStatuses.Degraded:
-            color = COLORS.health.degraded;
-            icon = 'fa-heart-broken';
-            break;
-        case appModels.HealthStatuses.Progressing:
-            color = COLORS.health.progressing;
-            icon = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}`;
-            break;
-        case appModels.HealthStatuses.Missing:
-            color = COLORS.health.missing;
-            icon = 'fa-ghost';
-            break;
-    }
-    let title: string = state.status;
-    if (state.message) {
-        title = `${state.status}: ${state.message}`;
-    }
-    return icon.includes('fa-spin') ? (
-        <SpinningIcon color={color} qeId='utils-health-status-title' />
-    ) : (
-        <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon + ' utils-health-status-icon'} style={{color}} />
-    );
-};
 
 export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
     let icon = 'fa-question-circle';
@@ -1187,60 +1106,6 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
         return className.includes('fa-spin') ? <SpinningIcon color={color} qeId='utils-resource-result-icon' /> : <i title={title} className={className} style={{color}} />;
     }
     return null;
-};
-
-export const getAppOperationState = (app: appModels.Application): appModels.OperationState => {
-    if (app.operation) {
-        return {
-            phase: appModels.OperationPhases.Running,
-            message: (app.status && app.status.operationState && app.status.operationState.message) || 'waiting to start',
-            startedAt: new Date().toISOString(),
-            operation: {
-                sync: {}
-            }
-        } as appModels.OperationState;
-    } else if (app.metadata.deletionTimestamp) {
-        return {
-            phase: appModels.OperationPhases.Running,
-            startedAt: app.metadata.deletionTimestamp
-        } as appModels.OperationState;
-    } else {
-        return app.status.operationState;
-    }
-};
-
-export function getOperationType(application: appModels.Application) {
-    const operation = application.operation || (application.status && application.status.operationState && application.status.operationState.operation);
-    if (application.metadata.deletionTimestamp && !application.operation) {
-        return 'Delete';
-    }
-    if (operation && operation.sync) {
-        return 'Sync';
-    }
-    return 'Unknown';
-}
-
-export const getOperationStateTitle = (app: appModels.Application): appModels.OperationStateTitle => {
-    const appOperationState = getAppOperationState(app);
-    const operationType = getOperationType(app);
-    switch (operationType) {
-        case 'Delete':
-            return 'Deleting';
-        case 'Sync':
-            switch (appOperationState.phase) {
-                case 'Running':
-                    return 'Syncing';
-                case 'Error':
-                    return 'Sync error';
-                case 'Failed':
-                    return 'Sync failed';
-                case 'Succeeded':
-                    return 'Sync OK';
-                case 'Terminating':
-                    return 'Terminated';
-            }
-    }
-    return 'Unknown';
 };
 
 export const OperationState = ({app, quiet, isButton}: {app: appModels.Application; quiet?: boolean; isButton?: boolean}) => {
@@ -1445,12 +1310,24 @@ export function getAppSetConditionCategory(condition: appModels.ApplicationSetCo
     if ((type === 'ParametersGenerated' || type === 'ResourcesUpToDate') && status === 'false') {
         return 'error';
     }
+    // InvalidRolloutConfig with status True = warning
+    if (type === 'InvalidRolloutConfig' && status === 'true') {
+        return 'warning';
+    }
     // Otherwise it's informational
     return 'info';
 }
 
 export function isAppNode(node: appModels.ResourceNode) {
     return node.kind === 'Application' && node.group === 'argoproj.io';
+}
+
+export function isAppSetNode(node: appModels.ResourceNode) {
+    return node.kind === 'ApplicationSet' && node.group === 'argoproj.io';
+}
+
+export function getApplicationSetOwnerRef(application: appModels.Application) {
+    return application.metadata.ownerReferences?.find(ref => ref.kind === 'ApplicationSet');
 }
 
 export function getAppOverridesCount(app: appModels.AbstractApplication) {
@@ -1482,9 +1359,32 @@ export function getAppDrySource(app?: appModels.Application): appModels.Applicat
     if (!app) {
         return null;
     }
-    const {path, targetRevision, repoURL} = app.spec.sourceHydrator?.drySource || app.spec.source;
+    if (app.spec.sourceHydrator?.drySource) {
+        const {path, targetRevision, repoURL} = app.spec.sourceHydrator.drySource;
+        return {repoURL, targetRevision, path};
+    }
+    return getAppDefaultSource(app);
+}
 
-    return {repoURL, targetRevision, path};
+export function getHydratorSyncSourceRepoURL(sourceHydrator?: appModels.SourceHydrator): string {
+    return sourceHydrator?.syncSource?.repoURL || sourceHydrator?.drySource?.repoURL || '';
+}
+
+export function getAppHydratorSyncSource(sourceHydrator?: appModels.SourceHydrator): appModels.ApplicationSource {
+    return {
+        repoURL: getHydratorSyncSourceRepoURL(sourceHydrator),
+        targetRevision: sourceHydrator?.syncSource?.targetBranch || '',
+        path: sourceHydrator?.syncSource?.path || ''
+    };
+}
+
+// Destination of a hydration push: hydrateTo.targetBranch when set, otherwise the sync source branch.
+export function getAppHydrateToSource(sourceHydrator?: appModels.SourceHydrator): appModels.ApplicationSource {
+    const syncSource = getAppHydratorSyncSource(sourceHydrator);
+    return {
+        ...syncSource,
+        targetRevision: sourceHydrator?.hydrateTo?.targetBranch || syncSource.targetRevision
+    };
 }
 
 // getAppAllSources gets all app sources as an array. For single source apps, returns [source].
@@ -1495,13 +1395,7 @@ export function getAppAllSources(app?: appModels.Application): appModels.Applica
     }
 
     if (app.spec.sourceHydrator) {
-        return [
-            {
-                repoURL: app.spec.sourceHydrator.drySource.repoURL,
-                targetRevision: app.spec.sourceHydrator.syncSource.targetBranch,
-                path: app.spec.sourceHydrator.syncSource.path
-            } as appModels.ApplicationSource
-        ];
+        return [getAppHydratorSyncSource(app.spec.sourceHydrator)];
     }
 
     if (app.spec.sources && app.spec.sources.length > 0) {
@@ -1572,11 +1466,7 @@ export function getAppDefaultOperationSyncRevisionExtra(app?: appModels.Applicat
 
 export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
     if (spec.sourceHydrator) {
-        return {
-            repoURL: spec.sourceHydrator.drySource.repoURL,
-            targetRevision: spec.sourceHydrator.syncSource.targetBranch,
-            path: spec.sourceHydrator.syncSource.path
-        };
+        return getAppHydratorSyncSource(spec.sourceHydrator);
     }
     return spec.sources && spec.sources.length > 0 ? spec.sources[0] : spec.source;
 }
@@ -1597,53 +1487,6 @@ export function setAppRefreshing(app: appModels.Application) {
 export function refreshLinkAttrs(app: appModels.Application) {
     return {disabled: isAppRefreshing(app)};
 }
-
-export const SyncWindowStatusIcon = ({state, window}: {state: appModels.SyncWindowsState; window: appModels.SyncWindow}) => {
-    let className = '';
-    let color = '';
-    let current = '';
-
-    if (state.windows === undefined) {
-        current = 'Inactive';
-    } else {
-        for (const w of state.windows) {
-            if (w.kind === window.kind && w.schedule === window.schedule && w.duration === window.duration && w.timeZone === window.timeZone) {
-                current = 'Active';
-                break;
-            } else {
-                current = 'Inactive';
-            }
-        }
-    }
-
-    switch (current + ':' + window.kind) {
-        case 'Active:deny':
-        case 'Inactive:allow':
-            className = 'fa fa-stop-circle';
-            if (window.manualSync) {
-                color = COLORS.sync_window.manual;
-            } else {
-                color = COLORS.sync_window.deny;
-            }
-            break;
-        case 'Active:allow':
-        case 'Inactive:deny':
-            className = 'fa fa-check-circle';
-            color = COLORS.sync_window.allow;
-            break;
-        default:
-            className = 'fas fa-question-circle';
-            color = COLORS.sync_window.unknown;
-            current = 'Unknown';
-            break;
-    }
-
-    return (
-        <React.Fragment>
-            <i title={current} className={className} style={{color}} /> {current}
-        </React.Fragment>
-    );
-};
 
 export const ApplicationSyncWindowStatusIcon = ({project, state}: {project: string; state?: appModels.ApplicationSyncWindowState}) => {
     let className = '';
@@ -1746,9 +1589,13 @@ export function getContainerName(pod: any, containerIndex: number | null): strin
     if (containerIndex == null && pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container']) {
         return pod.metadata?.annotations?.['kubectl.kubernetes.io/default-container'];
     }
-    const containers = (pod.spec.containers || []).concat(pod.spec.initContainers || []);
-    const container = containers[containerIndex || 0];
-    return container.name;
+    const containers = (pod.spec?.containers || []).concat(pod.spec?.initContainers || []);
+    if (containers.length === 0) {
+        return '';
+    }
+    const idx = containerIndex ?? 0;
+    const container = containers[idx] ?? containers[0];
+    return container?.name ?? '';
 }
 
 export function isYoungerThanXMinutes(pod: any, x: number): boolean {
@@ -1776,14 +1623,6 @@ export const urlPattern = new RegExp(
 
 // This function determines whether an AbstractApp is an Application or an AppSet (by looking at it's kind).
 // If an Application, it returns it casted to Application.
-export function isApp(abstractApp: appModels.AbstractApplication): abstractApp is appModels.Application {
-    return abstractApp.kind === 'Application';
-}
-
-export function getRootPathByApp(abstractApp: appModels.AbstractApplication) {
-    return isApp(abstractApp) ? '/applications' : '/applicationsets';
-}
-
 // Get ApplicationSet health status from its conditions
 // Priority: ErrorOccurred=True → Degraded, RolloutProgressing=True → Progressing, ResourcesUpToDate=True → Healthy, else Unknown
 export function getAppSetHealthStatus(appSet: appModels.ApplicationSet): appModels.HealthStatusCode {
@@ -1813,12 +1652,47 @@ export function getAppSetHealthStatus(appSet: appModels.ApplicationSet): appMode
     return 'Unknown';
 }
 
-export function appQualifiedName(app: appModels.AbstractApplication, nsEnabled: boolean): string {
-    return (nsEnabled ? app.metadata.namespace + '/' : '') + app.metadata.name;
+/**
+ * Constructs the RBAC subresource name for canI() checks.
+ **/
+export function appRBACName(app: appModels.Application): string {
+    const project = app.spec.project;
+    const namespace = app.metadata.namespace;
+    const name = app.metadata.name;
+
+    // Always include namespace if available - server will normalize
+    if (namespace) {
+        return `${project}/${namespace}/${name}`;
+    }
+    // Fallback to 2-segment format if namespace is missing
+    return `${project}/${name}`;
 }
 
-export function appInstanceName(app: appModels.AbstractApplication): string {
-    return app.metadata.namespace + '_' + app.metadata.name;
+/**
+ * Key under which an application is stored in the favorites list. Favorites are namespace-qualified so
+ * that applications sharing a name across namespaces (apps-in-any-namespace) can be favorited separately.
+ **/
+export function favoriteKey(app: appModels.AbstractApplication): string {
+    return app.metadata.namespace + '/' + app.metadata.name;
+}
+
+/**
+ * Returns true if the application is in the favorites list. Entries without a namespace are matched on
+ * name alone, so favorites stored before the list became namespace-qualified keep working.
+ **/
+export function isFavorite(favorites: string[], app: appModels.AbstractApplication): boolean {
+    return (favorites || []).some(favorite => favorite === favoriteKey(app) || favorite === app.metadata.name);
+}
+
+/**
+ * Returns a new favorites list with the application added or removed.
+ **/
+export function toggleFavorite(favorites: string[], app: appModels.AbstractApplication): string[] {
+    const list = favorites || [];
+    if (isFavorite(list, app)) {
+        return list.filter(favorite => favorite !== favoriteKey(app) && favorite !== app.metadata.name);
+    }
+    return [...list, favoriteKey(app)];
 }
 
 export function formatCreationTimestamp(creationTimestamp: string) {
@@ -1892,6 +1766,35 @@ export function getAppUrl(app: appModels.AbstractApplication): string {
         return `${basePath}/${app.metadata.name}`;
     }
     return `${basePath}/${app.metadata.namespace}/${app.metadata.name}`;
+}
+
+export interface AppListLink {
+    /** Relative path for in-app navigation via ctx.navigation.goto. */
+    path: string;
+    /** Full base-href-prefixed href so native middle-click / right-click / status-bar URL preview work. */
+    href: string;
+    /** SPA navigation on a plain click; modifier-clicks fall through to the browser (open in new tab/window). */
+    onClick: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+}
+
+// Builds the link target shared by every application / applicationset list row and tile.
+// `view` is the Application details view (e.g. 'tree'); AppSet pages don't support it, so
+// callers omit it there and the URL stays view-less.
+export function getAppListLink(ctx: ContextApis, app: appModels.AbstractApplication, view?: string): AppListLink {
+    const url = getAppUrl(app);
+    const path = `/${url}`;
+    const query = view ? {view} : {};
+    return {
+        path,
+        href: `${ctx.baseHref}${url}${view ? `?view=${encodeURIComponent(view)}` : ''}`,
+        onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
+                return;
+            }
+            e.preventDefault();
+            ctx.navigation.goto(path, query, {event: e});
+        }
+    };
 }
 
 /** RollingSync step for display; backend uses -1 when no step matches the app's labels. */
@@ -1977,41 +1880,6 @@ export function getManagedByURLFromNode(node: any): string | null {
 
     const managedByURLInfo = node.info.find((info: any) => info.name === 'managed-by-url');
     return managedByURLInfo?.value || null;
-}
-
-/**
- * Gets the correct URL for an application link, considering managed-by-url annotation
- * @param app The application object
- * @param baseHref The current instance's base href
- * @param node Optional resource node to get managed-by-url from info field
- * @returns The URL to use for the application link
- */
-export function getApplicationLinkURL(app: any, baseHref: string, node?: any): {url: string; isExternal: boolean} {
-    // First try to get managed-by-url from the node's info field (for nested applications)
-    let managedByURL = node ? getManagedByURLFromNode(node) : null;
-
-    // If not found in node, try the application's metadata
-    if (!managedByURL) {
-        managedByURL = getManagedByURL(app);
-    }
-
-    let url, isExternal;
-    if (managedByURL) {
-        // Validate the managed-by URL using the same validation as external links
-        if (!isValidManagedByURL(managedByURL)) {
-            // If URL is invalid, fall back to local URL for security
-            console.warn(`Invalid managed-by URL for application ${app.metadata.name}: ${managedByURL}`);
-            url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
-            isExternal = false;
-        } else {
-            url = managedByURL + '/applications/' + app.metadata.namespace + '/' + app.metadata.name;
-            isExternal = true;
-        }
-    } else {
-        url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
-        isExternal = false;
-    }
-    return {url, isExternal};
 }
 
 /**

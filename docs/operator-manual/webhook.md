@@ -1,11 +1,17 @@
-# Git Webhook Configuration
+# Webhook Configuration
 
 ## Overview
 
-Argo CD polls Git repositories every three minutes to detect changes to the manifests. To eliminate
-this delay from polling, the API server can be configured to receive webhook events. Argo CD supports
-Git webhook notifications from GitHub, GitLab, Bitbucket, Bitbucket Server, Azure DevOps and Gogs. The following explains how to configure
-a Git webhook for GitHub, but the same process should be applicable to other providers.
+Argo CD polls Git/OCI/Helm repositories every three minutes to detect changes to the manifests. To eliminate
+this delay from polling, the API server can be configured to receive webhook events.
+
+### Git Webhooks
+
+Argo CD supports Git webhook notifications from GitHub, GitLab, Bitbucket, Bitbucket Server, Azure DevOps and Gogs. The following explains how to configure a Git webhook for GitHub, but the same process should be applicable to other providers.
+
+### OCI Registry Webhooks
+
+Argo CD also supports webhooks from OCI-compliant container registries to trigger application refreshes when new OCI artifacts are pushed. See [Webhook Configuration for OCI-Compliant Registries](#3-webhook-configuration-for-oci-compliant-registries) for details.
 
 Application Sets use a separate webhook configuration for generating applications. [Webhook support for the Git Generator can be found here](applicationset/Generators-Git.md#webhook-configuration).
 
@@ -57,6 +63,7 @@ provider's webhook secret configured in step 1.
 | Gogs            | `webhook.gogs.secret`            |
 | Azure DevOps    | `webhook.azuredevops.username`   |
 |                 | `webhook.azuredevops.password`   |
+| Harbor          | `webhook.harbor.secret`          |
 
 Edit the Argo CD Kubernetes secret:
 
@@ -113,7 +120,7 @@ Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
 
 For more information refer to the corresponding section in the [User Management Documentation](user-management/index.md#alternative).
 
-## Special handling for BitBucket Cloud
+### Special handling for BitBucket Cloud
 BitBucket does not include the list of changed files in the webhook request body.
 This prevents the [Manifest Paths Annotation](high_availability.md#manifest-paths-annotation) feature from working with repositories hosted on BitBucket Cloud.
 BitBucket provides the `diffstat` API to determine the list of changed files between two commits.
@@ -126,3 +133,314 @@ For private repositories, the Argo CD webhook handler searches for a valid repos
 The webhook handler uses this OAuth token to make the API request to the originating server.
 If the Argo CD webhook handler cannot find a matching repository credential, the list of changed files would remain empty.
 If errors occur during the callback, the list of changed files will be empty.
+
+### Special handling for BitBucket Server (Data Center)
+
+BitBucket Server (Data Center) does not include the list of changed files in the webhook payload.
+This prevents the [Manifest Paths Annotation](high_availability.md#manifest-paths-annotation) feature from working correctly for monorepos hosted on BitBucket Server.
+
+To enable changed-file detection, set the webhook secret in `argocd-secret`:
+
+```bash
+kubectl patch secret argocd-secret -n argocd \
+  --type=merge \
+  -p '{"stringData": {"webhook.bitbucketserver.secret": "<your-secret>"}}'
+```
+
+**Requirements:**
+
+- The webhook **must be authenticated**: `webhook.bitbucketserver.secret` must be set in `argocd-secret`. Argo CD will only fetch changed files when the incoming webhook has been verified against the shared secret (required to prevent SSRF).
+- The repository **must have credentials** stored in Argo CD (basic auth or bearer token). If no matching credential is found, all apps pointing to the repository will be refreshed (safe fallback).
+
+> [!NOTE]
+> If changed-file detection fails for any reason, Argo CD falls back to refreshing all apps pointing to the repository — the same behavior as when no secret is configured.
+
+
+## 3. Webhook Configuration for OCI-Compliant Registries
+
+In addition to Git webhooks, Argo CD supports webhooks from OCI-compliant container registries. This enables instant application refresh when
+new artifacts are pushed, eliminating the delay from polling.
+
+> [!NOTE]
+> A registry webhook only **refreshes** matching Applications; the artifact is still resolved by the normal sync. The source must therefore point at a *deployable* OCI artifact like a Helm chart (pushed with `helm push`) or a bundle of Kubernetes manifests and not an arbitrary container image. Pointing a source at a plain image is a common mistake: the webhook fires and the refresh succeeds, but the subsequent sync fails to render manifests.
+
+> [!WARNING]
+> Argo CD rejects OCI artifacts with more than **10 layers**. A normal Helm chart or manifest bundle has one or two layers, but a typical container image has many, so pointing a source at an image fails manifest generation with:
+> ```
+> Failed to load target state: failed to generate manifest for source ... : rpc error: code = Unknown desc = expected no more than 10 oci layers, got 13
+> ```
+> If you hit this, the source is pointing at an image rather than a chart/manifest artifact. Push a Helm chart (e.g. `helm push mychart-1.0.0.tgz oci://docker.io/<namespace>`) or a manifest bundle to that repository and point the Application's `targetRevision` at the chart/bundle tag. When a repository holds both image tags and chart tags, pin `targetRevision` to an exact chart tag. A semver constraint such as `>=1.0.0` can otherwise resolve to a higher-numbered image tag and re-trigger this error.
+
+### GitHub Container Registry (GHCR)
+
+Webhooks cannot be registered directly on a GHCR image repository. Instead, `package` events are delivered from the associated GitHub repository.
+
+> [!NOTE]
+> If your GHCR image repository is not yet linked to a GitHub repository, see [Connecting a repository to a package](https://docs.github.com/en/packages/learn-github-packages/connecting-a-repository-to-a-package).
+
+#### Configure the Webhook
+
+1. Go to your GitHub repository **Settings** → **Webhooks** → **Add webhook**
+2. Set **Payload URL** to `https://<argocd-server>/api/webhook`
+3. Set **Content type** to `application/json`
+4. Set **Secret** to a secure value
+5. Under **Events**, select **Let me select individual events** and enable **Packages**
+
+> [!NOTE]
+> Only `published` events for `container` package types trigger a refresh. Other package types (npm, maven, etc.) and actions are ignored.
+
+> [!WARNING]
+> GitHub does not send `package` webhook events for artifacts with unknown media types. If your OCI artifact uses a custom or non-standard media type, the webhook will not be triggered. See [GitHub documentation on supported package types](https://docs.github.com/en/packages/learn-github-packages/about-permissions-for-github-packages).
+
+#### Configure the Webhook Secret
+
+GHCR webhooks use the same secret as GitHub Git webhooks (`webhook.github.secret`):
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+  namespace: argocd
+type: Opaque
+stringData:
+  webhook.github.secret: <your-webhook-secret>
+```
+
+#### Example Application
+
+When a OCI artifact with a known media type is pushed to GHCR, Argo CD refreshes Applications with a matching `repoURL` and `targetRevision`. The source can be expressed in two ways.
+
+A full-path OCI source, where `repoURL` points directly at the artifact:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  source:
+    repoURL: oci://ghcr.io/myorg/mychart
+    targetRevision: v1.0.0
+    path: "." # either path or chart is required
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+A Helm-OCI source, where `repoURL` is the registry namespace and the chart name is given separately in `chart` (note: no `oci://` scheme on `repoURL` for this form):
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  source:
+    repoURL: ghcr.io/myorg
+    chart: mychart
+    targetRevision: v1.0.0
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+> [!NOTE]
+> When a `chart` is set, Argo CD matches the webhook event against `repoURL` on its own as well as against `repoURL` with the chart appended (so `ghcr.io/myorg` + `chart: mychart` matches a push to `ghcr.io/myorg/mychart`). Either form matching is enough, so both examples above match the same push.
+
+The `targetRevision` field supports exact tags and [semver constraints](https://github.com/Masterminds/semver#checking-version-constraints):
+
+| Constraint | Webhook triggers on push of                     |
+|------------|-------------------------------------------------|
+| `1.0.0`    | Only `1.0.0`                                    |
+| `^1.2.0`   | `>=1.2.0` and `<2.0.0` (e.g., `1.2.1`, `1.9.0`) |
+| `~1.2.0`   | `>=1.2.0` and `<1.3.0` (e.g., `1.2.1`, `1.2.9`) |
+| `>=1.0.0`  | Any version `>=1.0.0`                           |
+
+#### URL Matching
+
+Argo CD normalizes OCI repository URLs before comparison to ensure consistent matching:
+
+For example, these `repoURL` values all match a webhook event for `ghcr.io/myorg/myimage`:
+
+- `oci://ghcr.io/myorg/myimage`
+- `oci://GHCR.IO/MyOrg/MyImage`
+- `oci://ghcr.io/myorg/myimage/`
+
+### Harbor
+
+[Harbor](https://goharbor.io/) is a CNCF open-source OCI-compliant registry that supports sending webhook events when artifacts are pushed. Argo CD can be configured to receive these events and instantly refresh applications backed by OCI artifacts stored in Harbor.
+
+> [!NOTE]
+> Harbor does not send a distinctive request header to identify webhook events, unlike GitHub which sends `X-GitHub-Event`.
+> Authentication is performed via a configurable **Authorization** header value that you set in both Harbor's webhook
+> configuration and in the ArgoCD secret. Configuring the secret (`webhook.harbor.secret`) is **required** for Harbor webhook support.
+
+> [!WARNING]
+> Harbor's Authorization header is a static bearer token, which is weaker than HMAC-based signing used by GitHub/GitLab.
+> Unlike HMAC, a captured token can be replayed indefinitely and does not provide payload integrity guarantees.
+> To reduce risk:
+>
+> - **Always use HTTPS** between Harbor and Argo CD so the token cannot be intercepted in transit.
+> - **Use a strong, randomly generated secret** (e.g. `openssl rand -hex 32`).
+> - **Rotate the secret periodically** by updating both `webhook.harbor.secret` in `argocd-secret` and the Auth Header in Harbor's webhook configuration.
+> - **Restrict network access** to the `/api/webhook` endpoint at the network/firewall level so only your Harbor instance can reach it.
+
+#### Configure the Webhook Secret
+
+In `argocd-secret`, set the Harbor webhook secret. This value must match the **Auth Header** you configure in Harbor's webhook settings:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+  namespace: argocd
+type: Opaque
+stringData:
+  webhook.harbor.secret: <your-harbor-auth-header-value>
+```
+
+#### Configure the Webhook in Harbor
+
+1. Log in to the Harbor portal with project administrator privileges.
+2. Navigate to your **Project** → **Webhooks** → **Add Webhook**.
+3. Select notify type **HTTP**.
+4. Select payload format **Default**.
+5. Enable the **Artifact pushed** event type.
+6. Set **Endpoint URL** to `https://<argocd-server>/api/webhook`.
+7. Set **Auth Header** to the same value you configured in `webhook.harbor.secret`.
+8. Click **Add** to save the webhook.
+
+> [!NOTE]
+> Argo CD only acts on `PUSH_ARTIFACT` events (artifact push). Other events such as `PULL_ARTIFACT`,
+> `DELETE_ARTIFACT`, and scan events are ignored. Push events for resources that have no tag
+> (digest-only pushes) are also ignored.
+
+#### Example Application
+
+When an OCI artifact is pushed to Harbor, Argo CD refreshes Applications with a matching `repoURL`:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  source:
+    repoURL: oci://harbor.example.com/myproject
+    targetRevision: v1.0.0
+    chart: mychart
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+The `targetRevision` field supports exact tags as well as semver constraints (e.g. `^1.0.0`, `>=1.2.0`). See the [GHCR semver constraint table](#example-application) for details and examples.
+
+### Docker Hub
+
+Docker Hub webhooks are configured per repository and notify Argo CD when a new image tag is pushed.
+
+> [!NOTE]
+> Unlike GitHub, DockerHub neither signs webhook payloads nor sends a provider-specific header. Argo CD therefore identifies DockerHub requests by a `type=dockerhub` query parameter on the webhook URL, and authenticates them with a shared secret. The secret is read from the `Authorization` header if present, and otherwise from a `secret` query parameter. Configuring the secret (`webhook.dockerhub.secret`) is **required** for Docker Hub webhook support.
+
+#### Configure the Webhook
+
+Go through the [DockerHub Webhooks](https://docs.docker.com/docker-hub/repos/manage/webhooks/) docs to create a webhook for your repository, and set the url to `https://<argocd-server>/api/webhook?type=dockerhub&secret=<your-webhook-secret>`
+
+> [!NOTE]
+> Docker Hub webhooks are scoped to a single repository, so add a webhook on every repository whose pushes should refresh an Application. Docker Hub also requires a publicly reachable HTTPS URL, so a cluster-internal or `localhost` address will not work, so expose `argocd-server` (e.g. via a tunnel) when testing locally.
+
+> [!WARNING]
+> Because Docker Hub cannot sign payloads, the shared secret is carried in the webhook URL rather than in a signature header. A captured secret can be replayed, and it does not provide payload integrity guarantees. To reduce risk:
+>
+> - **Always use HTTPS** so the secret cannot be intercepted in transit, and be aware that a secret in the URL may be recorded by intermediate proxies or access logs. Moving it to a header (see below) avoids this.
+> - **Use a strong, randomly generated secret** (e.g. `openssl rand -hex 32`).
+> - **Rotate the secret periodically** by updating both `webhook.dockerhub.secret` in `argocd-secret` and the webhook URL in Docker Hub.
+> - **Restrict network access** to the `/api/webhook` endpoint at the network/firewall level so only Docker Hub can reach it.
+
+#### Passing the Secret in a Header Instead
+
+Docker Hub only lets you configure a URL, so it cannot set request headers itself. If you front `argocd-server` with a proxy, ingress, or API gateway, you can have it strip the `secret` query parameter and forward the value in an `Authorization` header instead, keeping the secret out of URLs and access logs:
+
+```
+Authorization: <your-webhook-secret>
+```
+
+Argo CD prefers this header over the query parameter when both are present, and the header value is compared in constant time exactly like the query parameter. This matches how the [Harbor](#harbor) webhook authenticates. Note that a request carrying an `Authorization` header is validated against that header alone — a wrong header value is rejected even if the query parameter is correct.
+
+#### Configure the Webhook Secret
+
+Configure the secret in the `argocd-secret` Kubernetes secret under `webhook.dockerhub.secret`. It must match the value used in the `secret` query parameter (or `Authorization` header) above:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+  namespace: argocd
+type: Opaque
+stringData:
+  webhook.dockerhub.secret: <your-webhook-secret>
+```
+
+If no secret is configured, Docker Hub webhook support is disabled entirely and incoming Docker Hub events are rejected as an unknown webhook event, so the endpoint is never reachable without authentication. As with all webhooks, payloads are treated as untrusted and only ever result in a refresh of the matching application.
+
+#### Example Application
+
+When an image is pushed to Docker Hub, Argo CD refreshes Applications with a matching `repoURL` and `targetRevision`. As with GHCR, the source can be a full-path OCI source:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  source:
+    repoURL: oci://docker.io/myorg/mychart
+    targetRevision: v1.0.0
+    path: "." # either path or chart is required
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+or a Helm-OCI source, where the chart name is given separately in `chart` (no `oci://` scheme on `repoURL`):
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  source:
+    repoURL: docker.io/myorg
+    chart: mychart
+    targetRevision: v1.0.0
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+As with GHCR, `targetRevision` supports exact tags and [semver constraints](https://github.com/Masterminds/semver#checking-version-constraints), and a `chart` field is appended to `repoURL` before matching.
+
+> [!NOTE]
+> The `repoURL` host must be `docker.io`. Official images (pushed without a namespace) are matched under the implicit `library/` namespace, e.g. a push to `nginx` matches `oci://docker.io/library/nginx`.
+
+## Application Annotations Used by Webhooks
+
+A webhook event triggers a refresh by setting the `argocd.argoproj.io/refresh` annotation on each matching
+Application (and, for Applications using the [source hydrator](../user-guide/source-hydrator.md), the
+`argocd.argoproj.io/hydrate` annotation as well). The application controller removes these annotations once it
+has finished processing the refresh. See [Annotations and Labels](../user-guide/annotations-and-labels.md) for
+the full list of values these annotations can take.
+
+Each refresh request also sets a companion `argocd.argoproj.io/refresh-timestamp` (and, for hydration,
+`argocd.argoproj.io/hydrate-timestamp`) annotation to a unique timestamp. Before removing the `refresh`/`hydrate`
+annotation, the controller checks that this timestamp still matches the value it observed when the refresh
+started. If another webhook event (or any other refresh trigger) arrived for the same Application while the
+first refresh was still being processed, the timestamp will have changed, so the controller leaves the
+annotations in place and processes the new request instead of dropping it. Without this check, a refresh
+request that arrives while a previous one for the same Application is still being reconciled could otherwise be
+silently lost until the next periodic poll or a manual refresh.

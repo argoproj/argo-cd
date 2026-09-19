@@ -23,6 +23,7 @@ argocd app actions run APPNAME ACTION [flags]
 
 ```
       --all                    Indicates whether to run the action on multiple matching resources
+  -N, --app-namespace string   Namespace of the application
       --group string           Group of the resource on which the action should be run
   -h, --help                   help for run
       --kind string            Kind of the resource on which the action should be run

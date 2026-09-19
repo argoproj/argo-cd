@@ -1,6 +1,5 @@
 import * as React from 'react';
-import * as ReactForm from 'react-form';
-import {FormValue} from 'react-form';
+import {ReactForm, FormValue} from 'argo-ui';
 
 /*
     This provide a way to may a form field to an array of items. It allows you to

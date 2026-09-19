@@ -15,11 +15,10 @@ export interface IndividualDiffSectionProps {
 export const IndividualDiffSection = (props: IndividualDiffSectionProps) => {
     const {file, showPath, whiteBox, viewType} = props;
     const [collapsed, setCollapsed] = useState(false);
-    const options = {
+    const tokens = tokenize(file.hunks, {
         highlight: false,
         enhancers: [markEdits(file.hunks, {type: 'block'})]
-    };
-    const token = tokenize(file.hunks, options);
+    });
 
     return (
         <div className={`${whiteBox} application-component-diff__diff`}>
@@ -30,8 +29,8 @@ export const IndividualDiffSection = (props: IndividualDiffSectionProps) => {
                 </p>
             )}
             {!collapsed && (
-                <Diff viewType={viewType} diffType={file.type} hunks={file.hunks} tokens={token}>
-                    {(hunks: any) => hunks.map((hunk: any) => <Hunk className={'custom-diff-hunk'} key={hunk.content} hunk={hunk} />)}
+                <Diff viewType={viewType} diffType={file.type} hunks={file.hunks} tokens={tokens} hunkClassName='custom-diff-hunk'>
+                    {(hunks: any) => hunks.map((hunk: any) => <Hunk key={hunk.content} hunk={hunk} />)}
                 </Diff>
             )}
         </div>

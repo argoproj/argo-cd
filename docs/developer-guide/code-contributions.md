@@ -88,6 +88,10 @@ to discuss the proposal with us.
 
 Also, issues that we find to require a more formal design document will be moved to this column.
 
+## Use of Generative AI
+
+Contributors using generative AI tools (for example ChatGPT) to help prepare contributions must follow the [Argo project Generative AI policy](https://github.com/argoproj/argoproj/blob/main/community/genai.md).
+
 ## Design documents
 
 For some enhancement proposals (especially those that will change behavior of Argo CD substantially, are attached with some caveats or where upgrade/downgrade paths are not clear), a more formal design document will be required in order to fully discuss and understand the enhancement in the broader community. This requirement is usually determined during triage. If you submitted an enhancement proposal, we may ask you to provide this more formal write down, along with some concerns or topics that need to be addressed.

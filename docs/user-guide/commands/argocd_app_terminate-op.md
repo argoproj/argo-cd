@@ -11,7 +11,8 @@ argocd app terminate-op APPNAME [flags]
 ### Options
 
 ```
-  -h, --help   help for terminate-op
+  -N, --app-namespace string   Namespace of the application
+  -h, --help                   help for terminate-op
 ```
 
 ### Options inherited from parent commands

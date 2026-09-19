@@ -56,7 +56,7 @@ data:
 The parameters for the PagerDuty configuration in the template generally match with the payload for the Events API v2 endpoint. All parameters are strings.
 
 * `summary` - (required) A brief text summary of the event, used to generate the summaries/titles of any associated alerts.
-* `severity` - (required) The perceived severity of the status the event is describing with respect to the affected system. Allowed values: `critical`, `warning`, `error`, `info`
+* `severity` - (required) The perceived severity of the event with respect to the affected system. Allowed values: `critical`, `warning`, `error`, `info`
 * `source` - (required) The unique location of the affected system, preferably a hostname or FQDN.
 * `component` - Component of the source machine that is responsible for the event.
 * `group` - Logical grouping of components of a service.

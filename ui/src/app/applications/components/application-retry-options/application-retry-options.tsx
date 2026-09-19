@@ -1,6 +1,6 @@
 /* eslint-disable no-prototype-builtins */
 import * as React from 'react';
-import {FormApi, NestedForm, Text, Form} from 'react-form';
+import {FormApi, NestedForm, Text, Form} from 'argo-ui';
 import {Checkbox, FormField} from 'argo-ui';
 import {omit} from 'lodash-es';
 import {NumberField} from '../../../shared/components';
@@ -17,7 +17,7 @@ const onlyPositiveValidation = {
     step: '1'
 };
 
-function buildFormItem(label: string, propertyPath: string, component: React.ComponentType, formApi: FormApi, componentProps?: Record<string, any>) {
+function buildFormItem(label: string, propertyPath: string, component: React.ComponentType<any>, formApi: FormApi, componentProps?: Record<string, any>) {
     return <FormField formApi={formApi} label={label} field={propertyPath} component={component} componentProps={componentProps} />;
 }
 

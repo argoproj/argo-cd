@@ -1,0 +1,17 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: GitCommitStatus
+metadata:
+  name: test
+  generation: 2
+spec:
+  promotionStrategyRef:
+    name: demo-strategy
+  key: my-check
+  expression: "true"
+status:
+  conditions:
+    - type: Ready
+      status: "False"
+      reason: ReconciliationError
+      message: Something went wrong
+      observedGeneration: 2

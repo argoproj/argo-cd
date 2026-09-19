@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Cert is a certificate for tests. It was generated like this:
@@ -292,16 +294,33 @@ func generateJWTToken(issuer string) (string, error) {
 }
 
 type LogHook struct {
-	Entries []log.Entry
+	Entries  []log.Entry
+	minLevel log.Level
+}
+
+func NewLogHook(minLevel log.Level) *LogHook {
+	return &LogHook{minLevel: minLevel}
 }
 
 func (h *LogHook) Levels() []log.Level {
-	return []log.Level{log.WarnLevel}
+	if h.minLevel == 0 {
+		h.minLevel = log.WarnLevel
+	}
+
+	var levels []log.Level
+	for i := log.PanicLevel; i <= h.minLevel; i++ {
+		levels = append(levels, i)
+	}
+	return levels
 }
 
 func (h *LogHook) Fire(entry *log.Entry) error {
 	h.Entries = append(h.Entries, *entry)
 	return nil
+}
+
+func (h *LogHook) CleanupHook() {
+	log.StandardLogger().ReplaceHooks(log.LevelHooks{})
 }
 
 func (h *LogHook) GetRegexMatchesInEntries(match string) []string {
@@ -313,4 +332,39 @@ func (h *LogHook) GetRegexMatchesInEntries(match string) []string {
 		}
 	}
 	return matches
+}
+
+func (h *LogHook) GetEntries() []string {
+	matches := make([]string, 0)
+	for _, entry := range h.Entries {
+		matches = append(matches, entry.Message)
+	}
+	return matches
+}
+
+type SaneFakeClient struct {
+	client.WithWatch
+}
+
+func (sc SaneFakeClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	ok := obj.GetObjectKind().GroupVersionKind()
+	err := sc.WithWatch.Get(ctx, key, obj, opts...)
+	obj.GetObjectKind().SetGroupVersionKind(ok)
+	return err
+}
+
+// A workaround for backward compatibility of the fake client.  Before
+// v0.22 controller runtime fake client was always filling GVK of the
+// returned objects.  Now it allways clears TypeMeta field in the
+// target object if it's a typed object (see
+// https://github.com/kubernetes-sigs/controller-runtime/pull/3229)
+// The new behavior is purposed to discourage relying on the returned
+// GVK. But, really, this does not completely map to the behaviour of
+// real k8s client, which preserves the values in the target
+// object. Some of our application code actively relies on this
+// behaviour.  This wrapper preserves existing values, thus better
+// simulating behaviour of a real client instance.
+func MakeSaneFakeClient(fakeClient client.WithWatch) client.WithWatch {
+	client := SaneFakeClient{WithWatch: fakeClient}
+	return client
 }

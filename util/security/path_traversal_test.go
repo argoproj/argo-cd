@@ -8,6 +8,7 @@ import (
 )
 
 func TestEnforceToCurrentRoot(t *testing.T) {
+	t.Parallel()
 	cleanDir, err := EnforceToCurrentRoot("/home/argo/helmapp/", "/home/argo/helmapp/values.yaml")
 	require.NoError(t, err)
 	assert.Equal(t, "/home/argo/helmapp/values.yaml", cleanDir)

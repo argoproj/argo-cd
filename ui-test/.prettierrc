@@ -1,9 +1,0 @@
-{
-  "bracketSpacing": false,
-  "jsxSingleQuote": true,
-  "printWidth": 180,
-  "singleQuote": true,
-  "tabWidth": 4,
-  "jsxBracketSameLine": true,
-  "quoteProps": "consistent"
-}

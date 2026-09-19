@@ -16,6 +16,7 @@ import (
 )
 
 func TestSetAppInstanceLabel(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 
@@ -32,6 +33,7 @@ func TestSetAppInstanceLabel(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotation(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 
@@ -48,7 +50,36 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 	assert.Equal(t, "my-app", app)
 }
 
+func TestGetAppName_AnnotationWithExistingInstallationID(t *testing.T) {
+	t.Parallel()
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+	require.NoError(t, err)
+
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	require.NoError(t, err)
+
+	resourceTracking := NewResourceTracking()
+
+	err = resourceTracking.SetAppInstance(&obj, common.AnnotationKeyAppInstance, "my-app", "", v1alpha1.TrackingMethodAnnotation, "some-installation-id")
+	require.NoError(t, err)
+
+	// When no installationID filter is provided, the app name should still be returned
+	// even though the resource has an installation ID annotation.
+	app := resourceTracking.GetAppName(&obj, common.AnnotationKeyAppInstance, v1alpha1.TrackingMethodAnnotation, "")
+	assert.Equal(t, "my-app", app)
+
+	// When a different installationID is provided, it should not match.
+	app = resourceTracking.GetAppName(&obj, common.AnnotationKeyAppInstance, v1alpha1.TrackingMethodAnnotation, "different-id")
+	assert.Empty(t, app)
+
+	// When the correct installationID is provided, it should match.
+	app = resourceTracking.GetAppName(&obj, common.AnnotationKeyAppInstance, v1alpha1.TrackingMethodAnnotation, "some-installation-id")
+	assert.Equal(t, "my-app", app)
+}
+
 func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -65,6 +96,7 @@ func TestSetAppInstanceAnnotationAndLabel(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotationAndLabelLongName(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -85,6 +117,7 @@ func TestSetAppInstanceAnnotationAndLabelLongName(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotationAndLabelLongNameBadEnding(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -105,6 +138,7 @@ func TestSetAppInstanceAnnotationAndLabelLongNameBadEnding(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotationAndLabelOutOfBounds(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -118,7 +152,45 @@ func TestSetAppInstanceAnnotationAndLabelOutOfBounds(t *testing.T) {
 	assert.EqualError(t, err, "failed to set app instance label: unable to truncate label to not end with a special character")
 }
 
+func TestTruncateLabel_Short(t *testing.T) {
+	t.Parallel()
+	got, err := TruncateLabel("my-app")
+	require.NoError(t, err)
+	assert.Equal(t, "my-app", got)
+}
+
+func TestTruncateLabel_AtLimit(t *testing.T) {
+	t.Parallel()
+	val := "the-very-suspicious-name-with-precisely-sixty-three-characters0"
+	require.Len(t, val, LabelMaxLength)
+	got, err := TruncateLabel(val)
+	require.NoError(t, err)
+	assert.Equal(t, val, got)
+}
+
+func TestTruncateLabel_LongName(t *testing.T) {
+	t.Parallel()
+	got, err := TruncateLabel("my-app-with-an-extremely-long-name-that-is-over-sixty-three-characters")
+	require.NoError(t, err)
+	assert.Equal(t, "my-app-with-an-extremely-long-name-that-is-over-sixty-three-cha", got)
+	assert.LessOrEqual(t, len(got), LabelMaxLength)
+}
+
+func TestTruncateLabel_TrailingSpecialCharsStripped(t *testing.T) {
+	t.Parallel()
+	got, err := TruncateLabel("the-very-suspicious-name-with-precisely-sixty-three-characters-with-hyphen")
+	require.NoError(t, err)
+	assert.Equal(t, "the-very-suspicious-name-with-precisely-sixty-three-characters", got)
+}
+
+func TestTruncateLabel_AllSpecialChars(t *testing.T) {
+	t.Parallel()
+	_, err := TruncateLabel("----------------------------------------------------------------")
+	assert.EqualError(t, err, "unable to truncate label to not end with a special character")
+}
+
 func TestRemoveAppInstance_LabelOnly(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj unstructured.Unstructured
@@ -138,6 +210,7 @@ func TestRemoveAppInstance_LabelOnly(t *testing.T) {
 }
 
 func TestRemoveAppInstance_AnnotationOnly(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 
@@ -160,6 +233,7 @@ func TestRemoveAppInstance_AnnotationOnly(t *testing.T) {
 }
 
 func TestRemoveAppInstance_AnnotationAndLabel(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 
@@ -181,6 +255,7 @@ func TestRemoveAppInstance_AnnotationAndLabel(t *testing.T) {
 }
 
 func TestRemoveAppInstance_DefaultCase(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 
@@ -212,6 +287,7 @@ func TestRemoveAppInstance_DefaultCase(t *testing.T) {
 }
 
 func TestRemoveAppInstance_AnnotationAndLabel_LongName(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 
@@ -233,6 +309,7 @@ func TestRemoveAppInstance_AnnotationAndLabel_LongName(t *testing.T) {
 }
 
 func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
+	t.Parallel()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 
@@ -247,6 +324,7 @@ func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
 }
 
 func TestParseAppInstanceValue(t *testing.T) {
+	t.Parallel()
 	resourceTracking := NewResourceTracking()
 	appInstanceValue, err := resourceTracking.ParseAppInstanceValue("app:<group>/<kind>:<namespace>/<name>")
 	require.NoError(t, err)
@@ -258,6 +336,7 @@ func TestParseAppInstanceValue(t *testing.T) {
 }
 
 func TestParseAppInstanceValueColon(t *testing.T) {
+	t.Parallel()
 	resourceTracking := NewResourceTracking()
 	appInstanceValue, err := resourceTracking.ParseAppInstanceValue("app:<group>/<kind>:<namespace>/<name>:<colon>")
 	require.NoError(t, err)
@@ -269,18 +348,21 @@ func TestParseAppInstanceValueColon(t *testing.T) {
 }
 
 func TestParseAppInstanceValueWrongFormat1(t *testing.T) {
+	t.Parallel()
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app")
 	require.ErrorIs(t, err, ErrWrongResourceTrackingFormat)
 }
 
 func TestParseAppInstanceValueWrongFormat2(t *testing.T) {
+	t.Parallel()
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app;group/kind/ns")
 	require.ErrorIs(t, err, ErrWrongResourceTrackingFormat)
 }
 
 func TestParseAppInstanceValueCorrectFormat(t *testing.T) {
+	t.Parallel()
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app:group/kind:test/ns")
 	require.NoError(t, err)
@@ -297,6 +379,7 @@ func sampleResource(t *testing.T) *unstructured.Unstructured {
 }
 
 func TestResourceIdNormalizer_Normalize(t *testing.T) {
+	t.Parallel()
 	rt := NewResourceTracking()
 
 	// live object is a resource that has old style tracking label
@@ -320,6 +403,7 @@ func TestResourceIdNormalizer_Normalize(t *testing.T) {
 }
 
 func TestResourceIdNormalizer_NormalizeCRD(t *testing.T) {
+	t.Parallel()
 	rt := NewResourceTracking()
 
 	// live object is a CRD resource
@@ -364,6 +448,7 @@ func TestResourceIdNormalizer_NormalizeCRD(t *testing.T) {
 }
 
 func TestResourceIdNormalizer_Normalize_ConfigHasOldLabel(t *testing.T) {
+	t.Parallel()
 	rt := NewResourceTracking()
 
 	// live object is a resource that has old style tracking label
@@ -388,6 +473,104 @@ func TestResourceIdNormalizer_Normalize_ConfigHasOldLabel(t *testing.T) {
 	assert.True(t, hasOldLabel)
 }
 
+// movedResource returns a ConfigMap as used in the moved-between-apps scenario
+// of issue #17965.
+func movedResource() *unstructured.Unstructured {
+	return &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1",
+		"kind":       "ConfigMap",
+		"metadata": map[string]any{
+			"name":      "my-cm",
+			"namespace": "default",
+		},
+	}}
+}
+
+func TestResourceIdNormalizer_Normalize_ResourceMovedToAnotherApp(t *testing.T) {
+	t.Parallel()
+	rt := NewResourceTracking()
+
+	// live object is tracked by app-a with annotation+label tracking
+	liveObj := movedResource()
+	err := rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "app-a", "", v1alpha1.TrackingMethodAnnotationAndLabel, "")
+	require.NoError(t, err)
+
+	// config object is the same resource, now managed by app-b
+	configObj := movedResource()
+	err = rt.SetAppInstance(configObj, common.LabelKeyAppInstance, "app-b", "", v1alpha1.TrackingMethodAnnotationAndLabel, "")
+	require.NoError(t, err)
+
+	err = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(v1alpha1.TrackingMethodAnnotationAndLabel))
+	require.NoError(t, err)
+
+	// the stale tracking annotation on the live object must be preserved so that
+	// the diff surfaces and a sync can update it (issue #17965)
+	assert.Equal(t, "app-a:/ConfigMap:default/my-cm", liveObj.GetAnnotations()[common.AnnotationKeyAppInstance])
+	assert.Equal(t, "app-b:/ConfigMap:default/my-cm", configObj.GetAnnotations()[common.AnnotationKeyAppInstance])
+}
+
+func TestResourceIdNormalizer_Normalize_ResourceMovedToAnotherApp_AnnotationTracking(t *testing.T) {
+	t.Parallel()
+	rt := NewResourceTracking()
+
+	// live object was previously synced with annotation+label tracking by app-a,
+	// so it still carries the instance label
+	liveObj := movedResource()
+	err := rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "app-a", "", v1alpha1.TrackingMethodAnnotationAndLabel, "")
+	require.NoError(t, err)
+
+	// config object is the same resource, now managed by app-b with annotation tracking
+	configObj := movedResource()
+	err = rt.SetAppInstance(configObj, common.LabelKeyAppInstance, "app-b", "", v1alpha1.TrackingMethodAnnotation, "")
+	require.NoError(t, err)
+
+	err = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(v1alpha1.TrackingMethodAnnotation))
+	require.NoError(t, err)
+
+	// the stale tracking annotation must be preserved so the diff surfaces (issue #17965),
+	// while the stale label is still dropped to smooth the label->annotation migration
+	assert.Equal(t, "app-a:/ConfigMap:default/my-cm", liveObj.GetAnnotations()[common.AnnotationKeyAppInstance])
+	_, hasOldLabel := liveObj.GetLabels()[common.LabelKeyAppInstance]
+	assert.False(t, hasOldLabel)
+}
+
+func TestResourceIdNormalizer_Normalize_ResourceMovedToAnotherApp_HelmInstanceLabel(t *testing.T) {
+	t.Parallel()
+	rt := NewResourceTracking()
+
+	// Both apps use annotation-only tracking, but the manifest itself bakes in
+	// the app.kubernetes.io/instance label (as Helm charts commonly do). The
+	// label alone must not cause the stale tracking annotation to be hidden.
+	withHelmLabel := func(un *unstructured.Unstructured) *unstructured.Unstructured {
+		labels := un.GetLabels()
+		if labels == nil {
+			labels = map[string]string{}
+		}
+		labels[common.LabelKeyAppInstance] = "my-release"
+		un.SetLabels(labels)
+		return un
+	}
+
+	// live object is tracked by the old standalone app
+	liveObj := withHelmLabel(movedResource())
+	err := rt.SetAppInstance(liveObj, common.LabelKeyAppInstance, "standalone-app", "", v1alpha1.TrackingMethodAnnotation, "")
+	require.NoError(t, err)
+
+	// config object is the same resource, now rendered for the appset-generated app
+	configObj := withHelmLabel(movedResource())
+	err = rt.SetAppInstance(configObj, common.LabelKeyAppInstance, "appset-app", "", v1alpha1.TrackingMethodAnnotation, "")
+	require.NoError(t, err)
+
+	err = rt.Normalize(configObj, liveObj, common.LabelKeyAppInstance, string(v1alpha1.TrackingMethodAnnotation))
+	require.NoError(t, err)
+
+	// the stale tracking annotation must be preserved so the diff surfaces (issue #17965)
+	assert.Equal(t, "standalone-app:/ConfigMap:default/my-cm", liveObj.GetAnnotations()[common.AnnotationKeyAppInstance])
+	// the manifest-defined helm instance label is untouched
+	assert.Equal(t, "my-release", liveObj.GetLabels()[common.LabelKeyAppInstance])
+}
+
 func TestIsOldTrackingMethod(t *testing.T) {
+	t.Parallel()
 	assert.True(t, IsOldTrackingMethod(string(v1alpha1.TrackingMethodLabel)))
 }

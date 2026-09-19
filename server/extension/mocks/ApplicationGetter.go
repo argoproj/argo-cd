@@ -15,10 +15,19 @@ func NewApplicationGetter(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *ApplicationGetter {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &ApplicationGetter{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -72,7 +81,7 @@ type ApplicationGetter_Get_Call struct {
 // Get is a helper method to define mock.On call
 //   - ns string
 //   - name string
-func (_e *ApplicationGetter_Expecter) Get(ns interface{}, name interface{}) *ApplicationGetter_Get_Call {
+func (_e *ApplicationGetter_Expecter) Get(ns any, name any) *ApplicationGetter_Get_Call {
 	return &ApplicationGetter_Get_Call{Call: _e.mock.On("Get", ns, name)}
 }
 

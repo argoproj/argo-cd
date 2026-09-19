@@ -81,7 +81,7 @@ func GetClusterFilter(_ db.ArgoDB, distributionFunction DistributionFunction, re
 }
 
 // GetDistributionFunction returns which DistributionFunction should be used based on the passed algorithm and
-// the current datas.
+// the current data.
 func GetDistributionFunction(clusters clusterAccessor, apps appAccessor, shardingAlgorithm string, replicasCount int) DistributionFunction {
 	log.Debugf("Using filter function:  %s", shardingAlgorithm)
 	distributionFunction := LegacyDistributionFunction(replicasCount)
@@ -222,7 +222,10 @@ func createConsistentHashingWithBoundLoads(replicas int, getCluster clusterAcces
 		}
 		shardIndexedByCluster[c.ID], err = strconv.Atoi(clusterIndex)
 		if err != nil {
-			log.Errorf("Consistent Hashing was supposed to return a shard index but it returned %d", err)
+			log.Errorf("Failed to get shard index from consistent hashing, error=%v", err)
+			// No continue here: strconv.Atoi returns 0 on failure, so the cluster falls back to shard 0.
+			// This is intentional since shard 0 always exists (replicas > 0 is enforced by the caller),
+			// so the cluster remains reconciled rather than being silently dropped.
 		}
 		numApps, ok := appDistribution[c.Server]
 		if !ok {
@@ -401,7 +404,7 @@ func getOrUpdateShardNumberForController(shardMappingData []shardApplicationCont
 	if shard == -1 {
 		for i := range shardMappingData {
 			shardMapping := shardMappingData[i]
-			if (shardMapping.ControllerName == "") || (metav1.Now().After(shardMapping.HeartbeatTime.Add(time.Duration(HeartbeatTimeout) * time.Second))) {
+			if (shardMapping.ControllerName == "") || metav1.Now().After(shardMapping.HeartbeatTime.Add(time.Duration(HeartbeatTimeout)*time.Second)) {
 				shard = int(shardMapping.ShardNumber)
 				log.Debugf("Empty shard found %d", shard)
 				shardMapping.ControllerName = hostname
@@ -417,11 +420,9 @@ func getOrUpdateShardNumberForController(shardMappingData []shardApplicationCont
 // generateDefaultShardMappingCM creates a default shard mapping configMap. Assigns current controller to shard 0.
 func generateDefaultShardMappingCM(namespace, hostname string, replicas, shard int) (*corev1.ConfigMap, error) {
 	shardingCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDAppControllerShardConfigMapName,
-			Namespace: namespace,
-		},
-		Data: map[string]string{},
+		Name:      common.ArgoCDAppControllerShardConfigMapName,
+		Namespace: namespace,
+		Data:      map[string]string{},
 	}
 
 	shardMappingData := getDefaultShardMappingData(replicas)
@@ -498,7 +499,7 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 				errors.CheckError(err)
 			}
 			if shardNumber > replicasCount {
-				log.Warnf("Calculated shard number %d is greated than the number of replicas count. Defaulting to 0", shardNumber)
+				log.Warnf("Calculated shard number %d is greater than the number of replicas count. Defaulting to 0", shardNumber)
 				shardNumber = 0
 			}
 		}

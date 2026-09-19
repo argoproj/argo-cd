@@ -5,11 +5,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	testingutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	testingutils "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/testing"
 )
 
 func TestTypes(t *testing.T) {
+	t.Parallel()
 	assert.Nil(t, Types(testingutils.NewPod()))
 	assert.Equal(t, []Type{PreInstall}, Types(testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook", "pre-install")))
 	assert.Equal(t, []Type{PreUpgrade}, Types(testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook", "pre-upgrade")))
@@ -25,6 +26,7 @@ func TestTypes(t *testing.T) {
 }
 
 func TestType_HookType(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, common.HookTypePreSync, PreInstall.HookType())
 	assert.Equal(t, common.HookTypePreSync, PreUpgrade.HookType())
 	assert.Equal(t, common.HookTypePostSync, PostUpgrade.HookType())
