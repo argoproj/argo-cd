@@ -386,7 +386,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 				helmRepoCreds = append(helmRepoCreds, permittedOCICredentials...)
 			}
 
-			repo, err := m.db.GetRepository(srcCtx, source.RepoURL, proj.Name)
+			repo, err := m.db.GetRepositoryForSource(srcCtx, source.RepoURL, proj.Name, &source)
 			if err != nil {
 				return fmt.Errorf("failed to get repo %q: %w", git.SanitizeRepoURL(source.RepoURL), err)
 			}
@@ -498,7 +498,7 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 		// TODO: Could be optimized to not call the repo server at all if we know this specific source does not use reference.
 		return revision, false, nil
 	}
-	repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
+	repo, err := m.db.GetRepositoryForSource(ctx, source.RepoURL, proj.Name, &source)
 	if err != nil {
 		return "", false, fmt.Errorf("failed to get repo %q: %w", git.SanitizeRepoURL(source.RepoURL), err)
 	}
