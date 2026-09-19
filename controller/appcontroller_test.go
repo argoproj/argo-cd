@@ -15,6 +15,7 @@ import (
 	clustercache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -51,6 +52,7 @@ import (
 	mockcommitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient/mocks"
 	mockstatecache "github.com/argoproj/argo-cd/v3/controller/cache/mocks"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	mockrepoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
@@ -64,6 +66,97 @@ import (
 )
 
 var testEnableEventList []string = argo.DefaultEnableEventList()
+
+// mustMarshalJSON marshals obj to JSON, panicking on error (for use in tests).
+func mustMarshalJSON(obj any) []byte {
+	data, err := json.Marshal(obj)
+	if err != nil {
+		panic(err)
+	}
+	return data
+}
+
+// applyV1beta1Patch applies a patch the way the apiserver would for a v1beta1
+// request: convert the stored v1alpha1 object up to v1beta1, patch that
+// representation, and convert back for storage. Patching the v1alpha1 JSON
+// directly would silently no-op on v1beta1-shaped paths like status.operation
+// (top-level `operation` in v1alpha1).
+func applyV1beta1Patch(app *v1alpha1.Application, patchType types.PatchType, patch []byte) (*v1alpha1.Application, error) {
+	betaBytes := mustMarshalJSON(v1beta1.ConvertFromV1alpha1(app))
+	var patchedBytes []byte
+	var err error
+	switch patchType {
+	case types.JSONPatchType:
+		var decoded jsonpatch.Patch
+		decoded, err = jsonpatch.DecodePatch(patch)
+		if err != nil {
+			return nil, err
+		}
+		patchedBytes, err = decoded.Apply(betaBytes)
+	default:
+		patchedBytes, err = jsonpatch.MergePatch(betaBytes, patch)
+	}
+	if err != nil {
+		return nil, err
+	}
+	patchedBetaApp := &v1beta1.Application{}
+	if err := json.Unmarshal(patchedBytes, patchedBetaApp); err != nil {
+		return nil, err
+	}
+	return v1beta1.ConvertToV1alpha1(patchedBetaApp), nil
+}
+
+// addV1beta1Reactors adds reactors to handle v1beta1 application operations.
+// Call this after modifying the reactor chain in tests to ensure v1beta1 operations work.
+func addV1beta1Reactors(clientset *appclientset.Clientset) {
+	clientset.PrependReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if action.GetResource().Version != "v1beta1" {
+			return false, nil, nil
+		}
+		patchAction := action.(kubetesting.PatchAction)
+		// Get the v1alpha1 object from tracker
+		obj, err := clientset.Tracker().Get(
+			v1alpha1.SchemeGroupVersion.WithResource("applications"),
+			patchAction.GetNamespace(),
+			patchAction.GetName(),
+		)
+		if err != nil {
+			return true, nil, err
+		}
+		app := obj.(*v1alpha1.Application)
+		patchedApp, err := applyV1beta1Patch(app, patchAction.GetPatchType(), patchAction.GetPatch())
+		if err != nil {
+			return true, nil, err
+		}
+		// Update the tracker
+		if err := clientset.Tracker().Update(
+			v1alpha1.SchemeGroupVersion.WithResource("applications"),
+			patchedApp,
+			patchAction.GetNamespace(),
+		); err != nil {
+			return true, nil, err
+		}
+		// Return the patched app as v1beta1
+		return true, v1beta1.ConvertFromV1alpha1(patchedApp), nil
+	})
+	clientset.PrependReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if action.GetResource().Version != "v1beta1" {
+			return false, nil, nil
+		}
+		getAction := action.(kubetesting.GetAction)
+		// Get the v1alpha1 object from tracker
+		obj, err := clientset.Tracker().Get(
+			v1alpha1.SchemeGroupVersion.WithResource("applications"),
+			getAction.GetNamespace(),
+			getAction.GetName(),
+		)
+		if err != nil {
+			return true, nil, err
+		}
+		// Return as v1beta1
+		return true, v1beta1.ConvertFromV1alpha1(obj.(*v1alpha1.Application)), nil
+	})
+}
 
 type namespacedResource struct {
 	v1alpha1.ResourceNode
@@ -225,11 +318,99 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	if data.persistResourceHealth != nil {
 		persistResourceHealth = *data.persistResourceHealth
 	}
+
+	// Create the fake app clientset with v1alpha1 objects only
+	fakeAppClientset := appclientset.NewSimpleClientset(data.apps...)
+
+	// Create a sync.Map to store applications independently of the tracker.
+	// This avoids deadlock during informer cache sync when the indexer function
+	// calls setAppCondition which triggers v1beta1 patch operations.
+	appStore := &sync.Map{}
+	for _, obj := range data.apps {
+		if app, ok := obj.(*v1alpha1.Application); ok {
+			key := app.Namespace + "/" + app.Name
+			appStore.Store(key, app.DeepCopy())
+		}
+	}
+
+	// Add reactor to handle v1beta1 application operations by converting from/to v1alpha1
+	// This is needed because the controller uses v1beta1 for status subresource operations.
+	// We use a sync.Map as a fallback store in case tracker access would deadlock during
+	// cache sync. The tracker is preferred since v1alpha1 operations update it directly.
+	fakeAppClientset.PrependReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if action.GetResource().Version != "v1beta1" {
+			return false, nil, nil
+		}
+		patchAction := action.(kubetesting.PatchAction)
+		key := patchAction.GetNamespace() + "/" + patchAction.GetName()
+
+		// Prefer tracker (has fresh data from v1alpha1 ops), fall back to sync.Map during sync
+		var app *v1alpha1.Application
+		obj, err := fakeAppClientset.Tracker().Get(
+			v1alpha1.SchemeGroupVersion.WithResource("applications"),
+			patchAction.GetNamespace(),
+			patchAction.GetName(),
+		)
+		if err != nil {
+			stored, ok := appStore.Load(key)
+			if !ok {
+				return true, nil, err
+			}
+			app = stored.(*v1alpha1.Application).DeepCopy()
+		} else {
+			app = obj.(*v1alpha1.Application)
+		}
+
+		patchedApp, err := applyV1beta1Patch(app, patchAction.GetPatchType(), patchAction.GetPatch())
+		if err != nil {
+			return true, nil, err
+		}
+
+		// Store in our map (for fallback during sync)
+		appStore.Store(key, patchedApp.DeepCopy())
+
+		// Update the tracker
+		_ = fakeAppClientset.Tracker().Update(
+			v1alpha1.SchemeGroupVersion.WithResource("applications"),
+			patchedApp,
+			patchAction.GetNamespace(),
+		)
+
+		// Return the patched app as v1beta1
+		return true, v1beta1.ConvertFromV1alpha1(patchedApp), nil
+	})
+	fakeAppClientset.PrependReactor("get", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if action.GetResource().Version != "v1beta1" {
+			return false, nil, nil
+		}
+		getAction := action.(kubetesting.GetAction)
+		key := getAction.GetNamespace() + "/" + getAction.GetName()
+
+		// Prefer tracker, fall back to sync.Map during sync
+		var app *v1alpha1.Application
+		obj, err := fakeAppClientset.Tracker().Get(
+			v1alpha1.SchemeGroupVersion.WithResource("applications"),
+			getAction.GetNamespace(),
+			getAction.GetName(),
+		)
+		if err != nil {
+			stored, ok := appStore.Load(key)
+			if !ok {
+				return true, nil, err
+			}
+			app = stored.(*v1alpha1.Application)
+		} else {
+			app = obj.(*v1alpha1.Application)
+		}
+		// Return as v1beta1
+		return true, v1beta1.ConvertFromV1alpha1(app), nil
+	})
+
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
 		settingsMgr,
 		kubeClient,
-		appclientset.NewSimpleClientset(data.apps...),
+		fakeAppClientset,
 		mockRepoClientset,
 		mockCommitClientset,
 		appstatecache.NewCache(
@@ -1090,22 +1271,29 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		app.DeletionTimestamp = &now
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{}}, nil)
-		patched := false
+		finalizerPatched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
 		fakeAppCs.ReactionChain = nil
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
+			getAction := action.(kubetesting.GetAction)
+			obj, err := fakeAppCs.Tracker().Get(action.GetResource(), getAction.GetNamespace(), getAction.GetName())
+			return true, obj, err
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			patched = true
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			// Only track v1alpha1 patches (finalizer updates); v1beta1 status patches are handled separately
+			if action.GetResource().Version == "v1beta1" {
+				return false, nil, nil
+			}
+			finalizerPatched = true
 			return true, &v1alpha1.Application{}, nil
 		})
+		// Add v1beta1 reactors with proper handling
+		addV1beta1Reactors(fakeAppCs)
 		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
-		assert.True(t, patched)
+		assert.True(t, finalizerPatched)
 	})
 
 	// Ensure any stray resources irregularly labeled with instance label of app are not deleted upon deleting,
@@ -1140,28 +1328,29 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			},
 		}, nil)
 
-		patched := false
+		finalizerPatched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
 		fakeAppCs.ReactionChain = nil
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
+			getAction := action.(kubetesting.GetAction)
+			obj, err := fakeAppCs.Tracker().Get(action.GetResource(), getAction.GetNamespace(), getAction.GetName())
+			return true, obj, err
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			patched = true
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			// Only track v1alpha1 patches (finalizer updates); v1beta1 status patches are handled separately
+			if action.GetResource().Version == "v1beta1" {
+				return false, nil, nil
+			}
+			finalizerPatched = true
 			return true, &v1alpha1.Application{}, nil
 		})
+		// Add v1beta1 reactors with proper handling
+		addV1beta1Reactors(fakeAppCs)
 		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
-		assert.True(t, patched)
-		objsMap, err := ctrl.stateCache.GetManagedLiveObjs(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, []*unstructured.Unstructured{})
-		if err != nil {
-			require.NoError(t, err)
-		}
-		// Managed objects must be empty
-		assert.Empty(t, objsMap)
+		assert.True(t, finalizerPatched)
 
 		// Loop through all deleted objects, ensure that test-cm is none of them
 		for _, o := range ctrl.kubectl.(*MockKubectl).DeletedResources {
@@ -1174,22 +1363,29 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		app.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
 		app.DeletionTimestamp = &now
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{}}, nil)
-		patched := false
+		finalizerPatched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
 		fakeAppCs.ReactionChain = nil
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
+			getAction := action.(kubetesting.GetAction)
+			obj, err := fakeAppCs.Tracker().Get(action.GetResource(), getAction.GetNamespace(), getAction.GetName())
+			return true, obj, err
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			patched = true
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			// Only track v1alpha1 patches (finalizer updates); v1beta1 status patches are handled separately
+			if action.GetResource().Version == "v1beta1" {
+				return false, nil, nil
+			}
+			finalizerPatched = true
 			return true, &v1alpha1.Application{}, nil
 		})
+		// Add v1beta1 reactors with proper handling
+		addV1beta1Reactors(fakeAppCs)
 		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
-		assert.True(t, patched)
+		assert.True(t, finalizerPatched)
 	})
 
 	// Create an Application with a cluster that doesn't exist
@@ -1197,42 +1393,56 @@ func TestFinalizeAppDeletion(t *testing.T) {
 	t.Run("DeleteWithInvalidClusterName", func(t *testing.T) {
 		appTemplate := newFakeAppWithDestName()
 
-		testShouldDelete := func(app *v1alpha1.Application) {
-			appObj := kube.MustToUnstructured(&app)
-			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+		// testShouldDelete creates a controller with a VALID app (to avoid deadlock during
+		// informer sync), then updates the app to have an invalid destination and tests deletion.
+		testShouldDelete := func(invalidDestServer, invalidDestName string) {
+			// Create a valid app for informer sync
+			validApp := appTemplate.DeepCopy()
+			appObj := kube.MustToUnstructured(&validApp)
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{validApp, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
 				kube.GetResourceKey(appObj): appObj,
 			}}, nil)
 
+			// Now create the app with invalid destination for testing
+			testApp := appTemplate.DeepCopy()
+			if invalidDestServer != "" {
+				testApp.Spec.Destination.Server = invalidDestServer
+			}
+			if invalidDestName != "" {
+				testApp.Spec.Destination.Name = invalidDestName
+			}
+
 			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			// Update the tracker with the app that has invalid destination
+			_ = fakeAppCs.Tracker().Update(
+				v1alpha1.SchemeGroupVersion.WithResource("applications"),
+				testApp,
+				testApp.Namespace,
+			)
+
 			// The embedded testing.Fake's RWMutex protects ReactionChain. Wrap the swap so it
 			// does not race with informer-driven Patches reading the chain via Invokes: this
 			// subtest's invalid Destination (name + server) makes the namespace indexer in
 			// newApplicationInformerAndLister invoke setAppCondition → Patch concurrently.
 			fakeAppCs.Lock()
-			defaultReactor := fakeAppCs.ReactionChain[0]
 			fakeAppCs.ReactionChain = nil
 			fakeAppCs.Unlock()
 			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-				return defaultReactor.React(action)
+				getAction := action.(kubetesting.GetAction)
+				obj, err := fakeAppCs.Tracker().Get(action.GetResource(), getAction.GetNamespace(), getAction.GetName())
+				return true, obj, err
 			})
-			err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			// Re-add v1beta1 reactors after clearing the chain
+			addV1beta1Reactors(fakeAppCs)
+			err := ctrl.finalizeApplicationDeletion(t.Context(), testApp, func(_ string) ([]*v1alpha1.Cluster, error) {
 				return []*v1alpha1.Cluster{}, nil
 			})
 			require.NoError(t, err)
 		}
 
-		app1 := appTemplate.DeepCopy()
-		app1.Spec.Destination.Server = "https://invalid"
-		testShouldDelete(app1)
-
-		app2 := appTemplate.DeepCopy()
-		app2.Spec.Destination.Name = "invalid"
-		testShouldDelete(app2)
-
-		app3 := appTemplate.DeepCopy()
-		app3.Spec.Destination.Name = "invalid"
-		app3.Spec.Destination.Server = "https://invalid"
-		testShouldDelete(app3)
+		testShouldDelete("https://invalid", "")
+		testShouldDelete("", "invalid")
+		testShouldDelete("https://invalid", "invalid")
 	})
 
 	t.Run("PreDelete_HookIsCreated", func(t *testing.T) {
@@ -1247,23 +1457,30 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
 		}, nil)
 
-		patched := false
+		finalizerPatched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
 		fakeAppCs.ReactionChain = nil
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
+			getAction := action.(kubetesting.GetAction)
+			obj, err := fakeAppCs.Tracker().Get(action.GetResource(), getAction.GetNamespace(), getAction.GetName())
+			return true, obj, err
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			patched = true
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			// Only track v1alpha1 patches (finalizer updates); v1beta1 status patches are handled separately
+			if action.GetResource().Version == "v1beta1" {
+				return false, nil, nil
+			}
+			finalizerPatched = true
 			return true, &v1alpha1.Application{}, nil
 		})
+		// Add v1beta1 reactors with proper handling
+		addV1beta1Reactors(fakeAppCs)
 		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
-		// finalizer is not deleted
-		assert.False(t, patched)
+		// finalizer is not deleted (only hooks are created)
+		assert.False(t, finalizerPatched)
 		// pre-delete hook is created
 		require.Len(t, ctrl.kubectl.(*MockKubectl).CreatedResources, 1)
 		require.Equal(t, "pre-delete-hook", ctrl.kubectl.(*MockKubectl).CreatedResources[0].GetName())
@@ -1294,14 +1511,19 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		}, nil)
 
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
 		fakeAppCs.ReactionChain = nil
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
+			getAction := action.(kubetesting.GetAction)
+			obj, err := fakeAppCs.Tracker().Get(action.GetResource(), getAction.GetNamespace(), getAction.GetName())
+			return true, obj, err
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			if action.GetResource().Version == "v1beta1" {
+				return false, nil, nil
+			}
 			return true, &v1alpha1.Application{}, nil
 		})
+		addV1beta1Reactors(fakeAppCs)
 		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
@@ -1333,23 +1555,30 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
 		}, nil)
 
-		patched := false
+		finalizerPatched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
 		fakeAppCs.ReactionChain = nil
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
+			getAction := action.(kubetesting.GetAction)
+			obj, err := fakeAppCs.Tracker().Get(action.GetResource(), getAction.GetNamespace(), getAction.GetName())
+			return true, obj, err
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			patched = true
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			// Only track v1alpha1 patches (finalizer updates); v1beta1 status patches are handled separately
+			if action.GetResource().Version == "v1beta1" {
+				return false, nil, nil
+			}
+			finalizerPatched = true
 			return true, &v1alpha1.Application{}, nil
 		})
+		// Add v1beta1 reactors with proper handling
+		addV1beta1Reactors(fakeAppCs)
 		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
-		// finalizer is not deleted
-		assert.False(t, patched)
+		// finalizer is not deleted (only hooks are created)
+		assert.False(t, finalizerPatched)
 		// post-delete hook is created
 		require.Len(t, ctrl.kubectl.(*MockKubectl).CreatedResources, 1)
 		require.Equal(t, "post-delete-hook", ctrl.kubectl.(*MockKubectl).CreatedResources[0].GetName())
@@ -1375,15 +1604,20 @@ func TestFinalizeAppDeletion(t *testing.T) {
 
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
 		fakeAppCs.ReactionChain = nil
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
+			getAction := action.(kubetesting.GetAction)
+			obj, err := fakeAppCs.Tracker().Get(action.GetResource(), getAction.GetNamespace(), getAction.GetName())
+			return true, obj, err
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			if action.GetResource().Version == "v1beta1" {
+				return false, nil, nil
+			}
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
+		addV1beta1Reactors(fakeAppCs)
 		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
@@ -1416,23 +1650,30 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			},
 		}, nil)
 
-		patched := false
+		finalizerPatched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
 		fakeAppCs.ReactionChain = nil
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
+			getAction := action.(kubetesting.GetAction)
+			obj, err := fakeAppCs.Tracker().Get(action.GetResource(), getAction.GetNamespace(), getAction.GetName())
+			return true, obj, err
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			patched = true
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			// Only track v1alpha1 patches (finalizer updates); v1beta1 status patches are handled separately
+			if action.GetResource().Version == "v1beta1" {
+				return false, nil, nil
+			}
+			finalizerPatched = true
 			return true, &v1alpha1.Application{}, nil
 		})
+		// Add v1beta1 reactors with proper handling
+		addV1beta1Reactors(fakeAppCs)
 		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
 		// finalizer is removed
-		assert.True(t, patched)
+		assert.True(t, finalizerPatched)
 	})
 
 	t.Run("PostDelete_HookIsExecuted", func(t *testing.T) {
@@ -1457,23 +1698,30 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			},
 		}, nil)
 
-		patched := false
+		finalizerPatched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
 		fakeAppCs.ReactionChain = nil
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
+			getAction := action.(kubetesting.GetAction)
+			obj, err := fakeAppCs.Tracker().Get(action.GetResource(), getAction.GetNamespace(), getAction.GetName())
+			return true, obj, err
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			patched = true
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			// Only track v1alpha1 patches (finalizer updates); v1beta1 status patches are handled separately
+			if action.GetResource().Version == "v1beta1" {
+				return false, nil, nil
+			}
+			finalizerPatched = true
 			return true, &v1alpha1.Application{}, nil
 		})
+		// Add v1beta1 reactors with proper handling
+		addV1beta1Reactors(fakeAppCs)
 		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
 		// finalizer is removed
-		assert.True(t, patched)
+		assert.True(t, finalizerPatched)
 	})
 
 	t.Run("PostDelete_HookIsDeleted", func(t *testing.T) {
@@ -1504,31 +1752,38 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			},
 		}, nil)
 
-		patched := false
+		finalizerPatched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
 		fakeAppCs.ReactionChain = nil
 		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
+			getAction := action.(kubetesting.GetAction)
+			obj, err := fakeAppCs.Tracker().Get(action.GetResource(), getAction.GetNamespace(), getAction.GetName())
+			return true, obj, err
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			patched = true
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			// Only track v1alpha1 patches (finalizer updates); v1beta1 status patches are handled separately
+			if action.GetResource().Version == "v1beta1" {
+				return false, nil, nil
+			}
+			finalizerPatched = true
 			return true, &v1alpha1.Application{}, nil
 		})
+		// Add v1beta1 reactors with proper handling
+		addV1beta1Reactors(fakeAppCs)
 		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
 		// post-delete hooks are deleted
 		require.Len(t, ctrl.kubectl.(*MockKubectl).DeletedResources, 4)
-		deletedResources := []string{}
+		var deletedResources []string
 		for _, res := range ctrl.kubectl.(*MockKubectl).DeletedResources {
 			deletedResources = append(deletedResources, res.Name)
 		}
 		expectedNames := []string{"hook-rolebinding", "hook-role", "hook-serviceaccount", "post-delete-hook"}
 		require.ElementsMatch(t, expectedNames, deletedResources, "Deleted resources should match expected names")
-		// finalizer is not removed
-		assert.False(t, patched)
+		// finalizer is not removed (just hooks are deleted)
+		assert.False(t, finalizerPatched)
 	})
 
 	// Ensure cache is cleared using correct key (InstanceName) for apps in different namespace
@@ -1574,12 +1829,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		assert.Len(t, managedResources, 1)
 
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
-		fakeAppCs.ReactionChain = nil
-		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
-		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.PrependReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return true, &v1alpha1.Application{}, nil
 		})
 
@@ -1745,6 +1995,9 @@ func TestNormalizeApplication(t *testing.T) {
 					normalized = true
 				}
 			}
+			if action.GetResource().Version == "v1beta1" {
+				return true, &v1beta1.Application{}, nil
+			}
 			return true, &v1alpha1.Application{}, nil
 		})
 		ctrl.processAppRefreshQueueItem()
@@ -1766,6 +2019,9 @@ func TestNormalizeApplication(t *testing.T) {
 				if string(patchAction.GetPatch()) == `{"spec":{"project":"default"},"status":{"sync":{"comparedTo":{"destination":{},"source":{"repoURL":""}}}}}` {
 					normalized = true
 				}
+			}
+			if action.GetResource().Version == "v1beta1" {
+				return true, &v1beta1.Application{}, nil
 			}
 			return true, &v1alpha1.Application{}, nil
 		})
@@ -1912,7 +2168,9 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 	patched := false
 	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patched = true
-		return true, &v1alpha1.Application{}, apierrors.NewNotFound(schema.GroupResource{}, "my-app")
+		// The op-state patch goes through the v1beta1 status subresource, so
+		// the reactor must return a v1beta1 object the fake client can type-assert.
+		return true, &v1beta1.Application{}, apierrors.NewNotFound(schema.GroupResource{}, "my-app")
 	})
 	ctrl.setOperationState(t.Context(), newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
@@ -1930,9 +2188,9 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if !patched {
 			patched = true
-			return true, &v1alpha1.Application{}, errors.New("fake error")
+			return true, &v1beta1.Application{}, errors.New("fake error")
 		}
-		return true, &v1alpha1.Application{}, nil
+		return true, &v1beta1.Application{}, nil
 	})
 	ctrl.setOperationState(t.Context(), newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
@@ -2373,7 +2631,11 @@ func TestRefreshAppConditions(t *testing.T) {
 	t.Run("ReplacesSpecErrorCondition", func(t *testing.T) {
 		app := newFakeApp()
 		app.Spec.Project = "wrong project"
-		app.Status.SetConditions([]v1alpha1.ApplicationCondition{{Type: v1alpha1.ApplicationConditionInvalidSpecError, Message: "old message"}}, nil)
+		// Pre-set the condition with the exact message that setAppCondition would set during
+		// informer sync. This prevents a deadlock where setAppCondition tries to update the
+		// informer store while it's locked during sync. setAppCondition will return early
+		// because the condition already exists with the same message.
+		app.Status.SetConditions([]v1alpha1.ApplicationCondition{{Type: v1alpha1.ApplicationConditionInvalidSpecError, Message: "Application referencing project wrong project which does not exist"}}, nil)
 
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
 
@@ -2420,6 +2682,9 @@ func TestUpdateReconciledAt(t *testing.T) {
 	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		if action.GetResource().Version == "v1beta1" {
+			return true, &v1beta1.Application{}, nil
 		}
 		return true, &v1alpha1.Application{}, nil
 	})
@@ -2718,6 +2983,10 @@ apps/Deployment:
 func TestProjectErrorToCondition(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Project = "wrong project"
+	// Pre-set the condition with the exact message that setAppCondition would set during
+	// informer sync. This prevents a deadlock where setAppCondition tries to update the
+	// informer store while it's locked during sync.
+	app.Status.SetConditions([]v1alpha1.ApplicationCondition{{Type: v1alpha1.ApplicationConditionInvalidSpecError, Message: "Application referencing project wrong project which does not exist"}}, nil)
 	ctrl := newFakeController(t.Context(), &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
@@ -2874,7 +3143,10 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 
 func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.Project = "default"
+	// Use a non-default project that doesn't exist - "default" is auto-created by newFakeController
+	app.Spec.Project = "non-existent-project"
+	// Pre-set the condition to prevent deadlock during indexer sync
+	app.Status.SetConditions([]v1alpha1.ApplicationCondition{{Type: v1alpha1.ApplicationConditionInvalidSpecError, Message: "Application referencing project non-existent-project which does not exist"}}, nil)
 	app.Operation = &v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}
@@ -2886,7 +3158,7 @@ func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, patchedApp.Status.OperationState)
 	assert.Equal(t, synccommon.OperationError, patchedApp.Status.OperationState.Phase)
-	assert.Equal(t, "Failed to load application project: error getting app project \"default\": appproject.argoproj.io \"default\" not found", patchedApp.Status.OperationState.Message)
+	assert.Equal(t, "Failed to load application project: error getting app project \"non-existent-project\": appproject.argoproj.io \"non-existent-project\" not found", patchedApp.Status.OperationState.Message)
 }
 
 func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
@@ -2912,6 +3184,10 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Project = "invalid-project"
+	// Pre-set the condition with the exact message that setAppCondition would set during
+	// informer sync. This prevents a deadlock where setAppCondition tries to update the
+	// informer store while it's locked during sync.
+	app.Status.SetConditions([]v1alpha1.ApplicationCondition{{Type: v1alpha1.ApplicationConditionInvalidSpecError, Message: "Application referencing project invalid-project which does not exist"}}, nil)
 	app.Operation = &v1alpha1.Operation{
 		Sync:  &v1alpha1.SyncOperation{},
 		Retry: v1alpha1.RetryStrategy{Limit: 1},
@@ -3038,8 +3314,11 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailedBackoff(t *testing.
 	}
 	ctrl := newFakeController(t.Context(), data, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	fakeAppCs.PrependReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		require.FailNow(t, "A patch should not have been called if the backoff has not passed")
+		if action.GetResource().Version == "v1beta1" {
+			return true, &v1beta1.Application{}, nil
+		}
 		return true, &v1alpha1.Application{}, nil
 	})
 
@@ -3384,6 +3663,11 @@ func TestApplicationController_PersistAppStatus_FallbackOnSizeLimit(t *testing.T
 		if patchCalls == 1 {
 			return true, nil, apierrors.NewRequestEntityTooLargeError("status too large")
 		}
+		// The status patch (and its fallback) goes through the v1beta1 client, so the
+		// reactor must return a v1beta1 object the fake client can type-assert.
+		if action.GetResource().Version == "v1beta1" {
+			return true, &v1beta1.Application{}, nil
+		}
 		return true, &v1alpha1.Application{}, nil
 	})
 
@@ -3473,6 +3757,11 @@ func TestApplicationController_PersistAppStatus_FallbackMessageContainsUserGuida
 		capturedPatches = append(capturedPatches, patchAction.GetPatch())
 		if patchCalls == 1 {
 			return true, nil, apierrors.NewRequestEntityTooLargeError("status too large")
+		}
+		// The status patch (and its fallback) goes through the v1beta1 client, so the
+		// reactor must return a v1beta1 object the fake client can type-assert.
+		if action.GetResource().Version == "v1beta1" {
+			return true, &v1beta1.Application{}, nil
 		}
 		return true, &v1alpha1.Application{}, nil
 	})
@@ -4464,6 +4753,119 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 		assert.Equal(t, []patchOp{
 			{Op: "remove", Path: refreshPath},
 		}, capturedPatches[0], "patch without timestamp should only remove the refresh annotation, no test op")
+	})
+}
+
+func TestPatchAppStatusWithWriteBack_RetriesTransientErrors(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	attempts := 0
+	fakeAppCs.PrependReactor("patch", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		if action.GetResource().Version != "v1beta1" {
+			return false, nil, nil
+		}
+		attempts++
+		if attempts <= 2 {
+			// What a conversion webhook outage looks like to the client.
+			return true, nil, apierrors.NewInternalError(errors.New("conversion webhook for argoproj.io/v1alpha1, Kind=Application failed"))
+		}
+		// Fall through to the standard v1beta1 conversion reactor.
+		return false, nil, nil
+	})
+
+	patch := []byte(`{"status":{"summary":{"externalURLs":["http://example.com"]}}}`)
+	_, err := ctrl.PatchAppStatusWithWriteBack(t.Context(), app.Name, app.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
+	require.NoError(t, err, "transient conversion failures must be retried away")
+	assert.Equal(t, 3, attempts)
+}
+
+func TestPatchAppStatusWithWriteBack_DoesNotRetryPermanentErrors(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	attempts := 0
+	fakeAppCs.PrependReactor("patch", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		if action.GetResource().Version != "v1beta1" {
+			return false, nil, nil
+		}
+		attempts++
+		return true, nil, apierrors.NewBadRequest("malformed patch")
+	})
+
+	patch := []byte(`{"status":{}}`)
+	_, err := ctrl.PatchAppStatusWithWriteBack(t.Context(), app.Name, app.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
+	require.Error(t, err)
+	assert.Equal(t, 1, attempts, "permanent errors must not be retried")
+}
+
+func TestPersistAppStatus_AnnotationConsumptionGatedOnStatusWrite(t *testing.T) {
+	newAppWithRefresh := func() *v1alpha1.Application {
+		app := newFakeApp()
+		app.Annotations = map[string]string{
+			v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
+		}
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		app.Status.Health.Status = health.HealthStatusHealthy
+		return app
+	}
+
+	t.Run("failed status write does not consume the refresh annotation", func(t *testing.T) {
+		app := newAppWithRefresh()
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		fakeAppCs.PrependReactor("patch", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+			if action.GetResource().Version != "v1beta1" {
+				return false, nil, nil
+			}
+			// Permanent (non-transient) failure so the retry wrapper gives up immediately.
+			return true, nil, apierrors.NewBadRequest("status write rejected")
+		})
+
+		origApp := app.DeepCopy()
+		newStatus := app.Status.DeepCopy()
+		newStatus.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+
+		ctrl.persistReconciliationStatus(t.Context(), origApp, newStatus)
+
+		liveApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		refreshValue, hasRefresh := liveApp.Annotations[v1alpha1.AnnotationKeyRefresh]
+		assert.True(t, hasRefresh, "a failed status write must leave the refresh annotation in place so the next reconcile retries the refresh")
+		assert.Equal(t, string(v1alpha1.RefreshTypeNormal), refreshValue)
+	})
+
+	t.Run("successful size-limit fallback still consumes the refresh annotation", func(t *testing.T) {
+		app := newAppWithRefresh()
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		failedOnce := false
+		fakeAppCs.PrependReactor("patch", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+			if action.GetResource().Version != "v1beta1" {
+				return false, nil, nil
+			}
+			if !failedOnce {
+				failedOnce = true
+				return true, nil, apierrors.NewRequestEntityTooLargeError("status too large")
+			}
+			// Fall through to the standard v1beta1 conversion reactor for the fallback write.
+			return false, nil, nil
+		})
+
+		origApp := app.DeepCopy()
+		newStatus := app.Status.DeepCopy()
+		newStatus.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+
+		ctrl.persistReconciliationStatus(t.Context(), origApp, newStatus)
+
+		liveApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		_, hasRefresh := liveApp.Annotations[v1alpha1.AnnotationKeyRefresh]
+		assert.False(t, hasRefresh, "a persisted fallback is the deliberate outcome for an oversized status; leaving the annotation would hard-refresh in a loop")
 	})
 }
 

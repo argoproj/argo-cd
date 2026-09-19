@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-conversion-webhook
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: conversion-webhook
+  name: argocd-conversion-webhook
+spec:
+  # Two replicas because the webhook is in the storage path of every v1beta1
+  # request (v1alpha1 is the storage version): with the controller writing
+  # status through v1beta1, webhook unavailability fails status persistence
+  # for every application in the cluster. Both replicas serve the same
+  # certificate, persisted in the argocd-conversion-webhook-tls Secret.
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-conversion-webhook
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-conversion-webhook
+    spec:
+      serviceAccountName: argocd-conversion-webhook
+      automountServiceAccountToken: true
+      containers:
+      - name: argocd-conversion-webhook
+        image: quay.io/argoproj/argocd:latest
+        imagePullPolicy: Always
+        command:
+          - argocd-conversion-webhook
+        args:
+          - --port=8443
+          - --tls-cert-path=/tls/tls.crt
+          - --tls-key-path=/tls/tls.key
+        env:
+          - name: ARGOCD_CONVERSION_WEBHOOK_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: ARGOCD_CONVERSION_WEBHOOK_LOGFORMAT
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: conversionwebhook.log.format
+                optional: true
+          - name: ARGOCD_CONVERSION_WEBHOOK_LOGLEVEL
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: conversionwebhook.log.level
+                optional: true
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          failureThreshold: 5
+          timeoutSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          timeoutSeconds: 10
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            # Sized for the handler's default 32 MiB request-body cap: peak
+            # usage is a small multiple of the body size (decoded + converted
+            # objects + encoded response). Raise together with
+            # ARGOCD_CONVERSION_WEBHOOK_MAX_REQUEST_BODY_SIZE.
+            memory: 256Mi
+        securityContext:
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - name: tls
+          mountPath: /tls
+          readOnly: true
+      volumes:
+      - name: tls
+        secret:
+          secretName: argocd-conversion-webhook-tls
+          optional: true
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: argocd-conversion-webhook
+              topologyKey: kubernetes.io/hostname

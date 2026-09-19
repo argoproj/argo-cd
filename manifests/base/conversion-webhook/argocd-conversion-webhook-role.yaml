@@ -1,0 +1,26 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-conversion-webhook
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: conversion-webhook
+  name: argocd-conversion-webhook
+rules:
+# Persist the generated TLS serving certificate so all replicas serve the
+# same certificate (resourceNames cannot restrict create).
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  resourceNames:
+  - argocd-conversion-webhook-tls
+  verbs:
+  - get
+  - update

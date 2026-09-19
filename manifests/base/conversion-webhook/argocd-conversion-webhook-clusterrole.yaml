@@ -1,0 +1,19 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-conversion-webhook
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: conversion-webhook
+  name: argocd-conversion-webhook
+rules:
+# Permission to patch the Application CRD to inject CA bundle
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  resourceNames:
+  - applications.argoproj.io
+  verbs:
+  - get
+  - patch
