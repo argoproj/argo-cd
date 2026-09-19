@@ -673,7 +673,7 @@ func restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive
 
 		if inPatched && patchedIsSlice && originalIsSlice && normalizedIsSlice {
 			normalizedLiveSlice, _ := normalizedLive[key].([]any)
-			restoreNonIgnoredFieldsInSlice(patchedSlice, originalSlice, normalizedSlice, normalizedLiveSlice)
+			patched[key] = restoreNonIgnoredFieldsInSlice(patchedSlice, originalSlice, normalizedSlice, normalizedLiveSlice)
 			continue
 		}
 
@@ -700,59 +700,90 @@ func restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive
 	}
 }
 
-// restoreNonIgnoredFieldsInSlice mirrors restoreNonIgnoredFields for list fields,
-// matching elements by "name" (Kubernetes' own merge key for containers/ports/
-// volumes) and falling back to index alignment when that isn't usable.
-func restoreNonIgnoredFieldsInSlice(patched, original, normalizedTarget, normalizedLive []any) {
+// restoreNonIgnoredFieldsInSlice mirrors restoreNonIgnoredFields for list
+// fields, matching elements by "name" when every element carries a unique
+// one, falling back to index alignment (field-level restore only) otherwise.
+func restoreNonIgnoredFieldsInSlice(patched, original, normalizedTarget, normalizedLive []any) []any {
 	patchedByName := indexSliceByName(patched)
 	originalByName := indexSliceByName(original)
 	normalizedTargetByName := indexSliceByName(normalizedTarget)
-	if patchedByName != nil && originalByName != nil && normalizedTargetByName != nil {
-		normalizedLiveByName := indexSliceByName(normalizedLive)
-		for name, originalMap := range originalByName {
-			patchedMap, ok := patchedByName[name]
+	if patchedByName == nil || originalByName == nil || normalizedTargetByName == nil {
+		for i, originalVal := range original {
+			if i >= len(patched) || i >= len(normalizedTarget) {
+				continue
+			}
+			patchedMap, ok := patched[i].(map[string]any)
 			if !ok {
 				continue
 			}
-			normalizedMap, ok := normalizedTargetByName[name]
+			originalMap, ok := originalVal.(map[string]any)
 			if !ok {
 				continue
 			}
-			restoreNonIgnoredFields(patchedMap, originalMap, normalizedMap, normalizedLiveByName[name])
+			normalizedMap, ok := normalizedTarget[i].(map[string]any)
+			if !ok {
+				continue
+			}
+			var normalizedLiveMap map[string]any
+			if i < len(normalizedLive) {
+				normalizedLiveMap, _ = normalizedLive[i].(map[string]any)
+			}
+			restoreNonIgnoredFields(patchedMap, originalMap, normalizedMap, normalizedLiveMap)
 		}
-		return
+		return patched
 	}
 
-	for i, originalVal := range original {
-		if i >= len(patched) || i >= len(normalizedTarget) {
-			continue
-		}
-		patchedMap, ok := patched[i].(map[string]any)
+	normalizedLiveByName := indexSliceByName(normalizedLive)
+	restored := make([]any, 0, len(patched))
+	seen := make(map[string]bool, len(patched))
+
+	// Walk patched in its own order: it's already correctly ordered whenever
+	// the underlying merge worked (built-in types, or a CRD with usable
+	// merge-key metadata), so only field values and membership get touched.
+	for _, patchedVal := range patched {
+		patchedMap, ok := patchedVal.(map[string]any)
 		if !ok {
 			continue
 		}
-		originalMap, ok := originalVal.(map[string]any)
+		name, ok := patchedMap["name"].(string)
 		if !ok {
 			continue
 		}
-		normalizedMap, ok := normalizedTarget[i].(map[string]any)
-		if !ok {
+		seen[name] = true
+
+		originalMap, inOriginal := originalByName[name]
+		if !inOriginal {
+			if _, inNormalizedLive := normalizedLiveByName[name]; inNormalizedLive {
+				continue // non-ignored live-only element: drop
+			}
+			restored = append(restored, patchedMap) // ignored wholesale: keep
 			continue
 		}
-		var normalizedLiveMap map[string]any
-		if i < len(normalizedLive) {
-			normalizedLiveMap, _ = normalizedLive[i].(map[string]any)
+		if normalizedMap, ok := normalizedTargetByName[name]; ok {
+			restoreNonIgnoredFields(patchedMap, originalMap, normalizedMap, normalizedLiveByName[name])
 		}
-		restoreNonIgnoredFields(patchedMap, originalMap, normalizedMap, normalizedLiveMap)
+		restored = append(restored, patchedMap)
 	}
+
+	// Elements present in original but entirely missing from patched (atomic
+	// replace dropped them), restored when the normalizer didn't ignore them.
+	for _, originalVal := range original {
+		originalMap := originalVal.(map[string]any)
+		name := originalMap["name"].(string)
+		if seen[name] {
+			continue
+		}
+		if normalizedMap, ok := normalizedTargetByName[name]; ok && reflect.DeepEqual(normalizedMap, originalMap) {
+			restored = append(restored, originalMap)
+		}
+	}
+
+	return restored
 }
 
 // indexSliceByName keys elements by "name", or returns nil if any element
 // isn't an object or lacks a unique string "name".
 func indexSliceByName(list []any) map[string]map[string]any {
-	if len(list) == 0 {
-		return nil
-	}
 	out := make(map[string]map[string]any, len(list))
 	for _, item := range list {
 		obj, ok := item.(map[string]any)
