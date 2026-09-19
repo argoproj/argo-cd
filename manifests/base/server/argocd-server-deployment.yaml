@@ -130,6 +130,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: server.disable.swagger.ui
                   optional: true
+            - name: ARGOCD_SERVER_ENABLE_SOURCE_IP_LOGGING
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.enable.source.ip.logging
+                  optional: true
             - name: ARGOCD_SERVER_ENABLE_GZIP
               valueFrom:
                 configMapKeyRef:

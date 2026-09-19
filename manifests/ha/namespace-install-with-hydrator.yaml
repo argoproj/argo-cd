@@ -3293,6 +3293,12 @@ spec:
               key: server.disable.swagger.ui
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_ENABLE_SOURCE_IP_LOGGING
+          valueFrom:
+            configMapKeyRef:
+              key: server.enable.source.ip.logging
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_SERVER_ENABLE_GZIP
           valueFrom:
             configMapKeyRef:
