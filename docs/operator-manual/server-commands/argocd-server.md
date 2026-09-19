@@ -78,10 +78,13 @@ argocd-server [flags]
       --port int                                        Listen on given port (default 8080)
       --proxy-url string                                If provided, this URL will be used to connect via proxy
       --redis string                                    Redis server hostname and port (e.g. argocd-redis:6379). 
+      --redis-azure-client-id string                    Microsoft Entra ID application/client ID used to acquire Redis access tokens. When unset, falls back to azidentity.DefaultAzureCredential (which honours the AZURE_CLIENT_ID env var injected by the workload-identity admission webhook). Only honoured when --redis-credentials-provider=azure.
+      --redis-azure-scope string                        OAuth scope to request when acquiring Microsoft Entra ID tokens for Redis. Override only when targeting a non-public Azure cloud (e.g. Azure Government). Only honoured when --redis-credentials-provider=azure. (default "https://redis.azure.com/.default")
       --redis-ca-certificate string                     Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string                 Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
       --redis-client-key string                         Path to Redis client key (e.g. /etc/certs/redis/client.crt).
       --redis-compress string                           Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none) (default "gzip")
+      --redis-credentials-provider string               Use a registered credentials provider to authenticate to Redis dynamically (e.g. cloud-provider workload identity). Registered providers: [azure]. When set, --redis-password / REDIS_PASSWORD are ignored.
       --redis-insecure-skip-tls-verify                  Skip Redis server certificate validation.
       --redis-use-tls                                   Use TLS when connecting to Redis. 
       --redisdb int                                     Redis database.
@@ -93,10 +96,13 @@ argocd-server [flags]
       --repo-server-default-cache-expiration duration   Cache expiration default (default 24h0m0s)
       --repo-server-plaintext                           Use a plaintext client (non-TLS) to connect to repository server
       --repo-server-redis string                        Redis server hostname and port (e.g. argocd-redis:6379). 
+      --repo-server-redis-azure-client-id string        Microsoft Entra ID application/client ID used to acquire Redis access tokens. When unset, falls back to azidentity.DefaultAzureCredential (which honours the AZURE_CLIENT_ID env var injected by the workload-identity admission webhook). Only honoured when --redis-credentials-provider=azure.
+      --repo-server-redis-azure-scope string            OAuth scope to request when acquiring Microsoft Entra ID tokens for Redis. Override only when targeting a non-public Azure cloud (e.g. Azure Government). Only honoured when --redis-credentials-provider=azure. (default "https://redis.azure.com/.default")
       --repo-server-redis-ca-certificate string         Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --repo-server-redis-client-certificate string     Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
       --repo-server-redis-client-key string             Path to Redis client key (e.g. /etc/certs/redis/client.crt).
       --repo-server-redis-compress string               Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none) (default "gzip")
+      --repo-server-redis-credentials-provider string   Use a registered credentials provider to authenticate to Redis dynamically (e.g. cloud-provider workload identity). Registered providers: [azure]. When set, --redis-password / REDIS_PASSWORD are ignored.
       --repo-server-redis-insecure-skip-tls-verify      Skip Redis server certificate validation.
       --repo-server-redis-use-tls                       Use TLS when connecting to Redis. 
       --repo-server-redisdb int                         Redis database.
