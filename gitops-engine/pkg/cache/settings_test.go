@@ -79,3 +79,13 @@ func TestSetEventsProcessingInterval(t *testing.T) {
 	cache.Invalidate(SetEventProcessingInterval(interval))
 	assert.Equal(t, interval, cache.eventProcessingInterval)
 }
+
+func TestSetWatchRetryUseBackoff(t *testing.T) {
+	t.Parallel()
+	cache := NewClusterCache(&rest.Config{})
+	assert.False(t, cache.watchRetryUseBackoff)
+
+	cache.Invalidate(SetWatchRetryUseBackoff(true))
+	assert.True(t, cache.watchRetryUseBackoff)
+}
+
