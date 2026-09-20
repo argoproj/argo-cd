@@ -27,6 +27,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"runtime/debug"
 	"slices"
 	"sync"
@@ -69,6 +70,15 @@ const (
 
 	// default duration before restarting individual resource watch
 	defaultWatchResyncTimeout = 10 * time.Minute
+
+	// default jitter factor (0 disables) applied on top of watchResyncTimeout (see wait.Jitter).
+	// Disabled by default so existing installs keep the exact pre-jitter behavior; jitter is
+	// opt-in. Without jitter, all "group/kind x namespace" watches (re)started around the same
+	// time (e.g. right after a controller restart, which starts tens of thousands of watches for
+	// large multi-cluster deployments) keep re-triggering their relist+rewatch in lockstep every
+	// watchResyncTimeout, causing a recurring "thundering herd" of concurrent List+Decode calls
+	// instead of a steady, spread-out load.
+	defaultWatchResyncTimeoutJitterFactor = 0.0
 
 	// Same page size as in k8s.io/client-go/tools/pager/pager.go
 	defaultListPageSize = 500
@@ -210,19 +220,20 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 			resyncTimeout: defaultClusterResyncTimeout,
 			syncTime:      nil,
 		},
-		watchResyncTimeout:      defaultWatchResyncTimeout,
-		clusterSyncRetryTimeout: ClusterRetryTimeout,
-		eventProcessingInterval: defaultEventProcessingInterval,
-		resourceUpdatedHandlers: map[uint64]OnResourceUpdatedHandler{},
-		eventHandlers:           map[uint64]OnEventHandler{},
-		processEventsHandlers:   map[uint64]OnProcessEventsHandler{},
-		log:                     log,
-		listRetryLimit:          1,
-		listRetryUseBackoff:     false,
-		listRetryFunc:           ListRetryFuncNever,
-		manifestStorageType:     ManifestStorageJSON,
-		manifestCompressionType: ManifestCompressionGZipBestSpeed,
-		parentUIDToChildren:     make(map[types.UID]map[kube.ResourceKey]struct{}),
+		watchResyncTimeout:             defaultWatchResyncTimeout,
+		watchResyncTimeoutJitterFactor: defaultWatchResyncTimeoutJitterFactor,
+		clusterSyncRetryTimeout:        ClusterRetryTimeout,
+		eventProcessingInterval:        defaultEventProcessingInterval,
+		resourceUpdatedHandlers:        map[uint64]OnResourceUpdatedHandler{},
+		eventHandlers:                  map[uint64]OnEventHandler{},
+		processEventsHandlers:          map[uint64]OnProcessEventsHandler{},
+		log:                            log,
+		listRetryLimit:                 1,
+		listRetryUseBackoff:            false,
+		listRetryFunc:                  ListRetryFuncNever,
+		manifestStorageType:            ManifestStorageJSON,
+		manifestCompressionType:        ManifestCompressionGZipBestSpeed,
+		parentUIDToChildren:            make(map[types.UID]map[kube.ResourceKey]struct{}),
 	}
 	for i := range opts {
 		opts[i](cache)
@@ -243,6 +254,10 @@ type clusterCache struct {
 
 	// maximum time we allow watches to run before relisting the group/kind and restarting the watch
 	watchResyncTimeout time.Duration
+	// random jitter factor (0 disables) applied on top of watchResyncTimeout each time a watch is
+	// (re)started, to avoid many watches restarted around the same time (e.g. after a controller
+	// restart) from resyncing in lockstep forever afterwards. See wait.Jitter for semantics.
+	watchResyncTimeoutJitterFactor float64
 	// sync retry timeout for cluster when sync error happens
 	clusterSyncRetryTimeout time.Duration
 	// ticker interval for events processing
@@ -687,6 +702,12 @@ func (c *clusterCache) startMissingWatches() error {
 	if err != nil {
 		return fmt.Errorf("failed to create clientset: %w", err)
 	}
+	// Snapshot the resync jitter settings once, while c.lock is already held by the caller (see
+	// runSynced callers of startMissingWatches), and pass the snapshot into every watchEvents
+	// goroutine spawned below instead of having each of them read the fields under a lock of
+	// their own. See resyncTimeoutWithJitter's doc comment for why that matters for jitter.
+	watchResyncTimeout := c.watchResyncTimeout
+	watchResyncTimeoutJitterFactor := c.watchResyncTimeoutJitterFactor
 	namespacedResources := make(map[schema.GroupKind]bool)
 	for i := range apis {
 		api := apis[i]
@@ -713,7 +734,7 @@ func (c *clusterCache) startMissingWatches() error {
 						return nil
 					}
 				}
-				go c.watchEvents(ctx, api, resClient, ns, resourceVersion)
+				go c.watchEvents(ctx, api, resClient, ns, resourceVersion, watchResyncTimeout, watchResyncTimeoutJitterFactor)
 				return nil
 			})
 			if err != nil {
@@ -812,7 +833,52 @@ func (c *clusterCache) loadInitialState(ctx context.Context, api kube.APIResourc
 	return resourceVersion, nil
 }
 
-func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string, resourceVersion string) {
+// resyncTimeoutWithJitter returns the timeout to use for the "shouldResync" timer that triggers a
+// relist and watch restart, applying jitter on top of timeout when enabled. A returned value of 0
+// means resync-on-timeout is disabled altogether (see watchEvents).
+//
+// Jitter avoids a "thundering herd": without it, all watches (re)started around the same time
+// (e.g. after a controller restart with many clusters/resource kinds) would keep relisting in
+// lockstep every timeout, producing a recurring spike of concurrent List+Decode calls instead of
+// a steady, spread-out load.
+//
+// initialStart controls how the spread is computed:
+//   - true (the watch's very first start): the returned timeout is chosen uniformly from the
+//     *entire* [0, timeout) range, so that watches started in the same instant (e.g. right after
+//     a controller restart, when sync() starts tens of thousands of them together) are spread
+//     across the whole period immediately, rather than waiting a full timeout before the first
+//     (small) jitter has any spreading effect.
+//   - false (every subsequent restart): the timeout uses wait.Jitter's normal semantics, chosen
+//     uniformly from [timeout, timeout+timeout*factor). This keeps the resync interval close to
+//     the configured timeout while still perturbing it enough that watches don't re-converge
+//     over time.
+//
+// timeout and jitterFactor are plain values, not read from clusterCache fields, so that callers
+// can snapshot them once while already holding clusterCache.lock (see the two call sites of
+// watchEvents) instead of this function taking its own lock. Locking here would be redundant
+// with, and in fact defeated by, the caller's lock: clusterCache.lock is held for the entire
+// duration of sync(), so if this function re-read the fields under that same lock on every
+// watchEvents retry, all those goroutines' timers would start at the same instant regardless of
+// jitter, re-synchronizing exactly the "thundering herd" this is meant to prevent.
+func resyncTimeoutWithJitter(timeout time.Duration, jitterFactor float64, initialStart bool) time.Duration {
+	if timeout <= 0 || jitterFactor <= 0 {
+		return timeout
+	}
+	if initialStart {
+		return time.Duration(rand.Int64N(int64(timeout)))
+	}
+	return wait.Jitter(timeout, jitterFactor)
+}
+
+// watchEvents watches for changes of the given API resource and updates the cache accordingly.
+//
+// watchResyncTimeout and watchResyncTimeoutJitterFactor are snapshots of clusterCache's fields of
+// the same name, taken by the caller while already holding clusterCache.lock (see
+// resyncTimeoutWithJitter for why). They intentionally do not track later updates made via
+// Invalidate for the lifetime of this particular watch: Invalidate already cancels ctx and causes
+// a fresh watchEvents (with a fresh snapshot) to be started for every resource.
+func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string, resourceVersion string, watchResyncTimeout time.Duration, watchResyncTimeoutJitterFactor float64) {
+	initialStart := true
 	kube.RetryUntilSucceed(ctx, watchResourcesRetryTimeout, fmt.Sprintf("watch %s on %s", api.GroupKind, c.config.Host), c.log, func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -849,11 +915,12 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 		}()
 
 		var watchResyncTimeoutCh <-chan time.Time
-		if c.watchResyncTimeout > 0 {
-			shouldResync := time.NewTimer(c.watchResyncTimeout)
+		if resyncTimeout := resyncTimeoutWithJitter(watchResyncTimeout, watchResyncTimeoutJitterFactor, initialStart); resyncTimeout > 0 {
+			shouldResync := time.NewTimer(resyncTimeout)
 			defer shouldResync.Stop()
 			watchResyncTimeoutCh = shouldResync.C
 		}
+		initialStart = false
 
 		for {
 			select {
@@ -1196,6 +1263,13 @@ func (c *clusterCache) sync() (err error) {
 		go c.processEvents()
 	}
 
+	// Snapshot the resync jitter settings once, while c.lock is already held by the caller of
+	// sync() (see EnsureSynced), and pass the snapshot into every watchEvents goroutine spawned
+	// below instead of having each of them read the fields under a lock of their own. See
+	// resyncTimeoutWithJitter's doc comment for why that matters for jitter.
+	watchResyncTimeout := c.watchResyncTimeout
+	watchResyncTimeoutJitterFactor := c.watchResyncTimeoutJitterFactor
+
 	discoveryEnd = time.Now()
 	err = kube.RunAllAsync(len(apis), func(i int) error {
 		api := apis[i]
@@ -1246,7 +1320,7 @@ func (c *clusterCache) sync() (err error) {
 				return fmt.Errorf("failed to load initial state of resource %s: %w", api.GroupKind.String(), err)
 			}
 
-			go c.watchEvents(ctx, api, resClient, ns, resourceVersion)
+			go c.watchEvents(ctx, api, resClient, ns, resourceVersion, watchResyncTimeout, watchResyncTimeoutJitterFactor)
 
 			return nil
 		})
