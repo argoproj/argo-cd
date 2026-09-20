@@ -453,6 +453,28 @@ The annotation accepts yaml with key jsonPointers of paths whose diff should be 
 > [!NOTE]
 > This annotation only supports JSON Pointers. JQ path expressions and managed field manager exclusions are not available via this annotation; those must be configured in `spec.ignoreDifferences`.
 
+## Skip Health Check During Sync
+
+When an application uses [sync phases or waves](sync-waves.md), Argo CD waits for every resource in a wave to become
+`Healthy` before it applies the next wave. A resource that never becomes healthy (for example a `DaemonSet` that cannot be
+scheduled on every node) blocks all later waves, and the sync operation stays `Running`.
+
+To consider a resource successfully synced as soon as it has been applied, without waiting for it to become healthy,
+use the following annotation:
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: SkipHealthCheck=true
+```
+
+The health of the resource is still assessed and displayed, and it still contributes to the health of the application.
+To also exclude the resource from the application health, use the
+[`argocd.argoproj.io/ignore-healthcheck`](../operator-manual/health.md#ignoring-child-resource-health-check-in-applications)
+annotation.
+
+This option has no effect on [resource hooks](resource_hooks.md), whose completion is derived from their health.
+
 ## Create Namespace
 
 ```yaml
