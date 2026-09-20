@@ -162,6 +162,13 @@ func SetRetryOptions(maxRetries int32, useBackoff bool, retryFunc ListRetryFunc)
 	}
 }
 
+// SetWatchRetryUseBackoff allows to set whether to use exponential backoff for watch retries on auth/server errors
+func SetWatchRetryUseBackoff(useBackoff bool) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.watchRetryUseBackoff = useBackoff
+	}
+}
+
 // SetRespectRBAC allows to set whether to respect the controller rbac in list/watches
 func SetRespectRBAC(respectRBAC int) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
