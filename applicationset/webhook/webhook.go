@@ -350,7 +350,7 @@ func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInf
 		return false
 	}
 
-	if !gitGeneratorUsesURL(gen, info.Revision, info.RepoRegexp) {
+	if !webhook.RepoURLMatches(gen.RepoURL, info.RepoRegexp) {
 		return false
 	}
 	if !genRevisionHasChanged(gen, info.Revision, info.TouchedHead) {
@@ -387,16 +387,6 @@ func genRevisionHasChanged(gen *v1alpha1.GitGenerator, revision string, touchedH
 	}
 
 	return targetRev == revision || gen.Revision == revision
-}
-
-func gitGeneratorUsesURL(gen *v1alpha1.GitGenerator, webURL string, repoRegexp *regexp.Regexp) bool {
-	if !repoRegexp.MatchString(gen.RepoURL) {
-		log.Warnf("%s does not match %s", gen.RepoURL, repoRegexp.String())
-		return false
-	}
-
-	log.Debugf("%s uses repoURL %s", gen.RepoURL, webURL)
-	return true
 }
 
 func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGeneratorInfo) bool {
