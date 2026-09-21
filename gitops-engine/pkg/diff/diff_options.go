@@ -24,6 +24,13 @@ type options struct {
 	serverSideDiff        bool
 	serverSideDryRunner   ServerSideDryRunner
 	ignoreMutationWebhook bool
+	// trustedManagers lists additional field managers (besides the applier
+	// identified by manager) whose fields should be treated the same way
+	// mutation-webhook fields are: yielded to rather than flagged as drift.
+	// Any manager not in this list, and not the applier itself, is treated
+	// as untrusted, so fields it owns are compared normally instead of being
+	// unconditionally reverted to their live value. See WithTrustedManagers.
+	trustedManagers []string
 }
 
 func applyOptions(opts []Option) options {
@@ -122,5 +129,26 @@ func WithIgnoreMutationWebhook(mw bool) Option {
 func WithServerSideDryRunner(ssadr ServerSideDryRunner) Option {
 	return func(o *options) {
 		o.serverSideDryRunner = ssadr
+	}
+}
+
+// WithTrustedManagers declares additional field managers that removeWebhookMutation
+// should treat as trusted co-owners: fields they manage are yielded to (their live
+// value wins) rather than being flagged as drift, the same treatment previously
+// reserved for mutation webhooks.
+//
+// Without this option (trustedManagers == nil), behaviour is unchanged from before
+// this option existed: every manager other than the applier itself (see WithManager)
+// is trusted. Passing a non-nil slice - including an explicitly empty one - opts into
+// stricter behaviour: only the applier and the named managers are trusted, and fields
+// owned by anyone else (or by no one at all) are compared normally instead of being
+// silently reverted to their live value.
+//
+// This mirrors the "trusted managers" pattern used to avoid fighting cooperating
+// controllers (e.g. crossplane late-init, HPA-owned replicas, mutating webhooks)
+// without falling back to trusting literally any manager by default.
+func WithTrustedManagers(managers []string) Option {
+	return func(o *options) {
+		o.trustedManagers = managers
 	}
 }

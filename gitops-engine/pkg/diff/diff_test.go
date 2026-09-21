@@ -906,6 +906,30 @@ func TestServerSideDiff(t *testing.T) {
 		assert.Empty(t, predictedSVC.Labels["event"])
 	})
 
+	t.Run("will not ignore modifications done by an untrusted manager when WithTrustedManagers is set", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ServiceLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ServiceConfigYAMLSSD)
+		opts := buildOpts(testdata.ServicePredictedLiveJSONSSD)
+		// Opting into WithTrustedManagers (even with an empty allowlist) means only the
+		// applier itself and the explicitly named managers are trusted. The "event" label
+		// in this fixture has no managedFields entry at all, so it is trusted by neither -
+		// unlike the "by default" test above, its value should NOT be silently reverted to
+		// live here, and should instead be visible in the diff like any other real change.
+		opts = append(opts, WithTrustedManagers([]string{}))
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+		predictedSVC := YamlToSvc(t, result.PredictedLive)
+		assert.Equal(t, "FROM-MUTATION-WEBHOOK", predictedSVC.Labels["event"])
+	})
+
 	t.Run("will test removing some field with undoing changes done by webhook", func(t *testing.T) {
 		// given
 		t.Parallel()
@@ -1137,6 +1161,72 @@ func TestServerSideDiff(t *testing.T) {
 		// Verify that mutation webhook changes are still filtered out from diff
 		assert.Empty(t, predictedDeploy.Annotations[AnnotationLastAppliedConfig])
 		assert.Empty(t, liveDeploy.Annotations[AnnotationLastAppliedConfig])
+	})
+
+	t.Run("will surface an untrusted manager's field as real drift instead of masking it", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.DeploymentCompositeKeyLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.DeploymentCompositeKeyConfigYAMLSSD)
+		opts := buildOpts(testdata.DeploymentCompositeKeyPredictedLiveJSONSSD)
+		// "mutation-webhook" genuinely owns spec.template.spec.containers[nginx].ports[8080]
+		// in this fixture (see "will preserve composite key fields during diff" above, which
+		// exercises the default/trustAnyManager behaviour, where predictedLive and
+		// NormalizedLive end up matching on port 8080 - masking it from the diff). Opting
+		// into WithTrustedManagers without naming "mutation-webhook" means that manager is
+		// no longer trusted: predictedLive is left as the dry-run actually computed it
+		// (still containing port 8080), while NormalizedLive reflects the real live object
+		// (which does not have it) - so the mismatch is now visible instead of masked.
+		opts = append(opts, WithTrustedManagers([]string{}))
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+
+		predictedDeploy := YamlToDeploy(t, result.PredictedLive)
+		liveDeploy := YamlToDeploy(t, result.NormalizedLive)
+
+		hasPort := func(d *appsv1.Deployment, port int32) bool {
+			for _, p := range d.Spec.Template.Spec.Containers[0].Ports {
+				if p.ContainerPort == port {
+					return true
+				}
+			}
+			return false
+		}
+		assert.True(t, hasPort(predictedDeploy, 8080), "predictedLive should still reflect what the dry-run actually computed")
+		assert.False(t, hasPort(liveDeploy, 8080), "the real live object never had port 8080 - the untrusted manager's addition should be a visible diff, not silently reconciled away")
+	})
+
+	t.Run("will still yield to a manager explicitly named in WithTrustedManagers", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.DeploymentCompositeKeyLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.DeploymentCompositeKeyConfigYAMLSSD)
+		opts := buildOpts(testdata.DeploymentCompositeKeyPredictedLiveJSONSSD)
+		// Naming "mutation-webhook" explicitly restores the same behaviour as the
+		// (default) trustAnyManager case: this manager's fields are still yielded to.
+		opts = append(opts, WithTrustedManagers([]string{"mutation-webhook"}))
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		predictedDeploy := YamlToDeploy(t, result.PredictedLive)
+		nginxContainer := predictedDeploy.Spec.Template.Spec.Containers[0]
+		port8080Found := false
+		for _, port := range nginxContainer.Ports {
+			if port.ContainerPort == 8080 {
+				port8080Found = true
+			}
+		}
+		assert.True(t, port8080Found, "webhook-added port 8080 should still be preserved when mutation-webhook is explicitly trusted")
 	})
 
 	t.Run("will not report diff for mismatched resourceVersion", func(t *testing.T) {

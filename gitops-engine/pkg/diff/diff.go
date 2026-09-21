@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	corev1 "k8s.io/api/core/v1"
@@ -183,7 +184,7 @@ func serverSideDiff(ctx context.Context, config, live *unstructured.Unstructured
 	}
 
 	if o.ignoreMutationWebhook {
-		predictedLive, err = removeWebhookMutation(predictedLive, live, o.gvkParser, o.manager)
+		predictedLive, err = removeWebhookMutation(predictedLive, live, o.gvkParser, o.manager, o.trustedManagers)
 		if err != nil {
 			return nil, fmt.Errorf("error removing non config mutations for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 		}
@@ -214,13 +215,18 @@ func serverSideDiff(ctx context.Context, config, live *unstructured.Unstructured
 	return buildDiffResult(predictedLiveBytes, liveBytes), nil
 }
 
-// removeWebhookMutation will compare the predictedLive with live to identify changes done by mutation webhooks.
-// Webhook mutations are removed from predictedLive by removing all fields which are not managed by the given 'manager'.
-// At this step, we will only have the fields that are managed by the given 'manager'.
+// removeWebhookMutation will compare the predictedLive with live to identify changes done by mutation webhooks
+// or other trusted co-owning controllers. Those fields are removed from predictedLive by keeping only the
+// fields which are managed by the given 'manager' or by one of the given 'trustedManagers'.
+// At this step, we will only have the fields that are managed by the given 'manager' or a trusted manager.
 // It is then merged with the live state and re-assigned to predictedLive. This means that any
-// fields not managed by the specified manager will be reverted with their state from live, including any webhook mutations.
+// fields not managed by the applier or a trusted manager will be reverted with their state from live, including
+// any webhook mutations. Fields managed by a manager that is neither the applier nor trusted are NOT reverted:
+// they are left to the normal diff comparison, so drift introduced by an untrusted manager is still detected.
+// If trustedManagers is nil, this preserves the original behaviour of trusting every manager other than the
+// applier itself; see WithTrustedManagers for details.
 // If the given predictedLive does not have the managedFields, an error will be returned.
-func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, manager string) (*unstructured.Unstructured, error) {
+func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, manager string, trustedManagers []string) (*unstructured.Unstructured, error) {
 	plManagedFields := predictedLive.GetManagedFields()
 	if len(plManagedFields) == 0 {
 		return nil, fmt.Errorf("predictedLive for resource %s/%s must have the managedFields", predictedLive.GetKind(), predictedLive.GetName())
@@ -241,8 +247,17 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 		return nil, fmt.Errorf("error converting live state from unstructured to %s: %w", gvk, err)
 	}
 
+	// trustedManagers == nil means the caller never configured WithTrustedManagers, so we
+	// preserve the original behaviour exactly: trust every manager other than the applier
+	// itself. Passing a non-nil slice (including an empty one) opts into the stricter
+	// allowlist behaviour, where only the applier and the listed managers are trusted.
+	trustAnyManager := trustedManagers == nil
+
 	// Initialize an empty fieldpath.Set to aggregate managed fields for the specified manager
 	managerFieldsSet := &fieldpath.Set{}
+	// Aggregate managed fields for any manager we trust to co-own fields (mutation
+	// webhooks, or other trusted controllers named via WithTrustedManagers).
+	trustedFieldsSet := &fieldpath.Set{}
 
 	// Iterate over all ManagedFields entries in predictedLive
 	for _, mfEntry := range plManagedFields {
@@ -251,9 +266,12 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 		if err != nil {
 			return nil, fmt.Errorf("error building managedFields set: %w", err)
 		}
-		if mfEntry.Manager == manager {
+		switch {
+		case mfEntry.Manager == manager:
 			// Union the fields with the aggregated set
 			managerFieldsSet = managerFieldsSet.Union(managedFieldsSet)
+		case trustAnyManager || slices.Contains(trustedManagers, mfEntry.Manager):
+			trustedFieldsSet = trustedFieldsSet.Union(managedFieldsSet)
 		}
 	}
 
@@ -266,8 +284,17 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 		return nil, fmt.Errorf("error converting predicted live state to FieldSet: %w", err)
 	}
 
-	// Remove fields from predicted live that are not managed by the provided manager
+	// Remove fields from predicted live that are not managed by the provided manager.
 	nonArgoFieldsSet := predictedLiveFieldSet.Difference(managerFieldsSet)
+	if !trustAnyManager {
+		// Strict allowlist mode: only fields explicitly owned by a trusted manager are
+		// reverted to their live value. Fields owned by neither the applier nor a trusted
+		// manager - including fields with no recorded owner at all - are left alone, so
+		// they remain subject to the normal diff comparison instead of being silently
+		// yielded. This intersection is skipped in the (default) trustAnyManager case so
+		// that behaviour there is byte-for-byte identical to before this option existed.
+		nonArgoFieldsSet = nonArgoFieldsSet.Intersection(trustedFieldsSet)
+	}
 
 	// Some ancestor paths in nonArgoFieldsSet may have manager-owned descendants
 	// that are absent from the set (e.g. fields under x-kubernetes-preserve-unknown-fields,
