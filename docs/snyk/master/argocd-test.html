@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="21 known vulnerabilities found in 119 vulnerable dependency paths.">
+  <meta name="description" content="22 known vulnerabilities found in 118 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">September 13th 2026, 12:34:12 am (UTC+00:00)</p>
+                <p class="timestamp">September 20th 2026, 12:33:56 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -505,9 +505,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>21</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>119 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>3054</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>22</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>118 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>3107</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -515,6 +515,111 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Directory Traversal</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/package.json
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            moment
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                argo-cd-ui@1.0.0 and moment@2.30.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        moment@2.30.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        react-moment@1.2.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        moment@2.30.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://www.npmjs.com/package/moment">moment</a> is a lightweight JavaScript date library for parsing, validating, manipulating, and formatting dates.</p>
+        <p>Affected versions of this package are vulnerable to Directory Traversal in the <code>locale()</code> function, whose locale name validation is circumvented by a non-string value, so an object can direct the load to an attacker-specified path. An attacker can cause a file to be loaded from a path of their choosing by supplying a non-string value that the application passes to <code>moment.locale()</code>. This requires the application to hand user-supplied non-string input directly to <code>moment.locale()</code>, plain strings are unaffected because the existing validation rejects those containing path separators, and only server-side npm consumers are in scope.</p>
+        <p><strong>Note:</strong> This is a bypass of the fix for the vulnerability described in <a href="https://security.snyk.io/vuln/SNYK-JS-MOMENT-2440688">CVE-2022-24785</a>.</p>
+        <h2 id="details">Details</h2>
+        <p>A Directory Traversal attack (also known as path traversal) aims to access files and directories that are stored outside the intended folder. By manipulating files with &quot;dot-dot-slash (../)&quot; sequences and its variations, or by using absolute file paths, it may be possible to access arbitrary files and directories stored on file system, including application source code, configuration, and other critical system files.</p>
+        <p>Directory Traversal vulnerabilities can be generally divided into two types:</p>
+        <ul>
+        <li><strong>Information Disclosure</strong>: Allows the attacker to gain information about the folder structure or read the contents of sensitive files on the system.</li>
+        </ul>
+        <p><code>st</code> is a module for serving static files on web pages, and contains a <a href="https://snyk.io/vuln/npm:st:20140206">vulnerability of this type</a>. In our example, we will serve files from the <code>public</code> route.</p>
+        <p>If an attacker requests the following URL from our server, it will in turn leak the sensitive private key of the root user.</p>
+        <pre><code>curl http://localhost:8080/public/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/root/.ssh/id_rsa
+        </code></pre>
+        <p><strong>Note</strong> <code>%2e</code> is the URL encoded version of <code>.</code> (dot).</p>
+        <ul>
+        <li><strong>Writing arbitrary files</strong>: Allows the attacker to create or replace existing files. This type of vulnerability is also known as <code>Zip-Slip</code>.</li>
+        </ul>
+        <p>One way to achieve this is by using a malicious <code>zip</code> archive that holds path traversal filenames. When each filename in the zip archive gets concatenated to the target extraction folder, without validation, the final path ends up outside of the target folder. If an executable or a configuration file is overwritten with a file containing malicious code, the problem can turn into an arbitrary code execution issue quite easily.</p>
+        <p>The following is an example of a <code>zip</code> archive with one benign file and one malicious file. Extracting the malicious file will result in traversing out of the target folder, ending up in <code>/root/.ssh/</code> overwriting the <code>authorized_keys</code> file:</p>
+        <pre><code>2018-04-15 22:04:29 .....           19           19  good.txt
+        2018-04-15 22:04:42 .....           20           20  ../../../../../../root/.ssh/authorized_keys
+        </code></pre>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>moment</code> to version 2.31.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/moment/moment/security/advisories/GHSA-4p3w-j4w9-5jqw">GitHub Advisory</a></li>
+        <li><a href="https://github.com/moment/moment/commit/5f7d983c9881e65e07574de9dda3190d99520c07">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-MOMENT-19821607">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Regular Expression Denial of Service (ReDoS)</h2>
             <div class="card__section">
@@ -2308,17 +2413,6 @@
                                 </span>
         
                             </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        minimatch@3.1.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        brace-expansion@1.1.14
-                                        
-                                </span>
-        
-                            </li>
                     </ul><!-- .list-paths -->
         
             </div><!-- .card__section -->
@@ -2393,17 +2487,6 @@
                                         minimatch@9.0.9
                                          <span class="list-paths__item__arrow">›</span> 
                                         brace-expansion@2.1.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        minimatch@3.1.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        brace-expansion@1.1.14
                                         
                                 </span>
         
@@ -2483,17 +2566,6 @@
                                         minimatch@9.0.9
                                          <span class="list-paths__item__arrow">›</span> 
                                         brace-expansion@2.1.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        minimatch@3.1.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        brace-expansion@1.1.14
                                         
                                 </span>
         
