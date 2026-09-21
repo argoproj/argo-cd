@@ -165,7 +165,7 @@ jobs:
           echo "GIT_TREE_STATE=$(if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)" >> $GITHUB_ENV
 
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
         with:
           large-packages: false
           docker-images: false
@@ -343,17 +343,23 @@ jobs:
 
       - name: Tag gitops-engine submodule
         run: |
-          set -xue
+          set -ue
           # Create a path-prefixed tag for gitops-engine
           # so downstream consumers can resolve github.com/argoproj/argo-cd/gitops-engine/v3
           # https://go.dev/doc/modules/managing-source#multiple-module-source
           GE_TAG="gitops-engine/${GITHUB_REF_NAME}"
-          if git ls-remote --exit-code --tags origin "refs/tags/${GE_TAG}" >/dev/null 2>&1; then
-            echo "Tag ${GE_TAG} already exists on origin; skipping"
+          # checkout uses persist-credentials: false, so push with an explicit token URL
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # checkout with fetch-depth: 0 fetches all tags, so a local lookup is enough
+          if git rev-parse -q --verify "refs/tags/${GE_TAG}" >/dev/null; then
+            echo "Tag ${GE_TAG} already exists; skipping"
           else
             git tag "${GE_TAG}" "${GITHUB_REF_NAME}^{}"
-            git push origin "${GE_TAG}"
+            git push "${REMOTE}" "refs/tags/${GE_TAG}:refs/tags/${GE_TAG}"
+            echo "Pushed tag ${GE_TAG}"
           fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check to see if VERSION should be updated on master branch
         run: |

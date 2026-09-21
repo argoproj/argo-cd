@@ -38,6 +38,11 @@ var (
 		Name: "argocd_appset_progressive_sync_syncs_triggered_total",
 		Help: "Counts sync operations triggered by progressive sync",
 	}, []string{"namespace", "name", "step"})
+
+	progressiveSyncAppRefreshTriggeredCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "argocd_appset_app_refresh_total",
+		Help: "Counts application refresh triggered by AppSet for progressive sync",
+	}, []string{"namespace", "name"})
 )
 
 // Gauge
@@ -62,6 +67,7 @@ type ApplicationsetMetrics struct {
 	progressiveSyncAppStatusGauge                     *prometheus.GaugeVec
 	progressiveSyncAppSyncCounter                     *prometheus.CounterVec
 	progressiveSyncTriggerSyncAfterDetectionHistogram *prometheus.HistogramVec
+	progressiveSyncAppRefreshTriggeredCounter         *prometheus.CounterVec
 }
 
 type appsetCollector struct {
@@ -88,6 +94,7 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 	metrics.Registry.MustRegister(progressiveSyncAppStatusGauge)
 	metrics.Registry.MustRegister(progressiveSyncAppSyncCounter)
 	metrics.Registry.MustRegister(progressiveSyncTriggerSyncAfterDetectionHistogram)
+	metrics.Registry.MustRegister(progressiveSyncAppRefreshTriggeredCounter)
 	metrics.Registry.MustRegister(appsetCollector)
 
 	kubectl.RegisterWithClientGo()
@@ -98,6 +105,7 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 		progressiveSyncAppStatusGauge:                     progressiveSyncAppStatusGauge,
 		progressiveSyncAppSyncCounter:                     progressiveSyncAppSyncCounter,
 		progressiveSyncTriggerSyncAfterDetectionHistogram: progressiveSyncTriggerSyncAfterDetectionHistogram,
+		progressiveSyncAppRefreshTriggeredCounter:         progressiveSyncAppRefreshTriggeredCounter,
 	}
 }
 
@@ -134,6 +142,10 @@ func (m *ApplicationsetMetrics) SetProgressiveSyncAppSync(appset *argoappv1.Appl
 
 func (m *ApplicationsetMetrics) ObserveTimeToStartSyncAfterDetection(appset *argoappv1.ApplicationSet, duration time.Duration) {
 	m.progressiveSyncTriggerSyncAfterDetectionHistogram.WithLabelValues(appset.Namespace, appset.Name).Observe(duration.Seconds())
+}
+
+func (m *ApplicationsetMetrics) IncRefreshTriggeredCount(appset *argoappv1.ApplicationSet) {
+	m.progressiveSyncAppRefreshTriggeredCounter.WithLabelValues(appset.Namespace, appset.Name).Inc()
 }
 
 func newAppsetCollector(lister applisters.ApplicationSetLister, labels []string, filter func(appset *argoappv1.ApplicationSet) bool) *appsetCollector {
