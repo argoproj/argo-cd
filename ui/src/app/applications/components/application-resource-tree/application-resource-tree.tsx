@@ -1085,11 +1085,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         : null;
 
     const statusByKey = new Map<string, models.ResourceStatus>();
-    const appSetStatusByKey = new Map<string, models.ApplicationSetResource>();
     if (isApp(props.app)) {
         (props.app as models.Application).status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
-    } else if ((props.app as models.ApplicationSet).status?.resources) {
-        (props.app as models.ApplicationSet).status.resources.forEach(res => appSetStatusByKey.set(nodeKey(res), res));
     }
     const nodeByKey = new Map<string, ResourceTreeNode>();
     props.tree.nodes
@@ -1105,15 +1102,11 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     resourceNode.hook = status.hook;
                     resourceNode.requiresPruning = status.requiresPruning;
                 }
-            } else {
-                const status = appSetStatusByKey.get(nodeKey(node));
-                if (status && status.health) {
-                    resourceNode.health = {
-                        status: status.health.status as models.HealthStatusCode,
-                        message: ''
-                    };
-                }
             }
+            // For an ApplicationSet, we intentionally do not derive health/sync from status.resources here.
+            // Those values are mirrored from appset.status.resources and can be stale/out of date; they are
+            // dropped at the service layer (see dropStaleGeneratedAppStatus in applications-service.ts), so we
+            // let node.health/node.status flow through as-is (undefined) rather than re-injecting stale data.
             nodeByKey.set(treeNodeKey(node), resourceNode);
         });
     const nodes = Array.from(nodeByKey.values());
