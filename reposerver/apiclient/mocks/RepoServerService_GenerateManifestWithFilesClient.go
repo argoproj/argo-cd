@@ -18,10 +18,19 @@ func NewRepoServerService_GenerateManifestWithFilesClient(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *RepoServerService_GenerateManifestWithFilesClient {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &RepoServerService_GenerateManifestWithFilesClient{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
