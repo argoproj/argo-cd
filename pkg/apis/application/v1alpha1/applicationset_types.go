@@ -568,7 +568,7 @@ type SCMProviderGeneratorBitbucket struct {
 	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
 	// Bitbucket user to use when authenticating with app password auth. Required when using appPasswordRef.
 	User string `json:"user,omitempty" protobuf:"bytes,2,opt,name=user"`
-	// The app password to use for the user. Required when using app password auth. See: https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/
+	// The app password to use for the user. Required when using app password auth. See: https://support.atlassian.com/bitbucket-cloud/docs/api-tokens/
 	AppPasswordRef *SecretRef `json:"appPasswordRef,omitempty" protobuf:"bytes,3,opt,name=appPasswordRef"`
 	// Scan all branches instead of just the main branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
