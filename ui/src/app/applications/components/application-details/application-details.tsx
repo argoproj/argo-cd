@@ -1003,6 +1003,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                 {isApplication ? (
                                                     <ApplicationStatusPanel
                                                         application={application as appModels.Application}
+                                                        collapsed={pref.hideStatusPanel}
                                                         showDiff={() => selectNode(appFullName, 0, 'diff')}
                                                         showOperation={() => setOperationStatusVisible(true)}
                                                         showHydrateOperation={() => setHydrateOperationStatusVisible(true)}
@@ -1013,9 +1014,16 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                 ) : (
                                                     <ApplicationSetStatusPanel
                                                         appSet={application as appModels.ApplicationSet}
+                                                        collapsed={pref.hideStatusPanel}
                                                         showConditions={() => setConditionsStatusVisible(true)}
                                                     />
                                                 )}
+                                                <button
+                                                    className='application-details__status-panel-toggle'
+                                                    title={pref.hideStatusPanel ? 'Expand status panel' : 'Collapse status panel'}
+                                                    onClick={() => services.viewPreferences.updatePreferences({appDetails: {...pref, hideStatusPanel: !pref.hideStatusPanel}})}>
+                                                    <i className={`fa fa-chevron-${pref.hideStatusPanel ? 'down' : 'up'}`} />
+                                                </button>
                                             </div>
                                             <NoticeBanner
                                                 annotations={application.metadata.annotations}
