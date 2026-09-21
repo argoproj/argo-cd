@@ -22,12 +22,17 @@
       "enabled": true
     },
     {
-      "description": "Update the codegen tools in hack/tools/go.mod. Renovate reports a Go tool directive under its own `tool` depType, so matching the module's indirect requirements would miss all three while enabling every transitive dependency.",
+      "description": "Update the codegen tools in hack/tools/go.mod. Renovate emits no dependency for a `tool` directive; it instead clears the `indirect` flag on the require line that provides the tool, so these are matched as `indirect` by module path. Listing them by name keeps the file's ~96 other transitive requires disabled.",
       "matchFileNames": [
         "hack/tools/go.mod"
       ],
       "matchDepTypes": [
-        "tool"
+        "indirect"
+      ],
+      "matchPackageNames": [
+        "github.com/go-swagger/go-swagger",
+        "github.com/vektra/mockery/v3",
+        "sigs.k8s.io/controller-tools"
       ],
       "enabled": true
     },
