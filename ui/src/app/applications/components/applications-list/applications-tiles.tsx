@@ -65,7 +65,7 @@ const useItemsPerContainer = (itemRef: React.RefObject<HTMLDivElement | null>, c
     return itemsPer || 1;
 };
 
-const VirtualizedTilesGrid = ({
+export const VirtualizedTilesGrid = ({
     applications,
     cellCache,
     getRowHeight,
@@ -105,7 +105,9 @@ const VirtualizedTilesGrid = ({
                         return (
                             <CellMeasurer cache={cellCache} columnIndex={columnIndex} key={key} parent={parent} rowIndex={rowIndex}>
                                 <div style={cellStyle} className='applications-tiles__virtual-cell'>
-                                    {renderTile(app, index)}
+                                    <div className='applications-tiles__virtual-content' style={{height: rowIndex < rowCount - 1 ? `calc(100% - ${TILE_GAP}px)` : '100%'}}>
+                                        {renderTile(app, index)}
+                                    </div>
                                 </div>
                             </CellMeasurer>
                         );
