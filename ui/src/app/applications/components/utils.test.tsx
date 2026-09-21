@@ -1170,7 +1170,7 @@ describe('getApplicationDetailsContainerClass', () => {
 });
 
 describe('getAppOfAppsParentRef', () => {
-    const app = (metadata: any) => ({metadata: {name: 'child-app', namespace: 'argocd', ...metadata}}) as Application;
+    const app = (metadata: any) => ({kind: 'Application', metadata: {name: 'child-app', namespace: 'argocd', ...metadata}}) as Application;
 
     it('resolves the parent from the tracking-id annotation by default', () => {
         const ref = getAppOfAppsParentRef(app({annotations: {'argocd.argoproj.io/tracking-id': 'parent-app:argoproj.io/Application:argocd/child-app'}}));
@@ -1227,6 +1227,18 @@ describe('getAppOfAppsParentRef', () => {
     it('returns null when the tracking metadata refers to the application itself', () => {
         const ref = getAppOfAppsParentRef(app({annotations: {'argocd.argoproj.io/tracking-id': 'child-app:argoproj.io/Application:argocd/child-app'}}));
         expect(ref).toBeNull();
+    });
+
+    it('does not treat an ApplicationSet as a self-reference when it shares the parent Application name and namespace', () => {
+        const appSet = {
+            kind: 'ApplicationSet',
+            metadata: {
+                name: 'shared-name',
+                namespace: 'argocd',
+                annotations: {'argocd.argoproj.io/tracking-id': 'shared-name:argoproj.io/ApplicationSet:argocd/shared-name'}
+            }
+        } as any;
+        expect(getAppOfAppsParentRef(appSet)).toEqual({name: 'shared-name'});
     });
 });
 

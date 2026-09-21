@@ -1365,7 +1365,8 @@ export function getAppOfAppsParentRef(application: appModels.AbstractApplication
     const parentName = underscoreIndex >= 0 ? instanceName.substring(underscoreIndex + 1) : instanceName;
 
     // Ignore missing or self-referential tracking metadata.
-    if (!parentName || (parentName === metadata.name && (parentNamespace ?? metadata.namespace) === metadata.namespace)) {
+    const isSelfReference = isApp(application) && parentName === metadata.name && (parentNamespace ?? metadata.namespace) === metadata.namespace;
+    if (!parentName || isSelfReference) {
         return null;
     }
     return {name: parentName, namespace: parentNamespace};
