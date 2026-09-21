@@ -6,11 +6,12 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel/attribute"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -20,6 +21,7 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
+	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 )
 
 type HookType string
@@ -94,7 +96,10 @@ func hasGitOpsEngineSyncPhaseHook(obj *unstructured.Unstructured) bool {
 }
 
 // executeHooks is a generic function to execute hooks of a specified type
-func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType HookType, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType HookType, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (completed bool, retErr error) {
+	ctx, span := tracer.Start(ctx, "controller.executeHooks")
+	setAppTraceAttrs(span, app, attribute.String("argocd.hook.type", string(hookType)))
+	defer func() { traceutil.EndSpan(span, retErr) }()
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
 		return false, err
@@ -236,7 +241,10 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 }
 
 // cleanupHooks is a generic function to clean up hooks of a specified type
-func (ctrl *ApplicationController) cleanupHooks(ctx context.Context, hookType HookType, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+func (ctrl *ApplicationController) cleanupHooks(ctx context.Context, hookType HookType, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (completed bool, retErr error) {
+	ctx, span := tracer.Start(ctx, "controller.cleanupHooks")
+	span.SetAttributes(attribute.String("argocd.hook.type", string(hookType)))
+	defer func() { traceutil.EndSpan(span, retErr) }()
 	resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		return false, err

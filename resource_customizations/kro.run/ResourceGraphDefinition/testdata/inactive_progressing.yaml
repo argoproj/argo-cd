@@ -1,0 +1,24 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: pending-app
+  generation: 1
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: PendingApp
+status:
+  state: Inactive
+  conditions:
+    - type: Ready
+      status: "Unknown"
+      reason: Pending
+      message: "waiting for graph revision to compile"
+      lastTransitionTime: "2025-08-08T00:04:00Z"
+      observedGeneration: 1
+    - type: GraphRevisionsResolved
+      status: "Unknown"
+      reason: Waiting
+      message: "waiting for revision"
+      lastTransitionTime: "2025-08-08T00:04:00Z"
+      observedGeneration: 1

@@ -10,7 +10,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/io/path"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -345,7 +345,7 @@ func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {
 				repos: repos,
 			}
 
-			err = h.DependencyBuild()
+			err = h.DependencyBuild(t.Context())
 			require.NoError(t, err)
 
 			require.Equal(t, tc.expectPlainHTTP, slices.Contains(capturedArgs, "--plain-http"))

@@ -1,0 +1,94 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+$resource-highlight-pulse-duration: 2.4s;
+$resource-highlight-pulse-delay: 0.35s;
+$resource-highlight-overlay-light: rgba($argo-color-teal-6, 0.15);
+$resource-highlight-overlay-dark: rgba($argo-color-teal-6, 0.22);
+
+@mixin resource-highlight-overlay-bg {
+    background-color: $resource-highlight-overlay-light;
+
+    .theme-dark & {
+        background-color: $resource-highlight-overlay-dark;
+    }
+}
+
+@keyframes resource-highlight-list-pulse-opacity {
+    0%,
+    25%,
+    50% {
+        opacity: 1;
+    }
+
+    12.5%,
+    37.5% {
+        opacity: 0;
+    }
+
+    62.5%,
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes resource-highlight-tree-pulse-opacity {
+    0%,
+    25%,
+    50%,
+    100% {
+        opacity: 0;
+    }
+
+    12.5%,
+    37.5% {
+        opacity: 1;
+    }
+}
+
+@mixin resource-highlight-list-row {
+    position: relative;
+    border-left: 4px solid $argo-color-teal-6;
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 4px;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0;
+        @include resource-highlight-overlay-bg;
+        animation: resource-highlight-list-pulse-opacity $resource-highlight-pulse-duration ease-in-out $resource-highlight-pulse-delay both;
+    }
+
+    & > .row {
+        position: relative;
+        z-index: 1;
+    }
+}
+
+@mixin resource-highlight-tree-node-active {
+    border-left: 4px solid $argo-color-teal-6;
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 4px;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0;
+        @include resource-highlight-overlay-bg;
+        animation: resource-highlight-tree-pulse-opacity $resource-highlight-pulse-duration ease-in-out $resource-highlight-pulse-delay forwards;
+    }
+}
+
+// Legacy selector kept for specificity; values match $resource-highlight-overlay-* above.
+.theme-dark .application-resource-list .application-resource-list__row--selected::after,
+.theme-dark .application-resource-tree .application-resource-tree__node.active::after {
+    background-color: $resource-highlight-overlay-dark;
+}

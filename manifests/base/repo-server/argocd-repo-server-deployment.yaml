@@ -101,6 +101,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: reposerver.tls.ciphers
                   optional: true
+          - name: ARGOCD_TLS_CURVE_PREFERENCES
+            valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: reposerver.tls.curvepreferences
+                  optional: true
           - name: ARGOCD_REPO_SERVER_CLIENT_CA_PATH
             valueFrom:
               configMapKeyRef:
@@ -181,6 +187,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: otlp.attrs
                   optional: true
+          - name: ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: otlp.sample.ratio
+                optional: true
           - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
             valueFrom:
               configMapKeyRef:
@@ -346,6 +358,8 @@ spec:
           name: helm-working-dir
         - mountPath: /home/argocd/cmp-server/plugins
           name: plugins
+        - name: argocd-cmd-params-cm
+          mountPath: /home/argocd/params
       initContainers:
       - args:
           - /bin/cp /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln -sf /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server

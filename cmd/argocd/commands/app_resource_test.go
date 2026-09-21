@@ -133,22 +133,18 @@ func TestPrintResourcesTree(t *testing.T) {
 	tree := v1alpha1.ApplicationTree{
 		Nodes: []v1alpha1.ResourceNode{
 			{
-				ResourceRef: v1alpha1.ResourceRef{
-					Group:     "group",
-					Kind:      "kind",
-					Namespace: "ns",
-					Name:      "rs1",
-				},
+				Group:     "group",
+				Kind:      "kind",
+				Namespace: "ns",
+				Name:      "rs1",
 			},
 		},
 		OrphanedNodes: []v1alpha1.ResourceNode{
 			{
-				ResourceRef: v1alpha1.ResourceRef{
-					Group:     "group2",
-					Kind:      "kind2",
-					Namespace: "ns2",
-					Name:      "rs2",
-				},
+				Group:     "group2",
+				Kind:      "kind2",
+				Namespace: "ns2",
+				Name:      "rs2",
 			},
 		},
 	}

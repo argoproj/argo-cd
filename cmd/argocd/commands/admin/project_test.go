@@ -20,12 +20,12 @@ func newProj(name string, roleNames ...string) *v1alpha1.AppProject {
 	for i := range roleNames {
 		roles = append(roles, v1alpha1.ProjectRole{Name: roleNames[i]})
 	}
-	return &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{
+	return &v1alpha1.AppProject{
 		Name:      name,
-		Namespace: namespace,
-	}, Spec: v1alpha1.AppProjectSpec{
-		Roles: roles,
-	}}
+		Namespace: namespace, Spec: v1alpha1.AppProjectSpec{
+			Roles: roles,
+		},
+	}
 }
 
 func TestUpdateProjects_FindMatchingProject(t *testing.T) {

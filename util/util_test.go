@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/util"
 	"github.com/argoproj/argo-cd/v3/util/webhook"
@@ -58,19 +57,19 @@ func TestSliceCopy(t *testing.T) {
 		{name: "nil", args: args{secrets: nil}, want: []*corev1.Secret{}},
 		{
 			name: "Three", args: args{secrets: []*corev1.Secret{
-				{ObjectMeta: metav1.ObjectMeta{Name: "one"}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "two"}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "three"}},
+				{Name: "one"},
+				{Name: "two"},
+				{Name: "three"},
 			}},
 			want: []*corev1.Secret{
-				{ObjectMeta: metav1.ObjectMeta{Name: "one"}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "two"}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "three"}},
+				{Name: "one"},
+				{Name: "two"},
+				{Name: "three"},
 			},
 		},
 		{
-			name: "One", args: args{secrets: []*corev1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}}}},
-			want: []*corev1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}}},
+			name: "One", args: args{secrets: []*corev1.Secret{{Name: "one"}}},
+			want: []*corev1.Secret{{Name: "one"}},
 		},
 		{name: "Zero", args: args{secrets: []*corev1.Secret{}}, want: []*corev1.Secret{}},
 	}

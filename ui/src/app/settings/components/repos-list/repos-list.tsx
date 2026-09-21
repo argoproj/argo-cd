@@ -213,11 +213,7 @@ const ConnectRepoFormButton = ({method, onSelection, formApi}: {method: string; 
                 items={[ConnectionMethod.SSH, ConnectionMethod.HTTPS, ConnectionMethod.GITHUBAPP, ConnectionMethod.GOOGLECLOUD, ConnectionMethod.AZURESERVICEPRINCIPAL].map(
                     (
                         connectMethod:
-                            | ConnectionMethod.SSH
-                            | ConnectionMethod.HTTPS
-                            | ConnectionMethod.GITHUBAPP
-                            | ConnectionMethod.GOOGLECLOUD
-                            | ConnectionMethod.AZURESERVICEPRINCIPAL
+                            ConnectionMethod.SSH | ConnectionMethod.HTTPS | ConnectionMethod.GITHUBAPP | ConnectionMethod.GOOGLECLOUD | ConnectionMethod.AZURESERVICEPRINCIPAL
                     ) => ({
                         title: connectMethod.toUpperCase(),
                         action: () => {

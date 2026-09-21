@@ -13,12 +13,10 @@ func Test_selectPodForPortForward(t *testing.T) {
 	// Mock the Kubernetes client
 	client := fake.NewSimpleClientset(
 		&corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-pod",
-				Namespace: "default",
-				Labels: map[string]string{
-					"app": "test-app",
-				},
+			Name:      "test-pod",
+			Namespace: "default",
+			Labels: map[string]string{
+				"app": "test-app",
 			},
 			Status: corev1.PodStatus{
 				Conditions: []corev1.PodCondition{
@@ -32,12 +30,10 @@ func Test_selectPodForPortForward(t *testing.T) {
 			},
 		},
 		&corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test2-pod-broken",
-				Namespace: "default",
-				Labels: map[string]string{
-					"app": "test2",
-				},
+			Name:      "test2-pod-broken",
+			Namespace: "default",
+			Labels: map[string]string{
+				"app": "test2",
 			},
 			Status: corev1.PodStatus{
 				Conditions: []corev1.PodCondition{
@@ -51,12 +47,10 @@ func Test_selectPodForPortForward(t *testing.T) {
 			},
 		},
 		&corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test2-pod-working",
-				Namespace: "default",
-				Labels: map[string]string{
-					"app": "test2",
-				},
+			Name:      "test2-pod-working",
+			Namespace: "default",
+			Labels: map[string]string{
+				"app": "test2",
 			},
 			Status: corev1.PodStatus{
 				Conditions: []corev1.PodCondition{

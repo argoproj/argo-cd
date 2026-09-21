@@ -29,13 +29,13 @@ import (
 	testcore "k8s.io/client-go/testing"
 	"k8s.io/klog/v2/textlogger"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
-	testingutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
+	testingutils "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/testing"
 )
 
 func newTestSyncCtx(getResourceFunc *func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error), opts ...SyncOpt) *syncContext {
@@ -71,20 +71,48 @@ func newTestSyncCtx(getResourceFunc *func(ctx context.Context, config *rest.Conf
 
 // make sure Validate means we don't validate
 func TestSyncValidate(t *testing.T) {
-	syncCtx := newTestSyncCtx(nil)
-	pod := testingutils.NewPod()
-	pod.SetNamespace("fake-argocd-ns")
-	syncCtx.resources = groupResources(ReconciliationResult{
-		Live:   []*unstructured.Unstructured{pod},
-		Target: []*unstructured.Unstructured{pod},
-	})
-	syncCtx.validate = false
+	testCases := []struct {
+		name        string
+		replace     bool
+		live        bool
+		validate    bool
+		expValidate bool
+	}{
+		{"noreplace, nolive, novalidate", false, false, false, false},
+		{"noreplace, nolive, validate", false, false, true, true},
+		{"noreplace, live, novalidate", false, true, false, false},
+		{"noreplace, live, validate", false, true, true, true},
+		{"replace, nolive, novalidate", true, false, false, false},
+		{"replace, nolive, validate", true, false, true, true},
+		{"replace, live, novalidate", true, true, false, false},
+		// ReplaceResource operation does not accept validate option for some reason
+		{"replace, live, validate", true, true, true, false},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			syncCtx := newTestSyncCtx(nil)
+			pod := testingutils.NewPod()
+			pod.SetNamespace("fake-argocd-ns")
+			var liveObj []*unstructured.Unstructured
+			if tc.live {
+				liveObj = []*unstructured.Unstructured{pod}
+			} else {
+				liveObj = []*unstructured.Unstructured{nil}
+			}
+			syncCtx.resources = groupResources(ReconciliationResult{
+				Live:   liveObj,
+				Target: []*unstructured.Unstructured{pod},
+			})
+			syncCtx.validate = tc.validate
+			syncCtx.replace = tc.replace
 
-	syncCtx.Sync(context.Background())
+			syncCtx.Sync(t.Context())
 
-	// kubectl := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
-	resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
-	assert.False(t, resourceOps.GetLastValidate())
+			// kubectl := syncCtx.kubectl.(*kubetest.MockKubectlCmd)
+			resourceOps, _ := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+			assert.Equal(t, tc.expValidate, resourceOps.GetLastValidate())
+		})
+	}
 }
 
 func TestSyncNotPermittedNamespace(t *testing.T) {
@@ -665,7 +693,7 @@ func TestSync_ApplyOutOfSyncOnly_ClusterResources(t *testing.T) {
 	// spec.destination.namespace is set for all resources that does not have a namespace set, irrespective of whether
 	// the resource is cluster scoped or namespace scoped.
 	//
-	// Refer to https://github.com/argoproj/argo-cd/gitops-engine/blob/8007df5f6c5dd78a1a8cef73569468ce4d83682c/pkg/sync/sync_context.go#L827-L833
+	// Refer to https://github.com/argoproj/argo-cd/blob/8007df5f6c5dd78a1a8cef73569468ce4d83682c/gitops-engine/pkg/sync/sync_context.go#L827-L833
 	ns2Target.SetNamespace("ns-2")
 
 	syncCtx := newTestSyncCtx(nil, WithResourceModificationChecker(true, diffResultListClusterResource()))
@@ -898,7 +926,6 @@ func TestServerResourcesRetry(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
 			// Given
 			t.Parallel()
@@ -936,7 +963,7 @@ func TestSync_getSyncTasks_FailureMessage(t *testing.T) {
 			Resources: []*metav1.APIResourceList{},
 		},
 	}
-	fakeDisco.Fake.PrependReactor("get", "resource", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDisco.PrependReactor("get", "resource", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
 		reactorCalls++
 		return true, nil, errors.New("discovery failed")
 	})
@@ -950,7 +977,7 @@ func TestSync_getSyncTasks_FailureMessage(t *testing.T) {
 	syncCtx.Sync(context.Background())
 	phase, msg, _ := syncCtx.GetState()
 
-	require.Greater(t, reactorCalls, 0, "FakeDiscovery reactor must have been invoked for this test to be meaningful")
+	require.Positive(t, reactorCalls, "FakeDiscovery reactor must have been invoked for this test to be meaningful")
 
 	assert.Equal(t, synccommon.OperationFailed, phase)
 	assert.Contains(t, msg, "one or more synchronization tasks are not valid")
@@ -974,7 +1001,7 @@ func Test_getSyncTasks_ErrorCaching(t *testing.T) {
 			Resources: []*metav1.APIResourceList{},
 		},
 	}
-	fakeDisco.Fake.PrependReactor("get", "resource", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDisco.PrependReactor("get", "resource", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
 		discoveryCalls++
 		return true, nil, errors.New("persistent discovery error")
 	})
@@ -989,7 +1016,7 @@ func Test_getSyncTasks_ErrorCaching(t *testing.T) {
 	assert.False(t, ok)
 	assert.NotNil(t, tasks)
 
-	require.Greater(t, discoveryCalls, 0, "FakeDiscovery reactor must have been invoked for the caching test to be meaningful")
+	require.Positive(t, discoveryCalls, "FakeDiscovery reactor must have been invoked for the caching test to be meaningful")
 	assert.Equal(t, 1, discoveryCalls, "Discovery should have been called only once due to error caching")
 }
 
@@ -1238,7 +1265,6 @@ func TestSync_ServerSideApply(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			syncCtx := newTestSyncCtx(nil)

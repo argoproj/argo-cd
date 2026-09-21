@@ -58,6 +58,7 @@ setting command line parameters. The following parameters are available:
 |`--tlsminversion`|`1.2`|The minimum TLS version to be offered to clients|
 |`--tlsmaxversion`|`1.3`|The maximum TLS version to be offered to clients|
 |`--tlsciphers`|`TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384`|A colon separated list of TLS cipher suites to be offered to clients|
+|`--tlscurvepreferences`|`""`|A colon-separated list of TLS curve preferences to be offered to clients, Supported values: X25519, X25519MLKEM768, P256 (or CurveP256/P-256), P384 (or CurveP384/P-384), P521 (or CurveP521/P-521), SecP256r1MLKEM768, SecP384r1MLKEM1024|
 
 ### TLS certificates used by argocd-server
 
@@ -113,6 +114,7 @@ setting command line parameters. The following parameters are available:
 |`--tlsminversion`|`1.2`|The minimum TLS version to be offered to clients|
 |`--tlsmaxversion`|`1.3`|The maximum TLS version to be offered to clients|
 |`--tlsciphers`|`TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384`|A colon-separated list of TLS cipher suites to be offered to clients|
+|`--tlscurvepreferences`|`""`|A colon-separated list of TLS curve preferences to be offered to clients, Supported values: X25519, X25519MLKEM768, P256 (or CurveP256/P-256), P384 (or CurveP384/P-384), P521 (or CurveP521/P-521), SecP256r1MLKEM768, SecP384r1MLKEM1024|
 
 ### Inbound TLS certificates used by argocd-repo-server
 
@@ -258,6 +260,20 @@ secret.
 > Please make sure that the certificate has a proper lifetime. Remember, 
 > when replacing certificates, all workloads must be restarted to pick up
 > the certificate and work properly.
+
+
+To configure TLS version for the bundled Dex server, update the `argocd-cm` ConfigMap:
+
+```yaml
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: argocd-cm
+  data:
+    dex.config: |
+      web:
+        tlsMinVersion: "1.2"
+```
 
 ### Disabling TLS to argocd-repo-server
 

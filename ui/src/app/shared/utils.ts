@@ -142,6 +142,61 @@ export const formatClusterQueryParam = (cluster: Cluster) => {
     return `${cluster.name} (${cluster.server})`;
 };
 
+export function getResourceClusterLabel(resource: {clusterName?: string; clusterServer?: string}, clusterList: Cluster[]): string {
+    const cluster = (clusterList || []).find(target => target.name === resource.clusterName || target.server === resource.clusterServer);
+    if (!cluster) {
+        return resource.clusterServer || resource.clusterName || 'Unknown';
+    }
+    return formatClusterQueryParam(cluster);
+}
+
+export function trimClusterServerProtocol(server: string): string {
+    return server.replace(/^https?:\/\//, '');
+}
+
+export type ClusterLegendDisplay = {
+    display: string;
+    tooltip?: string;
+    truncate: boolean;
+};
+
+export function getClusterLegendDisplay(label: string, clusterList: Cluster[]): ClusterLegendDisplay {
+    if (!label || label === 'Unknown') {
+        return {display: label || 'Unknown', truncate: false};
+    }
+
+    const match = label.match(/^(.*) [(](https?:\/\/.*)[)]$/);
+    if (match) {
+        const [, name, server] = match;
+        if (name && server && name !== server) {
+            return {display: name, tooltip: server, truncate: false};
+        }
+    }
+
+    const cluster = (clusterList || []).find(c => formatClusterQueryParam(c) === label || c.server === label || c.name === label);
+    const server = cluster?.server || (/^https?:\/\//.test(label) ? label : undefined);
+    const name = cluster?.name;
+
+    if (name && server && name !== server) {
+        return {display: name, tooltip: server, truncate: false};
+    }
+
+    const url = server || label;
+    return {display: trimClusterServerProtocol(url), tooltip: url, truncate: true};
+}
+
+export const isInvalidRegex = (pattern: string): boolean => {
+    if (!pattern) {
+        return false;
+    }
+    try {
+        new RegExp(pattern);
+        return false;
+    } catch {
+        return true;
+    }
+};
+
 /**
  * Checks if SSO is configured for authentication usage.
  * @param userInfo - User information from the session
@@ -153,4 +208,26 @@ export function isSSOConfigured(userInfo: UserInfo | null | undefined, authSetti
     const hasDexConnectors = (authSettings.dexConfig?.connectors?.length ?? 0) > 0;
     const hasOidcConfig = !!authSettings.oidcConfig;
     return isExternalIssuer && (hasDexConnectors || hasOidcConfig);
+}
+
+/**
+ * Checks whether merging the given query parameters into a search string would change it. Mirrors
+ * how NavigationApi.goto merges them: null or undefined removes a parameter, any other value sets it.
+ * @param search - The current query string, including the leading '?'
+ * @param params - The parameters that would be merged in
+ * @returns true if the query string would change, otherwise false
+ */
+export function queryParamsChanged(search: string, params: {[name: string]: string | null}): boolean {
+    const current = new URLSearchParams(search);
+    const next = new URLSearchParams(search);
+    for (const [name, value] of Object.entries(params)) {
+        next.delete(name);
+        if (value !== undefined && value !== null) {
+            next.set(name, value);
+        }
+    }
+    // Sort before comparing: goto reorders the parameters it sets, which is not a real change.
+    current.sort();
+    next.sort();
+    return next.toString() !== current.toString();
 }

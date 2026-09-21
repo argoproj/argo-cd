@@ -81,12 +81,10 @@ func TestLogAppProjEvent(t *testing.T) {
 	assert.NotNil(t, logger)
 
 	proj := argoappv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            "default",
-			Namespace:       _argocdNs,
-			ResourceVersion: "1",
-			UID:             "a-b-c-d-e",
-		},
+		Name:            "default",
+		Namespace:       _argocdNs,
+		ResourceVersion: "1",
+		UID:             "a-b-c-d-e",
 		Spec: argoappv1.AppProjectSpec{
 			Description: "Test project",
 		},
@@ -122,12 +120,10 @@ func TestLogAppEvent(t *testing.T) {
 	assert.NotNil(t, logger)
 
 	app := argoappv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            "testapp",
-			Namespace:       _argocdNs,
-			ResourceVersion: "1",
-			UID:             "a-b-c-d-e",
-		},
+		Name:            "testapp",
+		Namespace:       _argocdNs,
+		ResourceVersion: "1",
+		UID:             "a-b-c-d-e",
 		Spec: argoappv1.ApplicationSpec{
 			Destination: argoappv1.ApplicationDestination{
 				Server:    "https://127.0.0.1:6443",
@@ -175,14 +171,12 @@ func TestLogResourceEvent(t *testing.T) {
 	assert.NotNil(t, logger)
 
 	res := argoappv1.ResourceNode{
-		ResourceRef: argoappv1.ResourceRef{
-			Group:     "argocd.argoproj.io",
-			Version:   "v1alpha1",
-			Kind:      "SignatureKey",
-			Name:      "testapp",
-			Namespace: _argocdNs,
-			UID:       "a-b-c-d-e",
-		},
+		Group:     "argocd.argoproj.io",
+		Version:   "v1alpha1",
+		Kind:      "SignatureKey",
+		Name:      "testapp",
+		Namespace: _argocdNs,
+		UID:       "a-b-c-d-e",
 	}
 
 	ei := EventInfo{
@@ -216,14 +210,12 @@ func TestLogResourceEvent_MultiCluster_CreatesEventInArgocdNamespace(t *testing.
 	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, []string{EventReasonResourceActionRan})
 
 	res := argoappv1.ResourceNode{
-		ResourceRef: argoappv1.ResourceRef{
-			Group:     "apps",
-			Version:   "v1",
-			Kind:      "Deployment",
-			Name:      "my-deployment",
-			Namespace: _targetNs, // Resource is in a different namespace/cluster
-			UID:       "deploy-uid-123",
-		},
+		Group:     "apps",
+		Version:   "v1",
+		Kind:      "Deployment",
+		Name:      "my-deployment",
+		Namespace: _targetNs, // Resource is in a different namespace/cluster
+		UID:       "deploy-uid-123",
 	}
 
 	ei := EventInfo{
@@ -257,12 +249,10 @@ func TestLogAppSetEvent_CreatesEventInAppSetNamespace(t *testing.T) {
 	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, testEnableEventLog)
 
 	appset := argoappv1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            "my-appset",
-			Namespace:       _argocdNs,
-			ResourceVersion: "1",
-			UID:             "appset-uid-123",
-		},
+		Name:            "my-appset",
+		Namespace:       _argocdNs,
+		ResourceVersion: "1",
+		UID:             "appset-uid-123",
 	}
 
 	ei := EventInfo{
@@ -326,14 +316,12 @@ func TestLogResourceEvent_DifferentKinds_AllInArgocdNamespace(t *testing.T) {
 			logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, []string{EventReasonResourceActionRan})
 
 			res := argoappv1.ResourceNode{
-				ResourceRef: argoappv1.ResourceRef{
-					Group:     tc.resourceGroup,
-					Version:   "v1",
-					Kind:      tc.resourceKind,
-					Name:      "test-resource",
-					Namespace: tc.resourceNs,
-					UID:       "test-uid",
-				},
+				Group:     tc.resourceGroup,
+				Version:   "v1",
+				Kind:      tc.resourceKind,
+				Name:      "test-resource",
+				Namespace: tc.resourceNs,
+				UID:       "test-uid",
 			}
 
 			ei := EventInfo{
@@ -363,14 +351,12 @@ func TestLogResourceEvent_EmptyNamespace(t *testing.T) {
 
 	// Cluster-scoped resource (no namespace)
 	res := argoappv1.ResourceNode{
-		ResourceRef: argoappv1.ResourceRef{
-			Group:     "rbac.authorization.k8s.io",
-			Version:   "v1",
-			Kind:      "ClusterRole",
-			Name:      "cluster-admin",
-			Namespace: "", // Cluster-scoped resource
-			UID:       "clusterrole-uid",
-		},
+		Group:     "rbac.authorization.k8s.io",
+		Version:   "v1",
+		Kind:      "ClusterRole",
+		Name:      "cluster-admin",
+		Namespace: "", // Cluster-scoped resource
+		UID:       "clusterrole-uid",
 	}
 
 	ei := EventInfo{

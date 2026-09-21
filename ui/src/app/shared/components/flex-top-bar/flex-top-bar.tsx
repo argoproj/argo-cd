@@ -1,7 +1,6 @@
 import {Toolbar, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {Observable} from 'rxjs';
-import {AuthOption, DataLoader} from '../';
+import {AuthOption} from '../';
 
 import './flex-top-bar.scss';
 
@@ -12,16 +11,38 @@ export interface ToolbarWithOptions extends Toolbar {
 }
 
 interface FlexTopBarProps {
-    toolbar: ToolbarWithOptions | Observable<ToolbarWithOptions>;
+    toolbar: ToolbarWithOptions;
 }
 
 export const FlexTopBar = (props: FlexTopBarProps) => {
+    const topBarRef = React.useRef<HTMLDivElement>(null);
+    const [topBarHeight, setTopBarHeight] = React.useState<number>();
+
+    React.useLayoutEffect(() => {
+        const topBar = topBarRef.current;
+        if (!topBar) {
+            return;
+        }
+
+        const updateTopBarHeight = () => setTopBarHeight(topBar.getBoundingClientRect().height);
+        updateTopBarHeight();
+
+        if (typeof ResizeObserver === 'undefined') {
+            window.addEventListener('resize', updateTopBarHeight);
+            return () => window.removeEventListener('resize', updateTopBarHeight);
+        }
+
+        const observer = new ResizeObserver(updateTopBarHeight);
+        observer.observe(topBar);
+        return () => observer.disconnect();
+    }, []);
+
     return (
         <React.Fragment>
-            <div className='top-bar row flex-top-bar' key='tool-bar'>
-                <DataLoader load={() => Promise.resolve(props.toolbar)}>{(toolbar: ToolbarWithOptions) => <FlexTopBarContent toolbar={toolbar} />}</DataLoader>
+            <div ref={topBarRef} className='top-bar row flex-top-bar' key='tool-bar'>
+                <FlexTopBarContent toolbar={props.toolbar} />
             </div>
-            <div className='flex-top-bar__padder' />
+            <div className='flex-top-bar__padder' style={topBarHeight === undefined ? undefined : {height: topBarHeight}} />
         </React.Fragment>
     );
 };
