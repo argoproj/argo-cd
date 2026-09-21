@@ -642,7 +642,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 		RecordTestRun(t)
 	})
 
-t.Cleanup(func() {
+	t.Cleanup(func() {
 		require.NoError(t, LoginAs(adminUsername), "could not restore the %s session after %s", adminUsername, t.Name())
 	})
 
