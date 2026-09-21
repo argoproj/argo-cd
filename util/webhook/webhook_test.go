@@ -2494,7 +2494,7 @@ func TestIsBBServerHeadTouched(t *testing.T) {
 	}
 }
 
-func TestRepoURLMatchces(t *testing.T) {
+func TestRepoURLMatches(t *testing.T) {
 	repoRegexp, err := GetWebURLRegex("https://github.com/argoproj/argo-cd")
 	require.NoError(t, err)
 
