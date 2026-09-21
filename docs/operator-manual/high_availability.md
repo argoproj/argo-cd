@@ -482,6 +482,10 @@ Note that some `successful=false` results are expected and not a cause for conce
 yet cached manifests for an application (e.g. after a restart or first sync), so there is nothing to carry forward to
 the new revision.
 
+For source-hydrated applications, a successful cache warm also triggers a normal application reconciliation. This
+allows `status.sync.revision` to advance when a new commit on the sync branch produces no manifest changes for that
+application. The reconciliation reuses the warmed cache and does not trigger another hydration.
+
 #### Disabling Manifest Cache Warming in Webhooks
 
 In some cases, the manifest cache warming done by the webhook handler can hurt performance rather than help it:
@@ -496,7 +500,8 @@ In some cases, the manifest cache warming done by the webhook handler can hurt p
 
 When disabled, the webhook handler will only trigger reconciliation for applications whose files have changed and
 will skip all Redis cache operations for unaffected applications. This is the recommended setting for large monorepos
-with plain YAML manifests.
+with plain YAML manifests. For source-hydrated applications, disabling cache warming also means that a no-op sync
+branch commit will not advance `status.sync.revision` until another refresh, such as the periodic reconciliation.
 
 **Per-repository setting (recommended)**: set `webhookManifestCacheWarmDisabled: true` on the repository via the
 ArgoCD CLI or UI:

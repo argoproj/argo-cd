@@ -506,6 +506,21 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		}
 
 		appCount := 0
+		enqueueRefresh := func(app *v1alpha1.Application, hydrateType *v1alpha1.HydrateType) {
+			appCount++
+			req := &appRefreshRequest{
+				appName:      app.Name,
+				appNamespace: app.Namespace,
+				hydrateType:  hydrateType,
+			}
+			// Apply jitter only if more than threshold apps are affected
+			if appCount > a.webhookRefreshJitterThreshold && a.webhookRefreshJitter != 0 {
+				jitter := time.Duration(float64(a.webhookRefreshJitter) * rand.Float64())
+				a.refreshQueue.AddAfter(req, jitter)
+			} else {
+				a.refreshQueue.Add(req)
+			}
+		}
 		// iterate over apps and check if any files specified in their sources have changed
 		for _, app := range filteredApps {
 			logCtx := log.WithFields(applog.GetAppLogFields(&app))
@@ -535,26 +550,24 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 						if hydrateType != nil {
 							logCtx.Infof("webhook trigger refresh app to hydrate")
 						}
-						appCount++
-						req := &appRefreshRequest{
-							appName:      app.Name,
-							appNamespace: app.Namespace,
-							hydrateType:  hydrateType,
-						}
-						// Apply jitter only if more than threshold apps are affected
-						if appCount > a.webhookRefreshJitterThreshold && a.webhookRefreshJitter != 0 {
-							jitter := time.Duration(float64(a.webhookRefreshJitter) * rand.Float64())
-							a.refreshQueue.AddAfter(req, jitter)
-						} else {
-							a.refreshQueue.Add(req)
-						}
+						enqueueRefresh(&app, hydrateType)
 						break // we don't need to check other sources
 					} else if change.shaBefore != "" && change.shaAfter != "" && !cacheWarmDisabled {
 						// update the cached manifests with the new revision cache key
-						if err := a.storePreviouslyCachedManifests(logCtx, &app, change, trackingMethod, appInstanceLabelKey, installationID, source); err != nil {
+						cacheWarmed, err := a.storePreviouslyCachedManifests(logCtx, &app, change, trackingMethod, appInstanceLabelKey, installationID, source)
+						if err != nil {
 							// Errors while updating the cache are non-fatal since the manifest will simply be regenerated on
 							// the next reconciliation.
 							logCtx.Warnf("Failed to store cached manifests of previous revision: %v", err)
+						} else if cacheWarmed && app.Spec.SourceHydrator != nil {
+							syncSource := app.Spec.GetSource()
+							if (&source).Equals(&syncSource) {
+								// The no-op sync-source commit now has a warm manifest cache entry. Reconcile the app so
+								// its sync revision can advance without regenerating manifests or triggering hydration.
+								logCtx.Info("refreshing source-hydrated app after warming manifest cache")
+								enqueueRefresh(&app, nil)
+								break
+							}
 						}
 					}
 				}
@@ -607,10 +620,10 @@ func getURLRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error
 	return repoRegexp, nil
 }
 
-func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(logCtx *log.Entry, app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string, installationID string, source v1alpha1.ApplicationSource) error {
+func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(logCtx *log.Entry, app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string, installationID string, source v1alpha1.ApplicationSource) (bool, error) {
 	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, a.db)
 	if err != nil {
-		return fmt.Errorf("error validating destination: %w", err)
+		return false, fmt.Errorf("error validating destination: %w", err)
 	}
 
 	var sourceIntegrity *v1alpha1.SourceIntegrity
@@ -618,7 +631,7 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(logCtx *log.Entry,
 	if app.Spec.Project != "" {
 		proj, err := a.appProjectsLister.Get(app.Spec.Project)
 		if err != nil {
-			return err
+			return false, err
 		}
 		sourceIntegrity = proj.EffectiveSourceIntegrity()
 	}
@@ -626,7 +639,7 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(logCtx *log.Entry,
 	var clusterInfo v1alpha1.ClusterInfo
 	err = a.serverCache.GetClusterInfo(destCluster.Server, &clusterInfo)
 	if err != nil {
-		return fmt.Errorf("error getting cluster info: %w", err)
+		return false, fmt.Errorf("error getting cluster info: %w", err)
 	}
 
 	var sources v1alpha1.ApplicationSources
@@ -638,12 +651,12 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(logCtx *log.Entry,
 
 	refSources, err := argo.GetRefSources(context.Background(), sources, app.Spec.Project, a.db.GetRepository, []string{})
 	if err != nil {
-		return fmt.Errorf("error getting ref sources: %w", err)
+		return false, fmt.Errorf("error getting ref sources: %w", err)
 	}
 
 	if len(refSources) != 0 {
 		// TODO: need to support multi source (calculate refSourceCommitSHAs for SetNewRevisionManifests)
-		return errors.New("moving manifest cache is currently not supported for multi-source applications")
+		return false, errors.New("moving manifest cache is currently not supported for multi-source applications")
 	}
 
 	oldManifestKey := cache.NewManifestKey(
@@ -671,14 +684,14 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(logCtx *log.Entry,
 		webhookStoreCacheAttemptsTotal.WithLabelValues(git.NormalizeGitURL(source.RepoURL), "false").Inc()
 		if errors.Is(err, cache.ErrCacheMiss) {
 			logEntry.Info("manifest cache miss while moving manifests cache to the new revision")
-			return nil
+			return false, nil
 		}
-		return fmt.Errorf("error setting new revision manifests: %w", err)
+		return false, fmt.Errorf("error setting new revision manifests: %w", err)
 	}
 
 	webhookStoreCacheAttemptsTotal.WithLabelValues(git.NormalizeGitURL(source.RepoURL), "true").Inc()
 	logEntry.Info("manifests cache moved")
-	return nil
+	return true, nil
 }
 
 // lookupRepository returns a repository with its credentials for a given URL. If there are no matching repository secret found,
