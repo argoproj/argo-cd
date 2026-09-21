@@ -676,7 +676,8 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                         {({application, tree, pref}: {application: appModels.AbstractApplication; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
                             tree.nodes = tree.nodes || [];
                             const isApplication = isApp(application);
-                            const effectiveResourceFilter = getEffectiveResourceFilter(isApplication, pref.resourceFilter);
+                            const isApplicationSet = !isApplication;
+                            const effectiveResourceFilter = getEffectiveResourceFilter(isApplicationSet, pref.resourceFilter);
                             const treeFilter = getTreeFilter(effectiveResourceFilter);
                             const setFilter = (items: string[]) => {
                                 appContext.navigation.goto('.', {resource: items.join(',')}, {replace: true});
@@ -1026,8 +1027,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                     onClearFilter={clearFilter}
                                                                     collapsed={viewPref.hideSidebar}
                                                                     resourceNodes={allResources}
-                                                                    hideKindFilter={!isApplication}
-                                                                    hideHealthAndSyncFilters={!isApplication}
+                                                                    isApplicationSet={isApplicationSet}
                                                                 />
                                                             )}
                                                         </DataLoader>
@@ -1133,8 +1133,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                         onClearFilter={clearFilter}
                                                                         collapsed={viewPref.hideSidebar}
                                                                         resourceNodes={allResources}
-                                                                        hideKindFilter={!isApplication}
-                                                                        hideHealthAndSyncFilters={!isApplication}
+                                                                        isApplicationSet={isApplicationSet}
                                                                     />
                                                                 )}
                                                             </DataLoader>
