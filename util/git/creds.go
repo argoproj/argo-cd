@@ -1085,7 +1085,7 @@ func (a AzureServicePrincipalCreds) getAccessToken() (string, error) {
 	// Generate cache key for creds
 	key, err := argoutils.GenerateCacheKey("%s %s %s %s", a.tenantID, a.clientID, a.clientSecret, activeDirectoryEndpoint)
 	if err != nil {
-		return "", fmt.Errorf("failed to get get SHA256 hash for Azure Service Principal credentials: %w", err)
+		return "", fmt.Errorf("failed to get SHA256 hash for Azure Service Principal credentials: %w", err)
 	}
 
 	t, found := azureServicePrincipalTokenCache.Get(key)
