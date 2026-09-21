@@ -22,8 +22,9 @@ func runCmd(t *testing.T, cmd *cobra.Command, args ...string) (stdout string, st
 	cmd.SetErr(&errbuf)
 
 	err := cmd.ExecuteContext(t.Context())
-	// Make sure the messare from the error reported by Command.RunE() is appended to the errbuf for verification (same as in main.go)
+	// Make sure the messare from the error reported by Command.RunE() is appended to the errbuf for verification (similar to main.go)
 	if err != nil {
+		args := append([]string{"argocd"}, args...) // plugin handler expects the first argument to be binary name
 		errMsg, _ := NewDefaultPluginHandler().HandleCommandExecutionError(err, true, args)
 		if errMsg != "" {
 			errbuf.WriteString(errMsg)
