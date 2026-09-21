@@ -130,12 +130,16 @@ type Client interface {
 
 // ClientOptions hold address, security, and other settings for the API client.
 type ClientOptions struct {
-	ServerAddr           string
-	PlainText            bool
-	Insecure             bool
-	CertFile             string
-	ClientCertFile       string
-	ClientCertKeyFile    string
+	ServerAddr        string
+	PlainText         bool
+	Insecure          bool
+	CertFile          string
+	ClientCertFile    string
+	ClientCertKeyFile string
+	// ClientCertData and ClientCertKeyData hold a PEM encoded client certificate and its private key.
+	// They are used when the certificate is not available as a file, e.g. when it is inlined in the local config.
+	ClientCertData       []byte
+	ClientCertKeyData    []byte
 	AuthToken            string
 	ConfigPath           string
 	Context              string
@@ -204,22 +208,9 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 					return nil, err
 				}
 			}
-			if configCtx.Server.ClientCertificateData != "" && configCtx.Server.ClientCertificateKeyData != "" {
-				clientCertData, err := base64.StdEncoding.DecodeString(configCtx.Server.ClientCertificateData)
-				if err != nil {
-					return nil, err
-				}
-				clientCertKeyData, err := base64.StdEncoding.DecodeString(configCtx.Server.ClientCertificateKeyData)
-				if err != nil {
-					return nil, err
-				}
-				clientCert, err := tls.X509KeyPair(clientCertData, clientCertKeyData)
-				if err != nil {
-					return nil, err
-				}
-				c.ClientCert = &clientCert
-			} else if configCtx.Server.ClientCertificateData != "" || configCtx.Server.ClientCertificateKeyData != "" {
-				return nil, errors.New("ClientCertificateData and ClientCertificateKeyData must always be specified together")
+			c.ClientCert, err = clientCertFromContext(&configCtx.Server)
+			if err != nil {
+				return nil, err
 			}
 			c.PlainText = configCtx.Server.PlainText
 			c.Insecure = configCtx.Server.Insecure
@@ -271,14 +262,23 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 		c.CertPEMData = b
 	}
 	// Override client certificate data if specified from CLI flag
-	if opts.ClientCertFile != "" && opts.ClientCertKeyFile != "" {
+	switch {
+	case opts.ClientCertFile != "" && opts.ClientCertKeyFile != "":
 		clientCert, err := tls.LoadX509KeyPair(opts.ClientCertFile, opts.ClientCertKeyFile)
 		if err != nil {
 			return nil, err
 		}
 		c.ClientCert = &clientCert
-	} else if opts.ClientCertFile != "" || opts.ClientCertKeyFile != "" {
+	case opts.ClientCertFile != "" || opts.ClientCertKeyFile != "":
 		return nil, errors.New("--client-crt and --client-crt-key must always be specified together")
+	case len(opts.ClientCertData) > 0 && len(opts.ClientCertKeyData) > 0:
+		clientCert, err := tls.X509KeyPair(opts.ClientCertData, opts.ClientCertKeyData)
+		if err != nil {
+			return nil, err
+		}
+		c.ClientCert = &clientCert
+	case len(opts.ClientCertData) > 0 || len(opts.ClientCertKeyData) > 0:
+		return nil, errors.New("ClientCertData and ClientCertKeyData must always be specified together")
 	}
 	// Override insecure/plaintext options if specified from CLI
 	if opts.PlainText {
@@ -345,6 +345,20 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 	c.Headers = opts.Headers
 
 	return &c, nil
+}
+
+// clientCertFromContext returns the client certificate configured for a local config context, or nil
+// if none is configured.
+func clientCertFromContext(server *localconfig.Server) (*tls.Certificate, error) {
+	certPEM, keyPEM, err := server.ClientCertPEM()
+	if err != nil || certPEM == nil {
+		return nil, err
+	}
+	clientCert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		return nil, err
+	}
+	return &clientCert, nil
 }
 
 // OIDCConfig returns OAuth2 client config and a OpenID Provider based on Argo CD settings

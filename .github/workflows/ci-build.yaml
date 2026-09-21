@@ -510,7 +510,7 @@ jobs:
           go tool covdata textfmt -i=e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server,e2e-code-coverage/app-controller,e2e-code-coverage/commit-server -o test-results/e2e-coverage.out
       - name: Upload unit test coverage to codecov.io
         if: github.repository == 'argoproj/argo-cd'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           version: v11.2.8 # https://github.com/getsentry/prevent-cli/releases/tag/v11.2.8
           files: test-results/unit-coverage.out
@@ -521,7 +521,7 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload e2e test coverage to codecov.io
         if: github.repository == 'argoproj/argo-cd'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           version: v11.2.8 # https://github.com/getsentry/prevent-cli/releases/tag/v11.2.8
           files: test-results/e2e-coverage.out
@@ -533,7 +533,7 @@ jobs:
       - name: Upload test results to Codecov
         # Codecov uploads test results to Codecov.io on upstream master branch.
         if: github.repository == 'argoproj/argo-cd' && github.ref == 'refs/heads/master' && github.event_name == 'push'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           version: v11.2.8 # https://github.com/getsentry/prevent-cli/releases/tag/v11.2.8
           files: test-results/junit.xml
@@ -544,7 +544,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
+        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
         if: env.sonar_secret != ''
   test-e2e:
     name: Run end-to-end tests
@@ -583,7 +583,7 @@ jobs:
         with:
           egress-policy: audit      
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
         with:
           large-packages: false
           docker-images: false
