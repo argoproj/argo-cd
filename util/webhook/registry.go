@@ -45,6 +45,12 @@ func (e *RegistryEvent) OCIRepoURL() string {
 // ErrHMACVerificationFailed is returned when a registry webhook signature check fails.
 var ErrHMACVerificationFailed = errors.New("HMAC verification failed")
 
+// ErrSecretVerificationFailed is returned when a registry webhook's pre-shared
+// secret check fails. Unlike ErrHMACVerificationFailed it does not imply a signed
+// payload: it covers registries such as Docker Hub that cannot sign their payloads
+// and can only be authenticated with a secret supplied alongside the request.
+var ErrSecretVerificationFailed = errors.New("secret verification failed")
+
 // HandleRegistryEvent processes a normalized registry event and refreshes
 // matching Argo CD Applications.
 //

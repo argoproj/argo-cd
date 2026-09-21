@@ -25,6 +25,8 @@ argocd cluster add CONTEXT [flags]
       --exec-command-install-hint string   Text shown to the user when the --exec-command executable doesn't seem to be present
   -h, --help                               help for add
       --in-cluster                         Indicates Argo CD resides inside this cluster and should connect using the internal k8s hostname (kubernetes.default.svc)
+      --k8s-client-burst int               Burst limit for K8s API client requests to the cluster (default 0, which uses global controller default)
+      --k8s-client-qps float32             QPS limit for K8s API client requests to the cluster (default 0, which uses global controller default)
       --kubeconfig string                  use a particular kubeconfig file
       --label stringArray                  Set metadata labels (e.g. --label key=value)
       --name string                        Overwrite the cluster name
