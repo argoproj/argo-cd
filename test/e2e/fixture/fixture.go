@@ -21,6 +21,8 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -267,6 +269,18 @@ func init() {
 }
 
 func loginAs(username, password string) error {
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		err := tryLoginAs(username, password)
+		if status.Code(err) != codes.Unavailable || time.Now().After(deadline) {
+			return err
+		}
+		log.Warnf("API server unavailable while logging in as %s, retrying: %v", username, err)
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+func tryLoginAs(username, password string) error {
 	closer, client, err := ArgoCDClientset.NewSessionClient()
 	if err != nil {
 		return err
