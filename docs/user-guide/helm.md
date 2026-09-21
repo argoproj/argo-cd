@@ -49,6 +49,94 @@ spec:
 
 The [Declarative Setup section on Helm](../operator-manual/declarative-setup.md#helm) has more info about how to configure private Helm repositories and private OCI registries.
 
+## Worked examples
+
+The examples below use the [ingress-nginx](https://kubernetes.github.io/ingress-nginx/) Helm chart. They show one Application in three forms: chart defaults, inlined `valuesObject` (declarative YAML instead of `argocd app set -p`), and a values file stored in a separate Git repository.
+
+### Chart defaults
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingress-nginx
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes.github.io/ingress-nginx
+    chart: ingress-nginx
+    targetRevision: 4.11.3
+    helm:
+      releaseName: ingress-nginx
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress-nginx
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+```
+
+### Controller settings via `valuesObject`
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingress-nginx
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes.github.io/ingress-nginx
+    chart: ingress-nginx
+    targetRevision: 4.11.3
+    helm:
+      releaseName: ingress-nginx
+      valuesObject:
+        controller:
+          replicaCount: 2
+          service:
+            type: LoadBalancer
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress-nginx
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+```
+
+### Values file from another Git repository
+
+As of Argo CD v2.6, values files do not have to live in the same repository as the chart. See [multiple sources](./multiple_sources.md#helm-value-files-from-external-git-repository).
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingress-nginx
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://kubernetes.github.io/ingress-nginx
+      chart: ingress-nginx
+      targetRevision: 4.11.3
+      helm:
+        releaseName: ingress-nginx
+        valueFiles:
+          - $values/helm/ingress-nginx/values.yaml
+    - repoURL: https://github.com/example/gitops-values.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress-nginx
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+```
+
 ## Values Files
 
 Helm has the ability to use a different, or even multiple "values.yaml" files to derive its
