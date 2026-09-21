@@ -98,6 +98,26 @@ The styles specified in the injected CSS file should be specific to components a
 It is recommended to test out the styles you wish to apply first by making use of your browser's built-in developer tools.  For a more full-featured
 experience, you may wish to build a separate project using the [Argo CD UI dev server](https://webpack.js.org/configuration/dev-server/).
 
+## Targeting a Specific Application
+
+The Application (and ApplicationSet) Details page renders a per-application CSS class on its top-level
+container, derived from the application name and prefixed with `user-app-`. You can use it to style the
+page of a specific application. For example, to add a colored top border to the details page of an
+application named `my-app`:
+
+```css
+.application-details.user-app-my-app {
+  border-top: 4px solid #d9534f;
+}
+```
+
+The `user-app-` prefix keeps this class from colliding with built-in component class names (for
+example, an application named `login`). If you used this class before the prefix was introduced, see
+the [v3.4 to 3.5 upgrade notes](upgrading/3.4-3.5.md).
+
+Application names may contain dots (`.`); escape them in the selector, e.g. an application named
+`my.app` is targeted with `.application-details.user-app-my\.app`.
+
 ## Banners
 
 Argo CD can optionally display a banner that can be used to notify your users of upcoming maintenance and operational changes. This feature can be enabled by specifying the banner message using the `ui.bannercontent` field in the `argocd-cm` ConfigMap and Argo CD will display this message at the top of every UI page. You can optionally add a link to this message by setting `ui.bannerurl`. You can also make the banner sticky (permanent) by setting `ui.bannerpermanent` to true and change its position to "both" or "bottom" by using `ui.bannerposition: "both"`, allowing the banner to display on both the top and bottom, or `ui.bannerposition: "bottom"` to display it exclusively at the bottom.

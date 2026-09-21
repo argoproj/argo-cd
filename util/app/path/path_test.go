@@ -8,8 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	fileutil "github.com/argoproj/argo-cd/v3/test/fixture/path"
 )
@@ -121,9 +119,7 @@ func TestAbsSymlink(t *testing.T) {
 
 func getApp(annotation *string, sourcePath *string) *v1alpha1.Application {
 	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-app",
-		},
+		Name: "test-app",
 	}
 	if annotation != nil {
 		app.Annotations = make(map[string]string)

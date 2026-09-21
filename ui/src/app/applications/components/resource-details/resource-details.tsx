@@ -1,10 +1,12 @@
-import {DataLoader, DropDown, Tab, Tabs} from 'argo-ui';
+import {DataLoader, DropDown, MockupList, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
 import {useState} from 'react';
 import {BehaviorSubject} from 'rxjs';
-import {EventsList, YamlEditor} from '../../../shared/components';
+import {EventsList} from '../../../shared/components';
+import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {AppContext, Context} from '../../../shared/context';
 import {Application, ApplicationTree, Event, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -12,17 +14,29 @@ import {ResourceTabExtension} from '../../../shared/services/extensions-service'
 import {NodeInfo, SelectNode} from '../application-details/application-details';
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
-import {ApplicationResourceEvents} from '../application-resource-events/application-resource-events';
-import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
-import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
+import type {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationSummary} from '../application-summary/application-summary';
 import {AppSetResourceNodePreview} from './appset-resource-node-preview';
-import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
-import {PodTerminalViewer} from '../pod-terminal-viewer/pod-terminal-viewer';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import * as AppUtils from '../utils';
+import {usePolledEvents} from './use-polled-events';
 import './resource-details.scss';
+
+const ApplicationResourcesDiff = lazyWithBoundary(
+    React.lazy(() =>
+        import(/* webpackChunkName: "app-resources-diff" */ '../application-resources-diff/application-resources-diff').then(m => ({default: m.ApplicationResourcesDiff}))
+    ),
+    'Failed to load diff. Please reload and try again.'
+);
+const PodsLogsViewer = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "pod-logs" */ '../pod-logs-viewer/pod-logs-viewer').then(m => ({default: m.PodsLogsViewer}))),
+    'Failed to load logs viewer. Please reload and try again.'
+);
+const PodTerminalViewer = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "pod-terminal" */ '../pod-terminal-viewer/pod-terminal-viewer').then(m => ({default: m.PodTerminalViewer}))),
+    'Failed to load terminal. Please reload and try again.'
+);
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -56,6 +70,13 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 
     const [pageNumber, setPageNumber] = React.useState(0);
     const [collapsedSources, setCollapsedSources] = React.useState(new Array<boolean>()); // For Sources tab to save collapse states
+
+    // Load application events once so both the EVENTS tab list and its badge (number of warning/error events) share a single fetch.
+    const appEvents = usePolledEvents(() => services.applications.events(application.metadata.name, application.metadata.namespace), isAppSelected, [
+        application.metadata.name,
+        application.metadata.namespace
+    ]);
+
     const handleCollapse = (i: number, isCollapsed: boolean) => {
         const v = collapsedSources.slice();
         v[i] = isCollapsed;
@@ -189,11 +210,13 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         const tabs: Tab[] = [
             {
                 title: 'SUMMARY',
+                icon: 'fa fa-align-justify',
                 key: 'summary',
                 content: <ApplicationSummary app={application} updateApp={(app, query: {validate?: boolean}) => updateApp(app, query)} />
             },
             {
                 title: application.spec.sources === undefined ? 'PARAMETERS' : 'SOURCES',
+                icon: application.spec.sources === undefined ? 'fa fa-sliders-h' : 'fa fa-code-branch',
                 key: 'parameters',
                 content: (
                     <ApplicationParameters
@@ -204,20 +227,6 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         collapsedSources={collapsedSources}
                         handleCollapse={handleCollapse}
                         appContext={props.appCxt}
-                    />
-                )
-            },
-            {
-                title: 'MANIFEST',
-                key: 'manifest',
-                content: (
-                    <YamlEditor
-                        minHeight={800}
-                        input={application.spec}
-                        onSave={async patch => {
-                            const spec = JSON.parse(JSON.stringify(application.spec));
-                            return services.applications.updateSpec(application.metadata.name, application.metadata.namespace, jsonMergePatch.apply(spec, JSON.parse(patch)));
-                        }}
                     />
                 )
             }
@@ -243,9 +252,35 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         }
 
         tabs.push({
+            title: 'MANIFEST',
+            icon: 'fa fa-file-alt',
+            key: 'manifest',
+            content: (
+                <YamlEditor
+                    minHeight={800}
+                    input={application.spec}
+                    onSave={async patch => {
+                        const spec = JSON.parse(JSON.stringify(application.spec));
+                        return services.applications.updateSpec(application.metadata.name, application.metadata.namespace, jsonMergePatch.apply(spec, JSON.parse(patch)));
+                    }}
+                />
+            )
+        });
+
+        tabs.push({
+            title: 'STATUS',
+            icon: 'fa fa-file-circle-check',
+            key: 'status',
+            content: <YamlEditor minHeight={800} input={application.status} hideModeButtons={true} />
+        });
+
+        const numEventErrors = (appEvents || []).filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
+        tabs.push({
             title: 'EVENTS',
+            icon: 'fa fa-calendar-alt',
+            badge: (numEventErrors > 0 && numEventErrors) || null,
             key: 'event',
-            content: <ApplicationResourceEvents applicationName={application.metadata.name} applicationNamespace={application.metadata.namespace} />
+            content: <div className='application-resource-events'>{appEvents === null ? <MockupList height={50} marginTop={10} /> : <EventsList events={appEvents} />}</div>
         });
 
         const extensionTabs = services.extensions.getResourceTabs('argoproj.io', 'Application').map((ext, i) => ({
@@ -318,55 +353,61 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     <ResourceIcon group={selectedNode.group} kind={selectedNode.kind} />
                                     {ResourceLabel({kind: selectedNode.kind})}
                                 </div>
-                                <h1>{selectedNode.name}</h1>
-                                {data.controlledState && (
-                                    <span style={{marginRight: '5px'}}>
-                                        <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
+                                <div className='resource-details__header-name'>
+                                    <h1 className='resource-details__header-title'>{selectedNode.name}</h1>
+                                    <span className='resource-details__header-status'>
+                                        {data.controlledState && (
+                                            <span style={{marginRight: '5px'}}>
+                                                <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
+                                            </span>
+                                        )}
+                                        {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
                                     </span>
-                                )}
-                                {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
-                                {showApplicationReference && (
-                                    <button
-                                        onClick={() =>
-                                            appContext.navigation.goto(`/${AppUtils.getAppUrl(application)}`, {
-                                                node: `${AppUtils.nodeKey(selectedNode)}/0`,
-                                                tab: tab || null
-                                            })
-                                        }
-                                        style={{marginLeft: 'auto', marginRight: '5px'}}
-                                        className='argo-button argo-button--base'>
-                                        <i className='fa fa-fw fa-info-circle' /> <span className='show-for-large'>DETAILS</span>
-                                    </button>
-                                )}
-                                {!showApplicationReference && (
-                                    <>
-                                        <button
-                                            onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
-                                            style={{marginLeft: 'auto', marginRight: '5px'}}
-                                            className='argo-button argo-button--base'>
-                                            <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
-                                        </button>
+                                </div>
+                                <div className='resource-details__header-actions'>
+                                    {showApplicationReference && (
                                         <button
                                             onClick={() =>
-                                                AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources, props.appChanged)
+                                                appContext.navigation.goto(`/${AppUtils.getAppUrl(application)}`, {
+                                                    node: `${AppUtils.nodeKey(selectedNode)}/0`,
+                                                    tab: tab || null
+                                                })
                                             }
                                             style={{marginRight: '5px'}}
                                             className='argo-button argo-button--base'>
-                                            <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
+                                            <i className='fa fa-fw fa-info-circle' /> <span className='show-for-large'>DETAILS</span>
                                         </button>
-                                    </>
-                                )}
-                                {data.resourceActionsMenuItems?.length > 0 && !showApplicationReference && (
-                                    <DropDown
-                                        isMenu={true}
-                                        anchor={() => (
-                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                <i className='fa fa-ellipsis-v' />
+                                    )}
+                                    {!showApplicationReference && (
+                                        <>
+                                            <button
+                                                onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
+                                                style={{marginRight: '5px'}}
+                                                className='argo-button argo-button--base'>
+                                                <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
                                             </button>
-                                        )}>
-                                        {() => AppUtils.renderResourceActionMenu(data.resourceActionsMenuItems)}
-                                    </DropDown>
-                                )}
+                                            <button
+                                                onClick={() =>
+                                                    AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources, props.appChanged)
+                                                }
+                                                style={{marginRight: '5px'}}
+                                                className='argo-button argo-button--base'>
+                                                <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
+                                            </button>
+                                        </>
+                                    )}
+                                    {data.resourceActionsMenuItems?.length > 0 && !showApplicationReference && (
+                                        <DropDown
+                                            isMenu={true}
+                                            anchor={() => (
+                                                <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                    <i className='fa fa-ellipsis-v' />
+                                                </button>
+                                            )}>
+                                            {() => AppUtils.renderResourceActionMenu(data.resourceActionsMenuItems)}
+                                        </DropDown>
+                                    )}
+                                </div>
                             </div>
                             <Tabs
                                 navTransparent={true}
@@ -379,7 +420,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     [
                                         {
                                             title: 'SUMMARY',
-                                            icon: 'fa fa-file-alt',
+                                            icon: 'fa fa-align-justify',
                                             key: 'summary',
                                             content: (
                                                 <ApplicationNodeInfo

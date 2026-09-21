@@ -3,6 +3,7 @@ package applicationset
 import (
 	"sort"
 	"testing"
+	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	cr_fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -88,18 +89,14 @@ func newTestNamespacedAppSetServer(t *testing.T, objects ...client.Object) *Serv
 func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer), namespace string, objects ...client.Object) (*Server, kubernetes.Interface) {
 	t.Helper()
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "argocd-cm",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Namespace: testNamespace,
+		Name:      "argocd-cm",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: testNamespace,
-		},
+		Name:      "argocd-secret",
+		Namespace: testNamespace,
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),
@@ -113,14 +110,14 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 	require.NoError(t, err)
 
 	defaultProj := &appsv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+		Name: "default", Namespace: "default",
 		Spec: appsv1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}
 	myProj := &appsv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "my-proj", Namespace: "default"},
+		Name: "my-proj", Namespace: "default",
 		Spec: appsv1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -164,12 +161,10 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 
 	// Add the fake cluster secret so the ClusterGenerator can find it via controller-runtime client
 	fakeClusterSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "cluster-cluster-api.example.com-2aborni",
-			Namespace: testNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      "cluster-cluster-api.example.com-2aborni",
+		Namespace: testNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"name":   []byte("fake-cluster"),
@@ -201,6 +196,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		enforcer,
 		nil,
 		fakeAppsClientset,
+		factory.Argoproj().V1alpha1().Applications().Lister(),
 		appsetInformer,
 		factory.Argoproj().V1alpha1().ApplicationSets().Lister(),
 		nil,
@@ -221,9 +217,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 
 func newTestAppSet(opts ...func(appset *appsv1.ApplicationSet)) *appsv1.ApplicationSet {
 	appset := appsv1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-		},
+		Namespace: testNamespace,
 		Spec: appsv1.ApplicationSetSpec{
 			Template: appsv1.ApplicationSetTemplate{
 				Spec: appsv1.ApplicationSpec{
@@ -688,13 +682,11 @@ func TestResourceTree(t *testing.T) {
 	expectedTree := &appsv1.ApplicationSetTree{
 		Nodes: []appsv1.ResourceNode{
 			{
-				ResourceRef: appsv1.ResourceRef{
-					Kind:      "Application",
-					Group:     "argoproj.io",
-					Version:   "v1alpha1",
-					Namespace: "default",
-					Name:      "app1",
-				},
+				Kind:      "Application",
+				Group:     "argoproj.io",
+				Version:   "v1alpha1",
+				Namespace: "default",
+				Name:      "app1",
 				ParentRefs: []appsv1.ResourceRef{
 					{
 						Kind:      "ApplicationSet",
@@ -739,6 +731,51 @@ func TestResourceTree(t *testing.T) {
 
 		_, err := appSetServer.ResourceTree(t.Context(), &appsetQuery)
 		assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
+	})
+
+	t.Run("ResourceTree sets createdAt from the generated Application", func(t *testing.T) {
+		createdAt := metav1.NewTime(time.Date(2026, 6, 22, 13, 37, 43, 0, time.UTC))
+		app1 := &appsv1.Application{
+			Name:              "app1",
+			Namespace:         "default",
+			CreationTimestamp: createdAt,
+		}
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2, appSet3, app1)
+
+		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1"}
+
+		res, err := appSetServer.ResourceTree(t.Context(), &appsetQuery)
+		require.NoError(t, err)
+		require.Len(t, res.Nodes, 1)
+		require.NotNil(t, res.Nodes[0].CreatedAt)
+		assert.Equal(t, createdAt, *res.Nodes[0].CreatedAt)
+	})
+
+	t.Run("ResourceTree falls back to the AppSet namespace and leaves createdAt unset without a matching Application", func(t *testing.T) {
+		createdAt := metav1.NewTime(time.Date(2026, 6, 22, 13, 37, 43, 0, time.UTC))
+		appSet4 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+			appset.Name = "AppSet4"
+			appset.Status.Resources = []appsv1.ResourceStatus{
+				// No namespace set: must fall back to the ApplicationSet namespace.
+				{Name: "app-without-namespace", Kind: "Application", Group: "argoproj.io", Version: "v1alpha1"},
+				{Name: "app-missing", Kind: "Application", Group: "argoproj.io", Version: "v1alpha1", Namespace: "default"},
+			}
+		})
+		app := &appsv1.Application{Name: "app-without-namespace", Namespace: testNamespace, CreationTimestamp: createdAt}
+		appSetServer := newTestAppSetServer(t, appSet4, app)
+
+		res, err := appSetServer.ResourceTree(t.Context(), &applicationset.ApplicationSetTreeQuery{Name: "AppSet4"})
+		require.NoError(t, err)
+		require.Len(t, res.Nodes, 2)
+		nodesByName := map[string]appsv1.ResourceNode{}
+		for _, node := range res.Nodes {
+			nodesByName[node.Name] = node
+		}
+		require.Contains(t, nodesByName, "app-without-namespace")
+		require.NotNil(t, nodesByName["app-without-namespace"].CreatedAt)
+		assert.Equal(t, createdAt, *nodesByName["app-without-namespace"].CreatedAt)
+		require.Contains(t, nodesByName, "app-missing")
+		assert.Nil(t, nodesByName["app-missing"].CreatedAt)
 	})
 }
 
@@ -797,10 +834,8 @@ func TestListResourceEvents(t *testing.T) {
 
 		// Create events after server creation using the kubeclientset
 		_, err := kubeclientset.CoreV1().Events(testNamespace).Create(t.Context(), &corev1.Event{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "appset1-event-1",
-				Namespace: testNamespace,
-			},
+			Name:      "appset1-event-1",
+			Namespace: testNamespace,
 			InvolvedObject: corev1.ObjectReference{
 				Name:      "AppSet1",
 				Namespace: testNamespace,
@@ -813,10 +848,8 @@ func TestListResourceEvents(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = kubeclientset.CoreV1().Events(testNamespace).Create(t.Context(), &corev1.Event{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "appset1-event-2",
-				Namespace: testNamespace,
-			},
+			Name:      "appset1-event-2",
+			Namespace: testNamespace,
 			InvolvedObject: corev1.ObjectReference{
 				Name:      "AppSet1",
 				Namespace: testNamespace,
