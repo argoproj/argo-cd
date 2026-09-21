@@ -1,8 +1,8 @@
 import * as path from 'path';
 import * as agent from 'superagent';
 
-import {BehaviorSubject, Observable, Observer} from 'rxjs';
-import {filter} from 'rxjs/operators';
+import {BehaviorSubject, fromEvent, Observable, Observer} from 'rxjs';
+import {debounceTime, filter} from 'rxjs/operators';
 
 type Callback = (data: any) => void;
 
@@ -70,7 +70,9 @@ export default {
         return Observable.create((observer: Observer<any>) => {
             const fullUrl = `${apiRoot()}${url}`;
 
-            const abortController = new AbortController();
+            let eventSource: EventSource = null;
+            let abortController: AbortController = null;
+            let interval: any = null;
             let errored = false;
 
             // EventSource's error event is opaque (no status, no body). On failure,
@@ -79,7 +81,7 @@ export default {
             // watch streams per subscription and held an HTTP/1.1 connection slot
             // for the lifetime of every watch — see issue #27877.
             const probeAndError = (eventSourceError: any) => {
-                if (errored) {
+                if (errored || !abortController) {
                     return;
                 }
                 errored = true;
@@ -104,22 +106,56 @@ export default {
                     });
             };
 
-            let eventSource = new EventSource(fullUrl);
-            eventSource.onmessage = msg => observer.next(msg.data);
-            eventSource.onerror = e => probeAndError(e);
-
-            // EventSource does not provide easy way to get notification when connection closed.
-            // check readyState periodically instead.
-            const interval = setInterval(() => {
-                if (eventSource && eventSource.readyState === ReadyState.CLOSED) {
-                    probeAndError('connection got closed unexpectedly');
+            const connect = () => {
+                if (eventSource) {
+                    return;
                 }
-            }, 500);
-            return () => {
+                errored = false;
+                abortController = new AbortController();
+                eventSource = new EventSource(fullUrl);
+                eventSource.onmessage = msg => observer.next(msg.data);
+                eventSource.onerror = e => probeAndError(e);
+
+                // EventSource does not provide easy way to get notification when connection closed.
+                // check readyState periodically instead.
+                interval = setInterval(() => {
+                    if (eventSource && eventSource.readyState === ReadyState.CLOSED) {
+                        probeAndError('connection got closed unexpectedly');
+                    }
+                }, 500);
+            };
+
+            const disconnect = () => {
                 clearInterval(interval);
-                eventSource.close();
-                abortController.abort();
-                eventSource = null;
+                interval = null;
+                if (eventSource) {
+                    eventSource.close();
+                    eventSource = null;
+                }
+                if (abortController) {
+                    abortController.abort();
+                    abortController = null;
+                }
+            };
+
+            // Browsers allow only a handful of concurrent HTTP/1.1 connections per origin (6 in
+            // Chrome) and every stream holds one of them open for as long as it lives, while the
+            // API server only speaks HTTP/1.1 to browsers. A couple of tabs left on an app page or
+            // on a log view are therefore enough to use up the whole pool, and every other request
+            // — including the can-i checks the Logs and Exec entries wait for — queues forever.
+            // A stream nobody is looking at is worth nothing, so hand its connection back while the
+            // tab is hidden and reconnect when the user returns. See issue #26532.
+            if (!document.hidden) {
+                connect();
+            }
+            const visibilityChange = fromEvent(document, 'visibilitychange')
+                // wait until user stops clicking back and forth to avoid reconnecting too often
+                .pipe(debounceTime(500))
+                .subscribe(() => (document.hidden ? disconnect() : connect()));
+
+            return () => {
+                visibilityChange.unsubscribe();
+                disconnect();
             };
         });
     }

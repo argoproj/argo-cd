@@ -28,24 +28,7 @@ export class AccountsService {
         return requests.delete(`/account/${name}/token/${id}`);
     }
 
-    private canICache = new Map<string, Promise<boolean>>();
-
-    public clearCache(): void {
-        this.canICache.clear();
-    }
-
     public canI(resource: string, action: string, subresource: string): Promise<boolean> {
-        const key = `${resource}:${action}:${subresource}`;
-        if (!this.canICache.has(key)) {
-            const promise = requests
-                .get(`/account/can-i/${resource}/${action}/${subresource}`)
-                .then(res => res.body.value === 'yes')
-                .catch(err => {
-                    this.canICache.delete(key);
-                    throw err;
-                });
-            this.canICache.set(key, promise);
-        }
-        return this.canICache.get(key);
+        return requests.get(`/account/can-i/${resource}/${action}/${subresource}`).then(res => res.body.value === 'yes');
     }
 }
