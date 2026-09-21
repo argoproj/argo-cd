@@ -249,9 +249,10 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Bitbucket cloud bearer token: %w", err)
 			}
-			provider, err = scm_provider.NewBitBucketCloudProviderBearerToken(providerConfig.Bitbucket.Owner, token, providerConfig.Bitbucket.AllBranches)
-			if err != nil {
-				return nil, fmt.Errorf("error initializing Bitbucket cloud service: %w", err)
+			var scmError error
+			provider, scmError = scm_provider.NewBitBucketCloudProviderBearerToken(providerConfig.Bitbucket.Owner, token, providerConfig.Bitbucket.AllBranches)
+			if scmError != nil {
+				return nil, fmt.Errorf("error initializing Bitbucket cloud service: %w", scmError)
 			}
 		case providerConfig.Bitbucket.AppPasswordRef != nil:
 			if providerConfig.Bitbucket.User == "" {
@@ -261,9 +262,10 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Bitbucket cloud appPassword: %w", err)
 			}
-			provider, err = scm_provider.NewBitBucketCloudProvider(providerConfig.Bitbucket.Owner, providerConfig.Bitbucket.User, appPassword, providerConfig.Bitbucket.AllBranches)
-			if err != nil {
-				return nil, fmt.Errorf("error initializing Bitbucket cloud service: %w", err)
+			var scmError error
+			provider, scmError = scm_provider.NewBitBucketCloudProvider(providerConfig.Bitbucket.Owner, providerConfig.Bitbucket.User, appPassword, providerConfig.Bitbucket.AllBranches)
+			if scmError != nil {
+				return nil, fmt.Errorf("error initializing Bitbucket cloud service: %w", scmError)
 			}
 		default:
 			return nil, errors.New("bitbucket scm provider requires either bearerToken or appPasswordRef")
