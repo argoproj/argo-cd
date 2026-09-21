@@ -642,6 +642,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 		RecordTestRun(t)
 	})
 
+	t.Cleanup(func() {
+		if err := LoginAs(adminUsername); err != nil {
+			log.Warnf("could not restore the %s session after %s: %v", adminUsername, t.Name(), err)
+		}
+	})
+
 	// Create TestState to hold test-specific variables
 	state := NewTestState(t)
 
