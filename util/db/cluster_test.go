@@ -1,6 +1,7 @@
 package db
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"strings"
@@ -1089,7 +1090,7 @@ func TestGetCluster_DefaultCABundle(t *testing.T) {
 		assert.Equal(t, caBundle, withoutCA.DefaultCABundle)
 		restConfig, err := withoutCA.RawRestConfig()
 		require.NoError(t, err)
-		assert.Equal(t, caBundle, restConfig.CAData)
+		assert.True(t, bytes.HasSuffix(restConfig.CAData, caBundle), "the default bundle must be added to the system roots")
 
 		withCA, err := db.GetCluster(t.Context(), "https://with-ca")
 		require.NoError(t, err)
