@@ -2,6 +2,8 @@ package helm
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -115,12 +117,13 @@ func (c *Cmd) RegistryLogin(ctx context.Context, repo string, creds Creds, plain
 	}
 
 	if creds.GetCAPath() != "" {
-		var caCloser utilio.Closer
-		args, caCloser, err = appendHelmCAFileArg(args, creds.GetCAPath())
+		caFile, err := c.persistMergedCAFile(creds.GetCAPath())
 		if err != nil {
 			return "", fmt.Errorf("failed to prepare CA file for helm: %w", err)
 		}
-		defer utilio.Close(caCloser)
+		if caFile != "" {
+			args = append(args, "--ca-file", caFile)
+		}
 	}
 
 	if len(creds.GetCertData()) > 0 {
@@ -191,12 +194,13 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	}
 
 	if opts.GetCAPath() != "" {
-		var caCloser utilio.Closer
-		args, caCloser, err = appendHelmCAFileArg(args, opts.GetCAPath())
+		caFile, err := c.persistMergedCAFile(opts.GetCAPath())
 		if err != nil {
 			return "", fmt.Errorf("failed to prepare CA file for helm: %w", err)
 		}
-		defer utilio.Close(caCloser)
+		if caFile != "" {
+			args = append(args, "--ca-file", caFile)
+		}
 	}
 
 	if opts.GetInsecureSkipVerify() {
@@ -342,6 +346,33 @@ func appendHelmCAFileArg(args []string, caPath string) ([]string, utilio.Closer,
 		return args, utilio.NopCloser, nil
 	}
 	return append(args, "--ca-file", caFile), closer, nil
+}
+
+// persistMergedCAFile returns a CA path suitable for helm config that outlives a single command.
+// Helm repo/registry entries store --ca-file paths; ephemeral temp files must not be deleted before later helm runs.
+func (c *Cmd) persistMergedCAFile(customCAPath string) (string, error) {
+	caFile, closer, err := helmCAFilePathWithSystemTrust(customCAPath)
+	if err != nil {
+		return "", err
+	}
+	defer utilio.Close(closer)
+	if caFile == "" || caFile == customCAPath {
+		return caFile, nil
+	}
+	destDir := filepath.Join(c.helmHome, "ca")
+	if err := os.MkdirAll(destDir, 0o700); err != nil {
+		return "", fmt.Errorf("failed to create helm CA directory: %w", err)
+	}
+	sum := sha256.Sum256([]byte(customCAPath))
+	dest := filepath.Join(destDir, "merged-"+hex.EncodeToString(sum[:])+".pem")
+	data, err := os.ReadFile(caFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to read merged CA file: %w", err)
+	}
+	if err = os.WriteFile(dest, data, 0o644); err != nil {
+		return "", fmt.Errorf("failed to write persistent merged CA file: %w", err)
+	}
+	return dest, nil
 }
 
 func writeToTmp(data []byte) (string, utilio.Closer, error) {

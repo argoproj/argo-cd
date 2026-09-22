@@ -75,6 +75,32 @@ func TestFetch_withCAFile_mergesSystemTrust(t *testing.T) {
 	assert.Contains(t, out, "--ca-file")
 }
 
+func TestRepoAdd_persistsMergedCAFile(t *testing.T) {
+	systemBundle := writeTestCAFile(t, "system.pem", "system-root-ca-bundle\n")
+	repoCA := writeTestCAFile(t, "repo.pem", "repo-ca\n")
+	t.Setenv("SSL_CERT_FILE", systemBundle)
+
+	var caFileFromHelm string
+	c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+		for i, arg := range cmd.Args {
+			if arg == "--ca-file" && i+1 < len(cmd.Args) {
+				caFileFromHelm = cmd.Args[i+1]
+			}
+		}
+		return "added", nil
+	})
+	require.NoError(t, err)
+	creds := &HelmCreds{CAPath: repoCA}
+	_, err = c.RepoAdd("testrepo", "https://charts.example.com", creds, false)
+	require.NoError(t, err)
+	require.NotEmpty(t, caFileFromHelm)
+	assert.FileExists(t, caFileFromHelm)
+	merged, err := os.ReadFile(caFileFromHelm)
+	require.NoError(t, err)
+	assert.Contains(t, string(merged), "system-root-ca-bundle")
+	assert.Contains(t, string(merged), "repo-ca")
+}
+
 func TestPullOCI_withCAFile_mergesSystemTrust(t *testing.T) {
 	systemBundle := writeTestCAFile(t, "system.pem", "system-root-ca-bundle\n")
 	repoCA := writeTestCAFile(t, "repo.pem", "repo-ca\n")
