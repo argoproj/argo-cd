@@ -10,9 +10,9 @@ import (
 )
 
 type BitBucketCloudProvider struct {
-	client         *bitbucket.Client
-	allBranches    bool
-	owner          string
+	client      *bitbucket.Client
+	allBranches bool
+	owner       string
 	// bearer tokens (workspace access tokens, OAuth client credentials) have no
 	// user membership context, so the role=member filter must be omitted.
 	omitRoleFilter bool
