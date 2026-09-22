@@ -14,23 +14,36 @@ function getCondition(conditions, conditionType)
   return nil
 end
 
--- isNotResponsible reports whether an ancestor entry belongs to a controller
--- that is not responsible for the target of this BackendTLSPolicy.
+-- isTargetNotFound reports whether an ancestor entry is an Accepted: False
+-- rejection whose reason is TargetNotFound.
 --
--- status.ancestors is a map keyed by (AncestorRef, ControllerName): every
--- conformant Gateway API implementation in the cluster reconciles every
--- BackendTLSPolicy and writes its own entry under its own controllerName,
--- including a rejection when it cannot resolve the target. Such an entry
--- reports Accepted: False with reason TargetNotFound and must not, on its own,
--- drive the resource Degraded, because the controller actually responsible for
--- the target may have accepted the policy under a different entry.
-function isNotResponsible(ancestor)
+-- status.ancestors is keyed by (AncestorRef, ControllerName): every conformant
+-- Gateway API implementation reconciles every BackendTLSPolicy and writes its
+-- own entry under its own controllerName, including a rejection when it cannot
+-- resolve the target. A TargetNotFound rejection is therefore ambiguous: it is
+-- emitted both by a controller that is not responsible for the target (another
+-- implementation that watches the CRD but never owned this target) and by the
+-- responsible controller when the policy genuinely points at a resource that
+-- does not exist. Without cluster access we cannot tell these apart from a
+-- single entry, so these entries are evaluated separately from the other
+-- conditions (see below).
+function isTargetNotFound(ancestor)
   local accepted = getCondition(ancestor.conditions, "Accepted")
   if accepted == nil then
     return false
   end
-  if accepted.status ~= "True" and accepted.reason == "TargetNotFound" then
-    return true
+  return accepted.status ~= "True" and accepted.reason == "TargetNotFound"
+end
+
+-- anyAncestorAccepted reports whether any ancestor entry reports Accepted: True,
+-- i.e. some controller in the cluster actually accepted and owns the target of
+-- this BackendTLSPolicy.
+function anyAncestorAccepted(ancestors)
+  for _, ancestor in ipairs(ancestors) do
+    local accepted = getCondition(ancestor.conditions, "Accepted")
+    if accepted ~= nil and accepted.status == "True" then
+      return true
+    end
   end
   return false
 end
@@ -54,12 +67,14 @@ if obj.status ~= nil and obj.status.ancestors ~= nil then
     end
   end
 
+  -- First pass: evaluate every ancestor except the ambiguous TargetNotFound
+  -- rejections. A definite Accepted: False (for any other reason) or
+  -- ResolvedRefs: False from any controller degrades the resource, and an
+  -- Accepted: True marks it healthy. TargetNotFound entries are deferred to the
+  -- second pass so that a more specific rejection or an acceptance always wins
+  -- over an ambiguous "target not found" signal, regardless of ancestor order.
   for _, ancestor in ipairs(obj.status.ancestors) do
-    -- Skip entries written by controllers that are not responsible for the
-    -- target. These belong to other conformant implementations that watch the
-    -- CRD but were never going to manage this target, so their rejection must
-    -- not affect the reported health.
-    if ancestor.conditions ~= nil and not isNotResponsible(ancestor) then
+    if ancestor.conditions ~= nil and not isTargetNotFound(ancestor) then
       for _, condition in ipairs(ancestor.conditions) do
         if condition.type == "Accepted" then
           if condition.status ~= "True" then
@@ -79,6 +94,23 @@ if obj.status ~= nil and obj.status.ancestors ~= nil then
             return hs
           end
         end
+      end
+    end
+  end
+
+  -- Second pass: handle the ambiguous TargetNotFound rejections. If some
+  -- controller already accepted the target, these belong to other conformant
+  -- implementations that were never going to manage this target, so they are
+  -- skipped and must not affect the reported health. If no controller accepted
+  -- the target, the policy genuinely points at a resource that does not exist,
+  -- so the rejection is a real failure and must degrade the resource.
+  if not anyAncestorAccepted(obj.status.ancestors) then
+    for _, ancestor in ipairs(obj.status.ancestors) do
+      if isTargetNotFound(ancestor) then
+        local accepted = getCondition(ancestor.conditions, "Accepted")
+        hs.status = "Degraded"
+        hs.message = "Ancestor " .. (ancestor.ancestorRef.name or "") .. ": " .. accepted.message
+        return hs
       end
     end
   end
