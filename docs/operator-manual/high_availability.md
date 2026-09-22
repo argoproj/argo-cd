@@ -486,6 +486,10 @@ For source-hydrated applications, a successful cache warm also triggers a normal
 allows `status.sync.revision` to advance when a new commit on the sync branch produces no manifest changes for that
 application. The reconciliation reuses the warmed cache and does not trigger another hydration.
 
+This means a single commit to a shared sync branch refreshes every application hydrating to that branch, not only the
+ones whose manifests changed. Each of these refreshes is inexpensive but the number of them scales with the size of
+the hydration group.
+
 #### Disabling Manifest Cache Warming in Webhooks
 
 In some cases, the manifest cache warming done by the webhook handler can hurt performance rather than help it:
