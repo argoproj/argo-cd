@@ -401,6 +401,11 @@ $header: 120px;
         color: $argo-color-gray-6;
         border-bottom: none;
 
+        // outranks the li:hover argo-ui puts on every row, so the keyboard highlight wins under a resting cursor
+        &.application-details-app-dropdown__item--active {
+            background-color: $argo-color-gray-2;
+        }
+
         .application-details-app-dropdown__resource-icon.icon {
             font-size: 14px;
             line-height: 14px;
@@ -410,4 +415,26 @@ $header: 120px;
             flex-shrink: 0;
         }
     }
+
+    // loading / error / empty rows are not options: argo-ui makes every li look and behave clickable
+    ul li.application-details-app-dropdown__status {
+        padding: 5px 10px 5px 32px;
+        font-size: 14px;
+        line-height: normal;
+        color: $argo-color-gray-5;
+        border-bottom: none;
+        cursor: default;
+
+        &:hover {
+            background-color: transparent;
+        }
+    }
+}
+
+// The breadcrumb anchor is a tab stop, but argo-ui resets the focus ring on every span
+// (argo-ui/src/styles/main.scss: `body { span { outline: none !important } }`), so restore one here.
+.application-details-app-dropdown__anchor:focus-visible {
+    outline: 2px solid $argo-color-teal-5 !important;
+    outline-offset: 2px;
+    border-radius: 3px;
 }
