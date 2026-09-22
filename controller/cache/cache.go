@@ -688,7 +688,7 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings, refreshRESTConf
 	log.Info("invalidating live state cache")
 	c.lock.Lock()
 	c.cacheSettings = cacheSettings
-	clusters := c.clusters
+	clusters := maps.Clone(c.clusters)
 	c.lock.Unlock()
 
 	for server, clust := range clusters {
