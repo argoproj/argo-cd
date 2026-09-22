@@ -1026,11 +1026,14 @@ func TestHandleEvent(t *testing.T) {
 					},
 				},
 			},
-			changedFile: "sync/path/other/app.yaml",
-			hasRefresh:  true,
-			hasHydrate:  false,
-			seedCache:   true,
-			updateCache: false,
+			// Sync-source refresh paths are the whole sync path (the annotation is ignored), so a
+			// file under sync/path would take the direct-refresh branch. Use a file outside that
+			// path and seed the sync-source cache so this hits refreshAfterCacheWarm.
+			changedFile:   "other-app/app.yaml",
+			hasRefresh:    true,
+			hasHydrate:    false,
+			seedSyncCache: true,
+			updateCache:   false,
 		},
 		{
 			name: "source hydrator dry source with annotation - refresh and hydrate",
