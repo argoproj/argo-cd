@@ -19,3 +19,11 @@ tests:
     status: Progressing
     message: "Waiting for Ancestor example-gateway to update BackendTLSPolicy status"
   inputPath: testdata/progressing_observed_generation.yaml
+- healthStatus:
+    status: Healthy
+    message: "BackendTLSPolicy is healthy"
+  inputPath: testdata/healthy_multi_controller.yaml
+- healthStatus:
+    status: Degraded
+    message: "Ancestor example-backend: BackendTLSPolicy has invalid wellKnownCACertificates value, must be 'System'"
+  inputPath: testdata/degraded_responsible_controller.yaml
