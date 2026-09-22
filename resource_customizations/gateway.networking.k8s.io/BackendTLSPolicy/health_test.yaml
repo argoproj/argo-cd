@@ -35,3 +35,7 @@ tests:
     status: Progressing
     message: "Waiting for BackendTLSPolicy status"
   inputPath: testdata/progressing_missing_conditions.yaml
+- healthStatus:
+    status: Degraded
+    message: "Ancestor missing-service: Service \"missing-service\" not found"
+  inputPath: testdata/degraded_same_controller_target_not_found.yaml
