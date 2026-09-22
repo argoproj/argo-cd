@@ -353,7 +353,7 @@ func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInf
 	if !gitGeneratorUsesURL(gen, info.Revision, info.RepoRegexp) {
 		return false
 	}
-	if !genRevisionHasChanged(gen, info.Revision, info.TouchedHead) {
+	if !webhook.RevisionHasChanged(gen.Revision, info.Revision, info.TouchedHead) {
 		return false
 	}
 	return true
@@ -378,15 +378,6 @@ func shouldRefreshOciGenerator(gen *v1alpha1.OciGenerator, info *ociGeneratorInf
 	}
 
 	return true
-}
-
-func genRevisionHasChanged(gen *v1alpha1.GitGenerator, revision string, touchedHead bool) bool {
-	targetRev := webhook.ParseRevision(gen.Revision)
-	if targetRev == "HEAD" || targetRev == "" { // revision is head
-		return touchedHead
-	}
-
-	return targetRev == revision || gen.Revision == revision
 }
 
 func gitGeneratorUsesURL(gen *v1alpha1.GitGenerator, webURL string, repoRegexp *regexp.Regexp) bool {

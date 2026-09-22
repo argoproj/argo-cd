@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/webhook"
 )
 
 type generatorMock struct {
@@ -390,11 +391,29 @@ func TestGenRevisionHasChanged(t *testing.T) {
 			revision:    "v3.14.1",
 			touchedHead: false,
 		}, want: true},
+		// A semver constraint is resolved by util/git when the generator runs, so a
+		// push of a matching tag must refresh it, exactly as it does for an
+		// Application with the same target revision.
+		{name: "foundSemverConstraint", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: ">=1.0.0"},
+			revision:    "v1.2.3",
+			touchedHead: false,
+		}, want: true},
+		{name: "foundSemverConstraintWildcard", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: "1.*"},
+			revision:    "1.1.0",
+			touchedHead: false,
+		}, want: true},
+		{name: "notFoundSemverConstraint", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: "1.*"},
+			revision:    "2.0.0",
+			touchedHead: false,
+		}, want: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equalf(t, tt.want, genRevisionHasChanged(tt.args.gen, tt.args.revision, tt.args.touchedHead), "genRevisionHasChanged(%v, %v, %v)", tt.args.gen, tt.args.revision, tt.args.touchedHead)
+			assert.Equalf(t, tt.want, webhook.RevisionHasChanged(tt.args.gen.Revision, tt.args.revision, tt.args.touchedHead), "RevisionHasChanged(%v, %v, %v)", tt.args.gen.Revision, tt.args.revision, tt.args.touchedHead)
 		})
 	}
 }
