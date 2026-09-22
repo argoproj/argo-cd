@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -3940,6 +3942,10 @@ func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
 
 // SetK8SConfigDefaults sets Kubernetes REST config default settings
 func SetK8SConfigDefaults(config *rest.Config) error {
+	return setK8SConfigDefaults(config, nil)
+}
+
+func setK8SConfigDefaults(config *rest.Config, rootCAs *x509.CertPool) error {
 	if config.QPS <= 0 {
 		config.QPS = K8sClientConfigQPS
 	}
@@ -3949,6 +3955,12 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	tlsConfig, err := rest.TLSConfigFor(config)
 	if err != nil {
 		return err
+	}
+	if rootCAs != nil {
+		if tlsConfig == nil {
+			tlsConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		}
+		tlsConfig.RootCAs = rootCAs
 	}
 
 	dial := (&net.Dialer{
@@ -4081,13 +4093,9 @@ func (c *Cluster) rawRestConfig() (*rest.Config, error) {
 			config.BearerTokenFile = ""
 		}
 	default:
-		// Fall back to the default cluster CA bundle only when the cluster does not define its own CA and verifies the
-		// server certificate. The bundles are never merged: a cluster that sets caData is fully isolated from the
-		// default bundle. An insecure cluster keeps skipping verification, since client-go rejects a CA combined with
-		// the insecure flag.
 		caData := c.Config.CAData
-		if len(caData) == 0 && !c.Config.Insecure {
-			caData = c.DefaultCABundle
+		if c.usesDefaultCABundle() {
+			caData = trustForDefaultCABundle(c.DefaultCABundle).caData
 		}
 		tlsClientConfig := rest.TLSClientConfig{
 			Insecure:   c.Config.Insecure,
@@ -4192,7 +4200,12 @@ func (c *Cluster) RESTConfig() (*rest.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
 	}
-	err = SetK8SConfigDefaults(config)
+	var rootCAs *x509.CertPool
+	if c.usesDefaultCABundle() {
+		rootCAs = trustForDefaultCABundle(c.DefaultCABundle).pool
+		config.CAData = nil
+	}
+	err = setK8SConfigDefaults(config, rootCAs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to apply K8s REST config defaults: %w", err)
 	}
