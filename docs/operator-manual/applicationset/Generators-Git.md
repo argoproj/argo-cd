@@ -488,6 +488,17 @@ spec:
 > [!NOTE]
 > The ApplicationSet controller webhook does not use the same [API server webhook](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
 
+> [!NOTE]
+> A push refreshes a Git generator only when the pushed ref matches the generator's `revision`:
+>
+> - `HEAD`, or an empty `revision`, matches a push to the repository's default branch.
+> - A branch or tag name matches a push to that ref, written either plainly (`dev`) or fully
+>   qualified (`refs/heads/dev`, `refs/tags/v1.0.0`).
+> - A semver constraint such as `1.*` or `>=1.0.0` matches a push of any tag that satisfies it.
+>
+> This is the same matching the [API server webhook](../webhook.md) applies to an Application's
+> `targetRevision`, including its handling of identically named branches and tags.
+
 ### 1. Create the webhook in the Git provider
 
 In your Git provider, navigate to the settings page where webhooks can be configured. The payload
