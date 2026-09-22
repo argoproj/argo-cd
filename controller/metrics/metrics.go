@@ -537,7 +537,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 			// the application that built the project's window state. It says
 			// nothing about this application, which may not match the window
 			// that failed.
-			log.Warnf("Sync windows of AppProject %s could not be evaluated, reporting the applications they match as blocked: %v", app.Spec.GetProject(), err)
+			log.Debugf("Sync windows of AppProject %s could not be evaluated, reporting the applications they match as blocked: %v", app.Spec.GetProject(), err)
 		}
 		addGauge(descAppSyncWindow, boolFloat64(allowActive), "allow")
 		addGauge(descAppSyncWindow, boolFloat64(denyActive), "deny")
