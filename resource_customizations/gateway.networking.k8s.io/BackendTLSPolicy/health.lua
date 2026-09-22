@@ -35,14 +35,24 @@ function isTargetNotFound(ancestor)
   return accepted.status ~= "True" and accepted.reason == "TargetNotFound"
 end
 
--- anyAncestorAccepted reports whether any ancestor entry reports Accepted: True,
--- i.e. some controller in the cluster actually accepted and owns the target of
--- this BackendTLSPolicy.
-function anyAncestorAccepted(ancestors)
+-- anotherControllerAccepted reports whether some ancestor written by a
+-- controller OTHER than controllerName reports Accepted: True.
+--
+-- The skip decision for a TargetNotFound rejection is made per controllerName,
+-- not globally: status.ancestors is keyed by (AncestorRef, ControllerName), so
+-- a TargetNotFound entry is only "another implementation's noise" when a
+-- DIFFERENT controller accepted the target. If the SAME controller that
+-- emitted the TargetNotFound rejection also reported Accepted: True under its
+-- own controllerName, the rejection is a genuine per-controller failure and
+-- must degrade the resource; a global "someone accepted" check would wrongly
+-- report Healthy in that case.
+function anotherControllerAccepted(ancestors, controllerName)
   for _, ancestor in ipairs(ancestors) do
-    local accepted = getCondition(ancestor.conditions, "Accepted")
-    if accepted ~= nil and accepted.status == "True" then
-      return true
+    if ancestor.controllerName ~= controllerName then
+      local accepted = getCondition(ancestor.conditions, "Accepted")
+      if accepted ~= nil and accepted.status == "True" then
+        return true
+      end
     end
   end
   return false
@@ -98,20 +108,20 @@ if obj.status ~= nil and obj.status.ancestors ~= nil then
     end
   end
 
-  -- Second pass: handle the ambiguous TargetNotFound rejections. If some
-  -- controller already accepted the target, these belong to other conformant
-  -- implementations that were never going to manage this target, so they are
-  -- skipped and must not affect the reported health. If no controller accepted
-  -- the target, the policy genuinely points at a resource that does not exist,
-  -- so the rejection is a real failure and must degrade the resource.
-  if not anyAncestorAccepted(obj.status.ancestors) then
-    for _, ancestor in ipairs(obj.status.ancestors) do
-      if isTargetNotFound(ancestor) then
-        local accepted = getCondition(ancestor.conditions, "Accepted")
-        hs.status = "Degraded"
-        hs.message = "Ancestor " .. (ancestor.ancestorRef.name or "") .. ": " .. accepted.message
-        return hs
-      end
+  -- Second pass: handle the ambiguous TargetNotFound rejections per controller.
+  -- Each rejection is skipped only when a DIFFERENT controller accepted the
+  -- target, meaning the rejection belongs to another conformant implementation
+  -- that was never going to manage this target. If no other controller
+  -- accepted it, the rejection is a real failure and must degrade the resource:
+  -- either the policy genuinely points at a resource that does not exist, or
+  -- the same controller both accepted and rejected, which is a genuine
+  -- per-controller failure rather than another implementation's noise.
+  for _, ancestor in ipairs(obj.status.ancestors) do
+    if isTargetNotFound(ancestor) and not anotherControllerAccepted(obj.status.ancestors, ancestor.controllerName) then
+      local accepted = getCondition(ancestor.conditions, "Accepted")
+      hs.status = "Degraded"
+      hs.message = "Ancestor " .. (ancestor.ancestorRef.name or "") .. ": " .. accepted.message
+      return hs
     end
   end
 end
