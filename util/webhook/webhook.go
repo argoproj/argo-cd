@@ -524,6 +524,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		// iterate over apps and check if any files specified in their sources have changed
 		for _, app := range filteredApps {
 			logCtx := log.WithFields(applog.GetAppLogFields(&app))
+			refreshAfterCacheWarm := false
 			// get all sources, including sync source and dry source if source hydrator is configured
 			sources := app.Spec.GetSources()
 			if app.Spec.SourceHydrator != nil {
@@ -551,6 +552,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 							logCtx.Infof("webhook trigger refresh app to hydrate")
 						}
 						enqueueRefresh(&app, hydrateType)
+						refreshAfterCacheWarm = false
 						break // we don't need to check other sources
 					} else if change.shaBefore != "" && change.shaAfter != "" && !cacheWarmDisabled {
 						// update the cached manifests with the new revision cache key
@@ -562,15 +564,19 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 						} else if cacheWarmed && app.Spec.SourceHydrator != nil {
 							syncSource := app.Spec.GetSource()
 							if (&source).Equals(&syncSource) {
-								// The no-op sync-source commit now has a warm manifest cache entry. Reconcile the app so
-								// its sync revision can advance without regenerating manifests or triggering hydration.
-								logCtx.Info("refreshing source-hydrated app after warming manifest cache")
-								enqueueRefresh(&app, nil)
-								break
+								// Defer the normal refresh until all sources have been checked. If the same push also
+								// changes the dry source, its hydration request must take precedence.
+								refreshAfterCacheWarm = true
 							}
 						}
 					}
 				}
+			}
+			if refreshAfterCacheWarm {
+				// The no-op sync-source commit now has a warm manifest cache entry. Reconcile the app so its sync
+				// revision can advance without regenerating manifests or triggering hydration.
+				logCtx.Info("refreshing source-hydrated app after warming manifest cache")
+				enqueueRefresh(&app, nil)
 			}
 		}
 	}

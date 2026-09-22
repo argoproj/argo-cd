@@ -778,13 +778,14 @@ func TestHandleEvent(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name        string
-		app         *v1alpha1.Application
-		changedFile string // file that was changed in the webhook payload
-		hasRefresh  bool   // application has refresh annotation applied
-		hasHydrate  bool   // application has hydrate annotation applied
-		seedCache   bool   // cache should contain manifests for the old revision
-		updateCache bool   // cache should be updated with the new revision
+		name          string
+		app           *v1alpha1.Application
+		changedFile   string // file that was changed in the webhook payload
+		hasRefresh    bool   // application has refresh annotation applied
+		hasHydrate    bool   // application has hydrate annotation applied
+		seedCache     bool   // cache should contain manifests for the old revision
+		seedSyncCache bool   // sync source cache should contain manifests for the old revision
+		updateCache   bool   // cache should be updated with the new revision
 	}{
 		{
 			name: "single source without annotation - always refreshes",
@@ -1059,6 +1060,34 @@ func TestHandleEvent(t *testing.T) {
 			updateCache: false,
 		},
 		{
+			name: "source hydrator shared branch dry change hydrates after sync cache warm",
+			app: &v1alpha1.Application{
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							TargetRevision: "master",
+							Path:           "dry/path",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "master",
+							Path:         "sync/path",
+						},
+					},
+				},
+			},
+			changedFile:   "dry/path/deploy/app.yaml",
+			hasRefresh:    true,
+			hasHydrate:    true,
+			seedSyncCache: true,
+			updateCache:   false,
+		},
+		{
 			name: "source hydrator dry source with annotation - non-matching file updates cache",
 			app: &v1alpha1.Application{
 				Name:      "test-app",
@@ -1133,6 +1162,10 @@ func TestHandleEvent(t *testing.T) {
 				if source != nil {
 					setupTestCache(t, repoCache, ttc.app.Name, source, nil, []string{"test-manifest"})
 				}
+			}
+			if ttc.seedSyncCache {
+				syncSource := ttc.app.Spec.GetSource()
+				setupTestCache(t, repoCache, ttc.app.Name, &syncSource, nil, []string{"test-manifest"})
 			}
 
 			// Setup server cache with cluster info
