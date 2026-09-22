@@ -150,25 +150,6 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                 .split(',')
                                 .filter(item => !!item);
                         }
-                        if (params.get('health') != null) {
-                            viewPref.healthFilter = params
-                                .get('health')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('namespace') != null) {
-                            viewPref.namespacesFilter = params
-                                .get('namespace')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('targetRevision') != null) {
-                            viewPref.targetRevisionFilter = params
-                                .get('targetRevision')
-                                .split(',')
-                                .map(decodeURIComponent)
-                                .filter(item => !!item);
-                        }
                         if (params.get('cluster') != null) {
                             viewPref.clustersFilter = params
                                 .get('cluster')
@@ -184,6 +165,31 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                         if (params.get('labels') != null) {
                             viewPref.labelsFilter = params
                                 .get('labels')
+                                .split(',')
+                                .map(decodeURIComponent)
+                                .filter(item => !!item);
+                        }
+                        if (params.get('health') != null) {
+                            viewPref.healthFilter = params
+                                .get('health')
+                                .split(',')
+                                .filter(item => !!item);
+                        }
+                        if (params.get('hydration') != null) {
+                            viewPref.hydrationFilter = params
+                                .get('hydration')
+                                .split(',')
+                                .filter(item => !!item);
+                        }
+                        if (params.get('namespace') != null) {
+                            viewPref.namespacesFilter = params
+                                .get('namespace')
+                                .split(',')
+                                .filter(item => !!item);
+                        }
+                        if (params.get('targetRevision') != null) {
+                            viewPref.targetRevisionFilter = params
+                                .get('targetRevision')
                                 .split(',')
                                 .map(decodeURIComponent)
                                 .filter(item => !!item);
@@ -219,7 +225,8 @@ function filterApplications(
     applications: models.Application[],
     pref: AppsListPreferences,
     search: string,
-    searchRegex: boolean
+    searchRegex: boolean,
+    hydratorEnabled: boolean
 ): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
     const processedApps = applications.map(app => {
         let isAppOfAppsPattern = false;
@@ -228,7 +235,7 @@ function filterApplications(
         }
         return {...app, isAppOfAppsPattern};
     });
-    const filterResults = getAppFilterResults(processedApps, pref);
+    const filterResults = getAppFilterResults(processedApps, pref, hydratorEnabled);
     const matchesSearch = createMatcher(search, searchRegex);
 
     return {
@@ -349,6 +356,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
     const loaderRef = React.useRef<DataLoader | null>(null);
     const {List, Summary, Tiles} = AppsListViewKey;
+    const authSettings = React.useContext(AuthSettingsCtx);
 
     function refreshApp(appName: string, appNamespace: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
@@ -371,6 +379,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
             sync: newPref.syncFilter.join(','),
             autoSync: newPref.autoSyncFilter.join(','),
             health: newPref.healthFilter.join(','),
+            hydration: newPref.hydrationFilter.join(','),
             namespace: newPref.namespacesFilter.join(','),
             targetRevision: newPref.targetRevisionFilter.map(encodeURIComponent).join(','),
             repo: newPref.reposFilter.map(encodeURIComponent).join(','),
@@ -459,7 +468,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                             };
 
                                             const apps = applications as models.Application[];
-                                            const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search, pref.searchRegex);
+                                            const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search, pref.searchRegex, authSettings?.hydratorEnabled);
 
                                             return (
                                                 <React.Fragment>
@@ -512,6 +521,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                 onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs)}
                                                                                 pref={pref}
                                                                                 collapsed={allpref.hideSidebar}
+                                                                                hydratorEnabled={authSettings?.hydratorEnabled}
                                                                             />
                                                                         )}
                                                                     </DataLoader>,
