@@ -21,6 +21,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -843,10 +844,18 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			if err != nil {
 				return err
 			}
-			return updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
+			err = updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
 			})
+			if err != nil {
+				return err
+			}
+			err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Delete(t.Context(), common.ArgoCDClusterCAConfigMapName, metav1.DeleteOptions{})
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+			return err
 		},
 		func() error {
 			// We can switch user and as result in previous state we will have non-admin user, this case should be reset
