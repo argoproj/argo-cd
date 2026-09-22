@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"slices"
 	"testing"
 	"time"
 
@@ -6633,6 +6634,8 @@ func generateSelfSignedCertPEM(t *testing.T, cn string) []byte {
 }
 
 func TestCluster_RESTConfig_DefaultCABundle(t *testing.T) {
+	systemRootCA := generateSelfSignedCertPEM(t, "system-root-ca")
+	withSystemRootCAs(t, systemRootCA)
 	clusterCA := generateSelfSignedCertPEM(t, "cluster-ca")
 	defaultCA := generateSelfSignedCertPEM(t, "default-ca")
 
@@ -6650,9 +6653,9 @@ func TestCluster_RESTConfig_DefaultCABundle(t *testing.T) {
 			expectedCAData:  clusterCA,
 		},
 		{
-			name:            "default bundle is used when cluster caData is empty",
+			name:            "default bundle is added to the system roots when cluster caData is empty",
 			defaultCABundle: defaultCA,
-			expectedCAData:  defaultCA,
+			expectedCAData:  slices.Concat(systemRootCA, []byte("\n"), defaultCA),
 		},
 		{
 			name: "no CA is set when neither is configured",
