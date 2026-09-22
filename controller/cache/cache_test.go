@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"net"
 	"net/url"
@@ -1183,7 +1184,7 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		db.AssertNotCalled(t, "GetCluster", mock.Anything, mock.Anything)
 	})
 
-	t.Run("the rebuilt REST config trusts exactly the current bundle", func(t *testing.T) {
+	t.Run("the rebuilt REST config trusts the current bundle", func(t *testing.T) {
 		t.Parallel()
 		_, _, clustersCache := newFixture(caBundle)
 
@@ -1192,9 +1193,12 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		tlsConfig, err := utilnet.TLSClientConfig(restConfig.Transport)
 		require.NoError(t, err)
 		require.NotNil(t, tlsConfig)
-		expectedPool := x509.NewCertPool()
-		require.True(t, expectedPool.AppendCertsFromPEM(caBundle))
-		assert.True(t, tlsConfig.RootCAs.Equal(expectedPool), "the rebuilt REST config must trust exactly the default bundle")
+		block, _ := pem.Decode(caBundle)
+		require.NotNil(t, block)
+		bundleCA, err := x509.ParseCertificate(block.Bytes)
+		require.NoError(t, err)
+		_, err = bundleCA.Verify(x509.VerifyOptions{Roots: tlsConfig.RootCAs})
+		require.NoError(t, err, "the rebuilt REST config must trust the default bundle")
 		assert.Equal(t, rest.NoWarnings{}, restConfig.WarningHandler, "the rebuilt REST config must keep suppressing API warnings")
 	})
 

@@ -673,17 +673,25 @@ data:
     -----END CERTIFICATE-----
 ```
 
-The bundle is a fallback, not a merge:
+The bundle is added to the system trust store, and it never applies to a cluster that defines its own CA:
 
-- A cluster secret that defines its own `tlsClientConfig.caData` uses only that CA. The default bundle is ignored for
-  that cluster, so clusters that manage their own trust chain are fully isolated from the default bundle.
-- A cluster secret whose `tlsClientConfig.caData` is empty or absent uses the default bundle. Note that
-  `argocd cluster add` copies the CA of the kubeconfig context into `caData`, so clusters registered that way keep
-  using their own CA. To rely on the default bundle instead, omit `caData` when creating the cluster secret
-  declaratively, or remove it from an existing secret.
+- A cluster secret that defines its own `tlsClientConfig.caData` uses only that CA. The default bundle and the system
+  trust store are ignored for that cluster, so clusters that manage their own trust chain are fully isolated from the
+  default bundle.
+- A cluster secret whose `tlsClientConfig.caData` is empty or absent trusts both the system trust store and the default
+  bundle. Clusters whose API server certificate is issued by a public CA therefore keep working after the bundle is
+  configured, without adding public CAs to it. Note that `argocd cluster add` copies the CA of the kubeconfig context
+  into `caData`, so clusters registered that way keep using their own CA. To rely on the default bundle instead, omit
+  `caData` when creating the cluster secret declaratively, or remove it from an existing secret.
 - A cluster secret with `tlsClientConfig.insecure: true` keeps skipping TLS verification and never uses the default
   bundle, even when it has no `caData`.
 - If neither is configured, the system's default trust store is used, which is the behavior of previous versions.
+
+The system trust store the bundle is added to is read once at startup, from the file named by the `SSL_CERT_FILE`
+environment variable or, if it is not set, from the CA bundle of the operating system of the Argo CD image
+(`/etc/ssl/certs/ca-certificates.crt` in the official image). Certificates that are only present in the directories
+named by `SSL_CERT_DIR` are not included. The kubeconfig that `argocd admin cluster kubeconfig` writes for a cluster
+relying on the bundle contains both the system trust store and the bundle.
 
 The bundle only applies to connections to the Kubernetes API server of managed clusters. It does not affect
 repository connections (Git, Helm, OCI), which are configured through
