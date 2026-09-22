@@ -283,7 +283,7 @@ func loginAs(username, password string) error {
 func tryLoginAs(username, password string) error {
 	closer, client, err := ArgoCDClientset.NewSessionClient()
 	if err != nil {
-		return err
+		return status.Errorf(codes.Unavailable, "connecting to API server: %v", err)
 	}
 	defer utilio.Close(closer)
 
