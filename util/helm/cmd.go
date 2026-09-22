@@ -307,19 +307,18 @@ func writeToTmp(data []byte) (string, utilio.Closer, error) {
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create temporary file: %w", err)
 	}
-	err = os.WriteFile(file.Name(), data, 0o644)
-	if err != nil {
-		_ = os.RemoveAll(file.Name())
-		return "", nil, fmt.Errorf("failed to write data to temporary file: %w", err)
-	}
 	defer func() {
-		if err = file.Close(); err != nil {
+		if closeErr := file.Close(); closeErr != nil {
 			log.WithFields(log.Fields{
 				common.SecurityField:    common.SecurityMedium,
 				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
-			}).Errorf("error closing file %q: %v", file.Name(), err)
+			}).Errorf("error closing file %q: %v", file.Name(), closeErr)
 		}
 	}()
+	if err = os.WriteFile(file.Name(), data, 0o644); err != nil {
+		_ = os.RemoveAll(file.Name())
+		return "", nil, fmt.Errorf("failed to write data to temporary file: %w", err)
+	}
 	return file.Name(), utilio.NewCloser(func() error {
 		return os.RemoveAll(file.Name())
 	}), nil
