@@ -306,7 +306,9 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                 appNamespace={application.metadata.namespace}
                                 type={revisionType}
                                 revision={revision}
-                                versionId={utils.getAppCurrentVersion(application)}
+                                // Sync Status uses the current revision and current application source.
+                                // The historical version ID belongs to the last sync and must not be used here.
+                                versionId={null}
                             />
                         </div>
                     )}

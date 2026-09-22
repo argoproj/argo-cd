@@ -60,4 +60,16 @@ describe('RevisionMetadataPanel', () => {
         render(<RevisionMetadataPanel {...defaultProps} type='git' />);
         expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'default', 'abc123', 0, 1);
     });
+
+    it('passes null versionId to revisionMetadata', () => {
+        const {services} = require('../../../shared/services');
+        render(
+            <RevisionMetadataPanel
+                {...defaultProps}
+                type='git'
+                versionId={null}
+            />
+        );
+        expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'default', 'abc123', 0, null);
+    });
 });
