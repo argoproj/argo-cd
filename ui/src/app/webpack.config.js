@@ -172,6 +172,16 @@ const config = {
         new webpack.IgnorePlugin({resourceRegExp: /^\.\/locale$/, contextRegExp: /moment$/}),
         new CopyWebpackPlugin({
             patterns: [{
+                    from: 'src/gitkeep',
+                    to: 'gitkeep',
+                    toType: 'file'
+                },
+                {
+                    from: 'src/assets/images/resources/gitkeep',
+                    to: 'assets/images/resources/gitkeep',
+                    toType: 'file'
+                },
+                {
                     from: 'src/assets',
                     to: 'assets'
                 },

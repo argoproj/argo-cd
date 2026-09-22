@@ -207,3 +207,21 @@ metadata:
 data:
   ignore.normalizer.jq.timeout: '5s'
 ```
+
+## Consolidated Global Diff View
+
+For fleet-wide auditing and verifying config drifts across multiple applications, Argo CD provides a **Global Diff View**.
+
+This feature allows you to compare target vs. live state manifests across multiple applications from the main applications dashboard without opening each application individually.
+
+To access the Global Diff View:
+1. Apply any desired filters (e.g. Label Selector, Projects, Namespace) on the main Applications page.
+2. Select **View Diffs** from the actions menu on the top-right toolbar.
+3. You will be redirected to the Global Diffs page:
+   - **Interactive Selection:** Use the checklist in the left-hand panel to select or deselect specific applications to include in the diff output.
+   - **Kind Filters:** Use the dynamically compiled resource kind buttons (e.g., `Deployment`, `ConfigMap`) to filter the diffs to specific resource types.
+   - **Diff Layout Toggles:** Toggle between Inline (unified) and Split (side-by-side) views, and enable/disable compact diff blocks.
+
+> [!NOTE]
+> To ensure optimal browser rendering performance, the interface checks a maximum of 10 applications by default on initial load. You can manually check additional applications in the list.
+
