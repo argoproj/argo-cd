@@ -105,17 +105,14 @@ export const Filter = (props: FilterProps) => {
 
     const labels = props.labels || options.map(o => o.label);
 
-    const {cleanedValues, selectedKeys} = Object.entries(values).reduce(
+    const cleanedValues = Object.entries(values).reduce(
         (acc, [key, value]) => {
             if (value !== undefined) {
-                acc.cleanedValues[key] = value;
-                if (value) {
-                    acc.selectedKeys.push(key);
-                }
+                acc[key] = value;
             }
             return acc;
         },
-        {cleanedValues: {} as {[label: string]: boolean}, selectedKeys: [] as string[]}
+        {} as {[label: string]: boolean}
     );
 
     const valuesNeedCleaning = Object.keys(cleanedValues).length !== Object.keys(values).length;
@@ -132,13 +129,20 @@ export const Filter = (props: FilterProps) => {
           })
         : [];
 
-    React.useEffect(() => {
-        // Sync the selected keys up to the parent. Skip while values still
-        // contain undefined entries (a setValues is already queued this render).
-        if (!valuesNeedCleaning) {
-            props.setSelected(selectedKeys);
+    const setSelected = props.setSelected;
+    const syncSelected = React.useEffectEvent((nextValues: {[label: string]: boolean}, cleaning: boolean) => {
+        // Skip while values still contain undefined entries (a setValues is already queued).
+        if (!cleaning) {
+            const keys = Object.entries(nextValues)
+                .filter(([, value]) => value)
+                .map(([key]) => key);
+            setSelected(keys);
         }
-    }, [values]);
+    });
+
+    React.useEffect(() => {
+        syncSelected(values, valuesNeedCleaning);
+    }, [values, valuesNeedCleaning]);
 
     const [prevSelectedLength, setPrevSelectedLength] = React.useState(props.selected.length);
     if (prevSelectedLength !== props.selected.length) {
