@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -247,16 +248,58 @@ var systemCertBundlePaths = []string{
 	"/etc/ssl/ca-bundle.pem",
 }
 
-func resolveSystemCertBundlePath() string {
+func readSystemTrustPEM() ([]byte, error) {
 	if p := os.Getenv("SSL_CERT_FILE"); p != "" {
-		return p
+		data, err := os.ReadFile(p)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read SSL_CERT_FILE %q: %w", p, err)
+		}
+		return data, nil
+	}
+	if dir := os.Getenv("SSL_CERT_DIR"); dir != "" {
+		return readPEMFilesFromDir(dir)
 	}
 	for _, p := range systemCertBundlePaths {
 		if _, err := os.Stat(p); err == nil {
-			return p
+			data, err := os.ReadFile(p)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read system CA bundle %q: %w", p, err)
+			}
+			return data, nil
 		}
 	}
-	return ""
+	return nil, nil
+}
+
+func readPEMFilesFromDir(dir string) ([]byte, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read SSL_CERT_DIR %q: %w", dir, err)
+	}
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		names = append(names, e.Name())
+	}
+	slices.Sort(names)
+	var merged []byte
+	for _, name := range names {
+		path := filepath.Join(dir, name)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read certificate %q: %w", path, err)
+		}
+		if len(data) == 0 {
+			continue
+		}
+		merged = append(merged, data...)
+		if data[len(data)-1] != '\n' {
+			merged = append(merged, '\n')
+		}
+	}
+	return merged, nil
 }
 
 // helmCAFilePathWithSystemTrust returns a path suitable for helm's --ca-file flag.
@@ -270,13 +313,12 @@ func helmCAFilePathWithSystemTrust(customCAPath string) (string, utilio.Closer, 
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to read CA file %q: %w", customCAPath, err)
 	}
-	systemBundlePath := resolveSystemCertBundlePath()
-	if systemBundlePath == "" {
+	systemPEM, err := readSystemTrustPEM()
+	if err != nil {
+		log.Warnf("Could not read system trust store: %v", err)
 		return customCAPath, utilio.NopCloser, nil
 	}
-	systemPEM, err := os.ReadFile(systemBundlePath)
-	if err != nil {
-		log.Warnf("Could not read system CA bundle from %q: %v", systemBundlePath, err)
+	if len(systemPEM) == 0 {
 		return customCAPath, utilio.NopCloser, nil
 	}
 	var merged []byte

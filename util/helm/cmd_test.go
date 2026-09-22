@@ -39,6 +39,59 @@ func Test_helmCAFilePathWithSystemTrust_mergesSystemAndCustom(t *testing.T) {
 	assert.Contains(t, string(merged), "custom-repository-ca")
 }
 
+func Test_helmCAFilePathWithSystemTrust_mergesSSLCertDir(t *testing.T) {
+	certDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(certDir, "b.pem"), []byte("dir-root-b\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(certDir, "a.pem"), []byte("dir-root-a\n"), 0o644))
+	customCA := writeTestCAFile(t, "custom.pem", "custom-repository-ca\n")
+	t.Setenv("SSL_CERT_FILE", "")
+	t.Setenv("SSL_CERT_DIR", certDir)
+
+	caFile, closer, err := helmCAFilePathWithSystemTrust(customCA)
+	require.NoError(t, err)
+	defer utilio.Close(closer)
+
+	merged, err := os.ReadFile(caFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(merged), "dir-root-a")
+	assert.Contains(t, string(merged), "dir-root-b")
+	assert.Contains(t, string(merged), "custom-repository-ca")
+}
+
+func TestFetch_withCAFile_mergesSystemTrust(t *testing.T) {
+	systemBundle := writeTestCAFile(t, "system.pem", "system-root-ca-bundle\n")
+	repoCA := writeTestCAFile(t, "repo.pem", "repo-ca\n")
+	t.Setenv("SSL_CERT_FILE", systemBundle)
+
+	c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+		joined := strings.Join(cmd.Args, " ")
+		assert.Contains(t, joined, "--ca-file")
+		return joined, nil
+	})
+	require.NoError(t, err)
+	creds := &HelmCreds{CAPath: repoCA}
+	out, err := c.Fetch("https://charts.example.com", "mychart", "1.0.0", "/tmp/dest", creds, false)
+	require.NoError(t, err)
+	assert.Contains(t, out, "--ca-file")
+}
+
+func TestPullOCI_withCAFile_mergesSystemTrust(t *testing.T) {
+	systemBundle := writeTestCAFile(t, "system.pem", "system-root-ca-bundle\n")
+	repoCA := writeTestCAFile(t, "repo.pem", "repo-ca\n")
+	t.Setenv("SSL_CERT_FILE", systemBundle)
+
+	c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+		joined := strings.Join(cmd.Args, " ")
+		assert.Contains(t, joined, "--ca-file")
+		return joined, nil
+	})
+	require.NoError(t, err)
+	creds := &HelmCreds{CAPath: repoCA}
+	out, err := c.PullOCI("my.registry.com/myrepo", "mychart", "1.0.0", "/tmp/dest", creds, false)
+	require.NoError(t, err)
+	assert.Contains(t, out, "--ca-file")
+}
+
 func Test_cmd_redactor(t *testing.T) {
 	assert.Equal(t, "--foo bar", redactor("--foo bar"))
 	assert.Equal(t, "--username ******", redactor("--username bar"))
