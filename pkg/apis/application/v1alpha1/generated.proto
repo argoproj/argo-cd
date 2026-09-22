@@ -2575,7 +2575,7 @@ message SCMProviderGeneratorBitbucket {
   // Bitbucket user to use when authenticating with app password auth. Required when using appPasswordRef.
   optional string user = 2;
 
-  // The app password to use for the user. Required when using app password auth. See: https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/
+  // The app password to use for the user. Required when using app password auth. See: https://support.atlassian.com/bitbucket-cloud/docs/api-tokens/
   optional SecretRef appPasswordRef = 3;
 
   // Scan all branches instead of just the main branch.
