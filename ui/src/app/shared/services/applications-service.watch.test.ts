@@ -5,7 +5,7 @@ jest.mock('./requests', () => ({
     default: {loadEventSource: jest.fn()}
 }));
 
-jest.mock('../../applications/components/utils', () => ({
+jest.mock('../components/app-utils', () => ({
     getRootPathByApp: jest.fn(),
     isApp: jest.fn()
 }));

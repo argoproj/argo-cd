@@ -575,8 +575,13 @@ func SetResourceFilter(filters settings.ResourcesFilter) error {
 		if err != nil {
 			return err
 		}
+		selectors, err := yaml.Marshal(filters.ResourceSelectors)
+		if err != nil {
+			return err
+		}
 		cm.Data["resource.exclusions"] = string(exclusions)
 		cm.Data["resource.inclusions"] = string(inclusions)
+		cm.Data["resource.selectors"] = string(selectors)
 		return nil
 	})
 }
@@ -635,6 +640,10 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 	// Register this test after it has been run & was successful
 	t.Cleanup(func() {
 		RecordTestRun(t)
+	})
+
+	t.Cleanup(func() {
+		require.NoError(t, LoginAs(adminUsername), "could not restore the %s session after %s", adminUsername, t.Name())
 	})
 
 	// Create TestState to hold test-specific variables

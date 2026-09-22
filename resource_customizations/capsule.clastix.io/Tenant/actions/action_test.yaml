@@ -1,0 +1,28 @@
+discoveryTests:
+- inputPath: testdata/normal.yaml
+  result:
+    - name: cordon
+      disabled: false
+      iconClass: "fa fa-fw fa-pause"
+      displayName: ""
+    - name: uncordon
+      disabled: true
+      iconClass: "fa fa-fw fa-play"
+      displayName: ""
+- inputPath: testdata/cordoned.yaml
+  result:
+    - name: cordon
+      disabled: true
+      iconClass: "fa fa-fw fa-pause"
+      displayName: ""
+    - name: uncordon
+      disabled: false
+      iconClass: "fa fa-fw fa-play"
+      displayName: ""
+actionTests:
+- action: cordon
+  inputPath: testdata/normal.yaml
+  expectedOutputPath: testdata/after_cordon.yaml
+- action: uncordon
+  inputPath: testdata/cordoned.yaml
+  expectedOutputPath: testdata/after_uncordon.yaml

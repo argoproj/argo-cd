@@ -1,7 +1,6 @@
 package progressivesync
 
 import (
-	"context"
 	"testing"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
@@ -77,17 +76,7 @@ func regressionApp(rev string, automatedEnabled *bool) argov1alpha1.Application 
 	return app
 }
 
-// regressionDeps is a no-op Dependencies: these tests assert on the statuses returned by
-// UpdateApplicationSetApplicationStatus, not on their persistence.
-type regressionDeps struct{}
-
-func (regressionDeps) SetAppSetApplicationStatus(_ context.Context, _ *log.Entry, _ *argov1alpha1.ApplicationSet, _ []argov1alpha1.ApplicationSetApplicationStatus) error {
-	return nil
-}
-
-func (regressionDeps) SetApplicationSetStatusCondition(_ context.Context, _ *argov1alpha1.ApplicationSet, _ []argov1alpha1.ApplicationSetCondition, _ bool) error {
-	return nil
-}
+// these tests assert on the statuses returned by UpdateApplicationSetApplicationStatus, not on their persistence.
 
 func regressionManager(t *testing.T, appSet *argov1alpha1.ApplicationSet) *Manager {
 	t.Helper()
@@ -95,7 +84,7 @@ func regressionManager(t *testing.T, appSet *argov1alpha1.ApplicationSet) *Manag
 	require.NoError(t, argov1alpha1.AddToScheme(scheme))
 
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(appSet).WithStatusSubresource(appSet).Build()
-	return NewManager(c, c, nil, regressionDeps{})
+	return NewManager(c, c, nil, testDeps{})
 }
 
 // Defect 1: the status path must honour ignoreApplicationDifferences, exactly as

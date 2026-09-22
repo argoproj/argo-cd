@@ -1,7 +1,7 @@
 import {SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {combineLatest, from, merge} from 'rxjs';
-import {delay, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
+import {map, mergeMap} from 'rxjs/operators';
 import {DataLoader} from '../../../shared/components';
 import {AppContext, Context} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
@@ -69,12 +69,7 @@ export const ResourcesDetailsPanel = (props: {node: string | null; detailsApp: s
                     merge(
                         from([fallbackTree]),
                         from(services.applications.resourceTree(appName, appNamespace, 'application')).pipe(map(tree => tree || emptyTree)),
-                        AppUtils.handlePageVisibility(() =>
-                            services.applications
-                                .watchResourceTree(appName, appNamespace, 'application')
-                                .pipe(repeat())
-                                .pipe(retryWhen(errors => errors.pipe(delay(500))))
-                        )
+                        AppUtils.handlePageVisibility(() => services.applications.watchResourceTree(appName, appNamespace, 'application'))
                     )
                 ]).pipe(map(([app, tree]) => ({application: app, tree: tree || fallbackTree})));
             })

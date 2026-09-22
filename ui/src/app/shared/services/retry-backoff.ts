@@ -1,5 +1,5 @@
 import {defer, MonoTypeOperatorFunction, timer} from 'rxjs';
-import {mergeMap, retryWhen, scan} from 'rxjs/operators';
+import {retry} from 'rxjs/operators';
 
 export interface RetryBackoffOptions {
     initialDelayMs?: number;
@@ -18,17 +18,18 @@ export function retryWithBackoff<T>(options: RetryBackoffOptions = {}): MonoType
     const delayFor = (attempt: number) => Math.min(initialDelayMs * 2 ** (attempt - 1), maxDelayMs);
     return source =>
         defer(() => {
+            let attempt = 0;
             let subscribedAt = 0;
             return defer(() => {
                 subscribedAt = Date.now();
                 return source;
             }).pipe(
-                retryWhen(errors =>
-                    errors.pipe(
-                        scan((attempt: number) => (attempt > 0 && Date.now() - subscribedAt >= resetAfterMs ? 1 : attempt + 1), 0),
-                        mergeMap(attempt => timer(delayFor(attempt)))
-                    )
-                )
+                retry({
+                    delay: () => {
+                        attempt = attempt > 0 && Date.now() - subscribedAt >= resetAfterMs ? 1 : attempt + 1;
+                        return timer(delayFor(attempt));
+                    }
+                })
             );
         });
 }
