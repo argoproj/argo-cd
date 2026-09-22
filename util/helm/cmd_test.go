@@ -4,13 +4,40 @@ import (
 	"errors"
 	"io"
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
+
+func writeTestCAFile(t *testing.T, name, content string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), name)
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
+	return path
+}
+
+func Test_helmCAFilePathWithSystemTrust_mergesSystemAndCustom(t *testing.T) {
+	systemBundle := writeTestCAFile(t, "system.pem", "system-root-ca-bundle\n")
+	customCA := writeTestCAFile(t, "custom.pem", "custom-repository-ca\n")
+	t.Setenv("SSL_CERT_FILE", systemBundle)
+
+	caFile, closer, err := helmCAFilePathWithSystemTrust(customCA)
+	require.NoError(t, err)
+	defer utilio.Close(closer)
+	require.NotEqual(t, customCA, caFile)
+
+	merged, err := os.ReadFile(caFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(merged), "system-root-ca-bundle")
+	assert.Contains(t, string(merged), "custom-repository-ca")
+}
 
 func Test_cmd_redactor(t *testing.T) {
 	assert.Equal(t, "--foo bar", redactor("--foo bar"))
@@ -86,8 +113,8 @@ func TestRegistryLogin(t *testing.T) {
 		{
 			name:        "ca file path",
 			repo:        "my.registry.com/repo",
-			creds:       &HelmCreds{CAPath: "/path/to/ca"},
-			expectedOut: "helm registry login my.registry.com --ca-file /path/to/ca",
+			creds:       func() *HelmCreds { return &HelmCreds{CAPath: writeTestCAFile(t, "ca.pem", "repo-ca\n")} }(),
+			expectedOut: "helm registry login my.registry.com --ca-file",
 		},
 		{
 			name:        "insecure skip verify",
@@ -120,10 +147,10 @@ func TestRegistryLogin(t *testing.T) {
 			creds: &HelmCreds{
 				Username:           "u",
 				Password:           "p",
-				CAPath:             "/ca",
+				CAPath:             writeTestCAFile(t, "ca.pem", "repo-ca\n"),
 				InsecureSkipVerify: true,
 			},
-			expectedOut:   "helm registry login my.registry.com:5000 --username u --password-stdin --ca-file /ca --insecure",
+			expectedOut:   "helm registry login my.registry.com:5000 --username u --password-stdin --ca-file",
 			expectedStdin: "p",
 		},
 		{
@@ -163,7 +190,14 @@ func TestRegistryLogin(t *testing.T) {
 			})
 			require.NoError(t, err)
 			out, err := c.RegistryLogin(t.Context(), tc.repo, tc.creds, tc.plainHTTP)
-			assert.Equal(t, tc.expectedOut, out)
+			if strings.HasSuffix(tc.expectedOut, "--ca-file") {
+				assert.True(t, strings.HasPrefix(out, tc.expectedOut+" "))
+				if tc.name == "combined flags" {
+					assert.Contains(t, out, "--insecure")
+				}
+			} else {
+				assert.Equal(t, tc.expectedOut, out)
+			}
 			if tc.expectedErr != nil {
 				require.EqualError(t, err, tc.expectedErr.Error())
 			} else {

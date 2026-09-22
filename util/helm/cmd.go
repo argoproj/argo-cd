@@ -114,7 +114,12 @@ func (c *Cmd) RegistryLogin(ctx context.Context, repo string, creds Creds, plain
 	}
 
 	if creds.GetCAPath() != "" {
-		args = append(args, "--ca-file", creds.GetCAPath())
+		var caCloser utilio.Closer
+		args, caCloser, err = appendHelmCAFileArg(args, creds.GetCAPath())
+		if err != nil {
+			return "", fmt.Errorf("failed to prepare CA file for helm: %w", err)
+		}
+		defer utilio.Close(caCloser)
 	}
 
 	if len(creds.GetCertData()) > 0 {
@@ -185,7 +190,12 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	}
 
 	if opts.GetCAPath() != "" {
-		args = append(args, "--ca-file", opts.GetCAPath())
+		var caCloser utilio.Closer
+		args, caCloser, err = appendHelmCAFileArg(args, opts.GetCAPath())
+		if err != nil {
+			return "", fmt.Errorf("failed to prepare CA file for helm: %w", err)
+		}
+		defer utilio.Close(caCloser)
 	}
 
 	if opts.GetInsecureSkipVerify() {
@@ -229,6 +239,67 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 		return "", fmt.Errorf("failed to add repository: %w", err)
 	}
 	return out, err
+}
+
+var systemCertBundlePaths = []string{
+	"/etc/ssl/certs/ca-certificates.crt",
+	"/etc/pki/tls/certs/ca-bundle.crt",
+	"/etc/ssl/ca-bundle.pem",
+}
+
+func resolveSystemCertBundlePath() string {
+	if p := os.Getenv("SSL_CERT_FILE"); p != "" {
+		return p
+	}
+	for _, p := range systemCertBundlePaths {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
+// helmCAFilePathWithSystemTrust returns a path suitable for helm's --ca-file flag.
+// Helm replaces the system trust store when --ca-file is set, so repository CAs must
+// be merged with the system roots to keep public redirect targets (e.g. S3) trusted.
+func helmCAFilePathWithSystemTrust(customCAPath string) (string, utilio.Closer, error) {
+	if customCAPath == "" {
+		return "", utilio.NopCloser, nil
+	}
+	customPEM, err := os.ReadFile(customCAPath)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to read CA file %q: %w", customCAPath, err)
+	}
+	systemBundlePath := resolveSystemCertBundlePath()
+	if systemBundlePath == "" {
+		return customCAPath, utilio.NopCloser, nil
+	}
+	systemPEM, err := os.ReadFile(systemBundlePath)
+	if err != nil {
+		log.Warnf("Could not read system CA bundle from %q: %v", systemBundlePath, err)
+		return customCAPath, utilio.NopCloser, nil
+	}
+	var merged []byte
+	merged = append(merged, systemPEM...)
+	if len(systemPEM) > 0 && systemPEM[len(systemPEM)-1] != '\n' {
+		merged = append(merged, '\n')
+	}
+	merged = append(merged, customPEM...)
+	if len(customPEM) > 0 && customPEM[len(customPEM)-1] != '\n' {
+		merged = append(merged, '\n')
+	}
+	return writeToTmp(merged)
+}
+
+func appendHelmCAFileArg(args []string, caPath string) ([]string, utilio.Closer, error) {
+	caFile, closer, err := helmCAFilePathWithSystemTrust(caPath)
+	if err != nil {
+		return nil, nil, err
+	}
+	if caFile == "" {
+		return args, utilio.NopCloser, nil
+	}
+	return append(args, "--ca-file", caFile), closer, nil
 }
 
 func writeToTmp(data []byte) (string, utilio.Closer, error) {
@@ -277,7 +348,12 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	args = append(args, "--repo", repo, chartName)
 
 	if creds.GetCAPath() != "" {
-		args = append(args, "--ca-file", creds.GetCAPath())
+		var caCloser utilio.Closer
+		args, caCloser, err = appendHelmCAFileArg(args, creds.GetCAPath())
+		if err != nil {
+			return "", fmt.Errorf("failed to prepare CA file for helm: %w", err)
+		}
+		defer utilio.Close(caCloser)
 	}
 	if len(creds.GetCertData()) > 0 {
 		filePath, closer, err := writeToTmp(creds.GetCertData())
@@ -314,7 +390,13 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 		destination,
 	}
 	if creds.GetCAPath() != "" {
-		args = append(args, "--ca-file", creds.GetCAPath())
+		var caCloser utilio.Closer
+		var err error
+		args, caCloser, err = appendHelmCAFileArg(args, creds.GetCAPath())
+		if err != nil {
+			return "", fmt.Errorf("failed to prepare CA file for helm: %w", err)
+		}
+		defer utilio.Close(caCloser)
 	}
 
 	if len(creds.GetCertData()) > 0 {
