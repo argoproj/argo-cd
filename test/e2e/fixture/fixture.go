@@ -6,12 +6,14 @@ import (
 	stderrors "errors"
 	"fmt"
 	"math"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -272,12 +274,25 @@ func loginAs(username, password string) error {
 	deadline := time.Now().Add(30 * time.Second)
 	for {
 		err := tryLoginAs(username, password)
-		if status.Code(err) != codes.Unavailable || time.Now().After(deadline) {
+		if !isRetryableLoginError(err) || time.Now().After(deadline) {
 			return err
 		}
 		log.Warnf("API server unavailable while logging in as %s, retrying: %v", username, err)
 		time.Sleep(500 * time.Millisecond)
 	}
+}
+
+func isRetryableLoginError(err error) bool {
+	if status.Code(err) == codes.Unavailable {
+		return true
+	}
+
+	var netErr net.Error
+	return stderrors.As(err, &netErr) && (netErr.Timeout() || netErr.Temporary()) ||
+		stderrors.Is(err, syscall.ECONNREFUSED) ||
+		stderrors.Is(err, syscall.ECONNRESET) ||
+		stderrors.Is(err, syscall.EHOSTUNREACH) ||
+		stderrors.Is(err, syscall.ENETUNREACH)
 }
 
 func tryLoginAs(username, password string) error {
