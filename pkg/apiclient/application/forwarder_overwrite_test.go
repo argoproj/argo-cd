@@ -689,3 +689,30 @@ type failingResponseWriter struct {
 func (f *failingResponseWriter) Write(p []byte) (int, error) {
 	return f.Writer.Write(p)
 }
+
+func TestLogsForwarder_DownloadFileName(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		query    string
+		expected string
+	}{
+		{"pod", "namespace=default&podName=guestbook-ui-5d7f9c8b4-x2k9p&container=guestbook-ui", "default-guestbook-ui-5d7f9c8b4-x2k9p-guestbook-ui.log"},
+		{"deployment", "namespace=default&group=apps&kind=Deployment&resourceName=guestbook-ui&container=guestbook-ui", "default-guestbook-ui-guestbook-ui.log"},
+		{"replicaset", "namespace=default&group=apps&kind=ReplicaSet&resourceName=guestbook-ui-5d7f9c8b4&container=guestbook-ui", "default-guestbook-ui-5d7f9c8b4-guestbook-ui.log"},
+		{"invalid part", "namespace=default&podName=..%2Fetc&container=guestbook-ui", "log.log"},
+		{"empty", "", "log.log"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/applications/guestbook/logs?download=true&"+tt.query, http.NoBody)
+			recv := func() (proto.Message, error) {
+				return &LogEntry{Content: proto.String(""), Last: proto.Bool(true)}, nil
+			}
+			forward_ApplicationService_PodLogs_1(t.Context(), runtime.NewServeMux(), nil, rec, req, recv)
+			assert.Equal(t, `attachment;filename="`+tt.expected+`"`, rec.Header().Get("Content-Disposition"))
+		})
+	}
+}

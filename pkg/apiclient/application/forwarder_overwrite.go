@@ -288,6 +288,9 @@ func init() {
 			fileName := "log"
 			namespace := req.URL.Query().Get("namespace")
 			podName := req.URL.Query().Get("podName")
+			if podName == "" {
+				podName = req.URL.Query().Get("resourceName")
+			}
 			container := req.URL.Query().Get("container")
 			if kube.IsValidResourceName(namespace) && kube.IsValidResourceName(podName) && kube.IsValidResourceName(container) {
 				fileName = fmt.Sprintf("%s-%s-%s", namespace, podName, container)
