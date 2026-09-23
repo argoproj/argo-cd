@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	//nolint:staticcheck
@@ -702,6 +703,13 @@ func TestLogsForwarder_DownloadFileName(t *testing.T) {
 		{"replicaset", "namespace=default&group=apps&kind=ReplicaSet&resourceName=guestbook-ui-5d7f9c8b4&container=guestbook-ui", "default-guestbook-ui-5d7f9c8b4-guestbook-ui.log"},
 		{"invalid part", "namespace=default&podName=..%2Fetc&container=guestbook-ui", "log.log"},
 		{"empty", "", "log.log"},
+		{"dotted deployment", "namespace=default&group=apps&kind=Deployment&resourceName=guestbook.ui.v2&container=guestbook-ui", "default-guestbook.ui.v2-guestbook-ui.log"},
+		{"long deployment", "namespace=default&group=apps&kind=Deployment&resourceName=" + strings.Repeat("a", 100) + "&container=guestbook-ui", "default-" + strings.Repeat("a", 100) + "-guestbook-ui.log"},
+		{"253 char deployment", "namespace=default&group=apps&kind=Deployment&resourceName=" + strings.Repeat("a", 253) + "&container=guestbook-ui", "default-" + strings.Repeat("a", 253) + "-guestbook-ui.log"},
+		{"254 char deployment", "namespace=default&group=apps&kind=Deployment&resourceName=" + strings.Repeat("a", 254) + "&container=guestbook-ui", "log.log"},
+		{"deployment traversal", "namespace=default&group=apps&kind=Deployment&resourceName=..%2Fetc&container=guestbook-ui", "log.log"},
+		{"deployment slash", "namespace=default&group=apps&kind=Deployment&resourceName=guestbook%2Fui&container=guestbook-ui", "log.log"},
+		{"dotted pod", "namespace=default&podName=guestbook.ui&container=guestbook-ui", "log.log"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
