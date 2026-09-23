@@ -5525,13 +5525,13 @@ func TestUpdateRevisionForPaths_SiblingPathChangesCacheMiss(t *testing.T) {
 
 	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 		gitClient.EXPECT().Init().Return(nil)
-		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
-		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
-		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 		gitClient.EXPECT().LsRemote("HEAD").Return(resolvedRevision, nil)
 		gitClient.EXPECT().LsRemote(syncedRevision).Return(syncedRevision, nil)
 		gitClient.EXPECT().Root().Return("")
-		gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything, mock.Anything).Return([]string{"app/testargo2/values.yaml"}, nil)
+		gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything).Return([]string{"app/testargo2/values.yaml"}, nil)
 		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
 		paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
 	}, ".")
