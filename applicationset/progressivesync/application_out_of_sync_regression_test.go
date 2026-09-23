@@ -76,6 +76,58 @@ func opSyncedTo(revision string, startedAt time.Time) *argov1alpha1.OperationSta
 	}
 }
 
+func rollingSyncStatusRevisions(status argov1alpha1.ProgressiveSyncStatusCode, message string, revisions []string, transition time.Time) argov1alpha1.ApplicationSetApplicationStatus {
+	return argov1alpha1.ApplicationSetApplicationStatus{
+		Application:        "storm-a",
+		Message:            message,
+		Status:             status,
+		Step:               "1",
+		TargetRevisions:    revisions,
+		LastTransitionTime: &metav1.Time{Time: transition},
+	}
+}
+
+func rollingMultiSourceApp(syncStatus argov1alpha1.SyncStatusCode, healthStatus health.HealthStatusCode, revisions []string, op *argov1alpha1.OperationState, reconciledAt *metav1.Time) argov1alpha1.Application {
+	return argov1alpha1.Application{
+		APIVersion: "argoproj.io/v1alpha1", Kind: "Application",
+		Name: "storm-a", Namespace: "argocd",
+		Spec: argov1alpha1.ApplicationSpec{
+			Project: "default",
+			Sources: argov1alpha1.ApplicationSources{
+				{
+					RepoURL:        "git://example/repo-one",
+					Path:           "leaves/x",
+					TargetRevision: "HEAD",
+				},
+				{
+					RepoURL:        "git://example/repo-two",
+					Path:           "leaves/y",
+					TargetRevision: "HEAD",
+				},
+			},
+			Destination: argov1alpha1.ApplicationDestination{
+				Server: "https://kubernetes.default.svc", Namespace: "storm-a",
+			},
+		},
+		Status: argov1alpha1.ApplicationStatus{
+			Sync:           argov1alpha1.SyncStatus{Status: syncStatus, Revisions: revisions},
+			Health:         argov1alpha1.AppHealthStatus{Status: healthStatus},
+			OperationState: op,
+			ReconciledAt:   reconciledAt,
+		},
+	}
+}
+
+func opSyncedToRevisions(revisions []string, startedAt time.Time) *argov1alpha1.OperationState {
+	finishedAt := startedAt.Add(time.Minute)
+	return &argov1alpha1.OperationState{
+		Phase:      common.OperationSucceeded,
+		SyncResult: &argov1alpha1.SyncOperationResult{Revisions: revisions},
+		StartedAt:  metav1.Time{Time: startedAt},
+		FinishedAt: &metav1.Time{Time: finishedAt},
+	}
+}
+
 func TestRevisionChangeWithNoSyncEvidenceStaysWaiting(t *testing.T) {
 	t.Parallel()
 
@@ -182,4 +234,122 @@ func TestHealthyOutOfSyncStaysHealthyWhenLastSyncReachedTarget(t *testing.T) {
 	assert.Equal(t, argov1alpha1.ProgressiveSyncHealthy, statuses[0].Status,
 		"the last successful operation reached the recorded target, so the OutOfSync view is transient")
 	assert.NotEqual(t, applicationOutOfSyncMsg, statuses[0].Message)
+}
+
+func TestApplicationSyncedToTargetMultiSource(t *testing.T) {
+	t.Parallel()
+
+	started := time.Now().Add(-time.Minute)
+	target := []string{"a", "b"}
+
+	opWith := func(revisions []string) *argov1alpha1.OperationState {
+		return opSyncedToRevisions(revisions, started)
+	}
+	opWithoutResult := func() *argov1alpha1.OperationState {
+		opState := opSyncedToRevisions(nil, started)
+		opState.SyncResult = nil
+		return opState
+	}
+	opRunning := func() *argov1alpha1.OperationState {
+		return &argov1alpha1.OperationState{
+			Phase:      common.OperationRunning,
+			SyncResult: &argov1alpha1.SyncOperationResult{Revisions: []string{"a", "b"}},
+			StartedAt:  metav1.Time{Time: started},
+		}
+	}
+
+	for _, tc := range []struct {
+		name     string
+		op       *argov1alpha1.OperationState
+		expected bool
+	}{
+		{"revisions match target in order", opWith([]string{"a", "b"}), true},
+		{"revisions reordered relative to target", opWith([]string{"b", "a"}), false},
+		{"revisions missing", opWith(nil), false},
+		{"revisions partial", opWith([]string{"a"}), false},
+		{"revisions extra", opWith([]string{"a", "b", "c"}), false},
+		{"sync result missing", opWithoutResult(), false},
+		{"operation not successful", opRunning(), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			app := rollingMultiSourceApp(argov1alpha1.SyncStatusCodeSynced, health.HealthStatusHealthy, target, tc.op, nil)
+			assert.Equal(t, tc.expected, applicationSyncedToTarget(&app, target))
+		})
+	}
+}
+
+func TestMultiSourceWaitingPromotionRequiresExactSyncEvidence(t *testing.T) {
+	t.Parallel()
+
+	transition := time.Now().Add(-5 * time.Minute)
+	target := []string{"a", "b"}
+
+	for _, tc := range []struct {
+		name          string
+		syncResult    []string
+		expectedState argov1alpha1.ProgressiveSyncStatusCode
+	}{
+		{"exact match promotes to Healthy", []string{"a", "b"}, argov1alpha1.ProgressiveSyncHealthy},
+		{"reordered revisions stay Waiting", []string{"b", "a"}, argov1alpha1.ProgressiveSyncWaiting},
+		{"missing revisions stay Waiting", nil, argov1alpha1.ProgressiveSyncWaiting},
+		{"mismatched revisions stay Waiting", []string{"a", "c"}, argov1alpha1.ProgressiveSyncWaiting},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			appSet := rollingAppSet(rollingSyncStatusRevisions(
+				argov1alpha1.ProgressiveSyncWaiting, applicationOutOfSyncMsg, target, transition))
+			app := rollingMultiSourceApp(argov1alpha1.SyncStatusCodeSynced, health.HealthStatusHealthy, target,
+				opSyncedToRevisions(tc.syncResult, transition.Add(time.Minute)), &metav1.Time{Time: time.Now().Add(-time.Minute)})
+
+			m := regressionManager(t, &appSet)
+			statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+				&appSet, []argov1alpha1.Application{app}, []argov1alpha1.Application{app},
+				map[string]int{"storm-a": 0})
+			require.NoError(t, err)
+			require.Len(t, statuses, 1)
+
+			assert.Equal(t, tc.expectedState, statuses[0].Status,
+				"multi-source SyncResult.Revisions must exactly match the recorded target revisions to promote")
+		})
+	}
+}
+
+func TestMultiSourceHealthyRollsBackWhenSyncEvidenceDoesNotReachTarget(t *testing.T) {
+	t.Parallel()
+
+	transition := time.Now().Add(-5 * time.Minute)
+	target := []string{"a", "b"}
+
+	for _, tc := range []struct {
+		name          string
+		syncResult    []string
+		expectedState argov1alpha1.ProgressiveSyncStatusCode
+	}{
+		{"exact sync evidence keeps Healthy", []string{"a", "b"}, argov1alpha1.ProgressiveSyncHealthy},
+		{"partial sync evidence rolls back to Waiting", []string{"a"}, argov1alpha1.ProgressiveSyncWaiting},
+		{"reordered sync evidence rolls back to Waiting", []string{"b", "a"}, argov1alpha1.ProgressiveSyncWaiting},
+		{"missing sync evidence rolls back to Waiting", nil, argov1alpha1.ProgressiveSyncWaiting},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			appSet := rollingAppSet(rollingSyncStatusRevisions(
+				argov1alpha1.ProgressiveSyncHealthy, "Application resource has synced, updating status to Healthy", target, transition))
+			app := rollingMultiSourceApp(argov1alpha1.SyncStatusCodeOutOfSync, health.HealthStatusHealthy, target,
+				opSyncedToRevisions(tc.syncResult, transition.Add(time.Minute)), &metav1.Time{Time: time.Now().Add(-time.Minute)})
+
+			m := regressionManager(t, &appSet)
+			statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+				&appSet, []argov1alpha1.Application{app}, []argov1alpha1.Application{app},
+				map[string]int{"storm-a": 0})
+			require.NoError(t, err)
+			require.Len(t, statuses, 1)
+
+			assert.Equal(t, tc.expectedState, statuses[0].Status,
+				"multi-source sync evidence must reach every recorded target revision to avoid rollback")
+		})
+	}
 }
