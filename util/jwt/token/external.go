@@ -156,15 +156,14 @@ func (v *externalTokenVerifier) Verify(ctx context.Context, tokenString string, 
 	return claims, nil
 }
 
-// normalizeClaims projects the claims named in the JWT config onto the claims Argo CD
-// reads downstream: "sub" (jwt.GetUserIdentifier, and therefore the RBAC subject), "email"
-// (the displayed username) and "groups" (the default RBAC scope).
+// normalizeClaims projects the claims named in the JWT config onto the claims Argo CD reads
+// downstream: "sub" (jwt.GetUserIdentifier, and therefore the RBAC subject), "email" (the
+// displayed username) and "groups" (matched against the RBAC "scopes" setting).
 //
-// A configured claim is the only source for the claim it maps to. If it is absent from the
-// token, or holds an unusable value, the target claim is removed rather than left holding
-// whatever the external issuer happened to send under that name. That matters most for
-// groups: passing an issuer-supplied "groups" claim straight through would grant RBAC group
-// membership that the operator never opted into.
+// Claims the config does not name are left exactly as the issuer sent them. The single
+// exception is groups: a groupsClaim that is set but does not resolve removes "groups", since
+// otherwise a misconfigured groupsClaim silently falls back to the issuer's own "groups" claim
+// and the setting has no observable effect.
 func normalizeClaims(claims jwtgo.MapClaims, config *settings.JWTConfig) {
 	// Resolve everything before writing, so identity mappings (usernameClaim: sub,
 	// groupsClaim: groups) read the original value rather than one we just overwrote.
@@ -174,10 +173,11 @@ func normalizeClaims(claims jwtgo.MapClaims, config *settings.JWTConfig) {
 
 	if config.UsernameClaim != "" {
 		if hasUsername {
+			// NOTE: jwt.GetUserIdentifier prefers federated_claims.user_id over sub, so a token
+			// carrying that claim would outrank this mapping. federated_claims is emitted by Dex,
+			// which cannot be the verifier when external JWT is configured, so it is left alone
+			// rather than stripped here. Fix GetUserIdentifier if an issuer ever does send it.
 			claims["sub"] = username
-			// GetUserIdentifier prefers federated_claims.user_id over sub, so drop it. An
-			// explicitly configured usernameClaim has to win over a claim the issuer added.
-			delete(claims, "federated_claims")
 		} else {
 			log.Warnf("Username claim %q not found in external JWT, falling back to the sub claim", config.UsernameClaim)
 		}
@@ -188,17 +188,17 @@ func normalizeClaims(claims jwtgo.MapClaims, config *settings.JWTConfig) {
 			claims["email"] = email
 		} else {
 			log.Warnf("Email claim %q not found in external JWT", config.EmailClaim)
-			delete(claims, "email")
 		}
 	}
 
-	// Drop any incoming groups claim up front; it is only restored from the claim groupsClaim
-	// selects. Safe to delete first because groups was resolved above, before any writes.
-	delete(claims, "groups")
-	if hasGroups {
+	switch {
+	case hasGroups:
 		claims["groups"] = groups
-	} else if config.GroupsClaim != "" {
+	case config.GroupsClaim != "":
+		// Configured but unresolvable. Remove any "groups" the issuer sent: keeping it would
+		// silently grant RBAC group membership from a claim the operator did not select.
 		log.Warnf("Groups claim %q not found in external JWT, the user will be assigned the default role", config.GroupsClaim)
+		delete(claims, "groups")
 	}
 }
 
@@ -240,9 +240,9 @@ func (v *externalTokenVerifier) getJWKS(ctx context.Context, jwksURL string, cac
 // Returns the value and true if found, nil and false otherwise.
 //
 // The whole path is tried as a literal key first, because claim names may contain dots
-// themselves: issuers such as Auth0 require custom claims to be namespaced URIs, giving
-// names like "https://argocd.example.com/groups" that the dot-separated syntax cannot
-// otherwise express. A literal match therefore wins over traversal.
+// themselves. Issuers that namespace custom claims as URIs produce names like
+// "https://argocd.example.com/groups", which the dot-separated syntax cannot otherwise
+// express. A literal match therefore wins over traversal.
 func getNestedClaim(data map[string]any, path string) (any, bool) {
 	if value, exists := data[path]; exists {
 		return value, true

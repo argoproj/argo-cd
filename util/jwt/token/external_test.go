@@ -374,14 +374,15 @@ func TestVerify_ClaimMapping(t *testing.T) {
 	ts := newJWKSServer(t, &privateKey.PublicKey, kid)
 
 	tests := []struct {
-		name           string
-		usernameClaim  string
-		emailClaim     string
-		groupsClaim    string
-		claims         map[string]any
-		expectedSub    string
-		expectedEmail  any // nil means the claim must be absent
-		expectedGroups any // nil means the claim must be absent
+		name                     string
+		usernameClaim            string
+		emailClaim               string
+		groupsClaim              string
+		claims                   map[string]any
+		expectedSub              string
+		expectedEmail            any // nil means the claim must be absent
+		expectedGroups           any // nil means the claim must be absent
+		expectFederatedPreserved bool
 	}{
 		{
 			name:          "username claim is mapped onto sub",
@@ -394,26 +395,31 @@ func TestVerify_ClaimMapping(t *testing.T) {
 		},
 		{
 			name:          "nested username claim is mapped onto sub",
-			usernameClaim: "traits.username",
+			usernameClaim: "user_info.username",
 			claims: map[string]any{
-				"sub":    "8a1f0c7e-4b2d-4f3a-9c11-0d5e6f7a8b9c",
-				"traits": map[string]any{"username": "bgroux"},
+				"sub":       "8a1f0c7e-4b2d-4f3a-9c11-0d5e6f7a8b9c",
+				"user_info": map[string]any{"username": "bgroux"},
 			},
 			expectedSub: "bgroux",
 		},
 		{
-			name:          "username claim wins over federated_claims",
+			// federated_claims is left untouched. Note that jwt.GetUserIdentifier would still
+			// prefer federated_claims.user_id over the sub mapped here; that cannot happen in
+			// practice because federated_claims comes from Dex, which is never the verifier when
+			// external JWT is configured.
+			name:          "federated_claims is left alone when a username is mapped",
 			usernameClaim: "preferred_username",
 			claims: map[string]any{
 				"sub":                "8a1f0c7e-4b2d-4f3a-9c11-0d5e6f7a8b9c",
 				"preferred_username": "bgroux",
 				"federated_claims":   map[string]any{"user_id": "dex-user-id"},
 			},
-			expectedSub: "bgroux",
+			expectedSub:              "bgroux",
+			expectFederatedPreserved: true,
 		},
 		{
-			// Auth0 and similar issuers require custom claims to be namespaced URIs, so the
-			// claim name contains dots that must not be read as a path separator.
+			// Issuers that namespace custom claims as URIs produce claim names containing dots,
+			// which must not be read as a path separator.
 			name:          "namespaced username claim is mapped onto sub",
 			usernameClaim: "https://argocd.example.com/username",
 			claims: map[string]any{
@@ -467,9 +473,18 @@ func TestVerify_ClaimMapping(t *testing.T) {
 			expectedEmail: "bgroux@example.com",
 		},
 		{
-			name:          "missing email claim clears the issuer supplied email",
+			// Email feeds the displayed username and the audit log, not authorization, so an
+			// unresolvable emailClaim warns and leaves the issuer's email in place.
+			name:          "missing email claim leaves the issuer supplied email in place",
 			emailClaim:    "mail",
-			claims:        map[string]any{"sub": "user", "email": "spoofed@example.com"},
+			claims:        map[string]any{"sub": "user", "email": "issuer@example.com"},
+			expectedSub:   "user",
+			expectedEmail: "issuer@example.com",
+		},
+		{
+			name:          "missing email claim with no issuer supplied email leaves email absent",
+			emailClaim:    "mail",
+			claims:        map[string]any{"sub": "user"},
 			expectedSub:   "user",
 			expectedEmail: nil,
 		},
@@ -488,8 +503,8 @@ func TestVerify_ClaimMapping(t *testing.T) {
 		},
 		{
 			name:           "nested groups claim is mapped onto groups",
-			groupsClaim:    "traits.groups",
-			claims:         map[string]any{"sub": "user", "traits": map[string]any{"groups": []string{"admins"}}},
+			groupsClaim:    "user_info.groups",
+			claims:         map[string]any{"sub": "user", "user_info": map[string]any{"groups": []string{"admins"}}},
 			expectedSub:    "user",
 			expectedGroups: []string{"admins"},
 		},
@@ -524,11 +539,12 @@ func TestVerify_ClaimMapping(t *testing.T) {
 			expectedGroups: nil,
 		},
 		{
-			// Documented behaviour: without groupsClaim the user gets the default role.
-			name:           "unconfigured groups claim clears the issuer supplied groups",
+			// With no groupsClaim configured the issuer's groups claim is honoured as-is, the
+			// same way Argo CD treats an OIDC provider (rbac.DefaultScopes is ["groups"]).
+			name:           "unconfigured groups claim leaves the issuer supplied groups in place",
 			claims:         map[string]any{"sub": "user", "groups": []string{"argocd-admins"}},
 			expectedSub:    "user",
-			expectedGroups: nil,
+			expectedGroups: []any{"argocd-admins"},
 		},
 	}
 
@@ -563,7 +579,7 @@ func TestVerify_ClaimMapping(t *testing.T) {
 			require.Equal(t, tt.expectedSub, claims["sub"], "sub claim mismatch")
 
 			if tt.expectedEmail == nil {
-				require.NotContains(t, claims, "email", "email claim should have been removed")
+				require.NotContains(t, claims, "email", "email claim should be absent")
 			} else {
 				require.Equal(t, tt.expectedEmail, claims["email"], "email claim mismatch")
 			}
@@ -572,6 +588,10 @@ func TestVerify_ClaimMapping(t *testing.T) {
 				require.NotContains(t, claims, "groups", "groups claim should have been removed")
 			} else {
 				require.Equal(t, tt.expectedGroups, claims["groups"], "groups claim mismatch")
+			}
+
+			if tt.expectFederatedPreserved {
+				require.Contains(t, claims, "federated_claims", "federated_claims should not be modified")
 			}
 		})
 	}

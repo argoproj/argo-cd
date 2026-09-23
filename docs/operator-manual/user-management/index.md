@@ -530,6 +530,8 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
 
 Argo CD can be configured to verify JSON Web Tokens (JWTs) issued by an external authentication provider. This allows you to integrate Argo CD with existing authentication systems that issue JWTs.
 
+Nothing here is specific to a particular provider. Any identity-aware proxy, gateway or token issuer works, provided it presents a signed JWT on a request header and publishes a JWKS endpoint. Providers differ in what they name their claims and whether they nest them, which is what the claim settings below are for.
+
 If jwt.config is enabled, this authentication method will take precedence over other enabled methods (e.g., SSO, OIDC, Dex).
 
 To configure external JWT authentication, add the JWT configuration to the `argocd-cm` ConfigMap:
@@ -574,14 +576,20 @@ The following configuration options are available:
 * `signingAlgorithm`: Algorithm used to sign the token, as supported by jwt-go (optional: default: RS256)
 * `groupsClaim`: The JWT claim to use for the user's groups (optional)
 
-`usernameClaim`, `emailClaim` and `groupsClaim` are each resolved as a literal claim name first,
-and only then as a dot-separated path into nested claims. So `traits.username` selects the
-top-level claim literally named `traits.username` if the token has one, and otherwise the
-`username` field nested inside `traits`. The literal-first order is what lets you select
-namespaced claims — issuers such as Auth0 require custom claims to be URIs, producing names like
-`https://argocd.example.com/groups` that contain dots of their own.
+Providers vary in how they present identity, so the three claim settings accept more than a plain
+claim name:
 
-`groupsClaim` accepts either a list of strings or a single string.
+* **Nested claims.** Each setting is resolved as a literal claim name first, and only then as a
+  dot-separated path. `user_info.username` selects the top-level claim literally named
+  `user_info.username` if the token has one, and otherwise the `username` field nested inside
+  `user_info`.
+* **Namespaced claims.** The literal-first order is what lets you select claim names that contain
+  dots of their own, such as `https://argocd.example.com/groups`. Issuers that namespace custom
+  claims as URIs require this.
+* **Group value shapes.** `groupsClaim` accepts a list of strings or a single string.
+
+If your provider presents identity in a shape none of these cover, that is worth raising as an
+issue rather than working around in the proxy.
 
 When JWT authentication is configured, Argo CD will:
 
@@ -602,18 +610,22 @@ The claims named above are mapped onto the claims Argo CD uses internally:
 | `emailClaim`    | `email`   | The username displayed in the UI and the audit log            |
 | `groupsClaim`   | `groups`  | Group membership, matched against the RBAC `scopes` setting   |
 
-A configured claim is the **only** source for the claim it maps to. If it is missing from the
-token, or holds a value that is not a string (or, for groups, a list of strings), the target
-claim is dropped rather than falling back to a claim of the same name in the incoming token. The
-one exception is `usernameClaim`: a missing username falls back to the token's own `sub` claim,
-so a typo in the config does not lock users out.
+Claims that these settings do not name are passed through as the issuer sent them. In particular,
+leaving `groupsClaim` unset does not disable group membership: a token carrying a `groups` claim
+is still matched against the RBAC `scopes` setting, which defaults to `groups`. This is the same
+way Argo CD treats an OIDC provider.
+
+If `usernameClaim` or `emailClaim` names a claim the token does not carry, Argo CD logs a warning
+and leaves the corresponding claim alone — `sub` keeps the issuer's own subject, so a typo in the
+config does not lock users out.
 
 > [!WARNING]
-> This applies in particular to `groups`. Argo CD does not pass an issuer-supplied `groups` claim
-> through to RBAC unless `groupsClaim` explicitly selects it. If `groupsClaim` is unset or points
-> at a claim the token does not carry, the user is logged in and assigned the default role. Check
-> `argocd account get-user-info` and the API server logs if a user is unexpectedly getting the
-> default role — an unresolvable `groupsClaim` is logged as a warning on every request.
+> `groupsClaim` is the exception. If it is set but names a claim the token does not carry — or one
+> holding something other than a string or list of strings — Argo CD **removes** the `groups`
+> claim and the user is assigned the default role. Without this, a misconfigured `groupsClaim`
+> would silently fall back to the issuer's own `groups` claim and the setting would have no
+> observable effect. Check `argocd account get-user-info` and the API server logs if a user
+> unexpectedly gets the default role; an unresolvable `groupsClaim` is logged as a warning.
 
 The external authentication provider must:
 
