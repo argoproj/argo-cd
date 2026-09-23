@@ -35563,6 +35563,7 @@ rules:
   resources:
   - applications
   - applicationsets
+  - syncwindows
   verbs:
   - get
   - list

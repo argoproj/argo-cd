@@ -29,6 +29,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -72,6 +73,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
+	"github.com/argoproj/argo-cd/v3/util/security"
 	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/syncwindow"
 	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
@@ -319,7 +321,31 @@ func NewApplicationController(
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
 
-	syncWindowInformer := v1alpha1.NewSyncWindowInformer(applicationClientset, namespace, appResyncPeriod, indexers)
+	// SyncWindow objects referenced by an Application are resolved from the app's own namespace
+	// (self-service). To support the "apps in any namespace" feature we must therefore watch
+	// SyncWindows cluster-wide and filter down to the enabled namespaces, mirroring the
+	// Application informer above. Without any additional namespaces configured, this stays
+	// scoped to the control-plane namespace.
+	syncWindowWatchNamespace := namespace
+	if len(ctrl.applicationNamespaces) > 0 {
+		syncWindowWatchNamespace = ""
+	}
+	syncWindowInformer := v1alpha1.NewSyncWindowInformer(applicationClientset, syncWindowWatchNamespace, appResyncPeriod, indexers)
+	if len(ctrl.applicationNamespaces) > 0 {
+		err = syncWindowInformer.SetTransform(func(obj any) (any, error) {
+			accessor, err := meta.Accessor(obj)
+			if err != nil {
+				return obj, nil
+			}
+			if !security.IsNamespaceEnabled(accessor.GetNamespace(), namespace, ctrl.applicationNamespaces) {
+				return nil, nil
+			}
+			return obj, nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
 	syncWindowLister := applisters.NewSyncWindowLister(syncWindowInformer.GetIndexer())
 	ctrl.syncWindowInformer = syncWindowInformer
 	ctrl.syncWindowLister = syncWindowLister
@@ -2549,7 +2575,7 @@ func (ctrl *ApplicationController) syncWindowPreventsAutoSync(app *appv1.Applica
 		projCRDWindows = append(projCRDWindows, windows...)
 	}
 	if len(app.Spec.SyncWindowRefs) > 0 {
-		windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs)
+		windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs, app.Namespace)
 		if err != nil {
 			log.WithError(err).Warn("Failed to resolve some app sync window refs")
 		}

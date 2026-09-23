@@ -2975,7 +2975,7 @@ func (s *Server) effectiveSyncWindows(a *v1alpha1.Application, proj *v1alpha1.Ap
 		}
 	}
 	if len(a.Spec.SyncWindowRefs) > 0 {
-		resolved, err := resolver.ResolveAppRefs(a.Spec.SyncWindowRefs)
+		resolved, err := resolver.ResolveAppRefs(a.Spec.SyncWindowRefs, a.Namespace)
 		if err != nil {
 			log.WithError(err).Warn("Failed to resolve some app sync window refs")
 		}

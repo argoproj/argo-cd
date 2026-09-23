@@ -339,18 +339,23 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	appsetInformer := appFactory.Argoproj().V1alpha1().ApplicationSets().Informer()
 	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister()
 
-	syncWindowInformer := projFactory.Argoproj().V1alpha1().SyncWindows().Informer()
-	syncWindowLister := projFactory.Argoproj().V1alpha1().SyncWindows().Lister()
+	// SyncWindow objects referenced by an Application are resolved from the app's own
+	// namespace (self-service), so this informer must follow the same namespace scope as
+	// the Application informer (appFactory): control-plane namespace by default, or
+	// cluster-wide when application.namespaces is configured.
+	syncWindowInformer := appFactory.Argoproj().V1alpha1().SyncWindows().Informer()
+	syncWindowLister := appFactory.Argoproj().V1alpha1().SyncWindows().Lister()
 
 	// When watching cluster-wide (i.e. application.namespaces is configured),
 	// drop objects from namespaces that are not in the allowed list before
-	// they enter the informer cache. This avoids caching Applications and
-	// ApplicationSets that the server is not configured to manage, which
-	// reduces memory usage in multi-tenant clusters.
+	// they enter the informer cache. This avoids caching Applications,
+	// ApplicationSets and SyncWindows that the server is not configured to
+	// manage, which reduces memory usage in multi-tenant clusters.
 	if len(opts.ApplicationNamespaces) > 0 {
 		filter := newNamespaceFilterTransform(opts.Namespace, opts.ApplicationNamespaces)
 		errorsutil.CheckError(appInformer.SetTransform(filter))
 		errorsutil.CheckError(appsetInformer.SetTransform(filter))
+		errorsutil.CheckError(syncWindowInformer.SetTransform(filter))
 	}
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)

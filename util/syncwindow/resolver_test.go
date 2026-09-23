@@ -141,7 +141,7 @@ func TestResolveAppRefs_ClearsFilters(t *testing.T) {
 		{Name: "my-window"},
 	}
 
-	windows, err := resolver.ResolveAppRefs(refs)
+	windows, err := resolver.ResolveAppRefs(refs, "argocd")
 	require.NoError(t, err)
 	assert.Len(t, windows, 1)
 	assert.Equal(t, "allow", windows[0].Kind)
@@ -149,6 +149,59 @@ func TestResolveAppRefs_ClearsFilters(t *testing.T) {
 	assert.Nil(t, windows[0].Applications)
 	assert.Nil(t, windows[0].Namespaces)
 	assert.Nil(t, windows[0].Clusters)
+}
+
+// TestResolveAppRefs_ResolvesFromAppNamespace verifies that app-level refs are resolved from the
+// application's own namespace (self-service, "apps in any namespace"), not the control-plane namespace.
+func TestResolveAppRefs_ResolvesFromAppNamespace(t *testing.T) {
+	// A SyncWindow named "team-window" exists in the team's namespace, not in "argocd".
+	sw := newSyncWindow("team-window", "team-a", nil, []v1alpha1.SyncWindowDefinition{
+		{Kind: "deny", Schedule: "0 22 * * *", Duration: "2h"},
+	})
+
+	lister := newFakeLister(sw)
+	// Resolver's control-plane namespace is "argocd".
+	resolver := NewResolver(lister, "argocd")
+
+	refs := []v1alpha1.SyncWindowRef{
+		{Name: "team-window"},
+	}
+
+	// Resolving from the app's namespace finds it.
+	windows, err := resolver.ResolveAppRefs(refs, "team-a")
+	require.NoError(t, err)
+	require.Len(t, windows, 1)
+	assert.Equal(t, "deny", windows[0].Kind)
+
+	// Resolving from the control-plane namespace does not find it.
+	windows, err = resolver.ResolveAppRefs(refs, "argocd")
+	require.Error(t, err)
+	assert.Empty(t, windows)
+}
+
+// TestResolveProjectRefs_IgnoresAppNamespace verifies that project-level refs are always resolved
+// from the control-plane namespace (admin-owned), regardless of any application namespace.
+func TestResolveProjectRefs_IgnoresAppNamespace(t *testing.T) {
+	// A SyncWindow with the same name exists in both a team namespace and the control-plane namespace.
+	teamSW := newSyncWindow("shared", "team-a", nil, []v1alpha1.SyncWindowDefinition{
+		{Kind: "allow", Schedule: "0 0 * * *", Duration: "1h"},
+	})
+	cpSW := newSyncWindow("shared", "argocd", nil, []v1alpha1.SyncWindowDefinition{
+		{Kind: "deny", Schedule: "0 22 * * *", Duration: "2h"},
+	})
+
+	lister := newFakeLister(teamSW, cpSW)
+	resolver := NewResolver(lister, "argocd")
+
+	refs := []v1alpha1.SyncWindowProjectRef{
+		{Ref: v1alpha1.SyncWindowRef{Name: "shared"}},
+	}
+
+	windows, err := resolver.ResolveProjectRefs(refs)
+	require.NoError(t, err)
+	require.Len(t, windows, 1)
+	// The control-plane copy (deny) must win; the team-namespace copy must be ignored.
+	assert.Equal(t, "deny", windows[0].Kind)
 }
 
 func TestResolveRef_NotFound(t *testing.T) {
@@ -202,7 +255,7 @@ func TestResolveAppRefs_BadRefDoesNotDropValidWindows(t *testing.T) {
 		{Name: "nonexistent"},
 	}
 
-	windows, err := resolver.ResolveAppRefs(refs)
+	windows, err := resolver.ResolveAppRefs(refs, "argocd")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nonexistent")
 	// The deny window from the valid ref must still be present.

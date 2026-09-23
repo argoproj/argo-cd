@@ -119,8 +119,28 @@ spec:
     - name: team-freeze   # references a pre-existing SyncWindow CR
 ```
 
+#### Where the `SyncWindow` CR must live
+
+The two tiers resolve their referenced `SyncWindow` objects from **different namespaces**, matching
+who is expected to own each tier:
+
+| Ref | Resolved from | Owned by |
+|---|---|---|
+| AppProject `syncWindowRefs` (Tier 1) | the Argo CD control-plane namespace | administrators |
+| Application `syncWindowRefs` (Tier 2) | the **Application's own namespace** | application owners |
+
+With the [apps in any namespace](../operator-manual/app-any-namespace.md) feature, an Application
+can live in a namespace other than the Argo CD control-plane namespace. Its Tier 2
+`syncWindowRefs` are resolved from **that same namespace**, so application owners can create both
+their `Application` and the `SyncWindow` objects it references in their own namespace — a true
+self-service capability that needs no write access to the control-plane namespace.
+
+When apps in any namespace is **not** enabled, every Application already lives in the control-plane
+namespace, so Tier 2 refs resolve from there and behavior is unchanged.
+
 > [!NOTE]
-> The `SyncWindow` CR itself must exist in the Argo CD namespace.
+> Tier 1 (AppProject) refs are **always** resolved from the control-plane namespace regardless of
+> where the Application lives, since AppProjects are an administrator-owned, control-plane resource.
 
 ### ApplicationSet
 

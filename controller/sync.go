@@ -790,7 +790,7 @@ func (m *appStateManager) resolveSyncWindowCRDRefs(app *v1alpha1.Application, pr
 	}
 
 	if len(app.Spec.SyncWindowRefs) > 0 {
-		windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs)
+		windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs, app.Namespace)
 		if err != nil {
 			log.WithError(err).Warn("Failed to resolve some app sync window refs")
 		}
