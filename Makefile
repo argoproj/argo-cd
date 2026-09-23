@@ -238,10 +238,8 @@ endif
 .PHONY: all
 all: cli image
 
-# mockery resolves the packages it mocks through the module graph, and emits different constructors
-# when it reads them from vendor/ than from the module cache. Vendor first, matching codegen-local.
 .PHONY: mockgen
-mockgen: mod-vendor-local codegen-go-tools-local
+mockgen: codegen-go-tools-local
 	./hack/generate-mock.sh
 
 .PHONY: gogen
@@ -699,9 +697,8 @@ install-test-tools-local:
 
 # Installs all tools required for running codegen (Linux packages)
 .PHONY: install-codegen-tools-local
-install-codegen-tools-local:
+install-codegen-tools-local: codegen-go-tools-local
 	./hack/install.sh codegen-tools
-	./hack/install.sh codegen-go-tools
 
 # Rebuilds the Go codegen CLIs in dist/ from go.mod and hack/tools/go.mod. Every target that runs a
 # generator depends on this, so the binaries can never be older than the versions they are pinned
@@ -712,8 +709,7 @@ codegen-go-tools-local:
 
 # Installs all tools required for running codegen (Go packages)
 .PHONY: install-go-tools-local
-install-go-tools-local:
-	./hack/install.sh codegen-go-tools
+install-go-tools-local: codegen-go-tools-local
 	./hack/install.sh lint-tools
 	./hack/install.sh actionlint
 	./hack/install.sh kubeconform
