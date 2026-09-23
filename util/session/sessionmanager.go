@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"math"
 	"math/rand"
 	"net"
@@ -44,6 +45,7 @@ type SessionManager struct {
 	verificationDelayNoiseEnabled bool
 	failedLock                    sync.RWMutex
 	metricsRegistry               MetricsRegistry
+	userStripes                   []sync.Mutex
 }
 
 // LoginAttempts is a timestamped counter for failed login attempts
@@ -96,9 +98,18 @@ const (
 
 	// Max number of stored usernames
 	envLoginMaxCacheSize = "ARGOCD_SESSION_MAX_CACHE_SIZE"
+
+	// Number of striped mutexes for login serialization (bounded memory)
+	loginLockStripes = 256
 )
 
 var InvalidLoginErr = status.Errorf(codes.Unauthenticated, invalidLoginError)
+
+func fnv32a(s string) uint32 {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(s))
+	return h.Sum32()
+}
 
 // Returns the maximum cache size as number of entries
 func getMaximumCacheSize() int {
@@ -123,6 +134,7 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 		sleep:                         time.Sleep,
 		projectsLister:                projectsLister,
 		verificationDelayNoiseEnabled: true,
+		userStripes:                   make([]sync.Mutex, loginLockStripes),
 	}
 	settings, err := settingsMgr.GetSettings()
 	if err != nil {
@@ -155,6 +167,20 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 	}
 
 	return &s
+}
+
+// stripeIndex maps a username to a bounded stripe using fnv32a
+func (mgr *SessionManager) stripeIndex(username string) int {
+	return int(fnv32a(username) % uint32(len(mgr.userStripes)))
+}
+
+// lockUser serializes login attempts for the same username using a striped mutex
+// Returns an unlock function that MUST be deferred by the caller.
+func (mgr *SessionManager) lockUser(username string) func() {
+	idx := mgr.stripeIndex(username)
+	mu := &mgr.userStripes[idx]
+	mu.Lock()
+	return mu.Unlock
 }
 
 // Create creates a new token for a given subject (user) and returns it as a string.
@@ -420,6 +446,10 @@ func (mgr *SessionManager) exceededFailedLoginAttempts(attempt LoginAttempts) bo
 
 // VerifyUsernamePassword verifies if a username/password combo is correct
 func (mgr *SessionManager) VerifyUsernamePassword(username string, password string) error {
+	// Prevent race condition by serializing login attempts for this username
+	unlock := mgr.lockUser(username)
+	defer unlock()
+
 	if password == "" {
 		return status.Errorf(codes.Unauthenticated, blankPasswordError)
 	}
