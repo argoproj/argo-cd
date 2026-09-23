@@ -347,6 +347,203 @@ func TestVerify(t *testing.T) {
 	}
 }
 
+// newJWKSServer starts a test JWKS endpoint serving a single RS256 key.
+func newJWKSServer(t *testing.T, publicKey *rsa.PublicKey, kid string) *httptest.Server {
+	t.Helper()
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/.well-known/jwks.json" {
+			http.NotFound(w, r)
+			return
+		}
+		jwk := jose.JSONWebKey{Key: publicKey, KeyID: kid, Algorithm: string(jose.RS256), Use: "sig"}
+		w.Header().Set("Content-Type", "application/json")
+		require.NoError(t, json.NewEncoder(w).Encode(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{jwk}}))
+	}))
+	t.Cleanup(ts.Close)
+	return ts
+}
+
+// TestVerify_ClaimMapping asserts that the claim names in the JWT config are projected onto
+// the claims Argo CD reads downstream ("sub" for the RBAC subject, "email" for the displayed
+// username, "groups" for the default RBAC scope), and that a configured claim is the only
+// source for the claim it maps to.
+func TestVerify_ClaimMapping(t *testing.T) {
+	const kid = "mapping-test-key"
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	ts := newJWKSServer(t, &privateKey.PublicKey, kid)
+
+	tests := []struct {
+		name           string
+		usernameClaim  string
+		emailClaim     string
+		groupsClaim    string
+		claims         map[string]any
+		expectedSub    string
+		expectedEmail  any // nil means the claim must be absent
+		expectedGroups any // nil means the claim must be absent
+	}{
+		{
+			name:          "username claim is mapped onto sub",
+			usernameClaim: "preferred_username",
+			claims: map[string]any{
+				"sub":                "8a1f0c7e-4b2d-4f3a-9c11-0d5e6f7a8b9c",
+				"preferred_username": "bgroux",
+			},
+			expectedSub: "bgroux",
+		},
+		{
+			name:          "nested username claim is mapped onto sub",
+			usernameClaim: "traits.username",
+			claims: map[string]any{
+				"sub":    "8a1f0c7e-4b2d-4f3a-9c11-0d5e6f7a8b9c",
+				"traits": map[string]any{"username": "bgroux"},
+			},
+			expectedSub: "bgroux",
+		},
+		{
+			name:          "username claim wins over federated_claims",
+			usernameClaim: "preferred_username",
+			claims: map[string]any{
+				"sub":                "8a1f0c7e-4b2d-4f3a-9c11-0d5e6f7a8b9c",
+				"preferred_username": "bgroux",
+				"federated_claims":   map[string]any{"user_id": "dex-user-id"},
+			},
+			expectedSub: "bgroux",
+		},
+		{
+			name:          "missing username claim falls back to sub",
+			usernameClaim: "preferred_username",
+			claims:        map[string]any{"sub": "fallback-subject"},
+			expectedSub:   "fallback-subject",
+		},
+		{
+			name:          "empty username claim falls back to sub",
+			usernameClaim: "preferred_username",
+			claims: map[string]any{
+				"sub":                "fallback-subject",
+				"preferred_username": "",
+			},
+			expectedSub: "fallback-subject",
+		},
+		{
+			name:          "email claim is mapped onto email",
+			emailClaim:    "mail",
+			claims:        map[string]any{"sub": "user", "mail": "bgroux@example.com"},
+			expectedSub:   "user",
+			expectedEmail: "bgroux@example.com",
+		},
+		{
+			name:          "missing email claim clears the issuer supplied email",
+			emailClaim:    "mail",
+			claims:        map[string]any{"sub": "user", "email": "spoofed@example.com"},
+			expectedSub:   "user",
+			expectedEmail: nil,
+		},
+		{
+			name:          "unconfigured email claim leaves the issuer supplied email untouched",
+			claims:        map[string]any{"sub": "user", "email": "bgroux@example.com"},
+			expectedSub:   "user",
+			expectedEmail: "bgroux@example.com",
+		},
+		{
+			name:           "groups claim is mapped onto groups",
+			groupsClaim:    "roles",
+			claims:         map[string]any{"sub": "user", "roles": []string{"admins", "devs"}},
+			expectedSub:    "user",
+			expectedGroups: []string{"admins", "devs"},
+		},
+		{
+			name:           "nested groups claim is mapped onto groups",
+			groupsClaim:    "traits.groups",
+			claims:         map[string]any{"sub": "user", "traits": map[string]any{"groups": []string{"admins"}}},
+			expectedSub:    "user",
+			expectedGroups: []string{"admins"},
+		},
+		{
+			name:           "single string groups claim is accepted",
+			groupsClaim:    "roles",
+			claims:         map[string]any{"sub": "user", "roles": "admins"},
+			expectedSub:    "user",
+			expectedGroups: []string{"admins"},
+		},
+		{
+			name:           "non string entries in the groups claim are dropped",
+			groupsClaim:    "roles",
+			claims:         map[string]any{"sub": "user", "roles": []any{"admins", 42}},
+			expectedSub:    "user",
+			expectedGroups: []string{"admins"},
+		},
+		{
+			// The configured claim is authoritative: a groupsClaim pointing at a claim the
+			// token does not carry must not fall back to the issuer supplied "groups".
+			name:           "groups claim pointing at a missing claim clears the issuer supplied groups",
+			groupsClaim:    "does-not-exist",
+			claims:         map[string]any{"sub": "user", "groups": []string{"argocd-admins"}},
+			expectedSub:    "user",
+			expectedGroups: nil,
+		},
+		{
+			name:           "groups claim of an unsupported type clears the issuer supplied groups",
+			groupsClaim:    "roles",
+			claims:         map[string]any{"sub": "user", "roles": 42, "groups": []string{"argocd-admins"}},
+			expectedSub:    "user",
+			expectedGroups: nil,
+		},
+		{
+			// Documented behaviour: without groupsClaim the user gets the default role.
+			name:           "unconfigured groups claim clears the issuer supplied groups",
+			claims:         map[string]any{"sub": "user", "groups": []string{"argocd-admins"}},
+			expectedSub:    "user",
+			expectedGroups: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Signed here rather than via generateTestToken so the token carries exactly the
+			// claims the case declares, with no default email or sub to confuse the assertions.
+			token := jwtgo.New(jwtgo.SigningMethodRS256)
+			token.Header["kid"] = kid
+			tokenClaims := jwtgo.MapClaims{
+				"exp": time.Now().Add(time.Hour).Unix(),
+				"iat": time.Now().Add(-time.Minute).Unix(),
+			}
+			maps.Copy(tokenClaims, tt.claims)
+			token.Claims = tokenClaims
+			tokenString, err := token.SignedString(privateKey)
+			require.NoError(t, err)
+
+			argoSettings := &settings.ArgoCDSettings{JWTConfig: &settings.JWTConfig{
+				HeaderName:    "X-Test-JWT",
+				JWKSetURL:     ts.URL + "/.well-known/jwks.json",
+				UsernameClaim: tt.usernameClaim,
+				EmailClaim:    tt.emailClaim,
+				GroupsClaim:   tt.groupsClaim,
+			}}
+
+			verified, err := NewExternalTokenVerifier(http.DefaultClient).Verify(t.Context(), tokenString, argoSettings)
+			require.NoError(t, err)
+			claims, ok := verified.(jwtgo.MapClaims)
+			require.True(t, ok, "claims are not of type MapClaims")
+
+			require.Equal(t, tt.expectedSub, claims["sub"], "sub claim mismatch")
+
+			if tt.expectedEmail == nil {
+				require.NotContains(t, claims, "email", "email claim should have been removed")
+			} else {
+				require.Equal(t, tt.expectedEmail, claims["email"], "email claim mismatch")
+			}
+
+			if tt.expectedGroups == nil {
+				require.NotContains(t, claims, "groups", "groups claim should have been removed")
+			} else {
+				require.Equal(t, tt.expectedGroups, claims["groups"], "groups claim mismatch")
+			}
+		})
+	}
+}
+
 // TestVerifyJWT_Cache tests the JWKS caching mechanism
 func TestVerifyJWT_Cache(t *testing.T) {
 	const kid = "cache-test-key"

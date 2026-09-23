@@ -137,24 +137,6 @@ func (v *externalTokenVerifier) Verify(ctx context.Context, tokenString string, 
 		return nil, errors.New("invalid external JWT claims format after successful parse")
 	}
 
-	if argoSettings.JWTConfig.EmailClaim != "" {
-		if _, ok := claims[argoSettings.JWTConfig.EmailClaim]; !ok {
-			log.Warnf("Required email claim %q not found in external JWT", argoSettings.JWTConfig.EmailClaim)
-			// Depending on requirements, you might want to return an error here instead of just logging.
-			// For now, let's allow it but log a warning.
-			// return nil, fmt.Errorf("required email claim %q not found", argoSettings.JWTConfig.EmailClaim)
-		}
-	}
-
-	if argoSettings.JWTConfig.UsernameClaim != "" {
-		if _, ok := claims[argoSettings.JWTConfig.UsernameClaim]; !ok {
-			log.Warnf("Required username claim %q not found in external JWT", argoSettings.JWTConfig.UsernameClaim)
-			// Depending on requirements, you might want to return an error here instead of just logging.
-			// For now, let's allow it but log a warning.
-			// return nil, fmt.Errorf("required username claim %q not found", argoSettings.JWTConfig.UsernameClaim)
-		}
-	}
-
 	// Verify audience if configured
 	if argoSettings.JWTConfig.Audience != "" {
 		audience, err := claims.GetAudience()
@@ -167,27 +149,57 @@ func (v *externalTokenVerifier) Verify(ctx context.Context, tokenString string, 
 		}
 	}
 
-	// Parse groups and set claim for later handling at "groups" scope
-	if argoSettings.JWTConfig.GroupsClaim != "" {
-		if groups, ok := getNestedClaim(claims, argoSettings.JWTConfig.GroupsClaim); ok {
-			// groups should be an array of strings...
-			if groupsSlice, ok := groups.([]any); ok {
-				stringGroups := make([]string, 0, len(groupsSlice))
-				for _, group := range groupsSlice {
-					if groupStr, ok := group.(string); ok {
-						stringGroups = append(stringGroups, groupStr)
-					}
-				}
-				claims["groups"] = stringGroups
-			}
-		} else {
-			log.Warnf("Groups claim %q not found in JWT", argoSettings.JWTConfig.GroupsClaim)
-		}
-	}
+	normalizeClaims(claims, argoSettings.JWTConfig)
 
 	// --- End Custom Claim Checks ---
 
 	return claims, nil
+}
+
+// normalizeClaims projects the claims named in the JWT config onto the claims Argo CD
+// reads downstream: "sub" (jwt.GetUserIdentifier, and therefore the RBAC subject), "email"
+// (the displayed username) and "groups" (the default RBAC scope).
+//
+// A configured claim is the only source for the claim it maps to. If it is absent from the
+// token, or holds an unusable value, the target claim is removed rather than left holding
+// whatever the external issuer happened to send under that name. That matters most for
+// groups: passing an issuer-supplied "groups" claim straight through would grant RBAC group
+// membership that the operator never opted into.
+func normalizeClaims(claims jwtgo.MapClaims, config *settings.JWTConfig) {
+	// Resolve everything before writing, so identity mappings (usernameClaim: sub,
+	// groupsClaim: groups) read the original value rather than one we just overwrote.
+	username, hasUsername := getNestedClaimString(claims, config.UsernameClaim)
+	email, hasEmail := getNestedClaimString(claims, config.EmailClaim)
+	groups, hasGroups := getNestedClaimStrings(claims, config.GroupsClaim)
+
+	if config.UsernameClaim != "" {
+		if hasUsername {
+			claims["sub"] = username
+			// GetUserIdentifier prefers federated_claims.user_id over sub, so drop it. An
+			// explicitly configured usernameClaim has to win over a claim the issuer added.
+			delete(claims, "federated_claims")
+		} else {
+			log.Warnf("Username claim %q not found in external JWT, falling back to the sub claim", config.UsernameClaim)
+		}
+	}
+
+	if config.EmailClaim != "" {
+		if hasEmail {
+			claims["email"] = email
+		} else {
+			log.Warnf("Email claim %q not found in external JWT", config.EmailClaim)
+			delete(claims, "email")
+		}
+	}
+
+	// Drop any incoming groups claim up front; it is only restored from the claim groupsClaim
+	// selects. Safe to delete first because groups was resolved above, before any writes.
+	delete(claims, "groups")
+	if hasGroups {
+		claims["groups"] = groups
+	} else if config.GroupsClaim != "" {
+		log.Warnf("Groups claim %q not found in external JWT, the user will be assigned the default role", config.GroupsClaim)
+	}
 }
 
 func (v *externalTokenVerifier) getJWKS(ctx context.Context, jwksURL string, cacheTTL time.Duration) (*jose.JSONWebKeySet, error) {
@@ -247,4 +259,56 @@ func getNestedClaim(data map[string]any, path string) (any, bool) {
 		current = value
 	}
 	return nil, false
+}
+
+// getNestedClaimString resolves a dot-separated claim path to a non-empty string.
+// An empty path, a missing claim or a non-string value all return false.
+func getNestedClaimString(claims map[string]any, path string) (string, bool) {
+	if path == "" {
+		return "", false
+	}
+	value, ok := getNestedClaim(claims, path)
+	if !ok {
+		return "", false
+	}
+	str, ok := value.(string)
+	if !ok || str == "" {
+		return "", false
+	}
+	return str, true
+}
+
+// getNestedClaimStrings resolves a dot-separated claim path to a list of strings. Issuers
+// spell list-valued claims in several ways, so a JSON array (decoded as []any), a []string
+// and a lone string are all accepted. An empty path, a missing claim or any other value
+// return false.
+func getNestedClaimStrings(claims map[string]any, path string) ([]string, bool) {
+	if path == "" {
+		return nil, false
+	}
+	value, ok := getNestedClaim(claims, path)
+	if !ok {
+		return nil, false
+	}
+
+	switch typed := value.(type) {
+	case string:
+		return []string{typed}, true
+	case []string:
+		return typed, true
+	case []any:
+		strs := make([]string, 0, len(typed))
+		for _, item := range typed {
+			str, ok := item.(string)
+			if !ok {
+				log.Warnf("Ignoring non-string entry of type %T in claim %q of external JWT", item, path)
+				continue
+			}
+			strs = append(strs, str)
+		}
+		return strs, true
+	default:
+		log.Warnf("Claim %q in external JWT has unsupported type %T, expected a string or a list of strings", path, value)
+		return nil, false
+	}
 }

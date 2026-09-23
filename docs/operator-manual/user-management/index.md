@@ -574,6 +574,10 @@ The following configuration options are available:
 * `signingAlgorithm`: Algorithm used to sign the token, as supported by jwt-go (optional: default: RS256)
 * `groupsClaim`: The JWT claim to use for the user's groups (optional)
 
+`usernameClaim`, `emailClaim` and `groupsClaim` all accept a dot-separated path for claims the
+issuer nests, for example `traits.username`. `groupsClaim` accepts either a list of strings or a
+single string.
+
 When JWT authentication is configured, Argo CD will:
 
 1. Extract the JWT from the specified HTTP header
@@ -583,7 +587,28 @@ When JWT authentication is configured, Argo CD will:
 5. Extract the user's groups, if configured, adding them to ArgoCD's `groups` scope
 6. Use these values to identify the user within Argo CD
 
-Note: If `groupsClaim` is not configured, the user will be logged in and assigned the default role.
+### Claim mapping
+
+The claims named above are mapped onto the claims Argo CD uses internally:
+
+| Config          | Mapped to | Used for                                                     |
+| --------------- | --------- | ------------------------------------------------------------ |
+| `usernameClaim` | `sub`     | The RBAC subject, and the username shown by `argocd account get-user-info` |
+| `emailClaim`    | `email`   | The username displayed in the UI and the audit log            |
+| `groupsClaim`   | `groups`  | Group membership, matched against the RBAC `scopes` setting   |
+
+A configured claim is the **only** source for the claim it maps to. If it is missing from the
+token, or holds a value that is not a string (or, for groups, a list of strings), the target
+claim is dropped rather than falling back to a claim of the same name in the incoming token. The
+one exception is `usernameClaim`: a missing username falls back to the token's own `sub` claim,
+so a typo in the config does not lock users out.
+
+> [!WARNING]
+> This applies in particular to `groups`. Argo CD does not pass an issuer-supplied `groups` claim
+> through to RBAC unless `groupsClaim` explicitly selects it. If `groupsClaim` is unset or points
+> at a claim the token does not carry, the user is logged in and assigned the default role. Check
+> `argocd account get-user-info` and the API server logs if a user is unexpectedly getting the
+> default role — an unresolvable `groupsClaim` is logged as a warning on every request.
 
 The external authentication provider must:
 
