@@ -209,6 +209,14 @@ func Test_sourceIPFields(t *testing.T) {
 			forwardedFor: "203.0.113.9",
 		},
 		{
+			// grpc-web and native gRPC deliver each X-Forwarded-For header line as its own value.
+			name:         "chain split across header lines keeps the original client",
+			md:           metadata.MD{"x-forwarded-for": {"203.0.113.7", "10.0.0.5"}},
+			peerAddr:     &net.TCPAddr{IP: net.ParseIP("10.0.0.1"), Port: 4242},
+			sourceIP:     "10.0.0.1",
+			forwardedFor: "203.0.113.7, 10.0.0.5",
+		},
+		{
 			// Azure Application Gateway appends client-ip:port rather than a bare address.
 			name:     "address carrying a port",
 			md:       gatewayMD("1.2.3.4:56789"),
@@ -346,6 +354,43 @@ func Test_forwardedForCaps(t *testing.T) {
 		assert.True(t, strings.HasSuffix(got, "..."), "truncation must be visible, got %q", got)
 		assert.LessOrEqual(t, len(got), maxForwardedForLen+3)
 		assert.Equal(t, maxForwardedForEntries, strings.Count(got, ",")+1, "no more than the entry cap is parsed")
+	})
+
+	t.Run("the gateway's appended address does not count toward the cap", func(t *testing.T) {
+		t.Parallel()
+		gatewayFieldFor := func(n int) string {
+			entries := make([]string, n)
+			for i := range entries {
+				entries[i] = fmt.Sprintf("10.0.0.%d", i)
+			}
+			md := metadata.Pairs(
+				"x-forwarded-for", strings.Join(entries, ", ")+", 198.51.100.1",
+				GatewayTokenMetadataKey, testGatewayToken,
+				ClientIPMetadataKey, "198.51.100.1",
+			)
+			_, forwardedFor := sourceIPFields(metadata.NewIncomingContext(t.Context(), md), testGatewayToken)
+			return forwardedFor
+		}
+
+		got := gatewayFieldFor(maxForwardedForEntries)
+		assert.False(t, strings.HasSuffix(got, "..."), "a chain at the cap is complete, got %q", got)
+		assert.Equal(t, maxForwardedForEntries, strings.Count(got, ",")+1)
+
+		got = gatewayFieldFor(maxForwardedForEntries + 1)
+		assert.True(t, strings.HasSuffix(got, "..."), "a chain over the cap is truncated, got %q", got)
+		assert.NotContains(t, got, "198.51.100.1")
+	})
+
+	t.Run("the cap spans header lines", func(t *testing.T) {
+		t.Parallel()
+		values := make([]string, 100)
+		for i := range values {
+			values[i] = "9.9.9.9"
+		}
+		ctx := metadata.NewIncomingContext(t.Context(), metadata.MD{"x-forwarded-for": values})
+		_, got := sourceIPFields(ctx, testGatewayToken)
+		assert.True(t, strings.HasSuffix(got, "..."), "got %q", got)
+		assert.Equal(t, maxForwardedForEntries, strings.Count(got, ",")+1)
 	})
 
 	t.Run("a single oversized entry is cut", func(t *testing.T) {

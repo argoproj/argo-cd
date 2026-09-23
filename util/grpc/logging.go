@@ -160,24 +160,35 @@ func HTTPClientIP(r *http.Request) string {
 // every part of an x-forwarded-for chain is caller-controlled.
 func sourceIPFields(ctx context.Context, gatewayToken string) (sourceIP string, forwardedFor string) {
 	md, _ := metadata.FromIncomingContext(ctx)
+	gateway := fromGateway(md, gatewayToken)
 
-	// Only the last value counts, for the same reason the token does: grpc-gateway forwards a caller's
-	// Grpc-Metadata-X-Forwarded-For ahead of the chain it assembles itself, so earlier values are
-	// entries the caller prepended.
+	// Other callers send one value per X-Forwarded-For header line, so the chain spans all of them.
+	// From the gateway only the last value counts, for the same reason the token does: grpc-gateway
+	// forwards a caller's Grpc-Metadata-X-Forwarded-For ahead of the chain it assembles itself.
+	values := md.Get("x-forwarded-for")
+	limit := maxForwardedForEntries
+	if gateway {
+		values = values[max(len(values)-1, 0):]
+		// Leave room for the address the gateway appends, which is trimmed below.
+		limit++
+	}
 	var xff []string
 	truncated := false
-	for e := range strings.SplitSeq(lastValue(md, "x-forwarded-for"), ",") {
-		if e = strings.TrimSpace(e); e == "" {
-			continue
+parse:
+	for _, v := range values {
+		for e := range strings.SplitSeq(v, ",") {
+			if e = strings.TrimSpace(e); e == "" {
+				continue
+			}
+			if len(xff) == limit {
+				truncated = true
+				break parse
+			}
+			xff = append(xff, e)
 		}
-		if len(xff) == maxForwardedForEntries {
-			truncated = true
-			break
-		}
-		xff = append(xff, e)
 	}
 
-	if !fromGateway(md, gatewayToken) {
+	if !gateway {
 		return peerIPFromContext(ctx), joinForwardedFor(xff, truncated)
 	}
 
@@ -186,6 +197,9 @@ func sourceIPFields(ctx context.Context, gatewayToken string) (sourceIP string, 
 	// client actually sent, since sourceIP already carries that address.
 	if n := len(xff); !truncated && n > 0 && xff[n-1] == sourceIP {
 		xff = xff[:n-1]
+	}
+	if len(xff) > maxForwardedForEntries {
+		xff, truncated = xff[:maxForwardedForEntries], true
 	}
 	return sourceIP, joinForwardedFor(xff, truncated)
 }
