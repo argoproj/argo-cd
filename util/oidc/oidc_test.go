@@ -1955,4 +1955,41 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		assert.NotEmpty(t, entry.Data["error"])
 		assert.NotContains(t, entry.Data, "username")
 	})
+
+	t.Run("failed implicit flow login", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		t.Cleanup(hook.Reset)
+		app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/callback?state=bogus", http.NoBody)
+		w := httptest.NewRecorder()
+		app.HandleCallback(w, req)
+		require.Equal(t, http.StatusBadRequest, w.Code)
+
+		entry := findLoginEntry(t, hook)
+		assert.Equal(t, log.WarnLevel, entry.Level)
+		assert.Equal(t, "Login failed", entry.Message)
+		assert.NotEmpty(t, entry.Data["error"])
+	})
+
+	t.Run("failed provider setup", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		t.Cleanup(hook.Reset)
+		// the OIDC test server uses a self-signed certificate, so provider discovery fails without OIDCTLSInsecureSkipVerify
+		strictSettings := *cdSettings
+		strictSettings.OIDCTLSInsecureSkipVerify = false
+		app, err := NewClientApp(&strictSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/callback?state=bogus&code=abc", http.NoBody)
+		w := httptest.NewRecorder()
+		app.HandleCallback(w, req)
+		require.Equal(t, http.StatusInternalServerError, w.Code)
+
+		entry := findLoginEntry(t, hook)
+		assert.Equal(t, log.WarnLevel, entry.Level)
+		assert.Equal(t, "Login failed", entry.Message)
+		assert.NotEmpty(t, entry.Data["error"])
+	})
 }

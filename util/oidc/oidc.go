@@ -527,18 +527,18 @@ func (a *azureApp) getFederatedServiceAccountToken(context.Context) (string, err
 
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
-	oauth2Config, err := a.getOauth2ConfigForRedirectURI(a.getRedirectURIForRequest(r))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	log.Infof("Callback: %s", r.URL)
 	logCtx := log.WithField("login.type", "sso")
 	// logCtx is captured by reference so the username and claims are included once they are known
 	fail := func(err error, msg string, code int) {
 		logCtx.WithError(err).Warn("Login failed")
 		http.Error(w, msg, code)
 	}
+	oauth2Config, err := a.getOauth2ConfigForRedirectURI(a.getRedirectURIForRequest(r))
+	if err != nil {
+		fail(err, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	log.Infof("Callback: %s", r.URL)
 	if errMsg := r.FormValue("error"); errMsg != "" {
 		errorDesc := r.FormValue("error_description")
 		fail(fmt.Errorf("%s: %s", errMsg, errorDesc), html.EscapeString(errMsg)+": "+html.EscapeString(errorDesc), http.StatusBadRequest)
@@ -548,7 +548,9 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	state := r.FormValue("state")
 	if code == "" {
 		// If code was not given, it implies implicit flow
-		a.handleImplicitFlow(r, w, state)
+		if err := a.handleImplicitFlow(r, w, state); err != nil {
+			fail(err, err.Error(), http.StatusBadRequest)
+		}
 		return
 	}
 	returnURL, pkceVerifier, err := a.verifyAppState(r, w, state)
@@ -842,7 +844,7 @@ if (state != "" && returnURL == "") {
 // state nonce for verification, as well as looking up the return URL. Once verified, the client
 // stores the id_token from the fragment as a cookie. Finally it performs the final redirect back to
 // the return URL.
-func (a *ClientApp) handleImplicitFlow(r *http.Request, w http.ResponseWriter, state string) {
+func (a *ClientApp) handleImplicitFlow(r *http.Request, w http.ResponseWriter, state string) error {
 	type implicitFlowValues struct {
 		CookieName string
 		ReturnURL  string
@@ -854,12 +856,12 @@ func (a *ClientApp) handleImplicitFlow(r *http.Request, w http.ResponseWriter, s
 		// Not using pkceVerifier, since PKCE is not supported in implicit flow.
 		returnURL, _, err := a.verifyAppState(r, w, state)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			return err
 		}
 		vals.ReturnURL = returnURL
 	}
 	renderTemplate(w, implicitFlowTmpl, vals)
+	return nil
 }
 
 // ImplicitFlowURL is an adaptation of oauth2.Config::AuthCodeURL() which returns a URL

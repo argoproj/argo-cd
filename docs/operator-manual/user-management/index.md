@@ -127,25 +127,6 @@ cache. Default: 1000
 * `ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT`: Limits max number of concurrent login requests.
 If set to 0 then limit is disabled. Default: 50.
 
-### Login logging
-
-The API server logs every login attempt, for both local accounts and SSO, so that logins can be audited.
-Successful logins are logged at `info` level and failed attempts at `warn` level. Each entry carries
-structured fields that can be used for querying:
-
-* `username`: the account that logged in or attempted to log in. For SSO logins this is the same
-  identifier used for RBAC. It is omitted for SSO failures that happen before the ID token is verified,
-  since no trustworthy identity is known at that point.
-* `login.type`: `local` or `sso`.
-* `error`: the reason a login failed. Only present on failed attempts.
-
-Passwords are never logged.
-
-```text
-time="2026-01-01T00:00:00Z" level=info msg="Login successful" login.type=local username=admin
-time="2026-01-01T00:00:01Z" level=warning msg="Login failed" error="Invalid username or password" login.type=local username=alice
-```
-
 ## SSO
 
 There are two ways that SSO can be configured:
