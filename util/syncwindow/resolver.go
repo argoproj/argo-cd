@@ -28,8 +28,12 @@ func NewResolver(lister listers.SyncWindowLister, namespace string) *Resolver {
 
 // ResolveProjectRefs resolves SyncWindowProjectRef entries from an AppProject into SyncWindow objects.
 // The returned windows incorporate any application/namespace/cluster filters from the project ref.
-// If a ref cannot be resolved, the error is recorded and resolution continues with the remaining
-// refs so that valid deny windows are never silently dropped by a single bad reference.
+//
+// If one ref cannot be resolved, resolution continues with the remaining refs and the
+// successfully-resolved windows are still returned, alongside a joined error covering the failures.
+//
+// Note: the failing ref itself contributes no windows. Callers currently only log the returned
+// error and continue with the partial result, so a ref that fails to resolve is effectively skipped
 func (r *Resolver) ResolveProjectRefs(refs []v1alpha1.SyncWindowProjectRef) (v1alpha1.SyncWindows, error) {
 	var result v1alpha1.SyncWindows
 	var errs []error
@@ -70,8 +74,8 @@ func (r *Resolver) ResolveProjectRefs(refs []v1alpha1.SyncWindowProjectRef) (v1a
 // Applications without needing write access to the control-plane namespace. When apps in any
 // namespace is not enabled, the app namespace equals the control-plane namespace.
 //
-// If a ref cannot be resolved, the error is recorded and resolution continues with the remaining
-// refs so that valid deny windows are never silently dropped by a single bad reference.
+// If one ref cannot be resolved, resolution continues with the remaining refs and the
+// successfully-resolved windows are still returned, the failing ref itself contributes no windows
 func (r *Resolver) ResolveAppRefs(refs []v1alpha1.SyncWindowRef, namespace string) (v1alpha1.SyncWindows, error) {
 	var result v1alpha1.SyncWindows
 	var errs []error
