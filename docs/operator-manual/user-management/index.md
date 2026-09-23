@@ -574,9 +574,14 @@ The following configuration options are available:
 * `signingAlgorithm`: Algorithm used to sign the token, as supported by jwt-go (optional: default: RS256)
 * `groupsClaim`: The JWT claim to use for the user's groups (optional)
 
-`usernameClaim`, `emailClaim` and `groupsClaim` all accept a dot-separated path for claims the
-issuer nests, for example `traits.username`. `groupsClaim` accepts either a list of strings or a
-single string.
+`usernameClaim`, `emailClaim` and `groupsClaim` are each resolved as a literal claim name first,
+and only then as a dot-separated path into nested claims. So `traits.username` selects the
+top-level claim literally named `traits.username` if the token has one, and otherwise the
+`username` field nested inside `traits`. The literal-first order is what lets you select
+namespaced claims — issuers such as Auth0 require custom claims to be URIs, producing names like
+`https://argocd.example.com/groups` that contain dots of their own.
+
+`groupsClaim` accepts either a list of strings or a single string.
 
 When JWT authentication is configured, Argo CD will:
 

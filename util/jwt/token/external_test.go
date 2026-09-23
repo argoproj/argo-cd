@@ -412,6 +412,39 @@ func TestVerify_ClaimMapping(t *testing.T) {
 			expectedSub: "bgroux",
 		},
 		{
+			// Auth0 and similar issuers require custom claims to be namespaced URIs, so the
+			// claim name contains dots that must not be read as a path separator.
+			name:          "namespaced username claim is mapped onto sub",
+			usernameClaim: "https://argocd.example.com/username",
+			claims: map[string]any{
+				"sub":                                 "8a1f0c7e-4b2d-4f3a-9c11-0d5e6f7a8b9c",
+				"https://argocd.example.com/username": "bgroux",
+			},
+			expectedSub: "bgroux",
+		},
+		{
+			name:        "namespaced groups claim is mapped onto groups",
+			groupsClaim: "https://argocd.example.com/groups",
+			claims: map[string]any{
+				"sub":                               "user",
+				"https://argocd.example.com/groups": []string{"platform-admins"},
+			},
+			expectedSub:    "user",
+			expectedGroups: []string{"platform-admins"},
+		},
+		{
+			// A literal claim name wins over traversal when a token somehow carries both.
+			name:        "literal claim name takes precedence over the nested path",
+			groupsClaim: "a.b",
+			claims: map[string]any{
+				"sub": "user",
+				"a.b": []string{"literal"},
+				"a":   map[string]any{"b": []string{"nested"}},
+			},
+			expectedSub:    "user",
+			expectedGroups: []string{"literal"},
+		},
+		{
 			name:          "missing username claim falls back to sub",
 			usernameClaim: "preferred_username",
 			claims:        map[string]any{"sub": "fallback-subject"},

@@ -238,7 +238,16 @@ func (v *externalTokenVerifier) getJWKS(ctx context.Context, jwksURL string, cac
 // For example, given path "user.profile.name", it will traverse:
 // data["user"]["profile"]["name"]
 // Returns the value and true if found, nil and false otherwise.
+//
+// The whole path is tried as a literal key first, because claim names may contain dots
+// themselves: issuers such as Auth0 require custom claims to be namespaced URIs, giving
+// names like "https://argocd.example.com/groups" that the dot-separated syntax cannot
+// otherwise express. A literal match therefore wins over traversal.
 func getNestedClaim(data map[string]any, path string) (any, bool) {
+	if value, exists := data[path]; exists {
+		return value, true
+	}
+
 	keys := strings.Split(path, ".")
 	var current any = data
 
@@ -261,8 +270,8 @@ func getNestedClaim(data map[string]any, path string) (any, bool) {
 	return nil, false
 }
 
-// getNestedClaimString resolves a dot-separated claim path to a non-empty string.
-// An empty path, a missing claim or a non-string value all return false.
+// getNestedClaimString resolves a claim path to a non-empty string. An empty path, a
+// missing claim or a non-string value all return false.
 func getNestedClaimString(claims map[string]any, path string) (string, bool) {
 	if path == "" {
 		return "", false
@@ -278,10 +287,10 @@ func getNestedClaimString(claims map[string]any, path string) (string, bool) {
 	return str, true
 }
 
-// getNestedClaimStrings resolves a dot-separated claim path to a list of strings. Issuers
-// spell list-valued claims in several ways, so a JSON array (decoded as []any), a []string
-// and a lone string are all accepted. An empty path, a missing claim or any other value
-// return false.
+// getNestedClaimStrings resolves a claim path to a list of strings. Issuers spell
+// list-valued claims in several ways, so a JSON array (decoded as []any), a []string and a
+// lone string are all accepted. An empty path, a missing claim or any other value return
+// false.
 func getNestedClaimStrings(claims map[string]any, path string) ([]string, bool) {
 	if path == "" {
 		return nil, false
