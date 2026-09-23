@@ -40,6 +40,7 @@ argocd-server [flags]
       --basehref string                                 Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from / (default "/")
       --certificate-authority string                    Path to a cert file for the certificate authority
       --client-certificate string                       Path to a client certificate file for TLS
+      --client-ip-header string                         Header a trusted proxy sets to the client IP, e.g. CF-Connecting-IP, True-Client-IP or X-Real-IP
       --client-key string                               Path to a client key file for TLS
       --cluster string                                  The name of the kubeconfig cluster to use
       --connection-status-cache-expiration duration     Cache expiration for cluster/repo connection status (default 1h0m0s)
@@ -119,6 +120,7 @@ argocd-server [flags]
       --tlsmaxversion string                            The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
       --tlsminversion string                            The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
       --token string                                    Bearer token for authentication to the API server
+      --trusted-proxies strings                         CIDRs or addresses of proxies whose X-Forwarded-For entries and --client-ip-header are honoured when logging the source IP
       --user string                                     The name of the kubeconfig user to use
       --username string                                 Username for basic authentication to the API server
       --webhook-parallelism-limit int                   Number of webhook requests processed concurrently (default 50)

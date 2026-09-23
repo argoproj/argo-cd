@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/netip"
+	"slices"
 	"strings"
 	"time"
 
@@ -146,9 +148,95 @@ const (
 	maxForwardedForLen     = 512
 )
 
-// HTTPClientIP returns the address an HTTP request arrived from, without its port.
-func HTTPClientIP(r *http.Request) string {
-	return stripPort(r.RemoteAddr)
+// ParseTrustedProxies parses a list of CIDRs or bare addresses.
+func ParseTrustedProxies(values []string) ([]netip.Prefix, error) {
+	prefixes := make([]netip.Prefix, 0, len(values))
+	for _, v := range values {
+		if v = strings.TrimSpace(v); v == "" {
+			continue
+		}
+		if addr, err := netip.ParseAddr(v); err == nil {
+			addr = addr.Unmap()
+			prefixes = append(prefixes, netip.PrefixFrom(addr, addr.BitLen()))
+			continue
+		}
+		p, err := netip.ParsePrefix(v)
+		if err != nil {
+			return nil, fmt.Errorf("invalid trusted proxy %q: %w", v, err)
+		}
+		prefixes = append(prefixes, p.Masked())
+	}
+	return prefixes, nil
+}
+
+// HTTPClientIP returns the client address of an HTTP request, as resolved by ResolveClientIP.
+func HTTPClientIP(r *http.Request, trustedProxies []netip.Prefix, clientIPHeader string) string {
+	var headerIP string
+	if clientIPHeader != "" {
+		if v := r.Header.Values(clientIPHeader); len(v) > 0 {
+			headerIP = v[len(v)-1]
+		}
+	}
+	return ResolveClientIP(r.RemoteAddr, headerIP, r.Header.Values("X-Forwarded-For"), trustedProxies)
+}
+
+// ResolveClientIP returns the address of the nearest hop that is not a trusted proxy. If remote is not
+// trusted, that is remote itself. Otherwise it is headerIP, when the proxy set one, or else the
+// rightmost X-Forwarded-For entry that is not trusted. xff holds one value per header line.
+//
+// Only entries to the right of an untrusted one could have been chosen by the client, so the walk
+// goes right to left and stops at an entry that is not a valid address rather than returning it.
+func ResolveClientIP(remote string, headerIP string, xff []string, trustedProxies []netip.Prefix) string {
+	remote = stripPort(remote)
+	if !isTrustedProxy(remote, trustedProxies) {
+		return remote
+	}
+	if a, err := netip.ParseAddr(stripPort(strings.TrimSpace(headerIP))); err == nil {
+		return a.Unmap().String()
+	}
+	resolved := remote
+	seen := 0
+walk:
+	for _, rest := range slices.Backward(xff) {
+		for rest != "" {
+			seen++
+			if seen > maxForwardedForEntries {
+				break walk
+			}
+			var e string
+			if j := strings.LastIndexByte(rest, ','); j >= 0 {
+				e, rest = rest[j+1:], rest[:j]
+			} else {
+				e, rest = rest, ""
+			}
+			if e = strings.TrimSpace(e); e == "" {
+				continue
+			}
+			a, err := netip.ParseAddr(stripPort(e))
+			if err != nil {
+				break walk
+			}
+			resolved = a.Unmap().String()
+			if !isTrustedProxy(resolved, trustedProxies) {
+				break walk
+			}
+		}
+	}
+	return resolved
+}
+
+func isTrustedProxy(addr string, trustedProxies []netip.Prefix) bool {
+	a, err := netip.ParseAddr(addr)
+	if err != nil {
+		return false
+	}
+	a = a.Unmap()
+	for _, p := range trustedProxies {
+		if p.Contains(a) {
+			return true
+		}
+	}
+	return false
 }
 
 // sourceIPFields returns the client address observed by the API server and, separately, the
@@ -156,9 +244,9 @@ func HTTPClientIP(r *http.Request) string {
 //
 // The gateway serving REST and UI traffic dials the API server's own listener over localhost, so its
 // gRPC peer address says nothing about the client. It identifies itself with gatewayToken instead and
-// passes on the address it saw; anything else is taken at face value from its socket peer, because
-// every part of an x-forwarded-for chain is caller-controlled.
-func sourceIPFields(ctx context.Context, gatewayToken string) (sourceIP string, forwardedFor string) {
+// passes on the address it resolved; anything else is attributed to its socket peer, unless that peer
+// is one of trustedProxies.
+func sourceIPFields(ctx context.Context, gatewayToken string, trustedProxies []netip.Prefix, clientIPHeader string) (sourceIP string, forwardedFor string) {
 	md, _ := metadata.FromIncomingContext(ctx)
 	gateway := fromGateway(md, gatewayToken)
 
@@ -189,13 +277,17 @@ parse:
 	}
 
 	if !gateway {
-		return peerIPFromContext(ctx), joinForwardedFor(xff, truncated)
+		var headerIP string
+		if clientIPHeader != "" {
+			headerIP = lastValue(md, strings.ToLower(clientIPHeader))
+		}
+		return ResolveClientIP(peerIPFromContext(ctx), headerIP, values, trustedProxies), joinForwardedFor(xff, truncated)
 	}
 
 	sourceIP = stripPort(lastValue(md, ClientIPMetadataKey))
-	// grpc-gateway appends the address it observed to the chain it received. Report only what the
-	// client actually sent, since sourceIP already carries that address.
-	if n := len(xff); !truncated && n > 0 && xff[n-1] == sourceIP {
+	// grpc-gateway appends the address of its HTTP peer to the chain it received. Report only what
+	// arrived at the API server: that address is sourceIP, or a trusted proxy that resolved to it.
+	if n := len(xff); !truncated && n > 0 && (xff[n-1] == sourceIP || isTrustedProxy(xff[n-1], trustedProxies)) {
 		xff = xff[:n-1]
 	}
 	if len(xff) > maxForwardedForEntries {
@@ -255,10 +347,11 @@ func stripPort(addr string) string {
 }
 
 // SourceIPLoggingOption adds the source IP of the client to every gRPC log line. gatewayToken is the
-// secret this process's grpc-gateway identifies itself with.
-func SourceIPLoggingOption(gatewayToken string) logging.Option {
+// secret this process's grpc-gateway identifies itself with; trustedProxies and clientIPHeader are as
+// for ResolveClientIP.
+func SourceIPLoggingOption(gatewayToken string, trustedProxies []netip.Prefix, clientIPHeader string) logging.Option {
 	return logging.WithFieldsFromContext(func(ctx context.Context) logging.Fields {
-		sourceIP, forwardedFor := sourceIPFields(ctx, gatewayToken)
+		sourceIP, forwardedFor := sourceIPFields(ctx, gatewayToken, trustedProxies, clientIPHeader)
 		var fields logging.Fields
 		if sourceIP != "" {
 			fields = append(fields, sourceIPField, sourceIP)

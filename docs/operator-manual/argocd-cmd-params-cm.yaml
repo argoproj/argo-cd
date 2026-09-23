@@ -208,6 +208,11 @@ data:
   server.enable.gzip: "true"
   # Include the source IP address of the client in API request logs
   server.enable.source.ip.logging: "false"
+  # Comma separated CIDRs or addresses of proxies in front of the API server. When a request arrives from one of them, the
+  # source IP is taken from server.client.ip.header or from X-Forwarded-For instead (default: none)
+  server.trusted.proxies: ""
+  # Header a trusted proxy sets to the client IP, e.g. CF-Connecting-IP, True-Client-IP or X-Real-IP (default: none)
+  server.client.ip.header: ""
   # Set X-Frame-Options header in HTTP responses to value. To disable, set to "". (default "sameorigin")
   server.x.frame.options: "sameorigin"
   # The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")

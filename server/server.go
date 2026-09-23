@@ -12,6 +12,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"os/exec"
@@ -261,6 +262,9 @@ type ArgoCDServerOpts struct {
 	SyncWithReplaceAllowed  bool
 	DisableSwaggerUI        bool
 	EnableSourceIPLogging   bool
+	// TrustedProxies and ClientIPHeader decide which address source IP logging attributes a request to.
+	TrustedProxies []netip.Prefix
+	ClientIPHeader string
 }
 
 type ApplicationSetOpts struct {
@@ -984,7 +988,7 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 	// Logging the source IP is opt-in: it is personal data in many jurisdictions.
 	var loggingOpts []logging.Option
 	if server.EnableSourceIPLogging {
-		loggingOpts = append(loggingOpts, grpc_util.SourceIPLoggingOption(server.gatewayToken))
+		loggingOpts = append(loggingOpts, grpc_util.SourceIPLoggingOption(server.gatewayToken, server.TrustedProxies, server.ClientIPHeader))
 	}
 	sOpts = append(sOpts, grpc.ChainStreamInterceptor(
 		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(server.log), loggingOpts...),
@@ -1242,7 +1246,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	gwSourceOpts := runtime.WithMetadata(func(_ context.Context, r *http.Request) metadata.MD {
 		return metadata.Pairs(
 			grpc_util.GatewayTokenMetadataKey, server.gatewayToken,
-			grpc_util.ClientIPMetadataKey, grpc_util.HTTPClientIP(r),
+			grpc_util.ClientIPMetadataKey, grpc_util.HTTPClientIP(r, server.TrustedProxies, server.ClientIPHeader),
 		)
 	})
 	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts, gwSourceOpts)

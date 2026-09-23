@@ -136,6 +136,18 @@ spec:
                   name: argocd-cmd-params-cm
                   key: server.enable.source.ip.logging
                   optional: true
+            - name: ARGOCD_SERVER_TRUSTED_PROXIES
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.trusted.proxies
+                  optional: true
+            - name: ARGOCD_SERVER_CLIENT_IP_HEADER
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.client.ip.header
+                  optional: true
             - name: ARGOCD_SERVER_ENABLE_GZIP
               valueFrom:
                 configMapKeyRef:

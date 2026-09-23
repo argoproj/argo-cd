@@ -5,6 +5,9 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/netip"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -240,7 +243,7 @@ func Test_sourceIPFields(t *testing.T) {
 			if tt.peerAddr != nil {
 				ctx = peer.NewContext(ctx, &peer.Peer{Addr: tt.peerAddr})
 			}
-			sourceIP, forwardedFor := sourceIPFields(ctx, testGatewayToken)
+			sourceIP, forwardedFor := sourceIPFields(ctx, testGatewayToken, nil, "")
 			assert.Equal(t, tt.sourceIP, sourceIP)
 			assert.Equal(t, tt.forwardedFor, forwardedFor)
 		})
@@ -253,7 +256,7 @@ func Test_sourceIPFields_noGatewayToken(t *testing.T) {
 	ctx := metadata.NewIncomingContext(t.Context(), md)
 	ctx = peer.NewContext(ctx, &peer.Peer{Addr: &net.TCPAddr{IP: net.ParseIP("10.0.0.1"), Port: 4242}})
 
-	sourceIP, _ := sourceIPFields(ctx, "")
+	sourceIP, _ := sourceIPFields(ctx, "", nil, "")
 	assert.Equal(t, "10.0.0.1", sourceIP, "an empty token must never match")
 }
 
@@ -282,7 +285,7 @@ func Test_SourceIPLogging(t *testing.T) {
 
 	assert.NotContains(t, call(t), "source.ip")
 
-	out := call(t, SourceIPLoggingOption(testGatewayToken))
+	out := call(t, SourceIPLoggingOption(testGatewayToken, nil, ""))
 	assert.Contains(t, out, `"source.ip":"10.0.0.5"`)
 	assert.Contains(t, out, `"forwarded.for":"1.2.3.4"`)
 }
@@ -308,7 +311,7 @@ func Test_SourceIPOnPayloadLog(t *testing.T) {
 	decider := func(_ context.Context, _ interceptors.CallMeta) bool { return true }
 
 	// The logging interceptor injects the fields; the payload interceptor is the one logging claims.
-	chained := logging.UnaryServerInterceptor(InterceptorLogger(entry), SourceIPLoggingOption(testGatewayToken))
+	chained := logging.UnaryServerInterceptor(InterceptorLogger(entry), SourceIPLoggingOption(testGatewayToken, nil, ""))
 	inner := PayloadUnaryServerInterceptor(entry, true, decider)
 	_, err := chained(ctx, req, &grpc.UnaryServerInfo{FullMethod: "/account.AccountService/CreateToken"},
 		func(ctx context.Context, r any) (any, error) {
@@ -333,7 +336,7 @@ func Test_forwardedForCaps(t *testing.T) {
 		t.Helper()
 		ctx := metadata.NewIncomingContext(t.Context(), metadata.Pairs("x-forwarded-for", chain))
 		ctx = peer.NewContext(ctx, &peer.Peer{Addr: &net.TCPAddr{IP: net.ParseIP("10.0.0.1"), Port: 4242}})
-		_, forwardedFor := sourceIPFields(ctx, testGatewayToken)
+		_, forwardedFor := sourceIPFields(ctx, testGatewayToken, nil, "")
 		return forwardedFor
 	}
 
@@ -368,7 +371,7 @@ func Test_forwardedForCaps(t *testing.T) {
 				GatewayTokenMetadataKey, testGatewayToken,
 				ClientIPMetadataKey, "198.51.100.1",
 			)
-			_, forwardedFor := sourceIPFields(metadata.NewIncomingContext(t.Context(), md), testGatewayToken)
+			_, forwardedFor := sourceIPFields(metadata.NewIncomingContext(t.Context(), md), testGatewayToken, nil, "")
 			return forwardedFor
 		}
 
@@ -388,7 +391,7 @@ func Test_forwardedForCaps(t *testing.T) {
 			values[i] = "9.9.9.9"
 		}
 		ctx := metadata.NewIncomingContext(t.Context(), metadata.MD{"x-forwarded-for": values})
-		_, got := sourceIPFields(ctx, testGatewayToken)
+		_, got := sourceIPFields(ctx, testGatewayToken, nil, "")
 		assert.True(t, strings.HasSuffix(got, "..."), "got %q", got)
 		assert.Equal(t, maxForwardedForEntries, strings.Count(got, ",")+1)
 	})
@@ -413,5 +416,126 @@ func Test_forwardedForCaps(t *testing.T) {
 		// net/http accepts ~1MB of headers, and this runs before authentication.
 		got := fieldFor(t, strings.Repeat("9.9.9.9, ", 100_000))
 		assert.LessOrEqual(t, len(got), maxForwardedForLen+3)
+	})
+}
+
+func Test_ParseTrustedProxies(t *testing.T) {
+	t.Parallel()
+	got, err := ParseTrustedProxies([]string{"10.0.0.0/8", " 192.0.2.1 ", "", "2001:db8::/32", "::ffff:198.51.100.7", "10.1.2.3/16"})
+	require.NoError(t, err)
+	assert.Equal(t, []netip.Prefix{
+		netip.MustParsePrefix("10.0.0.0/8"),
+		netip.MustParsePrefix("192.0.2.1/32"),
+		netip.MustParsePrefix("2001:db8::/32"),
+		netip.MustParsePrefix("198.51.100.7/32"),
+		netip.MustParsePrefix("10.1.0.0/16"),
+	}, got)
+
+	_, err = ParseTrustedProxies([]string{"10.0.0.0/8", "not-a-cidr"})
+	require.ErrorContains(t, err, `"not-a-cidr"`)
+}
+
+func Test_ResolveClientIP(t *testing.T) {
+	t.Parallel()
+	trusted, err := ParseTrustedProxies([]string{"10.0.0.0/8", "127.0.0.0/8"})
+	require.NoError(t, err)
+
+	tests := []struct {
+		name     string
+		remote   string
+		headerIP string
+		xff      []string
+		trusted  []netip.Prefix
+		want     string
+	}{
+		{name: "no trusted proxies", remote: "10.0.0.1:443", xff: []string{"203.0.113.9"}, want: "10.0.0.1"},
+		{name: "untrusted peer ignores both headers", remote: "198.51.100.1:443", headerIP: "9.9.9.9", xff: []string{"8.8.8.8"}, trusted: trusted, want: "198.51.100.1"},
+		{name: "trusted peer without headers", remote: "10.0.0.1:443", trusted: trusted, want: "10.0.0.1"},
+		{name: "client IP header wins", remote: "10.0.0.1:443", headerIP: "203.0.113.9", xff: []string{"8.8.8.8"}, trusted: trusted, want: "203.0.113.9"},
+		{name: "invalid client IP header falls back to the chain", remote: "10.0.0.1:443", headerIP: "unknown", xff: []string{"203.0.113.9"}, trusted: trusted, want: "203.0.113.9"},
+		{name: "rightmost untrusted entry", remote: "10.0.0.1:443", xff: []string{"9.9.9.9, 203.0.113.9, 10.0.0.2"}, trusted: trusted, want: "203.0.113.9"},
+		{name: "chain across header lines", remote: "10.0.0.1:443", xff: []string{"9.9.9.9", "203.0.113.9", "10.0.0.2"}, trusted: trusted, want: "203.0.113.9"},
+		{name: "entry with a port", remote: "10.0.0.1:443", xff: []string{"203.0.113.9:5555"}, trusted: trusted, want: "203.0.113.9"},
+		{name: "IPv4-mapped entries are unmapped", remote: "[::ffff:10.0.0.1]:443", xff: []string{"::ffff:203.0.113.9"}, trusted: trusted, want: "203.0.113.9"},
+		{name: "all trusted resolves to the leftmost", remote: "127.0.0.6:443", xff: []string{"10.0.0.3, 10.0.0.2"}, trusted: trusted, want: "10.0.0.3"},
+		{name: "invalid entry stops the walk", remote: "10.0.0.1:443", xff: []string{"203.0.113.9, garbage, 10.0.0.2"}, trusted: trusted, want: "10.0.0.2"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, ResolveClientIP(tt.remote, tt.headerIP, tt.xff, tt.trusted))
+		})
+	}
+
+	t.Run("the walk is bounded", func(t *testing.T) {
+		t.Parallel()
+		// A client past the cap cannot be reached through trusted hops, however many there are.
+		chain := "203.0.113.9, " + strings.Repeat("10.0.0.2, ", 100) + "10.0.0.2"
+		assert.Equal(t, "10.0.0.2", ResolveClientIP("10.0.0.1:443", "", []string{chain}, trusted))
+		assert.Equal(t, "10.0.0.1", ResolveClientIP("10.0.0.1:443", "", []string{strings.Repeat(",", 100_000)}, trusted))
+	})
+}
+
+func Test_HTTPClientIP(t *testing.T) {
+	t.Parallel()
+	trusted, err := ParseTrustedProxies([]string{"10.0.0.0/8"})
+	require.NoError(t, err)
+	req := func(remote string, header http.Header) *http.Request {
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/applications", http.NoBody)
+		r.RemoteAddr = remote
+		r.Header = header
+		return r
+	}
+
+	assert.Equal(t, "10.0.0.1", HTTPClientIP(req("10.0.0.1:443", http.Header{"X-Forwarded-For": {"203.0.113.9"}}), nil, ""))
+	assert.Equal(t, "203.0.113.9", HTTPClientIP(req("10.0.0.1:443", http.Header{"X-Forwarded-For": {"9.9.9.9", "203.0.113.9"}}), trusted, ""))
+	assert.Equal(t, "192.0.2.4", HTTPClientIP(req("10.0.0.1:443", http.Header{
+		"X-Forwarded-For":  {"203.0.113.9"},
+		"Cf-Connecting-Ip": {"192.0.2.4"},
+	}), trusted, "CF-Connecting-IP"))
+	assert.Equal(t, "198.51.100.1", HTTPClientIP(req("198.51.100.1:443", http.Header{"Cf-Connecting-Ip": {"192.0.2.4"}}), trusted, "CF-Connecting-IP"))
+}
+
+func Test_sourceIPFields_trustedProxies(t *testing.T) {
+	t.Parallel()
+	trusted, err := ParseTrustedProxies([]string{"127.0.0.0/8", "10.0.0.0/8"})
+	require.NoError(t, err)
+	fields := func(t *testing.T, md metadata.MD, peerIP string) (string, string) {
+		t.Helper()
+		ctx := metadata.NewIncomingContext(t.Context(), md)
+		ctx = peer.NewContext(ctx, &peer.Peer{Addr: &net.TCPAddr{IP: net.ParseIP(peerIP), Port: 4242}})
+		return sourceIPFields(ctx, testGatewayToken, trusted, "X-Real-IP")
+	}
+
+	t.Run("gRPC through a trusted sidecar", func(t *testing.T) {
+		t.Parallel()
+		sourceIP, forwardedFor := fields(t, metadata.Pairs("x-forwarded-for", "203.0.113.9, 10.0.0.5"), "127.0.0.6")
+		assert.Equal(t, "203.0.113.9", sourceIP)
+		assert.Equal(t, "203.0.113.9, 10.0.0.5", forwardedFor)
+	})
+
+	t.Run("gRPC with a client IP header from a trusted proxy", func(t *testing.T) {
+		t.Parallel()
+		sourceIP, _ := fields(t, metadata.Pairs("x-real-ip", "192.0.2.4"), "10.0.0.5")
+		assert.Equal(t, "192.0.2.4", sourceIP)
+	})
+
+	t.Run("gRPC from an untrusted peer", func(t *testing.T) {
+		t.Parallel()
+		sourceIP, _ := fields(t, metadata.Pairs("x-real-ip", "192.0.2.4", "x-forwarded-for", "9.9.9.9"), "198.51.100.1")
+		assert.Equal(t, "198.51.100.1", sourceIP)
+	})
+
+	t.Run("gateway drops the trusted proxy it appended", func(t *testing.T) {
+		t.Parallel()
+		// The gateway resolved past its peer, 10.0.0.5, which it still appends to the chain.
+		md := metadata.Pairs(
+			"x-forwarded-for", "203.0.113.9, 10.0.0.5",
+			GatewayTokenMetadataKey, testGatewayToken,
+			ClientIPMetadataKey, "203.0.113.9",
+		)
+		sourceIP, forwardedFor := fields(t, md, "127.0.0.1")
+		assert.Equal(t, "203.0.113.9", sourceIP)
+		assert.Equal(t, "203.0.113.9", forwardedFor)
 	})
 }

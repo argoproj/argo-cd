@@ -192,3 +192,28 @@ func TestNewCommand_EnableSourceIPLoggingEnvVar(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, enabled, "ARGOCD_SERVER_ENABLE_SOURCE_IP_LOGGING=true must set the enable-source-ip-logging flag default")
 }
+
+func TestNewCommand_TrustedProxyFlags(t *testing.T) {
+	cmd := NewCommand()
+
+	proxies, err := cmd.Flags().GetStringSlice("trusted-proxies")
+	require.NoError(t, err)
+	assert.Empty(t, proxies, "no proxy must be trusted by default")
+	header, err := cmd.Flags().GetString("client-ip-header")
+	require.NoError(t, err)
+	assert.Empty(t, header, "no client IP header must be honoured by default")
+}
+
+func TestNewCommand_TrustedProxyEnvVars(t *testing.T) {
+	t.Setenv("ARGOCD_SERVER_TRUSTED_PROXIES", "10.0.0.0/8,127.0.0.1")
+	t.Setenv("ARGOCD_SERVER_CLIENT_IP_HEADER", "CF-Connecting-IP")
+
+	cmd := NewCommand()
+
+	proxies, err := cmd.Flags().GetStringSlice("trusted-proxies")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"10.0.0.0/8", "127.0.0.1"}, proxies)
+	header, err := cmd.Flags().GetString("client-ip-header")
+	require.NoError(t, err)
+	assert.Equal(t, "CF-Connecting-IP", header)
+}
