@@ -542,35 +542,36 @@ This environment variable applies globally to all Helm repository requests.
 
 ### Helm repository CA and system trust
 
-When a Helm repository is configured with a custom CA certificate, Argo CD passes `--ca-file` to
-Helm for chart pulls and OCI registry operations. Helm treats that file as the only TLS trust
-store.
+When a Helm repository is configured with a custom CA certificate (Certificates UI or
+`argocd-tls-certs-cm`), Argo CD must still trust public roots for chart downloads that redirect
+to public HTTPS endpoints.
 
-Argo CD merges the repository CA with the system root CAs before passing `--ca-file` to Helm so
-chart downloads still work when a private registry redirects to public HTTPS endpoints. If you
-previously maintained a combined bundle only to cover those redirects, you can keep using the
-repository CA alone.
+By default Argo CD keeps system trust alongside the repository CA:
 
-To restore the pre-3.6 behavior and pass only the repository CA to Helm (for example in
-environments that must not trust public roots for Helm chart downloads), set
-`ARGOCD_HELM_MERGE_REPOSITORY_CA_WITH_SYSTEM=false` on the `argocd-repo-server` deployment:
+- Helm binary invocations receive the repository CA through `SSL_CERT_DIR` instead of replacing
+  trust with `--ca-file`.
+- Native Helm and OCI HTTP clients start from the system certificate pool and append the
+  repository CA.
+
+If you previously maintained a combined bundle only to cover those redirects, you can keep using
+the repository CA alone.
+
+To disable this feature and pass only the repository CA to Helm (for example in environments
+that must not trust public roots for Helm chart downloads), set the following in
+`argocd-cmd-params-cm`:
 
 ```yaml
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: argocd-repo-server
-spec:
-  template:
-    spec:
-      containers:
-      - name: argocd-repo-server
-        env:
-        - name: ARGOCD_HELM_MERGE_REPOSITORY_CA_WITH_SYSTEM
-          value: "false"
+  name: argocd-cmd-params-cm
+data:
+  reposerver.helm.merge.repository.ca.with.system: "false"
 ```
 
-See the [v3.5 to 3.6 upgrade guide](../operator-manual/upgrading/3.5-3.6.md#helm-repository-ca-bundles-are-merged-with-system-root-cas)
+The repo-server Deployment wires that key to `ARGOCD_HELM_MERGE_REPOSITORY_CA_WITH_SYSTEM`.
+
+See the [v3.6 to 3.7 upgrade guide](../operator-manual/upgrading/3.6-3.7.md#helm-repository-ca-keeps-system-trust-by-default)
 for more context.
 
 ## Git Submodules

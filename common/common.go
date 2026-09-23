@@ -284,8 +284,9 @@ const (
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
 	// EnvHelmUserAgent specifies the User-Agent header for Helm repository requests
 	EnvHelmUserAgent = "ARGOCD_HELM_USER_AGENT"
-	// EnvHelmMergeRepositoryCAWithSystem merges repository CA bundles with the system trust store
-	// before passing them to Helm as --ca-file (default: true).
+	// EnvHelmMergeRepositoryCAWithSystem keeps system trust when a repository CA is set (default: true).
+	// For the Helm binary this uses SSL_CERT_DIR instead of --ca-file; native Helm/OCI HTTP clients
+	// start from x509.SystemCertPool and append the repository CA.
 	EnvHelmMergeRepositoryCAWithSystem = "ARGOCD_HELM_MERGE_REPOSITORY_CA_WITH_SYSTEM"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"

@@ -29,9 +29,11 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/env"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
+	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
 var (
@@ -433,7 +435,12 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error reading CA file %s: %w", creds.GetCAPath(), err)
 		}
-		caCertPool := x509.NewCertPool()
+		var caCertPool *x509.CertPool
+		if env.ParseBoolFromEnv(common.EnvHelmMergeRepositoryCAWithSystem, true) {
+			caCertPool = tlsutil.BestEffortSystemCertPool()
+		} else {
+			caCertPool = x509.NewCertPool()
+		}
 		caCertPool.AppendCertsFromPEM(caData)
 		tlsConfig.RootCAs = caCertPool
 	}

@@ -13,7 +13,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -34,6 +33,7 @@ type Cmd struct {
 	IsHelmOci       bool
 	proxy           string
 	noProxy         string
+	caTrustEnv      []string
 	runWithRedactor func(cmd *exec.Cmd, redactor func(text string) string) (string, error)
 }
 
@@ -85,6 +85,7 @@ func (c Cmd) runWithStdin(ctx context.Context, stdin io.Reader, args ...string) 
 	}
 
 	cmd.Env = proxy.UpsertEnv(cmd, c.proxy, c.noProxy)
+	cmd.Env = upsertEnvVars(cmd.Env, c.caTrustEnv...)
 	fullCommand := executil.GetCommandArgsToLog(cmd)
 
 	out, err := c.runWithRedactor(cmd, redactor)
@@ -118,13 +119,12 @@ func (c *Cmd) RegistryLogin(ctx context.Context, repo string, creds Creds, plain
 	}
 
 	if creds.GetCAPath() != "" {
-		caFile, err := c.persistMergedCAFile(creds.GetCAPath())
+		var caCloser utilio.Closer
+		args, caCloser, err = c.applyHelmRepositoryCA(args, creds.GetCAPath())
 		if err != nil {
-			return "", fmt.Errorf("failed to prepare CA file for helm: %w", err)
+			return "", fmt.Errorf("failed to prepare CA for helm: %w", err)
 		}
-		if caFile != "" {
-			args = append(args, "--ca-file", caFile)
-		}
+		defer utilio.Close(caCloser)
 	}
 
 	if len(creds.GetCertData()) > 0 {
@@ -195,13 +195,12 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	}
 
 	if opts.GetCAPath() != "" {
-		caFile, err := c.persistMergedCAFile(opts.GetCAPath())
+		var caCloser utilio.Closer
+		args, caCloser, err = c.applyHelmRepositoryCA(args, opts.GetCAPath())
 		if err != nil {
-			return "", fmt.Errorf("failed to prepare CA file for helm: %w", err)
+			return "", fmt.Errorf("failed to prepare CA for helm: %w", err)
 		}
-		if caFile != "" {
-			args = append(args, "--ca-file", caFile)
-		}
+		defer utilio.Close(caCloser)
 	}
 
 	if opts.GetInsecureSkipVerify() {
@@ -247,136 +246,94 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	return out, err
 }
 
-var systemCertBundlePaths = []string{
-	"/etc/ssl/certs/ca-certificates.crt",
-	"/etc/pki/tls/certs/ca-bundle.crt",
-	"/etc/ssl/ca-bundle.pem",
+// defaultSystemCertDirs mirrors Go's unix certDirectories so SSL_CERT_DIR can keep
+// system roots while also including a repository CA directory (Go replaces the default
+// list when SSL_CERT_DIR is set).
+var defaultSystemCertDirs = []string{
+	"/etc/ssl/certs",
+	"/etc/pki/tls/certs",
 }
 
-func readSystemTrustPEM() ([]byte, error) {
-	if p := os.Getenv("SSL_CERT_FILE"); p != "" {
-		data, err := os.ReadFile(p)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read SSL_CERT_FILE %q: %w", p, err)
-		}
-		return data, nil
-	}
-	if dir := os.Getenv("SSL_CERT_DIR"); dir != "" {
-		return readPEMFilesFromDir(dir)
-	}
-	for _, p := range systemCertBundlePaths {
-		if _, err := os.Stat(p); err == nil {
-			data, err := os.ReadFile(p)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read system CA bundle %q: %w", p, err)
-			}
-			return data, nil
-		}
-	}
-	return nil, nil
-}
-
-func readPEMFilesFromDir(dir string) ([]byte, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read SSL_CERT_DIR %q: %w", dir, err)
-	}
-	names := make([]string, 0, len(entries))
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		names = append(names, e.Name())
-	}
-	slices.Sort(names)
-	var merged []byte
-	for _, name := range names {
-		path := filepath.Join(dir, name)
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read certificate %q: %w", path, err)
-		}
-		if len(data) == 0 {
-			continue
-		}
-		merged = append(merged, data...)
-		if data[len(data)-1] != '\n' {
-			merged = append(merged, '\n')
-		}
-	}
-	return merged, nil
-}
-
-// helmCAFilePathWithSystemTrust returns a path suitable for helm's --ca-file flag.
-// Helm replaces the system trust store when --ca-file is set, so repository CAs must
-// be merged with the system roots to keep public redirect targets (e.g. S3) trusted.
-func helmCAFilePathWithSystemTrust(customCAPath string) (string, utilio.Closer, error) {
-	if customCAPath == "" {
-		return "", utilio.NopCloser, nil
-	}
-	if !env.ParseBoolFromEnv(common.EnvHelmMergeRepositoryCAWithSystem, true) {
-		return customCAPath, utilio.NopCloser, nil
-	}
-	customPEM, err := os.ReadFile(customCAPath)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to read CA file %q: %w", customCAPath, err)
-	}
-	systemPEM, err := readSystemTrustPEM()
-	if err != nil {
-		log.Warnf("Could not read system trust store: %v", err)
-		return customCAPath, utilio.NopCloser, nil
-	}
-	if len(systemPEM) == 0 {
-		return customCAPath, utilio.NopCloser, nil
-	}
-	var merged []byte
-	merged = append(merged, systemPEM...)
-	if len(systemPEM) > 0 && systemPEM[len(systemPEM)-1] != '\n' {
-		merged = append(merged, '\n')
-	}
-	merged = append(merged, customPEM...)
-	if len(customPEM) > 0 && customPEM[len(customPEM)-1] != '\n' {
-		merged = append(merged, '\n')
-	}
-	return writeToTmp(merged)
-}
-
-func appendHelmCAFileArg(args []string, caPath string) ([]string, utilio.Closer, error) {
-	caFile, closer, err := helmCAFilePathWithSystemTrust(caPath)
-	if err != nil {
-		return nil, nil, err
-	}
-	if caFile == "" {
+// applyHelmRepositoryCA configures TLS trust for helm CLI invocations.
+// When merge-with-system is enabled (default), repository CAs are exposed via SSL_CERT_DIR
+// so Helm keeps its normal system trust instead of replacing it with --ca-file.
+// When disabled, --ca-file is passed with only the repository CA (legacy behavior).
+func (c *Cmd) applyHelmRepositoryCA(args []string, caPath string) ([]string, utilio.Closer, error) {
+	if caPath == "" {
 		return args, utilio.NopCloser, nil
 	}
-	return append(args, "--ca-file", caFile), closer, nil
+	if !env.ParseBoolFromEnv(common.EnvHelmMergeRepositoryCAWithSystem, true) {
+		return append(args, "--ca-file", caPath), utilio.NopCloser, nil
+	}
+	if err := c.enableRepositoryCAViaSSLCertDir(caPath); err != nil {
+		return nil, nil, err
+	}
+	return args, utilio.NopCloser, nil
 }
 
-// persistMergedCAFile returns a CA path suitable for helm config that outlives a single command.
-// Helm repo/registry entries store --ca-file paths; ephemeral temp files must not be deleted before later helm runs.
-func (c *Cmd) persistMergedCAFile(customCAPath string) (string, error) {
-	caFile, closer, err := helmCAFilePathWithSystemTrust(customCAPath)
+func (c *Cmd) enableRepositoryCAViaSSLCertDir(customCAPath string) error {
+	dir := filepath.Join(c.helmHome, "ca-extra")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("failed to create helm CA directory: %w", err)
+	}
+	data, err := os.ReadFile(customCAPath)
 	if err != nil {
-		return "", err
-	}
-	defer utilio.Close(closer)
-	if caFile == "" || caFile == customCAPath {
-		return caFile, nil
-	}
-	destDir := filepath.Join(c.helmHome, "ca")
-	if err := os.MkdirAll(destDir, 0o700); err != nil {
-		return "", fmt.Errorf("failed to create helm CA directory: %w", err)
+		return fmt.Errorf("failed to read CA file %q: %w", customCAPath, err)
 	}
 	sum := sha256.Sum256([]byte(customCAPath))
-	dest := filepath.Join(destDir, "merged-"+hex.EncodeToString(sum[:])+".pem")
-	data, err := os.ReadFile(caFile)
-	if err != nil {
-		return "", fmt.Errorf("failed to read merged CA file: %w", err)
+	dest := filepath.Join(dir, hex.EncodeToString(sum[:])+".crt")
+	if err := os.WriteFile(dest, data, 0o644); err != nil {
+		return fmt.Errorf("failed to write repository CA for SSL_CERT_DIR: %w", err)
 	}
-	if err = os.WriteFile(dest, data, 0o644); err != nil {
-		return "", fmt.Errorf("failed to write persistent merged CA file: %w", err)
+	c.caTrustEnv = upsertEnvVars(c.caTrustEnv, "SSL_CERT_DIR="+buildSSLCertDir(dir))
+	return nil
+}
+
+func buildSSLCertDir(customDir string) string {
+	parts := []string{customDir}
+	if existing := os.Getenv("SSL_CERT_DIR"); existing != "" {
+		for part := range strings.SplitSeq(existing, ":") {
+			if part == "" || part == customDir {
+				continue
+			}
+			parts = append(parts, part)
+		}
+	} else {
+		parts = append(parts, defaultSystemCertDirs...)
 	}
-	return dest, nil
+	return strings.Join(parts, ":")
+}
+
+func upsertEnvVars(envList []string, extras ...string) []string {
+	if len(extras) == 0 {
+		return envList
+	}
+	keys := map[string]string{}
+	order := make([]string, 0, len(extras))
+	for _, extra := range extras {
+		key, _, ok := strings.Cut(extra, "=")
+		if !ok || key == "" {
+			continue
+		}
+		if _, seen := keys[key]; !seen {
+			order = append(order, key)
+		}
+		keys[key] = extra
+	}
+	out := make([]string, 0, len(envList)+len(keys))
+	for _, item := range envList {
+		key, _, ok := strings.Cut(item, "=")
+		if ok {
+			if _, replace := keys[key]; replace {
+				continue
+			}
+		}
+		out = append(out, item)
+	}
+	for _, key := range order {
+		out = append(out, keys[key])
+	}
+	return out
 }
 
 func writeToTmp(data []byte) (string, utilio.Closer, error) {
@@ -425,9 +382,9 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 
 	if creds.GetCAPath() != "" {
 		var caCloser utilio.Closer
-		args, caCloser, err = appendHelmCAFileArg(args, creds.GetCAPath())
+		args, caCloser, err = c.applyHelmRepositoryCA(args, creds.GetCAPath())
 		if err != nil {
-			return "", fmt.Errorf("failed to prepare CA file for helm: %w", err)
+			return "", fmt.Errorf("failed to prepare CA for helm: %w", err)
 		}
 		defer utilio.Close(caCloser)
 	}
@@ -468,9 +425,9 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	if creds.GetCAPath() != "" {
 		var caCloser utilio.Closer
 		var err error
-		args, caCloser, err = appendHelmCAFileArg(args, creds.GetCAPath())
+		args, caCloser, err = c.applyHelmRepositoryCA(args, creds.GetCAPath())
 		if err != nil {
-			return "", fmt.Errorf("failed to prepare CA file for helm: %w", err)
+			return "", fmt.Errorf("failed to prepare CA for helm: %w", err)
 		}
 		defer utilio.Close(caCloser)
 	}

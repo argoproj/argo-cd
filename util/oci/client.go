@@ -23,6 +23,9 @@ import (
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"oras.land/oras-go/v2/content/oci"
 
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 	"github.com/argoproj/argo-cd/v3/util/versions"
 
 	"github.com/argoproj/pkg/v2/sync"
@@ -477,7 +480,12 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 		if err != nil {
 			return nil, err
 		}
-		caCertPool := x509.NewCertPool()
+		var caCertPool *x509.CertPool
+		if env.ParseBoolFromEnv(common.EnvHelmMergeRepositoryCAWithSystem, true) {
+			caCertPool = tlsutil.BestEffortSystemCertPool()
+		} else {
+			caCertPool = x509.NewCertPool()
+		}
 		caCertPool.AppendCertsFromPEM(caData)
 		tlsConfig.RootCAs = caCertPool
 	}
