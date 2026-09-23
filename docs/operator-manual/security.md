@@ -331,7 +331,10 @@ that address, so clients that bypass your proxies cannot use either header to pi
 > Trusting `127.0.0.0/8` is how you cover a proxy sidecar in the `argocd-server` pod (Istio delivers inbound traffic
 > from `127.0.0.6`), but it also trusts every other container in the pod and `kubectl port-forward` sessions.
 
-`forwarded.for` is logged as received either way and is not validated against the trusted proxy list.
+`forwarded.for` is logged as received either way and is not validated against the trusted proxy list. For UI and
+REST requests, grpc-gateway forwards only the first `X-Forwarded-For` header line, so if a request carries several
+lines, `forwarded.for` can omit entries that `source.ip` was resolved from. Proxies that merge the lines into one,
+such as Traefik, are not affected.
 
 The endpoints that are not served through grpc-gateway (`/api/webhook`, `/api/badge`, `/auth/callback`,
 `/terminal`) do not carry these fields.

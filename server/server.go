@@ -1239,17 +1239,20 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	// we use our own Marshaler
 	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler))
 	gwCookieOpts := runtime.WithForwardResponseOption(server.translateGrpcCookieHeader)
-	// Tell the interceptors which requests this process's own gateway relayed, and hand over the
-	// address it saw at the HTTP layer. grpc-gateway drops non-standard headers such as X-Real-IP, so
-	// this is the only point they could be read; what it does pass on verbatim is Grpc-Metadata-*,
-	// straight from the caller, which is why the interceptors check the token rather than the metadata.
-	gwSourceOpts := runtime.WithMetadata(func(_ context.Context, r *http.Request) metadata.MD {
-		return metadata.Pairs(
-			grpc_util.GatewayTokenMetadataKey, server.gatewayToken,
-			grpc_util.ClientIPMetadataKey, grpc_util.HTTPClientIP(r, server.TrustedProxies, server.ClientIPHeader),
-		)
-	})
-	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts, gwSourceOpts)
+	gwOpts := []runtime.ServeMuxOption{gwMuxOpts, gwCookieOpts}
+	if server.EnableSourceIPLogging {
+		// Tell the interceptors which requests this process's own gateway relayed, and hand over the
+		// address it saw at the HTTP layer. grpc-gateway drops non-standard headers such as X-Real-IP, so
+		// this is the only point they could be read; what it does pass on verbatim is Grpc-Metadata-*,
+		// straight from the caller, which is why the interceptors check the token rather than the metadata.
+		gwOpts = append(gwOpts, runtime.WithMetadata(func(_ context.Context, r *http.Request) metadata.MD {
+			return metadata.Pairs(
+				grpc_util.GatewayTokenMetadataKey, server.gatewayToken,
+				grpc_util.ClientIPMetadataKey, grpc_util.HTTPClientIP(r, server.TrustedProxies, server.ClientIPHeader),
+			)
+		}))
+	}
+	gwmux := runtime.NewServeMux(gwOpts...)
 
 	var handler http.Handler = gwmux
 	if server.EnableGZip {
