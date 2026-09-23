@@ -553,7 +553,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # latest: true means that this version mush upload the coverage report to codecov.io
+        # latest: true means that this version must upload the coverage report to codecov.io
         # We designate the latest version because we only collect code coverage for that version.
         k3s:
           - version: v1.37.0
