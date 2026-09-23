@@ -23,6 +23,18 @@ func writeTestCAFile(t *testing.T, name, content string) string {
 	return path
 }
 
+func Test_helmCAFilePathWithSystemTrust_skipsMergeWhenDisabled(t *testing.T) {
+	systemBundle := writeTestCAFile(t, "system.pem", "system-root-ca-bundle\n")
+	customCA := writeTestCAFile(t, "custom.pem", "custom-repository-ca\n")
+	t.Setenv("SSL_CERT_FILE", systemBundle)
+	t.Setenv("ARGOCD_HELM_MERGE_REPOSITORY_CA_WITH_SYSTEM", "false")
+
+	caFile, closer, err := helmCAFilePathWithSystemTrust(customCA)
+	require.NoError(t, err)
+	defer utilio.Close(closer)
+	assert.Equal(t, customCA, caFile)
+}
+
 func Test_helmCAFilePathWithSystemTrust_mergesSystemAndCustom(t *testing.T) {
 	systemBundle := writeTestCAFile(t, "system.pem", "system-root-ca-bundle\n")
 	customCA := writeTestCAFile(t, "custom.pem", "custom-repository-ca\n")

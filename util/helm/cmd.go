@@ -19,6 +19,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/env"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
@@ -312,6 +313,9 @@ func readPEMFilesFromDir(dir string) ([]byte, error) {
 func helmCAFilePathWithSystemTrust(customCAPath string) (string, utilio.Closer, error) {
 	if customCAPath == "" {
 		return "", utilio.NopCloser, nil
+	}
+	if !env.ParseBoolFromEnv(common.EnvHelmMergeRepositoryCAWithSystem, true) {
+		return customCAPath, utilio.NopCloser, nil
 	}
 	customPEM, err := os.ReadFile(customCAPath)
 	if err != nil {
