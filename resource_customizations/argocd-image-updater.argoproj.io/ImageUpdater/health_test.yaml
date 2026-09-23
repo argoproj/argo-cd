@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for ImageUpdater to be reconciled"
+  inputPath: testdata/progressing_no_status.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for ImageUpdater spec update to be observed"
+  inputPath: testdata/progressing_new_generation.yaml
+- healthStatus:
+    status: Progressing
+    message: "Reconciliation in progress."
+  inputPath: testdata/progressing_reconciling.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed to pull image example.com/example/my-app: unauthorized: access denied"
+  inputPath: testdata/degraded_error.yaml
+- healthStatus:
+    status: Healthy
+    message: "Reconciled 0 applications, 0 images updated."
+  inputPath: testdata/healthy_reconcile_succeeded.yaml
