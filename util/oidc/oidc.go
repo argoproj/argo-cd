@@ -533,9 +533,15 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Infof("Callback: %s", r.URL)
+	logCtx := log.WithField("login.type", "sso")
+	// logCtx is captured by reference so the username and claims are included once they are known
+	fail := func(err error, msg string, code int) {
+		logCtx.WithError(err).Warn("Login failed")
+		http.Error(w, msg, code)
+	}
 	if errMsg := r.FormValue("error"); errMsg != "" {
 		errorDesc := r.FormValue("error_description")
-		http.Error(w, html.EscapeString(errMsg)+": "+html.EscapeString(errorDesc), http.StatusBadRequest)
+		fail(fmt.Errorf("%s: %s", errMsg, errorDesc), html.EscapeString(errMsg)+": "+html.EscapeString(errorDesc), http.StatusBadRequest)
 		return
 	}
 	code := r.FormValue("code")
@@ -547,7 +553,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	returnURL, pkceVerifier, err := a.verifyAppState(r, w, state)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		fail(err, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -557,7 +563,8 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if a.useAzureWorkloadIdentity {
 		clientAssertion, err := a.azure.getFederatedServiceAccountToken(ctx)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to generate client assertion: %v", err), http.StatusInternalServerError)
+			err = fmt.Errorf("failed to generate client assertion: %w", err)
+			fail(err, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
@@ -573,21 +580,21 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 
 	token, err := oauth2Config.Exchange(ctx, code, options...)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to get token: %v", err), http.StatusInternalServerError)
+		err = fmt.Errorf("failed to get token: %w", err)
+		fail(err, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Parse out id token
 	idTokenRAW, ok := token.Extra("id_token").(string)
 	if !ok {
-		http.Error(w, "no id_token in token response", http.StatusInternalServerError)
+		fail(errors.New("no id_token in token response"), "no id_token in token response", http.StatusInternalServerError)
 		return
 	}
 
 	idToken, err := a.provider.Verify(ctx, idTokenRAW, a.settings)
 	if err != nil {
-		log.Warnf("Failed to verify oidc token: %s", err)
-		http.Error(w, common.TokenVerificationError, http.StatusInternalServerError)
+		fail(fmt.Errorf("failed to verify oidc token: %w", err), common.TokenVerificationError, http.StatusInternalServerError)
 		return
 	}
 
@@ -595,9 +602,12 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	var claims jwt.MapClaims
 	err = idToken.Claims(&claims)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fail(err, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	claimsJSON, _ := json.Marshal(claims)
+	logCtx = logCtx.WithFields(log.Fields{"username": jwtutil.GetUserIdentifier(claims), "claims": string(claimsJSON)})
+
 	// save the accessToken in memory for later use
 	sub := jwtutil.StringField(claims, "sub")
 
@@ -611,9 +621,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 
 	err = a.SetValueInEncryptedCache(ctx, FormatAccessTokenCacheKey(sub), []byte(token.AccessToken), GetTokenExpiration(claims))
 	if err != nil {
-		claimsJSON, _ := json.Marshal(claims)
-		log.Errorf("cannot cache encrypted accessToken: %v (claims=%s)", err, claimsJSON)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fail(fmt.Errorf("cannot cache encrypted accessToken: %w", err), err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -621,30 +629,26 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	oidcTokenCache := NewOidcTokenCache(a.getRedirectURIForRequest(r), token, time.Now())
 	oidcTokenCacheJSON, err := json.Marshal(oidcTokenCache)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fail(err, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	sid := jwtutil.StringField(claims, "sid")
 	ttl := sessionRemainingTTL(oidcTokenCache.SessionStart, a.settings.UserSessionDuration)
 	err = a.SetValueInEncryptedCache(ctx, formatOidcTokenCacheKey(sub, sid), oidcTokenCacheJSON, ttl)
 	if err != nil {
-		claimsJSON, _ := json.Marshal(claims)
-		log.Errorf("cannot cache encrypted oidc token: %v (claims=%s)", err, claimsJSON)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fail(fmt.Errorf("cannot cache encrypted oidc token: %w", err), err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	if idTokenRAW != "" {
 		err = httputil.SetTokenCookie(idTokenRAW, a.baseHRef, a.secureCookie, w)
 		if err != nil {
-			claimsJSON, _ := json.Marshal(claims)
-			http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
+			fail(err, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
 			return
 		}
 	}
 
-	claimsJSON, _ := json.Marshal(claims)
-	log.Infof("Web login successful. Claims: %s", claimsJSON)
+	logCtx.Info("Web login successful")
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
 		renderToken(w, a.redirectURI, idTokenRAW, token.RefreshToken, claimsJSON)
