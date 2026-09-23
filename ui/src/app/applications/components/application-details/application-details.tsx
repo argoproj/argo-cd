@@ -19,6 +19,7 @@ import {ApplicationOperationState} from '../application-operation-state/applicat
 import {PodGroupType, PodView} from '../application-pod-view/pod-view';
 import {ApplicationResourceTree, type ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
+import {StatusPanelToggle} from './status-panel-toggle';
 import {ApplicationSetStatusPanel} from '../application-status-panel/appset-status-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {isApp} from '../utils';
@@ -1018,12 +1019,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                         showConditions={() => setConditionsStatusVisible(true)}
                                                     />
                                                 )}
-                                                <button
-                                                    className='application-details__status-panel-toggle'
-                                                    title={pref.hideStatusPanel ? 'Expand status panel' : 'Collapse status panel'}
-                                                    onClick={() => services.viewPreferences.updatePreferences({appDetails: {...pref, hideStatusPanel: !pref.hideStatusPanel}})}>
-                                                    <i className={`fa fa-chevron-${pref.hideStatusPanel ? 'down' : 'up'}`} />
-                                                </button>
+                                                <StatusPanelToggle pref={pref} />
                                             </div>
                                             <NoticeBanner
                                                 annotations={application.metadata.annotations}
