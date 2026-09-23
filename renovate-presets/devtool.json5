@@ -46,6 +46,9 @@
       ],
       "postUpgradeTasks": {
         "commands": ["make mockgen"],
+        "installTools": {
+          "golang": {}
+        },
         "fileFilters": ["**/*.go"],
         "executionMode": "branch"
       }
