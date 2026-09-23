@@ -2,9 +2,12 @@ package util_test
 
 import (
 	"errors"
+	"fmt"
+	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/cmd/util"
 )
@@ -161,4 +164,73 @@ func TestExitError_Unwrap(t *testing.T) {
 			assert.Equal(t, test.expected, wrappedError)
 		})
 	}
+}
+
+func TestExitError_ErrorsIs(t *testing.T) {
+	t.Parallel()
+
+	inner := errors.New("permission denied")
+	err := util.NewExitError(20, inner)
+
+	require.ErrorIs(t, err, inner)
+	require.NotErrorIs(t, err, errors.New("permission denied"))
+	require.NotErrorIs(t, util.NewExitError(20, nil), inner)
+}
+
+func TestExitCodeForError_WrappedExitError(t *testing.T) {
+	t.Parallel()
+
+	inner := errors.New("permission denied")
+	wrapped := fmt.Errorf("write failed: %w", util.NewExitError(20, inner))
+
+	assert.Equal(t, 20, util.ExitCodeForError(wrapped))
+	assert.Equal(t, "Error: permission denied", util.CLIMessageForError(wrapped))
+	require.ErrorIs(t, wrapped, inner)
+}
+
+func TestCLIMessageForError_WrappedSilentExitError(t *testing.T) {
+	t.Parallel()
+
+	wrapped := fmt.Errorf("context: %w", util.NewExitError(1, nil))
+
+	assert.Equal(t, 1, util.ExitCodeForError(wrapped))
+	assert.Empty(t, util.CLIMessageForError(wrapped))
+}
+
+type customExitCoder struct {
+	code int
+	msg  string
+}
+
+func (c customExitCoder) Error() string { return c.msg }
+func (c customExitCoder) ExitCode() int { return c.code }
+
+func TestExitCodeForError_CustomExitCoder(t *testing.T) {
+	t.Parallel()
+
+	err := customExitCoder{code: 7, msg: "custom failure"}
+
+	assert.Equal(t, 7, util.ExitCodeForError(err))
+	assert.Equal(t, "Error: custom failure", util.CLIMessageForError(err))
+}
+
+func TestExitCodeForError_ExecExitError(t *testing.T) {
+	t.Parallel()
+
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "exit 42")
+	err := cmd.Run()
+	require.Error(t, err)
+
+	assert.Equal(t, 42, util.ExitCodeForError(err))
+	assert.Equal(t, "Error: exit status 42", util.CLIMessageForError(err))
+}
+
+func TestCLIMessageForError_TypedNilExitError(t *testing.T) {
+	t.Parallel()
+
+	var typedNil *util.ExitError
+	var err error = typedNil
+
+	assert.Equal(t, 0, util.ExitCodeForError(err))
+	assert.Empty(t, util.CLIMessageForError(err))
 }

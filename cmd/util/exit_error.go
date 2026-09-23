@@ -61,13 +61,14 @@ func ExitCodeForError(err error) int {
 
 // CLIMessageForError returns the error message for the given error for the CLI to print before exiting.
 // If the error is an ExitError with nil error, then an empty string is returned.
+// If the error is an ExitError with a non-nil error, the inner error's message is returned.
 // Otherwise, the error message is returned.
 func CLIMessageForError(err error) string {
 	if err == nil {
 		return ""
 	}
 	if e, ok := errors.AsType[*ExitError](err); ok {
-		if e.err == nil {
+		if e == nil || e.err == nil {
 			return "" // no message to be printed
 		}
 		err = e.err
