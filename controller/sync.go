@@ -775,7 +775,7 @@ func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject
 	return false, nil
 }
 
-// resolveSyncWindowCRDRefs resolves SyncWindow CRD references from the project and app.
+// resolveSyncWindowCRDRefs resolves SyncWindow object references from the project and app.
 // projWindows are project-scoped refs that still need Matches() filtering against the app.
 // appWindows are app-scoped refs that apply unconditionally to the referencing app.
 func (m *appStateManager) resolveSyncWindowCRDRefs(app *v1alpha1.Application, proj *v1alpha1.AppProject) (projWindows v1alpha1.SyncWindows, appWindows v1alpha1.SyncWindows) {

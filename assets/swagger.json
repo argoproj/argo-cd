@@ -7092,7 +7092,7 @@
           }
         },
         "syncWindowRefs": {
-          "description": "SyncWindowRefs references external SyncWindow CRDs that define sync windows for this project.",
+          "description": "SyncWindowRefs references external SyncWindow objects that define sync windows for this project.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1SyncWindowProjectRef"
@@ -8001,7 +8001,7 @@
           "$ref": "#/definitions/v1alpha1SyncPolicy"
         },
         "syncWindowRefs": {
-          "description": "SyncWindowRefs references external SyncWindow CRDs that apply directly to this application.\nWhen specified, the referenced sync windows apply to this application regardless of the\napplications/namespaces/clusters filters defined in the SyncWindow.",
+          "description": "SyncWindowRefs references external SyncWindow objects that apply directly to this application.\nWhen specified, the referenced sync windows apply to this application regardless of the\napplications/namespaces/clusters filters defined in the SyncWindow.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1SyncWindowRef"
@@ -11218,7 +11218,7 @@
       }
     },
     "v1alpha1SyncWindowRef": {
-      "description": "SyncWindowRef is a reference to a SyncWindow CRD.",
+      "description": "SyncWindowRef is a reference to a SyncWindow object.",
       "type": "object",
       "properties": {
         "name": {

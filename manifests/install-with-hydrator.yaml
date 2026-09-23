@@ -2379,11 +2379,11 @@ spec:
                 type: object
               syncWindowRefs:
                 description: |-
-                  SyncWindowRefs references external SyncWindow CRDs that apply directly to this application.
+                  SyncWindowRefs references external SyncWindow objects that apply directly to this application.
                   When specified, the referenced sync windows apply to this application regardless of the
                   applications/namespaces/clusters filters defined in the SyncWindow.
                 items:
-                  description: SyncWindowRef is a reference to a SyncWindow CRD.
+                  description: SyncWindowRef is a reference to a SyncWindow object.
                   properties:
                     name:
                       description: Name is the metadata.name of the SyncWindow to
@@ -34772,8 +34772,8 @@ spec:
                   type: string
                 type: array
               syncWindowRefs:
-                description: SyncWindowRefs references external SyncWindow CRDs that
-                  define sync windows for this project.
+                description: SyncWindowRefs references external SyncWindow objects
+                  that define sync windows for this project.
                 items:
                   description: |-
                     SyncWindowProjectRef is a reference to a SyncWindow from an AppProject.

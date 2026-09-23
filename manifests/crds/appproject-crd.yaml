@@ -334,8 +334,8 @@ spec:
                   type: string
                 type: array
               syncWindowRefs:
-                description: SyncWindowRefs references external SyncWindow CRDs that
-                  define sync windows for this project.
+                description: SyncWindowRefs references external SyncWindow objects
+                  that define sync windows for this project.
                 items:
                   description: |-
                     SyncWindowProjectRef is a reference to a SyncWindow from an AppProject.

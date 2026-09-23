@@ -64,7 +64,7 @@ type SyncWindowList struct {
 	Items           []SyncWindow `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
-// SyncWindowRef is a reference to a SyncWindow CRD.
+// SyncWindowRef is a reference to a SyncWindow object.
 type SyncWindowRef struct {
 	// Name is the metadata.name of the SyncWindow to reference.
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`

@@ -116,7 +116,7 @@ message AppProjectSpec {
   // Do not access directly, use EffectiveSourceIntegrity() for correct backwards compatibility handling.
   optional SourceIntegrity sourceIntegrity = 15;
 
-  // SyncWindowRefs references external SyncWindow CRDs that define sync windows for this project.
+  // SyncWindowRefs references external SyncWindow objects that define sync windows for this project.
   repeated SyncWindowProjectRef syncWindowRefs = 16;
 }
 
@@ -731,7 +731,7 @@ message ApplicationSpec {
   // SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.
   optional SourceHydrator sourceHydrator = 9;
 
-  // SyncWindowRefs references external SyncWindow CRDs that apply directly to this application.
+  // SyncWindowRefs references external SyncWindow objects that apply directly to this application.
   // When specified, the referenced sync windows apply to this application regardless of the
   // applications/namespaces/clusters filters defined in the SyncWindow.
   repeated SyncWindowRef syncWindowRefs = 10;
@@ -3054,7 +3054,7 @@ message SyncWindowProjectRef {
   repeated string clusters = 4;
 }
 
-// SyncWindowRef is a reference to a SyncWindow CRD.
+// SyncWindowRef is a reference to a SyncWindow object.
 message SyncWindowRef {
   // Name is the metadata.name of the SyncWindow to reference.
   optional string name = 1;

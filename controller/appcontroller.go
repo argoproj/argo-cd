@@ -2957,7 +2957,7 @@ func (ctrl *ApplicationController) appProjectEventHandlerFuncs() cache.ResourceE
 	}
 }
 
-// syncWindowEventHandlerFuncs returns the informer event handlers for SyncWindow CRDs.
+// syncWindowEventHandlerFuncs returns the informer event handlers for SyncWindow objects.
 // On Add/Update/Delete of a SyncWindow, apps whose Application.spec.syncWindowRefs or
 // whose project's spec.syncWindowRefs match the CR (by name or label selector) are
 // enqueued to appRefreshQueue immediately.
