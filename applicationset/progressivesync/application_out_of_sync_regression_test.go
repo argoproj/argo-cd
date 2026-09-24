@@ -353,3 +353,31 @@ func TestMultiSourceHealthyRollsBackWhenSyncEvidenceDoesNotReachTarget(t *testin
 		})
 	}
 }
+
+func TestOperationStartedAfterTransitionDefensiveBranches(t *testing.T) {
+	t.Parallel()
+
+	transition := metav1.Time{Time: time.Now().Add(-time.Minute)}
+
+	opNil := rollingApp(argov1alpha1.SyncStatusCodeSynced, health.HealthStatusHealthy, "b", nil, nil)
+	assert.False(t, operationStartedAfterTransition(&opNil, &transition),
+		"no OperationState must not be treated as a sync started after the transition")
+	assert.False(t, operationStartedAfterTransition(&opNil, nil),
+		"no transition time must not be treated as a sync started after the transition")
+}
+
+func TestApplicationReconciledAfterDefensiveBranches(t *testing.T) {
+	t.Parallel()
+
+	transition := time.Now().Add(-time.Minute)
+
+	notReconciled := rollingApp(argov1alpha1.SyncStatusCodeOutOfSync, health.HealthStatusHealthy, "b",
+		opSyncedTo("b", transition.Add(time.Minute)), nil)
+	assert.False(t, applicationReconciledAfter(&notReconciled, &metav1.Time{Time: transition}),
+		"no ReconciledAt must not count as reconciled after the transition")
+
+	reconciled := rollingApp(argov1alpha1.SyncStatusCodeOutOfSync, health.HealthStatusHealthy, "b",
+		opSyncedTo("b", transition.Add(-time.Minute)), &metav1.Time{Time: transition.Add(time.Minute)})
+	assert.True(t, applicationReconciledAfter(&reconciled, nil),
+		"a nil transition time cannot disqualify an application that has reconciled")
+}
