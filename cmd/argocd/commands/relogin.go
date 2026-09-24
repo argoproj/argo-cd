@@ -66,6 +66,12 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				PlainText:         configCtx.Server.PlainText,
 				Headers:           clientOpts.Headers,
 			}
+			// Fall back to the client certificate persisted for the context, since reloginOpts
+			// deliberately does not read the local config.
+			if reloginOpts.ClientCertFile == "" && reloginOpts.ClientCertKeyFile == "" {
+				reloginOpts.ClientCertData, reloginOpts.ClientCertKeyData, err = configCtx.Server.ClientCertPEM()
+				errors.CheckError(err)
+			}
 			acdClient := headless.NewClientOrDie(&reloginOpts, c)
 			claims, err := configCtx.User.Claims()
 			errors.CheckError(err)

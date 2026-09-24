@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:8.10.1@sha256:691577adaf11927f4bb8871d40a5dd69a5c300d4453b742e8f6383c3e6e8d2e1 AS redis
+FROM docker.io/library/redis:8.10.2@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3 AS redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -14,7 +14,7 @@ FROM docker.io/library/registry:3.1@sha256:85347ed2ecde64161c7a4788a4d7d3dcc9d6f
 
 FROM docker.io/bitnamilegacy/kubectl:1.33@sha256:cd354d5b25562b195b277125439c23e4046902d7f1abc0dc3c75aad04d298c17 AS kubectl
 
-FROM docker.io/library/ubuntu:26.04@sha256:53958ec7b67c2c9355df922dd08dbf0360611f8c3cdb656875e81873db9ffdba
+FROM docker.io/library/ubuntu:26.04@sha256:2260313b31c8c011cd2eebe728008efac1b3982be73eb71348ea2648d2c0e09b
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -74,6 +74,7 @@ RUN ./install.sh helm && \
     ./install.sh lint-tools && \
     ./install.sh gotestsum && \
     ./install.sh git-lfs && \
+    ./install.sh oras && \
     go install github.com/mattn/goreman@latest && \
     go install github.com/kisielk/godepgraph@latest && \
     go install github.com/jstemmer/go-junit-report@latest && \

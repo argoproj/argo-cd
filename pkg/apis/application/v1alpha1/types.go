@@ -1,8 +1,6 @@
 package v1alpha1
 
 import (
-	"bytes"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,7 +23,6 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
-	"github.com/cespare/xxhash/v2"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -44,6 +41,7 @@ import (
 	"k8s.io/client-go/transport"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v3/util/hash"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -1304,6 +1302,9 @@ type SuccessfulHydrateOperation struct {
 type HydrateOperationPhase string
 
 const (
+	// HydrateOperationPhaseUnknown indicates that the hydration phase could not be reliably determined.
+	// For now this is only used in metrics, not in the CR status.
+	HydrateOperationPhaseUnknown   HydrateOperationPhase = "Unknown"
 	HydrateOperationPhaseHydrating HydrateOperationPhase = "Hydrating"
 	HydrateOperationPhaseFailed    HydrateOperationPhase = "Failed"
 	HydrateOperationPhaseHydrated  HydrateOperationPhase = "Hydrated"
@@ -2357,6 +2358,8 @@ type Cluster struct {
 	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,12,opt,name=labels"`
 	// Annotations for cluster secret metadata
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
+	// ConfigHash is an opaque value which tracks changes to the desired configuration of a Cluster
+	ConfigHash *uint64 `json:"configHash,omitempty" protobuf:"bytes,14,opt,name=configHash"`
 
 	// The embedded metav1.ObjectMeta field is purely here to please the informer when converting from a v1.Secret to a Cluster.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
@@ -2377,10 +2380,13 @@ func (c *Cluster) Sanitized() *Cluster {
 		ClusterResources:   c.ClusterResources,
 		Info:               c.Info,
 		RefreshRequestedAt: c.RefreshRequestedAt,
+		ConfigHash:         c.ConfigHash,
 		Config: ClusterConfig{
 			AWSAuthConfig:      c.Config.AWSAuthConfig,
 			ProxyUrl:           c.Config.ProxyUrl,
 			DisableCompression: c.Config.DisableCompression,
+			QPS:                c.Config.QPS,
+			Burst:              c.Config.Burst,
 			TLSClientConfig: TLSClientConfig{
 				Insecure:   c.Config.Insecure,
 				ServerName: c.Config.ServerName,
@@ -2430,6 +2436,25 @@ func (c *Cluster) Equals(other *Cluster) bool {
 	}
 
 	return reflect.DeepEqual(c.Config, other.Config)
+}
+
+func (c *Cluster) HashIdentity(defaultValue uint64) uint64 {
+	// Include only fields which are static identifiers or represent the desired state of the Cluster
+	// Note: ID is excluded as it has json:"-" tag and is not marshaled
+
+	cluster := Cluster{
+		Server: c.Server,
+		Name:   c.Name,
+		Config: c.Config,
+	}
+
+	result, err := hash.JsonObjectHash(cluster)
+	if err != nil {
+		log.Warnf("failed to encode cluster %s for hashing. returning default value: %d", c.Server, defaultValue)
+		return defaultValue
+	}
+
+	return result
 }
 
 // ClusterInfo contains information about the cluster
@@ -2542,6 +2567,12 @@ type ClusterConfig struct {
 
 	// ProxyURL is the URL to the proxy to be used for all requests send to the server
 	ProxyUrl string `json:"proxyUrl,omitempty" protobuf:"bytes,8,opt,name=proxyUrl"` //nolint:revive //FIXME(var-naming)
+
+	// QPS controls the number of queries per second allowed for this cluster.
+	QPS float32 `json:"qps,omitempty" protobuf:"fixed32,9,opt,name=qps"`
+
+	// Burst allows extra queries to accumulate for a rapid burst of requests to this cluster.
+	Burst int64 `json:"burst,omitempty" protobuf:"varint,10,opt,name=burst"`
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -3481,13 +3512,12 @@ func (w *InlineSyncWindow) HashIdentity() (uint64, error) {
 		// ManualSync and Description are excluded as they don't affect window identity
 	}
 
-	var windowBuffer bytes.Buffer
-	enc := gob.NewEncoder(&windowBuffer)
-	err := enc.Encode(identityWindow)
+	result, err := hash.GobObjectHash(identityWindow)
 	if err != nil {
 		return 0, fmt.Errorf("failed to encode sync window for hashing: %w", err)
 	}
-	return xxhash.Sum64(windowBuffer.Bytes()), nil
+
+	return result, nil
 }
 
 // DestinationClusters returns a list of cluster URLs allowed as destination in an AppProject
@@ -3906,8 +3936,12 @@ func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
 
 // SetK8SConfigDefaults sets Kubernetes REST config default settings
 func SetK8SConfigDefaults(config *rest.Config) error {
-	config.QPS = K8sClientConfigQPS
-	config.Burst = K8sClientConfigBurst
+	if config.QPS <= 0 {
+		config.QPS = K8sClientConfigQPS
+	}
+	if config.Burst <= 0 {
+		config.Burst = K8sClientConfigBurst
+	}
 	tlsConfig, err := rest.TLSConfigFor(config)
 	if err != nil {
 		return err
@@ -3987,6 +4021,32 @@ func ParseProxyUrl(proxyUrl string) (*url.URL, error) { //nolint:revive //FIXME(
 		return nil, fmt.Errorf("failed to parse proxy url, unsupported scheme %q, must be http, https, or socks5", u.Scheme)
 	}
 	return u, nil
+}
+
+func resolveRateLimits(config ClusterConfig) (float32, int) {
+	qps := K8sClientConfigQPS
+	if config.QPS > 0 {
+		qps = config.QPS
+	}
+	burst := K8sClientConfigBurst
+	if config.Burst > 0 {
+		if config.Burst > math.MaxInt32 {
+			burst = math.MaxInt32
+		} else {
+			burst = int(config.Burst)
+		}
+	} else if config.QPS > 0 {
+		derived := float64(2 * config.QPS)
+		if derived > math.MaxInt32 {
+			burst = math.MaxInt32
+		} else {
+			burst = int(derived)
+		}
+		if burst < 1 {
+			burst = 1
+		}
+	}
+	return qps, burst
 }
 
 func (c *Cluster) rawRestConfig() (*rest.Config, error) {
@@ -4098,8 +4158,7 @@ func (c *Cluster) rawRestConfig() (*rest.Config, error) {
 	}
 	config.DisableCompression = c.Config.DisableCompression
 	config.Timeout = 0
-	config.QPS = K8sClientConfigQPS
-	config.Burst = K8sClientConfigBurst
+	config.QPS, config.Burst = resolveRateLimits(c.Config)
 	return config, nil
 }
 

@@ -1,0 +1,12 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: sample-cluster-policy
+spec: {}
+status:
+  conditions:
+  - lastTransitionTime: "2025-01-01T00:00:00Z"
+    message: Policy is not ready
+    reason: Failed
+    status: "False"
+    type: Ready

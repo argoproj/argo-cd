@@ -1,0 +1,10 @@
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkSessionJob
+metadata:
+  name: flink-session-job-example
+spec:
+  deploymentName: flink-session-cluster
+  job:
+    jarURI: local:///opt/flink/examples/streaming/StateMachineExample.jar
+status:
+  error: "Session cluster not found: flink-session-cluster"

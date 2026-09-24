@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="19 known vulnerabilities found in 111 vulnerable dependency paths.">
+  <meta name="description" content="22 known vulnerabilities found in 118 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,22 +492,22 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">August 30th 2026, 12:33:37 am (UTC+00:00)</p>
+                <p class="timestamp">September 20th 2026, 12:33:56 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
                 <ul>
+                  <li class="paths">/argo-cd/ui/package.json (pnpm)</li>
                   <li class="paths">/argo-cd/argoproj/argo-cd/v3/go.mod (gomodules)</li>
                   <li class="paths">/argo-cd/argoproj/argo-cd/gitops-engine/v3/gitops-engine/go.mod (gomodules)</li>
                   <li class="paths">/argo-cd/argoproj/argo-cd/get-previous-release/hack/get-previous-release/go.mod (gomodules)</li>
-                  <li class="paths">/argo-cd/ui/pnpm-lock.yaml (pnpm)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>19</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>111 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>3000</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>22</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>118 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>3107</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -515,6 +515,111 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Directory Traversal</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/package.json
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            moment
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                argo-cd-ui@1.0.0 and moment@2.30.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        moment@2.30.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        react-moment@1.2.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        moment@2.30.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://www.npmjs.com/package/moment">moment</a> is a lightweight JavaScript date library for parsing, validating, manipulating, and formatting dates.</p>
+        <p>Affected versions of this package are vulnerable to Directory Traversal in the <code>locale()</code> function, whose locale name validation is circumvented by a non-string value, so an object can direct the load to an attacker-specified path. An attacker can cause a file to be loaded from a path of their choosing by supplying a non-string value that the application passes to <code>moment.locale()</code>. This requires the application to hand user-supplied non-string input directly to <code>moment.locale()</code>, plain strings are unaffected because the existing validation rejects those containing path separators, and only server-side npm consumers are in scope.</p>
+        <p><strong>Note:</strong> This is a bypass of the fix for the vulnerability described in <a href="https://security.snyk.io/vuln/SNYK-JS-MOMENT-2440688">CVE-2022-24785</a>.</p>
+        <h2 id="details">Details</h2>
+        <p>A Directory Traversal attack (also known as path traversal) aims to access files and directories that are stored outside the intended folder. By manipulating files with &quot;dot-dot-slash (../)&quot; sequences and its variations, or by using absolute file paths, it may be possible to access arbitrary files and directories stored on file system, including application source code, configuration, and other critical system files.</p>
+        <p>Directory Traversal vulnerabilities can be generally divided into two types:</p>
+        <ul>
+        <li><strong>Information Disclosure</strong>: Allows the attacker to gain information about the folder structure or read the contents of sensitive files on the system.</li>
+        </ul>
+        <p><code>st</code> is a module for serving static files on web pages, and contains a <a href="https://snyk.io/vuln/npm:st:20140206">vulnerability of this type</a>. In our example, we will serve files from the <code>public</code> route.</p>
+        <p>If an attacker requests the following URL from our server, it will in turn leak the sensitive private key of the root user.</p>
+        <pre><code>curl http://localhost:8080/public/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/root/.ssh/id_rsa
+        </code></pre>
+        <p><strong>Note</strong> <code>%2e</code> is the URL encoded version of <code>.</code> (dot).</p>
+        <ul>
+        <li><strong>Writing arbitrary files</strong>: Allows the attacker to create or replace existing files. This type of vulnerability is also known as <code>Zip-Slip</code>.</li>
+        </ul>
+        <p>One way to achieve this is by using a malicious <code>zip</code> archive that holds path traversal filenames. When each filename in the zip archive gets concatenated to the target extraction folder, without validation, the final path ends up outside of the target folder. If an executable or a configuration file is overwritten with a file containing malicious code, the problem can turn into an arbitrary code execution issue quite easily.</p>
+        <p>The following is an example of a <code>zip</code> archive with one benign file and one malicious file. Extracting the malicious file will result in traversing out of the target folder, ending up in <code>/root/.ssh/</code> overwriting the <code>authorized_keys</code> file:</p>
+        <pre><code>2018-04-15 22:04:29 .....           19           19  good.txt
+        2018-04-15 22:04:42 .....           20           20  ../../../../../../root/.ssh/authorized_keys
+        </code></pre>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>moment</code> to version 2.31.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/moment/moment/security/advisories/GHSA-4p3w-j4w9-5jqw">GitHub Advisory</a></li>
+        <li><a href="https://github.com/moment/moment/commit/5f7d983c9881e65e07574de9dda3190d99520c07">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-MOMENT-19821607">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Regular Expression Denial of Service (ReDoS)</h2>
             <div class="card__section">
@@ -532,7 +637,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/pnpm-lock.yaml
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/package.json
                     </li>
                     <li class="card__meta__item">
                         Package Manager: npm
@@ -670,7 +775,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/pnpm-lock.yaml
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/package.json
                     </li>
                     <li class="card__meta__item">
                         Package Manager: npm
@@ -2271,7 +2376,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/pnpm-lock.yaml
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/package.json
                     </li>
                     <li class="card__meta__item">
                         Package Manager: npm
@@ -2304,17 +2409,6 @@
                                         minimatch@9.0.9
                                          <span class="list-paths__item__arrow">›</span> 
                                         brace-expansion@2.1.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        minimatch@3.1.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        brace-expansion@1.1.14
                                         
                                 </span>
         
@@ -2360,7 +2454,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/pnpm-lock.yaml
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/package.json
                     </li>
                     <li class="card__meta__item">
                         Package Manager: npm
@@ -2393,17 +2487,6 @@
                                         minimatch@9.0.9
                                          <span class="list-paths__item__arrow">›</span> 
                                         brace-expansion@2.1.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        minimatch@3.1.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        brace-expansion@1.1.14
                                         
                                 </span>
         
@@ -2450,7 +2533,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/pnpm-lock.yaml
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/package.json
                     </li>
                     <li class="card__meta__item">
                         Package Manager: npm
@@ -2483,17 +2566,6 @@
                                         minimatch@9.0.9
                                          <span class="list-paths__item__arrow">›</span> 
                                         brace-expansion@2.1.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        minimatch@3.1.5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        brace-expansion@1.1.14
                                         
                                 </span>
         
@@ -2545,7 +2617,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/pnpm-lock.yaml
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/package.json
                     </li>
                     <li class="card__meta__item">
                         Package Manager: npm
@@ -2623,7 +2695,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Memory Allocation with Excessive Size Value</h2>
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
             <div class="card__section">
         
                 <div class="card__labels">
@@ -2639,21 +2711,21 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd/argoproj/argo-cd/gitops-engine/v3 <span class="list-paths__item__arrow">›</span> gitops-engine/go.mod
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/package.json
                     </li>
                     <li class="card__meta__item">
-                        Package Manager: golang
+                        Package Manager: npm
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
         
-                            go.opentelemetry.io/otel/propagation
+                            qs
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
         
-                                    github.com/argoproj/argo-cd/gitops-engine/v3@0.0.0, go.opentelemetry.io/otel@1.41.0 and others
+                                    argo-cd-ui@1.0.0, url@0.11.4 and others
                     </li>
                 </ul>
         
@@ -2665,24 +2737,35 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/gitops-engine/v3@0.0.0
+                                        argo-cd-ui@1.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel@1.41.0
+                                        url@0.11.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/propagation@1.41.0
+                                        qs@6.15.2
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/gitops-engine/v3@0.0.0
+                                        argo-cd-ui@1.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel@1.41.0
+                                        superagent@8.1.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/internal/global@1.41.0
+                                        qs@6.15.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/propagation@1.41.0
+                                        superagent@8.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        formidable@2.1.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        qs@6.15.2
                                         
                                 </span>
         
@@ -2694,24 +2777,48 @@
               <hr/>
               <!-- Overview -->
               <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Memory Allocation with Excessive Size Value via the <code>Parse</code> function. An attacker can exhaust CPU resources and generate excessive log output by sending oversized or malformed headers that are processed without length checks.</p>
+        <p><a href="https://www.npmjs.com/package/qs">qs</a> is a querystring parser that supports nesting and arrays, with a depth limit.</p>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling in the <code>parseArrayValue()</code> comma-parsing logic, which applies the <code>arrayLimit</code> and <code>throwOnLimitExceeded</code> checks only to flat values, so a bracket-key input such as <code>a[]=1,2,3,4</code> is treated as non-flat and its comma-split inner array is wrapped after parsing without ever being length-checked. An attacker can exceed the configured array limit and force excessive memory allocation by supplying a query string or form body that uses the bracket-key comma form, for example <code>a[]=1,2,3,...</code>. This requires the application to parse untrusted input with the <code>comma: true</code> option enabled alongside a configured <code>arrayLimit</code> or <code>throwOnLimitExceeded</code>.</p>
+        <h2 id="poc">PoC</h2>
+        <pre><code class="language-js">
+        const qs = require(&#39;qs&#39;)
+        const options = { comma: true, arrayLimit: 3, throwOnLimitExceeded: true }
+        
+        const result = qs.parse(&#39;a[]=1,2,3,4&#39;, options)
+        console.log(result.a[0].length) // 4; expected RangeError
+        
+        const big = qs.parse(&#39;a[]=&#39; + &#39;1,&#39;.repeat(1000000) + &#39;1&#39;, { comma: true, arrayLimit: 20 })
+        console.log(big.a[0].length) // 1000001
+        </code></pre>
+        <h2 id="details">Details</h2>
+        <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
+        <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
+        <p>One popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.</p>
+        <p>When it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.</p>
+        <p>Two common types of DoS vulnerabilities:</p>
+        <ul>
+        <li><p>High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, <a href="https://security.snyk.io/vuln/SNYK-JAVA-COMMONSFILEUPLOAD-30082">commons-fileupload:commons-fileupload</a>.</p>
+        </li>
+        <li><p>Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  <a href="https://snyk.io/vuln/npm:ws:20171108">npm <code>ws</code> package</a></p>
+        </li>
+        </ul>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>go.opentelemetry.io/otel/propagation</code> to version 1.44.0 or higher.</p>
+        <p>Upgrade <code>qs</code> to version 6.16.0 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="https://github.com/open-telemetry/opentelemetry-go/security/advisories/GHSA-5wrp-cwcj-q835">GitHub Advisory</a></li>
-        <li><a href="https://github.com/open-telemetry/opentelemetry-go/commit/97447f5c54c66f4b8773aefeafad260e4e91d92b">GitHub Commit</a></li>
+        <li><a href="https://github.com/ljharb/qs/security/advisories/GHSA-x5fp-wj9c-mxmx">GitHub Advisory</a></li>
+        <li><a href="https://github.com/ljharb/qs/commit/8859c37470e11b42b547b275e4e9bd0bc8cc5464">GitHub Commit</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOPENTELEMETRYIOOTELPROPAGATION-17054905">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-JS-QS-19432017">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Memory Allocation with Excessive Size Value</h2>
+            <h2 class="card__title">Uncaught Exception</h2>
             <div class="card__section">
         
                 <div class="card__labels">
@@ -2727,21 +2834,21 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd/argoproj/argo-cd/gitops-engine/v3 <span class="list-paths__item__arrow">›</span> gitops-engine/go.mod
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/package.json
                     </li>
                     <li class="card__meta__item">
-                        Package Manager: golang
+                        Package Manager: npm
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
         
-                            go.opentelemetry.io/otel/baggage
+                            qs
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
         
-                                    github.com/argoproj/argo-cd/gitops-engine/v3@0.0.0, go.opentelemetry.io/otel@1.41.0 and others
+                                    argo-cd-ui@1.0.0, url@0.11.4 and others
                     </li>
                 </ul>
         
@@ -2753,13 +2860,35 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/gitops-engine/v3@0.0.0
+                                        argo-cd-ui@1.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel@1.41.0
+                                        url@0.11.4
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/propagation@1.41.0
+                                        qs@6.15.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/baggage@1.41.0
+                                        superagent@8.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        qs@6.15.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        superagent@8.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        formidable@2.1.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        qs@6.15.2
                                         
                                 </span>
         
@@ -2771,19 +2900,32 @@
               <hr/>
               <!-- Overview -->
               <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Memory Allocation with Excessive Size Value via the <code>Parse</code> function. An attacker can exhaust CPU resources and generate excessive log output by sending oversized or malformed headers that are processed without length checks.</p>
+        <p><a href="https://www.npmjs.com/package/qs">qs</a> is a querystring parser that supports nesting and arrays, with a depth limit.</p>
+        <p>Affected versions of this package are vulnerable to Uncaught Exception in the <code>isBuffer()</code> function in <code>lib/utils.js</code>, which calls <code>obj.constructor.isBuffer(obj)</code> without checking that it is callable, reached from <code>stringify()</code> at <code>lib/stringify.js:127</code>. An attacker can throw an uncaught <code>TypeError</code> that fails each request with HTTP 500, and terminates the worker process when <code>stringify()</code> runs in an unguarded async context, by supplying a query string such as <code>x[constructor][isBuffer]=y</code> that sets <code>constructor.isBuffer</code> to a non-function value. This requires the application to call <code>qs.parse()</code> with <code>plainObjects: true</code> or <code>allowPrototypes: true</code>, which preserves the <code>constructor</code> own property, and to then pass the parsed result to <code>qs.stringify()</code>.</p>
+        <h2 id="details">Details</h2>
+        <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
+        <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
+        <p>One popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.</p>
+        <p>When it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.</p>
+        <p>Two common types of DoS vulnerabilities:</p>
+        <ul>
+        <li><p>High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, <a href="https://security.snyk.io/vuln/SNYK-JAVA-COMMONSFILEUPLOAD-30082">commons-fileupload:commons-fileupload</a>.</p>
+        </li>
+        <li><p>Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  <a href="https://snyk.io/vuln/npm:ws:20171108">npm <code>ws</code> package</a></p>
+        </li>
+        </ul>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>go.opentelemetry.io/otel/baggage</code> to version 1.44.0 or higher.</p>
+        <p>Upgrade <code>qs</code> to version 6.16.0 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="https://github.com/open-telemetry/opentelemetry-go/security/advisories/GHSA-5wrp-cwcj-q835">GitHub Advisory</a></li>
-        <li><a href="https://github.com/open-telemetry/opentelemetry-go/commit/97447f5c54c66f4b8773aefeafad260e4e91d92b">GitHub Commit</a></li>
+        <li><a href="https://github.com/ljharb/qs/security/advisories/GHSA-4mjr-xmp4-gh2g">GitHub Advisory</a></li>
+        <li><a href="https://github.com/ljharb/qs/commit/e83d321ffafb38cf210683ac31714fce6ce1c6c6">GitHub Commit</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOPENTELEMETRYIOOTELBAGGAGE-17054906">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-JS-QS-19432019">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -2818,7 +2960,7 @@
                     <li class="card__meta__item">Introduced through:
         
         
-                                    github.com/argoproj/argo-cd/v3@0.0.0, github.com/go-redis/cache/v9@9.0.0 and others
+                                    github.com/argoproj/argo-cd/v3@0.0.0, github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache@#000000000000 and others
                     </li>
                 </ul>
         
@@ -2828,6 +2970,17 @@
                         <h3 class="card__section__title">Detailed paths</h3>
         
                     <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache@#000000000000
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/vmihailenco/msgpack/v5@5.4.1
+                                        
+                                </span>
+        
+                            </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
@@ -2844,6 +2997,15 @@
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/r3labs/diff/v3@3.0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/vmihailenco/msgpack/v5@5.4.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/gitops-engine/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/vmihailenco/msgpack/v5@5.4.1
                                         
@@ -3392,6 +3554,173 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Incorrect Authorization</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/grpc-ecosystem/grpc-gateway/v2/runtime
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v3@0.0.0, go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@1.46.0 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@1.46.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/proto/otlp/collector/trace/v1@1.11.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/grpc-gateway/v2/runtime@2.30.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Incorrect Authorization in the <code>ServeHTTP</code> method of <code>ServeMux</code> (<code>runtime/mux.go</code>), which rewrites <code>r.Method</code> from the client-supplied <code>X-HTTP-Method-Override</code> header on form-urlencoded POST requests without restricting the allowed methods. An attacker can reach handlers for restricted verbs such as DELETE, PUT, or PATCH, bypassing method-based access controls enforced at an upstream proxy or WAF, by sending a POST request with <code>Content-Type: application/x-www-form-urlencoded</code> and the override header set to the target method. This requires a deployment where a perimeter proxy or WAF filters on the wire method while trusting the gateway downstream, and a handler must exist for the overridden method.</p>
+        <p><strong>Note:</strong> The <code>WithDisablePathLengthFallback</code> is added in version 2.29.0 but it is disabled by default.</p>
+        <h2 id="workaround">Workaround</h2>
+        <p>This vulnerability can be avoided by stripping the <code>X-HTTP-Method-Override</code> header at the perimeter proxy or WAF, so the enforced wire method is the one the gateway routes on.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>github.com/grpc-ecosystem/grpc-gateway/v2/runtime</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/grpc-ecosystem/grpc-gateway/pull/6447">GitHub PR</a></li>
+        <li><a href="https://s00me00ne.com/cve/cve-2026-37236/">Vulnerability Report</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGRPCECOSYSTEMGRPCGATEWAYV2RUNTIME-19432132">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Incorrect Authorization</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/grpc-ecosystem/grpc-gateway/runtime
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@0.0.0 and github.com/grpc-ecosystem/grpc-gateway/runtime@1.16.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/grpc-gateway/runtime@1.16.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/pkg/v2/grpc/http@2.0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/grpc-ecosystem/grpc-gateway/runtime@1.16.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Incorrect Authorization in the <code>ServeHTTP</code> method of <code>ServeMux</code> (<code>runtime/mux.go</code>), which rewrites <code>r.Method</code> from the client-supplied <code>X-HTTP-Method-Override</code> header on form-urlencoded POST requests without restricting the allowed methods. An attacker can reach handlers for restricted verbs such as DELETE, PUT, or PATCH, bypassing method-based access controls enforced at an upstream proxy or WAF, by sending a POST request with <code>Content-Type: application/x-www-form-urlencoded</code> and the override header set to the target method. This requires a deployment where a perimeter proxy or WAF filters on the wire method while trusting the gateway downstream, and a handler must exist for the overridden method.</p>
+        <p><strong>Note:</strong> The <code>WithDisablePathLengthFallback</code> is added in version 2.29.0 but it is disabled by default.</p>
+        <h2 id="workaround">Workaround</h2>
+        <p>This vulnerability can be avoided by stripping the <code>X-HTTP-Method-Override</code> header at the perimeter proxy or WAF, so the enforced wire method is the one the gateway routes on.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>github.com/grpc-ecosystem/grpc-gateway/runtime</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/grpc-ecosystem/grpc-gateway/pull/6447">GitHub PR</a></li>
+        <li><a href="https://s00me00ne.com/cve/cve-2026-37236/">Vulnerability Report</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGRPCECOSYSTEMGRPCGATEWAYRUNTIME-19432130">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">MPL-2.0 license</h2>
             <div class="card__section">
         
@@ -3470,7 +3799,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/pnpm-lock.yaml
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/package.json
                     </li>
                     <li class="card__meta__item">
                         Package Manager: npm
@@ -3620,7 +3949,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/pnpm-lock.yaml
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/package.json
                     </li>
                     <li class="card__meta__item">
                         Package Manager: npm
