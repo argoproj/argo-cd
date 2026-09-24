@@ -448,6 +448,12 @@ func globMatch(pattern string, val string, allowNegation bool, separators ...run
 		return !glob.Match(pattern[1:], val, separators...)
 	}
 
+	// An empty namespace in AppProject destinations is used to represent cluster-scoped resources.
+	// Treat empty patterns as an exact match for empty values.
+	if pattern == "" {
+		return val == ""
+	}
+
 	if pattern == "*" {
 		return true
 	}
