@@ -36219,7 +36219,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.10.1-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.2-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -36368,6 +36368,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.tls.ciphers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_TLS_CURVE_PREFERENCES
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.tls.curvepreferences
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_CLIENT_CA_PATH

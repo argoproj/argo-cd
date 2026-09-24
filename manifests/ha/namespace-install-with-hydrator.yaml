@@ -2834,6 +2834,12 @@ spec:
               key: reposerver.tls.ciphers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_TLS_CURVE_PREFERENCES
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.tls.curvepreferences
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_SERVER_CLIENT_CA_PATH
           valueFrom:
             configMapKeyRef:
@@ -3303,6 +3309,24 @@ spec:
               key: server.disable.swagger.ui
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_ENABLE_SOURCE_IP_LOGGING
+          valueFrom:
+            configMapKeyRef:
+              key: server.enable.source.ip.logging
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_TRUSTED_PROXIES
+          valueFrom:
+            configMapKeyRef:
+              key: server.trusted.proxies
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_CLIENT_IP_HEADER
+          valueFrom:
+            configMapKeyRef:
+              key: server.client.ip.header
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_SERVER_ENABLE_GZIP
           valueFrom:
             configMapKeyRef:
@@ -3385,6 +3409,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.tls.ciphers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_TLS_CURVE_PREFERENCES
+          valueFrom:
+            configMapKeyRef:
+              key: server.tls.curvepreferences
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_SERVER_CONNECTION_STATUS_CACHE_EXPIRATION
@@ -4213,7 +4243,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.10.1-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.2-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -4284,7 +4314,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.10.1-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.2-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           postStart:
@@ -4359,7 +4389,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.10.1-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.2-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:
           exec:
@@ -4415,7 +4445,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.10.1-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.2-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:

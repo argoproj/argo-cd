@@ -2390,6 +2390,8 @@ func (c *Cluster) Sanitized() *Cluster {
 			AWSAuthConfig:      c.Config.AWSAuthConfig,
 			ProxyUrl:           c.Config.ProxyUrl,
 			DisableCompression: c.Config.DisableCompression,
+			QPS:                c.Config.QPS,
+			Burst:              c.Config.Burst,
 			TLSClientConfig: TLSClientConfig{
 				Insecure:   c.Config.Insecure,
 				ServerName: c.Config.ServerName,
@@ -2570,6 +2572,12 @@ type ClusterConfig struct {
 
 	// ProxyURL is the URL to the proxy to be used for all requests send to the server
 	ProxyUrl string `json:"proxyUrl,omitempty" protobuf:"bytes,8,opt,name=proxyUrl"` //nolint:revive //FIXME(var-naming)
+
+	// QPS controls the number of queries per second allowed for this cluster.
+	QPS float32 `json:"qps,omitempty" protobuf:"fixed32,9,opt,name=qps"`
+
+	// Burst allows extra queries to accumulate for a rapid burst of requests to this cluster.
+	Burst int64 `json:"burst,omitempty" protobuf:"varint,10,opt,name=burst"`
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -3935,8 +3943,12 @@ func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
 
 // SetK8SConfigDefaults sets Kubernetes REST config default settings
 func SetK8SConfigDefaults(config *rest.Config) error {
-	config.QPS = K8sClientConfigQPS
-	config.Burst = K8sClientConfigBurst
+	if config.QPS <= 0 {
+		config.QPS = K8sClientConfigQPS
+	}
+	if config.Burst <= 0 {
+		config.Burst = K8sClientConfigBurst
+	}
 	tlsConfig, err := rest.TLSConfigFor(config)
 	if err != nil {
 		return err
@@ -4016,6 +4028,32 @@ func ParseProxyUrl(proxyUrl string) (*url.URL, error) { //nolint:revive //FIXME(
 		return nil, fmt.Errorf("failed to parse proxy url, unsupported scheme %q, must be http, https, or socks5", u.Scheme)
 	}
 	return u, nil
+}
+
+func resolveRateLimits(config ClusterConfig) (float32, int) {
+	qps := K8sClientConfigQPS
+	if config.QPS > 0 {
+		qps = config.QPS
+	}
+	burst := K8sClientConfigBurst
+	if config.Burst > 0 {
+		if config.Burst > math.MaxInt32 {
+			burst = math.MaxInt32
+		} else {
+			burst = int(config.Burst)
+		}
+	} else if config.QPS > 0 {
+		derived := float64(2 * config.QPS)
+		if derived > math.MaxInt32 {
+			burst = math.MaxInt32
+		} else {
+			burst = int(derived)
+		}
+		if burst < 1 {
+			burst = 1
+		}
+	}
+	return qps, burst
 }
 
 func (c *Cluster) rawRestConfig() (*rest.Config, error) {
@@ -4127,8 +4165,7 @@ func (c *Cluster) rawRestConfig() (*rest.Config, error) {
 	}
 	config.DisableCompression = c.Config.DisableCompression
 	config.Timeout = 0
-	config.QPS = K8sClientConfigQPS
-	config.Burst = K8sClientConfigBurst
+	config.QPS, config.Burst = resolveRateLimits(c.Config)
 	return config, nil
 }
 

@@ -957,6 +957,12 @@ message ClusterConfig {
 
   // ProxyURL is the URL to the proxy to be used for all requests send to the server
   optional string proxyUrl = 8;
+
+  // QPS controls the number of queries per second allowed for this cluster.
+  optional float qps = 9;
+
+  // Burst allows extra queries to accumulate for a rapid burst of requests to this cluster.
+  optional int64 burst = 10;
 }
 
 // ClusterGenerator defines a generator to match against clusters registered with ArgoCD.
