@@ -187,6 +187,9 @@ func normalizeClaims(claims jwtgo.MapClaims, config *settings.JWTConfig) {
 		if hasEmail {
 			claims["email"] = email
 		} else {
+			// Left in place rather than removed: email supplies the displayed username and the
+			// audit log, and only becomes an authorization input if an operator adds it to the
+			// RBAC "scopes" list. Unlike groups, it grants nothing by default.
 			log.Warnf("Email claim %q not found in external JWT", config.EmailClaim)
 		}
 	}
@@ -195,8 +198,10 @@ func normalizeClaims(claims jwtgo.MapClaims, config *settings.JWTConfig) {
 	case hasGroups:
 		claims["groups"] = groups
 	case config.GroupsClaim != "":
-		// Configured but unresolvable. Remove any "groups" the issuer sent: keeping it would
-		// silently grant RBAC group membership from a claim the operator did not select.
+		// Configured but unresolvable. This is the one claim that is removed rather than left
+		// alone, because it is the one that grants permissions out of the box: rbac.DefaultScopes
+		// is ["groups"], so any "groups" the issuer sent would be matched against RBAC even though
+		// the operator pointed groupsClaim somewhere else.
 		log.Warnf("Groups claim %q not found in external JWT, the user will be assigned the default role", config.GroupsClaim)
 		delete(claims, "groups")
 	}

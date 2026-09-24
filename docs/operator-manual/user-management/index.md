@@ -620,12 +620,21 @@ and leaves the corresponding claim alone — `sub` keeps the issuer's own subjec
 config does not lock users out.
 
 > [!WARNING]
-> `groupsClaim` is the exception. If it is set but names a claim the token does not carry — or one
-> holding something other than a string or list of strings — Argo CD **removes** the `groups`
-> claim and the user is assigned the default role. Without this, a misconfigured `groupsClaim`
-> would silently fall back to the issuer's own `groups` claim and the setting would have no
-> observable effect. Check `argocd account get-user-info` and the API server logs if a user
-> unexpectedly gets the default role; an unresolvable `groupsClaim` is logged as a warning.
+> `groupsClaim` is the exception, because groups grant permissions. If it is set but names a claim
+> the token does not carry — or one holding something other than a string or list of strings —
+> Argo CD **removes** the `groups` claim and the user is assigned the default role. Without this, a
+> misconfigured `groupsClaim` would silently fall back to the issuer's own `groups` claim and the
+> setting would have no observable effect. Check `argocd account get-user-info` and the API server
+> logs if a user unexpectedly gets the default role; an unresolvable `groupsClaim` is logged as a
+> warning.
+
+> [!NOTE]
+> `emailClaim` is treated leniently because `email` does not normally grant permissions — it
+> supplies the displayed username and the audit log. That changes if you add `email` to the
+> `scopes` list in `argocd-rbac-cm` (see [RBAC configuration](../rbac.md)), which makes it an
+> authorization input matched against your policies. If you do that, confirm `emailClaim` actually
+> resolves: an issuer-supplied `email` left in place by a misconfigured `emailClaim` would be
+> matched against RBAC.
 
 The external authentication provider must:
 
