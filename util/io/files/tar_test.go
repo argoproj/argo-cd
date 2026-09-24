@@ -230,10 +230,9 @@ func TestUntgz(t *testing.T) {
 		names := readFiles(t, destDir)
 		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
 	})
-	t.Run("resolves destination path symlinks before inbound checks", func(t *testing.T) {
-		// Models macOS where extract roots under /var resolve to /private/var.
-		// Without resolving dstPath first, in-bounds archive symlinks fail Inbound
-		// because EvalSymlinks on the link target rewrites /var to /private/var.
+	t.Run("allows extraction when dstPath is a symlink", func(t *testing.T) {
+		// Models macOS where paths under /tmp resolve to /private/tmp.
+		// Untgz should accept symlinked dstPath so in-bounds entries can be extracted.
 
 		// given
 		tmpDir := createTmpDir(t)
