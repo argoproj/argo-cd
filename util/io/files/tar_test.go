@@ -492,6 +492,38 @@ func TestUntgz_PreventsSymlinkAncestorEscape(t *testing.T) {
 	require.ErrorContains(t, err, "illegal symlink parent directory \"d/up\" for \"d/up/escape\"")
 }
 
+func TestUntgz_PreventsDirectEscape(t *testing.T) {
+	parent := t.TempDir()
+	destDir := filepath.Join(parent, "dst")
+	require.NoError(t, os.WriteFile(filepath.Join(parent, "secret"), []byte("outside dst"), 0o600))
+
+	tgz := prepareCraftedTgz(t,
+		func(tw *tar.Writer) { writeTarDir(t, tw, "dir") },
+		func(tw *tar.Writer) { writeTarSymlink(t, tw, "link", "dir/../../secret") },
+	)
+
+	err := files.Untgz(destDir, bytes.NewReader(tgz), math.MaxInt64, false)
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "path escapes from parent")
+}
+
+func TestUntgz_RejectsSymlinkAncestors(t *testing.T) {
+	parent := t.TempDir()
+	destDir := filepath.Join(parent, "dst")
+
+	tgz := prepareCraftedTgz(t,
+		func(tw *tar.Writer) { writeTarDir(t, tw, "dir") },
+		func(tw *tar.Writer) { writeTarSymlink(t, tw, "dir/d/up", "..") },
+		func(tw *tar.Writer) { writeTarSymlink(t, tw, "dir/d/up/link", "target") },
+	)
+
+	err := files.Untgz(destDir, bytes.NewReader(tgz), math.MaxInt64, false)
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "illegal symlink parent directory \"dir/d/up\" for \"dir/d/up/link\"")
+}
+
 // read returns a map with the filename as key. In case
 // the file is a symlink, the value will be populated with
 // the target file pointed by the symlink.
