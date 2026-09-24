@@ -9,6 +9,7 @@ The Teams Workflows notification service sends message notifications using Micro
 The Teams Workflows notification service requires specifying the following settings:
 
 * `recipientUrls` - the webhook url map, e.g. `channelName: https://api.powerautomate.com/webhook/...`
+* `rawCardPayload` - optional boolean. When `true`, sends the Adaptive Card directly as the request body instead of wrapping it in the standard `message` + `attachments` envelope. Defaults to `false`.
 
 ## Supported Webhook URL Formats
 
@@ -72,7 +73,7 @@ Teams Workflows provides enhanced channel support compared to Office 365 Connect
 
 ## Adaptive Card Format
 
-The Teams Workflows service uses **Adaptive Cards** exclusively, which is the modern, flexible card format for Microsoft Teams. All notifications are automatically converted to Adaptive Card format and wrapped in the required message envelope.
+The Teams Workflows service uses **Adaptive Cards** exclusively, which is the modern, flexible card format for Microsoft Teams. All notifications are automatically converted to Adaptive Card format and, by default, wrapped in the standard message envelope.
 
 ### Option 1: Using Template Fields (Recommended)
 
@@ -175,9 +176,25 @@ template.app-sync-succeeded: |
       }
 ```
 
-**Note:** When using `adaptiveCard`, you only need to provide the AdaptiveCard JSON structure (not the full message envelope). The service automatically wraps it in the required `message` + `attachments` format for Teams Workflows.
+**Note:** When using `adaptiveCard`, you only need to provide the AdaptiveCard JSON structure (not the full message envelope). By default, the service automatically wraps it in the standard `message` + `attachments` format for Teams Workflows.
 
 **Important:** If you provide `adaptiveCard`, it takes precedence over all other template fields (`title`, `text`, `facts`, etc.).
+
+### Raw Adaptive Card Payload
+
+By default, the service wraps Adaptive Cards in the standard `message` + `attachments` envelope.
+
+Some custom Microsoft Power Automate flows expect the Adaptive Card JSON directly as the request body. For these flows, enable `rawCardPayload`:
+
+```yaml
+service.teams-workflows: |
+  recipientUrls:
+    channelName: $channel-workflows-url
+  rawCardPayload: true
+```
+When enabled, the Adaptive Card is sent directly as the request body without the `message` + `attachments` envelope.
+
+The default value is `false`, so existing configurations keep the current behavior.
 
 ## Template Fields
 
