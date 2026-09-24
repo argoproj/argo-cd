@@ -34,10 +34,11 @@ func (factory *devopsFactoryImpl) GetClient(ctx context.Context) (git.Client, er
 }
 
 type AzureDevOpsService struct {
-	clientFactory AzureDevOpsClientFactory
-	project       string
-	repo          string
-	labels        []string
+	clientFactory  AzureDevOpsClientFactory
+	project        string
+	repo           string
+	labels         []string
+	excludedLabels []string
 }
 
 var (
@@ -45,7 +46,7 @@ var (
 	_ AzureDevOpsClientFactory = &devopsFactoryImpl{}
 )
 
-func NewAzureDevOpsService(token, url, organization, project, repo string, labels []string) (PullRequestService, error) {
+func NewAzureDevOpsService(token, url, organization, project, repo string, labels []string, excludedLabels []string) (PullRequestService, error) {
 	organizationURL := buildURL(url, organization)
 
 	var connection *azuredevops.Connection
@@ -56,10 +57,11 @@ func NewAzureDevOpsService(token, url, organization, project, repo string, label
 	}
 
 	return &AzureDevOpsService{
-		clientFactory: &devopsFactoryImpl{connection: connection},
-		project:       project,
-		repo:          repo,
-		labels:        labels,
+		clientFactory:  &devopsFactoryImpl{connection: connection},
+		project:        project,
+		repo:           repo,
+		labels:         labels,
+		excludedLabels: excludedLabels,
 	}, nil
 }
 
@@ -103,6 +105,9 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 
 		azureDevOpsLabels := convertLabels(pr.Labels)
 		if !containAzureDevOpsLabels(a.labels, azureDevOpsLabels) {
+			continue
+		}
+		if containsAnyExcludedLabels(a.excludedLabels, azureDevOpsLabels) {
 			continue
 		}
 
