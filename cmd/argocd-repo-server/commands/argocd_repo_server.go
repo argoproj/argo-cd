@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	utilgrpc "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	"github.com/argoproj/argo-cd/v3/util/profile"
 	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
@@ -190,7 +191,7 @@ func NewCommand() *cobra.Command {
 					// connect to itself to make sure the repo server is able to serve the connection
 					// used by liveness probe to auto-restart repo server
 					// see https://github.com/argoproj/argo-cd/issues/5110 for more information
-					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60, healthCheckTLSConfig)
+					conn, err := apiclient.NewConnection(utilgrpc.SelfHealthCheckTarget(listenHost, listenPort), 60, healthCheckTLSConfig)
 					if err != nil {
 						return err
 					}
