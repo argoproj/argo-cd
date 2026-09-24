@@ -472,6 +472,26 @@ func TestUntgz(t *testing.T) {
 	})
 }
 
+func TestUntgz_PreventsSymlinkAncestorEscape(t *testing.T) {
+	parent := t.TempDir()
+	destDir := filepath.Join(parent, "dst")
+	require.NoError(t, os.WriteFile(filepath.Join(parent, "secret"), []byte("outside dst"), 0o600))
+
+	tgz := prepareCraftedTgz(t,
+		// d/up -> .. resolves to dst itself, so it is in bounds.
+		func(tw *tar.Writer) { writeTarSymlink(t, tw, "d/up", "..") },
+		// Lexically d/up/../secret == d/secret (in bounds), so Stat passes and
+		// Rel("d/up", "d/secret") writes "../secret". But the kernel places the
+		// link at dst/escape (d/up is dst), so it points at <parent>/secret.
+		func(tw *tar.Writer) { writeTarSymlink(t, tw, "d/up/escape", "../secret") },
+	)
+
+	err := files.Untgz(destDir, bytes.NewReader(tgz), math.MaxInt64, false)
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "illegal symlink parent directory \"d/up\" for \"d/up/escape\"")
+}
+
 // read returns a map with the filename as key. In case
 // the file is a symlink, the value will be populated with
 // the target file pointed by the symlink.

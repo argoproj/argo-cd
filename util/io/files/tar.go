@@ -145,18 +145,26 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 		case tar.TypeSymlink:
 			header.Linkname = filepath.Clean(header.Linkname)
 
+			// Reject symlink parents. The Join/Stat check below only sees a cleaned
+			// path, so dir/up -> .. plus dir/up/escape -> ../secret looks like
+			// dir/secret (in bounds), but the kernel resolves through dir/up and
+			// escapes to dstRoot/../secret.
+			err := rejectSymlinkAncestors(dstRoot, header.Name)
+			if err != nil {
+				return err
+			}
+
 			baseDir := filepath.Dir(header.Name)
 
-			err := dstRoot.MkdirAll(baseDir, 0o755)
+			err = dstRoot.MkdirAll(baseDir, 0o755)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
 
-			// Manually check that the symlink target does not point outside of dstRoot as the os.Root API
-			// does NOT do inbound checks for the 'oldname' in dstRoot.Symlink(oldname, newname)
-
-			// Always treating the link target as relative to the base directory because path.CheckOutOfBoundsSymlinks
-			// disallows any absolute symlinks and it makes more sense semantically to view symlinks in archives as relative.
+			// os.Root.Symlink does not validate oldname (the link target); only newname.
+			// Treat targets as relative to baseDir (absolute names are joined into a
+			// root-relative path). With non-symlink parents, Join+Clean matches how
+			// the kernel will resolve the link, so Root.Stat catches escapes.
 			relativeLinkTargetFromDstPath := filepath.Join(baseDir, header.Linkname)
 
 			// Path for stat must be relative to dstPath for correct escape check
@@ -304,4 +312,31 @@ func supportedFileMode(fi os.FileInfo) bool {
 		return true
 	}
 	return false
+}
+
+// rejectSymlinkAncestors returns an error if any component of name is a symlink
+func rejectSymlinkAncestors(root *os.Root, name string) error {
+	dir := filepath.Dir(name)
+	if dir == "." || dir == string(filepath.Separator) {
+		return nil
+	}
+	var current string
+	for part := range strings.SplitSeq(dir, string(filepath.Separator)) {
+		if part == "" {
+			continue
+		}
+		current = filepath.Join(current, part)
+		info, err := root.Lstat(current)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				// Nothing deeper can exist either, so no ancestor is a symlink.
+				return nil
+			}
+			return fmt.Errorf("error checking symlink parent %q: %w", current, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("illegal symlink parent directory %q for %q", current, name)
+		}
+	}
+	return nil
 }
