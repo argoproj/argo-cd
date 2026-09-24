@@ -40,6 +40,7 @@ argocd-server [flags]
       --basehref string                                 Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from / (default "/")
       --certificate-authority string                    Path to a cert file for the certificate authority
       --client-certificate string                       Path to a client certificate file for TLS
+      --client-ip-header string                         Header a trusted proxy sets to the client IP, e.g. CF-Connecting-IP, True-Client-IP or X-Real-IP
       --client-key string                               Path to a client key file for TLS
       --cluster string                                  The name of the kubeconfig cluster to use
       --connection-status-cache-expiration duration     Cache expiration for cluster/repo connection status (default 1h0m0s)
@@ -55,6 +56,7 @@ argocd-server [flags]
       --enable-gzip                                     Enable GZIP compression (default true)
       --enable-k8s-event none                           Enable ArgoCD to use k8s event. For disabling all events, set the value as none. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated) (default [all])
       --enable-proxy-extension                          Enable Proxy Extension feature
+      --enable-source-ip-logging                        Include the source IP address of the client in API request logs
       --glob-cache-size int                             Maximum number of compiled glob patterns to cache for RBAC evaluation (default 10000)
       --gloglevel int                                   Set the glog logging level
   -h, --help                                            help for argocd-server
@@ -114,9 +116,11 @@ argocd-server [flags]
       --sync-with-replace-allowed                       Whether to allow users to select replace for syncs from UI/CLI (default true)
       --tls-server-name string                          If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --tlsciphers string                               The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
+      --tlscurvepreferences string                      Colon-separated list of TLS curve preferences to be used when establishing TLS connections (e.g. X25519:CurveP256).
       --tlsmaxversion string                            The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
       --tlsminversion string                            The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
       --token string                                    Bearer token for authentication to the API server
+      --trusted-proxies strings                         CIDRs or addresses of proxies whose X-Forwarded-For entries and --client-ip-header are honoured when logging the source IP
       --user string                                     The name of the kubeconfig user to use
       --username string                                 Username for basic authentication to the API server
       --webhook-parallelism-limit int                   Number of webhook requests processed concurrently (default 50)
