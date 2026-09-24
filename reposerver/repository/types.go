@@ -2,6 +2,7 @@ package repository
 
 // Chart see: https://helm.sh/docs/topics/charts/ for more details
 type Chart struct {
+	Name        string       `yaml:"name,omitempty"`
 	Description string       `yaml:"description,omitempty"`
 	Home        string       `yaml:"home,omitempty"`
 	Maintainers []Maintainer `yaml:"maintainers,omitempty"`
