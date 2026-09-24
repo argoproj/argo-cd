@@ -405,6 +405,13 @@ func TestBestEffortSystemCertPool(t *testing.T) {
 	assert.NotNil(t, pool)
 }
 
+func TestSystemCertPool(t *testing.T) {
+	t.Parallel()
+	pool, err := SystemCertPool()
+	require.NoError(t, err)
+	assert.NotNil(t, pool)
+}
+
 func TestCreateServerTLSConfig(t *testing.T) {
 	t.Parallel()
 	t.Run("Configuration from a valid key/cert pair", func(t *testing.T) {

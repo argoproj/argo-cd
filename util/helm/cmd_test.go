@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
@@ -36,7 +37,8 @@ func sslCertDirFromCmd(t *testing.T, cmd *exec.Cmd) string {
 
 func Test_applyHelmRepositoryCA_usesCAFileWhenMergeDisabled(t *testing.T) {
 	customCA := writeTestCAFile(t, "custom.pem", "custom-repository-ca\n")
-	t.Setenv("ARGOCD_HELM_MERGE_REPOSITORY_CA_WITH_SYSTEM", "false")
+	common.SetMergeRepositoryCAWithSystem(false)
+	t.Cleanup(func() { common.SetMergeRepositoryCAWithSystem(true) })
 
 	c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
 		return strings.Join(cmd.Args, " "), nil

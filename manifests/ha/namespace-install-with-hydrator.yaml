@@ -3022,10 +3022,10 @@ spec:
               key: reposerver.helm.user.agent
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_HELM_MERGE_REPOSITORY_CA_WITH_SYSTEM
+        - name: ARGOCD_MERGE_REPOSITORY_CA_WITH_SYSTEM
           valueFrom:
             configMapKeyRef:
-              key: reposerver.helm.merge.repository.ca.with.system
+              key: reposerver.merge.repository.ca.with.system
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME

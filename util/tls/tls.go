@@ -89,6 +89,18 @@ func BestEffortSystemCertPool() *x509.CertPool {
 	return rootCAs
 }
 
+// SystemCertPool returns the system certificate pool or an error if it cannot be loaded.
+func SystemCertPool() (*x509.CertPool, error) {
+	rootCAs, err := x509.SystemCertPool()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load system certificate pool: %w", err)
+	}
+	if rootCAs == nil {
+		return nil, errors.New("system certificate pool is not available")
+	}
+	return rootCAs, nil
+}
+
 func getTLSVersionByString(version string) (uint16, error) {
 	if version == "" {
 		return 0, nil

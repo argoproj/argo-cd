@@ -2,8 +2,6 @@ package helm
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -18,7 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/util/env"
+	certutil "github.com/argoproj/argo-cd/v3/util/cert"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
@@ -85,7 +83,7 @@ func (c Cmd) runWithStdin(ctx context.Context, stdin io.Reader, args ...string) 
 	}
 
 	cmd.Env = proxy.UpsertEnv(cmd, c.proxy, c.noProxy)
-	cmd.Env = upsertEnvVars(cmd.Env, c.caTrustEnv...)
+	cmd.Env = certutil.UpsertEnvVars(cmd.Env, c.caTrustEnv...)
 	fullCommand := executil.GetCommandArgsToLog(cmd)
 
 	out, err := c.runWithRedactor(cmd, redactor)
@@ -246,14 +244,6 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	return out, err
 }
 
-// defaultSystemCertDirs mirrors Go's unix certDirectories so SSL_CERT_DIR can keep
-// system roots while also including a repository CA directory (Go replaces the default
-// list when SSL_CERT_DIR is set).
-var defaultSystemCertDirs = []string{
-	"/etc/ssl/certs",
-	"/etc/pki/tls/certs",
-}
-
 // applyHelmRepositoryCA configures TLS trust for helm CLI invocations.
 // When merge-with-system is enabled (default), repository CAs are exposed via SSL_CERT_DIR
 // so Helm keeps its normal system trust instead of replacing it with --ca-file.
@@ -262,7 +252,7 @@ func (c *Cmd) applyHelmRepositoryCA(args []string, caPath string) ([]string, uti
 	if caPath == "" {
 		return args, utilio.NopCloser, nil
 	}
-	if !env.ParseBoolFromEnv(common.EnvHelmMergeRepositoryCAWithSystem, true) {
+	if !common.MergeRepositoryCAWithSystem() {
 		return append(args, "--ca-file", caPath), utilio.NopCloser, nil
 	}
 	if err := c.enableRepositoryCAViaSSLCertDir(caPath); err != nil {
@@ -273,67 +263,12 @@ func (c *Cmd) applyHelmRepositoryCA(args []string, caPath string) ([]string, uti
 
 func (c *Cmd) enableRepositoryCAViaSSLCertDir(customCAPath string) error {
 	dir := filepath.Join(c.helmHome, "ca-extra")
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return fmt.Errorf("failed to create helm CA directory: %w", err)
-	}
-	data, err := os.ReadFile(customCAPath)
+	sslCertDir, err := certutil.PrepareSSLCertDirForRepositoryCA(customCAPath, dir)
 	if err != nil {
-		return fmt.Errorf("failed to read CA file %q: %w", customCAPath, err)
+		return err
 	}
-	sum := sha256.Sum256([]byte(customCAPath))
-	dest := filepath.Join(dir, hex.EncodeToString(sum[:])+".crt")
-	if err := os.WriteFile(dest, data, 0o644); err != nil {
-		return fmt.Errorf("failed to write repository CA for SSL_CERT_DIR: %w", err)
-	}
-	c.caTrustEnv = upsertEnvVars(c.caTrustEnv, "SSL_CERT_DIR="+buildSSLCertDir(dir))
+	c.caTrustEnv = certutil.UpsertEnvVars(c.caTrustEnv, "SSL_CERT_DIR="+sslCertDir)
 	return nil
-}
-
-func buildSSLCertDir(customDir string) string {
-	parts := []string{customDir}
-	if existing := os.Getenv("SSL_CERT_DIR"); existing != "" {
-		for part := range strings.SplitSeq(existing, ":") {
-			if part == "" || part == customDir {
-				continue
-			}
-			parts = append(parts, part)
-		}
-	} else {
-		parts = append(parts, defaultSystemCertDirs...)
-	}
-	return strings.Join(parts, ":")
-}
-
-func upsertEnvVars(envList []string, extras ...string) []string {
-	if len(extras) == 0 {
-		return envList
-	}
-	keys := map[string]string{}
-	order := make([]string, 0, len(extras))
-	for _, extra := range extras {
-		key, _, ok := strings.Cut(extra, "=")
-		if !ok || key == "" {
-			continue
-		}
-		if _, seen := keys[key]; !seen {
-			order = append(order, key)
-		}
-		keys[key] = extra
-	}
-	out := make([]string, 0, len(envList)+len(keys))
-	for _, item := range envList {
-		key, _, ok := strings.Cut(item, "=")
-		if ok {
-			if _, replace := keys[key]; replace {
-				continue
-			}
-		}
-		out = append(out, item)
-	}
-	for _, key := range order {
-		out = append(out, keys[key])
-	}
-	return out
 }
 
 func writeToTmp(data []byte) (string, utilio.Closer, error) {

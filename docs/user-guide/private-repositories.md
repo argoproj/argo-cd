@@ -540,16 +540,16 @@ spec:
 
 This environment variable applies globally to all Helm repository requests.
 
-### Helm repository CA and system trust
+### Repository CA and system trust
 
-When a Helm repository is configured with a custom CA certificate (Certificates UI or
+When a repository is configured with a custom CA certificate (Certificates UI or
 `argocd-tls-certs-cm`), Argo CD must still trust public roots for chart downloads that redirect
-to public HTTPS endpoints.
+to public HTTPS endpoints (including Kustomize builds that invoke Helm).
 
 By default Argo CD keeps system trust alongside the repository CA:
 
-- Helm binary invocations receive the repository CA through `SSL_CERT_DIR` instead of replacing
-  trust with `--ca-file`.
+- Helm and Kustomize invocations receive the repository CA through `SSL_CERT_DIR` instead of
+  replacing trust with `--ca-file`.
 - Native Helm and OCI HTTP clients start from the system certificate pool and append the
   repository CA.
 
@@ -566,12 +566,13 @@ kind: ConfigMap
 metadata:
   name: argocd-cmd-params-cm
 data:
-  reposerver.helm.merge.repository.ca.with.system: "false"
+  reposerver.merge.repository.ca.with.system: "false"
 ```
 
-The repo-server Deployment wires that key to `ARGOCD_HELM_MERGE_REPOSITORY_CA_WITH_SYSTEM`.
+The repo-server Deployment wires that key to `ARGOCD_MERGE_REPOSITORY_CA_WITH_SYSTEM` and the
+`--merge-repository-ca-with-system` flag.
 
-See the [v3.6 to 3.7 upgrade guide](../operator-manual/upgrading/3.6-3.7.md#helm-repository-ca-keeps-system-trust-by-default)
+See the [v3.6 to 3.7 upgrade guide](../operator-manual/upgrading/3.6-3.7.md#repository-ca-keeps-system-trust-by-default)
 for more context.
 
 ## Git Submodules

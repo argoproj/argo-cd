@@ -24,7 +24,6 @@ import (
 	"oras.land/oras-go/v2/content/oci"
 
 	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/util/env"
 	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 	"github.com/argoproj/argo-cd/v3/util/versions"
 
@@ -481,8 +480,11 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 			return nil, err
 		}
 		var caCertPool *x509.CertPool
-		if env.ParseBoolFromEnv(common.EnvHelmMergeRepositoryCAWithSystem, true) {
-			caCertPool = tlsutil.BestEffortSystemCertPool()
+		if common.MergeRepositoryCAWithSystem() {
+			caCertPool, err = tlsutil.SystemCertPool()
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			caCertPool = x509.NewCertPool()
 		}

@@ -26,8 +26,10 @@ import (
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/memory"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
+	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
 type layerConf struct {
@@ -850,6 +852,23 @@ func TestNewClientUsesHTTP2(t *testing.T) {
 		hasHTTP2 := slices.Contains(requestProtos, "HTTP/2.0")
 		assert.True(t, hasHTTP2, "expected at least one HTTP/2 request, but got protocols: %v", requestProtos)
 	})
+}
+
+func TestNewTLSConfig_mergeWithSystem(t *testing.T) {
+	caPath := filepath.Join(t.TempDir(), "repo.pem")
+	require.NoError(t, os.WriteFile(caPath, []byte("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n"), 0o644))
+
+	common.SetMergeRepositoryCAWithSystem(true)
+	tlsConf, err := newTLSConfig(Creds{CAPath: caPath})
+	require.NoError(t, err)
+	require.NotNil(t, tlsConf.RootCAs)
+	_, err = tlsutil.SystemCertPool()
+	require.NoError(t, err)
+
+	common.SetMergeRepositoryCAWithSystem(false)
+	tlsConf, err = newTLSConfig(Creds{CAPath: caPath})
+	require.NoError(t, err)
+	require.NotNil(t, tlsConf.RootCAs)
 }
 
 func fakeEventHandlers(t *testing.T, repoURL string) EventHandlers {

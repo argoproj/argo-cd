@@ -23,6 +23,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	certutil "github.com/argoproj/argo-cd/v3/util/cert"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
@@ -155,6 +156,18 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			default:
 				// Make Git use CA bundle
 				environ = append(environ, "GIT_SSL_CAINFO="+caPath)
+				if common.MergeRepositoryCAWithSystem() {
+					caDir, err := os.MkdirTemp("", "kustomize-ca")
+					if err != nil {
+						return nil, nil, nil, fmt.Errorf("failed to create kustomize CA directory: %w", err)
+					}
+					defer func() { _ = os.RemoveAll(caDir) }()
+					sslCertDir, err := certutil.PrepareSSLCertDirForRepositoryCA(caPath, caDir)
+					if err != nil {
+						return nil, nil, nil, err
+					}
+					environ = certutil.UpsertEnvVars(environ, "SSL_CERT_DIR="+sslCertDir)
+				}
 			}
 		}
 	}
