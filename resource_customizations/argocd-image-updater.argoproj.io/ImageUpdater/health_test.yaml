@@ -19,3 +19,11 @@ tests:
     status: Healthy
     message: "Reconciled 0 applications, 0 images updated."
   inputPath: testdata/healthy_reconcile_succeeded.yaml
+- healthStatus:
+    status: Degraded
+    message: "Registry credentials secret argocd/my-registry-secret not found."
+  inputPath: testdata/degraded_ready_false.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for ImageUpdater to report a Ready condition"
+  inputPath: testdata/progressing_no_ready_condition.yaml
