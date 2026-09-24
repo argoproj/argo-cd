@@ -3090,8 +3090,8 @@ func (ctrl *ApplicationController) appProjectEventHandlerFuncs() cache.ResourceE
 
 // syncWindowEventHandlerFuncs returns the informer event handlers for SyncWindow objects.
 // On Add/Update/Delete of a SyncWindow, apps whose Application.spec.syncWindowRefs or
-// whose project's spec.syncWindowRefs match the CR (by name or label selector) are
-// enqueued to appRefreshQueue immediately.
+// whose project's spec.syncWindowRefs match the CR (by name or label selector) have a
+// refresh requested, provided this controller can process them.
 func (ctrl *ApplicationController) syncWindowEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 	requeue := func(obj any) {
 		sw, ok := obj.(metav1.Object)
@@ -3109,9 +3109,10 @@ func (ctrl *ApplicationController) syncWindowEventHandlerFuncs() cache.ResourceE
 			if !ctrl.appReferencesSyncWindow(app, swName, swLabels) {
 				continue
 			}
-			if key, err := cache.MetaNamespaceKeyFunc(app); err == nil {
-				ctrl.appRefreshQueue.Add(key)
+			if !ctrl.canProcessApp(app) {
+				continue
 			}
+			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithRecent.Pointer(), nil)
 		}
 	}
 	return cache.ResourceEventHandlerFuncs{

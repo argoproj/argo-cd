@@ -372,6 +372,47 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 	})
 }
 
+// TestSyncWindowEventRequeueRespectsCanProcessApp verifies that when a SyncWindow object changes,
+// the controller only enqueues referencing applications it is actually allowed to process.
+func TestSyncWindowEventRequeueRespectsCanProcessApp(t *testing.T) {
+	t.Parallel()
+
+	newAppReferencingWindow := func() *v1alpha1.Application {
+		app := newFakeApp()
+		app.Spec.SyncWindowRefs = []v1alpha1.SyncWindowRef{{Name: "my-window"}}
+		return app
+	}
+
+	sw := &v1alpha1.SyncWindow{
+		ObjectMeta: metav1.ObjectMeta{Name: "my-window", Namespace: test.FakeArgoCDNamespace},
+	}
+
+	t.Run("processable app has a refresh requested", func(t *testing.T) {
+		t.Parallel()
+		app := newAppReferencingWindow()
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		ctrl.syncWindowEventHandlerFuncs().AddFunc(sw)
+
+		// the handler must mark the app for refresh so a removed denywindow promptly resumes auto-sync.
+		requested, level := ctrl.isRefreshRequested(app.QualifiedName())
+		assert.True(t, requested)
+		assert.Equal(t, CompareWithRecent, level)
+	})
+
+	t.Run("skip-reconcile app has no refresh requested", func(t *testing.T) {
+		t.Parallel()
+		app := newAppReferencingWindow()
+		app.Annotations = map[string]string{common.AnnotationKeyAppSkipReconcile: "true"}
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		ctrl.syncWindowEventHandlerFuncs().AddFunc(sw)
+
+		requested, _ := ctrl.isRefreshRequested(app.QualifiedName())
+		assert.False(t, requested)
+	})
+}
+
 // activeSchedule returns a cron schedule that is active right now ("* * * * *" = every minute).
 func activeSchedule() string { return "* * * * *" }
 
