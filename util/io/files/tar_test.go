@@ -470,58 +470,58 @@ func TestUntgz(t *testing.T) {
 			assert.True(t, stat.IsDir())
 		}
 	})
-}
 
-func TestUntgz_PreventsSymlinkAncestorEscape(t *testing.T) {
-	parent := t.TempDir()
-	destDir := filepath.Join(parent, "dst")
-	require.NoError(t, os.WriteFile(filepath.Join(parent, "secret"), []byte("outside dst"), 0o600))
+	t.Run("prevents symlink ancestor escape", func(t *testing.T) {
+		parent := t.TempDir()
+		destDir := filepath.Join(parent, "dst")
+		require.NoError(t, os.WriteFile(filepath.Join(parent, "secret"), []byte("outside dst"), 0o600))
 
-	tgz := prepareCraftedTgz(t,
-		// d/up -> .. resolves to dst itself, so it is in bounds.
-		func(tw *tar.Writer) { writeTarSymlink(t, tw, "d/up", "..") },
-		// Lexically d/up/../secret == d/secret (in bounds), so Stat passes and
-		// Rel("d/up", "d/secret") writes "../secret". But the kernel places the
-		// link at dst/escape (d/up is dst), so it points at <parent>/secret.
-		func(tw *tar.Writer) { writeTarSymlink(t, tw, "d/up/escape", "../secret") },
-	)
+		tgz := prepareCraftedTgz(t,
+			// d/up -> .. resolves to dst itself, so it is in bounds.
+			func(tw *tar.Writer) { writeTarSymlink(t, tw, "d/up", "..") },
+			// Lexically d/up/../secret == d/secret (in bounds), so Stat passes and
+			// Rel("d/up", "d/secret") writes "../secret". But the kernel places the
+			// link at dst/escape (d/up is dst), so it points at <parent>/secret.
+			func(tw *tar.Writer) { writeTarSymlink(t, tw, "d/up/escape", "../secret") },
+		)
 
-	err := files.Untgz(destDir, bytes.NewReader(tgz), math.MaxInt64, false)
+		err := files.Untgz(destDir, bytes.NewReader(tgz), math.MaxInt64, false)
 
-	require.Error(t, err)
-	require.ErrorContains(t, err, "illegal symlink parent directory \"d/up\" for \"d/up/escape\"")
-}
+		require.Error(t, err)
+		require.ErrorContains(t, err, "illegal symlink parent directory \"d/up\" for \"d/up/escape\"")
+	})
 
-func TestUntgz_PreventsDirectEscape(t *testing.T) {
-	parent := t.TempDir()
-	destDir := filepath.Join(parent, "dst")
-	require.NoError(t, os.WriteFile(filepath.Join(parent, "secret"), []byte("outside dst"), 0o600))
+	t.Run("prevents direct escape", func(t *testing.T) {
+		parent := t.TempDir()
+		destDir := filepath.Join(parent, "dst")
+		require.NoError(t, os.WriteFile(filepath.Join(parent, "secret"), []byte("outside dst"), 0o600))
 
-	tgz := prepareCraftedTgz(t,
-		func(tw *tar.Writer) { writeTarDir(t, tw, "dir") },
-		func(tw *tar.Writer) { writeTarSymlink(t, tw, "link", "dir/../../secret") },
-	)
+		tgz := prepareCraftedTgz(t,
+			func(tw *tar.Writer) { writeTarDir(t, tw, "dir") },
+			func(tw *tar.Writer) { writeTarSymlink(t, tw, "link", "dir/../../secret") },
+		)
 
-	err := files.Untgz(destDir, bytes.NewReader(tgz), math.MaxInt64, false)
+		err := files.Untgz(destDir, bytes.NewReader(tgz), math.MaxInt64, false)
 
-	require.Error(t, err)
-	require.ErrorContains(t, err, "path escapes from parent")
-}
+		require.Error(t, err)
+		require.ErrorContains(t, err, "path escapes from parent")
+	})
 
-func TestUntgz_RejectsSymlinkAncestors(t *testing.T) {
-	parent := t.TempDir()
-	destDir := filepath.Join(parent, "dst")
+	t.Run("rejects symlink ancestors", func(t *testing.T) {
+		parent := t.TempDir()
+		destDir := filepath.Join(parent, "dst")
 
-	tgz := prepareCraftedTgz(t,
-		func(tw *tar.Writer) { writeTarDir(t, tw, "dir") },
-		func(tw *tar.Writer) { writeTarSymlink(t, tw, "dir/d/up", "..") },
-		func(tw *tar.Writer) { writeTarSymlink(t, tw, "dir/d/up/link", "target") },
-	)
+		tgz := prepareCraftedTgz(t,
+			func(tw *tar.Writer) { writeTarDir(t, tw, "dir") },
+			func(tw *tar.Writer) { writeTarSymlink(t, tw, "dir/d/up", "..") },
+			func(tw *tar.Writer) { writeTarSymlink(t, tw, "dir/d/up/link", "target") },
+		)
 
-	err := files.Untgz(destDir, bytes.NewReader(tgz), math.MaxInt64, false)
+		err := files.Untgz(destDir, bytes.NewReader(tgz), math.MaxInt64, false)
 
-	require.Error(t, err)
-	require.ErrorContains(t, err, "illegal symlink parent directory \"dir/d/up\" for \"dir/d/up/link\"")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "illegal symlink parent directory \"dir/d/up\" for \"dir/d/up/link\"")
+	})
 }
 
 // read returns a map with the filename as key. In case
