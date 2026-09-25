@@ -173,6 +173,7 @@ export interface ViewPreferences {
     hideSidebar: boolean;
     position: string;
     theme: string;
+    disableAnimations?: boolean;
     // Per-application notice dismissals, keyed by namespaced app + content hash.
     // See application-notice/notice.ts (dismissalKey).
     dismissedNotices?: {[key: string]: boolean};
@@ -247,6 +248,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     hideSidebar: false,
     position: '',
     theme: 'auto',
+    disableAnimations: false,
     dismissedNotices: {}
 };
 

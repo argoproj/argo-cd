@@ -3,7 +3,8 @@ declare const test: any;
 declare const expect: any;
 declare const describe: any;
 import {concatMaps} from './utils';
-import {isValidManagedByURL, isValidURL, queryParamsChanged} from './utils';
+import {isValidManagedByURL, isValidURL, queryParamsChanged, setAnimationsDisabled, syncAnimationPreference} from './utils';
+import {BehaviorSubject} from 'rxjs';
 
 test('map concatenation', () => {
     const map1 = {
@@ -84,5 +85,27 @@ describe('queryParamsChanged', () => {
     test('handles an empty search string', () => {
         expect(queryParamsChanged('', {proj: ''})).toBe(true);
         expect(queryParamsChanged('', {proj: null})).toBe(false);
+    });
+});
+
+describe('setAnimationsDisabled', () => {
+    test('toggles disable-animations class on body', () => {
+        setAnimationsDisabled(true);
+        expect(document.body.classList.contains('disable-animations')).toBe(true);
+        setAnimationsDisabled(false);
+        expect(document.body.classList.contains('disable-animations')).toBe(false);
+    });
+});
+
+describe('syncAnimationPreference', () => {
+    test('follows preference changes until unsubscribed', () => {
+        const prefs = new BehaviorSubject<{disableAnimations?: boolean}>({disableAnimations: true});
+        const subscription = syncAnimationPreference(prefs);
+        expect(document.body.classList.contains('disable-animations')).toBe(true);
+        prefs.next({});
+        expect(document.body.classList.contains('disable-animations')).toBe(false);
+        subscription.unsubscribe();
+        prefs.next({disableAnimations: true});
+        expect(document.body.classList.contains('disable-animations')).toBe(false);
     });
 });
