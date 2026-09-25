@@ -49,13 +49,12 @@ const DEFAULT_APP: Partial<models.Application> = {
         source: {
             path: '',
             repoURL: '',
+            ref: '',
+            name: '',
             targetRevision: 'HEAD'
         },
         sources: [],
-        project: '',
-        syncPolicy: {
-            prune: true
-        }
+        project: ''
     }
 };
 

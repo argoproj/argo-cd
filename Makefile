@@ -353,7 +353,7 @@ controller:
 
 .PHONY: build-ui
 build-ui:
-	DOCKER_BUILDKIT=1 $(DOCKER) build -t argocd-ui --platform=linux/arm64 --target argocd-ui .
+	DOCKER_BUILDKIT=1 $(DOCKER) build -t argocd-ui --platform=$(TARGET_ARCH) --target argocd-ui .
 	find ./ui/dist -type f -not -name gitkeep -not -name .gitkeep -delete
 	$(DOCKER) run $(PODMAN_ARGS) -v ${CURRENT_DIR}/ui/dist/app:/tmp/app:Z --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 
@@ -375,7 +375,7 @@ image: build-ui
 	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else
 image:
-	DOCKER_BUILDKIT=1 $(DOCKER) build -t  quay.io/nittalaakhil/openshift-gitops-operator:v0.0.7 --platform=linux/amd64 .
+	DOCKER_BUILDKIT=1 $(DOCKER) build -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) --platform=$(TARGET_ARCH) .
 endif
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then $(DOCKER) push $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) ; fi
 

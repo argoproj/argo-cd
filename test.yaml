@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: prune-test-config
-  namespace: prune-test
-data:
-  test: before
