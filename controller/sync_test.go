@@ -384,7 +384,7 @@ func TestSyncWindowEventRequeueRespectsCanProcessApp(t *testing.T) {
 	}
 
 	sw := &v1alpha1.SyncWindow{
-		ObjectMeta: metav1.ObjectMeta{Name: "my-window", Namespace: test.FakeArgoCDNamespace},
+		Name: "my-window", Namespace: test.FakeArgoCDNamespace,
 	}
 
 	t.Run("processable app has a refresh requested", func(t *testing.T) {
