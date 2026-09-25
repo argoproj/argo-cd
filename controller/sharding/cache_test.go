@@ -314,6 +314,47 @@ func TestClusterSharding_UpdateRedistributesUnshardedCluster(t *testing.T) {
 	}
 }
 
+// TestClusterSharding_UpdateUnchangedClusterSkipsRedistribution verifies that the
+// periodic resync of a known, unchanged cluster does not recompute the
+// distribution. updateDistribution is idempotent, so a sentinel shard value is
+// planted that a recomputation would overwrite.
+func TestClusterSharding_UpdateUnchangedClusterSkipsRedistribution(t *testing.T) {
+	t.Parallel()
+	sharding := setupTestSharding(1, 2)
+	cluster := v1alpha1.Cluster{ID: "1", Server: "https://kubernetes.default.svc"}
+	sharding.Init(
+		&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{cluster}},
+		&v1alpha1.ApplicationList{},
+	)
+
+	sharding.Shards[cluster.Server] = 42
+
+	sharding.Update(&cluster, &cluster)
+
+	assert.Equal(t, 42, sharding.Shards[cluster.Server], "resync of an unchanged cluster must not recompute the distribution")
+}
+
+// TestClusterSharding_UpdateStaleCachedClusterRedistributes verifies that Update
+// compares against the cached cluster, not the event's oldCluster: a replica that
+// missed the event changing the cluster ID receives the new ID in both halves of
+// the resync update, so comparing old against new alone would skip the
+// recomputation and leave the cluster on its stale shard.
+func TestClusterSharding_UpdateStaleCachedClusterRedistributes(t *testing.T) {
+	t.Parallel()
+	sharding := setupTestSharding(1, 2)
+	server := "https://kubernetes.default.svc"
+	sharding.Init(
+		&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{{ID: "1", Server: server}}},
+		&v1alpha1.ApplicationList{},
+	)
+	assert.Equal(t, 0, sharding.GetDistribution()[server])
+
+	updated := v1alpha1.Cluster{ID: "4", Server: server}
+	sharding.Update(&updated, &updated)
+
+	assert.Equal(t, 1, sharding.GetDistribution()[server], "stale cached cluster must be redistributed on resync")
+}
+
 func TestClusterSharding_IsManagedCluster(t *testing.T) {
 	t.Parallel()
 	replicas := 2
