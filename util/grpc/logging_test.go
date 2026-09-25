@@ -22,7 +22,10 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func Test_JSONLogging(t *testing.T) {
@@ -49,6 +52,42 @@ func Test_JSONLogging(t *testing.T) {
 
 	out := buf.String()
 	assert.Contains(t, out, fmt.Sprintf(`"grpc.request.content":{"name":%q`, req.Name))
+}
+
+// Test_JSONLogging_EmbeddedKubernetesType is a regression test for
+// https://github.com/argoproj/argo-cd/issues/29869: a request message that embeds a Kubernetes API
+// type (here, an Application's metav1.ObjectMeta) must still produce a log entry, even though gogo's
+// jsonpb can no longer marshal that type directly.
+func Test_JSONLogging_EmbeddedKubernetesType(t *testing.T) {
+	t.Parallel()
+	l := logrus.New()
+	l.SetFormatter(&logrus.JSONFormatter{})
+	var buf bytes.Buffer
+	l.SetOutput(&buf)
+	entry := logrus.NewEntry(l)
+
+	c := t.Context()
+	// ApplicationService/Update sends *v1alpha1.Application directly; it embeds metav1.ObjectMeta,
+	// which is what gogo jsonpb can no longer marshal (see the issue for the underlying k8s change).
+	req := &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: "my-app"},
+	}
+	info := &grpc.UnaryServerInfo{}
+	handler := func(_ context.Context, _ any) (any, error) {
+		return nil, nil
+	}
+	decider := func(_ context.Context, _ interceptors.CallMeta) bool {
+		return true
+	}
+	interceptor := PayloadUnaryServerInterceptor(entry, false, decider)
+	_, err := interceptor(c, req, info, handler)
+	require.NoError(t, err)
+
+	out := buf.String()
+	// Before the fix, MarshalJSON on the embedded ObjectMeta fails, logrus's JSON formatter drops the
+	// whole entry, and buf stays empty.
+	assert.Contains(t, out, `"msg":"received unary call`)
+	assert.Contains(t, out, `"my-app"`)
 }
 
 func Test_logRequest(t *testing.T) {
