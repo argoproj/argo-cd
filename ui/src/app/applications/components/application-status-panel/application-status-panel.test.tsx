@@ -75,6 +75,23 @@ describe('ApplicationStatusPanel', () => {
         fireEvent.click(screen.getByText('1 Warning'));
         expect(showConditions).toHaveBeenCalled();
     });
+
+    it('shows the source hydrator status and opens its details when clicked while collapsed', () => {
+        const hydratorApp = {
+            ...application,
+            spec: {...application.spec, sourceHydrator: {drySource: {}, syncSource: {}}},
+            status: {...application.status, sourceHydrator: {currentOperation: {phase: 'Hydrated', startedAt: '2026-01-01T00:00:00Z'}}}
+        } as unknown as models.Application;
+        const showHydrateOperation = jest.fn();
+        render(<ApplicationStatusPanel application={hydratorApp} collapsed={true} showHydrateOperation={showHydrateOperation} />);
+        fireEvent.click(screen.getByText('Hydrated'));
+        expect(showHydrateOperation).toHaveBeenCalled();
+    });
+
+    it('does not show a source hydrator entry while collapsed when the app has none', () => {
+        render(<ApplicationStatusPanel application={application} collapsed={true} />);
+        expect(screen.queryByTitle('Source Hydrator')).toBeNull();
+    });
 });
 
 describe('ApplicationSetStatusPanel', () => {

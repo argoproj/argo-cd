@@ -262,6 +262,15 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                     &nbsp;
                     {application.status.health.status}
                 </div>
+                {application.spec.sourceHydrator && application.status?.sourceHydrator?.currentOperation && (
+                    <div className='application-status-panel__collapsed-item' title='Source Hydrator'>
+                        <a onClick={() => showHydrateOperation && showHydrateOperation()}>
+                            <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} isButton={true} />
+                            &nbsp;
+                            {application.status.sourceHydrator.currentOperation.phase}
+                        </a>
+                    </div>
+                )}
                 <div className='application-status-panel__collapsed-item' title='Sync Status'>
                     {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
                         <a onClick={() => showDiff && showDiff()}>
