@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/webhook"
 )
 
 type generatorMock struct {
@@ -99,6 +100,24 @@ func TestWebhookHandler(t *testing.T) {
 			headerValue:        "Push Hook",
 			payloadFile:        "gitlab-event.json",
 			effectedAppSets:    []string{"git-gitlab", "git-gitlab-ssh", "git-gitlab-alt-ssh", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a GitHub repository via tag push matching a semver constraint",
+			headerKey:          "X-GitHub-Event",
+			headerValue:        "push",
+			payloadFile:        "github-tag-event.json",
+			effectedAppSets:    []string{"git-github-tag", "git-github-semver", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a GitLab repository via tag push matching a semver constraint",
+			headerKey:          "X-Gitlab-Event",
+			headerValue:        "Tag Push Hook",
+			payloadFile:        "gitlab-tag-event.json",
+			effectedAppSets:    []string{"git-gitlab-tag", "git-gitlab-semver", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
@@ -225,6 +244,12 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithGitGenerator("git-gitlab-alt-ssh", namespace, "ssh://git@altssh.gitlab.com:443/group/name"),
 				fakeAppWithGitGenerator("git-azure-devops", namespace, "https://dev.azure.com/fabrikam-fiber-inc/DefaultCollection/_git/Fabrikam-Fiber-Git"),
 				fakeAppWithGitGeneratorWithRevision("github-shorthand", namespace, "https://github.com/org/repo", "env/dev"),
+				fakeAppWithGitGeneratorWithRevision("git-github-tag", namespace, "https://github.com/org/repo", "v1.2.0"),
+				fakeAppWithGitGeneratorWithRevision("git-github-semver", namespace, "https://github.com/org/repo", ">=1.0.0 <2.0.0"),
+				fakeAppWithGitGeneratorWithRevision("git-github-semver-nomatch", namespace, "https://github.com/org/repo", "2.*"),
+				fakeAppWithGitGeneratorWithRevision("git-gitlab-tag", namespace, "https://gitlab.com/group/name", "refs/tags/v1.2.0"),
+				fakeAppWithGitGeneratorWithRevision("git-gitlab-semver", namespace, "https://gitlab.com/group/name", "1.*"),
+				fakeAppWithGitGeneratorWithRevision("git-gitlab-semver-nomatch", namespace, "https://gitlab.com/group/name", "2.*"),
 				fakeAppWithGithubPullRequestGenerator("pull-request-github", namespace, "CodErTOcat", "Hello-World"),
 				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab", namespace, "100500"),
 				fakeAppWithAzureDevOpsPullRequestGenerator("pull-request-azure-devops", namespace, "DefaultCollection", "Fabrikam"),
@@ -390,11 +415,29 @@ func TestGenRevisionHasChanged(t *testing.T) {
 			revision:    "v3.14.1",
 			touchedHead: false,
 		}, want: true},
+		// A semver constraint is resolved by util/git when the generator runs, so a
+		// push of a matching tag must refresh it, exactly as it does for an
+		// Application with the same target revision.
+		{name: "foundSemverConstraint", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: ">=1.0.0"},
+			revision:    "v1.2.3",
+			touchedHead: false,
+		}, want: true},
+		{name: "foundSemverConstraintWildcard", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: "1.*"},
+			revision:    "1.1.0",
+			touchedHead: false,
+		}, want: true},
+		{name: "notFoundSemverConstraint", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: "1.*"},
+			revision:    "2.0.0",
+			touchedHead: false,
+		}, want: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equalf(t, tt.want, genRevisionHasChanged(tt.args.gen, tt.args.revision, tt.args.touchedHead), "genRevisionHasChanged(%v, %v, %v)", tt.args.gen, tt.args.revision, tt.args.touchedHead)
+			assert.Equalf(t, tt.want, webhook.RevisionHasChanged(tt.args.gen.Revision, tt.args.revision, tt.args.touchedHead), "RevisionHasChanged(%v, %v, %v)", tt.args.gen.Revision, tt.args.revision, tt.args.touchedHead)
 		})
 	}
 }
