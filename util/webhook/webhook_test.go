@@ -101,6 +101,14 @@ func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces [
 	return newMockHandler(reactor, applicationNamespaces, maxPayloadSize, mockDB, &settings.ArgoCDSettings{}, objects...)
 }
 
+func NewMockHandlerWithDockerHubSecret(secret string, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
+	argoSettings := settings.ArgoCDSettings{WebhookDockerHubSecret: secret}
+	defaultMaxPayloadSize := int64(50) * 1024 * 1024
+	return newMockHandler(nil, applicationNamespaces, defaultMaxPayloadSize, mockDB, &argoSettings, objects...)
+}
+
 func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
 	mockDB := &mocks.ArgoDB{}
 	mockDB.EXPECT().ListRepositories(mock.Anything).Return(
@@ -2482,6 +2490,49 @@ func TestIsBBServerHeadTouched(t *testing.T) {
 				require.Contains(t, err.Error(), test.expectedErrString)
 				require.False(t, touchedHead)
 			}
+		})
+	}
+}
+
+func TestRepoURLMatches(t *testing.T) {
+	repoRegexp, err := GetWebURLRegex("https://github.com/argoproj/argo-cd")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name     string
+		repoURL  string
+		expected bool
+	}{
+		{
+			name:     "exact match",
+			repoURL:  "https://github.com/argoproj/argo-cd",
+			expected: true,
+		},
+		{
+			name:     "git extension",
+			repoURL:  "https://github.com/argoproj/argo-cd.git",
+			expected: true,
+		},
+		{
+			name:     "ssh form",
+			repoURL:  "git@github.com:argoproj/argo-cd.git",
+			expected: true,
+		},
+		{
+			name:     "different repo",
+			repoURL:  "https://github.com/argoproj/argo-rollouts",
+			expected: false,
+		},
+		{
+			name:     "different host",
+			repoURL:  "https://gitlab.com/argoproj/argo-cd",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, RepoURLMatches(tt.repoURL, repoRegexp))
 		})
 	}
 }

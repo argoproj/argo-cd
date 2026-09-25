@@ -102,6 +102,8 @@ func NewCluster(name string, namespaces []string, clusterResources bool, conf *r
 			AWSAuthConfig:      awsAuthConf,
 			ExecProviderConfig: execProviderConf,
 			DisableCompression: conf.DisableCompression,
+			QPS:                conf.QPS,
+			Burst:              int64(conf.Burst),
 		},
 		Labels:      labels,
 		Annotations: annotations,
@@ -121,6 +123,19 @@ func NewCluster(name string, namespaces []string, clusterResources bool, conf *r
 	}
 
 	return &clst
+}
+
+// ApplyRateLimitOverrides applies client QPS and Burst overrides to a cluster if positive values are provided.
+func ApplyRateLimitOverrides(opts *ClusterOptions, clst *argoappv1.Cluster) {
+	if opts == nil || clst == nil {
+		return
+	}
+	if opts.K8sClientQPS > 0 {
+		clst.Config.QPS = opts.K8sClientQPS
+	}
+	if opts.K8sClientBurst > 0 {
+		clst.Config.Burst = int64(opts.K8sClientBurst)
+	}
 }
 
 // GetKubePublicEndpoint returns the kubernetes apiserver endpoint and certificate authority data as published
@@ -171,6 +186,8 @@ type ClusterOptions struct {
 	DisableCompression      bool
 	ProxyUrl                string //nolint:revive //FIXME(var-naming)
 	ServerProxyURL          string
+	K8sClientQPS            float32
+	K8sClientBurst          int
 }
 
 // InClusterEndpoint returns true if ArgoCD should reference the in-cluster
@@ -196,4 +213,6 @@ func AddClusterFlags(command *cobra.Command, opts *ClusterOptions) {
 	command.Flags().StringVar(&opts.ExecProviderInstallHint, "exec-command-install-hint", "", "Text shown to the user when the --exec-command executable doesn't seem to be present")
 	command.Flags().StringVar(&opts.ClusterEndpoint, "cluster-endpoint", "", "Cluster endpoint to use. Can be one of the following: 'kubeconfig', 'kube-public', or 'internal'.")
 	command.Flags().BoolVar(&opts.DisableCompression, "disable-compression", false, "Bypasses automatic GZip compression requests to the server")
+	command.Flags().Float32Var(&opts.K8sClientQPS, "k8s-client-qps", 0, "QPS limit for K8s API client requests to the cluster (default 0, which uses global controller default)")
+	command.Flags().IntVar(&opts.K8sClientBurst, "k8s-client-burst", 0, "Burst limit for K8s API client requests to the cluster (default 0, which uses global controller default)")
 }
