@@ -111,8 +111,8 @@ importers:
         specifier: 7.8.2
         version: 7.8.2
       superagent:
-        specifier: ^8.1.2
-        version: 8.1.2(supports-color@8.1.1)
+        specifier: ^10.3.0
+        version: 10.4.0(supports-color@8.1.1)
       swagger-ui-dist:
         specifier: ^5.32.11
         version: 5.32.14
@@ -245,7 +245,7 @@ importers:
         version: 10.1.8(eslint@9.39.4(supports-color@8.1.1))
       eslint-plugin-prettier:
         specifier: ^5.1.3
-        version: 5.5.5(@types/eslint@9.6.1)(eslint-config-prettier@10.1.8(eslint@9.39.4(supports-color@8.1.1)))(eslint@9.39.4(supports-color@8.1.1))(prettier@3.9.6)
+        version: 5.5.5(@types/eslint@9.6.1)(eslint-config-prettier@10.1.8(eslint@9.39.4(supports-color@8.1.1)))(eslint@9.39.4(supports-color@8.1.1))(prettier@3.9.8)
       eslint-plugin-react:
         specifier: ^7.37.2
         version: 7.37.5(eslint@9.39.4(supports-color@8.1.1))
@@ -277,8 +277,8 @@ importers:
         specifier: ^1.16.1
         version: 1.16.1
       prettier:
-        specifier: ^3.9.6
-        version: 3.9.6
+        specifier: ^3.9.8
+        version: 3.9.8
       react-refresh:
         specifier: ^0.18.0
         version: 0.18.0
@@ -3200,9 +3200,9 @@ packages:
     resolution: {integrity: sha512-8RipRLol37bNs2bhoV67fiTEvdTrbMUYcFTiy3+wuuOnUog2QBHCZWXDRijWQfAkhBj2Uf5UnVaiWwA5vdd82w==}
     engines: {node: '>= 6'}
 
-  formidable@2.1.3:
-    resolution: {integrity: sha512-vDI5JjeALeGXpyL8v71ZG2VgHY5zD6qg1IvypU7aJCYvREZyhawrYJxMdsWO+m5DIGLiMiDH71yEN8RO4wQAMQ==}
-    deprecated: 'ATTENTION: please upgrade to v3! The v1 and v2 versions are pretty old and deprecated'
+  formidable@3.5.4:
+    resolution: {integrity: sha512-YikH+7CUTOtP44ZTnUhR7Ic2UASBPOqmaRkRKxRbywPTe5VxF7RRCck4af9wutiZ/QKM5nME9Bie2fFaPz5Gug==}
+    engines: {node: '>=14.0.0'}
 
   forwarded@0.2.0:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
@@ -4458,8 +4458,8 @@ packages:
     resolution: {integrity: sha512-SxToR7P8Y2lWmv/kTzVLC1t/GDI2WGjMwNhLLE9qtH8Q13C+aEmuRlzDst4Up4s0Wc8sF2M+J57iB3cMLqftfg==}
     engines: {node: '>=6.0.0'}
 
-  prettier@3.9.6:
-    resolution: {integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==}
+  prettier@3.9.8:
+    resolution: {integrity: sha512-WRFq3Wn3WId7LLROfMLdH7xaFr2jR62wU8nLO6rQUOLOxNZUviyJQs1M0iIhLexSFy+L+w0ch66wtoO2jRjG0A==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -4936,11 +4936,6 @@ packages:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
     hasBin: true
 
-  semver@7.8.0:
-    resolution: {integrity: sha512-AcM7dV/5ul4EekoQ29Agm5vri8JNqRyj39o0qpX6vDF2GZrtutZl5RwgD1XnZjiTAfncsJhMI48QQH3sN87YNA==}
-    engines: {node: '>=10'}
-    hasBin: true
-
   semver@7.8.5:
     resolution: {integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==}
     engines: {node: '>=10'}
@@ -5147,10 +5142,9 @@ packages:
     peerDependencies:
       webpack: ^5.27.0
 
-  superagent@8.1.2:
-    resolution: {integrity: sha512-6WTxW1EB6yCxV5VFOIPQruWGHqc3yI7hEmZK6h+pyk69Lk/Ut7rLUY6W/ONF2MjBuGjvmMiIpsrVJ2vjrHlslA==}
-    engines: {node: '>=6.4.0 <13 || >=14'}
-    deprecated: Please upgrade to superagent v10.2.2+, see release notes at https://github.com/forwardemail/superagent/releases/tag/v10.2.2 - maintenance is supported by Forward Email @ https://forwardemail.net
+  superagent@10.4.0:
+    resolution: {integrity: sha512-QmE27Y9G7MvQR2B7S5q16IySUiZoNhhzxiU2YETs/NtfKrd5UaS5+yXzq4Doa4qDwQ36Wo6nQN3TW9Y7Wb4aew==}
+    engines: {node: '>=14.18.0'}
 
   supports-color@7.2.0:
     resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==}
@@ -8970,10 +8964,10 @@ snapshots:
     dependencies:
       eslint: 9.39.4(supports-color@8.1.1)
 
-  eslint-plugin-prettier@5.5.5(@types/eslint@9.6.1)(eslint-config-prettier@10.1.8(eslint@9.39.4(supports-color@8.1.1)))(eslint@9.39.4(supports-color@8.1.1))(prettier@3.9.6):
+  eslint-plugin-prettier@5.5.5(@types/eslint@9.6.1)(eslint-config-prettier@10.1.8(eslint@9.39.4(supports-color@8.1.1)))(eslint@9.39.4(supports-color@8.1.1))(prettier@3.9.8):
     dependencies:
       eslint: 9.39.4(supports-color@8.1.1)
-      prettier: 3.9.6
+      prettier: 3.9.8
       prettier-linter-helpers: 1.0.1
       synckit: 0.11.12
     optionalDependencies:
@@ -9252,12 +9246,11 @@ snapshots:
       hasown: 2.0.3
       mime-types: 2.1.35
 
-  formidable@2.1.3:
+  formidable@3.5.4:
     dependencies:
       '@paralleldrive/cuid2': 2.3.1
       dezalgo: 1.0.4
       once: 1.4.0
-      qs: 6.15.2
 
   forwarded@0.2.0: {}
 
@@ -10680,7 +10673,7 @@ snapshots:
     dependencies:
       fast-diff: 1.3.0
 
-  prettier@3.9.6: {}
+  prettier@3.9.8: {}
 
   pretty-error@4.0.0:
     dependencies:
@@ -11157,8 +11150,6 @@ snapshots:
 
   semver@6.3.1: {}
 
-  semver@7.8.0: {}
-
   semver@7.8.5: {}
 
   send@0.19.2(supports-color@8.1.1):
@@ -11435,18 +11426,17 @@ snapshots:
     dependencies:
       webpack: 5.110.3(clean-css@5.3.3)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(postcss@8.5.23)(uglify-js@3.19.3)(webpack-cli@7.2.3)
 
-  superagent@8.1.2(supports-color@8.1.1):
+  superagent@10.4.0(supports-color@8.1.1):
     dependencies:
       component-emitter: 1.3.1
       cookiejar: 2.1.4
       debug: 4.4.3(supports-color@8.1.1)
       fast-safe-stringify: 2.1.1
       form-data: 4.0.5
-      formidable: 2.1.3
+      formidable: 3.5.4
       methods: 1.1.2
       mime: 2.6.0
-      qs: 6.15.2
-      semver: 7.8.0
+      qs: 6.15.3
     transitivePeerDependencies:
       - supports-color
 
