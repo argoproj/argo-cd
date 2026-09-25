@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {Sidebar} from '../../../sidebar/sidebar';
 import {ViewPreferences} from '../../services';
-import {setAnimationsDisabled, useTheme} from '../../utils';
+import {useTheme} from '../../utils';
 
 require('./layout.scss');
 
@@ -28,9 +28,6 @@ export const Layout = (props: LayoutProps) => {
             document.body.style.background = getBGColor(theme);
         }
     }, [theme]);
-    React.useEffect(() => {
-        setAnimationsDisabled(!!props.pref.disableAnimations);
-    }, [props.pref.disableAnimations]);
 
     return (
         <div className={`theme-${theme}`}>

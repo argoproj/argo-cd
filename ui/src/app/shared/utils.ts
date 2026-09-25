@@ -1,5 +1,6 @@
 import {useCallback, useSyncExternalStore} from 'react';
 import type {CSSProperties} from 'react';
+import type {Observable, Subscription} from 'rxjs';
 import {AuthSettings, Cluster, UserInfo} from './models';
 
 export function hashCode(str: string) {
@@ -138,6 +139,8 @@ export const useTheme = (props: {theme: string}) => {
 export const setAnimationsDisabled = (disabled: boolean) => {
     document.body.classList.toggle('disable-animations', disabled);
 };
+
+export const syncAnimationPreference = (prefs: Observable<{disableAnimations?: boolean}>): Subscription => prefs.subscribe(pref => setAnimationsDisabled(!!pref.disableAnimations));
 
 export const formatClusterQueryParam = (cluster: Cluster) => {
     if (cluster.name === cluster.server) {

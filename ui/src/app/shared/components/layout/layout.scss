@@ -46,6 +46,7 @@ body.disable-animations *,
 body.disable-animations *::before,
 body.disable-animations *::after {
     animation: none !important;
+    transition: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -53,5 +54,6 @@ body.disable-animations *::after {
     *::before,
     *::after {
         animation: none !important;
+        transition: none !important;
     }
 }
