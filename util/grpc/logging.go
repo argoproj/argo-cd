@@ -71,7 +71,7 @@ func (j *jsonpbMarshalleble) MarshalJSON() ([]byte, error) {
 		// types carry JSON tags, so this produces an equivalent payload.
 		data, jsonErr := json.Marshal(j.Message)
 		if jsonErr != nil {
-			return nil, fmt.Errorf("jsonpb serializer failed: %w", err)
+			return nil, fmt.Errorf("jsonpb serializer failed: %w (encoding/json fallback failed: %w)", err, jsonErr)
 		}
 		return data, nil
 	}
