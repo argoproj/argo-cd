@@ -50,12 +50,14 @@ export const ApplicationsSyncPanelBody = ({apps, getApi, setPending}: {apps: mod
                         setProgress({percentage: 0, title: 'Starting...'});
                         let i = 0;
                         for (const app of selectedApps) {
+                            // When Prune is unchecked, omit it so each app can use syncPolicy.prune.
+                            // Checking Prune forces prune on for all selected apps.
                             await services.applications
                                 .sync(
                                     app.metadata.name,
                                     app.metadata.namespace,
                                     getAppDefaultSource(app).targetRevision,
-                                    syncFlags.Prune || false,
+                                    syncFlags.Prune ? true : undefined,
                                     syncFlags.DryRun || false,
                                     syncStrategy,
                                     null,

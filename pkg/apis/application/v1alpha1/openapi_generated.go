@@ -8159,6 +8159,13 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicy(ref common.ReferenceCallbac
 							},
 						},
 					},
+					"prune": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Prune specifies whether manual syncs should prune resources by default.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"retry": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Retry controls failed sync retry behavior",

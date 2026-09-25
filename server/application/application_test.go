@@ -2472,6 +2472,56 @@ func TestSyncMultiSource_PosTooSmall(t *testing.T) {
 		"should fail because source position is less than 1")
 }
 
+func TestSync_UsesSyncPolicyPruneDefault(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
+	appServer := newTestAppServer(t)
+
+	testApp := newTestApp()
+	testApp.Name = "test-app-sync-prune-default"
+	testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Prune: new(true)}
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+
+	syncedApp, err := appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
+	require.NoError(t, err)
+	require.NotNil(t, syncedApp.Operation)
+	require.NotNil(t, syncedApp.Operation.Sync)
+	assert.True(t, syncedApp.Operation.Sync.Prune, "nil sync request prune should use syncPolicy.prune")
+
+	// Clear in-progress operation so a second sync can be initiated.
+	syncedApp.Operation = nil
+	syncedApp.Status.OperationState = nil
+	_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(syncedApp.Namespace).Update(ctx, syncedApp, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	explicitFalse := false
+	syncedApp, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name, Prune: &explicitFalse})
+	require.NoError(t, err)
+	require.NotNil(t, syncedApp.Operation)
+	require.NotNil(t, syncedApp.Operation.Sync)
+	assert.False(t, syncedApp.Operation.Sync.Prune, "explicit prune=false should override syncPolicy.prune")
+}
+
+func TestSync_PruneDefaultsFalseWithoutSyncPolicyPrune(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
+	appServer := newTestAppServer(t)
+
+	testApp := newTestApp()
+	testApp.Name = "test-app-sync-prune-unset"
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+
+	syncedApp, err := appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
+	require.NoError(t, err)
+	require.NotNil(t, syncedApp.Operation)
+	require.NotNil(t, syncedApp.Operation.Sync)
+	assert.False(t, syncedApp.Operation.Sync.Prune, "nil sync request prune without syncPolicy.prune should not prune")
+}
+
 func TestSync_SyncWithoutSyncPermissionShouldFail(t *testing.T) {
 	ctx := t.Context()
 	//nolint:staticcheck

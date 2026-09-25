@@ -46,7 +46,8 @@ export const ApplicationSyncPanelBody = ({
                         revision: new URLSearchParams(ctx.history.location.search).get('revision') || source.targetRevision || 'HEAD',
                         resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
                         syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : [],
-                        message: ''
+                        message: '',
+                        syncFlags: {Prune: application.spec.syncPolicy?.prune ?? true} as SyncFlags
                     }}
                     validateError={values => ({
                         resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource'
@@ -216,7 +217,7 @@ export const ApplicationSyncPanelBody = ({
                                 application.metadata.name,
                                 application.metadata.namespace,
                                 params.revision,
-                                syncFlags.Prune || false,
+                                syncFlags.Prune ? true : undefined,
                                 syncFlags.DryRun || false,
                                 syncStrategy,
                                 selectedResources,

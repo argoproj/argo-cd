@@ -2169,11 +2169,21 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		source = new(a.Spec.GetSource())
 	}
 
+	// Explicit prune in the sync request always wins. When omitted, fall back to
+	// syncPolicy.prune so manual syncs can prune by default without automated sync.
+	prune := syncReq.GetPrune()
+	if syncReq.Prune == nil {
+		prune = true
+		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Prune != nil {
+			prune = *a.Spec.SyncPolicy.Prune
+		}
+	}
+
 	op := v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{
 			Source:       source,
 			Revision:     revision,
-			Prune:        syncReq.GetPrune(),
+			Prune:        prune,
 			DryRun:       syncReq.GetDryRun(),
 			SyncOptions:  syncOptions,
 			SyncStrategy: syncReq.Strategy,

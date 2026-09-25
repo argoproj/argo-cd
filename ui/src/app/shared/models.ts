@@ -342,6 +342,8 @@ export interface SyncPolicy {
     automated?: Automated;
     syncOptions?: string[];
     retry?: RetryStrategy;
+    // When true, manual syncs prune by default unless the sync request overrides it.
+    prune?: boolean;
 }
 
 export interface Info {

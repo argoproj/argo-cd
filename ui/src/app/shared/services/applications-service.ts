@@ -312,7 +312,7 @@ export class ApplicationsService {
         name: string,
         appNamespace: string,
         revision: string,
-        prune: boolean,
+        prune: boolean | undefined,
         dryRun: boolean,
         strategy: models.SyncStrategy,
         resources: models.SyncOperationResource[],
@@ -320,19 +320,23 @@ export class ApplicationsService {
         retryStrategy?: models.RetryStrategy,
         message?: string
     ): Promise<boolean> {
+        // Omit prune when undefined so the API can apply syncPolicy.prune as the default.
+        const body: Record<string, unknown> = {
+            appNamespace,
+            revision,
+            dryRun: !!dryRun,
+            strategy,
+            resources,
+            syncOptions: syncOptions ? {items: syncOptions} : null,
+            retryStrategy
+        };
+        if (prune !== undefined) {
+            body.prune = !!prune;
+        }
+        body.infos = message ? [{name: 'message', value: message} as models.Info] : [];
         return requests
             .post(`/applications/${name}/sync`)
-            .send({
-                appNamespace,
-                revision,
-                prune: !!prune,
-                dryRun: !!dryRun,
-                strategy,
-                resources,
-                syncOptions: syncOptions ? {items: syncOptions} : null,
-                retryStrategy,
-                infos: message ? [{name: 'message', value: message} as models.Info] : []
-            })
+            .send(body)
             .then(() => true);
     }
 

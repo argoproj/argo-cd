@@ -1,0 +1,22 @@
+Every 2.0s: kubectl get po -A                                                                                                                                                           nakhil-mac: 12:26:31
+                                                                                                                                                                                               in 0.096s (0)
+NAMESPACE            NAME                                                READY   STATUS    RESTARTS   AGE                                                                                                   
+default              argocd-application-controller-0                     1/1     Running   0          49s                                                                                                   
+default              argocd-applicationset-controller-576cd7ccf7-tm684   1/1     Running   0          60s                                                                                                   
+default              argocd-dex-server-f5d9fc4-h2fv4                     1/1     Running   0          60s                                                                                                   
+default              argocd-notifications-controller-764f9c584f-ks9xf    1/1     Running   0          60s                                                                                                   
+default              argocd-redis-5b8bb584c-6q9cw                        1/1     Running   0          60s                                                                                                   
+default              argocd-repo-server-7d8ffc6bc6-dnxfs                 1/1     Running   0          60s                                                                                                   
+default              argocd-server-6b6bc4dddf-84fst                      1/1     Running   0          60s                                                                                                   
+kube-system          coredns-66bc5c9577-8pj5n                            1/1     Running   0          9m36s                                                                                                 
+kube-system          coredns-66bc5c9577-bxrvx                            1/1     Running   0          9m36s                                                                                                 
+kube-system          etcd-kind-control-plane                             1/1     Running   0          9m44s                                                                                                 
+kube-system          kindnet-lnct5                                       1/1     Running   0          9m36s                                                                                                 
+kube-system          kube-apiserver-kind-control-plane                   1/1     Running   0          9m44s                                                                                                 
+kube-system          kube-controller-manager-kind-control-plane          1/1     Running   0          9m44s                                                                                                 
+kube-system          kube-proxy-jksbr                                    1/1     Running   0          9m36s                                                                                                 
+kube-system          kube-scheduler-kind-control-plane                   1/1     Running   0          9m44s                                                                                                 
+local-path-storage   local-path-provisioner-7b8c8ddbd6-p5jrb             1/1     Running   0          9m36s                                                                                                 
+                                                                                                                                                                                                            
+                                                                                                                                                                                                            
+                                                                                                                                                                                                            

@@ -16890,6 +16890,16 @@ func (m *SyncPolicy) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.Prune != nil {
+		i--
+		if *m.Prune {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x28
+	}
 	if m.ManagedNamespaceMetadata != nil {
 		{
 			size, err := m.ManagedNamespaceMetadata.MarshalToSizedBuffer(dAtA[:i])
@@ -21308,6 +21318,9 @@ func (m *SyncPolicy) Size() (n int) {
 		l = m.ManagedNamespaceMetadata.Size()
 		n += 1 + l + sovGenerated(uint64(l))
 	}
+	if m.Prune != nil {
+		n += 2
+	}
 	return n
 }
 
@@ -24365,6 +24378,7 @@ func (this *SyncPolicy) String() string {
 	s := strings.Join([]string{`&SyncPolicy{`,
 		`Automated:` + strings.Replace(this.Automated.String(), "SyncPolicyAutomated", "SyncPolicyAutomated", 1) + `,`,
 		`SyncOptions:` + fmt.Sprintf("%v", this.SyncOptions) + `,`,
+		`Prune:` + valueToStringGenerated(this.Prune) + `,`,
 		`Retry:` + strings.Replace(this.Retry.String(), "RetryStrategy", "RetryStrategy", 1) + `,`,
 		`ManagedNamespaceMetadata:` + strings.Replace(this.ManagedNamespaceMetadata.String(), "ManagedNamespaceMetadata", "ManagedNamespaceMetadata", 1) + `,`,
 		`}`,
@@ -60100,6 +60114,27 @@ func (m *SyncPolicy) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Prune", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.Prune = &b
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])

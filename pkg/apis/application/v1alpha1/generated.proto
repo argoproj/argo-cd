@@ -2894,6 +2894,9 @@ message SyncPolicy {
 
   // ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
   optional ManagedNamespaceMetadata managedNamespaceMetadata = 4;
+
+  // Prune specifies whether manual syncs should prune resources by default.
+  optional bool prune = 5;
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync

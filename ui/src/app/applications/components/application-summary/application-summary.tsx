@@ -630,6 +630,33 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         }
     }
 
+    async function setManualSyncPrune(ctx: ContextApis, prune: boolean) {
+        const confirmed = await ctx.popup.confirm(
+            prune ? 'Enable Prune on Manual Sync?' : 'Disable Prune on Manual Sync?',
+            prune
+                ? 'Are you sure you want manual syncs to prune resources by default?'
+                : 'Are you sure you want to disable pruning by default on manual syncs?'
+        );
+        if (confirmed) {
+            try {
+                setChangeSync(true);
+                const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
+                if (!updatedApp.spec.syncPolicy) {
+                    updatedApp.spec.syncPolicy = {};
+                }
+                updatedApp.spec.syncPolicy.prune = prune || null;
+                await updateApp(updatedApp, {validate: false});
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title='Unable to update prune on manual sync' e={e} />,
+                    type: NotificationType.Error
+                });
+            } finally {
+                setChangeSync(false);
+            }
+        }
+    }
+
     const items = app.spec.info || [];
     const [adjustedCount, setAdjustedCount] = React.useState(0);
 
@@ -752,6 +779,21 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                         />
                                         <label htmlFor='enable-auto-sync'>ENABLE AUTO-SYNC</label>
                                         <HelpIcon title='If checked, application will automatically sync when changes are detected' />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-12'>
+                                    <div className='checkbox-container'>
+                                        <Checkbox
+    onChange={async (prune: boolean) => {
+        await setManualSyncPrune(ctx, prune);
+    }}
+    checked={app.spec.syncPolicy?.prune ?? true}
+    id='prune-on-manual-sync'
+/>
+                                        <label htmlFor='prune-on-manual-sync'>PRUNE ON MANUAL SYNC</label>
+                                        <HelpIcon title='If checked, manual syncs prune resources by default without requiring the Prune option each time' />
                                     </div>
                                 </div>
                             </div>

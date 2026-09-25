@@ -943,6 +943,9 @@ spec:
                                       items:
                                         type: string
                                       type: array
+                                    prune:
+                                      description: Prune specifies whether manual syncs should prune resources by default.
+                                      type: boolean
                                   type: object
                               required:
                               - destination
@@ -1863,6 +1866,9 @@ spec:
                                       items:
                                         type: string
                                       type: array
+                                    prune:
+                                      description: Prune specifies whether manual syncs should prune resources by default.
+                                      type: boolean
                                   type: object
                               required:
                               - destination
@@ -2784,6 +2790,9 @@ spec:
                                       items:
                                         type: string
                                       type: array
+                                    prune:
+                                      description: Prune specifies whether manual syncs should prune resources by default.
+                                      type: boolean
                                   type: object
                               required:
                               - destination
@@ -3683,6 +3692,9 @@ spec:
                                       items:
                                         type: string
                                       type: array
+                                    prune:
+                                      description: Prune specifies whether manual syncs should prune resources by default.
+                                      type: boolean
                                   type: object
                               required:
                               - destination
@@ -4607,6 +4619,9 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
+                                              prune:
+                                                description: Prune specifies whether manual syncs should prune resources by default.
+                                                type: boolean
                                             type: object
                                         required:
                                         - destination
@@ -5527,6 +5542,9 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
+                                              prune:
+                                                description: Prune specifies whether manual syncs should prune resources by default.
+                                                type: boolean
                                             type: object
                                         required:
                                         - destination
@@ -6448,6 +6466,9 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
+                                              prune:
+                                                description: Prune specifies whether manual syncs should prune resources by default.
+                                                type: boolean
                                             type: object
                                         required:
                                         - destination
@@ -7347,6 +7368,9 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
+                                              prune:
+                                                description: Prune specifies whether manual syncs should prune resources by default.
+                                                type: boolean
                                             type: object
                                         required:
                                         - destination
@@ -8268,6 +8292,9 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
+                                              prune:
+                                                description: Prune specifies whether manual syncs should prune resources by default.
+                                                type: boolean
                                             type: object
                                         required:
                                         - destination
@@ -9178,6 +9205,9 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
+                                              prune:
+                                                description: Prune specifies whether manual syncs should prune resources by default.
+                                                type: boolean
                                             type: object
                                         required:
                                         - destination
@@ -10312,6 +10342,9 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
+                                              prune:
+                                                description: Prune specifies whether manual syncs should prune resources by default.
+                                                type: boolean
                                             type: object
                                         required:
                                         - destination
@@ -11443,6 +11476,9 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
+                                              prune:
+                                                description: Prune specifies whether manual syncs should prune resources by default.
+                                                type: boolean
                                             type: object
                                         required:
                                         - destination
@@ -12359,6 +12395,9 @@ spec:
                                       items:
                                         type: string
                                       type: array
+                                    prune:
+                                      description: Prune specifies whether manual syncs should prune resources by default.
+                                      type: boolean
                                   type: object
                               required:
                               - destination
@@ -13285,6 +13324,9 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
+                                              prune:
+                                                description: Prune specifies whether manual syncs should prune resources by default.
+                                                type: boolean
                                             type: object
                                         required:
                                         - destination
@@ -14205,6 +14247,9 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
+                                              prune:
+                                                description: Prune specifies whether manual syncs should prune resources by default.
+                                                type: boolean
                                             type: object
                                         required:
                                         - destination
@@ -15126,6 +15171,9 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
+                                              prune:
+                                                description: Prune specifies whether manual syncs should prune resources by default.
+                                                type: boolean
                                             type: object
                                         required:
                                         - destination
@@ -16025,6 +16073,9 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
+                                              prune:
+                                                description: Prune specifies whether manual syncs should prune resources by default.
+                                                type: boolean
                                             type: object
                                         required:
                                         - destination
@@ -16946,6 +16997,9 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
+                                              prune:
+                                                description: Prune specifies whether manual syncs should prune resources by default.
+                                                type: boolean
                                             type: object
                                         required:
                                         - destination
@@ -17856,6 +17910,9 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
+                                              prune:
+                                                description: Prune specifies whether manual syncs should prune resources by default.
+                                                type: boolean
                                             type: object
                                         required:
                                         - destination
@@ -18990,6 +19047,9 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
+                                              prune:
+                                                description: Prune specifies whether manual syncs should prune resources by default.
+                                                type: boolean
                                             type: object
                                         required:
                                         - destination
@@ -20121,6 +20181,9 @@ spec:
                                                 items:
                                                   type: string
                                                 type: array
+                                              prune:
+                                                description: Prune specifies whether manual syncs should prune resources by default.
+                                                type: boolean
                                             type: object
                                         required:
                                         - destination
@@ -21041,6 +21104,9 @@ spec:
                                       items:
                                         type: string
                                       type: array
+                                    prune:
+                                      description: Prune specifies whether manual syncs should prune resources by default.
+                                      type: boolean
                                   type: object
                               required:
                               - destination
@@ -21961,6 +22027,9 @@ spec:
                                       items:
                                         type: string
                                       type: array
+                                    prune:
+                                      description: Prune specifies whether manual syncs should prune resources by default.
+                                      type: boolean
                                   type: object
                               required:
                               - destination
@@ -22871,6 +22940,9 @@ spec:
                                       items:
                                         type: string
                                       type: array
+                                    prune:
+                                      description: Prune specifies whether manual syncs should prune resources by default.
+                                      type: boolean
                                   type: object
                               required:
                               - destination
@@ -24005,6 +24077,9 @@ spec:
                                       items:
                                         type: string
                                       type: array
+                                    prune:
+                                      description: Prune specifies whether manual syncs should prune resources by default.
+                                      type: boolean
                                   type: object
                               required:
                               - destination
@@ -25136,6 +25211,9 @@ spec:
                                       items:
                                         type: string
                                       type: array
+                                    prune:
+                                      description: Prune specifies whether manual syncs should prune resources by default.
+                                      type: boolean
                                   type: object
                               required:
                               - destination
@@ -26129,6 +26207,9 @@ spec:
                             items:
                               type: string
                             type: array
+                          prune:
+                            description: Prune specifies whether manual syncs should prune resources by default.
+                            type: boolean
                         type: object
                     required:
                     - destination

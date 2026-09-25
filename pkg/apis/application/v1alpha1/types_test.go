@@ -4201,6 +4201,15 @@ func TestSyncPolicy_IsZero(t *testing.T) {
 	assert.False(t, (&SyncPolicy{Automated: &SyncPolicyAutomated{}}).IsZero())
 	assert.False(t, (&SyncPolicy{SyncOptions: SyncOptions{""}}).IsZero())
 	assert.False(t, (&SyncPolicy{Retry: &RetryStrategy{}}).IsZero())
+	assert.False(t, (&SyncPolicy{Prune: new(true)}).IsZero())
+}
+
+func TestSyncPolicy_GetPrune(t *testing.T) {
+	var nilPolicy *SyncPolicy
+	assert.False(t, nilPolicy.GetPrune())
+	assert.False(t, (&SyncPolicy{}).GetPrune())
+	assert.False(t, (&SyncPolicy{Prune: new(false)}).GetPrune())
+	assert.True(t, (&SyncPolicy{Prune: new(true)}).GetPrune())
 }
 
 func TestSyncOptions_HasOption(t *testing.T) {

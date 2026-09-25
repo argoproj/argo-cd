@@ -58,6 +58,7 @@ type AppOptions struct {
 	syncPolicy                      string
 	syncOptions                     []string
 	autoPrune                       bool
+	syncPrune                       bool
 	selfHeal                        bool
 	allowEmpty                      bool
 	namePrefix                      string
@@ -139,6 +140,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))")
 	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync option, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning for automated sync policy")
+	command.Flags().BoolVar(&opts.syncPrune, "sync-prune", true, "Prune resources by default on manual sync (sets syncPolicy.prune)")
 	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing for automated sync policy")
 	command.Flags().BoolVar(&opts.allowEmpty, "allow-empty", false, "Set allow zero live resources for automated sync policy")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
@@ -306,6 +308,12 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		if flags.Changed("allow-empty") {
 			spec.SyncPolicy.Automated.AllowEmpty = &appOpts.allowEmpty
 		}
+	}
+	if flags.Changed("sync-prune") {
+		if spec.SyncPolicy == nil {
+			spec.SyncPolicy = &argoappv1.SyncPolicy{}
+		}
+		spec.SyncPolicy.Prune = &appOpts.syncPrune
 	}
 	return visited
 }

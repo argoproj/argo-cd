@@ -39,7 +39,10 @@ const DEFAULT_APP: Partial<models.Application> = {
             targetRevision: 'HEAD'
         },
         sources: [],
-        project: ''
+        project: '',
+        syncPolicy: {
+            prune: true
+        }
     }
 };
 
@@ -80,6 +83,28 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
                 </div>
             )}
         </React.Fragment>
+    );
+});
+
+const ManualSyncPruneFormField = ReactFormField((props: {fieldApi: FieldApi}) => {
+    const {
+        fieldApi: {getValue, setValue}
+    } = props;
+
+    const prune = getValue();
+
+    return (
+        <div className='application-create-panel__sync-params'>
+            <div className='checkbox-container'>
+                <Checkbox
+                    onChange={val => setValue(val)}
+                    checked={prune}
+                    id='policyManualPrune'
+                />
+                <label htmlFor='policyManualPrune'>Prune on Manual Sync</label>
+                <HelpIcon title='If checked, manual syncs prune resources by default without requiring the Prune option each time' />
+            </div>
+        </div>
     );
 });
 
@@ -345,6 +370,7 @@ export const ApplicationCreatePanel = (props: {
                                                     qeId='application-create-field-sync-policy'
                                                     component={AutoSyncFormField}
                                                 />
+                                                <FormField formApi={api} field='spec.syncPolicy.prune' component={ManualSyncPruneFormField} />
                                             </div>
                                             <div className='argo-form-row'>
                                                 <FormField formApi={api} field='metadata.finalizers' component={SetFinalizerOnApplication} />

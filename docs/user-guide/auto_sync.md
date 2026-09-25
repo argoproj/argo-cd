@@ -39,7 +39,8 @@ For a standalone application, toggling auto-sync is performed by changing the ap
 
 By default (and as a safety mechanism), automated sync will not delete resources when Argo CD detects
 the resource is no longer defined in Git. To prune the resources, a manual sync can always be
-performed (with pruning checked). Pruning can also be enabled to happen automatically as part of the
+performed (with pruning checked), or you can enable [default prune for manual sync](#default-prune-for-manual-sync)
+via `syncPolicy.prune`. Pruning can also be enabled to happen automatically as part of the
 automated sync by running:
 
 ```bash
@@ -54,6 +55,28 @@ spec:
     automated:
       prune: true
 ```
+
+## Default Prune for Manual Sync
+
+You can enable pruning by default for **manual** syncs (UI, CLI, or API) without enabling automated
+sync. When `spec.syncPolicy.prune` is `true`, a sync request that does not explicitly set `prune`
+will prune resources. An explicit prune value on the sync request always takes precedence.
+
+```bash
+argocd app set <APPNAME> --sync-prune
+```
+
+Or declaratively:
+
+```yaml
+spec:
+  syncPolicy:
+    prune: true
+```
+
+> [!NOTE]
+> `syncPolicy.prune` only affects manual (and other non-automated) syncs. Automated sync pruning
+> continues to be controlled by `syncPolicy.automated.prune`.
 
 ## Automatic Pruning with Allow-Empty (v1.8)
 

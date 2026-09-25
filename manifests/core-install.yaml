@@ -2339,6 +2339,10 @@ spec:
                           type: string
                         type: object
                     type: object
+                  prune:
+                    description: Prune specifies whether manual syncs should prune
+                      resources by default.
+                    type: boolean
                   retry:
                     description: Retry controls failed sync retry behavior
                     properties:
@@ -8152,6 +8156,10 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    prune:
+                                      description: Prune specifies whether manual
+                                        syncs should prune resources by default.
+                                      type: boolean
                                     retry:
                                       properties:
                                         backoff:
@@ -9072,6 +9080,10 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    prune:
+                                      description: Prune specifies whether manual
+                                        syncs should prune resources by default.
+                                      type: boolean
                                     retry:
                                       properties:
                                         backoff:
@@ -9993,6 +10005,10 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    prune:
+                                      description: Prune specifies whether manual
+                                        syncs should prune resources by default.
+                                      type: boolean
                                     retry:
                                       properties:
                                         backoff:
@@ -10892,6 +10908,10 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    prune:
+                                      description: Prune specifies whether manual
+                                        syncs should prune resources by default.
+                                      type: boolean
                                     retry:
                                       properties:
                                         backoff:
@@ -11816,6 +11836,11 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              prune:
+                                                description: Prune specifies whether
+                                                  manual syncs should prune resources
+                                                  by default.
+                                                type: boolean
                                               retry:
                                                 properties:
                                                   backoff:
@@ -12736,6 +12761,11 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              prune:
+                                                description: Prune specifies whether
+                                                  manual syncs should prune resources
+                                                  by default.
+                                                type: boolean
                                               retry:
                                                 properties:
                                                   backoff:
@@ -13657,6 +13687,11 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              prune:
+                                                description: Prune specifies whether
+                                                  manual syncs should prune resources
+                                                  by default.
+                                                type: boolean
                                               retry:
                                                 properties:
                                                   backoff:
@@ -14556,6 +14591,11 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              prune:
+                                                description: Prune specifies whether
+                                                  manual syncs should prune resources
+                                                  by default.
+                                                type: boolean
                                               retry:
                                                 properties:
                                                   backoff:
@@ -15477,6 +15517,11 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              prune:
+                                                description: Prune specifies whether
+                                                  manual syncs should prune resources
+                                                  by default.
+                                                type: boolean
                                               retry:
                                                 properties:
                                                   backoff:
@@ -16387,6 +16432,11 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              prune:
+                                                description: Prune specifies whether
+                                                  manual syncs should prune resources
+                                                  by default.
+                                                type: boolean
                                               retry:
                                                 properties:
                                                   backoff:
@@ -17521,6 +17571,11 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              prune:
+                                                description: Prune specifies whether
+                                                  manual syncs should prune resources
+                                                  by default.
+                                                type: boolean
                                               retry:
                                                 properties:
                                                   backoff:
@@ -18652,6 +18707,11 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              prune:
+                                                description: Prune specifies whether
+                                                  manual syncs should prune resources
+                                                  by default.
+                                                type: boolean
                                               retry:
                                                 properties:
                                                   backoff:
@@ -19568,6 +19628,10 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    prune:
+                                      description: Prune specifies whether manual
+                                        syncs should prune resources by default.
+                                      type: boolean
                                     retry:
                                       properties:
                                         backoff:
@@ -20494,6 +20558,11 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              prune:
+                                                description: Prune specifies whether
+                                                  manual syncs should prune resources
+                                                  by default.
+                                                type: boolean
                                               retry:
                                                 properties:
                                                   backoff:
@@ -21414,6 +21483,11 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              prune:
+                                                description: Prune specifies whether
+                                                  manual syncs should prune resources
+                                                  by default.
+                                                type: boolean
                                               retry:
                                                 properties:
                                                   backoff:
@@ -22335,6 +22409,11 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              prune:
+                                                description: Prune specifies whether
+                                                  manual syncs should prune resources
+                                                  by default.
+                                                type: boolean
                                               retry:
                                                 properties:
                                                   backoff:
@@ -23234,6 +23313,11 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              prune:
+                                                description: Prune specifies whether
+                                                  manual syncs should prune resources
+                                                  by default.
+                                                type: boolean
                                               retry:
                                                 properties:
                                                   backoff:
@@ -24155,6 +24239,11 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              prune:
+                                                description: Prune specifies whether
+                                                  manual syncs should prune resources
+                                                  by default.
+                                                type: boolean
                                               retry:
                                                 properties:
                                                   backoff:
@@ -25065,6 +25154,11 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              prune:
+                                                description: Prune specifies whether
+                                                  manual syncs should prune resources
+                                                  by default.
+                                                type: boolean
                                               retry:
                                                 properties:
                                                   backoff:
@@ -26199,6 +26293,11 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              prune:
+                                                description: Prune specifies whether
+                                                  manual syncs should prune resources
+                                                  by default.
+                                                type: boolean
                                               retry:
                                                 properties:
                                                   backoff:
@@ -27330,6 +27429,11 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              prune:
+                                                description: Prune specifies whether
+                                                  manual syncs should prune resources
+                                                  by default.
+                                                type: boolean
                                               retry:
                                                 properties:
                                                   backoff:
@@ -28250,6 +28354,10 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    prune:
+                                      description: Prune specifies whether manual
+                                        syncs should prune resources by default.
+                                      type: boolean
                                     retry:
                                       properties:
                                         backoff:
@@ -29170,6 +29278,10 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    prune:
+                                      description: Prune specifies whether manual
+                                        syncs should prune resources by default.
+                                      type: boolean
                                     retry:
                                       properties:
                                         backoff:
@@ -30080,6 +30192,10 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    prune:
+                                      description: Prune specifies whether manual
+                                        syncs should prune resources by default.
+                                      type: boolean
                                     retry:
                                       properties:
                                         backoff:
@@ -31214,6 +31330,10 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    prune:
+                                      description: Prune specifies whether manual
+                                        syncs should prune resources by default.
+                                      type: boolean
                                     retry:
                                       properties:
                                         backoff:
@@ -32345,6 +32465,10 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    prune:
+                                      description: Prune specifies whether manual
+                                        syncs should prune resources by default.
+                                      type: boolean
                                     retry:
                                       properties:
                                         backoff:
@@ -33338,6 +33462,10 @@ spec:
                                   type: string
                                 type: object
                             type: object
+                          prune:
+                            description: Prune specifies whether manual syncs should
+                              prune resources by default.
+                            type: boolean
                           retry:
                             properties:
                               backoff:
