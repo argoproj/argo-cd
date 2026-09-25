@@ -226,6 +226,12 @@ func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 		webURL = payload.Project.WebURL
 		revision = webhook.ParseRevision(payload.Ref)
 		touchedHead = payload.Project.DefaultBranch == revision
+	case gitlab.TagEventPayload:
+		// A tag push never moves the default branch, so it only refreshes generators
+		// whose revision names or matches the tag.
+		webURL = payload.Project.WebURL
+		revision = webhook.ParseRevision(payload.Ref)
+		touchedHead = false
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
 		webURL = payload.Resource.Repository.RemoteURL

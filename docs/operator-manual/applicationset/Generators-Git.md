@@ -496,6 +496,9 @@ spec:
 >   qualified (`refs/heads/dev`, `refs/tags/v1.0.0`).
 > - A semver constraint such as `1.*` or `>=1.0.0` matches a push of any tag that satisfies it.
 >
+> GitLab sends tag pushes as a separate event, so enable the **Tag push events** trigger on the
+> webhook for tag and semver revisions to refresh.
+>
 > This is the same matching the [API server webhook](../webhook.md) applies to an Application's
 > `targetRevision`, including its handling of identically named branches and tags.
 
