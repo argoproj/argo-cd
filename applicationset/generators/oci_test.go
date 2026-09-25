@@ -829,7 +829,7 @@ cluster:
 			t.Parallel()
 
 			argoCDServiceMock := mocks.NewRepos(t)
-			argoCDServiceMock.EXPECT().GetOciFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock.EXPECT().GetOciFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
 			ociGenerator := NewOciGenerator(argoCDServiceMock)
@@ -1154,14 +1154,12 @@ env: testing
 
 			argoCDServiceMock := mocks.NewRepos(t)
 
-			for _, pattern := range testCaseCopy.excludePattern {
-				argoCDServiceMock.EXPECT().GetOciFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything).
-					Return(testCaseCopy.excludeFiles, testCaseCopy.repoPathsError)
-			}
-
-			for _, pattern := range testCaseCopy.includePattern {
-				argoCDServiceMock.EXPECT().GetOciFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything).
-					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
+			// The whole pattern set goes to the repo server in one call, which applies both
+			// filters and returns the surviving files. The expectation therefore also asserts
+			// that the include and exclude patterns are forwarded intact.
+			if len(testCaseCopy.includePattern) > 0 {
+				argoCDServiceMock.EXPECT().GetOciFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, testCaseCopy.includePattern, testCaseCopy.excludePattern, mock.Anything).
+					Return(repoServerFiles(testCaseCopy.includeFiles, testCaseCopy.excludeFiles), testCaseCopy.repoPathsError)
 			}
 
 			ociGenerator := NewOciGenerator(argoCDServiceMock)
@@ -1472,7 +1470,7 @@ cluster:
 			t.Parallel()
 
 			argoCDServiceMock := mocks.NewRepos(t)
-			argoCDServiceMock.EXPECT().GetOciFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock.EXPECT().GetOciFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
 			ociGenerator := NewOciGenerator(argoCDServiceMock)
@@ -1634,13 +1632,9 @@ func TestOciGenerateParamsFromFilesGoTemplateWithExclude(t *testing.T) {
 
 			argoCDServiceMock := mocks.NewRepos(t)
 
-			for _, includePattern := range testCaseCopy.includePattern {
-				argoCDServiceMock.EXPECT().GetOciFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, includePattern, mock.Anything).
-					Return(testCaseCopy.includeFiles, nil).Once()
-			}
-			for _, excludePattern := range testCaseCopy.excludePattern {
-				argoCDServiceMock.EXPECT().GetOciFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, excludePattern, mock.Anything).
-					Return(testCaseCopy.excludeFiles, nil).Once()
+			if len(testCaseCopy.includePattern) > 0 {
+				argoCDServiceMock.EXPECT().GetOciFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, testCaseCopy.includePattern, testCaseCopy.excludePattern, mock.Anything).
+					Return(repoServerFiles(testCaseCopy.includeFiles, testCaseCopy.excludeFiles), nil).Once()
 			}
 
 			ociGenerator := NewOciGenerator(argoCDServiceMock)
@@ -1680,11 +1674,8 @@ func TestOciGenerateParamsExcludePatternError(t *testing.T) {
 
 	argoCDServiceMock := mocks.NewRepos(t)
 
-	// Include pattern succeeds.
-	argoCDServiceMock.EXPECT().GetOciFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, "**/config.json", mock.Anything).
-		Return(map[string][]byte{"cluster-config/production/config.json": []byte(`{}`)}, nil).Once()
-	// Exclude pattern fails.
-	argoCDServiceMock.EXPECT().GetOciFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, "p1/**/config.json", mock.Anything).
+	// Both filters travel in one call, so a failure surfaces from that call.
+	argoCDServiceMock.EXPECT().GetOciFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, []string{"**/config.json"}, []string{"p1/**/config.json"}, mock.Anything).
 		Return(nil, errors.New("exclude fetch error")).Once()
 
 	ociGenerator := NewOciGenerator(argoCDServiceMock)
