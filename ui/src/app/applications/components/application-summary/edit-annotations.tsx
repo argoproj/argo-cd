@@ -6,11 +6,12 @@ import {MapInputField} from '../../../shared/components';
 import {notificationSubscriptionsParser} from './edit-notification-subscriptions';
 
 export const EditAnnotations = (props: {formApi: FormApi; app: models.Application}) => {
-    const removeNotificationSubscriptionRelatedAnnotations = () => {
-        const notificationSubscriptions = notificationSubscriptionsParser.annotationsToSubscriptions(props.app.metadata.annotations);
+    React.useEffect(() => {
+        const annotations = props.app.metadata.annotations;
+        const notificationSubscriptions = notificationSubscriptionsParser.annotationsToSubscriptions(annotations);
 
         if (notificationSubscriptions.length > 0) {
-            const annotationsWithoutNotificationSubscriptions = {...(props.app.metadata.annotations || {})};
+            const annotationsWithoutNotificationSubscriptions = {...(annotations || {})};
 
             for (const notificationSubscriptionAnnotation of notificationSubscriptions) {
                 const key = notificationSubscriptionsParser.subscriptionToAnnotationKey(notificationSubscriptionAnnotation);
@@ -20,10 +21,9 @@ export const EditAnnotations = (props: {formApi: FormApi; app: models.Applicatio
 
             props.formApi.setValue('metadata.annotations', annotationsWithoutNotificationSubscriptions);
         }
-    };
-
-    React.useEffect(() => {
-        removeNotificationSubscriptionRelatedAnnotations();
+        // Strip subscription keys once when the editor mounts. Re-running on app/form
+        // updates would wipe annotations the user is in the middle of editing.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return <FormField formApi={props.formApi} field='metadata.annotations' component={MapInputField} />;
