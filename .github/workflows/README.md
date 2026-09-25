@@ -12,6 +12,7 @@
 | scorecard.yaml     | Generate scorecard for supply-chain security                   |
 | update-snyk.yaml   | Scheduled snyk reports                                         |
 | stale.yaml         | Labels stale issues and PRs                                    |
+| vulncheck.yaml     | Scheduled govulncheck reports                                  | 
 
 # Reusable workflows
 
