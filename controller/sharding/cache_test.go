@@ -568,12 +568,27 @@ func TestClusterSharding_AddApp_SameNameDifferentNamespace(t *testing.T) {
 	assert.Equal(t, 2, appDistribution["https://serverA"], "both apps must be counted for the cluster")
 }
 
-// TestClusterSharding_UpdateApp_DestinationChange ensures that changing an
+// TestClusterSharding_UpsertApp_DestinationChange ensures that changing an
 // existing app's destination cluster triggers a redistribution (the consistent
 // hashing algorithm weights clusters by app count), while an update that leaves
-// the destination unchanged does not.
-func TestClusterSharding_UpdateApp_DestinationChange(t *testing.T) {
+// the destination unchanged does not. Both AddApp and UpdateApp must behave
+// this way: the informer can deliver an Add for an app already recorded by
+// Init or by the shard-resync loop.
+func TestClusterSharding_UpsertApp_DestinationChange(t *testing.T) {
 	t.Parallel()
+	for name, upsert := range map[string]func(*ClusterSharding, *v1alpha1.Application){
+		"AddApp":    (*ClusterSharding).AddApp,
+		"UpdateApp": (*ClusterSharding).UpdateApp,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			testUpsertAppDestinationChange(t, upsert)
+		})
+	}
+}
+
+func testUpsertAppDestinationChange(t *testing.T, upsert func(*ClusterSharding, *v1alpha1.Application)) {
+	t.Helper()
 	sharding := setupTestSharding(0, 2)
 
 	// Spy on the distribution function to observe whether updateDistribution ran.
@@ -600,7 +615,7 @@ func TestClusterSharding_UpdateApp_DestinationChange(t *testing.T) {
 	// Moving the app to a different destination cluster must recompute.
 	shardCalls = 0
 	movedApp := createApp("app1", "https://serverB")
-	sharding.UpdateApp(&movedApp)
+	upsert(sharding, &movedApp)
 	assert.Positive(t, shardCalls, "destination change should trigger updateDistribution")
 
 	appDistribution := sharding.GetAppDistribution()
@@ -610,7 +625,7 @@ func TestClusterSharding_UpdateApp_DestinationChange(t *testing.T) {
 	// An update that does not change the destination must skip redistribution.
 	shardCalls = 0
 	sameApp := createApp("app1", "https://serverB")
-	sharding.UpdateApp(&sameApp)
+	upsert(sharding, &sameApp)
 	assert.Zero(t, shardCalls, "no destination change should skip updateDistribution")
 }
 

@@ -305,20 +305,11 @@ func (sharding *ClusterSharding) getAppAccessor() appAccessor {
 	}
 }
 
+// AddApp records a in the sharding cache. It has the same contract as
+// UpdateApp: the informer can deliver an Add for an app already recorded by
+// Init or by the shard-resync loop, possibly with a changed destination.
 func (sharding *ClusterSharding) AddApp(a *v1alpha1.Application) {
-	sharding.lock.Lock()
-	defer sharding.lock.Unlock()
-
-	// Key by QualifiedName (namespace/name) so that same-named apps in
-	// different namespaces (apps-in-any-namespace) do not collide and
-	// undercount the cluster's app load.
-	_, ok := sharding.Apps[a.QualifiedName()]
-	sharding.Apps[a.QualifiedName()] = a
-	if !ok {
-		sharding.scheduleRecompute()
-	} else {
-		log.Debugf("Skipping sharding distribution update. App already added")
-	}
+	sharding.upsertApp(a)
 }
 
 func (sharding *ClusterSharding) DeleteApp(a *v1alpha1.Application) {
@@ -330,21 +321,29 @@ func (sharding *ClusterSharding) DeleteApp(a *v1alpha1.Application) {
 	}
 }
 
+// UpdateApp records a in the sharding cache. See upsertApp.
 func (sharding *ClusterSharding) UpdateApp(a *v1alpha1.Application) {
+	sharding.upsertApp(a)
+}
+
+// upsertApp stores a and recomputes the distribution when the app is new or
+// its destination cluster changed: the consistent-hashing-with-bounded-loads
+// algorithm weights each cluster by its app count (keyed on
+// Destination.Server), so a destination change shifts load between clusters.
+// Apps are keyed by QualifiedName (namespace/name) so that same-named apps in
+// different namespaces (apps-in-any-namespace) do not collide and undercount.
+func (sharding *ClusterSharding) upsertApp(a *v1alpha1.Application) {
 	sharding.lock.Lock()
 	defer sharding.lock.Unlock()
 
-	old, ok := sharding.Apps[a.QualifiedName()]
-	sharding.Apps[a.QualifiedName()] = a
-	// Recompute the distribution when the app is new, or when its destination
-	// cluster changed: the consistent-hashing-with-bounded-loads algorithm
-	// weights each cluster by its app count (keyed on Destination.Server), so a
-	// destination change alters the load and must trigger a redistribution.
+	key := a.QualifiedName()
+	old, ok := sharding.Apps[key]
+	sharding.Apps[key] = a
 	if !ok || old.Spec.Destination.Server != a.Spec.Destination.Server {
 		sharding.scheduleRecompute()
-	} else {
-		log.Debugf("Skipping sharding distribution update. No relevant changes")
+		return
 	}
+	log.Debugf("Skipping sharding distribution update for %s. No relevant changes", key)
 }
 
 // GetAppDistribution should be not be called from a DistributionFunction because
