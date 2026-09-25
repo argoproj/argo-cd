@@ -41,3 +41,17 @@
         width: 100%;
     }
 }
+
+body.disable-animations *,
+body.disable-animations *::before,
+body.disable-animations *::after {
+    animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation: none !important;
+    }
+}

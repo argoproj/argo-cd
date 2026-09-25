@@ -3,7 +3,7 @@ declare const test: any;
 declare const expect: any;
 declare const describe: any;
 import {concatMaps} from './utils';
-import {isValidManagedByURL, isValidURL, queryParamsChanged} from './utils';
+import {isValidManagedByURL, isValidURL, queryParamsChanged, setAnimationsDisabled} from './utils';
 
 test('map concatenation', () => {
     const map1 = {
@@ -84,5 +84,14 @@ describe('queryParamsChanged', () => {
     test('handles an empty search string', () => {
         expect(queryParamsChanged('', {proj: ''})).toBe(true);
         expect(queryParamsChanged('', {proj: null})).toBe(false);
+    });
+});
+
+describe('setAnimationsDisabled', () => {
+    test('toggles disable-animations class on body', () => {
+        setAnimationsDisabled(true);
+        expect(document.body.classList.contains('disable-animations')).toBe(true);
+        setAnimationsDisabled(false);
+        expect(document.body.classList.contains('disable-animations')).toBe(false);
     });
 });

@@ -135,6 +135,10 @@ export const useTheme = (props: {theme: string}) => {
     return [theme];
 };
 
+export const setAnimationsDisabled = (disabled: boolean) => {
+    document.body.classList.toggle('disable-animations', disabled);
+};
+
 export const formatClusterQueryParam = (cluster: Cluster) => {
     if (cluster.name === cluster.server) {
         return cluster.name;
