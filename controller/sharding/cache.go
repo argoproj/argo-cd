@@ -218,8 +218,9 @@ func (sharding *ClusterSharding) scheduleRecompute() {
 // UpdateApp and DeleteApp signal the worker instead of recomputing inline,
 // which coalesces bursts of application events into a single recompute.
 // Cluster-level changes (Init/Add/Delete/Update) keep recomputing synchronously.
-// Run returns immediately; the worker stops when ctx is cancelled. Calling Run
-// more than once is a no-op.
+// Run returns immediately; the worker stops when ctx is cancelled, after which
+// application changes recompute inline again. Calling Run while the worker is
+// running is a no-op.
 //
 // Staleness note: after Run is called, GetDistribution and IsManagedCluster
 // may lag up to recomputeDebounceInterval behind the current Apps map.
@@ -239,6 +240,14 @@ func (sharding *ClusterSharding) Run(ctx context.Context) {
 }
 
 func (sharding *ClusterSharding) recomputeWorker(ctx context.Context) {
+	// Reset async when the worker exits so that "async" always means "a worker
+	// is running": application changes recompute inline again and Run may be
+	// called again with a new context.
+	defer func() {
+		sharding.lock.Lock()
+		sharding.async = false
+		sharding.lock.Unlock()
+	}()
 	for {
 		select {
 		case <-ctx.Done():

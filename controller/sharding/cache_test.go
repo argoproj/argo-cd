@@ -1,6 +1,7 @@
 package sharding
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -747,6 +748,44 @@ func TestClusterSharding_UpdateShard_ConcurrentCallers(t *testing.T) {
 
 	assert.Equal(t, int32(1), changed.Load(), "exactly one caller must observe the shard change")
 	assert.Equal(t, 1, sharding.Shard)
+}
+
+// TestClusterSharding_Run_ResetsAsyncOnStop verifies that once the worker's
+// context is cancelled, application changes recompute inline again and Run can
+// be started again.
+func TestClusterSharding_Run_ResetsAsyncOnStop(t *testing.T) {
+	sharding := setupTestSharding(0, 2)
+
+	var shardCalls atomic.Int32
+	sharding.getClusterShard = func(_ *v1alpha1.Cluster) int {
+		shardCalls.Add(1)
+		return 0
+	}
+	sharding.Init(
+		&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{{ID: "1", Server: "https://serverA"}}},
+		&v1alpha1.ApplicationList{},
+	)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	sharding.Run(ctx)
+	cancel()
+	require.Eventually(t, func() bool {
+		sharding.lock.RLock()
+		defer sharding.lock.RUnlock()
+		return !sharding.async
+	}, 5*time.Second, 10*time.Millisecond, "async must be reset when the worker exits")
+
+	// Inline again: the add recomputes synchronously.
+	shardCalls.Store(0)
+	app := createApp("app-1", "https://serverA")
+	sharding.AddApp(&app)
+	assert.Positive(t, shardCalls.Load(), "changes must recompute inline once the worker stopped")
+
+	// Run can be started again.
+	sharding.Run(t.Context())
+	sharding.lock.RLock()
+	assert.True(t, sharding.async)
+	sharding.lock.RUnlock()
 }
 
 // TestClusterSharding_Run_DebouncesRecomputes verifies that once the background
