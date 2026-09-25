@@ -22,8 +22,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -70,7 +68,7 @@ func Test_JSONLogging_EmbeddedKubernetesType(t *testing.T) {
 	// ApplicationService/Update sends *v1alpha1.Application directly; it embeds metav1.ObjectMeta,
 	// which is what gogo jsonpb can no longer marshal (see the issue for the underlying k8s change).
 	req := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "my-app"},
+		Name: "my-app",
 	}
 	info := &grpc.UnaryServerInfo{}
 	handler := func(_ context.Context, _ any) (any, error) {
@@ -88,6 +86,37 @@ func Test_JSONLogging_EmbeddedKubernetesType(t *testing.T) {
 	// whole entry, and buf stays empty.
 	assert.Contains(t, out, `"msg":"received unary call`)
 	assert.Contains(t, out, `"my-app"`)
+}
+
+// unmarshalableField fails both serializers jsonpbMarshalleble.MarshalJSON falls back between:
+// gogo's jsonpb rejects it for not implementing proto.Message itself (the same failure mode as the
+// Kubernetes types above), and its channel field is a type encoding/json cannot marshal either.
+type unmarshalableField struct {
+	Ch chan int `protobuf:"bytes,1,opt,name=ch" json:"ch"`
+}
+
+// unmarshalableMessage is a minimal proto.Message whose sole field is an unmarshalableField.
+type unmarshalableMessage struct {
+	Field unmarshalableField `protobuf:"bytes,1,opt,name=field" json:"field"`
+}
+
+func (*unmarshalableMessage) Reset()         {}
+func (*unmarshalableMessage) String() string { return "" }
+func (*unmarshalableMessage) ProtoMessage()  {}
+
+// Test_JSONLogging_BothSerializersFail is a regression test for the case where jsonpb.Marshal and
+// its encoding/json fallback both fail: MarshalJSON must report an error that identifies both
+// failures rather than returning an invalid payload.
+func Test_JSONLogging_BothSerializersFail(t *testing.T) {
+	t.Parallel()
+	j := &jsonpbMarshalleble{&unmarshalableMessage{}}
+
+	data, err := j.MarshalJSON()
+
+	require.Error(t, err)
+	assert.Nil(t, data)
+	assert.Contains(t, err.Error(), "jsonpb serializer failed")
+	assert.Contains(t, err.Error(), "encoding/json fallback failed")
 }
 
 func Test_logRequest(t *testing.T) {
