@@ -26,12 +26,20 @@ type PullRequestGenerator struct {
 	client                    client.Client
 	selectServiceProviderFunc func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
 	SCMConfig
+	PRHints *pullrequest.PRHintStore
+}
+
+// GetPRHints exposes the hint store via a local interface so NewWebhookHandler can
+// retrieve it without a concrete type import cycle.
+func (g *PullRequestGenerator) GetPRHints() *pullrequest.PRHintStore {
+	return g.PRHints
 }
 
 func NewPullRequestGenerator(client client.Client, scmConfig SCMConfig) Generator {
 	g := &PullRequestGenerator{
 		client:    client,
 		SCMConfig: scmConfig,
+		PRHints:   &pullrequest.PRHintStore{},
 	}
 	g.selectServiceProviderFunc = g.selectServiceProvider
 	return g
@@ -195,15 +203,15 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret Bearer token: %w", err)
 			}
-			return pullrequest.NewBitbucketCloudServiceBearerToken(providerConfig.API, appToken, providerConfig.Owner, providerConfig.Repo)
+			return pullrequest.NewBitbucketCloudServiceBearerToken(providerConfig.API, appToken, providerConfig.Owner, providerConfig.Repo, g.PRHints)
 		} else if providerConfig.BasicAuth != nil {
 			password, err := utils.GetSecretRef(ctx, g.client, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret token: %w", err)
 			}
-			return pullrequest.NewBitbucketCloudServiceBasicAuth(providerConfig.API, providerConfig.BasicAuth.Username, password, providerConfig.Owner, providerConfig.Repo)
+			return pullrequest.NewBitbucketCloudServiceBasicAuth(providerConfig.API, providerConfig.BasicAuth.Username, password, providerConfig.Owner, providerConfig.Repo, g.PRHints)
 		}
-		return pullrequest.NewBitbucketCloudServiceNoAuth(providerConfig.API, providerConfig.Owner, providerConfig.Repo)
+		return pullrequest.NewBitbucketCloudServiceNoAuth(providerConfig.API, providerConfig.Owner, providerConfig.Repo, g.PRHints)
 	}
 	if generatorConfig.AzureDevOps != nil {
 		providerConfig := generatorConfig.AzureDevOps
