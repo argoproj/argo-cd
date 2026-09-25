@@ -63,9 +63,17 @@ type jsonpbMarshalleble struct {
 func (j *jsonpbMarshalleble) MarshalJSON() ([]byte, error) {
 	var b bytes.Buffer
 	m := &jsonpb.Marshaler{}
-	err := m.Marshal(&b, j.Message)
-	if err != nil {
-		return nil, fmt.Errorf("jsonpb serializer failed: %w", err)
+	if err := m.Marshal(&b, j.Message); err != nil {
+		// gogo's jsonpb requires every nested type to implement proto.Message. Since
+		// k8s.io/apimachinery v0.35 (kubernetes/kubernetes#134256), Kubernetes API types only do so behind
+		// a build tag we don't set, so any request embedding one, such as an Application's ObjectMeta,
+		// fails here. Fall back to encoding/json rather than losing the whole log entry: Argo CD's API
+		// types carry JSON tags, so this produces an equivalent payload.
+		data, jsonErr := json.Marshal(j.Message)
+		if jsonErr != nil {
+			return nil, fmt.Errorf("jsonpb serializer failed: %w", err)
+		}
+		return data, nil
 	}
 	return b.Bytes(), nil
 }
