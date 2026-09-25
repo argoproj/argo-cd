@@ -3690,6 +3690,73 @@ func Test_canProcessAppSkipReconcileAnnotation(t *testing.T) {
 	}
 }
 
+// shardingCacheSpy records which applications reach the sharding cache while
+// delegating to the real implementation.
+type shardingCacheSpy struct {
+	sharding.ClusterShardingCache
+	added, updated, deleted []string
+}
+
+func (s *shardingCacheSpy) AddApp(a *v1alpha1.Application) {
+	s.added = append(s.added, a.QualifiedName())
+	s.ClusterShardingCache.AddApp(a)
+}
+
+func (s *shardingCacheSpy) UpdateApp(a *v1alpha1.Application) {
+	s.updated = append(s.updated, a.QualifiedName())
+	s.ClusterShardingCache.UpdateApp(a)
+}
+
+func (s *shardingCacheSpy) DeleteApp(a *v1alpha1.Application) {
+	s.deleted = append(s.deleted, a.QualifiedName())
+	s.ClusterShardingCache.DeleteApp(a)
+}
+
+// Test_applicationEventHandlerFuncs_UpdateShardingCacheBeforeCanProcessApp
+// verifies the fix for #24515: the sharding cache is updated for every
+// application in an allowed namespace, even when this shard cannot process it,
+// so all shards compute the same cluster->shard mapping. Only queueing is gated
+// by canProcessApp. Applications outside the allowed namespaces are ignored.
+func Test_applicationEventHandlerFuncs_UpdateShardingCacheBeforeCanProcessApp(t *testing.T) {
+	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+	spy := &shardingCacheSpy{ClusterShardingCache: ctrl.clusterSharding}
+	ctrl.clusterSharding = spy
+	handlers := ctrl.applicationEventHandlerFuncs()
+
+	// Allowed namespace, but canProcessApp is false because of the
+	// skip-reconcile annotation: the cache must be updated, nothing queued.
+	app := newFakeApp()
+	app.Annotations = map[string]string{common.AnnotationKeyAppSkipReconcile: "true"}
+	require.False(t, ctrl.canProcessApp(app))
+
+	handlers.AddFunc(app)
+	handlers.UpdateFunc(app, app)
+	handlers.DeleteFunc(app)
+
+	assert.Equal(t, []string{app.QualifiedName()}, spy.added)
+	assert.Equal(t, []string{app.QualifiedName()}, spy.updated)
+	assert.Equal(t, []string{app.QualifiedName()}, spy.deleted)
+	assert.Equal(t, 0, ctrl.appRefreshQueue.Len(), "an application this shard cannot process must not be queued")
+
+	// Tombstones are unwrapped before the cache is updated.
+	handlers.DeleteFunc(cache.DeletedFinalStateUnknown{Key: app.QualifiedName(), Obj: app})
+	assert.Equal(t, []string{app.QualifiedName(), app.QualifiedName()}, spy.deleted)
+
+	// Not an allowed namespace: the cache must not be touched.
+	foreign := newFakeApp()
+	foreign.Namespace = "not-allowed"
+	require.False(t, ctrl.isAppNamespaceAllowed(foreign))
+	spy.added, spy.updated, spy.deleted = nil, nil, nil
+
+	handlers.AddFunc(foreign)
+	handlers.UpdateFunc(foreign, foreign)
+	handlers.DeleteFunc(foreign)
+
+	assert.Empty(t, spy.added)
+	assert.Empty(t, spy.updated)
+	assert.Empty(t, spy.deleted)
+}
+
 func Test_syncDeleteOption(t *testing.T) {
 	app := newFakeApp()
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
