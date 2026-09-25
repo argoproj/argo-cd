@@ -369,11 +369,14 @@ func (sharding *ClusterSharding) GetAppDistribution() map[string]int {
 }
 
 // UpdateShard will update the shard of ClusterSharding when the shard has changed.
+// The comparison and the write happen under the write lock so that concurrent
+// callers (overlapping readiness probes) cannot both observe a change and
+// trigger duplicate resyncs.
 func (sharding *ClusterSharding) UpdateShard(shard int) bool {
+	sharding.lock.Lock()
+	defer sharding.lock.Unlock()
 	if shard != sharding.Shard {
-		sharding.lock.Lock()
 		sharding.Shard = shard
-		sharding.lock.Unlock()
 		return true
 	}
 	return false

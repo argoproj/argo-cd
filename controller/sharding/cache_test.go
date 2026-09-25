@@ -711,6 +711,29 @@ func TestClusterSharding_UpdateShard_ConcurrentWithReads(t *testing.T) {
 	assert.Equal(t, 1, sharding.Shard)
 }
 
+// TestClusterSharding_UpdateShard_ConcurrentCallers exercises concurrent
+// UpdateShard calls with the same new shard (overlapping readiness probes).
+// The comparison and the write must happen under the same write lock so that
+// exactly one caller observes the change; run with -race to detect a regression.
+func TestClusterSharding_UpdateShard_ConcurrentCallers(t *testing.T) {
+	sharding := setupTestSharding(0, 2)
+	sharding.Init(&v1alpha1.ClusterList{}, &v1alpha1.ApplicationList{})
+
+	var changed atomic.Int32
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Go(func() {
+			if sharding.UpdateShard(1) {
+				changed.Add(1)
+			}
+		})
+	}
+	wg.Wait()
+
+	assert.Equal(t, int32(1), changed.Load(), "exactly one caller must observe the shard change")
+	assert.Equal(t, 1, sharding.Shard)
+}
+
 // TestClusterSharding_Run_DebouncesRecomputes verifies that once the background
 // worker is started, a burst of application changes collapses into a small
 // number of distribution recomputes (instead of one per app), while still
