@@ -1,0 +1,14 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: image-updater-progressing
+  namespace: argocd
+  generation: 1
+spec:
+  applicationRefs:
+  - images:
+    - alias: guestbook
+      commonUpdateSettings:
+        updateStrategy: semver
+      imageName: example.com/example/my-app:~1.0
+    namePattern: '*-01'

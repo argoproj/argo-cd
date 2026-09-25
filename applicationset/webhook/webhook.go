@@ -350,7 +350,7 @@ func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInf
 		return false
 	}
 
-	if !gitGeneratorUsesURL(gen, info.Revision, info.RepoRegexp) {
+	if !webhook.RepoURLMatches(gen.RepoURL, info.RepoRegexp) {
 		return false
 	}
 	if !webhook.RevisionHasChanged(gen.Revision, info.Revision, info.TouchedHead) {
@@ -377,16 +377,6 @@ func shouldRefreshOciGenerator(gen *v1alpha1.OciGenerator, info *ociGeneratorInf
 		return false
 	}
 
-	return true
-}
-
-func gitGeneratorUsesURL(gen *v1alpha1.GitGenerator, webURL string, repoRegexp *regexp.Regexp) bool {
-	if !repoRegexp.MatchString(gen.RepoURL) {
-		log.Warnf("%s does not match %s", gen.RepoURL, repoRegexp.String())
-		return false
-	}
-
-	log.Debugf("%s uses repoURL %s", gen.RepoURL, webURL)
 	return true
 }
 
