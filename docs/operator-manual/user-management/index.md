@@ -586,7 +586,11 @@ claim name:
 * **Namespaced claims.** The literal-first order is what lets you select claim names that contain
   dots of their own, such as `https://argocd.example.com/groups`. Issuers that namespace custom
   claims as URIs require this.
-* **Group value shapes.** `groupsClaim` accepts a list of strings or a single string.
+* **Value shapes.** All three accept either a string or a list of strings. This matters for
+  issuers that model claims on SAML attributes, where every claim is multi-valued by definition
+  and even an email arrives as `["user@example.com"]`. `groupsClaim` uses the whole list;
+  `usernameClaim` and `emailClaim` take a single value, using the first entry and logging a
+  warning if the claim holds more than one.
 
 If your provider presents identity in a shape none of these cover, that is worth raising as an
 issue rather than working around in the proxy.

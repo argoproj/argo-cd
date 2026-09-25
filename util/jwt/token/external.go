@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -39,6 +40,11 @@ func (v *externalTokenVerifier) Verify(ctx context.Context, tokenString string, 
 	if !argoSettings.IsJWTConfigured() {
 		return nil, errors.New("valid JWT configuration not found")
 	}
+
+	log.Debugf("Verifying external JWT. Config: headerName=%q usernameClaim=%q emailClaim=%q groupsClaim=%q jwkSetURL=%q",
+		argoSettings.JWTConfig.HeaderName, argoSettings.JWTConfig.UsernameClaim,
+		argoSettings.JWTConfig.EmailClaim, argoSettings.JWTConfig.GroupsClaim,
+		argoSettings.JWTConfig.JWKSetURL)
 
 	cacheTTL := v.defaultCacheTTL
 	if argoSettings.JWTConfig.CacheTTL != "" {
@@ -149,11 +155,27 @@ func (v *externalTokenVerifier) Verify(ctx context.Context, tokenString string, 
 		}
 	}
 
+	log.Debugf("External JWT signature verified. Claims present in token: %v", claimKeys(claims))
+
 	normalizeClaims(claims, argoSettings.JWTConfig)
+
+	log.Debugf("External JWT mapped identity: sub=%v email=%v groups=%v",
+		claims["sub"], claims["email"], claims["groups"])
 
 	// --- End Custom Claim Checks ---
 
 	return claims, nil
+}
+
+// claimKeys returns the claim names present in a token, sorted, for debug logging. Names only:
+// enough to see what the issuer actually sent without dumping every value into the log.
+func claimKeys(claims jwtgo.MapClaims) []string {
+	keys := make([]string, 0, len(claims))
+	for key := range claims {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // normalizeClaims projects the claims named in the JWT config onto the claims Argo CD reads
@@ -170,6 +192,11 @@ func normalizeClaims(claims jwtgo.MapClaims, config *settings.JWTConfig) {
 	username, hasUsername := getNestedClaimString(claims, config.UsernameClaim)
 	email, hasEmail := getNestedClaimString(claims, config.EmailClaim)
 	groups, hasGroups := getNestedClaimStrings(claims, config.GroupsClaim)
+
+	log.Debugf("External JWT claim mapping: usernameClaim=%q resolved=%t value=%q; emailClaim=%q resolved=%t value=%q; groupsClaim=%q resolved=%t value=%v",
+		config.UsernameClaim, hasUsername, username,
+		config.EmailClaim, hasEmail, email,
+		config.GroupsClaim, hasGroups, groups)
 
 	if config.UsernameClaim != "" {
 		if hasUsername {
@@ -235,7 +262,7 @@ func (v *externalTokenVerifier) getJWKS(ctx context.Context, jwksURL string, cac
 	v.jwksCache = &jwks
 	v.jwksExpiry = time.Now().Add(cacheTTL)
 
-	log.Debug("Token verified using JWT")
+	log.Debugf("Fetched JWKS from %s: %d key(s), cached until %s", jwksURL, len(jwks.Keys), v.jwksExpiry.Format(time.RFC3339))
 	return &jwks, nil
 }
 
@@ -250,6 +277,7 @@ func (v *externalTokenVerifier) getJWKS(ctx context.Context, jwksURL string, cac
 // express. A literal match therefore wins over traversal.
 func getNestedClaim(data map[string]any, path string) (any, bool) {
 	if value, exists := data[path]; exists {
+		log.Debugf("Claim %q resolved as a literal claim name", path)
 		return value, true
 	}
 
@@ -259,15 +287,25 @@ func getNestedClaim(data map[string]any, path string) (any, bool) {
 	for i, key := range keys {
 		currentMap, ok := current.(map[string]any)
 		if !ok {
+			log.Debugf("Claim %q not found: no literal claim with that name, and %q is a %T, not an object, so it cannot be traversed further",
+				path, strings.Join(keys[:i], "."), current)
 			return nil, false
 		}
 
 		value, exists := currentMap[key]
 		if !exists {
+			available := make([]string, 0, len(currentMap))
+			for k := range currentMap {
+				available = append(available, k)
+			}
+			sort.Strings(available)
+			log.Debugf("Claim %q not found: no literal claim with that name, and segment %q is absent at %q (available there: %v)",
+				path, key, strings.Join(keys[:i], "."), available)
 			return nil, false
 		}
 
 		if i == len(keys)-1 {
+			log.Debugf("Claim %q resolved by traversing nested claims", path)
 			return value, true
 		}
 		current = value
@@ -275,21 +313,28 @@ func getNestedClaim(data map[string]any, path string) (any, bool) {
 	return nil, false
 }
 
-// getNestedClaimString resolves a claim path to a non-empty string. An empty path, a
-// missing claim or a non-string value all return false.
+// getNestedClaimString resolves a claim path to a single non-empty string.
+//
+// A list holding one string is accepted as that string. Issuers that model claims on SAML
+// attributes represent every claim as a list, because SAML attributes are multi-valued by
+// definition, so a single-valued claim like an email still arrives as ["a@b.com"].
+// Requiring a bare string would reject those outright.
+//
+// A list with more than one entry uses the first and warns: there is no basis for choosing
+// among them, and rejecting the token over it would be worse than picking one.
+// An empty path, a missing claim, an empty value or an unusable type all return false.
 func getNestedClaimString(claims map[string]any, path string) (string, bool) {
-	if path == "" {
+	values, ok := getNestedClaimStrings(claims, path)
+	if !ok || len(values) == 0 {
 		return "", false
 	}
-	value, ok := getNestedClaim(claims, path)
-	if !ok {
+	if len(values) > 1 {
+		log.Warnf("Claim %q holds %d values but is used as a single value; using the first (%q)", path, len(values), values[0])
+	}
+	if values[0] == "" {
 		return "", false
 	}
-	str, ok := value.(string)
-	if !ok || str == "" {
-		return "", false
-	}
-	return str, true
+	return values[0], true
 }
 
 // getNestedClaimStrings resolves a claim path to a list of strings. Issuers spell

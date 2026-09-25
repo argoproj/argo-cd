@@ -403,6 +403,40 @@ func TestVerify_ClaimMapping(t *testing.T) {
 			expectedSub: "bgroux",
 		},
 		{
+			// Issuers that model claims on SAML attributes represent every claim as a list,
+			// so a single-valued username or email still arrives wrapped in one.
+			name:          "single element list is accepted for a single valued claim",
+			usernameClaim: "user_info.family_name",
+			emailClaim:    "user_info.email",
+			claims: map[string]any{
+				"sub": "8a1f0c7e-4b2d-4f3a-9c11-0d5e6f7a8b9c",
+				"user_info": map[string]any{
+					"family_name": []string{"Groux"},
+					"email":       []string{"bgroux@example.com"},
+				},
+			},
+			expectedSub:   "Groux",
+			expectedEmail: "bgroux@example.com",
+		},
+		{
+			name:          "multi element list for a single valued claim uses the first entry",
+			usernameClaim: "aliases",
+			claims: map[string]any{
+				"sub":     "8a1f0c7e-4b2d-4f3a-9c11-0d5e6f7a8b9c",
+				"aliases": []string{"primary", "secondary"},
+			},
+			expectedSub: "primary",
+		},
+		{
+			name:          "list holding only an empty string does not map",
+			usernameClaim: "user_info.family_name",
+			claims: map[string]any{
+				"sub":       "fallback-subject",
+				"user_info": map[string]any{"family_name": []string{""}},
+			},
+			expectedSub: "fallback-subject",
+		},
+		{
 			// federated_claims is left untouched. Note that jwt.GetUserIdentifier would still
 			// prefer federated_claims.user_id over the sub mapped here; that cannot happen in
 			// practice because federated_claims comes from Dex, which is never the verifier when
