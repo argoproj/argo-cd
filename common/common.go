@@ -294,6 +294,9 @@ const (
 	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
 	// EnvControllerShardingAlgorithm is the distribution sharding algorithm to be used: legacy or round-robin
 	EnvControllerShardingAlgorithm = "ARGOCD_CONTROLLER_SHARDING_ALGORITHM"
+	// EnvControllerShardingRecomputeDebounce is how long the controller waits after the first application change
+	// before recomputing the cluster to shard distribution, so a burst of application events recomputes once
+	EnvControllerShardingRecomputeDebounce = "ARGOCD_CONTROLLER_SHARDING_RECOMPUTE_DEBOUNCE"
 	// EnvEnableDynamicClusterDistribution enables dynamic sharding (ALPHA)
 	EnvEnableDynamicClusterDistribution = "ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION"
 	// EnvEnableGRPCTimeHistogramEnv enables gRPC metrics collection

@@ -30,6 +30,8 @@ This feature is disabled by default while it is in alpha. In order to utilize th
 
 Note the introduction of new environment variable `ARGOCD_CONTROLLER_HEARTBEAT_TIME`. The environment variable is explained in [working of Dynamic Distribution Heartbeat Process](#working-of-dynamic-distribution)
 
+Every controller replica tracks all Applications to compute the same cluster to shard mapping. To avoid recomputing the mapping once per Application during bursts (for example an ApplicationSet rollout), Application changes are debounced: the first change starts a timer and all changes within the window are folded into a single recompute. The window defaults to `500ms` and can be tuned with the environment variable `ARGOCD_CONTROLLER_SHARDING_RECOMPUTE_DEBOUNCE` (a Go duration between `0` and `10s`). Cluster-level changes always recompute immediately.
+
 ## Working of Dynamic Distribution
 
 To accomplish runtime distribution of clusters, the Application Controller uses a ConfigMap to associate a controller 

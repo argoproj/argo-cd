@@ -12,14 +12,18 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 // recomputeDebounceInterval is how long the recompute worker waits after the
 // first pending application change before recomputing the cluster->shard
 // distribution, so that a burst of application events (for example an
 // ApplicationSet rollout) collapses into a single recompute instead of one per
-// application on every shard.
-const recomputeDebounceInterval = 500 * time.Millisecond
+// application on every shard. The default bounds the cost of the
+// O(clusters x (clusters + apps)) recompute to at most two per second per
+// replica while keeping the mapping far fresher than the 10s heartbeat that
+// drives shard changes. Configurable via ARGOCD_CONTROLLER_SHARDING_RECOMPUTE_DEBOUNCE.
+var recomputeDebounceInterval = env.ParseDurationFromEnv(common.EnvControllerShardingRecomputeDebounce, 500*time.Millisecond, 0, 10*time.Second)
 
 type ClusterShardingCache interface {
 	Init(clusters *v1alpha1.ClusterList, apps *v1alpha1.ApplicationList)
