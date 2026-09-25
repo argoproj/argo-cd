@@ -63,8 +63,9 @@ func getBatchv1JobHealth(job *batchv1.Job) (*HealthStatus, error) {
 		}, nil
 	case isSuspended:
 		return &HealthStatus{
-			Status:  HealthStatusSuspended,
-			Message: message,
+			Status:      HealthStatusSuspended,
+			Message:     message,
+			AggregateAs: HealthStatusHealthy, // Suspended Jobs should not affect Application health
 		}, nil
 	default:
 		return &HealthStatus{
