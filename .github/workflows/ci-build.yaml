@@ -82,6 +82,16 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+          cache: false
+      - name: Restore go build and module cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-build-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-build-v2-
       - name: Download all Go modules
         run: |
           go mod download
@@ -116,9 +126,9 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-build-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-build-v1-
+            ${{ runner.os }}-go-build-v2-
       - name: Download Go modules
         run: |
           go mod download
@@ -148,6 +158,16 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+          cache: false
+      - name: Restore go build and module cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-build-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-build-v2-
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
@@ -207,9 +227,10 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-test-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-build-v1-
+            ${{ runner.os }}-go-test-v2-
+            ${{ runner.os }}-go-build-v2-
       - name: Install all tools required for building & testing
         run: |
           make install-test-tools-local
@@ -284,9 +305,10 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-race-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-build-v1-
+            ${{ runner.os }}-go-race-v2-
+            ${{ runner.os }}-go-build-v2-
       - name: Install all tools required for building & testing
         run: |
           make install-test-tools-local
@@ -329,6 +351,16 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+          cache: false
+      - name: Restore go build and module cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-build-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-build-v2-
       - name: Create symlink in GOPATH
         # generalizing repo name for forks:  ${{ github.event.repository.name }}
         run: |
@@ -626,14 +658,14 @@ jobs:
           sudo chmod go-r $HOME/.kube/config
           kubectl version
       - name: Restore go build and module cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-build-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-build-v1-
+            ${{ runner.os }}-go-build-v2-
       - name: Add ~/go/bin to PATH
         run: |
           echo "$HOME/go/bin" >> $GITHUB_PATH
