@@ -17,6 +17,7 @@ import (
 	gitopsDiff "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
@@ -331,6 +332,11 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		log.Errorf("Could not get trackingMethod: %v", err)
 		return
 	}
+	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		log.Errorf("Could not get appLabelKey: %v", err)
+		return
+	}
 
 	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled()
 	if err != nil {
@@ -386,6 +392,29 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
 		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes, state.StartedAt),
 		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
+			// A force-sync replaces the live object outright instead of patching it, so a
+			// resource whose tracking ID belongs to a different Application must be kept out
+			// of the sync task list entirely - not merely warned about - or the replace
+			// deletes and recreates a resource another Application still owns (critical for a
+			// cluster-scoped resource like a Namespace, which enters Terminating and takes
+			// every workload inside it down). SharedResourceWarning already reports the
+			// conflict from the comparison phase; this only has to withhold this resource from
+			// this sync's task list, which containsResource -> continue treats as skipped
+			// entirely (no apply, no prune) rather than as a resource to reconcile.
+			//
+			// force must mirror exactly how the sync engine itself derives it
+			// (gitops-engine/pkg/sync/sync_context.go, applyObject): the operation-wide
+			// strategy, or a Force=true sync-option annotation on either the target or the
+			// live object. Checking only the operation-wide strategy would let a per-resource
+			// Force=true annotation bypass this guard.
+			forced := syncOp.SyncStrategy.Force() ||
+				(target != nil && resourceutil.HasAnnotationOption(target, common.AnnotationSyncOptions, common.SyncOptionForce)) ||
+				(live != nil && resourceutil.HasAnnotationOption(live, common.AnnotationSyncOptions, common.SyncOptionForce))
+			if forced && live != nil {
+				if ownerApp := m.resourceTracking.GetAppName(live, appLabelKey, v1alpha1.TrackingMethod(trackingMethod), installationID); ownerApp != "" && ownerApp != app.InstanceName(m.namespace) {
+					return false
+				}
+			}
 			return (len(syncOp.Resources) == 0 ||
 				isPostDeleteHook(target) ||
 				isPreDeleteHook(target) ||
