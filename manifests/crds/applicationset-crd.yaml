@@ -10387,14 +10387,27 @@ spec:
                                         - key
                                         - secretName
                                         type: object
+                                      bearerToken:
+                                        properties:
+                                          tokenRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                        required:
+                                        - tokenRef
+                                        type: object
                                       owner:
                                         type: string
                                       user:
                                         type: string
                                     required:
-                                    - appPasswordRef
                                     - owner
-                                    - user
                                     type: object
                                   bitbucketServer:
                                     properties:
@@ -19065,14 +19078,27 @@ spec:
                                         - key
                                         - secretName
                                         type: object
+                                      bearerToken:
+                                        properties:
+                                          tokenRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                        required:
+                                        - tokenRef
+                                        type: object
                                       owner:
                                         type: string
                                       user:
                                         type: string
                                     required:
-                                    - appPasswordRef
                                     - owner
-                                    - user
                                     type: object
                                   bitbucketServer:
                                     properties:
@@ -24080,14 +24106,27 @@ spec:
                               - key
                               - secretName
                               type: object
+                            bearerToken:
+                              properties:
+                                tokenRef:
+                                  properties:
+                                    key:
+                                      type: string
+                                    secretName:
+                                      type: string
+                                  required:
+                                  - key
+                                  - secretName
+                                  type: object
+                              required:
+                              - tokenRef
+                              type: object
                             owner:
                               type: string
                             user:
                               type: string
                           required:
-                          - appPasswordRef
                           - owner
-                          - user
                           type: object
                         bitbucketServer:
                           properties:
