@@ -345,6 +345,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                                 type={''}
                                 revision={application.status.sourceHydrator.currentOperation.drySHA}
                                 versionId={utils.getAppCurrentVersion(application)}
+                                sourceIndex={-1}
                             />
                         )}
                     </div>
