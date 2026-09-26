@@ -9,6 +9,7 @@ import './application-status-panel.scss';
 
 interface Props {
     appSet: models.ApplicationSet;
+    collapsed?: boolean;
     showConditions?: () => any;
 }
 
@@ -39,11 +40,49 @@ const getConditionCounts = (conditions: models.ApplicationSetCondition[]) => {
     return counts;
 };
 
-export const ApplicationSetStatusPanel = ({appSet, showConditions}: Props) => {
+export const ApplicationSetStatusPanel = ({appSet, collapsed, showConditions}: Props) => {
     const healthStatus = getAppSetHealthStatus(appSet);
     const conditions = appSet.status?.conditions || [];
     const conditionCounts = getConditionCounts(conditions);
     const latestCondition = conditions.length > 0 ? conditions[conditions.length - 1] : null;
+
+    if (collapsed) {
+        return (
+            <div className='application-status-panel application-status-panel--collapsed row'>
+                <div className='application-status-panel__collapsed-item' title='AppSet Health'>
+                    <HealthStatusIcon state={{status: healthStatus, message: ''}} />
+                    &nbsp;
+                    {healthStatus}
+                </div>
+                {conditions.length > 0 && (
+                    <div className='application-status-panel__collapsed-item application-status-panel__conditions' onClick={() => showConditions && showConditions()}>
+                        {conditionCounts.info > 0 && (
+                            <a className='info'>
+                                <i className='fa fa-info-circle application-status-panel__item-value__status-button' />
+                                <span className='sync-condition-details'>{conditionCounts.info} Info</span>
+                            </a>
+                        )}
+                        {conditionCounts.warning > 0 && (
+                            <a className='warning'>
+                                <i className='fa fa-exclamation-triangle application-status-panel__item-value__status-button' />
+                                <span className='sync-condition-details'>
+                                    {conditionCounts.warning} Warning{conditionCounts.warning !== 1 && 's'}
+                                </span>
+                            </a>
+                        )}
+                        {conditionCounts.error > 0 && (
+                            <a className='error'>
+                                <i className='fa fa-exclamation-circle application-status-panel__item-value__status-button' />
+                                <span className='sync-condition-details'>
+                                    {conditionCounts.error} Error{conditionCounts.error !== 1 && 's'}
+                                </span>
+                            </a>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    }
 
     return (
         <div className='application-status-panel row'>

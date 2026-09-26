@@ -19,6 +19,7 @@ import {ApplicationOperationState} from '../application-operation-state/applicat
 import {PodGroupType, PodView} from '../application-pod-view/pod-view';
 import {ApplicationResourceTree, type ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
+import {StatusPanelToggle} from './status-panel-toggle';
 import {ApplicationSetStatusPanel} from '../application-status-panel/appset-status-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {isApp} from '../utils';
@@ -995,6 +996,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                 {isApplication ? (
                                                     <ApplicationStatusPanel
                                                         application={application as appModels.Application}
+                                                        collapsed={pref.hideStatusPanel}
                                                         showDiff={() => selectNode(appFullName, 0, 'diff')}
                                                         showOperation={() => setOperationStatusVisible(true)}
                                                         showHydrateOperation={() => setHydrateOperationStatusVisible(true)}
@@ -1005,9 +1007,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                 ) : (
                                                     <ApplicationSetStatusPanel
                                                         appSet={application as appModels.ApplicationSet}
+                                                        collapsed={pref.hideStatusPanel}
                                                         showConditions={() => setConditionsStatusVisible(true)}
                                                     />
                                                 )}
+                                                <StatusPanelToggle pref={pref} />
                                             </div>
                                             <NoticeBanner
                                                 annotations={application.metadata.annotations}
