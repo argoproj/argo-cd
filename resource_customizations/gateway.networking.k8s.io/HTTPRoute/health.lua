@@ -3,7 +3,7 @@ local hs = {}
 function checkConditions(conditions, conditionType)
   for _, condition in ipairs(conditions) do
     if condition.type == conditionType and condition.status == "False" then
-      return false, condition.message or ("Failed condition: " .. conditionType)
+      return false, condition.message or ("Failed condition: " .. condition.type)
     end
   end
   return true
@@ -42,19 +42,15 @@ if obj.status ~= nil then
           goto continue
         end
 
-        local resolvedRefsFalse, resolvedRefsMsg = checkConditions(parent.conditions, "ResolvedRefs")
-        local acceptedFalse, acceptedMsg = checkConditions(parent.conditions, "Accepted")
+       -- Check each of these condition types for a false status
+        for _, type in ipairs({"ResolvedRefs", "Accepted", "Reconciled"}) do
+          local status, message = checkConditions(parent.conditions, type)
 
-        if not resolvedRefsFalse then
-          hs.status = "Degraded"
-          hs.message = "Parent " .. (parent.parentRef.name or "") .. ": " .. resolvedRefsMsg
-          return hs
-        end
-
-        if not acceptedFalse then
-          hs.status = "Degraded"
-          hs.message = "Parent " .. (parent.parentRef.name or "") .. ": " .. acceptedMsg
-          return hs
+          if not status then
+            hs.status = "Degraded"
+            hs.message = "Parent " .. (parent.parentRef.name or "") .. ": " .. message
+            return hs
+          end
         end
 
         local isProgressing = false
