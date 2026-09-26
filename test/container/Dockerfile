@@ -66,6 +66,8 @@ ENV GRPC_ENABLE_TXT_SERVICE_CONFIG=false
 COPY hack/install.sh hack/tool-versions.sh go.* ./
 COPY hack/installers installers
 COPY gitops-engine/go.* ./gitops-engine/
+# Module files for the isolated codegen tool module; see hack/tools/go.mod.
+COPY hack/tools/go.* ./hack/tools/
 
 RUN ./install.sh helm && \
     ./install.sh kustomize && \
