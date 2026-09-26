@@ -474,6 +474,49 @@ func populateGatewayInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	}
 }
 
+// generateGatewayAPIRouteURLs builds external URLs from the hostnames declared
+// on a Gateway API route (spec.hostnames). This field is present on HTTPRoute,
+// GRPCRoute and TLSRoute, but not on the L4 TCPRoute/UDPRoute. When Gateways are
+// shared and use wildcard listener hostnames, the application's actual public
+// hostname exists only on the route, so exposing it here keeps
+// app.status.summary.externalURLs populated for notifications and other
+// integrations after a migration from Ingress to Gateway API.
+func generateGatewayAPIRouteURLs(un *unstructured.Unstructured) []string {
+	hostnames, ok, err := unstructured.NestedStringSlice(un.Object, "spec", "hostnames")
+	if err != nil {
+		log.Warnf("Failed to get hostnames for %s %s/%s: %v", un.GetKind(), un.GetNamespace(), un.GetName(), err)
+		return nil
+	}
+	if !ok {
+		return nil
+	}
+
+	urlsSet := make(map[string]bool)
+	for _, hostname := range hostnames {
+		// Skip empty and pure wildcard hostnames, which do not resolve to a
+		// usable external URL.
+		if hostname == "" || hostname == "*" {
+			continue
+		}
+		// A route does not carry scheme/TLS information (that is defined on the
+		// parent Gateway listener), so default to https. This is always correct
+		// for TLSRoute, the common case for GRPCRoute, and the overwhelmingly
+		// common case for HTTPRoute in production Gateway API deployments.
+		urlStr := "https://" + hostname
+		if err := settings.ValidateExternalURL(urlStr); err != nil {
+			log.Warnf("Invalid URL generated for %s %s/%s: %s", un.GetKind(), un.GetNamespace(), un.GetName(), urlStr)
+			continue
+		}
+		urlsSet[urlStr] = true
+	}
+
+	urls := make([]string, 0, len(urlsSet))
+	for u := range urlsSet {
+		urls = append(urls, u)
+	}
+	return urls
+}
+
 func populateGatewayAPIRouteInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	targetsMap := make(map[v1alpha1.ResourceRef]bool)
 
@@ -582,6 +625,19 @@ func populateGatewayAPIRouteInfo(un *unstructured.Unstructured, res *ResourceInf
 	var urls []string
 	if res.NetworkingInfo != nil {
 		urls = res.NetworkingInfo.ExternalURLs
+	}
+
+	// Add URLs derived from spec.hostnames unless the resource opts out via the
+	// ignore-default-links annotation. Links added through the
+	// link.argocd.argoproj.io/* annotations are preserved regardless.
+	enableDefaultExternalURLs := true
+	if ignoreVal, ok := un.GetAnnotations()[common.AnnotationKeyIgnoreDefaultLinks]; ok {
+		if ignoreDefaultLinks, err := strconv.ParseBool(ignoreVal); err == nil {
+			enableDefaultExternalURLs = !ignoreDefaultLinks
+		}
+	}
+	if enableDefaultExternalURLs {
+		urls = append(urls, generateGatewayAPIRouteURLs(un)...)
 	}
 
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{
