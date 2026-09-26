@@ -113,6 +113,15 @@ func TestStringSliceFlagAtEnd(t *testing.T) {
 	assert.Equal(t, "Strict-Transport-Security: max-age=31536000", strings[0])
 }
 
+func TestStringSliceFlagMultipleHeaders(t *testing.T) {
+	loadOpts(t, `--header "CF-Access-Client-Id: foo" --header "CF-Access-Client-Secret: bar"`)
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "CF-Access-Client-Id: foo", strings[0])
+	assert.Equal(t, "CF-Access-Client-Secret: bar", strings[1])
+}
+
 func TestFlagAtStart(t *testing.T) {
 	loadOpts(t, "--foo bar")
 
