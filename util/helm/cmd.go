@@ -16,6 +16,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	certutil "github.com/argoproj/argo-cd/v3/util/cert"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
@@ -30,6 +31,7 @@ type Cmd struct {
 	IsHelmOci       bool
 	proxy           string
 	noProxy         string
+	caTrustEnv      []string
 	runWithRedactor func(cmd *exec.Cmd, redactor func(text string) string) (string, error)
 }
 
@@ -81,6 +83,7 @@ func (c Cmd) runWithStdin(ctx context.Context, stdin io.Reader, args ...string) 
 	}
 
 	cmd.Env = proxy.UpsertEnv(cmd, c.proxy, c.noProxy)
+	cmd.Env = certutil.UpsertEnvVars(cmd.Env, c.caTrustEnv...)
 	fullCommand := executil.GetCommandArgsToLog(cmd)
 
 	out, err := c.runWithRedactor(cmd, redactor)
@@ -114,7 +117,12 @@ func (c *Cmd) RegistryLogin(ctx context.Context, repo string, creds Creds, plain
 	}
 
 	if creds.GetCAPath() != "" {
-		args = append(args, "--ca-file", creds.GetCAPath())
+		var caCloser utilio.Closer
+		args, caCloser, err = c.applyHelmRepositoryCA(args, creds.GetCAPath())
+		if err != nil {
+			return "", fmt.Errorf("failed to prepare CA for helm: %w", err)
+		}
+		defer utilio.Close(caCloser)
 	}
 
 	if len(creds.GetCertData()) > 0 {
@@ -185,7 +193,12 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	}
 
 	if opts.GetCAPath() != "" {
-		args = append(args, "--ca-file", opts.GetCAPath())
+		var caCloser utilio.Closer
+		args, caCloser, err = c.applyHelmRepositoryCA(args, opts.GetCAPath())
+		if err != nil {
+			return "", fmt.Errorf("failed to prepare CA for helm: %w", err)
+		}
+		defer utilio.Close(caCloser)
 	}
 
 	if opts.GetInsecureSkipVerify() {
@@ -231,24 +244,50 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	return out, err
 }
 
+// applyHelmRepositoryCA configures TLS trust for helm CLI invocations.
+// When merge-with-system is enabled (default), repository CAs are exposed via SSL_CERT_DIR
+// so Helm keeps its normal system trust instead of replacing it with --ca-file.
+// When disabled, --ca-file is passed with only the repository CA (legacy behavior).
+func (c *Cmd) applyHelmRepositoryCA(args []string, caPath string) ([]string, utilio.Closer, error) {
+	if caPath == "" {
+		return args, utilio.NopCloser, nil
+	}
+	if !common.MergeRepositoryCAWithSystem() {
+		return append(args, "--ca-file", caPath), utilio.NopCloser, nil
+	}
+	if err := c.enableRepositoryCAViaSSLCertDir(caPath); err != nil {
+		return nil, nil, err
+	}
+	return args, utilio.NopCloser, nil
+}
+
+func (c *Cmd) enableRepositoryCAViaSSLCertDir(customCAPath string) error {
+	dir := filepath.Join(c.helmHome, "ca-extra")
+	sslCertDir, err := certutil.PrepareSSLCertDirForRepositoryCA(customCAPath, dir)
+	if err != nil {
+		return err
+	}
+	c.caTrustEnv = certutil.UpsertEnvVars(c.caTrustEnv, "SSL_CERT_DIR="+sslCertDir)
+	return nil
+}
+
 func writeToTmp(data []byte) (string, utilio.Closer, error) {
 	file, err := os.CreateTemp("", "")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to create temporary file: %w", err)
 	}
-	err = os.WriteFile(file.Name(), data, 0o644)
-	if err != nil {
-		_ = os.RemoveAll(file.Name())
-		return "", nil, fmt.Errorf("failed to write data to temporary file: %w", err)
-	}
 	defer func() {
-		if err = file.Close(); err != nil {
+		if closeErr := file.Close(); closeErr != nil {
 			log.WithFields(log.Fields{
 				common.SecurityField:    common.SecurityMedium,
 				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
-			}).Errorf("error closing file %q: %v", file.Name(), err)
+			}).Errorf("error closing file %q: %v", file.Name(), closeErr)
 		}
 	}()
+	if err = os.WriteFile(file.Name(), data, 0o644); err != nil {
+		_ = os.RemoveAll(file.Name())
+		return "", nil, fmt.Errorf("failed to write data to temporary file: %w", err)
+	}
 	return file.Name(), utilio.NewCloser(func() error {
 		return os.RemoveAll(file.Name())
 	}), nil
@@ -277,7 +316,12 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	args = append(args, "--repo", repo, chartName)
 
 	if creds.GetCAPath() != "" {
-		args = append(args, "--ca-file", creds.GetCAPath())
+		var caCloser utilio.Closer
+		args, caCloser, err = c.applyHelmRepositoryCA(args, creds.GetCAPath())
+		if err != nil {
+			return "", fmt.Errorf("failed to prepare CA for helm: %w", err)
+		}
+		defer utilio.Close(caCloser)
 	}
 	if len(creds.GetCertData()) > 0 {
 		filePath, closer, err := writeToTmp(creds.GetCertData())
@@ -314,7 +358,13 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 		destination,
 	}
 	if creds.GetCAPath() != "" {
-		args = append(args, "--ca-file", creds.GetCAPath())
+		var caCloser utilio.Closer
+		var err error
+		args, caCloser, err = c.applyHelmRepositoryCA(args, creds.GetCAPath())
+		if err != nil {
+			return "", fmt.Errorf("failed to prepare CA for helm: %w", err)
+		}
+		defer utilio.Close(caCloser)
 	}
 
 	if len(creds.GetCertData()) > 0 {

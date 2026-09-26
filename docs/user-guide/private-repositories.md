@@ -540,6 +540,41 @@ spec:
 
 This environment variable applies globally to all Helm repository requests.
 
+### Repository CA and system trust
+
+When a repository is configured with a custom CA certificate (Certificates UI or
+`argocd-tls-certs-cm`), Argo CD must still trust public roots for chart downloads that redirect
+to public HTTPS endpoints (including Kustomize builds that invoke Helm).
+
+By default Argo CD keeps system trust alongside the repository CA:
+
+- Helm and Kustomize invocations receive the repository CA through `SSL_CERT_DIR` instead of
+  replacing trust with `--ca-file`.
+- Native Helm and OCI HTTP clients start from the system certificate pool and append the
+  repository CA.
+
+If you previously maintained a combined bundle only to cover those redirects, you can keep using
+the repository CA alone.
+
+To disable this feature and pass only the repository CA to Helm (for example in environments
+that must not trust public roots for Helm chart downloads), set the following in
+`argocd-cmd-params-cm`:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  reposerver.merge.repository.ca.with.system: "false"
+```
+
+The repo-server Deployment wires that key to `ARGOCD_MERGE_REPOSITORY_CA_WITH_SYSTEM` and the
+`--merge-repository-ca-with-system` flag.
+
+See the [v3.6 to 3.7 upgrade guide](../operator-manual/upgrading/3.6-3.7.md#repository-ca-keeps-system-trust-by-default)
+for more context.
+
 ## Git Submodules
 
 Submodules are supported and will be picked up automatically. If the submodule repository requires authentication then the credentials will need to match the credentials of the parent repository. Set ARGOCD_GIT_MODULES_ENABLED=false to disable submodule support

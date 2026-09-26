@@ -48,6 +48,7 @@ var (
 	pauseGenerationOnFailureForRequests          = env.ParseNumFromEnv(common.EnvPauseGenerationRequests, 0, 0, math.MaxInt32)
 	gitSubmoduleEnabled                          = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
 	helmUserAgent                                = env.StringFromEnv(common.EnvHelmUserAgent, "")
+	mergeRepositoryCAWithSystem                  = env.ParseBoolFromEnv(common.EnvMergeRepositoryCAWithSystem, true)
 )
 
 func NewCommand() *cobra.Command {
@@ -90,6 +91,7 @@ func NewCommand() *cobra.Command {
 		DisableAutoGenTag: true,
 		RunE: cli.WithSignalContextE(func(c *cobra.Command, _ []string, _ context.CancelFunc) error {
 			ctx := c.Context()
+			common.SetMergeRepositoryCAWithSystem(mergeRepositoryCAWithSystem)
 
 			vers := common.GetVersion()
 			vers.LogStartupInfo(
@@ -273,6 +275,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&includeHiddenDirectories, "include-hidden-directories", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES", false), "Include hidden directories from Git")
 	command.Flags().BoolVar(&cmpUseManifestGeneratePaths, "plugin-use-manifest-generate-paths", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS", false), "Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.")
 	command.Flags().StringSliceVar(&ociMediaTypes, "oci-layer-media-types", env.StringsFromEnv("ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES", []string{"application/vnd.oci.image.layer.v1.tar", "application/vnd.oci.image.layer.v1.tar+gzip", "application/vnd.cncf.helm.chart.content.v1.tar+gzip"}, ","), "Comma separated list of allowed media types for OCI media types. This only accounts for media types within layers.")
+	command.Flags().BoolVar(&mergeRepositoryCAWithSystem, "merge-repository-ca-with-system", mergeRepositoryCAWithSystem, "Merge repository-specific TLS CAs with the system trust store for Helm, Kustomize, and native HTTP clients.")
 	command.Flags().BoolVar(&enableBuiltinGitConfig, "enable-builtin-git-config", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG", true), "Enable builtin git configuration options that are required for correct argocd-repo-server operation.")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS for the repo-server gRPC endpoint")
 	command.Flags().StringVar(&clientCAPath, "client-ca-path", env.StringFromEnv("ARGOCD_REPO_SERVER_CLIENT_CA_PATH", "/app/config/reposerver/mtls/client-ca.crt"), "Path to the client CA certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS is skipped if the file does not exist.")

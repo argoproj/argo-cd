@@ -30,6 +30,7 @@ argocd-repo-server [flags]
       --logformat string                               Set the logging format. One of: json|text (default "json")
       --loglevel string                                Set the logging level. One of: debug|info|warn|error (default "info")
       --max-combined-directory-manifests-size string   Max combined size of manifest files in a directory-type Application (default "10M")
+      --merge-repository-ca-with-system                Merge repository-specific TLS CAs with the system trust store for Helm, Kustomize, and native HTTP clients. (default true)
       --metrics-address string                         Listen on given address for metrics (default "0.0.0.0")
       --metrics-port int                               Start metrics server on given port (default 8084)
       --oci-layer-media-types strings                  Comma separated list of allowed media types for OCI media types. This only accounts for media types within layers. (default [application/vnd.oci.image.layer.v1.tar,application/vnd.oci.image.layer.v1.tar+gzip,application/vnd.cncf.helm.chart.content.v1.tar+gzip])

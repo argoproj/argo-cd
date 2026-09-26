@@ -284,6 +284,11 @@ const (
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
 	// EnvHelmUserAgent specifies the User-Agent header for Helm repository requests
 	EnvHelmUserAgent = "ARGOCD_HELM_USER_AGENT"
+	// EnvMergeRepositoryCAWithSystem keeps system trust when a repository CA is set (default: true).
+	// Helm and Kustomize invocations receive the repository CA through SSL_CERT_DIR instead of
+	// replacing trust with --ca-file; native Helm/OCI HTTP clients start from x509.SystemCertPool
+	// and append the repository CA.
+	EnvMergeRepositoryCAWithSystem = "ARGOCD_MERGE_REPOSITORY_CA_WITH_SYSTEM"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
 	// EnvWatchAPIBufferSize is the buffer size used to transfer K8S watch events to watch API consumer
