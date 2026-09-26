@@ -1,0 +1,14 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: slow-discovery
+spec:
+  version: v1.0
+  generate:
+    command: [sh, -c]
+    args:
+    - |
+      cat kustomization.yaml
+  discover:
+    find:
+      command: [sh, -c, "sleep 5"]
