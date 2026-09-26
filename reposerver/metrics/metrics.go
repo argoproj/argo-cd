@@ -280,3 +280,16 @@ func (m *MetricsServer) IncOCIGetTagsFailCounter(repo string) {
 func (m *MetricsServer) IncOCITestRepoFailCounter(repo string) {
 	m.ociTestRepoFailCounter.WithLabelValues(repo).Inc()
 }
+
+// RegisterActiveGRPCRequestsGauge registers the argocd_repo_server_active_requests gauge, reading the
+// in-flight count from activeRequests on each scrape. Pull-based so the gauge can't drift from the
+// concurrency limiter that owns the count.
+func (m *MetricsServer) RegisterActiveGRPCRequestsGauge(activeRequests func() int64) {
+	m.PrometheusRegistry.MustRegister(prometheus.NewGaugeFunc(
+		prometheus.GaugeOpts{
+			Name: "argocd_repo_server_active_requests",
+			Help: "Number of currently active gRPC requests being handled by the repo server. Useful for HPA scaling.",
+		},
+		func() float64 { return float64(activeRequests()) },
+	))
+}
