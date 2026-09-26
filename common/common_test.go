@@ -106,3 +106,55 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 		})
 	}
 }
+
+func Test_GetChangePasswordSSOTokenMaxAge(t *testing.T) {
+	testCases := []struct {
+		name           string
+		envValue       string
+		expectedMaxAge time.Duration
+	}{
+		{
+			name:           "No env var set - uses default",
+			envValue:       "",
+			expectedMaxAge: DefaultChangePasswordSSOTokenMaxAge,
+		},
+		{
+			name:           "Valid env var set",
+			envValue:       "10m",
+			expectedMaxAge: time.Minute * 10,
+		},
+		{
+			name:           "Invalid env var set - fallback to default",
+			envValue:       "invalid-duration",
+			expectedMaxAge: DefaultChangePasswordSSOTokenMaxAge,
+		},
+		{
+			name:           "Zero duration - fallback to default",
+			envValue:       "0s",
+			expectedMaxAge: DefaultChangePasswordSSOTokenMaxAge,
+		},
+		{
+			name:           "Negative duration - fallback to default",
+			envValue:       "-1m",
+			expectedMaxAge: DefaultChangePasswordSSOTokenMaxAge,
+		},
+		{
+			name:           "Different valid duration",
+			envValue:       "30s",
+			expectedMaxAge: time.Second * 30,
+		},
+		{
+			name:           "Value exceeds maximum limit - capped at limit",
+			envValue:       "30m",
+			expectedMaxAge: ChangePasswordSSOTokenMaxAgeLimit, // Should be capped at 10 minutes
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv(EnvChangePasswordSSOTokenMaxAge, tc.envValue)
+
+			maxAge := GetChangePasswordSSOTokenMaxAge()
+			assert.Equal(t, tc.expectedMaxAge, maxAge)
+		})
+	}
+}

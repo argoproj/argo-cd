@@ -127,6 +127,14 @@ cache. Default: 1000
 * `ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT`: Limits max number of concurrent login requests.
 If set to 0 then limit is disabled. Default: 50.
 
+### SSO password change token max age
+
+When changing a local account password while authenticated through SSO, Argo CD validates how old the SSO token is.
+
+Use the following environment variable on the `argocd-server` deployment:
+
+* `ARGOCD_SSO_TOKEN_MAX_AGE`: Maximum allowed age of the SSO token for password change requests. Expects a Go duration value (for example `5m`, `30s`). Default: `5m`. Maximum accepted value: `10m`.
+
 ## SSO
 
 There are two ways that SSO can be configured:
