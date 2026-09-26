@@ -252,6 +252,8 @@ fixed CRD if you want this feature to work at all.
 
 The controller of the `SealedSecret` resource may expose the status condition on resource it provisioned. Since
 version `v2.0.0` Argo CD picks up that status condition to derive a health status for the `SealedSecret`.
+The health check waits for `status.observedGeneration` to match `metadata.generation` before using the condition,
+so a status from an earlier update cannot mark the current `SealedSecret` healthy.
 
 Versions before `v0.15.0` of the `SealedSecret` controller are affected by an issue regarding this status
 conditions updates, which is why this feature is disabled by default in these versions. Status condition updates may be
