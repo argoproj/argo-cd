@@ -111,7 +111,7 @@ The proposal has five parts. They are designed to ship together, and are describ
 
 | Part | Scope |
 |---|---|
-| [The ApplicationSync resource](#the-applicationsync-resource) | Groups with `dependsOn`, health gating, garbage collection, auto-sync hold. |
+| [The ApplicationSync resource](#the-applicationsync-resource) | Groups with `dependsOn`, health gating, garbage collection. |
 | [Rollout controls](#rollout-controls) | What RollingSync and the Sync API need: a concurrency cap, per-app revisions, failure and window handling, freshness, status and metrics. |
 | [API and UI syncs](#api-and-ui-syncs) | Manual syncs from the API and UI create an ApplicationSync. |
 | [ApplicationSyncPolicy](#applicationsyncpolicy) | Auto-sync for a group, on the same period as auto-sync today. |
@@ -220,9 +220,11 @@ Semantics:
   compare a struct minus one field, so the rule compares each field, including whether optional fields are set.
   Re-applying an unchanged file is a no-op; re-applying a changed one is rejected. To sync again, create a new
   ApplicationSync. Deleting one cancels it: operations already running finish, and nothing new starts.
-- **Auto-sync hold.** While an ApplicationSync is unfinished, auto-sync is paused for every app it lists that
-  has not succeeded yet. Otherwise an auto-synced app could sync ahead of its dependencies. When the
-  ApplicationSync finishes, the apps still held are refreshed so auto-sync resumes straight away.
+- **No auto-sync.** Apps in an ApplicationSync must not have auto-sync enabled, whoever created the
+  ApplicationSync: a user, a policy or the ApplicationSet controller. Auto-sync would otherwise sync an app ahead of
+  the groups it depends on, or undo a pinned revision. Instead of pausing auto-sync while an ApplicationSync runs,
+  the controller refuses to sync an app that has `syncPolicy.automated` enabled, and says so in the app's status.
+  To have a group of apps kept in sync automatically, use an [ApplicationSyncPolicy](#applicationsyncpolicy).
 - **Garbage collection.** The 20 most recent completed ApplicationSyncs are kept per set of apps, taken across
   all groups, regardless of how the apps are grouped or ordered. Older ones are deleted. The limit is set with
   `controller.applicationsync.history.limit` in `argocd-cmd-params-cm`, and `0` disables deletion.
@@ -423,9 +425,8 @@ groups:
 
 - **What it does.** The app syncs to that revision, like `argocd app sync --revision` today. Afterwards the app
   reports OutOfSync against its `targetRevision`, as it does today.
-- **Auto-sync.** If the app has auto-sync enabled, it fails with the Sync API's error (`Cannot sync to …: auto-sync
-  currently set to …`), unless `dryRun` is set. Auto-sync would revert the sync as soon as the hold is released.
-  Apps managed by RollingSync or a policy have auto-sync off.
+- **Auto-sync.** No conflict arises: apps in an ApplicationSync never have auto-sync enabled (see
+  [The ApplicationSync resource](#the-applicationsync-resource)).
 - **When it counts as done.** Synced is judged against the pinned revisions. An app is done when all of these
   hold:
   - its sync to the pinned revisions succeeded;
@@ -481,7 +482,9 @@ spec:
   events show the Argo CD user as today. Anyone who can create ApplicationSyncs directly can write any value
   there, so it is informational and never used for authorization.
 - **What stays on `operation`.** Syncs with local manifests (`argocd app sync --local`) don't belong in a CR and
-  keep writing `operation` directly. So do rollbacks, which override the source, and auto-sync.
+  keep writing `operation` directly. So do rollbacks, which override the source, and auto-sync. So does a manual
+  sync of an app that has auto-sync enabled, a common action in the UI: ApplicationSyncs don't take auto-synced
+  apps, so for that app the server writes `operation` itself, as today.
 - **Permissions.** `argocd-server`'s Role gains `create`, `get` and `list` on `applicationsyncs`.
 - **History.** Each manual sync is now an object, and garbage collection keeps 20 per app.
 
@@ -514,8 +517,8 @@ spec:
   global `timeout.reconciliation` period (default `120s`, plus `timeout.reconciliation.jitter`) or when a
   webhook or a manual refresh arrives. If any listed app is OutOfSync, a new ApplicationSync is created,
   subject to `concurrencyPolicy`. A policy has no period of its own.
-- **Auto-sync belongs to the group.** Apps managed by a policy should have `syncPolicy.automated` disabled, as
-  RollingSync requires today. The policy decides when they sync.
+- **Auto-sync belongs to the group.** Apps managed by a policy must have `syncPolicy.automated` disabled, as for any
+  ApplicationSync and as RollingSync requires today. The policy decides when they sync.
 - **Apps from anywhere.** A policy can list apps from several ApplicationSets, or from none, which covers a shared
   rollout strategy across ApplicationSets ([#14458](https://github.com/argoproj/argo-cd/issues/14458)). Until Open Question 3 is settled, apps are listed
   by name.
@@ -788,9 +791,8 @@ Not yet validated:
 
 - **Over-broad grants.** Administrators might grant `create` on `applicationsyncs` without realizing it means
   sync. Mitigation: document it, and don't include it in any aggregated or default roles.
-- **Stuck holds.** An ApplicationSync that never starts, for example because its first app never gets created,
-  keeps auto-sync paused on its other apps until it is deleted. Mitigation: surface it in `status.message`, and
-  consider a timeout on starting.
+- **Apps that still auto-sync.** Users moving existing apps into ApplicationSyncs may leave auto-sync on. Mitigation:
+  the app fails, or waits with `onFailure: Wait`, with a message naming the setting to change.
 - **Object churn.** API and UI syncs create one object per manual sync. Mitigation: garbage collection keeps 20 per app.
 - **Status size.** Status grows with the number of apps. Mitigation: add `maxItems` limits on `spec.groups`
   and on the apps in each group (the prototype has none), and keep the per-app status small (phase, message, revisions, timestamps).
@@ -816,8 +818,8 @@ Not yet validated:
   - apps in `Pending` wait for the operation the old code set, then are skipped if it left them Synced.
 
   No app is synced twice for the same revision.
-- **Downgrade.** The CRD and its objects stay, but nothing acts on them. Auto-sync holds disappear with the
-  newer controller. Operations already running on Applications finish normally. An older `argocd-server`
+- **Downgrade.** The CRD and its objects stay, but nothing acts on them. Operations already running on
+  Applications finish normally. An older `argocd-server`
   writes `operation` directly again.
 
 ## Drawbacks
