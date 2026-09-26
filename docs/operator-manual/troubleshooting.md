@@ -52,6 +52,15 @@ The following `argocd admin` command lists actions available for a given resourc
 argocd admin settings resource-overrides list-actions /tmp/deploy.yaml --argocd-cm-path /private/tmp/argocd-cm.yaml
 ```
 
+Actions that require parameters can be tested with the `--param` flag in `key=value` format. The flag may be repeated to pass multiple parameters:
+
+```bash
+argocd admin settings resource-overrides run-action /tmp/deploy.yaml scale --argocd-cm-path /private/tmp/argocd-cm.yaml --param replicas=3
+```
+
+> [!NOTE]
+> If the same parameter is specified more than once, the last provided value for that parameter will be used.
+
 ## Cluster credentials
 
 The `argocd admin cluster kubeconfig` is useful if you manually created Secret with cluster credentials and trying need to
