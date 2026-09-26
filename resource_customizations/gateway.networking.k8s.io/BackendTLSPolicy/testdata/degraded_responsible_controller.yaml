@@ -1,0 +1,52 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: example-backendtlspolicy
+  namespace: default
+  generation: 1
+spec:
+  targetRefs:
+  - group: gateway.kgateway.dev
+    kind: Backend
+    name: example-backend
+  validation:
+    hostname: example.com
+    wellKnownCACertificates: System
+status:
+  ancestors:
+  # A second conformant implementation that cannot resolve the target must not
+  # affect the reported health.
+  - ancestorRef:
+      group: gateway.kgateway.dev
+      kind: Backend
+      name: example-backend
+    conditions:
+    - lastTransitionTime: '2026-04-16T12:20:11Z'
+      message: 'targetRefs invalid: unsupported kind Backend'
+      observedGeneration: 1
+      reason: TargetNotFound
+      status: 'False'
+      type: Accepted
+    controllerName: istio.io/mesh-controller
+  # The controller responsible for the target genuinely rejected the policy.
+  # This must still degrade the resource.
+  - ancestorRef:
+      group: gateway.kgateway.dev
+      kind: Backend
+      name: example-backend
+    conditions:
+    - lastTransitionTime: '2026-04-16T12:30:30Z'
+      message: All references are resolved
+      observedGeneration: 1
+      reason: ResolvedRefs
+      status: 'True'
+      type: ResolvedRefs
+    - lastTransitionTime: '2026-04-16T14:40:30Z'
+      message: >-
+        BackendTLSPolicy has invalid wellKnownCACertificates value, must be
+        'System'
+      observedGeneration: 1
+      reason: NoValidCACertificate
+      status: 'False'
+      type: Accepted
+    controllerName: gateway.kgateway.dev/kgateway-controller
