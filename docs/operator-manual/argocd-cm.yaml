@@ -61,6 +61,12 @@ data:
         inCluster: true
     web:
       tlsMinVersion: "1.2"
+      tlsCiphers:
+      - "TLS_AES_128_GCM_SHA256"
+      - "TLS_AES_256_GCM_SHA384"
+      tlsCurvePreferences:
+      - "X25519MLKEM768"
+      - "X25519"
     connectors:
       # GitHub example
       - type: github
