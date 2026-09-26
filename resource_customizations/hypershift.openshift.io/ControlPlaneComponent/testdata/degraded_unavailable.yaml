@@ -1,0 +1,15 @@
+apiVersion: hypershift.openshift.io/v1beta1
+kind: ControlPlaneComponent
+metadata:
+  name: kube-apiserver
+  namespace: clusters-example
+  generation: 1
+spec: {}
+status:
+  observedGeneration: 1
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: "Dependencies are not yet available: etcd is not ready"
+    reason: WaitingForDependencies
+    status: "False"
+    type: Available

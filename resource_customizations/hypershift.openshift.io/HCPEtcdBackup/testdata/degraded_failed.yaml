@@ -1,0 +1,15 @@
+apiVersion: hypershift.openshift.io/v1beta1
+kind: HCPEtcdBackup
+metadata:
+  name: backup-20240101
+  namespace: clusters-example
+  generation: 1
+spec:
+  storageType: S3
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: "Backup failed: unable to upload snapshot to S3"
+    reason: BackupFailed
+    status: "False"
+    type: BackupCompleted

@@ -1,0 +1,17 @@
+apiVersion: hypershift.openshift.io/v1beta1
+kind: GCPPrivateServiceConnect
+metadata:
+  name: kube-apiserver
+  namespace: clusters-example
+  generation: 1
+spec:
+  loadBalancerIP: "10.0.0.10"
+  consumerAcceptList:
+  - "my-project-123"
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: "Failed to create Service Attachment: insufficient permissions"
+    reason: GCPError
+    status: "False"
+    type: GCPPrivateServiceConnectAvailable

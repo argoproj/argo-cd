@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "GCP Private Service Connect infrastructure is available"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Creating Service Attachment"
+  inputPath: testdata/progressing_creating.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed to create Service Attachment: insufficient permissions"
+  inputPath: testdata/degraded_error.yaml

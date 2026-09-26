@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "Azure Private Link Service is available"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Provisioning Private Link Service"
+  inputPath: testdata/progressing_provisioning.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed to create Private Link Service: quota exceeded"
+  inputPath: testdata/degraded_error.yaml

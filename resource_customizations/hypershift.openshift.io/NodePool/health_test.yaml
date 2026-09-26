@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "All replicas are ready"
+  inputPath: testdata/healthy_ready.yaml
+- healthStatus:
+    status: Progressing
+    message: "Updating nodes to version 4.17.0"
+  inputPath: testdata/progressing_updating_version.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for NodePool status"
+  inputPath: testdata/progressing_no_status.yaml
+- healthStatus:
+    status: Degraded
+    message: "MachineConfig object is invalid: unknown field 'kernelArguments'"
+  inputPath: testdata/degraded_invalid_machine_config.yaml
