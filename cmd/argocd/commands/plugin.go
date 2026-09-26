@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 
 	log "github.com/sirupsen/logrus"
@@ -51,13 +52,13 @@ func (h *DefaultPluginHandler) HandleCommandExecutionError(err error, isArgocdCL
 		// This means the command is neither a normal Argo CD Command nor a plugin.
 		if pluginErr != nil {
 			// If plugin handling fails, report the plugin error and exit
-			return fmt.Sprintf("Error: %v\n", pluginErr), pluginErr
+			return util.CLIMessageForError(pluginErr), pluginErr
 		} else if pluginPath == "" {
-			return fmt.Sprintf("Error: %v\nRun 'argocd --help' for usage.\n", err), err
+			return util.CLIMessageForError(err) + "\nRun 'argocd --help' for usage.", err
 		}
 	} else {
 		// If it's any other error (not an unknown command), report it directly and exit
-		return fmt.Sprintf("Error: %v\n", err), err
+		return util.CLIMessageForError(err), err
 	}
 
 	return "", nil
