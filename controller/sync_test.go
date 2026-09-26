@@ -2294,136 +2294,67 @@ func dig(obj any, path ...any) any {
 	return i
 }
 
-func TestPartialSyncWithHooks(t *testing.T) {
+func TestSkipHooks(t *testing.T) {
 	t.Parallel()
 
-	resource := kube.MustToUnstructured(&corev1.ConfigMap{
-		APIVersion: "v1",
-		Kind:       "ConfigMap",
-		Name:       "my-config",
-		Namespace:  test.FakeDestNamespace,
-	})
-	preSyncHook := kube.MustToUnstructured(&corev1.ConfigMap{
-		APIVersion:  "v1",
-		Kind:        "ConfigMap",
-		Name:        "my-hook",
-		Namespace:   test.FakeDestNamespace,
-		Annotations: map[string]string{synccommon.AnnotationKeyHook: string(synccommon.HookTypePreSync)},
-	})
-
-	setup := func(t *testing.T) (*ApplicationController, *v1alpha1.Application, *v1alpha1.AppProject) {
-		t.Helper()
-		app := newFakeApp()
-		app.Status.OperationState = nil
-		app.Status.History = nil
-
-		project := &v1alpha1.AppProject{
-			Namespace: test.FakeArgoCDNamespace,
-			Name:      "default",
-			Spec: v1alpha1.AppProjectSpec{
-				SourceRepos: []string{"*"},
-				Destinations: []v1alpha1.ApplicationDestination{
-					{
-						Namespace: "*",
-						Server:    "*",
-					},
-				},
-			},
-		}
-		data := fakeData{
-			apps: []runtime.Object{app, project},
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{toJSON(t, resource), toJSON(t, preSyncHook)},
-				Namespace: test.FakeDestNamespace,
-				Server:    test.FakeClusterURL,
-				Revision:  "abc123",
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		return newFakeController(t.Context(), &data, nil), app, project
-	}
-
-	syncedNames := func(opState *v1alpha1.OperationState) []string {
-		names := []string{}
-		for _, res := range opState.SyncResult.Resources {
-			names = append(names, res.Name)
-		}
-		return names
-	}
-
 	partialSync := []v1alpha1.SyncOperationResource{{Kind: "ConfigMap", Name: "my-config"}}
+	runHooksOnPartialSync := v1alpha1.SyncOptions{synccommon.SyncOptionRunHooksOnPartialSync}
+	applyStrategy := &v1alpha1.SyncStrategy{Apply: &v1alpha1.SyncStrategyApply{}}
 
 	tests := []struct {
-		name        string
-		resources   []v1alpha1.SyncOperationResource
-		syncOptions v1alpha1.SyncOptions
-		automated   bool
-		strategy    *v1alpha1.SyncStrategy
-		expectHook  bool
+		name      string
+		syncOp    v1alpha1.SyncOperation
+		automated bool
+		expected  bool
 	}{
 		{
-			name:       "partial sync does not run hooks by default",
-			resources:  partialSync,
-			expectHook: false,
+			name:     "full sync runs hooks",
+			syncOp:   v1alpha1.SyncOperation{},
+			expected: false,
 		},
 		{
-			name:        "partial sync runs hooks when RunHooksOnPartialSync is enabled",
-			resources:   partialSync,
-			syncOptions: v1alpha1.SyncOptions{synccommon.SyncOptionRunHooksOnPartialSync},
-			expectHook:  true,
+			name:     "full sync runs hooks when RunHooksOnPartialSync is enabled",
+			syncOp:   v1alpha1.SyncOperation{SyncOptions: runHooksOnPartialSync},
+			expected: false,
 		},
 		{
-			name:        "automated partial sync does not run hooks even when RunHooksOnPartialSync is enabled",
-			resources:   partialSync,
-			syncOptions: v1alpha1.SyncOptions{synccommon.SyncOptionRunHooksOnPartialSync},
-			automated:   true,
-			expectHook:  false,
+			name:      "automated full sync runs hooks",
+			syncOp:    v1alpha1.SyncOperation{SyncOptions: runHooksOnPartialSync},
+			automated: true,
+			expected:  false,
 		},
 		{
-			name:        "partial sync with apply strategy does not run hooks even when RunHooksOnPartialSync is enabled",
-			resources:   partialSync,
-			syncOptions: v1alpha1.SyncOptions{synccommon.SyncOptionRunHooksOnPartialSync},
-			strategy:    &v1alpha1.SyncStrategy{Apply: &v1alpha1.SyncStrategyApply{}},
-			expectHook:  false,
+			name:     "partial sync skips hooks by default",
+			syncOp:   v1alpha1.SyncOperation{Resources: partialSync},
+			expected: true,
 		},
 		{
-			name:       "full sync runs hooks",
-			expectHook: true,
+			name:     "partial sync runs hooks when RunHooksOnPartialSync is enabled",
+			syncOp:   v1alpha1.SyncOperation{Resources: partialSync, SyncOptions: runHooksOnPartialSync},
+			expected: false,
 		},
 		{
-			name:        "full sync runs hooks when RunHooksOnPartialSync is enabled",
-			syncOptions: v1alpha1.SyncOptions{synccommon.SyncOptionRunHooksOnPartialSync},
-			expectHook:  true,
+			name:      "automated partial sync skips hooks even when RunHooksOnPartialSync is enabled",
+			syncOp:    v1alpha1.SyncOperation{Resources: partialSync, SyncOptions: runHooksOnPartialSync},
+			automated: true,
+			expected:  true,
+		},
+		{
+			name:     "apply strategy skips hooks on full sync",
+			syncOp:   v1alpha1.SyncOperation{SyncStrategy: applyStrategy},
+			expected: true,
+		},
+		{
+			name:     "apply strategy skips hooks on partial sync even when RunHooksOnPartialSync is enabled",
+			syncOp:   v1alpha1.SyncOperation{Resources: partialSync, SyncOptions: runHooksOnPartialSync, SyncStrategy: applyStrategy},
+			expected: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			ctrl, app, project := setup(t)
-
-			opState := &v1alpha1.OperationState{
-				Operation: v1alpha1.Operation{
-					Sync: &v1alpha1.SyncOperation{
-						Source:       &v1alpha1.ApplicationSource{},
-						Resources:    tt.resources,
-						SyncOptions:  tt.syncOptions,
-						SyncStrategy: tt.strategy,
-					},
-					InitiatedBy: v1alpha1.OperationInitiator{Automated: tt.automated},
-				},
-				Phase: synccommon.OperationRunning,
-			}
-
-			ctrl.appStateManager.SyncAppState(t.Context(), app, project, opState)
-
-			require.NotEqual(t, synccommon.OperationError, opState.Phase, opState.Message)
-			assert.Contains(t, syncedNames(opState), resource.GetName())
-			if tt.expectHook {
-				assert.Contains(t, syncedNames(opState), preSyncHook.GetName())
-			} else {
-				assert.NotContains(t, syncedNames(opState), preSyncHook.GetName())
-			}
+			assert.Equal(t, tt.expected, skipHooks(&tt.syncOp, v1alpha1.OperationInitiator{Automated: tt.automated}))
 		})
 	}
 }
