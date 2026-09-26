@@ -375,6 +375,14 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		}
 	}
 
+	// Hooks are skipped for partial syncs unless explicitly requested. Automated syncs (e.g. self-heal, which
+	// syncs only the out-of-sync resources) never run hooks on a partial sync, to avoid running hooks repeatedly.
+	runHooksOnPartialSync := syncOp.SyncOptions.HasOption(common.SyncOptionRunHooksOnPartialSync)
+	if runHooksOnPartialSync && len(syncOp.Resources) > 0 && state.Operation.InitiatedBy.Automated {
+		logEntry.Debugf("Ignoring sync option %s for automated sync", common.SyncOptionRunHooksOnPartialSync)
+		runHooksOnPartialSync = false
+	}
+
 	opts := []sync.SyncOpt{
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
@@ -383,7 +391,7 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 				return m.db.GetProjectClusters(ctx, proj)
 			}, un, res)
 		}),
-		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
+		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || (len(syncOp.Resources) > 0 && !runHooksOnPartialSync)),
 		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes, state.StartedAt),
 		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
 			return (len(syncOp.Resources) == 0 ||
