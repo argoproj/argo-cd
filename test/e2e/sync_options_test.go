@@ -413,6 +413,7 @@ spec:
       name: main
   restartPolicy: Never
 `).
+		PatchFile("kustomization.yaml", `[{"op": "add", "path": "/resources/-", "value": "hook.yaml"}]`).
 		CreateFromFile(func(app *Application) {
 			app.Spec.SyncPolicy = &SyncPolicy{
 				Automated:   &SyncPolicyAutomated{SelfHeal: new(true)},
