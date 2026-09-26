@@ -132,6 +132,16 @@ to that API server (TLS configuration/certs, AWS role-arn, etc...).
 The information is used to reconstruct a REST config and kubeconfig to the cluster used by Argo CD
 services.
 
+Clusters whose secret does not set `tlsClientConfig.caData` are verified against the system trust
+store and the default CA bundle in the `argocd-cluster-ca-cm` ConfigMap, if one is configured. See the
+[declarative setup documentation](declarative-setup.md#default-ca-bundle-for-cluster-connections) for how the bundle is used.
+
+This bundle decides which API server certificates Argo CD accepts for all of those clusters. A user
+who can edit the ConfigMap, and who can also intercept traffic to a cluster API server, could add
+their own CA and receive the cluster credentials that Argo CD sends. Only allow the same people who
+can manage cluster secrets to edit `argocd-cluster-ca-cm`. Clusters that set their own `caData` do
+not use the bundle.
+
 To rotate the bearer token used by Argo CD, the token can be deleted (e.g. using kubectl) which
 causes Kubernetes to generate a new secret with a new bearer token. The new token can be re-inputted
 to Argo CD by re-running `argocd cluster add`. Run the following commands against the *_managed_*

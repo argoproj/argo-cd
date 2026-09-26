@@ -34195,6 +34195,14 @@ subjects:
   namespace: argocd
 ---
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-cluster-ca-cm
+    app.kubernetes.io/part-of: argocd
+  name: argocd-cluster-ca-cm
+---
+apiVersion: v1
 data:
   resource.customizations.ignoreResourceUpdates.ConfigMap: |
     jqPathExpressions:
