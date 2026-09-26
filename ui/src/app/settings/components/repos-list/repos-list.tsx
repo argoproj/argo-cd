@@ -41,6 +41,7 @@ import {
     isWrite,
     isTemplate
 } from './repos-filter';
+import {validateGitHubAppCredentials} from './repos-validation';
 
 // Helper functions to convert to UnifiedRepo
 const repoToUnified = (repo: models.Repository, isWriteFlag: boolean): UnifiedRepo => (isWriteFlag ? {writeRepo: repo} : {readRepo: repo});
@@ -357,8 +358,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 const githubAppValues = params as NewGitHubAppRepoParams;
                 return {
                     url: (!githubAppValues.url && 'Repository URL is required') || (credsTemplate && !isHTTPOrHTTPSUrl(githubAppValues.url) && 'Not a valid HTTP/HTTPS URL'),
-                    githubAppId: !githubAppValues.githubAppId && 'GitHub App ID is required',
-                    githubAppPrivateKey: !githubAppValues.githubAppPrivateKey && 'GitHub App private Key is required',
+                    ...validateGitHubAppCredentials(githubAppValues, credsTemplate.current || githubAppValues.write),
                     depth: githubAppValues.depth != undefined && githubAppValues.depth < 0 && 'Depth must be a non-negative number'
                 };
             }
@@ -549,10 +549,11 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
 
     // Connect a new repository or create a repository credentials for GitHub App repositories
     const connectGitHubAppRepo = async (params: NewGitHubAppRepoParams) => {
+        const normalizedParams = {...params, githubAppPrivateKey: params.githubAppPrivateKey?.trim() ? params.githubAppPrivateKey : ''};
         if (credsTemplate.current) {
             createGitHubAppCreds({
                 url: params.url,
-                githubAppPrivateKey: params.githubAppPrivateKey,
+                githubAppPrivateKey: normalizedParams.githubAppPrivateKey,
                 githubAppId: params.githubAppId,
                 githubAppInstallationId: params.githubAppInstallationId,
                 githubAppEnterpriseBaseURL: params.githubAppEnterpriseBaseURL,
@@ -566,9 +567,9 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             setConnecting(true);
             try {
                 if (params.write) {
-                    await services.repos.createGitHubAppWrite(params);
+                    await services.repos.createGitHubAppWrite(normalizedParams);
                 } else {
-                    await services.repos.createGitHubApp(params);
+                    await services.repos.createGitHubApp(normalizedParams);
                 }
                 repoLoader.current.reload();
                 setConnectRepo(false);
@@ -1248,6 +1249,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
                                                 </div>
+                                                <p>For read repositories, leave all credential fields empty to use a matching credentials template.</p>
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='GitHub App ID' field='githubAppId' component={NumberField} />
                                                 </div>
