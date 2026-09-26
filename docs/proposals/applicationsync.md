@@ -427,8 +427,8 @@ groups:
   reports OutOfSync against its `targetRevision`, as it does today.
 - **Auto-sync.** No conflict arises: apps in an ApplicationSync never have auto-sync enabled (see
   [The ApplicationSync resource](#the-applicationsync-resource)).
-- **When it counts as done.** Synced is judged against the pinned revisions. An app is done when all of these
-  hold:
+- **When it counts as done.** Synced is only required while the app is still compared against the pinned
+  revisions. An app is done when all of these hold:
   - its sync to the pinned revisions succeeded;
   - it has been refreshed since;
   - it is Healthy;
@@ -472,8 +472,11 @@ spec:
 - **Clients don't change.** The API still returns the Application. The CLI and UI keep watching
   `status.operationState`, which the controller still fills in. To keep that true, the handler waits until the
   application controller has set the tagged operation before it returns, so a client never sees the previous
-  operation's result as this sync's. If the controller doesn't start the sync within 30 seconds, the request
-  fails and says the ApplicationSync is still pending.
+  operation's result as this sync's.
+- **Handoff timeout.** If the controller hasn't started the sync within 30 seconds, the handler deletes the
+  ApplicationSync, with a UID precondition, and reads the Application again. If the tagged operation is there, the
+  controller got in first, and the request succeeds. Otherwise the request fails, and the sync can't start later
+  and surprise a user who has already seen the error, or who retries.
 - **Revision overrides keep writing `operation`.** With `application.sync.requireOverridePrivilegeForRevisionSync`
   on, the controller only accepts pins that match `targetRevision` (Open Question 1). A user with the `override`
   privilege who syncs to another revision has passed a check the controller can't repeat, so for that request the
@@ -727,7 +730,9 @@ All five parts are prototyped on the `feat/applicationsync` branch, with unit te
 - **Sharding.** The shard that owns the first app of the first group owns the ApplicationSync. It writes `app.operation`
   through the API, and the shard that owns each app still runs that app's sync. Every shard's informer already
   sees all Applications. Progress is kept in the ApplicationSync's status, so if the first app moves to another
-  shard during a run, the new owner carries on.
+  shard during a run, the new owner carries on. While the first app doesn't exist yet, no shard owns the
+  ApplicationSync, so every shard writes the same "waiting for application to exist" status. Creating the app
+  wakes the ApplicationSync on the shard that owns it.
 - **Matching results.** The operation is tagged with an `Info` entry `ApplicationSync: <name>`. Its result is
   read back from `status.operationState` when that entry matches and `startedAt` is not before the
   ApplicationSync was created.
@@ -794,6 +799,10 @@ Not yet validated:
 - **Apps that still auto-sync.** Users moving existing apps into ApplicationSyncs may leave auto-sync on. Mitigation:
   the app fails, or waits with `onFailure: Wait`, with a message naming the setting to change.
 - **Object churn.** API and UI syncs create one object per manual sync. Mitigation: garbage collection keeps 20 per app.
+- **History across overlapping sets of apps.** History is kept per set of apps, so each different set containing an
+  app keeps its own 20. Sets created by policies and ApplicationSets are stable, but ad-hoc ApplicationSyncs for
+  ever-changing sets keep adding history. Mitigation: a namespace-wide cap on completed ApplicationSyncs could be
+  added alongside the per-set limit.
 - **Status size.** Status grows with the number of apps. Mitigation: add `maxItems` limits on `spec.groups`
   and on the apps in each group (the prototype has none), and keep the per-app status small (phase, message, revisions, timestamps).
 - **Apps that never become Synced.** An app only counts as done when it is Synced and Healthy. An
@@ -806,9 +815,15 @@ Not yet validated:
 
 ### Upgrade / Downgrade Strategy
 
-- **Upgrade.** The new CRD is purely additive, and nothing changes unless ApplicationSyncs are created. The
-  controller needs `get/list/watch/update` on `applicationsyncs` and `applicationsyncs/status`, and those are
-  added to its Role. `argocd-server` needs `create/get/list` on `applicationsyncs`.
+- **Upgrade.** The new CRDs are purely additive, and nothing changes unless ApplicationSyncs are created. The
+  Roles gain:
+
+  | Component | Resources | Verbs |
+  |---|---|---|
+  | Application controller | `applicationsyncs`, `applicationsyncpolicies` | `get/list/watch/update/create/delete`: policies create and replace runs, and garbage collection deletes them |
+  | Application controller | `applicationsyncs/status`, `applicationsyncpolicies/status` | `get/update/patch` |
+  | ApplicationSet controller | `applicationsyncs` | `get/list/watch/update/create/delete`: it creates, pauses and replaces rollouts |
+  | `argocd-server` | `applicationsyncs` | `create/get/list`, plus `delete` for the handoff timeout |
 - **RollingSync migration.** `--enable-progressive-syncs` and `strategy.type: RollingSync` keep working
   unchanged. A rollout that is under way at upgrade time is picked up from `status.applicationStatus`. The first
   ApplicationSync keeps the recorded `TargetRevisions` as its pinned revisions, one `position` entry per source, and
@@ -817,7 +832,9 @@ Not yet validated:
   - apps in `Progressing` that are already Synced only wait for health;
   - apps in `Pending` wait for the operation the old code set, then are skipped if it left them Synced.
 
-  No app is synced twice for the same revision.
+  Operations the old engine started aren't adopted. They lack the ApplicationSync tag, so the new controller
+  treats them like any other operation in progress: it waits for them to finish, and never counts their result
+  as its own. No app is synced twice for the same revision.
 - **Downgrade.** The CRD and its objects stay, but nothing acts on them. Operations already running on
   Applications finish normally. An older `argocd-server`
   writes `operation` directly again.
