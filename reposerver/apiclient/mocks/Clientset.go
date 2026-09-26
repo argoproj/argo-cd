@@ -12,3 +12,11 @@ type Clientset struct {
 func (c *Clientset) NewRepoServerClient() (utilio.Closer, apiclient.RepoServerServiceClient, error) {
 	return utilio.NopCloser, c.RepoServerServiceClient, nil
 }
+
+type FailingRepoClientset struct {
+	Err error
+}
+
+func (c *FailingRepoClientset) NewRepoServerClient() (utilio.Closer, apiclient.RepoServerServiceClient, error) {
+	return nil, nil, c.Err
+}
