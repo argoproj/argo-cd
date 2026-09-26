@@ -41,3 +41,11 @@ updates:
     directory: "/ui/"
     schedule:
       interval: "daily"
+    groups:
+      # react-dom throws at runtime unless react is the exact same version.
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
