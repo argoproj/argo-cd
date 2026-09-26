@@ -68,6 +68,27 @@ var (
 		nil,
 	)
 
+	descAppSyncWindow = prometheus.NewDesc(
+		"argocd_app_sync_window",
+		"Whether a sync window of the given kind is currently active for the application. Emitted as a 0/1 gauge per window_kind (\"allow\", \"deny\"); 1 means at least one matching window of that kind is currently active.",
+		append(descAppDefaultLabels, "window_kind"),
+		nil,
+	)
+
+	descAppSyncBlocked = prometheus.NewDesc(
+		"argocd_app_sync_blocked",
+		"Whether automatic syncs of the application are currently blocked by its project's sync windows. Emitted as a 0/1 gauge: 1 means an automatic sync attempt right now would be rejected. Reports 0 when no sync windows are configured, distinguishing that case from \"allow=0, deny=0\" caused by inactive allow windows. Also reports 1 when the windows cannot be evaluated, because a real sync attempt would fail in the same state; use argocd_app_sync_window_error to tell the two apart.",
+		descAppDefaultLabels,
+		nil,
+	)
+
+	descAppSyncWindowError = prometheus.NewDesc(
+		"argocd_app_sync_window_error",
+		"Whether the application's sync windows could not be evaluated. Emitted as a 0/1 gauge: 1 means the AppProject could not be resolved, or a window matching the application has a schedule or duration that cannot be parsed, so argocd_app_sync_window does not reflect the configured windows and argocd_app_sync_blocked is reported fail-closed as 1.",
+		descAppDefaultLabels,
+		nil,
+	)
+
 	syncCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_app_sync_total",
@@ -165,8 +186,12 @@ var (
 	)
 )
 
+// AppProjectGetter resolves the AppProject for a given Application. It may be nil,
+// in which case sync window metrics are not emitted.
+type AppProjectGetter func(app *argoappv1.Application) (*argoappv1.AppProject, error)
+
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter AppFilter, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string) (*MetricsServer, error) {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter AppFilter, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string, getAppProject AppProjectGetter) (*MetricsServer, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -192,7 +217,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	}
 
 	mux := http.NewServeMux()
-	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions)
+	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions, getAppProject)
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
@@ -375,22 +400,24 @@ type appCollector struct {
 	appFilter     AppFilter
 	appLabels     []string
 	appConditions []string
+	getAppProject AppProjectGetter
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter AppFilter, appLabels []string, appConditions []string) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter AppFilter, appLabels []string, appConditions []string, getAppProject AppProjectGetter) prometheus.Collector {
 	return &appCollector{
 		store:         appLister,
 		appFilter:     appFilter,
 		appLabels:     appLabels,
 		appConditions: appConditions,
+		getAppProject: getAppProject,
 	}
 }
 
 // NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister, appFilter AppFilter, appLabels []string, appConditions []string) *prometheus.Registry {
+func NewAppRegistry(appLister applister.ApplicationLister, appFilter AppFilter, appLabels []string, appConditions []string, getAppProject AppProjectGetter) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions))
+	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, getAppProject))
 	return registry
 }
 
@@ -403,6 +430,11 @@ func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- descAppConditions
 	}
 	ch <- descAppInfo
+	if c.getAppProject != nil {
+		ch <- descAppSyncWindow
+		ch <- descAppSyncBlocked
+		ch <- descAppSyncWindowError
+	}
 }
 
 // Collect implements the prometheus.Collector interface
@@ -412,6 +444,10 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 		log.Warnf("Failed to collect applications: %v", err)
 		return
 	}
+	var syncWindows *syncWindowScrape
+	if c.getAppProject != nil {
+		syncWindows = newSyncWindowScrape(c.getAppProject)
+	}
 	for _, app := range apps {
 		keep, destServer, err := c.appFilter(app)
 		if !keep {
@@ -420,7 +456,7 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 		if err != nil {
 			log.Warnf("Failed to get destination cluster for application %s: %v", app.Name, err)
 		}
-		c.collectApps(ch, app, destServer)
+		c.collectApps(ch, app, destServer, syncWindows)
 	}
 }
 
@@ -431,7 +467,7 @@ func boolFloat64(b bool) float64 {
 	return 0
 }
 
-func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application, destServer string) {
+func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application, destServer string, syncWindows *syncWindowScrape) {
 	addConstMetric := func(desc *prometheus.Desc, t prometheus.ValueType, v float64, lv ...string) {
 		project := app.Spec.GetProject()
 		lv = append([]string{app.Namespace, app.Name, project}, lv...)
@@ -493,4 +529,121 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 			addGauge(descAppConditions, float64(count), conditionType)
 		}
 	}
+
+	if syncWindows != nil {
+		allowActive, denyActive, blocked, failed, err := syncWindows.evaluate(app)
+		if err != nil {
+			// Once per project per scrape: evaluate only returns the error to
+			// the application that built the project's window state. It says
+			// nothing about this application, which may not match the window
+			// that failed.
+			log.Debugf("Sync windows of AppProject %s could not be evaluated, reporting the applications they match as blocked: %v", app.Spec.GetProject(), err)
+		}
+		addGauge(descAppSyncWindow, boolFloat64(allowActive), "allow")
+		addGauge(descAppSyncWindow, boolFloat64(denyActive), "deny")
+		addGauge(descAppSyncBlocked, boolFloat64(blocked))
+		addGauge(descAppSyncWindowError, boolFloat64(failed))
+	}
+}
+
+// projectWindows is one project's sync window state for one scrape: an
+// evaluator built from its windows, or a project that could not be resolved at
+// all. A project that resolves but has malformed windows still gets an
+// evaluator: those windows block only the applications they match.
+type projectWindows struct {
+	evaluator    *argoappv1.SyncWindowEvaluator
+	lookupFailed bool
+	// Whether building the evaluator reported malformed windows, which
+	// windows() has already returned once for the project.
+	windowsFailed bool
+}
+
+// syncWindowScrape is the state shared by every application in one scrape.
+// Window state is per project, but collection walks applications, so without
+// this a project shared by N applications resolves and evaluates its windows N
+// times per scrape. AppProjectGetter caches successful lookups but not
+// failures, and caches nothing about the windows themselves.
+type syncWindowScrape struct {
+	getAppProject AppProjectGetter
+	// One instant for the whole scrape, so applications cannot disagree about
+	// a window boundary crossed while it runs.
+	now      time.Time
+	projects map[string]projectWindows
+}
+
+func newSyncWindowScrape(getAppProject AppProjectGetter) *syncWindowScrape {
+	return &syncWindowScrape{
+		getAppProject: getAppProject,
+		now:           time.Now(),
+		projects:      map[string]projectWindows{},
+	}
+}
+
+// windows resolves app's project and builds its evaluator, once per project per
+// scrape. Keyed by namespace too, since the getter also checks whether the
+// project permits it. The error is returned only on that first build, so a
+// broken project is reported once per scrape rather than once per application;
+// later applications still see failed and report fail-closed.
+func (s *syncWindowScrape) windows(app *argoappv1.Application) (projectWindows, error) {
+	key := app.Spec.GetProject() + "/" + app.Namespace
+	if cached, ok := s.projects[key]; ok {
+		return cached, nil
+	}
+	entry, err := s.buildWindows(app)
+	s.projects[key] = entry
+	return entry, err
+}
+
+func (s *syncWindowScrape) buildWindows(app *argoappv1.Application) (projectWindows, error) {
+	proj, err := s.getAppProject(app)
+	if err != nil {
+		return projectWindows{lookupFailed: true}, fmt.Errorf("failed to resolve AppProject %s for applications in namespace %s", proj, app.Namespace)
+	}
+	if proj == nil {
+		// Indistinguishable from a project that configures no windows.
+		return projectWindows{}, nil
+	}
+	// A malformed window only blocks the applications it matches, so the
+	// evaluator stays usable; the error is returned to be logged once for the
+	// project rather than once per application.
+	evaluator, err := proj.Spec.SyncWindows.Evaluator(s.now)
+	if err != nil {
+		return projectWindows{evaluator: evaluator, windowsFailed: true}, fmt.Errorf("some of its sync windows could not be evaluated: %w", err)
+	}
+	return projectWindows{evaluator: evaluator}, nil
+}
+
+// evaluate returns the sync window gauge values for app. Any failure sets
+// blocked and failed, fail-closed, because a real sync would fail in the same
+// state.
+//
+// The gauges come from entry, never from err: err is only the project-level
+// failure the caller logs, and windows() returns it to the one application that
+// built the entry. Every later application in a broken project sees err == nil
+// and must still report fail-closed.
+func (s *syncWindowScrape) evaluate(app *argoappv1.Application) (allowActive, denyActive, blocked, failed bool, err error) {
+	entry, err := s.windows(app)
+	if entry.lookupFailed {
+		return false, false, true, true, err
+	}
+	if entry.evaluator == nil {
+		return false, false, false, false, err
+	}
+	// blocked comes from CanSync, the same call that gates automatic syncs, so
+	// the gauge cannot drift from it. One evaluation feeds all three gauges:
+	// asking separately reads the clock twice, and a boundary in between would
+	// report an active allow window alongside blocked=1.
+	canSync, allowActive, denyActive, evalErr := entry.evaluator.CanSyncWithActiveKinds(app)
+	if evalErr != nil {
+		// Unreachable today: the evaluator can only fail on a matched window
+		// that Evaluator already reported for the project, so windowsFailed is
+		// always set here and err carries that report. canSyncFrom's own error
+		// paths need an operation start time, which the evaluator never has.
+		// Kept so that a future one cannot pass silently.
+		if !entry.windowsFailed {
+			err = evalErr
+		}
+		return false, false, true, true, err
+	}
+	return allowActive, denyActive, !canSync, false, err
 }
