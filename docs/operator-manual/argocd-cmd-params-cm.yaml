@@ -323,6 +323,12 @@ data:
   reposerver.grpc.enable.txt.service.config: "false"
   # Enables profile endpoint on the internal metrics port
   reposerver.profile.enabled: "false"
+  # How long to wait for in-flight requests to finish when the repo-server is shutting down, before
+  # terminating the commands they are running. 0 terminates them as soon as the signal arrives. This
+  # plus one and a half times ARGOCD_EXEC_FATAL_TIMEOUT must fit under the pod's
+  # terminationGracePeriodSeconds: half a grace period before the SIGKILL, then one full grace period
+  # bounding the wait on a command whose output pipes are still held.
+  reposerver.shutdown.drain.timeout: "5s"
 
   ## Commit-server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
