@@ -215,8 +215,14 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
             )
             .subscribe(log => {
                 if (log.length) {
-                    setLogs(previousLogs => previousLogs.concat(log));
-                    setReceivedLogs(previousLogs => previousLogs.concat(log));
+                    // A stream that reconnects - the tab was hidden and came back, or the retry
+                    // above kicked in - replays the last `tail` lines and marks the first of them.
+                    // Start the view over from there rather than showing those lines twice.
+                    const restart = log.map(entry => entry.first).lastIndexOf(true);
+                    const entries = restart > 0 ? log.slice(restart) : log;
+                    const append = (previousLogs: LogEntry[]) => (restart < 0 ? previousLogs : []).concat(entries);
+                    setLogs(append);
+                    setReceivedLogs(append);
                 }
             });
 
