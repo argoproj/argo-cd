@@ -1740,6 +1740,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		output                    string
 		appNamespace              string
 		ignoreNormalizerOpts      normalizers.IgnoreNormalizerOpts
+		syncOptions               []string
 		serverSideDiffConcurrency int
 		serverSideDiffMaxBatchKB  int
 	)
@@ -1968,7 +1969,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 
 				syncOptionsFactory := func() *application.SyncOptions {
-					syncOptions := application.SyncOptions{}
+					syncOptionsResult := application.SyncOptions{}
 					items := make([]string, 0)
 					if replace {
 						items = append(items, common.SyncOptionReplace)
@@ -1979,13 +1980,15 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					if applyOutOfSyncOnly {
 						items = append(items, common.SyncOptionApplyOutOfSyncOnly)
 					}
+					// Add user-provided sync options
+					items = append(items, syncOptions...)
 
 					if len(items) == 0 {
 						// for prevent send even empty array if not need
 						return nil
 					}
-					syncOptions.Items = items
-					return &syncOptions
+					syncOptionsResult.Items = items
+					return &syncOptionsResult
 				}
 
 				syncReq := application.ApplicationSyncRequest{
@@ -2106,6 +2109,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
 	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
+	command.Flags().StringArrayVar(&syncOptions, "sync-option", []string{}, "Add a sync option (e.g., --sync-option RunHooksOnPartialSync=true). This option may be specified repeatedly.")
 	addServerSideDiffPerfFlags(command, &serverSideDiffConcurrency, &serverSideDiffMaxBatchKB)
 	return command
 }
