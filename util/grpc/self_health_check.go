@@ -6,13 +6,18 @@ import (
 )
 
 // SelfHealthCheckTarget returns how the process should dial its own gRPC port for
-// /healthz?full=true. Unspecified IP addresses are replaced with loopback
-// addresses (127.0.0.1 or ::1) to avoid dialing a wildcard address. The
-// passthrough resolver is used to avoid service-name-based DNS resolution.
+// /healthz?full=true. It uses the passthrough resolver so the endpoint bypasses
+// gRPC's dns resolver, which issues _grpclb SRV queries when grpclb is linked.
+// Unspecified listen addresses are rewritten to loopback (127.0.0.1 or ::1) so
+// the probe does not dial a wildcard.
 func SelfHealthCheckTarget(listenHost string, port int) string {
 	return "passthrough:" + net.JoinHostPort(selfHealthCheckHost(listenHost), strconv.Itoa(port))
 }
 
+// selfHealthCheckHost returns a bare host for net.JoinHostPort. Bracketed IPv6
+// literals (e.g. "[::]") are unwrapped. Empty or unspecified addresses
+// (0.0.0.0, ::) become the matching loopback (127.0.0.1 or ::1), since a client
+// cannot dial a wildcard. Any other host is returned unchanged.
 func selfHealthCheckHost(listenHost string) string {
 	host := listenHost
 	if len(host) >= 2 && host[0] == '[' && host[len(host)-1] == ']' {

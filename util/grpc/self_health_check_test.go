@@ -49,6 +49,11 @@ func startDelayingDNSServer(t *testing.T, delay time.Duration) (addr string) {
 	return pc.LocalAddr().String()
 }
 
+// withSlowGRPCLBDNS points name resolution at a DNS server that answers only
+// after the given delay, simulating an environment where the `_grpclb` SRV
+// lookup stalls. The original resolver is restored on cleanup.
+//
+// WARNING: this replaces the process-wide net.DefaultResolver and therefore cannot be parallelized.
 func withSlowGRPCLBDNS(t *testing.T, delay time.Duration) {
 	t.Helper()
 	dnsAddr := startDelayingDNSServer(t, delay)
@@ -133,6 +138,9 @@ func TestSelfHealthCheckTarget_Format(t *testing.T) {
 	assert.Equal(t, "passthrough:[::1]:8081", SelfHealthCheckTarget("::0", 8081))
 	assert.Equal(t, "passthrough:[::1]:8081", SelfHealthCheckTarget("::1", 8081))
 	assert.Equal(t, "passthrough:127.0.0.1:8081", SelfHealthCheckTarget("127.0.0.1", 8081))
+	assert.Equal(t, "passthrough:10.0.0.5:8081", SelfHealthCheckTarget("10.0.0.5", 8081))
+	assert.Equal(t, "passthrough:[2001:db8::1]:8081", SelfHealthCheckTarget("2001:db8::1", 8081))
+	assert.Equal(t, "passthrough:repo-server.example.com:8081", SelfHealthCheckTarget("repo-server.example.com", 8081))
 }
 
 func TestSelfHealthCheckTarget_IPv6Listener(t *testing.T) {
