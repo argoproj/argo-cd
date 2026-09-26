@@ -45,7 +45,13 @@ export const ApplicationsTable = (props: {
         keys: Key.ENTER,
         action: () => {
             if (selectedApp > -1) {
-                ctxh.navigation.goto(`/${AppUtils.getAppUrl(props.applications[selectedApp])}`);
+                const appLink = AppUtils.getAppListLink(ctxh, props.applications[selectedApp]);
+                const kbEvent = window.event as KeyboardEvent;
+                if (kbEvent && (kbEvent.ctrlKey || kbEvent.metaKey)) {
+                    window.open(appLink.href, '_blank');
+                } else {
+                    ctxh.navigation.goto(appLink.path);
+                }
                 return true;
             }
             return false;
