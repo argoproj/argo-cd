@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,20 +13,22 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
 )
 
 const (
-	kustomization1 = "kustomization_yaml"
-	kustomization3 = "force_common"
-	kustomization4 = "custom_version"
-	kustomization5 = "kustomization_yaml_patches"
-	kustomization6 = "kustomization_yaml_components"
-	kustomization7 = "label_without_selector"
-	kustomization8 = "kustomization_yaml_patches_empty"
-	kustomization9 = "kustomization_yaml_components_monorepo"
+	kustomization1  = "kustomization_yaml"
+	kustomization3  = "force_common"
+	kustomization4  = "custom_version"
+	kustomization5  = "kustomization_yaml_patches"
+	kustomization6  = "kustomization_yaml_components"
+	kustomization7  = "label_without_selector"
+	kustomization8  = "kustomization_yaml_patches_empty"
+	kustomization9  = "kustomization_yaml_components_monorepo"
+	kustomization10 = "repository_ca_ssl_cert_dir"
 )
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
@@ -457,6 +460,38 @@ func TestKustomizeLabelWithoutSelector(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestKustomizeBuild_setsSSLCertDirForRepositoryCA(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization10)
+	require.NoError(t, err)
+	envOutputFile := appPath + "/env_output"
+
+	temppath := t.TempDir()
+	cert, err := os.ReadFile("../../test/fixture/certs/argocd-test-server.crt")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path.Join(temppath, "127.0.0.1"), cert, 0o666))
+	t.Setenv(common.EnvVarTLSDataPath, temppath)
+
+	common.SetMergeRepositoryCAWithSystem(true)
+	t.Cleanup(func() { common.SetMergeRepositoryCAWithSystem(true) })
+
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "https://127.0.0.1/foo.git", appPath+"/kustomize.sslprobe", "", "")
+	_, _, _, err = kustomize.Build(nil, nil, nil, nil)
+	require.NoError(t, err)
+
+	content, err := os.ReadFile(envOutputFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "SSL_CERT_DIR=")
+	assert.Contains(t, string(content), "/etc/ssl/certs")
+
+	common.SetMergeRepositoryCAWithSystem(false)
+	require.NoError(t, os.Remove(envOutputFile))
+	_, _, _, err = kustomize.Build(nil, nil, nil, nil)
+	require.NoError(t, err)
+	content, err = os.ReadFile(envOutputFile)
+	require.NoError(t, err)
+	assert.Empty(t, strings.TrimSpace(string(content)))
 }
 
 func TestKustomizeCustomVersion(t *testing.T) {

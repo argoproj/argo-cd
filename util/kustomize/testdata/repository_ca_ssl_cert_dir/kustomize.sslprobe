@@ -1,0 +1,17 @@
+#!/bin/bash
+
+current_dir=$(dirname "$0")
+output="$current_dir/env_output"
+
+case "$1" in
+version)
+	echo "v5.3.0"
+	;;
+build)
+	env | grep "^SSL_CERT_DIR=" > "$output" || true
+	cat "$2/deployment.yaml"
+	;;
+*)
+	exit 0
+	;;
+esac
