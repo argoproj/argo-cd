@@ -1,0 +1,51 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ThanosRuler
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: prometheus-stack:monitoring.coreos.com/ThanosRuler:prometheus/prometheus-stack-kube-prom-thanos-ruler
+  creationTimestamp: "2021-12-09T15:51:10Z"
+  generation: 8
+  labels:
+    app: kube-prometheus-stack-thanos-ruler
+    app.kubernetes.io/instance: prometheus-stack
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kube-prometheus-stack
+    chart: kube-prometheus-stack-39.11.0
+    heritage: Helm
+    release: prometheus-stack
+  name: prometheus-stack-kube-prom-thanos-ruler
+  namespace: prometheus
+  resourceVersion: "200307978"
+  uid: 9c5e1016-926d-44e7-945b-dec4c975595e
+spec:
+  image: quay.io/thanos/thanos:v0.28.0
+  alertmanagersUrl:
+  - http://prometheus-stack-kube-prom-alertmanager.prometheus:9093
+  externalPrefix: http://thanos-ruler.prometheus:10902
+  logFormat: logfmt
+  logLevel: info
+  portName: web
+  replicas: 2
+  retention: 24h
+  ruleNamespaceSelector: {}
+  ruleSelector: {}
+  securityContext:
+    fsGroup: 2000
+    runAsGroup: 2000
+    runAsNonRoot: true
+    runAsUser: 1000
+  serviceAccountName: prometheus-stack-kube-prom-thanos-ruler
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: "2022-09-02T14:34:39Z"
+    reason: SomePodsNotReady
+    status: "False"
+    type: Available
+  - lastTransitionTime: "2022-09-02T09:57:03Z"
+    status: "True"
+    type: Reconciled
+  paused: false
+  replicas: 2
+  unavailableReplicas: 1
+  updatedReplicas: 1

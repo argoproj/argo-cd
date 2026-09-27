@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -401,9 +400,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 			}, true, true, nil, true))
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{
 					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
 						PullRequest: testCaseCopy.providerConfig,
@@ -424,9 +421,7 @@ func TestSCMProviderDisabled_PRGenerator(t *testing.T) {
 	generator := NewPullRequestGenerator(nil, NewSCMConfig("", []string{}, false, true, nil, true))
 
 	applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "set",
-		},
+		Name: "set",
 		Spec: argoprojiov1alpha1.ApplicationSetSpec{
 			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
 				PullRequest: &argoprojiov1alpha1.PullRequestGenerator{

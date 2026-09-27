@@ -12,12 +12,18 @@ Github Agentics is essentially a GitHub workflow, which is created and updated b
 
 The initial configuration was performed by running `gh aw add-wizard githubnext/agentics/issue-triage` locally, this was a one-time step. 
 
+## Prerequisites
+
+> [!NOTE]
+> These tools are only needed by maintainers working on GitHub Agentics workflows. They are **not** required to build, test, run, or debug Argo CD itself, and are therefore **not** installed by `make install-tools-local`.
+
+- An installed and authenticated [GitHub CLI (`gh`)](https://cli.github.com/). Authenticate it with `gh auth login` (or by setting the `GH_TOKEN` environment variable).
+- The `gh aw` CLI extension, installed by running `make install-gh-aw-local`.
+
 ## Configuration
 
-A dedicated GitHub `gh aw` CLI needs to be installed locally, by running `make install-gh-aw-local`. The CLI is also installed as part of `make install-tools-local`. 
-
-- `.github/workflows/issue-triage.md` - the main file with which the maintainers can interact to configure the workflow. It contains both a prompt for the agent and a configuration section. The file is pre-created upon the initial installation of the wizard and then it can be configured further. Upon performing changes in this file, it is required to run `gh aw compile` or `make codegen-local`. 
-- `.github/workflows/aw.json` - additional configuration file. Upon performing changes in this file, it is required to run `gh aw compile` or `make codegen-local`.
+- `.github/workflows/issue-triage.md` - the main file with which the maintainers can interact to configure the workflow. It contains both a prompt for the agent and a configuration section. The file is pre-created upon the initial installation of the wizard and then it can be configured further. Upon performing changes in this file, it is required to run `gh aw compile` or `make gh-aw-compile`. 
+- `.github/workflows/aw.json` - additional configuration file. Upon performing changes in this file, it is required to run `gh aw compile` or `make gh-aw-compile`.
 
 ## Auto generated workflow files
 - `.github/workflows/issue-triage.lock.yml` - the GitHub CI workflow itself, auto-generated based on the `issue-triage.md` and `aw.json` files. 

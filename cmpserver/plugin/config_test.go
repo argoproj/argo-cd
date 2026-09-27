@@ -134,9 +134,7 @@ spec:
     command: [command]
 `,
 			expected: &PluginConfig{
-				TypeMeta: metav1.TypeMeta{
-					Kind: ConfigManagementPluginKind,
-				},
+				Kind: ConfigManagementPluginKind,
 				Metadata: metav1.ObjectMeta{
 					Name: "name",
 				},
@@ -183,9 +181,7 @@ func Test_PluginConfig_Address(t *testing.T) {
 		{
 			name: "no version specified",
 			config: &PluginConfig{
-				TypeMeta: metav1.TypeMeta{
-					Kind: ConfigManagementPluginKind,
-				},
+				Kind: ConfigManagementPluginKind,
 				Metadata: metav1.ObjectMeta{
 					Name: "name",
 				},
@@ -195,9 +191,7 @@ func Test_PluginConfig_Address(t *testing.T) {
 		{
 			name: "version specified",
 			config: &PluginConfig{
-				TypeMeta: metav1.TypeMeta{
-					Kind: ConfigManagementPluginKind,
-				},
+				Kind: ConfigManagementPluginKind,
 				Metadata: metav1.ObjectMeta{
 					Name: "name",
 				},

@@ -1,0 +1,5 @@
+apiVersion: policies.kyverno.io/v1alpha1
+kind: GeneratingPolicy
+metadata:
+  name: sample-generating-policy
+spec: {}

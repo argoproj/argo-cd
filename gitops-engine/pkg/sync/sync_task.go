@@ -2,6 +2,7 @@ package sync
 
 import (
 	"fmt"
+	"slices"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -123,12 +124,7 @@ func (t *syncTask) hasHookDeletePolicy(policy common.HookDeletePolicy) bool {
 	if !t.isHook() {
 		return false
 	}
-	for _, p := range hook.DeletePolicies(t.obj()) {
-		if p == policy {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(hook.DeletePolicies(t.obj()), policy)
 }
 
 func (t *syncTask) deleteBeforeCreation() bool {

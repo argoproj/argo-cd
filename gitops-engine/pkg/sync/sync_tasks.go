@@ -2,6 +2,7 @@ package sync
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -218,12 +219,7 @@ func (s syncTasks) All(predicate func(task *syncTask) bool) bool {
 }
 
 func (s syncTasks) Any(predicate func(task *syncTask) bool) bool {
-	for _, task := range s {
-		if predicate(task) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(s, predicate)
 }
 
 func (s syncTasks) Find(predicate func(task *syncTask) bool) *syncTask {

@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"os"
-	"os/signal"
 	"runtime/debug"
-	"syscall"
+	"sync"
 	"time"
 
 	"github.com/argoproj/pkg/v2/stats"
@@ -108,7 +106,7 @@ func NewCommand() *cobra.Command {
 		Short:             "Run ArgoCD Application Controller",
 		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
-		RunE: func(c *cobra.Command, _ []string) error {
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, _ []string, _ context.CancelFunc) error {
 			ctx, cancel := context.WithCancel(c.Context())
 			defer cancel()
 
@@ -242,23 +240,17 @@ func NewCommand() *cobra.Command {
 				defer closeTracer()
 			}
 
-			// Graceful shutdown code
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-			go func() {
-				s := <-sigCh
-				log.Printf("got signal %v, attempting graceful shutdown", s)
-				cancel()
-			}()
-
-			go appController.Run(ctx, statusProcessors, operationProcessors, hydrationProcessors)
-
-			<-ctx.Done()
-
+			// Run blocks until ctx is done; Wait joins it so the queue shutdowns land before the deferred
+			// tracer flush. Workers are not joined and ShutDown does not drain in-flight items.
+			wg := sync.WaitGroup{}
+			wg.Go(func() {
+				appController.Run(ctx, statusProcessors, operationProcessors, hydrationProcessors)
+			})
+			wg.Wait()
 			log.Println("clean shutdown")
 
 			return nil
-		},
+		}),
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
@@ -286,7 +278,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&selfHealBackoffCooldownSeconds, "self-heal-backoff-cooldown-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_COOLDOWN_SECONDS", 330, 0, math.MaxInt32), "Specifies period of time the app needs to stay synced before the self heal backoff can reset")
 	errors.CheckError(command.Flags().MarkDeprecated("self-heal-backoff-cooldown-seconds", "This flag is deprecated and has no effect."))
 	command.Flags().IntVar(&syncTimeout, "sync-timeout", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT", 0, 0, math.MaxInt32), "Specifies the timeout after which a sync would be terminated. 0 means no timeout (default 0).")
-	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", env.ParseInt64FromEnv("ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT", 20, 0, math.MaxInt64), "Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit.")
+	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", env.ParseInt64FromEnv("ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT", 20, 0, math.MaxInt64), "Maximum number of concurrent cluster operations during sync. Any value less than 1 means no limit.")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
 	errors.CheckError(command.Flags().MarkDeprecated("repo-server-strict-tls", "use --repo-server-ca-cert-path instead"))

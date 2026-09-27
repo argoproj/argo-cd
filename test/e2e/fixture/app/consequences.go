@@ -117,6 +117,19 @@ func (c *Consequences) get() (*v1alpha1.Application, error) {
 	return fixture.AppClientset.ArgoprojV1alpha1().Applications(c.context.AppNamespace()).Get(context.Background(), c.context.AppName(), metav1.GetOptions{})
 }
 
+func (c *Consequences) resourceTree() (*v1alpha1.ApplicationTree, error) {
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	defer utilio.Close(closer)
+	return client.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{
+		ApplicationName: new(c.context.AppName()),
+		Project:         new(c.context.project),
+		AppNamespace:    new(c.context.appNamespace),
+	})
+}
+
 func (c *Consequences) resource(kind, name, namespace string) v1alpha1.ResourceStatus {
 	c.context.T().Helper()
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()

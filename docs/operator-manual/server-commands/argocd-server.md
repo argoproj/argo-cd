@@ -51,6 +51,7 @@ argocd-server [flags]
       --dex-server-strict-tls                            Perform strict validation of TLS certificates when connecting to dex server
       --disable-auth                                     Disable client authentication
       --disable-compression                              If true, opt-out of response compression for all requests to the server
+      --disable-swagger-ui                               Disable the Swagger UI (/swagger-ui) endpoint
       --enable-gzip                                      Enable GZIP compression (default true)
       --enable-k8s-event none                            Enable ArgoCD to use k8s event. For disabling all events, set the value as none. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated) (default [all])
       --enable-proxy-extension                           Enable Proxy Extension feature
@@ -113,6 +114,7 @@ argocd-server [flags]
       --sync-with-replace-allowed                        Whether to allow users to select replace for syncs from UI/CLI (default true)
       --tls-server-name string                           If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --tlsciphers string                                The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
+      --tlscurvepreferences string                       Colon-separated list of TLS curve preferences to be used when establishing TLS connections (e.g. X25519:CurveP256).
       --tlsmaxversion string                             The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
       --tlsminversion string                             The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
       --token string                                     Bearer token for authentication to the API server

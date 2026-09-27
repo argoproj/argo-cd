@@ -1,0 +1,23 @@
+apiVersion: s3.services.k8s.aws/v1alpha1
+kind: Bucket
+metadata:
+  name: test-s3-bucket
+  namespace: default
+spec:
+  name: test-s3-bucket
+status:
+  ackResourceMetadata:
+    arn: arn:aws:s3:::test-s3-bucket
+    ownerAccountID: "111111111111"
+    region: us-west-2
+  conditions:
+  - lastTransitionTime: "2026-04-15T18:20:17Z"
+    message: bucket in CREATING state
+    reason: bucket in CREATING state
+    status: "False"
+    type: ACK.ResourceSynced
+  - lastTransitionTime: "2026-04-15T18:20:17Z"
+    message: bucket in CREATING state
+    reason: bucket in CREATING state
+    status: "False"
+    type: Ready

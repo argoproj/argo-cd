@@ -7,15 +7,43 @@
         margin-bottom: 1em;
         align-items: center;
         padding-right: 48px;
-        h1 {
-            @include themify($themes){
-                color: themed('text-2');
-            }
-            font-size: 23px;
-            font-weight: 500;
-            margin-right: 5px;
-            margin-bottom: 0;
+    }
+
+    // The name and the status icons share one inline flow, so the status trails
+    // the last line of the name instead of claiming its own column. Without
+    // this the name cannot shrink past its longest word, the status icons get
+    // squeezed, and the action buttons end up drawn on top of them.
+    &__header-name {
+        flex: 1;
+        min-width: 0;
+    }
+
+    &__header-title {
+        @include themify($themes){
+            color: themed('text-2');
         }
+        display: inline;
+        font-size: 23px;
+        font-weight: 500;
+        margin-right: 5px;
+        overflow-wrap: anywhere;
+    }
+
+    &__header-status {
+        display: inline-flex;
+        align-items: center;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+
+    &__header-actions {
+        display: flex;
+        align-items: center;
+        flex-shrink: 0;
+        margin-left: auto;
+        // Keep the buttons clear of the status icons when the name is long
+        // enough to consume every spare pixel.
+        padding-left: 8px;
     }
 }
 

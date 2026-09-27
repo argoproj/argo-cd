@@ -1,6 +1,8 @@
 package hook
 
 import (
+	"slices"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
@@ -15,12 +17,7 @@ const (
 
 func HasHookFinalizer(obj *unstructured.Unstructured) bool {
 	finalizers := obj.GetFinalizers()
-	for _, finalizer := range finalizers {
-		if finalizer == HookFinalizer {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(finalizers, HookFinalizer)
 }
 
 func IsHook(obj *unstructured.Unstructured) bool {
@@ -32,10 +29,8 @@ func IsHook(obj *unstructured.Unstructured) bool {
 }
 
 func Skip(obj *unstructured.Unstructured) bool {
-	for _, hookType := range Types(obj) {
-		if hookType == common.HookTypeSkip {
-			return len(Types(obj)) == 1
-		}
+	if slices.Contains(Types(obj), common.HookTypeSkip) {
+		return len(Types(obj)) == 1
 	}
 	return false
 }
