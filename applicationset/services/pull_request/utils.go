@@ -3,7 +3,9 @@ package pull_request
 import (
 	"context"
 	"fmt"
-	"regexp"
+
+	"github.com/dlclark/regexp2"
+	log "github.com/sirupsen/logrus"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -14,19 +16,19 @@ func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]
 		outFilter := &Filter{}
 		var err error
 		if filter.BranchMatch != nil {
-			outFilter.BranchMatch, err = regexp.Compile(*filter.BranchMatch)
+			outFilter.BranchMatch, err = regexp2.Compile(*filter.BranchMatch, 0)
 			if err != nil {
 				return nil, fmt.Errorf("error compiling BranchMatch regexp %q: %w", *filter.BranchMatch, err)
 			}
 		}
 		if filter.TargetBranchMatch != nil {
-			outFilter.TargetBranchMatch, err = regexp.Compile(*filter.TargetBranchMatch)
+			outFilter.TargetBranchMatch, err = regexp2.Compile(*filter.TargetBranchMatch, 0)
 			if err != nil {
 				return nil, fmt.Errorf("error compiling TargetBranchMatch regexp %q: %w", *filter.TargetBranchMatch, err)
 			}
 		}
 		if filter.TitleMatch != nil {
-			outFilter.TitleMatch, err = regexp.Compile(*filter.TitleMatch)
+			outFilter.TitleMatch, err = regexp2.Compile(*filter.TitleMatch, 0)
 			if err != nil {
 				return nil, fmt.Errorf("error compiling TitleMatch regexp %q: %w", *filter.TitleMatch, err)
 			}
@@ -36,14 +38,24 @@ func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]
 	return outFilters, nil
 }
 
+// matchRegexp reports whether re matches text, treating a match-time error as a non-match.
+func matchRegexp(re *regexp2.Regexp, text string) bool {
+	matched, err := re.MatchString(text)
+	if err != nil {
+		log.Warnf("failed to match pattern %s due to error %v", re.String(), err)
+		return false
+	}
+	return matched
+}
+
 func matchFilter(pullRequest *PullRequest, filter *Filter) bool {
-	if filter.BranchMatch != nil && !filter.BranchMatch.MatchString(pullRequest.Branch) {
+	if filter.BranchMatch != nil && !matchRegexp(filter.BranchMatch, pullRequest.Branch) {
 		return false
 	}
-	if filter.TargetBranchMatch != nil && !filter.TargetBranchMatch.MatchString(pullRequest.TargetBranch) {
+	if filter.TargetBranchMatch != nil && !matchRegexp(filter.TargetBranchMatch, pullRequest.TargetBranch) {
 		return false
 	}
-	if filter.TitleMatch != nil && !filter.TitleMatch.MatchString(pullRequest.Title) {
+	if filter.TitleMatch != nil && !matchRegexp(filter.TitleMatch, pullRequest.Title) {
 		return false
 	}
 

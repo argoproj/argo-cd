@@ -34,6 +34,76 @@ func TestFilterBranchMatchBadRegexp(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestFilterBranchMatchLookahead(t *testing.T) {
+	t.Parallel()
+	provider, _ := NewFakeService(
+		t.Context(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Title:        "PR feature",
+				Branch:       "feature/one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
+			},
+			{
+				Number:       2,
+				Title:        "PR release",
+				Branch:       "release/1.0",
+				TargetBranch: "master",
+				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name2",
+			},
+		},
+		nil,
+	)
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			BranchMatch: new("^(?!release/).*"),
+		},
+	}
+	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 1)
+	assert.Equal(t, "feature/one", pullRequests[0].Branch)
+}
+
+func TestFilterTitleMatchLookbehind(t *testing.T) {
+	t.Parallel()
+	provider, _ := NewFakeService(
+		t.Context(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Title:        "WIP: add feature",
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
+			},
+			{
+				Number:       2,
+				Title:        "add feature",
+				Branch:       "two",
+				TargetBranch: "master",
+				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name2",
+			},
+		},
+		nil,
+	)
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			TitleMatch: new("(?<=WIP: ).*"),
+		},
+	}
+	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 1)
+	assert.Equal(t, "one", pullRequests[0].Branch)
+}
+
 func TestFilterBranchMatch(t *testing.T) {
 	t.Parallel()
 	provider, _ := NewFakeService(
