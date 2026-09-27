@@ -104,6 +104,7 @@ func AddHTTPSRepoClientCert(t *testing.T, insecure bool) {
 }
 
 func AddHelmRepo(t *testing.T, name string) {
+	t.Helper()
 	AddHelmRepoForURLType(t, name, fixture.RepoURLTypeHelm)
 }
 
