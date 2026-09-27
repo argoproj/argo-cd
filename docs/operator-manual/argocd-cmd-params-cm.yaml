@@ -310,6 +310,9 @@ data:
   reposerver.enable.builtin.git.config: "true"
   # Include hidden directories from Git
   reposerver.include.hidden.directories: "false"
+  # Merge repository-specific TLS CAs from argocd-tls-certs-cm with the system trust store for Helm,
+  # Kustomize, and native HTTP clients (default "true"). Set to "false" to pass only the repository CA.
+  reposerver.merge.repository.ca.with.system: "true"
   # Enable gRPC service config lookups via DNS TXT records (default "false"). By default, gRPC DNS TXT lookups for
   # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
   # See https://github.com/argoproj/argo-cd/issues/24991

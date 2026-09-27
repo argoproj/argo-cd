@@ -108,6 +108,25 @@ func TestHelmRepo(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
+// Verifies that a Helm repository configured with a private CA can still download charts
+// redirected to endpoints trusted by the system roots (default merge behavior).
+func TestHelmRepositoryCAWithSystemTrust(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	Given(t).
+		CustomCACertAdded().
+		HelmRepoAddedForURLType("custom-repo", fixture.RepoURLTypeHelmSystemTrustRedirect).
+		RepoURLType(fixture.RepoURLTypeHelmSystemTrustRedirect).
+		Chart("helm").
+		Revision("1.0.0").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
 func TestHelmValues(t *testing.T) {
 	Given(t).
 		Path("helm").

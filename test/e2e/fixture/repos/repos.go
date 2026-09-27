@@ -104,11 +104,15 @@ func AddHTTPSRepoClientCert(t *testing.T, insecure bool) {
 }
 
 func AddHelmRepo(t *testing.T, name string) {
+	AddHelmRepoForURLType(t, name, fixture.RepoURLTypeHelm)
+}
+
+func AddHelmRepoForURLType(t *testing.T, name string, urlType fixture.RepoURLType) {
 	t.Helper()
 	args := []string{
 		"repo",
 		"add",
-		fixture.RepoURL(fixture.RepoURLTypeHelm),
+		fixture.RepoURL(urlType),
 		"--username", fixture.GitUsername,
 		"--password", fixture.GitPassword,
 		"--tls-client-cert-path", CertPath(t),

@@ -205,6 +205,11 @@ func (c *Context) HelmRepoAdded(name string) *Context {
 	return c
 }
 
+func (c *Context) HelmRepoAddedForURLType(name string, urlType fixture.RepoURLType) *Context {
+	repos.AddHelmRepoForURLType(c.T(), name, urlType)
+	return c
+}
+
 func (c *Context) HelmOCIRepoAdded(name string) *Context {
 	repos.AddHelmOCIRepo(c.T(), name)
 	return c

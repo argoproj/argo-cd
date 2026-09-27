@@ -122,30 +122,31 @@ type ACL struct {
 }
 
 const (
-	RepoURLTypeFile                 = "file"
-	RepoURLTypeHTTPS                = "https"
-	RepoURLTypeHTTPSOrg             = "https-org"
-	RepoURLTypeHTTPSClientCert      = "https-cc"
-	RepoURLTypeHTTPSSubmodule       = "https-sub"
-	RepoURLTypeHTTPSSubmoduleParent = "https-par"
-	RepoURLTypeSSH                  = "ssh"
-	RepoURLTypeSSHSubmodule         = "ssh-sub"
-	RepoURLTypeSSHSubmoduleParent   = "ssh-par"
-	RepoURLTypeHelm                 = "helm"
-	RepoURLTypeHelmParent           = "helm-par"
-	RepoURLTypeHelmOCI              = "helm-oci"
-	RepoURLTypeOCI                  = "oci"
-	GitUsername                     = "admin"
-	GitPassword                     = "password"
-	GitBearerToken                  = "test"
-	GithubAppID                     = "2978632978"
-	GithubAppInstallationID         = "7893789433789"
-	GpgGoodKeyID                    = "D56C4FCA57A46444"
-	HelmOCIRegistryURL              = "localhost:5000/myrepo"
-	HelmAuthenticatedOCIRegistryURL = "localhost:5001/myrepo"
-	OCIRegistryURL                  = "oci://localhost:5000/my-oci-repo"
-	OCIHostURL                      = "oci://localhost:5000"
-	AuthenticatedOCIHostURL         = "oci://localhost:5001"
+	RepoURLTypeFile                    = "file"
+	RepoURLTypeHTTPS                   = "https"
+	RepoURLTypeHTTPSOrg                = "https-org"
+	RepoURLTypeHTTPSClientCert         = "https-cc"
+	RepoURLTypeHTTPSSubmodule          = "https-sub"
+	RepoURLTypeHTTPSSubmoduleParent    = "https-par"
+	RepoURLTypeSSH                     = "ssh"
+	RepoURLTypeSSHSubmodule            = "ssh-sub"
+	RepoURLTypeSSHSubmoduleParent      = "ssh-par"
+	RepoURLTypeHelm                    = "helm"
+	RepoURLTypeHelmParent              = "helm-par"
+	RepoURLTypeHelmSystemTrustRedirect = "helm-system-trust-redirect"
+	RepoURLTypeHelmOCI                 = "helm-oci"
+	RepoURLTypeOCI                     = "oci"
+	GitUsername                        = "admin"
+	GitPassword                        = "password"
+	GitBearerToken                     = "test"
+	GithubAppID                        = "2978632978"
+	GithubAppInstallationID            = "7893789433789"
+	GpgGoodKeyID                       = "D56C4FCA57A46444"
+	HelmOCIRegistryURL                 = "localhost:5000/myrepo"
+	HelmAuthenticatedOCIRegistryURL    = "localhost:5001/myrepo"
+	OCIRegistryURL                     = "oci://localhost:5000/my-oci-repo"
+	OCIHostURL                         = "oci://localhost:5000"
+	AuthenticatedOCIHostURL            = "oci://localhost:5001"
 )
 
 // TestNamespace returns the namespace where Argo CD E2E test instance will be
@@ -322,16 +323,17 @@ func submoduleParentDirectory() string {
 }
 
 const (
-	EnvRepoURLTypeSSH                  = "ARGOCD_E2E_REPO_SSH"
-	EnvRepoURLTypeSSHSubmodule         = "ARGOCD_E2E_REPO_SSH_SUBMODULE"
-	EnvRepoURLTypeSSHSubmoduleParent   = "ARGOCD_E2E_REPO_SSH_SUBMODULE_PARENT"
-	EnvRepoURLTypeHTTPS                = "ARGOCD_E2E_REPO_HTTPS"
-	EnvRepoURLTypeHTTPSOrg             = "ARGOCD_E2E_REPO_HTTPS_ORG"
-	EnvRepoURLTypeHTTPSClientCert      = "ARGOCD_E2E_REPO_HTTPS_CLIENT_CERT"
-	EnvRepoURLTypeHTTPSSubmodule       = "ARGOCD_E2E_REPO_HTTPS_SUBMODULE"
-	EnvRepoURLTypeHTTPSSubmoduleParent = "ARGOCD_E2E_REPO_HTTPS_SUBMODULE_PARENT"
-	EnvRepoURLTypeHelm                 = "ARGOCD_E2E_REPO_HELM"
-	EnvRepoURLDefault                  = "ARGOCD_E2E_REPO_DEFAULT"
+	EnvRepoURLTypeSSH                     = "ARGOCD_E2E_REPO_SSH"
+	EnvRepoURLTypeSSHSubmodule            = "ARGOCD_E2E_REPO_SSH_SUBMODULE"
+	EnvRepoURLTypeSSHSubmoduleParent      = "ARGOCD_E2E_REPO_SSH_SUBMODULE_PARENT"
+	EnvRepoURLTypeHTTPS                   = "ARGOCD_E2E_REPO_HTTPS"
+	EnvRepoURLTypeHTTPSOrg                = "ARGOCD_E2E_REPO_HTTPS_ORG"
+	EnvRepoURLTypeHTTPSClientCert         = "ARGOCD_E2E_REPO_HTTPS_CLIENT_CERT"
+	EnvRepoURLTypeHTTPSSubmodule          = "ARGOCD_E2E_REPO_HTTPS_SUBMODULE"
+	EnvRepoURLTypeHTTPSSubmoduleParent    = "ARGOCD_E2E_REPO_HTTPS_SUBMODULE_PARENT"
+	EnvRepoURLTypeHelm                    = "ARGOCD_E2E_REPO_HELM"
+	EnvRepoURLTypeHelmSystemTrustRedirect = "ARGOCD_E2E_REPO_HELM_SYSTEM_TRUST_REDIRECT"
+	EnvRepoURLDefault                     = "ARGOCD_E2E_REPO_DEFAULT"
 )
 
 func RepoURL(urlType RepoURLType) string {
@@ -364,6 +366,8 @@ func RepoURL(urlType RepoURLType) string {
 	// Default - file based Git repository
 	case RepoURLTypeHelm:
 		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo/local")
+	case RepoURLTypeHelmSystemTrustRedirect:
+		return GetEnvWithDefault(EnvRepoURLTypeHelmSystemTrustRedirect, "https://localhost:9444/argo-e2e/testdata.git/helm-repo/system-trust-redirect")
 	// When Helm Repo has sub repos, this is the parent repo URL
 	case RepoURLTypeHelmParent:
 		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo")
