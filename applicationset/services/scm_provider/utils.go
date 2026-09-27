@@ -3,9 +3,11 @@ package scm_provider
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/dlclark/regexp2"
+	log "github.com/sirupsen/logrus"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -16,14 +18,14 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 		outFilter := &Filter{}
 		var err error
 		if filter.RepositoryMatch != nil {
-			outFilter.RepositoryMatch, err = regexp.Compile(*filter.RepositoryMatch)
+			outFilter.RepositoryMatch, err = regexp2.Compile(*filter.RepositoryMatch, 0)
 			if err != nil {
 				return nil, fmt.Errorf("error compiling RepositoryMatch regexp %q: %w", *filter.RepositoryMatch, err)
 			}
 			outFilter.FilterType = FilterTypeRepo
 		}
 		if filter.LabelMatch != nil {
-			outFilter.LabelMatch, err = regexp.Compile(*filter.LabelMatch)
+			outFilter.LabelMatch, err = regexp2.Compile(*filter.LabelMatch, 0)
 			if err != nil {
 				return nil, fmt.Errorf("error compiling LabelMatch regexp %q: %w", *filter.LabelMatch, err)
 			}
@@ -38,7 +40,7 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 			outFilter.FilterType = FilterTypeBranch
 		}
 		if filter.BranchMatch != nil {
-			outFilter.BranchMatch, err = regexp.Compile(*filter.BranchMatch)
+			outFilter.BranchMatch, err = regexp2.Compile(*filter.BranchMatch, 0)
 			if err != nil {
 				return nil, fmt.Errorf("error compiling BranchMatch regexp %q: %w", *filter.BranchMatch, err)
 			}
@@ -49,17 +51,29 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 	return outFilters, nil
 }
 
+// matchRegexp reports whether re matches text, treating a match-time error as a non-match.
+func matchRegexp(re *regexp2.Regexp, text string) bool {
+	matched, err := re.MatchString(text)
+	if err != nil {
+		log.Warnf("failed to match pattern %s due to error %v", re.String(), err)
+		return false
+	}
+	return matched
+}
+
 func matchFilter(ctx context.Context, provider SCMProviderService, repo *Repository, filter *Filter) (bool, error) {
-	if filter.RepositoryMatch != nil && !filter.RepositoryMatch.MatchString(repo.Repository) {
+	if filter.RepositoryMatch != nil && !matchRegexp(filter.RepositoryMatch, repo.Repository) {
 		return false, nil
 	}
 
-	if filter.BranchMatch != nil && !filter.BranchMatch.MatchString(repo.Branch) {
+	if filter.BranchMatch != nil && !matchRegexp(filter.BranchMatch, repo.Branch) {
 		return false, nil
 	}
 
 	if filter.LabelMatch != nil {
-		found := slices.ContainsFunc(repo.Labels, filter.LabelMatch.MatchString)
+		found := slices.ContainsFunc(repo.Labels, func(label string) bool {
+			return matchRegexp(filter.LabelMatch, label)
+		})
 		if !found {
 			return false, nil
 		}

@@ -438,6 +438,9 @@ spec:
 * `labelMatch`: A regexp matched against repository labels. If any label matches, the repository is included.
 * `branchMatch`: A regexp matched against branch names.
 
+> [!NOTE]
+> `repositoryMatch`, `labelMatch`, and `branchMatch` support lookahead/lookbehind assertions (e.g. `(?!...)`, `(?<=...)`) via the [regexp2](https://github.com/dlclark/regexp2) engine, in addition to standard RE2 syntax.
+
 ## Template
 
 As with all generators, several parameters are generated for use within the `ApplicationSet` resource template.

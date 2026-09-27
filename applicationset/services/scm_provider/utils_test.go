@@ -1,9 +1,9 @@
 package scm_provider
 
 import (
-	"regexp"
 	"testing"
 
+	"github.com/dlclark/regexp2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -197,6 +197,57 @@ func TestFilterBranchMatch(t *testing.T) {
 	assert.Equal(t, "two", repos[1].Branch)
 }
 
+func TestFilterBranchMatchLookahead(t *testing.T) {
+	t.Parallel()
+	provider := &MockProvider{
+		Repos: []*Repository{
+			{
+				Repository: "one",
+				Branch:     "feature/one",
+			},
+			{
+				Repository: "two",
+				Branch:     "release/1.0",
+			},
+		},
+	}
+	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
+		{
+			BranchMatch: new("^(?!release/).*"),
+		},
+	}
+	repos, err := ListRepos(t.Context(), provider, filters, "")
+	require.NoError(t, err)
+	assert.Len(t, repos, 1)
+	assert.Equal(t, "one", repos[0].Repository)
+	assert.Equal(t, "feature/one", repos[0].Branch)
+}
+
+func TestFilterLabelMatchLookbehind(t *testing.T) {
+	t.Parallel()
+	provider := &MockProvider{
+		Repos: []*Repository{
+			{
+				Repository: "one",
+				Labels:     []string{"env: prod"},
+			},
+			{
+				Repository: "two",
+				Labels:     []string{"staging"},
+			},
+		},
+	}
+	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
+		{
+			LabelMatch: new("(?<=env: ).*"),
+		},
+	}
+	repos, err := ListRepos(t.Context(), provider, filters, "")
+	require.NoError(t, err)
+	assert.Len(t, repos, 1)
+	assert.Equal(t, "one", repos[0].Repository)
+}
+
 func TestMultiFilterAnd(t *testing.T) {
 	t.Parallel()
 	provider := &MockProvider{
@@ -293,11 +344,11 @@ func TestNoFilters(t *testing.T) {
 func TestApplicableFilterMap(t *testing.T) {
 	t.Parallel()
 	branchFilter := Filter{
-		BranchMatch: &regexp.Regexp{},
+		BranchMatch: &regexp2.Regexp{},
 		FilterType:  FilterTypeBranch,
 	}
 	repoFilter := Filter{
-		RepositoryMatch: &regexp.Regexp{},
+		RepositoryMatch: &regexp2.Regexp{},
 		FilterType:      FilterTypeRepo,
 	}
 	pathExistsFilter := Filter{
@@ -309,14 +360,14 @@ func TestApplicableFilterMap(t *testing.T) {
 		FilterType:      FilterTypeBranch,
 	}
 	labelMatchFilter := Filter{
-		LabelMatch: &regexp.Regexp{},
+		LabelMatch: &regexp2.Regexp{},
 		FilterType: FilterTypeRepo,
 	}
 	unsetFilter := Filter{
-		LabelMatch: &regexp.Regexp{},
+		LabelMatch: &regexp2.Regexp{},
 	}
 	additionalBranchFilter := Filter{
-		BranchMatch: &regexp.Regexp{},
+		BranchMatch: &regexp2.Regexp{},
 		FilterType:  FilterTypeBranch,
 	}
 	filterMap := getApplicableFilters([]*Filter{
