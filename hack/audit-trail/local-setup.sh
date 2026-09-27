@@ -8,7 +8,8 @@
 #   hack/audit-trail/local-setup.sh            # minikube (default)
 #   CLUSTER=kind hack/audit-trail/local-setup.sh
 #
-# Needs: docker, kubectl, jq, openssl, and minikube or kind.
+# Needs: the docker CLI, kubectl, jq, openssl, and minikube or kind. kind also needs a running Docker daemon;
+# minikube does not (it falls back to a VirtualBox VM with its own daemon).
 # Re-running the script rebuilds the image and re-deploys; `hack/audit-trail/local-setup.sh down` deletes the cluster.
 set -euo pipefail
 
@@ -34,7 +35,12 @@ if [ "$CLUSTER" = kind ]; then
   kind get clusters | grep -qx "$PROFILE" || kind create cluster --name "$PROFILE"
   kubectl config use-context "kind-$PROFILE"
 else
-  minikube status -p "$PROFILE" >/dev/null 2>&1 || minikube start -p "$PROFILE" --cpus=4 --memory=8g
+  # minikube runs its own Docker daemon, which the image is built with, so a local Docker daemon is optional:
+  # without one, minikube runs in a VirtualBox VM (set MINIKUBE_DRIVER to use another driver).
+  DRIVER="${MINIKUBE_DRIVER:-}"
+  if [ -z "$DRIVER" ] && ! docker info >/dev/null 2>&1; then DRIVER=virtualbox; fi
+  minikube status -p "$PROFILE" >/dev/null 2>&1 || \
+    minikube start -p "$PROFILE" --cpus="${MINIKUBE_CPUS:-4}" --memory="${MINIKUBE_MEMORY:-8g}" --disk-size=40g ${DRIVER:+--driver="$DRIVER"}
   kubectl config use-context "$PROFILE"
 fi
 
