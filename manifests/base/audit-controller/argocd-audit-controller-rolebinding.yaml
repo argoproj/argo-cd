@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-audit-controller
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: audit-controller
+  name: argocd-audit-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-audit-controller
+subjects:
+- kind: ServiceAccount
+  name: argocd-audit-controller

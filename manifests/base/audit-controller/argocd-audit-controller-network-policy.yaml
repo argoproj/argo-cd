@@ -1,0 +1,27 @@
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-audit-controller
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: audit-controller
+  name: argocd-audit-controller-network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-audit-controller
+  policyTypes:
+    - Ingress
+  ingress:
+    # Only the API server ships audit records.
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: argocd-server
+      ports:
+        - protocol: TCP
+          port: 8088
+    - from:
+        - namespaceSelector: { }
+      ports:
+        - port: 8089

@@ -25,6 +25,7 @@ const (
 	CommandCLI                      = "argocd"
 	CommandApplicationController    = "argocd-application-controller"
 	CommandApplicationSetController = "argocd-applicationset-controller"
+	CommandAuditController          = "argocd-audit-controller"
 	CommandServer                   = "argocd-server"
 	CommandCMPServer                = "argocd-cmp-server"
 	CommandCommitServer             = "argocd-commit-server"
@@ -79,6 +80,8 @@ const (
 	DefaultPortRepoServerMetrics      = 8084
 	DefaultPortCommitServer           = 8086
 	DefaultPortCommitServerMetrics    = 8087
+	DefaultPortAuditController        = 8088
+	DefaultPortAuditControllerMetrics = 8089
 )
 
 // DefaultAddressAPIServer for ArgoCD components

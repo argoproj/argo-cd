@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-audit-controller
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: audit-controller
+  name: argocd-audit-controller
+spec:
+  ports:
+  - name: server
+    protocol: TCP
+    port: 8088
+    targetPort: 8088
+  - name: metrics
+    protocol: TCP
+    port: 8089
+    targetPort: 8089
+  selector:
+    app.kubernetes.io/name: argocd-audit-controller

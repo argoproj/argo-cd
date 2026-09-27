@@ -3127,6 +3127,18 @@ spec:
               key: server.client.ip.header
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_AUDIT_CONTROLLER_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: server.audit.controller.address
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_AUDIT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              key: token
+              name: argocd-audit-token
+              optional: true
         - name: ARGOCD_SERVER_ENABLE_GZIP
           valueFrom:
             configMapKeyRef:

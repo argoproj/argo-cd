@@ -11,6 +11,7 @@ import (
 
 	controller "github.com/argoproj/argo-cd/v3/cmd/argocd-application-controller/commands"
 	argocdappsetcontroller "github.com/argoproj/argo-cd/v3/cmd/argocd-applicationset-controller/commands"
+	argocdauditcontroller "github.com/argoproj/argo-cd/v3/cmd/argocd-audit-controller/commands"
 	argocddex "github.com/argoproj/argo-cd/v3/cmd/argocd-dex/commands"
 	reposerver "github.com/argoproj/argo-cd/v3/cmd/argocd-repo-server/commands"
 	argocdserver "github.com/argoproj/argo-cd/v3/cmd/argocd-server/commands"
@@ -57,6 +58,11 @@ func main() {
 	}
 
 	err = doc.GenMarkdownTreeCustom(argocdappsetcontroller.NewCommand(), "./docs/operator-manual/server-commands", headerPrepender, identity)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = doc.GenMarkdownTreeCustom(argocdauditcontroller.NewCommand(), "./docs/operator-manual/server-commands", headerPrepender, identity)
 	if err != nil {
 		log.Fatal(err)
 	}

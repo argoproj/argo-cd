@@ -21,6 +21,7 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	serveraudit "github.com/argoproj/argo-cd/v3/server/audit"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
@@ -43,6 +44,8 @@ type terminalHandler struct {
 type TerminalOptions struct {
 	DisableAuth bool
 	Enf         *rbac.Enforcer
+	// Auditor records terminal sessions in the audit trail; nil disables auditing.
+	Auditor *serveraudit.Auditor
 }
 
 // NewHandler returns a new terminal handler.
@@ -146,13 +149,18 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
+	// A nil auditor yields a nil *TerminalExec, whose methods do nothing.
+	execAudit := s.terminalOptions.Auditor.NewTerminalExec(r, app, appNamespace, project, namespace, podName, container)
+
 	appRBACName := security.RBACName(s.namespace, project, appNamespace, app)
 	if err := s.terminalOptions.Enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionGet, appRBACName); err != nil {
+		execAudit.Denied(err)
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
 	if err := s.terminalOptions.Enf.EnforceErr(ctx.Value("claims"), rbac.ResourceExec, rbac.ActionCreate, appRBACName); err != nil {
+		execAudit.Denied(err)
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
@@ -225,6 +233,8 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer session.Done()
 
+	execAudit.Started()
+
 	// send pings across the WebSocket channel at regular intervals to keep it alive through
 	// load balancers which may close an idle connection after some period of time
 	go session.StartKeepalives(time.Second * 5)
@@ -241,6 +251,8 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+
+	execAudit.Finished(err)
 
 	if err != nil {
 		http.Error(w, "Failed to exec container", http.StatusBadRequest)

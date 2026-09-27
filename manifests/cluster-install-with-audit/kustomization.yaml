@@ -1,0 +1,18 @@
+# Argo CD with the audit trail: argocd-server ships a record of every mutating API call and web terminal
+# session to argocd-audit-controller, which writes the audit trail to its log.
+#
+# The API server and the audit controller authenticate with a shared token, which must be created first:
+#
+#   kubectl -n argocd create secret generic argocd-audit-token --from-literal=token=$(openssl rand -hex 32)
+resources:
+  - ../cluster-install
+  - ../base/audit-controller
+
+patches:
+  - target:
+      kind: ConfigMap
+      name: argocd-cmd-params-cm
+    patch: |-
+      - op: add
+        path: /data
+        value: {"server.audit.controller.address": "argocd-audit-controller:8088"}

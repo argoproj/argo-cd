@@ -110,6 +110,8 @@ cd "${SRCROOT}/manifests/core-install" && $KUSTOMIZE edit set image "${SOURCE_IM
 # Because commit-server is added as a resource outside the base, we have to explicitly set the image override here.
 # If/when commit-server is added to the base, this can be removed.
 cd "${SRCROOT}/manifests/base/commit-server" && $KUSTOMIZE edit set image "${SOURCE_IMAGE_NAME}=${FULL_IMAGE_NAME}:${IMAGE_TAG}"
+# Same for the audit controller, which is an opt-in component.
+cd "${SRCROOT}/manifests/base/audit-controller" && $KUSTOMIZE edit set image "${SOURCE_IMAGE_NAME}=${FULL_IMAGE_NAME}:${IMAGE_TAG}"
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/install.yaml"
 $KUSTOMIZE build "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/install.yaml"
@@ -125,6 +127,10 @@ $KUSTOMIZE build "${SRCROOT}/manifests/ha/namespace-install" >> "${SRCROOT}/mani
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/core-install.yaml"
 $KUSTOMIZE build "${SRCROOT}/manifests/core-install" >> "${SRCROOT}/manifests/core-install.yaml"
+
+# Copy enabling the audit trail (argocd-audit-controller).
+echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/install-with-audit.yaml"
+$KUSTOMIZE build "${SRCROOT}/manifests/cluster-install-with-audit" >> "${SRCROOT}/manifests/install-with-audit.yaml"
 
 # Copies enabling manifest hydrator. These can be removed once the manifest hydrator is either removed or enabled by
 # default.

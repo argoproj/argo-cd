@@ -213,6 +213,9 @@ data:
   server.trusted.proxies: ""
   # Header a trusted proxy sets to the client IP, e.g. CF-Connecting-IP, True-Client-IP or X-Real-IP (default: none)
   server.client.ip.header: ""
+  # Address of the argocd-audit-controller. When set, every mutating API call and web terminal session is recorded
+  # in the audit trail. See https://argo-cd.readthedocs.io/en/latest/operator-manual/audit-trail/ (default: none)
+  server.audit.controller.address: ""
   # Set X-Frame-Options header in HTTP responses to value. To disable, set to "". (default "sameorigin")
   server.x.frame.options: "sameorigin"
   # The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
@@ -473,3 +476,19 @@ data:
   notificationscontroller.repo.server.client.cert.path: ""
   # Path to the client certificate key file for mTLS connections to repo server
   notificationscontroller.repo.server.client.cert.key.path: ""
+
+  ## Audit controller properties
+  # Set the logging format. One of: json|text (default "json")
+  auditcontroller.log.format: "json"
+  # Set the logging level. One of: debug|info|warn|error (default "info")
+  auditcontroller.log.level: "info"
+  # Number of recent audit records kept in memory and served on /api/v1/records (default 1000)
+  auditcontroller.buffer.size: "1000"
+  # Also append audit records to this file, e.g. on a persistent volume mounted at /app/audit (default: none)
+  auditcontroller.log.file: ""
+  # Turn the Kubernetes Events Argo CD controllers emit (automated syncs, sync results...) into audit records (default true)
+  auditcontroller.watch.events: "true"
+  # Comma separated namespaces to watch Argo CD events in; add the namespaces of apps in any namespace (default: the controller's namespace)
+  auditcontroller.event.namespaces: ""
+  # Comma separated event reasons turned into audit records (default "OperationStarted,OperationCompleted,ResourceCreated,ResourceDeleted,ResourceActionRan")
+  auditcontroller.event.reasons: "OperationStarted,OperationCompleted,ResourceCreated,ResourceDeleted,ResourceActionRan"

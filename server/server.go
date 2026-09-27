@@ -96,6 +96,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/server/account"
 	"github.com/argoproj/argo-cd/v3/server/application"
 	"github.com/argoproj/argo-cd/v3/server/applicationset"
+	serveraudit "github.com/argoproj/argo-cd/v3/server/audit"
 	"github.com/argoproj/argo-cd/v3/server/badge"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/server/certificate"
@@ -114,6 +115,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/server/version"
 	"github.com/argoproj/argo-cd/v3/ui"
 	"github.com/argoproj/argo-cd/v3/util/assets"
+	auditutil "github.com/argoproj/argo-cd/v3/util/audit"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	dexutil "github.com/argoproj/argo-cd/v3/util/dex"
@@ -225,6 +227,10 @@ type ArgoCDServer struct {
 	// the API server's listener over localhost, so it is otherwise indistinguishable from any other
 	// loopback client, sidecar proxies included.
 	gatewayToken string
+	// auditShipper delivers audit records to the argocd-audit-controller; nil when auditing is disabled.
+	auditShipper *auditutil.Shipper
+	// auditor turns API activity into audit records; nil when auditing is disabled.
+	auditor *serveraudit.Auditor
 }
 
 type ArgoCDServerOpts struct {
@@ -265,6 +271,11 @@ type ArgoCDServerOpts struct {
 	// TrustedProxies and ClientIPHeader decide which address source IP logging attributes a request to.
 	TrustedProxies []netip.Prefix
 	ClientIPHeader string
+	// AuditControllerAddress is the address of the argocd-audit-controller. When set, every mutating API
+	// call and web terminal session is recorded in the audit trail.
+	AuditControllerAddress string
+	// AuditToken authenticates the API server to the audit controller.
+	AuditToken string
 }
 
 type ApplicationSetOpts struct {
@@ -429,6 +440,16 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		extensionManager:   em,
 		Shutdown:           noopShutdown,
 		stopCh:             make(chan os.Signal, 1),
+	}
+
+	if opts.AuditControllerAddress != "" {
+		a.auditShipper = auditutil.NewShipper(opts.AuditControllerAddress, opts.AuditToken)
+		a.auditor = serveraudit.NewAuditor(a.auditShipper, serveraudit.Options{
+			GatewayToken:   a.gatewayToken,
+			TrustedProxies: opts.TrustedProxies,
+			ClientIPHeader: opts.ClientIPHeader,
+			Scopes:         policyEnf.GetScopes,
+		})
 	}
 
 	err = a.logInClusterWarnings()
@@ -614,6 +635,9 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		server.sessionMgr.CollectMetrics(metricsServ)
 	}
 	server.serviceSet = svcSet
+	if server.auditShipper != nil {
+		go server.auditShipper.Run(ctx)
+	}
 	grpcS, appResourceTreeFn := server.newGRPCServer(metricsServ.PrometheusRegistry)
 	grpcWebS := grpcweb.WrapServer(grpcS)
 	var httpS *http.Server
@@ -1002,11 +1026,21 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 		grpc_util.ErrorCodeGitStreamServerInterceptor(),
 		recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(server.log))),
 	))
-	sOpts = append(sOpts, grpc.ChainUnaryInterceptor(
+	unaryInterceptors := []grpc.UnaryServerInterceptor{
 		bug21955WorkaroundInterceptor,
 		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(server.log), loggingOpts...),
 		serverMetrics.UnaryServerInterceptor(),
-		grpc_auth.UnaryServerInterceptor(server.Authenticate),
+	}
+	if server.auditor != nil {
+		// Installed ahead of authentication so that rejected calls are audited too.
+		unaryInterceptors = append(unaryInterceptors, server.auditor.UnaryServerInterceptor())
+	}
+	unaryInterceptors = append(unaryInterceptors, grpc_auth.UnaryServerInterceptor(server.Authenticate))
+	if server.auditor != nil {
+		// Captures the identity established by authentication for the audit interceptor above.
+		unaryInterceptors = append(unaryInterceptors, server.auditor.IdentityUnaryServerInterceptor())
+	}
+	unaryInterceptors = append(unaryInterceptors,
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
 		grpc_util.PayloadUnaryServerInterceptor(server.log, true, func(_ context.Context, c interceptors.CallMeta) bool {
 			return !sensitiveMethods[c.FullMethod()]
@@ -1014,7 +1048,8 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 		grpc_util.ErrorCodeK8sUnaryServerInterceptor(),
 		grpc_util.ErrorCodeGitUnaryServerInterceptor(),
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(server.log))),
-	))
+	)
+	sOpts = append(sOpts, grpc.ChainUnaryInterceptor(unaryInterceptors...))
 	sOpts = append(sOpts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	grpcS := grpc.NewServer(sOpts...)
 
@@ -1240,7 +1275,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler))
 	gwCookieOpts := runtime.WithForwardResponseOption(server.translateGrpcCookieHeader)
 	gwOpts := []runtime.ServeMuxOption{gwMuxOpts, gwCookieOpts}
-	if server.EnableSourceIPLogging {
+	if server.EnableSourceIPLogging || server.auditor != nil {
 		// Tell the interceptors which requests this process's own gateway relayed, and hand over the
 		// address it saw at the HTTP layer. grpc-gateway drops non-standard headers such as X-Real-IP, so
 		// this is the only point they could be read; what it does pass on verbatim is Grpc-Metadata-*,
@@ -1276,7 +1311,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	}
 	mux.Handle("/api/", handler)
 
-	terminalOpts := application.TerminalOptions{DisableAuth: server.DisableAuth, Enf: server.enf}
+	terminalOpts := application.TerminalOptions{DisableAuth: server.DisableAuth, Enf: server.enf, Auditor: server.auditor}
 
 	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
 		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)

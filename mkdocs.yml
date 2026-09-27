@@ -73,6 +73,7 @@ nav:
   - operator-manual/ui-customization.md
   - operator-manual/metrics.md
   - operator-manual/web_based_terminal.md
+  - operator-manual/audit-trail.md
   - operator-manual/config-management-plugins.md
   - operator-manual/deep_links.md
   - operator-manual/git_configuration.md
@@ -147,6 +148,7 @@ nav:
     - operator-manual/server-commands/argocd-application-controller.md
     - operator-manual/server-commands/argocd-repo-server.md
     - operator-manual/server-commands/argocd-dex.md
+    - operator-manual/server-commands/argocd-audit-controller.md
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md

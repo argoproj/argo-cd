@@ -98,6 +98,8 @@ func NewCommand() *cobra.Command {
 		enableSourceIPLogging    bool
 		trustedProxies           []string
 		clientIPHeader           string
+		auditControllerAddress   string
+		auditToken               string
 
 		// ApplicationSet
 		enableNewGitFileGlobbing bool
@@ -270,6 +272,8 @@ func NewCommand() *cobra.Command {
 				EnableSourceIPLogging:   enableSourceIPLogging,
 				TrustedProxies:          trustedProxyPrefixes,
 				ClientIPHeader:          clientIPHeader,
+				AuditControllerAddress:  auditControllerAddress,
+				AuditToken:              auditToken,
 			}
 
 			appsetOpts := server.ApplicationSetOpts{
@@ -333,6 +337,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableSourceIPLogging, "enable-source-ip-logging", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_SOURCE_IP_LOGGING", false), "Include the source IP address of the client in API request logs")
 	command.Flags().StringSliceVar(&trustedProxies, "trusted-proxies", env.StringsFromEnv("ARGOCD_SERVER_TRUSTED_PROXIES", []string{}, ","), "CIDRs or addresses of proxies whose X-Forwarded-For entries and --client-ip-header are honoured when logging the source IP")
 	command.Flags().StringVar(&clientIPHeader, "client-ip-header", env.StringFromEnv("ARGOCD_SERVER_CLIENT_IP_HEADER", ""), "Header a trusted proxy sets to the client IP, e.g. CF-Connecting-IP, True-Client-IP or X-Real-IP")
+	command.Flags().StringVar(&auditControllerAddress, "audit-controller-address", env.StringFromEnv("ARGOCD_SERVER_AUDIT_CONTROLLER_ADDRESS", ""), "Address of the argocd-audit-controller, e.g. argocd-audit-controller:8088. When set, every mutating API call and web terminal session is recorded in the audit trail")
+	command.Flags().StringVar(&auditToken, "audit-token", env.StringFromEnv("ARGOCD_AUDIT_TOKEN", ""), "Shared token used to authenticate to the argocd-audit-controller")
 	command.AddCommand(cli.NewVersionCmd(common.CommandServer))
 	command.Flags().StringVar(&listenHost, "address", env.StringFromEnv("ARGOCD_SERVER_LISTEN_ADDRESS", common.DefaultAddressAPIServer), "Listen on given address")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortAPIServer, "Listen on given port")

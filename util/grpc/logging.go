@@ -362,3 +362,11 @@ func SourceIPLoggingOption(gatewayToken string, trustedProxies []netip.Prefix, c
 		return fields
 	})
 }
+
+// SourceIP returns the client address of a gRPC request, resolved exactly as source IP logging does:
+// through the gateway's own metadata for calls relayed by this process's grpc-gateway, and through
+// trusted proxies otherwise.
+func SourceIP(ctx context.Context, gatewayToken string, trustedProxies []netip.Prefix, clientIPHeader string) string {
+	sourceIP, _ := sourceIPFields(ctx, gatewayToken, trustedProxies, clientIPHeader)
+	return sourceIP
+}

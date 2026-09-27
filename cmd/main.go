@@ -11,6 +11,7 @@ import (
 
 	appcontroller "github.com/argoproj/argo-cd/v3/cmd/argocd-application-controller/commands"
 	applicationset "github.com/argoproj/argo-cd/v3/cmd/argocd-applicationset-controller/commands"
+	auditcontroller "github.com/argoproj/argo-cd/v3/cmd/argocd-audit-controller/commands"
 	cmpserver "github.com/argoproj/argo-cd/v3/cmd/argocd-cmp-server/commands"
 	commitserver "github.com/argoproj/argo-cd/v3/cmd/argocd-commit-server/commands"
 	dex "github.com/argoproj/argo-cd/v3/cmd/argocd-dex/commands"
@@ -67,6 +68,8 @@ func main() {
 		isArgocdCLI = true
 	case common.CommandApplicationSetController:
 		command = applicationset.NewCommand()
+	case common.CommandAuditController:
+		command = auditcontroller.NewCommand()
 	case common.CommandK8sAuth:
 		command = k8sauth.NewCommand()
 		isArgocdCLI = true

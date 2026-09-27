@@ -54,7 +54,8 @@ RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-notifications && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-applicationset-controller && \
-    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-commit-server
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-commit-server && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-audit-controller
 
 # directory for Tilt restart file
 RUN mkdir -p /tilt

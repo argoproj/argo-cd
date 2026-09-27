@@ -1867,7 +1867,7 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 			eventInfo.Type = corev1.EventTypeWarning
 			messages = append(messages, "failed:", state.Message)
 		}
-		ctrl.logAppEvent(ctx, app, eventInfo, strings.Join(messages, " "))
+		ctrl.logAppEventForUser(ctx, app, eventInfo, strings.Join(messages, " "), state.Operation.InitiatedBy.Username)
 
 		destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, ctrl.db)
 		if err != nil {
@@ -3187,8 +3187,14 @@ func (ctrl *ApplicationController) getAppList(options metav1.ListOptions) (*appv
 }
 
 func (ctrl *ApplicationController) logAppEvent(ctx context.Context, a *appv1.Application, eventInfo argo.EventInfo, message string) {
+	ctrl.logAppEventForUser(ctx, a, eventInfo, message, "")
+}
+
+// logAppEventForUser logs an application event attributed to user, e.g. the user who initiated the
+// operation the event reports on. The audit trail uses it to tell who started a sync that completed.
+func (ctrl *ApplicationController) logAppEventForUser(ctx context.Context, a *appv1.Application, eventInfo argo.EventInfo, message, user string) {
 	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr, ctrl.db)
-	ctrl.auditLogger.LogAppEvent(a, eventInfo, message, "", eventLabels)
+	ctrl.auditLogger.LogAppEvent(a, eventInfo, message, user, eventLabels)
 }
 
 func (ctrl *ApplicationController) applyImpersonationConfig(config *rest.Config, proj *appv1.AppProject, app *appv1.Application, destCluster *appv1.Cluster) error {

@@ -37,6 +37,8 @@ argocd-server [flags]
       --as string                                       Username to impersonate for the operation
       --as-group stringArray                            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                                   UID to impersonate for the operation
+      --audit-controller-address string                 Address of the argocd-audit-controller, e.g. argocd-audit-controller:8088. When set, every mutating API call and web terminal session is recorded in the audit trail
+      --audit-token string                              Shared token used to authenticate to the argocd-audit-controller
       --basehref string                                 Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from / (default "/")
       --certificate-authority string                    Path to a cert file for the certificate authority
       --client-certificate string                       Path to a client certificate file for TLS
