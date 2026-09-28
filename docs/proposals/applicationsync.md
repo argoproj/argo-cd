@@ -308,7 +308,8 @@ spec:
   resources can be expressed.
 - **Empty syncs.** Add `allowEmpty`, matching `automated.allowEmpty`. In an automatic run (`initiatedBy.automated:
   true`) with prune on, an app whose resources would all be pruned is Failed without being synced, unless
-  `allowEmpty` is `true`. Manual runs aren't checked, the same as manual syncs today. Unlike auto-sync, an app
+  `allowEmpty` is `true`. With `onFailure: Wait` it waits instead, with the reason in its status, and syncs once
+  its manifests are no longer empty. Manual runs aren't checked, the same as manual syncs today. Unlike auto-sync, an app
   with no resources at all passes, since there is nothing to prune
   ([#15371](https://github.com/argoproj/argo-cd/issues/15371)). RollingSync never checks this, so the
   ApplicationSet controller sets `allowEmpty: true` on its runs.
@@ -537,10 +538,13 @@ spec:
   apps that are Synced, and syncs only the OutOfSync resources of the others, as `automated.selfHeal` does.
   Runs are spaced by the application controller's self-heal backoff (`controller.self.heal.backoff.*` in
   `argocd-cmd-params-cm`), counted in the policy's `status.selfHealAttempts` and reset by a new change. A failed
-  run is never self-healed, the same as auto-sync.
+  run is never self-healed, the same as auto-sync. Neither is an app the run left OutOfSync, as `doneWhen:
+  Healthy` allows: each app's status records the `syncStatus` it ended with, and a policy only self-heals when
+  every drifted app ended the last run Synced. Otherwise an app that stays OutOfSync by design would start a new
+  run on every backoff and push real runs out of the history.
 - **Auto-sync belongs to the group.** Apps managed by a policy must have `syncPolicy.automated` disabled, as for any
   ApplicationSync and as RollingSync requires today. The policy decides when they sync, and starts no run while
-  any of its apps has auto-sync on. Nothing is read from an app's own `syncPolicy.automated`: `selfHeal`,
+  any of its apps has auto-sync on, naming that app in its `status.message`. Nothing is read from an app's own `syncPolicy.automated`: `selfHeal`,
   `allowEmpty` and `prune` come from the policy and its template only. With auto-sync off, the application
   controller never self-heals the app, so the two controllers can't both sync it.
 - **Apps from anywhere.** A policy can list apps from several ApplicationSets, or from none, which covers a shared
@@ -729,7 +733,7 @@ How the open `feature:progressive-sync` issues listed from [#28927](https://gith
 | [#21502](https://github.com/argoproj/argo-cd/issues/21502) extra sync right after a sync | Each app's operation is tagged and started exactly once. |
 | [#19771](https://github.com/argoproj/argo-cd/issues/19771) blocked on Healthy-but-OutOfSync apps | `doneWhen: Healthy`. |
 | [#29142](https://github.com/argoproj/argo-cd/issues/29142) create-only policies never settle | Runs start only for changes the ApplicationSet's policy applies. |
-| [#15371](https://github.com/argoproj/argo-cd/issues/15371) empty apps never progress | Fixed: an app with no resources passes the [`allowEmpty`](#rollout-controls) check, where auto-sync's check blocks it. Covered by an e2e test in the prototype. |
+| [#15371](https://github.com/argoproj/argo-cd/issues/15371) empty apps never progress | Fixed: RollingSync runs set [`allowEmpty: true`](#rollout-controls), so an empty app is synced directly and nothing waits on auto-sync's check. An app with no resources would pass the ApplicationSync check anyway, unlike auto-sync's. Covered by an e2e test in the prototype. |
 | [#22001](https://github.com/argoproj/argo-cd/issues/22001) skip specific apps | The `argocd.argoproj.io/skip-rollout` annotation. |
 | [#25741](https://github.com/argoproj/argo-cd/issues/25741) history and rollback | ApplicationSyncs are the history; rollback re-runs recorded revisions. |
 | [#14458](https://github.com/argoproj/argo-cd/issues/14458) one strategy across ApplicationSets | An ApplicationSyncPolicy can list apps from several ApplicationSets. |
@@ -776,7 +780,7 @@ spec:
   policy's `selfHeal`, and `automated.allowEmpty` to the template's `allowEmpty`. Generating the policy is the
   only way an Application's own `automated` settings would reach ApplicationSync; otherwise they are never read.
 - **The "no auto-sync" rule becomes "one policy per app".** An app's generated policy is its auto-sync, so it
-  counts as the one policy allowed to manage the app. Listing an auto-synced app in another ApplicationSync or
+  counts as the one policy allowed to manage the app, and the auto-sync guard exempts it. Listing an auto-synced app in another ApplicationSync or
   policy is still refused. A one-off manual sync of an auto-synced app could then create an ApplicationSync as
   well, removing that exception from [API and UI syncs](#api-and-ui-syncs).
 - **Scale is the main cost.** It adds one policy per auto-synced app, and one ApplicationSync per auto-sync. Large
@@ -822,8 +826,9 @@ All five parts are prototyped on the `feat/applicationsync` branch, with unit te
 - **Shared tag.** The `Info` name the controller writes is the constant `ApplicationSyncOperationInfoName`, because
   `argocd-server` also reads it to detect the handoff.
 - **Policies don't retry a change.** A policy records, on each run, which revisions and sources it rolled out, and
-  doesn't start another run for the same change. Otherwise an app that keeps failing would start a new run on
-  every reconciliation, just as auto-sync would without its "already attempted this revision" check.
+  doesn't start another run for the same change, except to self-heal drift after a successful run with
+  `selfHeal: true`. Otherwise an app that keeps failing would start a new run on every reconciliation, just as
+  auto-sync would without its "already attempted this revision" check.
 
 #### Validation
 
