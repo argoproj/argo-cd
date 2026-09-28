@@ -415,6 +415,24 @@ func TestApplyOptionsConfiguration(t *testing.T) {
 		}
 	})
 
+	t.Run("force=true with serverSideApply=true does not set DeleteOptions.ForceDeletion", func(t *testing.T) {
+		t.Parallel()
+		k, cmdMocks := newTestKubectlResourceOperations(t)
+
+		var capturedOpts *apply.ApplyOptions
+		cmdMocks.On("Apply", mock.Anything).Run(func(args mock.Arguments) {
+			capturedOpts = args[0].(*apply.ApplyOptions)
+		}).Return(nil)
+
+		obj := testingutils.NewPod()
+		_, err := k.ApplyResource(t.Context(), obj, cmdutil.DryRunNone, true, false, true, "test-manager")
+		require.NoError(t, err)
+
+		assert.True(t, capturedOpts.ServerSideApply)
+		assert.True(t, capturedOpts.ForceConflicts)
+		assert.False(t, capturedOpts.DeleteOptions.ForceDeletion)
+	})
+
 	t.Run("outputModeJSON returns JSONPrinter", func(t *testing.T) {
 		t.Parallel()
 		k, cmdMocks := newTestKubectlResourceOperations(t)
