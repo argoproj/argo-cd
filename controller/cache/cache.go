@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -221,6 +222,9 @@ type cacheSettings struct {
 	manifestCompressionEnabled bool
 	manifestStorageType        clustercache.ManifestStorageType
 	manifestCompressionType    clustercache.ManifestCompressionType
+	// clusterCABundle is the default CA bundle from argocd-cluster-ca-cm. Tracking it here makes a change to the bundle
+	// invalidate the cache and refresh the REST config of clusters that rely on it.
+	clusterCABundle []byte
 }
 
 type liveStateCache struct {
@@ -279,12 +283,27 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	if err != nil {
 		return nil, err
 	}
+	clusterCABundle, err := c.settingsMgr.GetClusterCABundle()
+	if err != nil {
+		return nil, err
+	}
 	clusterSettings := clustercache.Settings{
 		ResourceHealthOverride: lua.ResourceHealthOverrides(resourceOverrides),
 		ResourcesFilter:        resourcesFilter,
 	}
 
-	return &cacheSettings{clusterSettings, appInstanceLabelKey, appv1.TrackingMethod(trackingMethod), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled, manifestCompressionEnabled, clustercache.ManifestStorageType(manifestStorage), clustercache.ManifestCompressionType(manifestCompression)}, nil
+	return &cacheSettings{
+		clusterSettings:              clusterSettings,
+		appInstanceLabelKey:          appInstanceLabelKey,
+		trackingMethod:               appv1.TrackingMethod(trackingMethod),
+		installationID:               installationID,
+		resourceOverrides:            resourceUpdatesOverrides,
+		ignoreResourceUpdatesEnabled: ignoreResourceUpdatesEnabled,
+		manifestCompressionEnabled:   manifestCompressionEnabled,
+		manifestStorageType:          clustercache.ManifestStorageType(manifestStorage),
+		manifestCompressionType:      clustercache.ManifestCompressionType(manifestCompression),
+		clusterCABundle:              clusterCABundle,
+	}, nil
 }
 
 func asResourceNode(r *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) appv1.ResourceNode {
@@ -537,21 +556,9 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		return nil, fmt.Errorf("error getting value for %v: %w", settings.RespectRBAC, err)
 	}
 
-	clusterCacheConfig, err := cluster.RESTConfig()
+	clusterCacheConfig, err := clusterCacheRESTConfig(cluster)
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster RESTConfig: %w", err)
-	}
-	// Controller dynamically fetches all resource types available on the cluster
-	// using a discovery API that may contain deprecated APIs.
-	// This causes log flooding when managing a large number of clusters.
-	// https://github.com/argoproj/argo-cd/issues/11973
-	// However, we can safely suppress deprecation warnings
-	// because we do not rely on resources with a particular API group or version.
-	// https://kubernetes.io/blog/2020/09/03/warnings/#customize-client-handling
-	//
-	// Completely suppress warning logs only for log levels that are less than Debug.
-	if log.GetLevel() < log.DebugLevel {
-		clusterCacheConfig.WarningHandler = rest.NoWarnings{}
 	}
 
 	clusterCacheOpts := []clustercache.UpdateSettingsFunc{
@@ -677,22 +684,97 @@ func (c *liveStateCache) getSyncedCluster(server *appv1.Cluster) (clustercache.C
 	return clusterCache, nil
 }
 
-func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
+func (c *liveStateCache) invalidate(cacheSettings cacheSettings, refreshRESTConfigs bool) {
 	log.Info("invalidating live state cache")
+	c.lock.Lock()
+	c.cacheSettings = cacheSettings
+	clusters := maps.Clone(c.clusters)
+	c.lock.Unlock()
+
+	for server, clust := range clusters {
+		var extraUpdates []clustercache.UpdateSettingsFunc
+		if refreshRESTConfigs {
+			if restConfig := c.restConfigUsingDefaultCABundle(server); restConfig != nil {
+				extraUpdates = append(extraUpdates, clustercache.SetConfig(restConfig))
+			}
+		}
+		clust.Invalidate(cacheSettingsUpdates(cacheSettings, extraUpdates...)...)
+	}
+	log.Info("live state cache invalidated")
+}
+
+func (c *liveStateCache) invalidateClustersUsingDefaultCABundle(cacheSettings cacheSettings) {
 	c.lock.Lock()
 	c.cacheSettings = cacheSettings
 	clusters := c.clusters
 	c.lock.Unlock()
 
-	for _, clust := range clusters {
-		clust.Invalidate(
-			clustercache.SetSettings(cacheSettings.clusterSettings),
-			clustercache.SetManifestCompressionEnabled(cacheSettings.manifestCompressionEnabled),
-			clustercache.SetManifestStorageType(cacheSettings.manifestStorageType),
-			clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
-		)
+	for server, cluster := range clusters {
+		restConfig := c.restConfigUsingDefaultCABundle(server)
+		if restConfig == nil {
+			continue
+		}
+		log.Infof("Default cluster CA bundle changed, invalidating cluster %s", server)
+		cluster.Invalidate(cacheSettingsUpdates(cacheSettings, clustercache.SetConfig(restConfig))...)
 	}
-	log.Info("live state cache invalidated")
+}
+
+func cacheSettingsUpdates(cacheSettings cacheSettings, extraUpdates ...clustercache.UpdateSettingsFunc) []clustercache.UpdateSettingsFunc {
+	return append([]clustercache.UpdateSettingsFunc{
+		clustercache.SetSettings(cacheSettings.clusterSettings),
+		clustercache.SetManifestCompressionEnabled(cacheSettings.manifestCompressionEnabled),
+		clustercache.SetManifestStorageType(cacheSettings.manifestStorageType),
+		clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
+	}, extraUpdates...)
+}
+
+func (c *liveStateCache) applyCacheSettings(nextCacheSettings cacheSettings) {
+	c.lock.Lock()
+	otherSettingsChanged, caBundleChanged := compareCacheSettings(c.cacheSettings, nextCacheSettings)
+	if otherSettingsChanged || caBundleChanged {
+		c.cacheSettings = nextCacheSettings
+	}
+	c.lock.Unlock()
+	switch {
+	case otherSettingsChanged:
+		c.invalidate(nextCacheSettings, caBundleChanged)
+	case caBundleChanged:
+		c.invalidateClustersUsingDefaultCABundle(nextCacheSettings)
+	}
+}
+
+func compareCacheSettings(prev, next cacheSettings) (otherSettingsChanged, caBundleChanged bool) {
+	caBundleChanged = !bytes.Equal(prev.clusterCABundle, next.clusterCABundle)
+	prev.clusterCABundle, next.clusterCABundle = nil, nil
+	return !reflect.DeepEqual(prev, next), caBundleChanged
+}
+
+func (c *liveStateCache) restConfigUsingDefaultCABundle(server string) *rest.Config {
+	cluster, err := c.db.GetCluster(context.Background(), server)
+	if err != nil {
+		log.Warnf("Failed to get cluster %s to refresh its REST config after a default CA bundle change: %v", server, err)
+		return nil
+	}
+	if cluster.Server == appv1.KubernetesInternalAPIServerAddr || len(cluster.Config.CAData) > 0 || cluster.Config.Insecure {
+		return nil
+	}
+	restConfig, err := clusterCacheRESTConfig(cluster)
+	if err != nil {
+		log.Warnf("Failed to build REST config of cluster %s after a default CA bundle change: %v", server, err)
+		return nil
+	}
+	return restConfig
+}
+
+func clusterCacheRESTConfig(cluster *appv1.Cluster) (*rest.Config, error) {
+	restConfig, err := cluster.RESTConfig()
+	if err != nil {
+		return nil, err
+	}
+	if log.GetLevel() < log.DebugLevel {
+		restConfig.WarningHandler = rest.NoWarnings{}
+	}
+	return restConfig, nil
 }
 
 func (c *liveStateCache) IsNamespaced(server *appv1.Cluster, gk schema.GroupKind) (bool, error) {
@@ -797,16 +879,7 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 				continue
 			}
 
-			c.lock.Lock()
-			needInvalidate := false
-			if !reflect.DeepEqual(c.cacheSettings, *nextCacheSettings) {
-				c.cacheSettings = *nextCacheSettings
-				needInvalidate = true
-			}
-			c.lock.Unlock()
-			if needInvalidate {
-				c.invalidate(*nextCacheSettings)
-			}
+			c.applyCacheSettings(*nextCacheSettings)
 		case <-ctx.Done():
 			done = true
 		}
@@ -834,7 +907,7 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 	})
 
 	<-ctx.Done()
-	c.invalidate(c.cacheSettings)
+	c.invalidate(c.cacheSettings, false)
 	return nil
 }
 
@@ -882,7 +955,7 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 
 		var updateSettings []clustercache.UpdateSettingsFunc
 		if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
-			newClusterRESTConfig, err := newCluster.RESTConfig()
+			newClusterRESTConfig, err := clusterCacheRESTConfig(newCluster)
 			if err == nil {
 				updateSettings = append(updateSettings, clustercache.SetConfig(newClusterRESTConfig))
 			} else {

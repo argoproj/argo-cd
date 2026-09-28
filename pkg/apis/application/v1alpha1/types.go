@@ -1,6 +1,8 @@
 package v1alpha1
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -2330,6 +2332,10 @@ type ConnectionState struct {
 type Cluster struct {
 	// ID is an internal field cluster identifier. Not exposed via API.
 	ID string `json:"-"`
+	// DefaultCABundle is the default CA bundle (from the argocd-cluster-ca-cm ConfigMap) used to verify the cluster API
+	// server only when Config.CAData is empty and Config.Insecure is false. It is populated at runtime by the DB layer
+	// and is neither persisted in the cluster secret nor exposed via API.
+	DefaultCABundle []byte `json:"-"`
 	// Server is the API server URL of the Kubernetes cluster
 	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
 	// Name of the cluster. If omitted, will use the server address
@@ -3936,6 +3942,10 @@ func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
 
 // SetK8SConfigDefaults sets Kubernetes REST config default settings
 func SetK8SConfigDefaults(config *rest.Config) error {
+	return setK8SConfigDefaults(config, nil)
+}
+
+func setK8SConfigDefaults(config *rest.Config, rootCAs *x509.CertPool) error {
 	if config.QPS <= 0 {
 		config.QPS = K8sClientConfigQPS
 	}
@@ -3945,6 +3955,12 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	tlsConfig, err := rest.TLSConfigFor(config)
 	if err != nil {
 		return err
+	}
+	if rootCAs != nil {
+		if tlsConfig == nil {
+			tlsConfig = &tls.Config{MinVersion: tls.VersionTLS12}
+		}
+		tlsConfig.RootCAs = rootCAs
 	}
 
 	dial := (&net.Dialer{
@@ -4077,12 +4093,16 @@ func (c *Cluster) rawRestConfig() (*rest.Config, error) {
 			config.BearerTokenFile = ""
 		}
 	default:
+		caData := c.Config.CAData
+		if c.usesDefaultCABundle() {
+			caData = trustForDefaultCABundle(c.DefaultCABundle).caData
+		}
 		tlsClientConfig := rest.TLSClientConfig{
 			Insecure:   c.Config.Insecure,
 			ServerName: c.Config.ServerName,
 			CertData:   c.Config.CertData,
 			KeyData:    c.Config.KeyData,
-			CAData:     c.Config.CAData,
+			CAData:     caData,
 		}
 		switch {
 		case c.Config.AWSAuthConfig != nil:
@@ -4180,7 +4200,12 @@ func (c *Cluster) RESTConfig() (*rest.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
 	}
-	err = SetK8SConfigDefaults(config)
+	var rootCAs *x509.CertPool
+	if c.usesDefaultCABundle() {
+		rootCAs = trustForDefaultCABundle(c.DefaultCABundle).pool
+		config.CAData = nil
+	}
+	err = setK8SConfigDefaults(config, rootCAs)
 	if err != nil {
 		return nil, fmt.Errorf("unable to apply K8s REST config defaults: %w", err)
 	}

@@ -1,13 +1,21 @@
 package v1alpha1
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"math"
+	"math/big"
 	"net/http"
 	"os"
 	"path"
+	"slices"
 	"testing"
 	"time"
 
@@ -6607,6 +6615,98 @@ func TestCluster_RESTConfig_QPSAndBurst(t *testing.T) {
 	}
 }
 
+func generateSelfSignedCertPEM(t *testing.T, cn string) []byte {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	template := x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: cn},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
+	require.NoError(t, err)
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+}
+
+func TestCluster_RESTConfig_DefaultCABundle(t *testing.T) {
+	systemRootCA := generateSelfSignedCertPEM(t, "system-root-ca")
+	withSystemRootCAs(t, systemRootCA)
+	clusterCA := generateSelfSignedCertPEM(t, "cluster-ca")
+	defaultCA := generateSelfSignedCertPEM(t, "default-ca")
+
+	tests := []struct {
+		name            string
+		caData          []byte
+		insecure        bool
+		defaultCABundle []byte
+		expectedCAData  []byte
+	}{
+		{
+			name:            "cluster caData takes precedence and the default bundle is ignored (no merging)",
+			caData:          clusterCA,
+			defaultCABundle: defaultCA,
+			expectedCAData:  clusterCA,
+		},
+		{
+			name:            "default bundle is added to the system roots when cluster caData is empty",
+			defaultCABundle: defaultCA,
+			expectedCAData:  slices.Concat(systemRootCA, []byte("\n"), defaultCA),
+		},
+		{
+			name: "no CA is set when neither is configured",
+		},
+		{
+			name:            "empty default bundle leaves the CA unset",
+			defaultCABundle: []byte{},
+		},
+		{
+			name:            "insecure cluster ignores the default bundle and keeps skipping verification",
+			insecure:        true,
+			defaultCABundle: defaultCA,
+		},
+		{
+			name:     "insecure cluster without a default bundle is unchanged",
+			insecure: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Cluster{
+				Server:          "https://1.2.3.4",
+				DefaultCABundle: tt.defaultCABundle,
+				Config:          ClusterConfig{CAData: tt.caData, Insecure: tt.insecure},
+			}
+			rawConfig, err := c.RawRestConfig()
+			require.NoError(t, err)
+			assert.Equal(t, tt.insecure, rawConfig.Insecure)
+			tlsConfig, err := rest.TLSConfigFor(rawConfig)
+			require.NoError(t, err)
+			if len(tt.expectedCAData) == 0 {
+				assert.Empty(t, rawConfig.CAData)
+				if tlsConfig != nil {
+					assert.Nil(t, tlsConfig.RootCAs)
+				}
+			} else {
+				assert.Equal(t, tt.expectedCAData, rawConfig.CAData)
+				expectedPool := x509.NewCertPool()
+				require.True(t, expectedPool.AppendCertsFromPEM(tt.expectedCAData))
+				require.NotNil(t, tlsConfig)
+				assert.True(t, tlsConfig.RootCAs.Equal(expectedPool), "the REST client must trust exactly the expected CA")
+			}
+
+			config, err := c.RESTConfig()
+			require.NoError(t, err)
+			assert.NotNil(t, config.Transport)
+			assert.Empty(t, config.CAData)
+		})
+	}
+}
+
 func TestCluster_Sanitized_PreservesQPSAndBurst(t *testing.T) {
 	cluster := &Cluster{
 		Server: "https://kubernetes.example",
@@ -6655,4 +6755,22 @@ func TestCluster_HashIdentity_IncludesQPSAndBurst(t *testing.T) {
 
 	assert.NotEqual(t, base.HashIdentity(0), withDiffQPS.HashIdentity(0))
 	assert.NotEqual(t, base.HashIdentity(0), withDiffBurst.HashIdentity(0))
+}
+
+func TestCluster_DefaultCABundle_NotSerializedButDeepCopied(t *testing.T) {
+	c := &Cluster{
+		Server:          "https://1.2.3.4",
+		Name:            "test-cluster",
+		DefaultCABundle: []byte("default-ca-bundle"),
+	}
+
+	data, err := json.Marshal(c)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "DefaultCABundle")
+	assert.NotContains(t, string(data), "default-ca-bundle")
+
+	clone := c.DeepCopy()
+	assert.Equal(t, c.DefaultCABundle, clone.DefaultCABundle)
+	clone.DefaultCABundle[0] = 'X'
+	assert.NotEqual(t, c.DefaultCABundle, clone.DefaultCABundle, "DeepCopy must not share the underlying bundle")
 }

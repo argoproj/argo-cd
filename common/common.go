@@ -59,6 +59,11 @@ const (
 	// ArgoCDTLSCertsConfigMapName contains TLS certificate data for connecting repositories. Will get mounted as volume to pods
 	ArgoCDTLSCertsConfigMapName = "argocd-tls-certs-cm"
 	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
+	// ArgoCDClusterCAConfigMapName contains the default CA bundle used to verify the Kubernetes API server of clusters
+	// that do not define their own tlsClientConfig.caData. It has no effect on repository connections.
+	ArgoCDClusterCAConfigMapName = "argocd-cluster-ca-cm"
+	// ArgoCDClusterCAConfigMapKey is the key in ArgoCDClusterCAConfigMapName holding the PEM encoded CA bundle
+	ArgoCDClusterCAConfigMapKey = "ca.crt"
 	// ArgoCDAppControllerShardConfigMapName contains the application controller to shard mapping
 	ArgoCDAppControllerShardConfigMapName = "argocd-app-controller-shard-cm"
 	ArgoCDCmdParamsConfigMapName          = "argocd-cmd-params-cm"

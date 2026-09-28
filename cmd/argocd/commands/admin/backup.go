@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -97,6 +98,11 @@ func NewExportCommand() *cobra.Command {
 			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDTLSCertsConfigMapName, metav1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdTLSCertsConfigMap, namespace, stripStatus)
+			acdClusterCAConfigMap, err := getClusterCAConfigMap(ctx, acdClients.configMaps)
+			errors.CheckError(err)
+			if acdClusterCAConfigMap != nil {
+				export(writer, *acdClusterCAConfigMap, namespace, stripStatus)
+			}
 
 			secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
 			errors.CheckError(err)
@@ -451,6 +457,18 @@ func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOpe
 		return liveObj.Object["operation"] == nil
 	}
 	return true
+}
+
+// getClusterCAConfigMap returns the optional argocd-cluster-ca-cm ConfigMap, or nil without an error if it does not exist.
+func getClusterCAConfigMap(ctx context.Context, configMaps dynamic.ResourceInterface) (*unstructured.Unstructured, error) {
+	un, err := configMaps.Get(ctx, common.ArgoCDClusterCAConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get ConfigMap %s: %w", common.ArgoCDClusterCAConfigMapName, err)
+	}
+	return un, nil
 }
 
 // export writes the unstructured object and removes extraneous cruft from output before writing

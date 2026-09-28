@@ -2,9 +2,12 @@ package cache
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"net"
 	"net/url"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -17,19 +20,23 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache/mocks"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	testutil "github.com/argoproj/argo-cd/v3/test"
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -980,4 +987,315 @@ func Test_asResourceNode_same_namespace_parent(t *testing.T) {
 	assert.Equal(t, "Deployment", resNode.ParentRefs[0].Kind)
 	assert.Equal(t, "my-deployment", resNode.ParentRefs[0].Name)
 	assert.Equal(t, "my-namespace", resNode.ParentRefs[0].Namespace, "Deployment parent should have same namespace")
+}
+
+func TestLoadCacheSettings_ClusterCABundle(t *testing.T) {
+	t.Parallel()
+	caBundle := strings.TrimSpace(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt"))
+	kubeClient, settingsManager := fixtures(t.Context(), nil)
+	_, err := kubeClient.CoreV1().ConfigMaps("default").Create(t.Context(), &corev1.ConfigMap{
+		Name:      common.ArgoCDClusterCAConfigMapName,
+		Namespace: "default",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
+		},
+		Data: map[string]string{
+			common.ArgoCDClusterCAConfigMapKey: caBundle,
+		},
+	}, metav1.CreateOptions{})
+	require.NoError(t, err)
+	ch := liveStateCache{
+		settingsMgr: settingsManager,
+	}
+
+	res, err := ch.loadCacheSettings()
+	require.NoError(t, err)
+
+	assert.Equal(t, []byte(caBundle), res.clusterCABundle)
+}
+
+func TestClusterCacheRESTConfig_WarningHandler(t *testing.T) {
+	previousLevel := log.GetLevel()
+	t.Cleanup(func() { log.SetLevel(previousLevel) })
+	cluster := &appv1.Cluster{Server: "https://example.com"}
+
+	log.SetLevel(log.InfoLevel)
+	restConfig, err := clusterCacheRESTConfig(cluster)
+	require.NoError(t, err)
+	assert.Equal(t, rest.NoWarnings{}, restConfig.WarningHandler, "API warnings must be suppressed below debug level")
+
+	log.SetLevel(log.DebugLevel)
+	restConfig, err = clusterCacheRESTConfig(cluster)
+	require.NoError(t, err)
+	assert.Nil(t, restConfig.WarningHandler, "API warnings must be logged at debug level")
+}
+
+func TestInvalidate_DefaultCABundleChange(t *testing.T) {
+	t.Parallel()
+	caBundle := []byte(strings.TrimSpace(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt")))
+	ownCA := []byte(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-server.crt"))
+	fourOpts := []any{mock.Anything, mock.Anything, mock.Anything, mock.Anything}
+	fiveOpts := append(fourOpts, mock.Anything)
+
+	newFixture := func(bundle []byte) (*dbmocks.ArgoDB, map[string]*mocks.ClusterCache, liveStateCache) {
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetCluster(mock.Anything, "https://uses-default-ca").Return(&appv1.Cluster{
+			Server:          "https://uses-default-ca",
+			DefaultCABundle: bundle,
+		}, nil).Maybe()
+		db.EXPECT().GetCluster(mock.Anything, "https://has-own-ca").Return(&appv1.Cluster{
+			Server:          "https://has-own-ca",
+			DefaultCABundle: bundle,
+			Config:          appv1.ClusterConfig{CAData: ownCA},
+		}, nil).Maybe()
+		db.EXPECT().GetCluster(mock.Anything, appv1.KubernetesInternalAPIServerAddr).Return(&appv1.Cluster{
+			Server:          appv1.KubernetesInternalAPIServerAddr,
+			DefaultCABundle: bundle,
+		}, nil).Maybe()
+		db.EXPECT().GetCluster(mock.Anything, "https://insecure").Return(&appv1.Cluster{
+			Server:          "https://insecure",
+			DefaultCABundle: bundle,
+			Config:          appv1.ClusterConfig{Insecure: true},
+		}, nil).Maybe()
+		db.EXPECT().GetCluster(mock.Anything, "https://unknown").Return(nil, errors.New("not found")).Maybe()
+
+		clusterCaches := map[string]*mocks.ClusterCache{
+			"https://uses-default-ca":             {},
+			"https://has-own-ca":                  {},
+			appv1.KubernetesInternalAPIServerAddr: {},
+			"https://insecure":                    {},
+			"https://unknown":                     {},
+		}
+		clusters := map[string]cache.ClusterCache{}
+		for server, clusterCache := range clusterCaches {
+			clusters[server] = clusterCache
+		}
+		return db, clusterCaches, liveStateCache{db: db, clusters: clusters}
+	}
+
+	t.Run("REST config is refreshed only for clusters relying on the default bundle", func(t *testing.T) {
+		t.Parallel()
+		db, clusterCaches, clustersCache := newFixture(caBundle)
+		clusterCaches["https://uses-default-ca"].EXPECT().Invalidate(fiveOpts...).Return().Once()
+		clusterCaches["https://has-own-ca"].EXPECT().Invalidate(fourOpts...).Return().Once()
+		clusterCaches[appv1.KubernetesInternalAPIServerAddr].EXPECT().Invalidate(fourOpts...).Return().Once()
+		clusterCaches["https://insecure"].EXPECT().Invalidate(fourOpts...).Return().Once()
+		clusterCaches["https://unknown"].EXPECT().Invalidate(fourOpts...).Return().Once()
+
+		clustersCache.invalidate(cacheSettings{clusterCABundle: caBundle}, true)
+
+		for _, clusterCache := range clusterCaches {
+			clusterCache.AssertExpectations(t)
+		}
+		db.AssertNumberOfCalls(t, "GetCluster", 5)
+	})
+
+	t.Run("removing the bundle rebuilds the REST config of the clusters that relied on it", func(t *testing.T) {
+		t.Parallel()
+		db, clusterCaches, clustersCache := newFixture(nil)
+		clusterCaches["https://uses-default-ca"].EXPECT().Invalidate(fiveOpts...).Return().Once()
+		clusterCaches["https://has-own-ca"].EXPECT().Invalidate(fourOpts...).Return().Once()
+		clusterCaches[appv1.KubernetesInternalAPIServerAddr].EXPECT().Invalidate(fourOpts...).Return().Once()
+		clusterCaches["https://insecure"].EXPECT().Invalidate(fourOpts...).Return().Once()
+		clusterCaches["https://unknown"].EXPECT().Invalidate(fourOpts...).Return().Once()
+
+		clustersCache.invalidate(cacheSettings{}, true)
+
+		for _, clusterCache := range clusterCaches {
+			clusterCache.AssertExpectations(t)
+		}
+		db.AssertNumberOfCalls(t, "GetCluster", 5)
+	})
+
+	t.Run("a bundle-only change invalidates just the clusters relying on the bundle", func(t *testing.T) {
+		t.Parallel()
+		db, clusterCaches, clustersCache := newFixture(caBundle)
+		clusterCaches["https://uses-default-ca"].EXPECT().Invalidate(fiveOpts...).Return().Once()
+
+		clustersCache.invalidateClustersUsingDefaultCABundle(cacheSettings{clusterCABundle: caBundle})
+
+		for _, clusterCache := range clusterCaches {
+			clusterCache.AssertExpectations(t)
+		}
+		db.AssertNumberOfCalls(t, "GetCluster", 5)
+		assert.Equal(t, caBundle, clustersCache.cacheSettings.clusterCABundle)
+	})
+
+	t.Run("a settings update with only a new bundle invalidates just the clusters relying on it", func(t *testing.T) {
+		t.Parallel()
+		db, clusterCaches, clustersCache := newFixture(ownCA)
+		clustersCache.cacheSettings = cacheSettings{appInstanceLabelKey: "app", clusterCABundle: caBundle}
+		clusterCaches["https://uses-default-ca"].EXPECT().Invalidate(fiveOpts...).Return().Once()
+
+		clustersCache.applyCacheSettings(cacheSettings{appInstanceLabelKey: "app", clusterCABundle: ownCA})
+
+		for _, clusterCache := range clusterCaches {
+			clusterCache.AssertExpectations(t)
+		}
+		db.AssertNumberOfCalls(t, "GetCluster", 5)
+		assert.Equal(t, ownCA, clustersCache.cacheSettings.clusterCABundle)
+	})
+
+	t.Run("a settings update with another change and a new bundle invalidates every cluster and rebuilds bundle users", func(t *testing.T) {
+		t.Parallel()
+		db, clusterCaches, clustersCache := newFixture(ownCA)
+		clustersCache.cacheSettings = cacheSettings{appInstanceLabelKey: "app", clusterCABundle: caBundle}
+		clusterCaches["https://uses-default-ca"].EXPECT().Invalidate(fiveOpts...).Return().Once()
+		clusterCaches["https://has-own-ca"].EXPECT().Invalidate(fourOpts...).Return().Once()
+		clusterCaches[appv1.KubernetesInternalAPIServerAddr].EXPECT().Invalidate(fourOpts...).Return().Once()
+		clusterCaches["https://insecure"].EXPECT().Invalidate(fourOpts...).Return().Once()
+		clusterCaches["https://unknown"].EXPECT().Invalidate(fourOpts...).Return().Once()
+
+		clustersCache.applyCacheSettings(cacheSettings{appInstanceLabelKey: "other", clusterCABundle: ownCA})
+
+		for _, clusterCache := range clusterCaches {
+			clusterCache.AssertExpectations(t)
+		}
+		db.AssertNumberOfCalls(t, "GetCluster", 5)
+	})
+
+	t.Run("a settings update without a bundle change invalidates every cluster without rebuilding REST configs", func(t *testing.T) {
+		t.Parallel()
+		db, clusterCaches, clustersCache := newFixture(caBundle)
+		clustersCache.cacheSettings = cacheSettings{appInstanceLabelKey: "app", clusterCABundle: caBundle}
+		for _, clusterCache := range clusterCaches {
+			clusterCache.EXPECT().Invalidate(fourOpts...).Return().Once()
+		}
+
+		clustersCache.applyCacheSettings(cacheSettings{appInstanceLabelKey: "other", clusterCABundle: caBundle})
+
+		for _, clusterCache := range clusterCaches {
+			clusterCache.AssertExpectations(t)
+		}
+		db.AssertNotCalled(t, "GetCluster", mock.Anything, mock.Anything)
+	})
+
+	t.Run("an identical settings update invalidates nothing", func(t *testing.T) {
+		t.Parallel()
+		db, clusterCaches, clustersCache := newFixture(caBundle)
+		current := cacheSettings{appInstanceLabelKey: "app", clusterCABundle: caBundle}
+		clustersCache.cacheSettings = current
+
+		clustersCache.applyCacheSettings(current)
+
+		for _, clusterCache := range clusterCaches {
+			clusterCache.AssertExpectations(t)
+		}
+		db.AssertNotCalled(t, "GetCluster", mock.Anything, mock.Anything)
+	})
+
+	t.Run("the rebuilt REST config trusts the current bundle", func(t *testing.T) {
+		t.Parallel()
+		_, _, clustersCache := newFixture(caBundle)
+
+		restConfig := clustersCache.restConfigUsingDefaultCABundle("https://uses-default-ca")
+		require.NotNil(t, restConfig)
+		tlsConfig, err := utilnet.TLSClientConfig(restConfig.Transport)
+		require.NoError(t, err)
+		require.NotNil(t, tlsConfig)
+		block, _ := pem.Decode(caBundle)
+		require.NotNil(t, block)
+		bundleCA, err := x509.ParseCertificate(block.Bytes)
+		require.NoError(t, err)
+		_, err = bundleCA.Verify(x509.VerifyOptions{Roots: tlsConfig.RootCAs})
+		require.NoError(t, err, "the rebuilt REST config must trust the default bundle")
+		assert.Equal(t, rest.NoWarnings{}, restConfig.WarningHandler, "the rebuilt REST config must keep suppressing API warnings")
+	})
+
+	t.Run("the REST config rebuilt after removing the bundle falls back to system roots", func(t *testing.T) {
+		t.Parallel()
+		_, _, clustersCache := newFixture(nil)
+
+		restConfig := clustersCache.restConfigUsingDefaultCABundle("https://uses-default-ca")
+		require.NotNil(t, restConfig)
+		tlsConfig, err := utilnet.TLSClientConfig(restConfig.Transport)
+		require.NoError(t, err)
+		if tlsConfig != nil {
+			assert.Nil(t, tlsConfig.RootCAs, "the removed bundle must no longer be trusted")
+		}
+	})
+
+	t.Run("clusters that do not rely on the bundle get no rebuilt REST config", func(t *testing.T) {
+		t.Parallel()
+		_, _, clustersCache := newFixture(caBundle)
+
+		for _, server := range []string{"https://has-own-ca", "https://insecure", appv1.KubernetesInternalAPIServerAddr, "https://unknown"} {
+			assert.Nil(t, clustersCache.restConfigUsingDefaultCABundle(server), server)
+		}
+	})
+
+	t.Run("REST configs are left untouched when the default bundle did not change", func(t *testing.T) {
+		t.Parallel()
+		db, clusterCaches, clustersCache := newFixture(caBundle)
+		for _, clusterCache := range clusterCaches {
+			clusterCache.EXPECT().Invalidate(fourOpts...).Return().Once()
+		}
+
+		clustersCache.invalidate(cacheSettings{clusterCABundle: caBundle}, false)
+
+		for _, clusterCache := range clusterCaches {
+			clusterCache.AssertExpectations(t)
+		}
+		db.AssertNotCalled(t, "GetCluster", mock.Anything, mock.Anything)
+	})
+}
+
+func TestLoadCacheSettings_InvalidClusterCABundleIsIgnored(t *testing.T) {
+	t.Parallel()
+	kubeClient, settingsManager := fixtures(t.Context(), nil)
+	_, err := kubeClient.CoreV1().ConfigMaps("default").Create(t.Context(), &corev1.ConfigMap{
+		Name:      common.ArgoCDClusterCAConfigMapName,
+		Namespace: "default",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
+		},
+		Data: map[string]string{
+			common.ArgoCDClusterCAConfigMapKey: "not a certificate",
+		},
+	}, metav1.CreateOptions{})
+	require.NoError(t, err)
+	ch := liveStateCache{
+		settingsMgr: settingsManager,
+	}
+
+	res, err := ch.loadCacheSettings()
+	require.NoError(t, err)
+
+	assert.Nil(t, res.clusterCABundle)
+}
+
+func TestCompareCacheSettings(t *testing.T) {
+	t.Parallel()
+	caBundle := []byte("bundle")
+	base := cacheSettings{appInstanceLabelKey: "app", clusterCABundle: caBundle}
+	withLabel := func(s cacheSettings, label string) cacheSettings {
+		s.appInstanceLabelKey = label
+		return s
+	}
+	withBundle := func(s cacheSettings, bundle []byte) cacheSettings {
+		s.clusterCABundle = bundle
+		return s
+	}
+
+	tests := []struct {
+		name                 string
+		next                 cacheSettings
+		otherSettingsChanged bool
+		caBundleChanged      bool
+	}{
+		{name: "identical settings", next: base},
+		{name: "only the bundle changed", next: withBundle(base, []byte("rotated")), caBundleChanged: true},
+		{name: "the bundle was removed", next: withBundle(base, nil), caBundleChanged: true},
+		{name: "another setting changed", next: withLabel(base, "other"), otherSettingsChanged: true},
+		{name: "another setting and the bundle changed", next: withBundle(withLabel(base, "other"), nil), otherSettingsChanged: true, caBundleChanged: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			otherSettingsChanged, caBundleChanged := compareCacheSettings(base, tt.next)
+			assert.Equal(t, tt.otherSettingsChanged, otherSettingsChanged)
+			assert.Equal(t, tt.caBundleChanged, caBundleChanged)
+			assert.Equal(t, caBundle, base.clusterCABundle, "comparing must not modify the caller's settings")
+		})
+	}
 }
