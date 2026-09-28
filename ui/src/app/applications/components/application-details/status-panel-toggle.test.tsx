@@ -1,5 +1,6 @@
+import {AppContext, AppContextReact} from 'argo-ui';
 import * as React from 'react';
-import {fireEvent, render, screen} from '@testing-library/react';
+import {fireEvent, render, screen, waitFor} from '@testing-library/react';
 import * as models from '../../../shared/models';
 import {AppDetailsPreferences, services} from '../../../shared/services';
 import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
@@ -86,5 +87,33 @@ describe('StatusPanelToggle', () => {
 
         // the full panel stays mounted while collapsed, so its loaders do not re-run
         expect(services.applications.revisionMetadata).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not re-show the loader error toast after collapsing and re-expanding', async () => {
+        (services.applications.revisionMetadata as jest.Mock).mockRejectedValue(new Error('metadata unavailable'));
+        const show = jest.fn();
+        const appContext = {apis: {notifications: {show}}} as unknown as AppContext;
+        let setHide: (hide: boolean) => void;
+        const Harness = () => {
+            const [hide, setHideState] = React.useState(false);
+            setHide = setHideState;
+            return (
+                <AppContextReact.Provider value={appContext}>
+                    <StatusPanelToggle pref={{...basePref, hideStatusPanel: hide}} />
+                    <ApplicationStatusPanel application={application} collapsed={hide} />
+                </AppContextReact.Provider>
+            );
+        };
+        (services.viewPreferences.updatePreferences as jest.Mock).mockImplementation(change => setHide(change.appDetails.hideStatusPanel));
+
+        render(<Harness />);
+        await waitFor(() => expect(show).toHaveBeenCalledTimes(1));
+
+        fireEvent.click(screen.getByTitle('Collapse status panel'));
+        fireEvent.click(screen.getByTitle('Expand status panel'));
+        await waitFor(() => expect(screen.getByText('APP HEALTH')).toBeVisible());
+
+        expect(services.applications.revisionMetadata).toHaveBeenCalledTimes(1);
+        expect(show).toHaveBeenCalledTimes(1);
     });
 });

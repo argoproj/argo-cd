@@ -205,6 +205,25 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
         setEverExpanded(true);
     }
 
+    // While collapsed, keep feeding the hidden input-driven loaders (progressive sync,
+    // sync windows) the last visible application so app updates do not trigger their
+    // requests; they refresh once on expand.
+    const [visibleApplication, setVisibleApplication] = React.useState(application);
+    if (!collapsed && visibleApplication !== application) {
+        setVisibleApplication(application);
+    }
+
+    // Sync windows are time-based, so re-expanding must refetch them even when the
+    // application itself is unchanged.
+    const [prevCollapsed, setPrevCollapsed] = React.useState(collapsed);
+    const [expandCount, setExpandCount] = React.useState(0);
+    if (prevCollapsed !== collapsed) {
+        setPrevCollapsed(collapsed);
+        if (!collapsed) {
+            setExpandCount(expandCount + 1);
+        }
+    }
+
     // Only show Progressive Sync if the application has an ApplicationSet parent
     // The actual strategy validation will be done inside ProgressiveSyncStatus component
     const showProgressiveSync = !!getApplicationSetOwnerRef(application);
@@ -472,9 +491,9 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                     )}
                     <DataLoader
                         noLoaderOnInputChange={true}
-                        input={application}
-                        load={async app => {
-                            return await services.applications.getApplicationSyncWindowState(app.metadata.name, app.metadata.namespace);
+                        input={{application: visibleApplication, expandCount}}
+                        load={async input => {
+                            return await services.applications.getApplicationSyncWindowState(input.application.metadata.name, input.application.metadata.namespace);
                         }}>
                         {(data: models.ApplicationSyncWindowState) => (
                             <React.Fragment>
@@ -496,7 +515,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                             </React.Fragment>
                         )}
                     </DataLoader>
-                    {showProgressiveSync && <ProgressiveSyncStatus application={application} />}
+                    {showProgressiveSync && <ProgressiveSyncStatus application={visibleApplication} />}
                     {statusExtensions &&
                         statusExtensions.map(ext => <ext.component key={ext.title} application={application} openFlyout={() => showExtension && showExtension(ext.id)} />)}
                 </div>

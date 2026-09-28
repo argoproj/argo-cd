@@ -9,7 +9,10 @@ export const RevisionMetadataPanel = (props: {appName: string; appNamespace: str
     }
     if (props.type === 'oci') {
         return (
-            <DataLoader load={() => services.applications.ociMetadata(props.appName, props.appNamespace, props.revision, 0, props.versionId)} errorRenderer={() => <div />}>
+            <DataLoader
+                key={`${props.revision}/${props.versionId}`}
+                load={() => services.applications.ociMetadata(props.appName, props.appNamespace, props.revision, 0, props.versionId)}
+                errorRenderer={() => <div />}>
                 {m => (
                     <Tooltip
                         popperOptions={{
@@ -52,7 +55,7 @@ export const RevisionMetadataPanel = (props: {appName: string; appNamespace: str
     }
     return (
         <DataLoader
-            key={props.revision}
+            key={`${props.revision}/${props.versionId}`}
             load={() => services.applications.revisionMetadata(props.appName, props.appNamespace, props.revision, 0, props.versionId)}
             errorRenderer={() => <div />}>
             {m => (

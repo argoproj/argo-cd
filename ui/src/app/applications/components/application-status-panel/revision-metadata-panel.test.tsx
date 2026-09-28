@@ -60,4 +60,20 @@ describe('RevisionMetadataPanel', () => {
         render(<RevisionMetadataPanel {...defaultProps} type='git' />);
         expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'default', 'abc123', 0, 1);
     });
+
+    it('reloads git metadata when the history version changes for the same revision', () => {
+        const {services} = require('../../../shared/services');
+        const {rerender} = render(<RevisionMetadataPanel {...defaultProps} type='git' />);
+        expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'default', 'abc123', 0, 1);
+        rerender(<RevisionMetadataPanel {...defaultProps} versionId={2} type='git' />);
+        expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'default', 'abc123', 0, 2);
+    });
+
+    it('reloads oci metadata when the history version changes for the same revision', () => {
+        const {services} = require('../../../shared/services');
+        const {rerender} = render(<RevisionMetadataPanel {...defaultProps} type='oci' />);
+        expect(services.applications.ociMetadata).toHaveBeenCalledWith('test-app', 'default', 'abc123', 0, 1);
+        rerender(<RevisionMetadataPanel {...defaultProps} versionId={2} type='oci' />);
+        expect(services.applications.ociMetadata).toHaveBeenCalledWith('test-app', 'default', 'abc123', 0, 2);
+    });
 });
