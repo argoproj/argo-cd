@@ -454,8 +454,9 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 	paths := []*commitclient.PathDetails{pathDetails}
 	logCtx = logCtx.WithFields(log.Fields{"drySha": targetRevision})
 
-	// De-dupe check: Skip hydration only if all apps have already been hydrated with this drySha at their respective paths.
-	// We must check every app individually - if any app needs hydration, we must proceed.
+	// De-dupe check: Skip hydration only if all apps have already been hydrated with this drySha under
+	// their current hydrator config. We must check every app individually and if any app needs hydration,
+	// we must proceed.
 	if len(apps) > 0 {
 		allAppsAlreadyHydrated := true
 
@@ -466,11 +467,9 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 			}
 
 			lastDrySHA := app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
-			lastPath := app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator.SyncSource.Path
-			currentPath := app.Spec.GetHydrateToSource().Path
+			lastConfig := app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator
 
-			// This app needs hydration if either drySha or path changed
-			if targetRevision != lastDrySHA || currentPath != lastPath {
+			if targetRevision != lastDrySHA || !app.Spec.SourceHydrator.DeepEquals(lastConfig) {
 				allAppsAlreadyHydrated = false
 				break
 			}
