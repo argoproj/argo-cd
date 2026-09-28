@@ -10,7 +10,7 @@ approvers:
   - TBD
 
 creation-date: 2026-09-25
-last-updated: 2026-09-25
+last-updated: 2026-09-28
 ---
 
 # ApplicationSync
@@ -166,6 +166,7 @@ spec:            # immutable, except spec.paused
     apps: [{name: web}]
 status:
   phase: Running # Pending | Running | Succeeded | Failed
+  observedGeneration: 1
   startedAt: "2026-09-25T09:00:00Z"
   groups:
   - name: data
@@ -220,6 +221,10 @@ Semantics:
   compare a struct minus one field, so the rule compares each field, including whether optional fields are set.
   Re-applying an unchanged file is a no-op; re-applying a changed one is rejected. To sync again, create a new
   ApplicationSync. Deleting one cancels it: operations already running finish, and nothing new starts.
+- **Observed generation.** Both ApplicationSync and ApplicationSyncPolicy record `status.observedGeneration`, the
+  `metadata.generation` their status was last computed for, as Kubernetes controllers conventionally do. It shows
+  when a `paused` change or a policy edit has been picked up, including on a finished ApplicationSync, and gives
+  `kubectl wait` and health checks something to compare against.
 - **No auto-sync.** Apps in an ApplicationSync must not have auto-sync enabled, whoever created the
   ApplicationSync: a user, a policy or the ApplicationSet controller. Auto-sync would otherwise sync an app ahead of
   the groups it depends on, or undo a pinned revision. Instead of pausing auto-sync while an ApplicationSync runs,
@@ -536,6 +541,20 @@ spec:
   than failing the run, just as auto-sync waits.
 
 > [!NOTE]
+> **Future work: `selfHeal` and `allowEmpty`.** Apps in an ApplicationSync have auto-sync off, so
+> `automated.selfHeal` and `automated.allowEmpty` on the Application do nothing, and a policy has no equivalent
+> yet. Both were prototyped and pass e2e tests, so they can be added without changing the rest of the design:
+>
+> - **`selfHeal` on the policy.** After a run that succeeded, drift at the same change starts another run with
+>   the same pinned revisions. It skips Synced apps and syncs only the resources that aren't Synced, as
+>   `automated.selfHeal` does. Runs are spaced by the application controller's self-heal backoff and counted in
+>   `status.selfHealAttempts`, which a new change resets. A failed run is never self-healed.
+> - **`allowEmpty` on ApplicationSync.** An automated run with prune fails an app whose resources would all be
+>   pruned, unless `allowEmpty` is set. Unlike auto-sync's check, an app with no resources passes
+>   ([#15371](https://github.com/argoproj/argo-cd/issues/15371)). RollingSync never checks this, so its runs would
+>   set `allowEmpty: true`.
+
+> [!NOTE]
 > **Future work: explicit schedules.** A per-policy cron schedule, for example `schedule: "0 2 * * *"` to sync
 > a group every night, would be a great addition, and is left out on purpose to keep the policy small. It would
 > add a second trigger next to drift, and sync windows would still apply to it.
@@ -717,6 +736,59 @@ How the open `feature:progressive-sync` issues listed from [#28927](https://gith
 | [#27879](https://github.com/argoproj/argo-cd/issues/27879) UI | ApplicationSync views; see Observability. |
 | [#18240](https://github.com/argoproj/argo-cd/issues/18240) log spam | Logging only on phase changes. |
 | [#11932](https://github.com/argoproj/argo-cd/issues/11932) rollout analysis | Out of scope; see Non-Goals. |
+
+### Future work: auto-sync and RollingSync as policies
+
+If `ApplicationSyncPolicy` gets merged in-tree, the two other ways Argo CD syncs on its own could run through it too, so
+every sync goes through one engine and leaves the same record. Neither is part of this proposal.
+
+**App auto-sync as a generated policy.** When `spec.syncPolicy.automated` is enabled on an Application, the
+application controller would generate a single-app ApplicationSyncPolicy for it, owned by the Application, and
+delete it when auto-sync is turned off or the app is deleted. `syncPolicy.automated` stays the user-facing API
+and the source of truth; the generated policy is managed, and edits to it are reverted.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSyncPolicy
+metadata:
+  name: guestbook                  # named after the app
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/generated-by: automated-sync
+  ownerReferences:
+  - {apiVersion: argoproj.io/v1alpha1, kind: Application, name: guestbook, controller: true}
+spec:
+  concurrencyPolicy: Forbid
+  template:
+    prune: true                    # from automated.prune
+    groups:
+    - name: guestbook
+      apps: [{name: guestbook}]
+```
+
+- **Most of auto-sync maps directly.** Drift triggers a run, on the same `timeout.reconciliation` period. A run is
+  automatic for sync windows. Retry comes from `syncPolicy.retry`, and the policy's "same revisions and sources as
+  the last run" check is auto-sync's "already attempted this revision" check. `automated.selfHeal` and
+  `automated.allowEmpty` need the fields described under [future work for the policy](#applicationsyncpolicy).
+- **The "no auto-sync" rule becomes "one policy per app".** An app's generated policy is its auto-sync, so it
+  counts as the one policy allowed to manage the app. Listing an auto-synced app in another ApplicationSync or
+  policy is still refused. A one-off manual sync of an auto-synced app could then create an ApplicationSync as
+  well, removing that exception from [API and UI syncs](#api-and-ui-syncs).
+- **Scale is the main cost.** It adds one policy per auto-synced app, and one ApplicationSync per auto-sync. Large
+  installations would need a lower history limit for generated policies, or the application controller could
+  evaluate the default policy in memory without writing it, creating only the ApplicationSyncs.
+- **Upgrade and downgrade stay simple.** Since `syncPolicy.automated` is unchanged, an older controller ignores the
+  generated policies and auto-syncs as before.
+
+**RollingSync as a generated policy.** In [RollingSync on ApplicationSync](#rollingsync-on-applicationsync) the
+ApplicationSet controller still detects changes and creates each run. Instead, it could generate one
+ApplicationSyncPolicy per ApplicationSet: `steps` become the template's groups, `maxUpdate` becomes
+`maxParallel`, and `concurrencyPolicy: Replace` gives today's "a new change restarts the rollout". The
+ApplicationSet controller would then only keep the policy's template in step with the generated apps and steps,
+and change detection, pinning and history would live in one place for groups, auto-sync and RollingSync alike.
+Pausing with `maxUpdate: 0` needs the policy to pass `paused` on to its running ApplicationSync. Changes that
+`create-only` or `create-delete` never apply must still not start a run
+([#29142](https://github.com/argoproj/argo-cd/issues/29142)).
 
 ### Implementation details
 
