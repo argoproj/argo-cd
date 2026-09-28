@@ -518,7 +518,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 
 			// iterate over all sources and check if any files specified in refresh paths have changed
 			for _, source := range sources {
-				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
+				if RevisionHasChanged(source.TargetRevision, revision, touchedHead) && RepoURLMatches(source.RepoURL, repoRegexp) {
 					refreshPaths := path.GetSourceRefreshPaths(&app, source)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
 						var hydrateType *v1alpha1.HydrateType
@@ -698,19 +698,26 @@ func (a *ArgoCDWebhookHandler) lookupRepository(ctx context.Context, repoURL str
 	return repository, nil
 }
 
-func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string, touchedHead bool) bool {
-	targetRev := ParseRevision(source.TargetRevision)
+// RevisionHasChanged reports whether a webhook payload for revision affects targetRevision.
+//
+// targetRevision is the configured target: "HEAD", a branch or tag name, a fully qualified
+// ref such as "refs/heads/main", or a semver constraint such as ">=1.0.0". revision is the
+// ref carried by the payload, already reduced by ParseRevision. A targetRevision of "HEAD"
+// or "" tracks the repository's default branch, so it is affected exactly when touchedHead
+// is true; anything else is compared with CompareRevisions.
+func RevisionHasChanged(targetRevision string, revision string, touchedHead bool) bool {
+	targetRev := ParseRevision(targetRevision)
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
 		return touchedHead
 	}
 	targetRevisionHasPrefixList := []string{"refs/heads/", "refs/tags/"}
 	for _, prefix := range targetRevisionHasPrefixList {
-		if strings.HasPrefix(source.TargetRevision, prefix) {
+		if strings.HasPrefix(targetRevision, prefix) {
 			return CompareRevisions(revision, targetRev)
 		}
 	}
 
-	return CompareRevisions(revision, source.TargetRevision)
+	return CompareRevisions(revision, targetRevision)
 }
 
 func CompareRevisions(revision string, targetRevision string) bool {
@@ -735,13 +742,16 @@ func CompareRevisions(revision string, targetRevision string) bool {
 	return constraint.Check(version)
 }
 
-func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp *regexp.Regexp) bool {
-	if !repoRegexp.MatchString(source.RepoURL) {
-		log.Debugf("%s does not match %s", source.RepoURL, repoRegexp.String())
+// RepoURLMatches reports whether repoURL refers to the same repository as the webhook payload that
+// repoRegexp was built from. A non-match is the normal case, since every configured repository is
+// checked against every incoming event, so it is logged at debug level.
+func RepoURLMatches(repoURL string, repoRegexp *regexp.Regexp) bool {
+	if !repoRegexp.MatchString(repoURL) {
+		log.Debugf("%s does not match %s", repoURL, repoRegexp.String())
 		return false
 	}
 
-	log.Debugf("%s uses repoURL %s", source.RepoURL, webURL)
+	log.Debugf("%s matches %s", repoURL, repoRegexp.String())
 	return true
 }
 

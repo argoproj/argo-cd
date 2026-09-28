@@ -226,6 +226,12 @@ func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 		webURL = payload.Project.WebURL
 		revision = webhook.ParseRevision(payload.Ref)
 		touchedHead = payload.Project.DefaultBranch == revision
+	case gitlab.TagEventPayload:
+		// A tag push never moves the default branch, so it only refreshes generators
+		// whose revision names or matches the tag.
+		webURL = payload.Project.WebURL
+		revision = webhook.ParseRevision(payload.Ref)
+		touchedHead = false
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
 		webURL = payload.Resource.Repository.RemoteURL
@@ -350,10 +356,10 @@ func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInf
 		return false
 	}
 
-	if !gitGeneratorUsesURL(gen, info.Revision, info.RepoRegexp) {
+	if !webhook.RepoURLMatches(gen.RepoURL, info.RepoRegexp) {
 		return false
 	}
-	if !genRevisionHasChanged(gen, info.Revision, info.TouchedHead) {
+	if !webhook.RevisionHasChanged(gen.Revision, info.Revision, info.TouchedHead) {
 		return false
 	}
 	return true
@@ -377,25 +383,6 @@ func shouldRefreshOciGenerator(gen *v1alpha1.OciGenerator, info *ociGeneratorInf
 		return false
 	}
 
-	return true
-}
-
-func genRevisionHasChanged(gen *v1alpha1.GitGenerator, revision string, touchedHead bool) bool {
-	targetRev := webhook.ParseRevision(gen.Revision)
-	if targetRev == "HEAD" || targetRev == "" { // revision is head
-		return touchedHead
-	}
-
-	return targetRev == revision || gen.Revision == revision
-}
-
-func gitGeneratorUsesURL(gen *v1alpha1.GitGenerator, webURL string, repoRegexp *regexp.Regexp) bool {
-	if !repoRegexp.MatchString(gen.RepoURL) {
-		log.Warnf("%s does not match %s", gen.RepoURL, repoRegexp.String())
-		return false
-	}
-
-	log.Debugf("%s uses repoURL %s", gen.RepoURL, webURL)
 	return true
 }
 
