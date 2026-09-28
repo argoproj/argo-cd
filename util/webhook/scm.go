@@ -3,6 +3,7 @@ package webhook
 import (
 	"errors"
 	"net/http"
+	"sync"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/bitbucket"
@@ -12,6 +13,7 @@ import (
 	"github.com/go-playground/webhooks/v6/gogs"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/v3/util/guard"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -121,6 +123,20 @@ func Dispatch(parsers []Extractor, r *http.Request) (any, bool, error) {
 	}
 	log.Debug("Ignoring unknown webhook event")
 	return nil, false, nil
+}
+
+// StartWorkers starts count goroutines, tracked by wg, that pass each payload
+// read from queue to handle until the queue is closed. A panic in handle is
+// logged with panicMsg and the worker moves on to the next payload.
+func StartWorkers(wg *sync.WaitGroup, count int, queue <-chan any, handle func(any), component, panicMsg string) {
+	compLog := log.WithField("component", component)
+	for range count {
+		wg.Go(func() {
+			for payload := range queue {
+				guard.RecoverAndLog(func() { handle(payload) }, compLog, panicMsg)
+			}
+		})
+	}
 }
 
 type azureDevOpsParser struct {

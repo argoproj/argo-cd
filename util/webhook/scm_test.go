@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
@@ -88,4 +89,27 @@ func TestDispatch(t *testing.T) {
 		assert.True(t, handled)
 		require.ErrorIs(t, err, github.ErrEventNotFound)
 	})
+}
+
+func TestStartWorkers(t *testing.T) {
+	var wg sync.WaitGroup
+	queue := make(chan any, 3)
+	var handled []any
+
+	// A single worker, so the payload after the panic is only handled if the
+	// worker recovered and kept reading from the queue.
+	StartWorkers(&wg, 1, queue, func(payload any) {
+		if payload == "panic" {
+			panic("boom")
+		}
+		handled = append(handled, payload)
+	}, "test-webhook", "panic in test worker")
+
+	queue <- "first"
+	queue <- "panic"
+	queue <- "second"
+	close(queue)
+	wg.Wait()
+
+	assert.Equal(t, []any{"first", "second"}, handled)
 }

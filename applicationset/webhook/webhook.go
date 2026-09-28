@@ -26,8 +26,6 @@ import (
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	log "github.com/sirupsen/logrus"
-
-	"github.com/argoproj/argo-cd/v3/util/guard"
 )
 
 const payloadQueueSize = 50000
@@ -98,24 +96,9 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 		queue:      make(chan any, payloadQueueSize),
 	}
 
-	webhookHandler.startWorkerPool(webhookParallelism)
+	webhook.StartWorkers(&webhookHandler.WaitGroup, webhookParallelism, webhookHandler.queue, webhookHandler.HandleEvent, "applicationset-webhook", panicMsgAppSet)
 
 	return webhookHandler, nil
-}
-
-func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
-	compLog := log.WithField("component", "applicationset-webhook")
-	for range webhookParallelism {
-		h.Go(func() {
-			for {
-				payload, ok := <-h.queue
-				if !ok {
-					return
-				}
-				guard.RecoverAndLog(func() { h.HandleEvent(payload) }, compLog, panicMsgAppSet)
-			}
-		})
-	}
 }
 
 func (h *WebhookHandler) HandleEvent(payload any) {

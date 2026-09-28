@@ -146,25 +146,10 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		webhookRefreshJitterThreshold: webhookRefreshJitterThreshold,
 	}
 
-	acdWebhook.startWorkerPool(webhookParallelism)
+	StartWorkers(&acdWebhook.WaitGroup, webhookParallelism, acdWebhook.queue, acdWebhook.HandleEvent, "api-server-webhook", panicMsgServer)
 	acdWebhook.startRefreshWorkers(webhookRefreshWorkers)
 
 	return &acdWebhook
-}
-
-func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
-	compLog := log.WithField("component", "api-server-webhook")
-	for range webhookParallelism {
-		a.Go(func() {
-			for {
-				payload, ok := <-a.queue
-				if !ok {
-					return
-				}
-				guard.RecoverAndLog(func() { a.HandleEvent(payload) }, compLog, panicMsgServer)
-			}
-		})
-	}
 }
 
 // startRefreshWorkers starts worker goroutines to process app refresh requests from the refresh queue
