@@ -28,7 +28,7 @@ func main() {
 		// This header overrides the default. It's better visually and for search results.
 		filename = filepath.Base(filename)
 		filename = filename[:len(filename)-3] // Drop the '.md'
-		return fmt.Sprintf("# `%s` Command Reference\n\n", strings.ReplaceAll(filename, "_", " "))
+		return fmt.Sprintf("# `%q` Command Reference\n\n", strings.ReplaceAll(filename, "_", " "))
 	}
 
 	err := doc.GenMarkdownTreeCustom(argocdcli.NewCommand(), "./docs/user-guide/commands", headerPrepender, identity)
