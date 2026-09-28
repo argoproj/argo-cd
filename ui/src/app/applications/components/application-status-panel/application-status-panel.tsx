@@ -198,6 +198,13 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
 };
 
 export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
+    // Keep the full panel mounted once shown: unmounting it on collapse would re-run its
+    // data loaders (and re-fire their requests) on every expand.
+    const [everExpanded, setEverExpanded] = React.useState(!collapsed);
+    if (!collapsed && !everExpanded) {
+        setEverExpanded(true);
+    }
+
     // Only show Progressive Sync if the application has an ApplicationSet parent
     // The actual strategy validation will be done inside ProgressiveSyncStatus component
     const showProgressiveSync = !!getApplicationSetOwnerRef(application);
@@ -254,239 +261,246 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
         </div>
     );
 
-    if (collapsed) {
-        return (
-            <div className='application-status-panel application-status-panel--collapsed row'>
-                <div className='application-status-panel__collapsed-item' title='App Health'>
-                    <HealthStatusIcon state={application.status.health} />
-                    &nbsp;
-                    {application.status.health.status}
+    const collapsedSummary = collapsed && (
+        <div className='application-status-panel application-status-panel--collapsed row'>
+            <div className='application-status-panel__collapsed-item' title='App Health'>
+                <HealthStatusIcon state={application.status.health} />
+                &nbsp;
+                {application.status.health.status}
+            </div>
+            {application.spec.sourceHydrator && application.status?.sourceHydrator?.currentOperation && (
+                <div className='application-status-panel__collapsed-item' title='Source Hydrator'>
+                    <a onClick={() => showHydrateOperation && showHydrateOperation()}>
+                        <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} isButton={true} />
+                        &nbsp;
+                        {application.status.sourceHydrator.currentOperation.phase}
+                    </a>
                 </div>
-                {application.spec.sourceHydrator && application.status?.sourceHydrator?.currentOperation && (
-                    <div className='application-status-panel__collapsed-item' title='Source Hydrator'>
-                        <a onClick={() => showHydrateOperation && showHydrateOperation()}>
-                            <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} isButton={true} />
-                            &nbsp;
-                            {application.status.sourceHydrator.currentOperation.phase}
-                        </a>
-                    </div>
+            )}
+            <div className='application-status-panel__collapsed-item' title='Sync Status'>
+                {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
+                    <a onClick={() => showDiff && showDiff()}>
+                        <ComparisonStatusIcon status={application.status.sync.status} label={true} isButton={true} />
+                    </a>
+                ) : (
+                    // <span> keeps the icon/label spacing: a bare space between flex children is dropped
+                    <span>
+                        <ComparisonStatusIcon status={application.status.sync.status} label={true} />
+                    </span>
                 )}
-                <div className='application-status-panel__collapsed-item' title='Sync Status'>
-                    {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
-                        <a onClick={() => showDiff && showDiff()}>
-                            <ComparisonStatusIcon status={application.status.sync.status} label={true} isButton={true} />
+            </div>
+            {appOperationState && (
+                <div
+                    className={`application-status-panel__collapsed-item application-status-panel__item-value--${appOperationState.phase}`}
+                    title={'Last Sync Result: ' + appOperationState.phase}>
+                    {application.status.operationState ? (
+                        <a onClick={() => showOperation && showOperation()}>
+                            <OperationState app={application} isButton={true} />
                         </a>
                     ) : (
-                        // <span> keeps the icon/label spacing: a bare space between flex children is dropped
                         <span>
-                            <ComparisonStatusIcon status={application.status.sync.status} label={true} />
+                            <OperationState app={application} />
                         </span>
                     )}
                 </div>
-                {appOperationState && (
-                    <div
-                        className={`application-status-panel__collapsed-item application-status-panel__item-value--${appOperationState.phase}`}
-                        title={'Last Sync Result: ' + appOperationState.phase}>
-                        {application.status.operationState ? (
-                            <a onClick={() => showOperation && showOperation()}>
-                                <OperationState app={application} isButton={true} />
-                            </a>
-                        ) : (
-                            <span>
-                                <OperationState app={application} />
-                            </span>
-                        )}
-                    </div>
-                )}
-                {conditionSummary}
-            </div>
-        );
-    }
+            )}
+            {conditionSummary}
+        </div>
+    );
 
     return (
-        <div className='application-status-panel row'>
-            <div className='application-status-panel__item'>
-                {sectionHeader({title: 'APP HEALTH', helpContent: 'The health status of your app'})}
-                <div className='application-status-panel__item-value'>
-                    <HealthStatusIcon state={application.status.health} />
-                    &nbsp;
-                    {application.status.health.status}
-                </div>
-                {application.status.health.message && <div className='application-status-panel__item-name'>{application.status.health.message}</div>}
-            </div>
-            {application.spec.sourceHydrator && application.status?.sourceHydrator?.currentOperation && (
-                <div className='application-status-panel__item'>
-                    <div style={{lineHeight: '19.5px', marginBottom: '0.3em'}}>
-                        {sectionLabel({
-                            title: 'SOURCE HYDRATOR',
-                            helpContent: 'The source hydrator reads manifests from git, hydrates (renders) them, and pushes them to a different location in git.'
-                        })}
-                    </div>
-                    <div className='application-status-panel__item-value'>
-                        <a className='application-status-panel__item-value__hydrator-link' onClick={() => showHydrateOperation && showHydrateOperation()}>
-                            <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} isButton={true} />
+        <React.Fragment>
+            {collapsedSummary}
+            {(!collapsed || everExpanded) && (
+                <div className='application-status-panel row' style={collapsed ? {display: 'none'} : undefined}>
+                    <div className='application-status-panel__item'>
+                        {sectionHeader({title: 'APP HEALTH', helpContent: 'The health status of your app'})}
+                        <div className='application-status-panel__item-value'>
+                            <HealthStatusIcon state={application.status.health} />
                             &nbsp;
-                            {application.status.sourceHydrator.currentOperation.phase}
-                        </a>
-                        <div className='application-status-panel__item-value__revision show-for-large'>{hydrationStatusMessage(application)}</div>
+                            {application.status.health.status}
+                        </div>
+                        {application.status.health.message && <div className='application-status-panel__item-name'>{application.status.health.message}</div>}
                     </div>
-                    <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
-                        {application.status.sourceHydrator.currentOperation.phase}{' '}
-                        <Timestamp date={application.status.sourceHydrator.currentOperation.finishedAt || application.status.sourceHydrator.currentOperation.startedAt} />
-                    </div>
-                    {application.status.sourceHydrator.currentOperation.message && (
-                        <div className='application-status-panel__item-name'>{application.status.sourceHydrator.currentOperation.message}</div>
-                    )}
-                    <div className='application-status-panel__item-name'>
-                        {application.status.sourceHydrator.currentOperation.drySHA && (
-                            <RevisionMetadataPanel
-                                appName={application.metadata.name}
-                                appNamespace={application.metadata.namespace}
-                                type={''}
-                                revision={application.status.sourceHydrator.currentOperation.drySHA}
-                                versionId={utils.getAppCurrentVersion(application)}
-                            />
-                        )}
-                    </div>
-                </div>
-            )}
-            <div className='application-status-panel__item'>
-                {sectionHeader(
-                    {
-                        title: 'SYNC STATUS',
-                        helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
-                    },
-                    () => showMetadataInfo(application.status.sync ? 'SYNC_STATUS_REVISION' : null)
-                )}
-                <div className={`application-status-panel__item-value${appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''}`}>
-                    <div>
-                        {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
-                            <a onClick={() => showDiff && showDiff()}>
-                                <ComparisonStatusIcon status={application.status.sync.status} label={true} isButton={true} />
-                            </a>
-                        ) : (
-                            <ComparisonStatusIcon status={application.status.sync.status} label={true} />
-                        )}
-                    </div>
-                    <div className='application-status-panel__item-value__revision show-for-large'>{renderSyncStatusRevision(application)}</div>
-                </div>
-                <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
-                    {application.spec.syncPolicy?.automated && application.spec.syncPolicy.automated.enabled !== false ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
-                </div>
-                {application.status &&
-                    application.status.sync &&
-                    (hasMultipleSources
-                        ? application.status.sync.revisions && application.status.sync.revisions[0] && application.spec.sources && !application.spec.sources[0].chart
-                        : application.status.sync.revision && !application.spec?.source?.chart) && (
-                        <div className='application-status-panel__item-name'>
-                            <RevisionMetadataPanel
-                                appName={application.metadata.name}
-                                appNamespace={application.metadata.namespace}
-                                type={revisionType}
-                                revision={revision}
-                                versionId={utils.getAppCurrentVersion(application)}
-                            />
+                    {application.spec.sourceHydrator && application.status?.sourceHydrator?.currentOperation && (
+                        <div className='application-status-panel__item'>
+                            <div style={{lineHeight: '19.5px', marginBottom: '0.3em'}}>
+                                {sectionLabel({
+                                    title: 'SOURCE HYDRATOR',
+                                    helpContent: 'The source hydrator reads manifests from git, hydrates (renders) them, and pushes them to a different location in git.'
+                                })}
+                            </div>
+                            <div className='application-status-panel__item-value'>
+                                <a className='application-status-panel__item-value__hydrator-link' onClick={() => showHydrateOperation && showHydrateOperation()}>
+                                    <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} isButton={true} />
+                                    &nbsp;
+                                    {application.status.sourceHydrator.currentOperation.phase}
+                                </a>
+                                <div className='application-status-panel__item-value__revision show-for-large'>{hydrationStatusMessage(application)}</div>
+                            </div>
+                            <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
+                                {application.status.sourceHydrator.currentOperation.phase}{' '}
+                                <Timestamp date={application.status.sourceHydrator.currentOperation.finishedAt || application.status.sourceHydrator.currentOperation.startedAt} />
+                            </div>
+                            {application.status.sourceHydrator.currentOperation.message && (
+                                <div className='application-status-panel__item-name'>{application.status.sourceHydrator.currentOperation.message}</div>
+                            )}
+                            <div className='application-status-panel__item-name'>
+                                {application.status.sourceHydrator.currentOperation.drySHA && (
+                                    <RevisionMetadataPanel
+                                        appName={application.metadata.name}
+                                        appNamespace={application.metadata.namespace}
+                                        type={''}
+                                        revision={application.status.sourceHydrator.currentOperation.drySHA}
+                                        versionId={utils.getAppCurrentVersion(application)}
+                                    />
+                                )}
+                            </div>
                         </div>
                     )}
-            </div>
-            {appOperationState && (
-                <div className='application-status-panel__item'>
-                    {sectionHeader(
-                        {
-                            title: 'LAST SYNC',
-                            helpContent:
-                                'Whether or not your last app sync was successful. It has been ' +
-                                daysSinceLastSynchronized +
-                                ' days since last sync. Click for the status of that sync.'
-                        },
-                        () =>
-                            showMetadataInfo(
-                                appOperationState.syncResult && (appOperationState.syncResult.revisions || appOperationState.syncResult.revision)
-                                    ? 'OPERATION_STATE_REVISION'
-                                    : null
-                            )
-                    )}
-                    <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
-                        {application.status.operationState ? (
-                            <a onClick={() => showOperation && showOperation()}>
-                                <OperationState app={application} isButton={true} />{' '}
-                            </a>
-                        ) : (
-                            // No operation to open; render non-clickable. <span> keeps the icon/label aligned.
-                            <span>
-                                <OperationState app={application} />{' '}
-                            </span>
+                    <div className='application-status-panel__item'>
+                        {sectionHeader(
+                            {
+                                title: 'SYNC STATUS',
+                                helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
+                            },
+                            () => showMetadataInfo(application.status.sync ? 'SYNC_STATUS_REVISION' : null)
                         )}
-                        {appOperationState.syncResult && (appOperationState.syncResult.revision || appOperationState.syncResult.revisions) && (
-                            <div className='application-status-panel__item-value__revision show-for-large'>
-                                to <Revision repoUrl={source.repoURL} revision={operationStateRevision} /> {getAppDefaultSyncRevisionExtra(application)}
+                        <div
+                            className={`application-status-panel__item-value${appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''}`}>
+                            <div>
+                                {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
+                                    <a onClick={() => showDiff && showDiff()}>
+                                        <ComparisonStatusIcon status={application.status.sync.status} label={true} isButton={true} />
+                                    </a>
+                                ) : (
+                                    <ComparisonStatusIcon status={application.status.sync.status} label={true} />
+                                )}
                             </div>
-                        )}
-                    </div>
-                    <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
-                        {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
-                    </div>
-                    {(appOperationState.syncResult && operationStateRevision && (
-                        <RevisionMetadataPanel
-                            appName={application.metadata.name}
-                            appNamespace={application.metadata.namespace}
-                            type={revisionType}
-                            revision={operationStateRevision}
-                            versionId={utils.getAppCurrentVersion(application)}
-                        />
-                    )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
-                </div>
-            )}
-            {application.status.conditions && (
-                <div className={`application-status-panel__item`}>
-                    {sectionHeader({title: 'APP CONDITIONS'})}
-                    <div className='application-status-panel__item-value application-status-panel__conditions' onClick={() => showConditions && showConditions()}>
-                        {infos && (
-                            <a className='info'>
-                                <i className='fa fa-info-circle application-status-panel__item-value__status-button' /> {infos} Info
-                            </a>
-                        )}
-                        {warnings && (
-                            <a className='warning'>
-                                <i className='fa fa-exclamation-triangle application-status-panel__item-value__status-button' /> {warnings} Warning{warnings !== 1 && 's'}
-                            </a>
-                        )}
-                        {errors && (
-                            <a className='error'>
-                                <i className='fa fa-exclamation-circle application-status-panel__item-value__status-button' /> {errors} Error{errors !== 1 && 's'}
-                            </a>
-                        )}
-                    </div>
-                </div>
-            )}
-            <DataLoader
-                noLoaderOnInputChange={true}
-                input={application}
-                load={async app => {
-                    return await services.applications.getApplicationSyncWindowState(app.metadata.name, app.metadata.namespace);
-                }}>
-                {(data: models.ApplicationSyncWindowState) => (
-                    <React.Fragment>
-                        {data?.assignedWindows && (
-                            <div className='application-status-panel__item' style={{position: 'relative'}}>
-                                {sectionLabel({
-                                    title: 'SYNC WINDOWS',
-                                    helpContent:
-                                        'The aggregate state of sync windows for this app. ' +
-                                        'Red: no syncs allowed. ' +
-                                        'Yellow: manual syncs allowed. ' +
-                                        'Green: all syncs allowed'
-                                })}
-                                <div className='application-status-panel__item-value' style={{margin: 'auto 0'}}>
-                                    <ApplicationSyncWindowStatusIcon project={application.spec.project} state={data} />
+                            <div className='application-status-panel__item-value__revision show-for-large'>{renderSyncStatusRevision(application)}</div>
+                        </div>
+                        <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
+                            {application.spec.syncPolicy?.automated && application.spec.syncPolicy.automated.enabled !== false
+                                ? 'Auto sync is enabled.'
+                                : 'Auto sync is not enabled.'}
+                        </div>
+                        {application.status &&
+                            application.status.sync &&
+                            (hasMultipleSources
+                                ? application.status.sync.revisions && application.status.sync.revisions[0] && application.spec.sources && !application.spec.sources[0].chart
+                                : application.status.sync.revision && !application.spec?.source?.chart) && (
+                                <div className='application-status-panel__item-name'>
+                                    <RevisionMetadataPanel
+                                        appName={application.metadata.name}
+                                        appNamespace={application.metadata.namespace}
+                                        type={revisionType}
+                                        revision={revision}
+                                        versionId={utils.getAppCurrentVersion(application)}
+                                    />
                                 </div>
+                            )}
+                    </div>
+                    {appOperationState && (
+                        <div className='application-status-panel__item'>
+                            {sectionHeader(
+                                {
+                                    title: 'LAST SYNC',
+                                    helpContent:
+                                        'Whether or not your last app sync was successful. It has been ' +
+                                        daysSinceLastSynchronized +
+                                        ' days since last sync. Click for the status of that sync.'
+                                },
+                                () =>
+                                    showMetadataInfo(
+                                        appOperationState.syncResult && (appOperationState.syncResult.revisions || appOperationState.syncResult.revision)
+                                            ? 'OPERATION_STATE_REVISION'
+                                            : null
+                                    )
+                            )}
+                            <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
+                                {application.status.operationState ? (
+                                    <a onClick={() => showOperation && showOperation()}>
+                                        <OperationState app={application} isButton={true} />{' '}
+                                    </a>
+                                ) : (
+                                    // No operation to open; render non-clickable. <span> keeps the icon/label aligned.
+                                    <span>
+                                        <OperationState app={application} />{' '}
+                                    </span>
+                                )}
+                                {appOperationState.syncResult && (appOperationState.syncResult.revision || appOperationState.syncResult.revisions) && (
+                                    <div className='application-status-panel__item-value__revision show-for-large'>
+                                        to <Revision repoUrl={source.repoURL} revision={operationStateRevision} /> {getAppDefaultSyncRevisionExtra(application)}
+                                    </div>
+                                )}
                             </div>
+                            <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
+                                {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
+                            </div>
+                            {(appOperationState.syncResult && operationStateRevision && (
+                                <RevisionMetadataPanel
+                                    appName={application.metadata.name}
+                                    appNamespace={application.metadata.namespace}
+                                    type={revisionType}
+                                    revision={operationStateRevision}
+                                    versionId={utils.getAppCurrentVersion(application)}
+                                />
+                            )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
+                        </div>
+                    )}
+                    {application.status.conditions && (
+                        <div className={`application-status-panel__item`}>
+                            {sectionHeader({title: 'APP CONDITIONS'})}
+                            <div className='application-status-panel__item-value application-status-panel__conditions' onClick={() => showConditions && showConditions()}>
+                                {infos && (
+                                    <a className='info'>
+                                        <i className='fa fa-info-circle application-status-panel__item-value__status-button' /> {infos} Info
+                                    </a>
+                                )}
+                                {warnings && (
+                                    <a className='warning'>
+                                        <i className='fa fa-exclamation-triangle application-status-panel__item-value__status-button' /> {warnings} Warning{warnings !== 1 && 's'}
+                                    </a>
+                                )}
+                                {errors && (
+                                    <a className='error'>
+                                        <i className='fa fa-exclamation-circle application-status-panel__item-value__status-button' /> {errors} Error{errors !== 1 && 's'}
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    <DataLoader
+                        noLoaderOnInputChange={true}
+                        input={application}
+                        load={async app => {
+                            return await services.applications.getApplicationSyncWindowState(app.metadata.name, app.metadata.namespace);
+                        }}>
+                        {(data: models.ApplicationSyncWindowState) => (
+                            <React.Fragment>
+                                {data?.assignedWindows && (
+                                    <div className='application-status-panel__item' style={{position: 'relative'}}>
+                                        {sectionLabel({
+                                            title: 'SYNC WINDOWS',
+                                            helpContent:
+                                                'The aggregate state of sync windows for this app. ' +
+                                                'Red: no syncs allowed. ' +
+                                                'Yellow: manual syncs allowed. ' +
+                                                'Green: all syncs allowed'
+                                        })}
+                                        <div className='application-status-panel__item-value' style={{margin: 'auto 0'}}>
+                                            <ApplicationSyncWindowStatusIcon project={application.spec.project} state={data} />
+                                        </div>
+                                    </div>
+                                )}
+                            </React.Fragment>
                         )}
-                    </React.Fragment>
-                )}
-            </DataLoader>
-            {showProgressiveSync && <ProgressiveSyncStatus application={application} />}
-            {statusExtensions && statusExtensions.map(ext => <ext.component key={ext.title} application={application} openFlyout={() => showExtension && showExtension(ext.id)} />)}
-        </div>
+                    </DataLoader>
+                    {showProgressiveSync && <ProgressiveSyncStatus application={application} />}
+                    {statusExtensions &&
+                        statusExtensions.map(ext => <ext.component key={ext.title} application={application} openFlyout={() => showExtension && showExtension(ext.id)} />)}
+                </div>
+            )}
+        </React.Fragment>
     );
 };

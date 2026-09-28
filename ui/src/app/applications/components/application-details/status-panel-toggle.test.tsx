@@ -73,14 +73,18 @@ describe('StatusPanelToggle', () => {
         (services.viewPreferences.updatePreferences as jest.Mock).mockImplementation(change => setHide(change.appDetails.hideStatusPanel));
 
         const {container} = render(<Harness />);
-        expect(screen.getByText('APP HEALTH')).toBeInTheDocument();
+        expect(screen.getByText('APP HEALTH')).toBeVisible();
+        expect(services.applications.revisionMetadata).toHaveBeenCalledTimes(1);
 
         fireEvent.click(screen.getByTitle('Collapse status panel'));
         expect(container.querySelector('.application-status-panel--collapsed')).not.toBeNull();
-        expect(screen.queryByText('APP HEALTH')).toBeNull();
+        expect(screen.getByText('APP HEALTH')).not.toBeVisible();
 
         fireEvent.click(screen.getByTitle('Expand status panel'));
         expect(container.querySelector('.application-status-panel--collapsed')).toBeNull();
-        expect(screen.getByText('APP HEALTH')).toBeInTheDocument();
+        expect(screen.getByText('APP HEALTH')).toBeVisible();
+
+        // the full panel stays mounted while collapsed, so its loaders do not re-run
+        expect(services.applications.revisionMetadata).toHaveBeenCalledTimes(1);
     });
 });

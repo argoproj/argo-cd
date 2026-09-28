@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {fireEvent, render, screen} from '@testing-library/react';
 import * as models from '../../../shared/models';
+import {services} from '../../../shared/services';
 import {ApplicationStatusPanel} from './application-status-panel';
 import {ApplicationSetStatusPanel} from './appset-status-panel';
 
@@ -91,6 +92,12 @@ describe('ApplicationStatusPanel', () => {
     it('does not show a source hydrator entry while collapsed when the app has none', () => {
         render(<ApplicationStatusPanel application={application} collapsed={true} />);
         expect(screen.queryByTitle('Source Hydrator')).toBeNull();
+    });
+
+    it('does not run the full panel loaders while it has never been expanded', () => {
+        (services.applications.revisionMetadata as jest.Mock).mockClear();
+        render(<ApplicationStatusPanel application={application} collapsed={true} />);
+        expect(services.applications.revisionMetadata).not.toHaveBeenCalled();
     });
 });
 
