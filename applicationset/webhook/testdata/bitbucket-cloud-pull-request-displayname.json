@@ -1,0 +1,62 @@
+{
+  "actor": {
+    "type": "user",
+    "nickname": "jsmith",
+    "display_name": "Jane Smith",
+    "uuid": "{12345678-abcd-1234-abcd-123456789012}"
+  },
+  "pullrequest": {
+    "id": 42,
+    "title": "Add feature X",
+    "state": "OPEN",
+    "author": {
+      "type": "user",
+      "nickname": "jsmith",
+      "uuid": "{12345678-abcd-1234-abcd-123456789012}"
+    },
+    "source": {
+      "branch": { "name": "feature/x" },
+      "commit": { "hash": "abc123" },
+      "repository": {
+        "type": "repository",
+        "full_name": "my-org/myrepo",
+        "name": "My Repo Display Name",
+        "owner": { "type": "team", "nickname": "my-org" },
+        "links": {
+          "html": { "href": "https://bitbucket.org/my-org/myrepo" }
+        }
+      }
+    },
+    "destination": {
+      "branch": { "name": "main" },
+      "commit": { "hash": "def456" },
+      "repository": {
+        "type": "repository",
+        "full_name": "my-org/myrepo",
+        "name": "My Repo Display Name",
+        "owner": { "type": "team", "nickname": "my-org" },
+        "links": {
+          "html": { "href": "https://bitbucket.org/my-org/myrepo" }
+        }
+      }
+    },
+    "links": {
+      "html": { "href": "https://bitbucket.org/my-org/myrepo/pull-requests/42" }
+    }
+  },
+  "repository": {
+    "type": "repository",
+    "full_name": "my-org/myrepo",
+    "name": "My Repo Display Name",
+    "owner": {
+      "type": "team",
+      "nickname": "my-org",
+      "uuid": "{aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee}"
+    },
+    "scm": "git",
+    "is_private": true,
+    "links": {
+      "html": { "href": "https://bitbucket.org/my-org/myrepo" }
+    }
+  }
+}

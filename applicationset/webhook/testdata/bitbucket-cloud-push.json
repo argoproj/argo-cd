@@ -1,0 +1,48 @@
+{
+  "actor": {
+    "type": "user",
+    "nickname": "jsmith",
+    "uuid": "{12345678-abcd-1234-abcd-123456789012}"
+  },
+  "repository": {
+    "type": "repository",
+    "full_name": "my-org/myrepo",
+    "name": "myrepo",
+    "owner": {
+      "type": "team",
+      "nickname": "my-org",
+      "uuid": "{aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee}"
+    },
+    "scm": "git",
+    "is_private": true,
+    "links": {
+      "html": { "href": "https://bitbucket.org/my-org/myrepo" }
+    }
+  },
+  "push": {
+    "changes": [
+      {
+        "new": {
+          "type": "branch",
+          "name": "main",
+          "target": {
+            "type": "commit",
+            "hash": "abc123def456abc123def456abc123def456abc1"
+          }
+        },
+        "old": {
+          "type": "branch",
+          "name": "main",
+          "target": {
+            "type": "commit",
+            "hash": "000000000000000000000000000000000000000a"
+          }
+        },
+        "created": false,
+        "forced": false,
+        "closed": false,
+        "truncated": false
+      }
+    ]
+  }
+}

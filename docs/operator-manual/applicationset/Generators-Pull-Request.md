@@ -494,6 +494,39 @@ The Pull Request Generator will requeue when the next action occurs.
 
 For more information about each event, please refer to the [official documentation](https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html#merge-request-events).
 
+### Bitbucket Cloud webhook configuration
+
+In your Bitbucket Cloud repository, navigate to **Repository settings > Webhooks** and add a new webhook. Set the payload URL to the `/api/webhook` endpoint of your ApplicationSet controller (e.g. `https://applicationset.example.com/api/webhook`).
+
+Under **Triggers**, select **Choose from a full list of triggers** and enable the following Pull Request events:
+
+- `Pull Request: Created`
+- `Pull Request: Updated`
+- `Pull Request: Merged`
+- `Pull Request: Declined`
+
+Bitbucket Cloud authenticates webhooks using a UUID rather than a shared secret. Copy the webhook UUID from the Bitbucket webhook settings page and add it to the `argocd-secret` Kubernetes secret:
+
+```bash
+kubectl edit secret argocd-secret -n argocd
+```
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+  namespace: argocd
+stringData:
+  # bitbucket cloud webhook UUID
+  webhook.bitbucket.uuid: your-webhook-uuid
+```
+
+After saving, restart the ApplicationSet controller pod for the change to take effect.
+
+> [!NOTE]
+> Bitbucket Cloud does not include the repository's default branch name in push payloads. The ApplicationSet controller therefore treats every push as potentially targeting HEAD. This means all ApplicationSets whose Git generator tracks the default branch will be refreshed on any push, not only pushes to the default branch.
+
 ## Lifecycle
 
 An Application will be generated when a Pull Request is discovered when the configured criteria is met - i.e. for GitHub when a Pull Request matches the specified `labels` and/or `pullRequestState`. Application will be removed when a Pull Request no longer meets the specified criteria.
