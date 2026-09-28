@@ -1,0 +1,38 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: image-updater-006
+  namespace: argocd
+  generation: 1
+spec:
+  applicationRefs:
+  - images:
+    - alias: guestbook
+      commonUpdateSettings:
+        updateStrategy: semver
+      imageName: quay.io/example/my-app:~1.0
+    namePattern: '*-01'
+status:
+  applicationsMatched: 0
+  imagesManaged: 0
+  lastCheckedAt: "2026-09-23T16:40:00Z"
+  observedGeneration: 1
+  conditions:
+  - lastTransitionTime: "2026-09-23T16:40:00Z"
+    message: Last check completed. Awaiting next cycle.
+    observedGeneration: 1
+    reason: Idle
+    status: "False"
+    type: Reconciling
+  - lastTransitionTime: "2026-09-23T16:40:00Z"
+    message: No errors during last reconciliation.
+    observedGeneration: 1
+    reason: NoErrors
+    status: "False"
+    type: Error
+  - lastTransitionTime: "2026-09-23T16:40:00Z"
+    message: "Registry credentials secret argocd/my-registry-secret not found."
+    observedGeneration: 1
+    reason: ConfigurationError
+    status: "False"
+    type: Ready

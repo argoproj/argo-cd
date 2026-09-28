@@ -1,0 +1,8 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: new-app
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: NewApp

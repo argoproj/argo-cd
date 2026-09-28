@@ -1,0 +1,13 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Backup
+metadata:
+  name: cluster-backup-20260627
+  namespace: db
+spec:
+  cluster:
+    name: cluster-example
+  method: barmanObjectStore
+status:
+  phase: failed
+  error: "unable to execute pg_basebackup: exit status 1"
+  startedAt: "2026-06-27T01:00:00Z"

@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/webhook"
 )
 
 type generatorMock struct {
@@ -100,6 +100,24 @@ func TestWebhookHandler(t *testing.T) {
 			headerValue:        "Push Hook",
 			payloadFile:        "gitlab-event.json",
 			effectedAppSets:    []string{"git-gitlab", "git-gitlab-ssh", "git-gitlab-alt-ssh", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a GitHub repository via tag push matching a semver constraint",
+			headerKey:          "X-GitHub-Event",
+			headerValue:        "push",
+			payloadFile:        "github-tag-event.json",
+			effectedAppSets:    []string{"git-github-tag", "git-github-semver", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a GitLab repository via tag push matching a semver constraint",
+			headerKey:          "X-Gitlab-Event",
+			headerValue:        "Tag Push Hook",
+			payloadFile:        "gitlab-tag-event.json",
+			effectedAppSets:    []string{"git-gitlab-tag", "git-gitlab-semver", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
@@ -193,6 +211,15 @@ func TestWebhookHandler(t *testing.T) {
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
+		{
+			desc:               "WebHook from GHCR via package published event",
+			headerKey:          "X-GitHub-Event",
+			headerValue:        "package",
+			payloadFile:        "ghcr-package-event.json",
+			effectedAppSets:    []string{"oci-ghcr", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
 	}
 
 	namespace := "test"
@@ -217,10 +244,17 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithGitGenerator("git-gitlab-alt-ssh", namespace, "ssh://git@altssh.gitlab.com:443/group/name"),
 				fakeAppWithGitGenerator("git-azure-devops", namespace, "https://dev.azure.com/fabrikam-fiber-inc/DefaultCollection/_git/Fabrikam-Fiber-Git"),
 				fakeAppWithGitGeneratorWithRevision("github-shorthand", namespace, "https://github.com/org/repo", "env/dev"),
+				fakeAppWithGitGeneratorWithRevision("git-github-tag", namespace, "https://github.com/org/repo", "v1.2.0"),
+				fakeAppWithGitGeneratorWithRevision("git-github-semver", namespace, "https://github.com/org/repo", ">=1.0.0 <2.0.0"),
+				fakeAppWithGitGeneratorWithRevision("git-github-semver-nomatch", namespace, "https://github.com/org/repo", "2.*"),
+				fakeAppWithGitGeneratorWithRevision("git-gitlab-tag", namespace, "https://gitlab.com/group/name", "refs/tags/v1.2.0"),
+				fakeAppWithGitGeneratorWithRevision("git-gitlab-semver", namespace, "https://gitlab.com/group/name", "1.*"),
+				fakeAppWithGitGeneratorWithRevision("git-gitlab-semver-nomatch", namespace, "https://gitlab.com/group/name", "2.*"),
 				fakeAppWithGithubPullRequestGenerator("pull-request-github", namespace, "CodErTOcat", "Hello-World"),
 				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab", namespace, "100500"),
 				fakeAppWithAzureDevOpsPullRequestGenerator("pull-request-azure-devops", namespace, "DefaultCollection", "Fabrikam"),
 				fakeAppWithPluginGenerator("plugin", namespace),
+				fakeAppWithOciGenerator("oci-ghcr", namespace, "oci://ghcr.io/org/image", "1.0.0"),
 				fakeAppWithMatrixAndGitGenerator("matrix-git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithMatrixAndPullRequestGenerator("matrix-pull-request-github", namespace, "Codertocat", "Hello-World"),
 				fakeAppWithMatrixAndScmWithGitGenerator("matrix-scm-git-github", namespace, "org"),
@@ -276,6 +310,7 @@ func mockGenerators() map[string]generators.Generator {
 	generatorMockGit := &generatorMock{}
 	generatorMockPR := &generatorMock{}
 	generatorMockPlugin := &generatorMock{}
+	generatorMockOCI := &generatorMock{}
 	mockSCMProvider := &scm_provider.MockProvider{
 		Repos: []*scm_provider.Repository{
 			{
@@ -302,6 +337,7 @@ func mockGenerators() map[string]generators.Generator {
 		"SCMProvider": generatorMockSCM,
 		"PullRequest": generatorMockPR,
 		"Plugin":      generatorMockPlugin,
+		"Oci":         generatorMockOCI,
 	}
 
 	nestedGenerators := map[string]generators.Generator{
@@ -310,6 +346,7 @@ func mockGenerators() map[string]generators.Generator {
 		"SCMProvider": terminalMockGenerators["SCMProvider"],
 		"PullRequest": terminalMockGenerators["PullRequest"],
 		"Plugin":      terminalMockGenerators["Plugin"],
+		"Oci":         terminalMockGenerators["Oci"],
 		"Matrix":      generators.NewMatrixGenerator(terminalMockGenerators),
 		"Merge":       generators.NewMergeGenerator(terminalMockGenerators),
 	}
@@ -320,6 +357,7 @@ func mockGenerators() map[string]generators.Generator {
 		"SCMProvider": terminalMockGenerators["SCMProvider"],
 		"PullRequest": terminalMockGenerators["PullRequest"],
 		"Plugin":      terminalMockGenerators["Plugin"],
+		"Oci":         terminalMockGenerators["Oci"],
 		"Matrix":      generators.NewMatrixGenerator(nestedGenerators),
 		"Merge":       generators.NewMergeGenerator(nestedGenerators),
 	}
@@ -377,21 +415,37 @@ func TestGenRevisionHasChanged(t *testing.T) {
 			revision:    "v3.14.1",
 			touchedHead: false,
 		}, want: true},
+		// A semver constraint is resolved by util/git when the generator runs, so a
+		// push of a matching tag must refresh it, exactly as it does for an
+		// Application with the same target revision.
+		{name: "foundSemverConstraint", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: ">=1.0.0"},
+			revision:    "v1.2.3",
+			touchedHead: false,
+		}, want: true},
+		{name: "foundSemverConstraintWildcard", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: "1.*"},
+			revision:    "1.1.0",
+			touchedHead: false,
+		}, want: true},
+		{name: "notFoundSemverConstraint", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: "1.*"},
+			revision:    "2.0.0",
+			touchedHead: false,
+		}, want: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equalf(t, tt.want, genRevisionHasChanged(tt.args.gen, tt.args.revision, tt.args.touchedHead), "genRevisionHasChanged(%v, %v, %v)", tt.args.gen, tt.args.revision, tt.args.touchedHead)
+			assert.Equalf(t, tt.want, webhook.RevisionHasChanged(tt.args.gen.Revision, tt.args.revision, tt.args.touchedHead), "RevisionHasChanged(%v, %v, %v)", tt.args.gen.Revision, tt.args.revision, tt.args.touchedHead)
 		})
 	}
 }
 
 func fakeAppWithGitGenerator(name, namespace, repo string) *v1alpha1.ApplicationSet {
 	return &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
@@ -413,10 +467,8 @@ func fakeAppWithGitGeneratorWithRevision(name, namespace, repo, revision string)
 
 func fakeAppWithGitlabPullRequestGenerator(name, namespace, projectId string) *v1alpha1.ApplicationSet {
 	return &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
@@ -433,10 +485,8 @@ func fakeAppWithGitlabPullRequestGenerator(name, namespace, projectId string) *v
 
 func fakeAppWithGithubPullRequestGenerator(name, namespace, owner, repo string) *v1alpha1.ApplicationSet {
 	return &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
@@ -454,10 +504,8 @@ func fakeAppWithGithubPullRequestGenerator(name, namespace, owner, repo string) 
 
 func fakeAppWithAzureDevOpsPullRequestGenerator(name, namespace, project, repo string) *v1alpha1.ApplicationSet {
 	return &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
@@ -475,10 +523,8 @@ func fakeAppWithAzureDevOpsPullRequestGenerator(name, namespace, project, repo s
 
 func fakeAppWithMatrixAndGitGenerator(name, namespace, repo string) *v1alpha1.ApplicationSet {
 	return &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
@@ -502,10 +548,8 @@ func fakeAppWithMatrixAndGitGenerator(name, namespace, repo string) *v1alpha1.Ap
 
 func fakeAppWithMatrixAndPullRequestGenerator(name, namespace, owner, repo string) *v1alpha1.ApplicationSet {
 	return &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
@@ -532,10 +576,8 @@ func fakeAppWithMatrixAndPullRequestGenerator(name, namespace, owner, repo strin
 
 func fakeAppWithMatrixAndScmWithGitGenerator(name, namespace, owner string) *v1alpha1.ApplicationSet {
 	return &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
@@ -564,10 +606,8 @@ func fakeAppWithMatrixAndScmWithGitGenerator(name, namespace, owner string) *v1a
 
 func fakeAppWithMatrixAndScmWithPullRequestGenerator(name, namespace, owner string) *v1alpha1.ApplicationSet {
 	return &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
@@ -599,10 +639,8 @@ func fakeAppWithMatrixAndScmWithPullRequestGenerator(name, namespace, owner stri
 
 func fakeAppWithMatrixAndNestedGitGenerator(name, namespace, repo string) *v1alpha1.ApplicationSet {
 	return &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
@@ -643,10 +681,8 @@ func fakeAppWithMatrixAndNestedGitGenerator(name, namespace, repo string) *v1alp
 
 func fakeAppWithMergeAndGitGenerator(name, namespace, repo string) *v1alpha1.ApplicationSet {
 	return &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
@@ -667,10 +703,8 @@ func fakeAppWithMergeAndGitGenerator(name, namespace, repo string) *v1alpha1.App
 
 func fakeAppWithMergeAndPullRequestGenerator(name, namespace, owner, repo string) *v1alpha1.ApplicationSet {
 	return &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
@@ -694,10 +728,8 @@ func fakeAppWithMergeAndPullRequestGenerator(name, namespace, owner, repo string
 
 func fakeAppWithMergeAndNestedGitGenerator(name, namespace, repo string) *v1alpha1.ApplicationSet {
 	return &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
@@ -736,10 +768,8 @@ func fakeAppWithMergeAndNestedGitGenerator(name, namespace, repo string) *v1alph
 
 func fakeAppWithPluginGenerator(name, namespace string) *v1alpha1.ApplicationSet {
 	return &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
@@ -754,12 +784,27 @@ func fakeAppWithPluginGenerator(name, namespace string) *v1alpha1.ApplicationSet
 	}
 }
 
+func fakeAppWithOciGenerator(name, namespace, repoURL, revision string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
+		Name:      name,
+		Namespace: namespace,
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					Oci: &v1alpha1.OciGenerator{
+						RepoURL:  repoURL,
+						Revision: revision,
+					},
+				},
+			},
+		},
+	}
+}
+
 func fakeAppWithMatrixAndPullRequestGeneratorWithPluginGenerator(name, namespace, owner, repo, configmapName string) *v1alpha1.ApplicationSet {
 	return &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
@@ -791,15 +836,13 @@ func fakeAppWithMatrixAndPullRequestGeneratorWithPluginGenerator(name, namespace
 func newFakeClient(ns string) *kubefake.Clientset {
 	s := runtime.NewScheme()
 	s.AddKnownTypes(v1alpha1.SchemeGroupVersion, &v1alpha1.ApplicationSet{})
-	return kubefake.NewClientset(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cm", Namespace: ns, Labels: map[string]string{
+	return kubefake.NewClientset(&corev1.ConfigMap{Name: "argocd-cm", Namespace: ns, Labels: map[string]string{
 		"app.kubernetes.io/part-of": "argocd",
-	}}}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDSecretName,
-			Namespace: ns,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+	}}, &corev1.Secret{
+		Name:      common.ArgoCDSecretName,
+		Namespace: ns,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string][]byte{
 			"server.secretkey": nil,

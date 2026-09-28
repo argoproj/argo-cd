@@ -209,11 +209,9 @@ func TestArgoCDSupportsMultipleServiceAccountsWithDifferingRBACOnSameCluster(t *
 // - This allows the ServiceAccount to be used within a cluster-scoped Argo CD Cluster Secret
 func generateReadOnlyClusterRoleandBindingForServiceAccount(c *Context, username, serviceAccountName, namespace string) (rbacv1.ClusterRole, rbacv1.ClusterRoleBinding) {
 	clusterRole := rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: DnsFriendly("read-all-"+username, "-"+c.ShortID()),
-			Labels: map[string]string{
-				TestingLabel: "true",
-			},
+		Name: DnsFriendly("read-all-"+username, "-"+c.ShortID()),
+		Labels: map[string]string{
+			TestingLabel: "true",
 		},
 		Rules: []rbacv1.PolicyRule{{
 			Verbs:     []string{"get", "list", "watch"},
@@ -223,11 +221,9 @@ func generateReadOnlyClusterRoleandBindingForServiceAccount(c *Context, username
 	}
 
 	clusterRoleBinding := rbacv1.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: DnsFriendly("read-all-"+username, "-"+c.ShortID()),
-			Labels: map[string]string{
-				TestingLabel: "true",
-			},
+		Name: DnsFriendly("read-all-"+username, "-"+c.ShortID()),
+		Labels: map[string]string{
+			TestingLabel: "true",
 		},
 		Subjects: []rbacv1.Subject{{
 			Kind:      rbacv1.ServiceAccountKind,
@@ -247,12 +243,10 @@ func generateReadOnlyClusterRoleandBindingForServiceAccount(c *Context, username
 // buildArgoCDClusterSecret build (but does not create) an Argo CD Cluster Secret object with the given values
 func buildArgoCDClusterSecret(secretName, secretNamespace, clusterName, clusterServer, clusterConfigJSON, clusterResources, clusterNamespaces string) corev1.Secret {
 	res := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: secretNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      secretName,
+		Namespace: secretNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"name":   []byte(clusterName),
@@ -279,11 +273,9 @@ func createNamespaceScopedUser(c *Context, username string, clusterScopedSecrets
 	c.T().Helper()
 	// Create a new Namespace for our simulated user
 	ns := corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: DnsFriendly(username, "-"+c.ShortID()),
-			Labels: map[string]string{
-				TestingLabel: "true",
-			},
+		Name: DnsFriendly(username, "-"+c.ShortID()),
+		Labels: map[string]string{
+			TestingLabel: "true",
 		},
 	}
 	_, err := KubeClientset.CoreV1().Namespaces().Create(c.T().Context(), &ns, metav1.CreateOptions{})
@@ -296,10 +288,8 @@ func createNamespaceScopedUser(c *Context, username string, clusterScopedSecrets
 
 	// Create a Role that allows the ServiceAccount to read/write all within the Namespace
 	role := rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      DnsFriendly("allow-all", "-"+c.ShortID()),
-			Namespace: ns.Name,
-		},
+		Name:      DnsFriendly("allow-all", "-"+c.ShortID()),
+		Namespace: ns.Name,
 		Rules: []rbacv1.PolicyRule{{
 			Verbs:     []string{"*"},
 			Resources: []string{"*"},
@@ -311,10 +301,8 @@ func createNamespaceScopedUser(c *Context, username string, clusterScopedSecrets
 
 	// Bind the Role with the ServiceAccount in the Namespace
 	roleBinding := rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      DnsFriendly("allow-all-binding", "-"+c.ShortID()),
-			Namespace: ns.Name,
-		},
+		Name:      DnsFriendly("allow-all-binding", "-"+c.ShortID()),
+		Namespace: ns.Name,
 		Subjects: []rbacv1.Subject{{
 			Kind:      rbacv1.ServiceAccountKind,
 			Name:      serviceAccountName,
@@ -357,9 +345,7 @@ func createNamespaceScopedUser(c *Context, username string, clusterScopedSecrets
 	// Build the Argo CD Cluster Secret by using the service account token, and extracting needed values from kube config
 	clusterSecretConfigJSON := ClusterConfig{
 		BearerToken: token,
-		TLSClientConfig: TLSClientConfig{
-			Insecure: true,
-		},
+		Insecure:    true,
 	}
 
 	jsonStringBytes, err := json.Marshal(clusterSecretConfigJSON)

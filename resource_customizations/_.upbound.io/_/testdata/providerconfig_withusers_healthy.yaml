@@ -1,0 +1,11 @@
+# Non-empty status, no conditions: the case the kind list has to catch.
+apiVersion: aws.m.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+  namespace: default
+spec:
+  credentials:
+    source: IRSA
+status:
+  users: 2

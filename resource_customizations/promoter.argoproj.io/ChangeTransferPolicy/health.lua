@@ -10,19 +10,17 @@ local function formatDeletingWithFinalizers(base, finalizers, catalog)
         local e = catalog[f]
         if e then
             table.insert(parts, f .. ": " .. e.wait .. " Risk if removed manually: " .. e.risk)
+        else
+            table.insert(parts, f .. ": still present.")
         end
     end
     return table.concat(parts, " ")
 end
 
-local hs = {}
-hs.status = "Progressing"
-hs.message = "Initializing change transfer policy"
-
--- Check for deletion timestamp
-if obj.metadata.deletionTimestamp then
+if obj.metadata and obj.metadata.deletionTimestamp then
+    local hs = {}
     hs.status = "Progressing"
-    hs.message = formatDeletingWithFinalizers(
+    hs.deletionMessage = formatDeletingWithFinalizers(
         "Change transfer policy is being deleted.",
         obj.metadata.finalizers,
         {
@@ -34,6 +32,10 @@ if obj.metadata.deletionTimestamp then
     )
     return hs
 end
+local hs = {}
+hs.status = "Progressing"
+hs.message = "Initializing change transfer policy"
+
 
 -- Check if status exists
 if not obj.status then
@@ -115,7 +117,7 @@ if obj.status.proposed.dry.sha ~= obj.status.active.dry.sha then
         end
     end
 
-    hs.status = "Progressing"
+    hs.status = "Healthy"
     hs.message =
         "Promotion in progress from '" .. getShortSha(obj.status.active.dry.sha) ..
         "' to '" .. getShortSha(obj.status.proposed.dry.sha) .. "': " ..

@@ -22,11 +22,13 @@ import (
 // TestServerSideDiffMasksSecretData is a regression test for a CVE where the
 // ServerSideDiff endpoint returned plaintext Kubernetes Secret values from etcd.
 func TestServerSideDiffMasksSecretData(t *testing.T) {
+	ctx := Given(t)
+
 	closer, client, err := ArgoCDClientset.NewApplicationClient()
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 
-	Given(t).
+	ctx.
 		Path("secrets").
 		When().
 		CreateApp().

@@ -268,7 +268,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 50
+	const countOfManifests = 51
 
 	res1, err := service.GenerateManifest(t.Context(), &q)
 
@@ -5350,8 +5350,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				KubeVersion:       "v1.16.0",
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
-
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: false,
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
@@ -5397,7 +5396,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: false,
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
@@ -5454,7 +5453,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "0.0.1", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+			Revision: "0.0.1", Changes: false,
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "0.0.1",
 			revision:         "0.0.1",
@@ -5509,7 +5508,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "0.0.1", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+			Revision: "0.0.1", Changes: false,
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "0.0.1",
 			revision:         "0.0.1",
@@ -5615,7 +5614,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: false,
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
 			revision:         "1e67a504d03def3a6a1125d934cb511680f72555",
@@ -5779,10 +5778,11 @@ func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) 
 	assert.Equal(t, resolvedRevision, resp1.Revision)
 
 	// Second call with the OLD SyncedRevision: cache miss because the entry
-	// was already renamed. Returns Changes=true as a safe fallback.
+	// was already renamed. No path changes were detected, so this is not treated
+	// as a manifest change that should trigger automated sync.
 	resp2, err := s.UpdateRevisionForPaths(t.Context(), request)
 	require.NoError(t, err)
-	assert.True(t, resp2.Changes, "Repeating with old SyncedRevision returns Changes=true (cache was renamed)")
+	assert.False(t, resp2.Changes, "Repeating with old SyncedRevision after cache rename must not report changes")
 
 	// Third call with the RESOLVED revision as SyncedRevision: the caller
 	// persisted the resolved revision from the first call. The cache entry
@@ -5793,6 +5793,54 @@ func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) 
 	require.NoError(t, err)
 	assert.False(t, resp3.Changes, "Using the resolved revision as SyncedRevision should detect no changes")
 	assert.Equal(t, resolvedRevision, resp3.Revision)
+}
+
+func TestUpdateRevisionForPaths_SiblingPathChangesCacheMiss(t *testing.T) {
+	// Regression for issue #29430: when a mono-repo commit only touches a sibling
+	// application path, UpdateRevisionForPaths must not report Changes=true just
+	// because the manifest cache entry could not be renamed.
+	resolvedRevision := "632039659e542ed7de0c170a4fcc1c571b288fc0"
+	syncedRevision := "1e67a504d03def3a6a1125d934cb511680f72555"
+
+	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		gitClient.EXPECT().LsRemote("HEAD").Return(resolvedRevision, nil)
+		gitClient.EXPECT().LsRemote(syncedRevision).Return(syncedRevision, nil)
+		gitClient.EXPECT().Root().Return("")
+		gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything, mock.Anything).Return([]string{"app/testargo2/values.yaml"}, nil)
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+	}, ".")
+
+	request := &apiclient.UpdateRevisionForPathsRequest{
+		Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+		Revision:          "HEAD",
+		SyncedRevision:    syncedRevision,
+		Paths:             []string{"app/testargo1"},
+		AppLabelKey:       "app.kubernetes.io/name",
+		AppName:           "testargo1",
+		Namespace:         "default",
+		TrackingMethod:    "annotation+label",
+		ApplicationSource: &v1alpha1.ApplicationSource{Path: "app/testargo1", Helm: &v1alpha1.ApplicationSourceHelm{ReleaseName: "testargo1"}},
+	}
+
+	key := cache.NewManifestKey(syncedRevision, request.ApplicationSource, request.GetRefSources(), request.GetNamespace(), request.GetTrackingMethod(),
+		request.GetAppLabelKey(), request.GetAppName(), request.GetInstallationID(), request.GetSourceIntegrity(), request, nil,
+	)
+	err := cacheMocks.cache.SetManifests(
+		key, &cache.CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{Revision: syncedRevision}},
+	)
+	require.NoError(t, err)
+
+	cacheMocks.mockCache.On("Rename", syncedRevision, resolvedRevision, mock.Anything).Return(cache.ErrCacheMiss)
+
+	resp, err := s.UpdateRevisionForPaths(t.Context(), request)
+	require.NoError(t, err)
+	assert.False(t, resp.Changes, "sibling path changes must not be reported as application changes on cache miss")
+	assert.Equal(t, resolvedRevision, resp.Revision)
 }
 
 func TestConsistentManifestCacheKey(t *testing.T) {
@@ -6365,4 +6413,305 @@ func TestGetHelmRepos_InsecureOCIForceHttpPropagatedFromRepoCreds(t *testing.T) 
 
 	require.Len(t, helmRepos, 1)
 	assert.True(t, helmRepos[0].InsecureOCIForceHttp)
+}
+
+func TestErrorGetOciDirectories(t *testing.T) {
+	type fields struct {
+		service *Service
+	}
+	type args struct {
+		ctx     context.Context
+		request *apiclient.OciDirectoriesRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *apiclient.OciDirectoriesResponse
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:   "InvalidRepo",
+			fields: fields{service: newService(t, ".")},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciDirectoriesRequest{
+					Repo:     nil,
+					Revision: "v1.0.0",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+		{
+			name: "ErrorResolveRevision",
+			fields: fields{service: func() *Service {
+				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+					ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("unable to resolve revision"))
+					paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+					paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				}, ".")
+				return s
+			}()},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciDirectoriesRequest{
+					Repo:     &v1alpha1.Repository{Repo: "ghcr.io/example/invalid"},
+					Revision: "invalid-tag",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+		{
+			name: "ErrorExtractingArtifact",
+			fields: fields{service: func() *Service {
+				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+					ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("sha256:abc123", nil)
+					ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return("", nil, errors.New("extraction failed"))
+					paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+					paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				}, ".")
+				return s
+			}()},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciDirectoriesRequest{
+					Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
+					Revision: "v1.0.0",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := tt.fields.service
+			got, err := s.GetOciDirectories(tt.args.ctx, tt.args.request)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetOciDirectories(%v, %v)", tt.args.ctx, tt.args.request)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetOciDirectories(%v, %v)", tt.args.ctx, tt.args.request)
+		})
+	}
+}
+
+func TestGetOciDirectories(t *testing.T) {
+	tmpDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "apps", "prod"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "apps", "staging"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "config"), 0o755))
+
+	s, _, cacheMocks := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+		ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("sha256:abc123", nil)
+		ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return(tmpDir, utilio.NopCloser, nil)
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+	}, ".")
+
+	dirRequest := &apiclient.OciDirectoriesRequest{
+		Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
+		Revision: "v1.0.0",
+	}
+
+	dirResponse, err := s.GetOciDirectories(t.Context(), dirRequest)
+	require.NoError(t, err)
+	assert.NotNil(t, dirResponse)
+
+	paths := dirResponse.GetPaths()
+	assert.Contains(t, paths, "apps")
+	assert.Contains(t, paths, "apps/prod")
+	assert.Contains(t, paths, "apps/staging")
+	assert.Contains(t, paths, "config")
+
+	dirResponse2, err := s.GetOciDirectories(t.Context(), dirRequest)
+	require.NoError(t, err)
+	assert.Equal(t, paths, dirResponse2.GetPaths())
+
+	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+		ExternalSets: 1,
+		ExternalGets: 2,
+	})
+}
+
+func TestErrorGetOciFiles(t *testing.T) {
+	type fields struct {
+		service *Service
+	}
+	type args struct {
+		ctx     context.Context
+		request *apiclient.OciFilesRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *apiclient.OciFilesResponse
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:   "InvalidRepo",
+			fields: fields{service: newService(t, ".")},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciFilesRequest{
+					Repo:     nil,
+					Revision: "v1.0.0",
+					Glob:     "*.json",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+		{
+			name: "ErrorResolveRevision",
+			fields: fields{service: func() *Service {
+				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+					ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("unable to resolve revision"))
+					paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+					paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				}, ".")
+				return s
+			}()},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciFilesRequest{
+					Repo:     &v1alpha1.Repository{Repo: "ghcr.io/example/invalid"},
+					Revision: "invalid-tag",
+					Glob:     "*.json",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+		{
+			name: "ErrorExtractingArtifact",
+			fields: fields{service: func() *Service {
+				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+					ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("sha256:abc123", nil)
+					ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return("", nil, errors.New("extraction failed"))
+					paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+					paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				}, ".")
+				return s
+			}()},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciFilesRequest{
+					Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
+					Revision: "v1.0.0",
+					Glob:     "*.json",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := tt.fields.service
+			got, err := s.GetOciFiles(tt.args.ctx, tt.args.request)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetOciFiles(%v, %v)", tt.args.ctx, tt.args.request)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetOciFiles(%v, %v)", tt.args.ctx, tt.args.request)
+		})
+	}
+}
+
+func TestGetOciFiles(t *testing.T) {
+	t.Run("subdirectory pattern", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		// Create test files
+		prodConfig := []byte(`{"cluster": "production", "replicas": 3}`)
+		stagingConfig := []byte(`{"cluster": "staging", "replicas": 1}`)
+
+		require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "config"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "config", "prod.json"), prodConfig, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "config", "staging.json"), stagingConfig, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "config", "values.yaml"), []byte("foo: bar"), 0o644))
+
+		s, _, cacheMocks := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+			ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("sha256:abc123", nil)
+			ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return(tmpDir, utilio.NopCloser, nil)
+			paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+			paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+		}, ".")
+
+		filesRequest := &apiclient.OciFilesRequest{
+			Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
+			Revision: "v1.0.0",
+			Glob:     "config/*.json",
+		}
+
+		fileResponse, err := s.GetOciFiles(t.Context(), filesRequest)
+		require.NoError(t, err)
+		assert.NotNil(t, fileResponse)
+
+		files := fileResponse.GetFiles()
+		assert.Len(t, files, 2)
+		assert.Equal(t, prodConfig, files["config/prod.json"])
+		assert.Equal(t, stagingConfig, files["config/staging.json"])
+		assert.NotContains(t, files, "config/values.yaml")
+
+		fileResponse2, err := s.GetOciFiles(t.Context(), filesRequest)
+		require.NoError(t, err)
+		assert.Equal(t, files, fileResponse2.GetFiles())
+
+		cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+			ExternalSets: 1,
+			ExternalGets: 2,
+		})
+	})
+
+	t.Run("dot glob returns all regular files", func(t *testing.T) {
+		cases := []struct {
+			name string
+			glob string
+		}{
+			{name: "empty string defaults to dot", glob: ""},
+			{name: "explicit dot", glob: "."},
+		}
+
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				tmpDir := t.TempDir()
+				rootYaml := []byte("root: true")
+				appsYaml := []byte("apps: true")
+				require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "apps", "prod"), 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.yaml"), rootYaml, 0o644))
+				require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "apps", "prod.yaml"), appsYaml, 0o644))
+				require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "apps", "prod", "nested.yaml"), []byte("nested: true"), 0o644))
+
+				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+					ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("sha256:abc123", nil)
+					ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return(tmpDir, utilio.NopCloser, nil)
+					paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+					paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				}, ".")
+
+				req := &apiclient.OciFilesRequest{
+					Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
+					Revision: "v1.0.0",
+					Glob:     tc.glob,
+				}
+
+				resp, err := s.GetOciFiles(t.Context(), req)
+				require.NoError(t, err)
+				require.NotNil(t, resp)
+
+				files := resp.GetFiles()
+
+				assert.Len(t, files, 3)
+				assert.YAMLEq(t, string(rootYaml), string(files["root.yaml"]))
+				assert.YAMLEq(t, string(appsYaml), string(files["apps/prod.yaml"]))
+				assert.Equal(t, []byte("nested: true"), files["apps/prod/nested.yaml"])
+				for key := range files {
+					assert.False(t, strings.HasPrefix(key, "/"), "key %q should be a relative path", key)
+					assert.False(t, strings.HasPrefix(key, "./"), "key %q should not start with ./", key)
+				}
+			})
+		}
+	})
 }

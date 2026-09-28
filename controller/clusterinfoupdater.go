@@ -2,7 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -100,10 +99,22 @@ func (c *clusterInfoUpdater) updateClusters() {
 			}
 		}
 	}
+	// Nothing to update, so don't walk the applications.
+	var appCountByServer map[string]int64
+	if len(clustersFiltered) > 0 {
+		apps, err := c.appLister.List(labels.Everything())
+		if err != nil {
+			log.Warnf("Failed to fetch the apps list to save clusters info: %v", err)
+			return
+		}
+		// Resolve every application's destination once per tick, not once per cluster.
+		appCountByServer = c.countAppsByDestinationServer(ctx, apps)
+	}
+
 	_ = kube.RunAllAsync(len(clustersFiltered), func(i int) error {
 		cluster := clustersFiltered[i]
 		clusterInfo := infoByServer[cluster.Server]
-		if err := c.updateClusterInfo(ctx, cluster, clusterInfo); err != nil {
+		if err := c.updateClusterInfo(cluster, clusterInfo, appCountByServer[cluster.Server]); err != nil {
 			log.Warnf("Failed to save cluster info: %v", err)
 		} else if err := updateClusterLabels(ctx, clusterInfo, cluster, c.db.UpdateCluster); err != nil {
 			log.Warnf("Failed to update cluster labels: %v", err)
@@ -113,18 +124,11 @@ func (c *clusterInfoUpdater) updateClusters() {
 	log.Debugf("Successfully saved info of %d clusters", len(clustersFiltered))
 }
 
-func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster appv1.Cluster, info *cache.ClusterInfo) error {
-	apps, err := c.appLister.List(labels.Everything())
-	if err != nil {
-		return fmt.Errorf("error while fetching the apps list: %w", err)
-	}
-
-	updated := c.getUpdatedClusterInfo(ctx, apps, cluster, info, metav1.Now())
-	return c.cache.SetClusterInfo(cluster.Server, &updated)
-}
-
-func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*appv1.Application, cluster appv1.Cluster, info *cache.ClusterInfo, now metav1.Time) appv1.ClusterInfo {
-	var appCount int64
+// countAppsByDestinationServer returns the number of applications targeting each destination
+// server. An application is skipped if its project can't be resolved, the project doesn't permit
+// its namespace, or the destination doesn't resolve.
+func (c *clusterInfoUpdater) countAppsByDestinationServer(ctx context.Context, apps []*appv1.Application) map[string]int64 {
+	appCountByServer := make(map[string]int64)
 	for _, a := range apps {
 		if c.projGetter != nil {
 			proj, err := c.projGetter(a)
@@ -136,10 +140,17 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 		if err != nil {
 			continue
 		}
-		if destServer == cluster.Server {
-			appCount++
-		}
+		appCountByServer[destServer]++
 	}
+	return appCountByServer
+}
+
+func (c *clusterInfoUpdater) updateClusterInfo(cluster appv1.Cluster, info *cache.ClusterInfo, appCount int64) error {
+	updated := getUpdatedClusterInfo(appCount, info, metav1.Now())
+	return c.cache.SetClusterInfo(cluster.Server, &updated)
+}
+
+func getUpdatedClusterInfo(appCount int64, info *cache.ClusterInfo, now metav1.Time) appv1.ClusterInfo {
 	clusterInfo := appv1.ClusterInfo{
 		ConnectionState:   appv1.ConnectionState{ModifiedAt: &now},
 		ApplicationsCount: appCount,
