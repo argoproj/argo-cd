@@ -1,29 +1,16 @@
 package sharding
 
 import (
-	"context"
 	"maps"
 	"strconv"
 	"sync"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/env"
 )
-
-// recomputeDebounceInterval is how long the recompute worker waits after the
-// first pending application change before recomputing the cluster->shard
-// distribution, so that a burst of application events (for example an
-// ApplicationSet rollout) collapses into a single recompute instead of one per
-// application on every shard. The default bounds the cost of the
-// O(clusters x (clusters + apps)) recompute to at most two per second per
-// replica while keeping the mapping far fresher than the 10s heartbeat that
-// drives shard changes. Configurable via ARGOCD_CONTROLLER_SHARDING_RECOMPUTE_DEBOUNCE.
-var recomputeDebounceInterval = env.ParseDurationFromEnv(common.EnvControllerShardingRecomputeDebounce, 500*time.Millisecond, 0, 10*time.Second)
 
 type ClusterShardingCache interface {
 	Init(clusters *v1alpha1.ClusterList, apps *v1alpha1.ApplicationList)
@@ -38,11 +25,6 @@ type ClusterShardingCache interface {
 	GetDistribution() map[string]int
 	GetAppDistribution() map[string]int
 	UpdateShard(shard int) bool
-	// Run starts the background worker that debounces distribution recomputes
-	// triggered by application changes. It returns immediately and the worker
-	// runs until ctx is cancelled. Until Run is called, application changes
-	// recompute the distribution inline (synchronously).
-	Run(ctx context.Context)
 }
 
 type ClusterSharding struct {
@@ -57,25 +39,16 @@ type ClusterSharding struct {
 	// function computes the full cluster->shard mapping once per redistribution
 	// instead of once per cluster. Guarded by lock.
 	generation uint64
-	// recompute signals the debounce worker that an application change needs a
-	// distribution recompute. Buffered (cap 1) so bursts coalesce.
-	recompute chan struct{}
-	// async is set once Run starts the debounce worker. Until then (tests, the
-	// CLI, and controller startup before Run) application changes recompute
-	// inline so callers observe a fresh distribution synchronously. Guarded by
-	// lock.
-	async bool
 }
 
 func NewClusterSharding(_ db.ArgoDB, shard, replicas int, shardingAlgorithm string) ClusterShardingCache {
 	log.Debugf("Processing clusters from shard %d: Using filter function:  %s", shard, shardingAlgorithm)
 	clusterSharding := &ClusterSharding{
-		Shard:     shard,
-		Replicas:  replicas,
-		Shards:    make(map[string]int),
-		Clusters:  make(map[string]*v1alpha1.Cluster),
-		Apps:      make(map[string]*v1alpha1.Application),
-		recompute: make(chan struct{}, 1),
+		Shard:    shard,
+		Replicas: replicas,
+		Shards:   make(map[string]int),
+		Clusters: make(map[string]*v1alpha1.Cluster),
+		Apps:     make(map[string]*v1alpha1.Application),
 	}
 	distributionFunction := NoShardingDistributionFunction()
 	if replicas > 1 {
@@ -225,80 +198,6 @@ func (sharding *ClusterSharding) updateDistribution() {
 	}
 }
 
-// scheduleRecompute triggers a distribution recompute after an application
-// change. It must be called with the write lock held. When the debounce worker
-// is running (async), it signals the worker so a burst of changes collapses
-// into a single recompute; otherwise it recomputes inline so callers observe a
-// fresh distribution synchronously.
-func (sharding *ClusterSharding) scheduleRecompute() {
-	if !sharding.async {
-		sharding.updateDistribution()
-		return
-	}
-	select {
-	case sharding.recompute <- struct{}{}:
-	default:
-		// A recompute is already pending. The worker reads the full application
-		// set when it runs, so this change is included without a second signal.
-	}
-}
-
-// Run starts the debounce worker that recomputes the cluster->shard
-// distribution in response to application changes. Once started, AddApp,
-// UpdateApp and DeleteApp signal the worker instead of recomputing inline,
-// which coalesces bursts of application events into a single recompute.
-// Cluster-level changes (Init/Add/Delete/Update) keep recomputing synchronously.
-// Run returns immediately; the worker stops when ctx is cancelled, after which
-// application changes recompute inline again. Calling Run while the worker is
-// running is a no-op.
-//
-// Staleness note: after Run is called, GetDistribution and IsManagedCluster
-// may lag up to recomputeDebounceInterval behind the current Apps map.
-// GetAppDistribution always reflects the Apps map immediately (it does not
-// depend on the recomputed Shards). Callers that need a guaranteed-current
-// view of cluster assignments should call Init or use a cluster-level
-// mutator (Add/Update/Delete), which recompute synchronously.
-func (sharding *ClusterSharding) Run(ctx context.Context) {
-	sharding.lock.Lock()
-	if sharding.async {
-		sharding.lock.Unlock()
-		return
-	}
-	sharding.async = true
-	sharding.lock.Unlock()
-	go sharding.recomputeWorker(ctx)
-}
-
-func (sharding *ClusterSharding) recomputeWorker(ctx context.Context) {
-	// Reset async when the worker exits so that "async" always means "a worker
-	// is running": application changes recompute inline again and Run may be
-	// called again with a new context.
-	defer func() {
-		sharding.lock.Lock()
-		sharding.async = false
-		sharding.lock.Unlock()
-	}()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-sharding.recompute:
-			// Debounce: wait a short window after the first pending change so a
-			// burst of application events collapses into a single recompute.
-			timer := time.NewTimer(recomputeDebounceInterval)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return
-			case <-timer.C:
-			}
-			sharding.lock.Lock()
-			sharding.updateDistribution()
-			sharding.lock.Unlock()
-		}
-	}
-}
-
 // hasShardingUpdates returns true if the sharding distribution has explicitly changed
 func hasShardingUpdates(old, newCluster *v1alpha1.Cluster) bool {
 	if old == nil || newCluster == nil {
@@ -363,7 +262,7 @@ func (sharding *ClusterSharding) DeleteApp(a *v1alpha1.Application) {
 	defer sharding.lock.Unlock()
 	if _, ok := sharding.Apps[a.QualifiedName()]; ok {
 		delete(sharding.Apps, a.QualifiedName())
-		sharding.scheduleRecompute()
+		sharding.updateDistribution()
 	}
 }
 
@@ -386,7 +285,7 @@ func (sharding *ClusterSharding) upsertApp(a *v1alpha1.Application) {
 	old, ok := sharding.Apps[key]
 	sharding.Apps[key] = a
 	if !ok || old.Spec.Destination.Server != a.Spec.Destination.Server {
-		sharding.scheduleRecompute()
+		sharding.updateDistribution()
 		return
 	}
 	log.Debugf("Skipping sharding distribution update for %s. No relevant changes", key)

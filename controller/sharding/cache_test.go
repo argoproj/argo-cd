@@ -1,15 +1,12 @@
 package sharding
 
 import (
-	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -830,93 +827,4 @@ func TestClusterSharding_UpdateShard_ConcurrentCallers(t *testing.T) {
 
 	assert.Equal(t, int32(1), changed.Load(), "exactly one caller must observe the shard change")
 	assert.Equal(t, 1, sharding.Shard)
-}
-
-// TestClusterSharding_Run_ResetsAsyncOnStop verifies that once the worker's
-// context is cancelled, application changes recompute inline again and Run can
-// be started again.
-func TestClusterSharding_Run_ResetsAsyncOnStop(t *testing.T) {
-	sharding := setupTestSharding(0, 2)
-
-	var shardCalls atomic.Int32
-	sharding.getClusterShard = func(_ *v1alpha1.Cluster) int {
-		shardCalls.Add(1)
-		return 0
-	}
-	sharding.Init(
-		&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{{ID: "1", Server: "https://serverA"}}},
-		&v1alpha1.ApplicationList{},
-	)
-
-	ctx, cancel := context.WithCancel(t.Context())
-	sharding.Run(ctx)
-	cancel()
-	require.Eventually(t, func() bool {
-		sharding.lock.RLock()
-		defer sharding.lock.RUnlock()
-		return !sharding.async
-	}, 5*time.Second, 10*time.Millisecond, "async must be reset when the worker exits")
-
-	// Inline again: the add recomputes synchronously.
-	shardCalls.Store(0)
-	app := createApp("app-1", "https://serverA")
-	sharding.AddApp(&app)
-	assert.Positive(t, shardCalls.Load(), "changes must recompute inline once the worker stopped")
-
-	// Run can be started again.
-	sharding.Run(t.Context())
-	sharding.lock.RLock()
-	assert.True(t, sharding.async)
-	sharding.lock.RUnlock()
-}
-
-// TestClusterSharding_Run_DebouncesRecomputes verifies that once the background
-// worker is started, a burst of application changes collapses into a small
-// number of distribution recomputes (instead of one per app), while still
-// eventually reflecting every app.
-func TestClusterSharding_Run_DebouncesRecomputes(t *testing.T) {
-	sharding := setupTestSharding(0, 2)
-
-	// Spy on the distribution function: one recompute calls it once per cluster
-	// (here a single cluster), so the call count is the recompute count.
-	var shardCalls atomic.Int32
-	sharding.getClusterShard = func(_ *v1alpha1.Cluster) int {
-		shardCalls.Add(1)
-		return 0
-	}
-
-	sharding.Init(
-		&v1alpha1.ClusterList{
-			Items: []v1alpha1.Cluster{
-				{ID: "1", Server: "https://serverA"},
-			},
-		},
-		&v1alpha1.ApplicationList{},
-	)
-
-	// t.Context() is cancelled when the test ends, stopping the worker.
-	sharding.Run(t.Context())
-
-	// Add a burst of apps. In async mode each AddApp only signals the worker.
-	shardCalls.Store(0)
-	const n = 200
-	for i := range n {
-		app := createApp(fmt.Sprintf("app-%d", i), "https://serverA")
-		sharding.AddApp(&app)
-	}
-
-	// Every app is recorded immediately, independent of the recompute.
-	assert.Len(t, sharding.Apps, n)
-
-	// The worker recomputes after the debounce window; wait for it to run.
-	require.Eventually(t, func() bool {
-		return shardCalls.Load() > 0
-	}, 5*time.Second, 10*time.Millisecond, "worker should recompute after the debounce window")
-
-	// The burst of n adds should collapse into a single debounce window and
-	// fire at most a handful of recomputes (one per window that spans the
-	// adds). A bound close to n/2 would still pass even in a near-unbatched
-	// case; a small constant proves the design intent.
-	assert.Less(t, int(shardCalls.Load()), 5,
-		"debounced worker should coalesce the burst into a single recompute")
 }
