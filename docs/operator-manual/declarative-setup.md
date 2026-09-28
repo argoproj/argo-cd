@@ -606,6 +606,10 @@ tlsClientConfig:
     serverName: string
 # Disable automatic compression for requests to the cluster 
 disableCompression: boolean
+# Optional QPS limit for K8s API client requests to this cluster. If unset or <= 0, defaults to the controller's global ARGOCD_K8S_CLIENT_QPS.
+qps: float
+# Optional Burst limit for K8s API client requests to this cluster. If unset or <= 0, defaults to 2 * qps (if qps is set) or the controller's global ARGOCD_K8S_CLIENT_BURST.
+burst: integer
 ```
 
 > [!IMPORTANT]

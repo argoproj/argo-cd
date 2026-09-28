@@ -32,6 +32,32 @@ $header: 120px;
         max-height: 500px;
     }
 
+    &__status-panel {
+        position: relative;
+    }
+
+    &__status-panel-toggle {
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        z-index: 2;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border-radius: 50%;
+        border: 1px solid $argo-color-gray-5;
+        background-color: transparent;
+        color: $argo-color-gray-6;
+        font-size: 12px;
+        cursor: pointer;
+
+        &:hover {
+            @include themify($themes) {
+                background-color: themed('background-1');
+            }
+        }
+    }
+
     &__tree {
         padding: 1em;
 
