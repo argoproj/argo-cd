@@ -81,7 +81,7 @@ release:
     All Argo CD container images are signed by cosign.  A Provenance is generated for container images and CLI binaries which meet the SLSA Level 3 specifications. See the [documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/signed-release-assets) on how to verify.
 
     ## Release Notes Blog Post
-    For a detailed breakdown of the key changes and improvements in this release, check out the [official blog post](https://blog.argoproj.io/argo-cd-v3-0-release-candidate-a0b933f4e58f)
+    For a detailed breakdown of the key changes and improvements in this release, check out the blog post on [official blog page](https://blog.argoproj.io/)
 
     ## Upgrading
 
