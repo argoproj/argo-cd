@@ -1,11 +1,14 @@
 package sharding
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	hydratortypes "github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 )
@@ -27,6 +30,35 @@ func TestNewClusterSharding(t *testing.T) {
 	assert.Equal(t, replicas, sharding.Replicas)
 	assert.NotNil(t, sharding.Shards)
 	assert.NotNil(t, sharding.Clusters)
+}
+
+func TestUpdateShardRefreshesHydrationOwnershipAfterScale(t *testing.T) {
+	t.Parallel()
+
+	var key hydratortypes.HydrationQueueKey
+	found := false
+	for i := range 100 {
+		candidate := hydratortypes.HydrationQueueKey{
+			SourceRepoURL:        "https://example.com/dry",
+			SourceTargetRevision: "main",
+			DestinationRepoURL:   "https://example.com/hydrated",
+			DestinationBranch:    fmt.Sprintf("env/%d", i),
+		}
+		if candidate.Shard(2) != candidate.Shard(3) && candidate.Shard(3) < 2 {
+			key = candidate
+			found = true
+			break
+		}
+	}
+	require.True(t, found, "test must find a key whose owner changes when scaling")
+
+	newOwner := key.Shard(3)
+	sharding := setupTestSharding(newOwner, 2)
+	assert.False(t, sharding.IsManagedHydrationKey(key))
+
+	assert.True(t, sharding.UpdateShardAndReplicas(newOwner, 3))
+	assert.Equal(t, 3, sharding.Replicas)
+	assert.True(t, sharding.IsManagedHydrationKey(key))
 }
 
 func TestClusterSharding_Add(t *testing.T) {

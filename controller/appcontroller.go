@@ -275,8 +275,10 @@ func NewApplicationController(
 					return fmt.Errorf("error while updating the heartbeat for to the Shard Mapping ConfigMap: %w", err)
 				}
 
-				// update the shard number in the clusterSharding, and resync all applications if the shard number is updated
-				if ctrl.clusterSharding.UpdateShard(shard) {
+				replicas := int(*appControllerDeployment.Spec.Replicas)
+				// Update both shard identity and replica count. A replica-count change remaps
+				// hydration keys even when this pod keeps the same shard number.
+				if ctrl.clusterSharding.UpdateShardAndReplicas(shard, replicas) {
 					// update shard number in stateCache
 					ctrl.stateCache.UpdateShard(shard)
 
@@ -286,6 +288,10 @@ func NewApplicationController(
 						return err
 					}
 					for _, app := range apps {
+						// Hydration ownership is independent of destination-cluster ownership.
+						// Re-enqueue before canProcessApp so newly assigned hydration groups
+						// cannot stall during a shard or replica-count handoff.
+						ctrl.enqueueAppHydration(app)
 						if !ctrl.canProcessApp(app) {
 							continue
 						}
@@ -2200,6 +2206,14 @@ func (ctrl *ApplicationController) processAppHydrateQueueItem() (processNext boo
 		log.WithField("appkey", appKey).Warn("Key in index is not an application")
 		return processNext
 	}
+	if origApp.Spec.SourceHydrator != nil {
+		hydrationKey := hydrator.GetHydrationQueueKey(origApp)
+		if !ctrl.clusterSharding.IsManagedHydrationKey(hydrationKey) {
+			// The item may have been queued before a dynamic shard handoff.
+			// Drop it before ProcessAppHydrateQueueItem can write status.
+			return processNext
+		}
+	}
 
 	ctrl.hydrator.ProcessAppHydrateQueueItem(origApp.DeepCopy())
 
@@ -2228,6 +2242,13 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 		}
 		ctrl.hydrationQueue.Done(hydrationKey)
 	}()
+
+	// Queue contents are process-local and may outlive a shard reassignment.
+	// Re-check ownership immediately before performing status or Git writes.
+	if !ctrl.clusterSharding.IsManagedHydrationKey(hydrationKey) {
+		logCtx.Debug("Skipping hydration key owned by another shard")
+		return processNext
+	}
 
 	logCtx.Debug("Processing hydration queue item")
 
@@ -2858,6 +2879,25 @@ func (ctrl *ApplicationController) isAppNamespaceAllowed(app *appv1.Application)
 	return app.Namespace == ctrl.namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, glob.REGEXP)
 }
 
+// enqueueAppHydration routes hydration independently of destination-cluster
+// ownership. Every shard observes every namespace-allowed Application, but
+// only the shard selected by the hydration group key queues the app.
+func (ctrl *ApplicationController) enqueueAppHydration(obj any) {
+	if ctrl.hydrator == nil {
+		return
+	}
+	app, ok := obj.(*appv1.Application)
+	if !ok || app.Spec.SourceHydrator == nil || !ctrl.isAppNamespaceAllowed(app) {
+		return
+	}
+	key := hydrator.GetHydrationQueueKey(app)
+	if !ctrl.clusterSharding.IsManagedHydrationKey(key) {
+		return
+	}
+	log.WithFields(applog.GetAppLogFields(app)).Debug("Queueing application hydration on hydration-key owner")
+	ctrl.appHydrateQueue.AddRateLimited(app.QualifiedName())
+}
+
 func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 	canProcess, _, _ := ctrl.canProcessAppWithDestination(obj)
 	return canProcess
@@ -3029,6 +3069,7 @@ func (ctrl *ApplicationController) appProjectEventHandlerFuncs() cache.ResourceE
 func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
+			ctrl.enqueueAppHydration(obj)
 			if !ctrl.canProcessApp(obj) {
 				return
 			}
@@ -3042,6 +3083,7 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 			}
 		},
 		UpdateFunc: func(old, new any) {
+			ctrl.enqueueAppHydration(new)
 			if !ctrl.canProcessApp(new) {
 				return
 			}
@@ -3068,9 +3110,6 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 				}
 			}
 			ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
-			if ctrl.hydrator != nil && newOK {
-				ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
-			}
 			if newOK && ctrl.shouldProcessOperation(newApp) {
 				ctrl.appOperationQueue.AddRateLimited(key)
 			}
