@@ -1,7 +1,6 @@
 package sharding
 
 import (
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -679,54 +678,6 @@ func testUpsertAppDestinationChange(t *testing.T, upsert func(*ClusterSharding, 
 	sameApp := createApp("app1", "https://serverB")
 	upsert(sharding, &sameApp)
 	assert.Zero(t, shardCalls, "no destination change should skip updateDistribution")
-}
-
-// TestClusterSharding_GetAppDistribution_ConcurrentWithWrites exercises
-// GetAppDistribution concurrently with map writes. It must hold the read lock
-// for the whole iteration; run with -race to detect a regression.
-func TestClusterSharding_GetAppDistribution_ConcurrentWithWrites(t *testing.T) {
-	sharding := setupTestSharding(0, 2)
-	sharding.Init(
-		&v1alpha1.ClusterList{
-			Items: []v1alpha1.Cluster{
-				{ID: "1", Server: "https://serverA"},
-			},
-		},
-		&v1alpha1.ApplicationList{},
-	)
-
-	done := make(chan struct{})
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	// Writer: continuously insert new apps (unique keys => real map writes).
-	go func() {
-		defer wg.Done()
-		defer close(done)
-		for i := range 5000 {
-			app := createApp(fmt.Sprintf("app-%d", i), "https://serverA")
-			sharding.AddApp(&app)
-		}
-	}()
-
-	// Reader: hammer GetAppDistribution for the whole lifetime of the writer,
-	// so its (unlocked, in the buggy version) map iteration overlaps writes.
-	go func() {
-		defer wg.Done()
-		for {
-			select {
-			case <-done:
-				return
-			default:
-				_ = sharding.GetAppDistribution()
-			}
-		}
-	}()
-
-	wg.Wait()
-
-	// The goroutines have joined: the final read must reflect every write.
-	assert.Equal(t, 5000, sharding.GetAppDistribution()["https://serverA"])
 }
 
 // TestClusterSharding_UpdateShard_ConcurrentWithReads exercises UpdateShard

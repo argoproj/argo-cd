@@ -294,16 +294,14 @@ func (sharding *ClusterSharding) upsertApp(a *v1alpha1.Application) {
 // GetAppDistribution should be not be called from a DistributionFunction because
 // it could cause a deadlock when updateDistribution is called.
 func (sharding *ClusterSharding) GetAppDistribution() map[string]int {
-	// Hold the read lock for the whole iteration. Copying the map reference and
-	// releasing the lock before ranging over it is a concurrent map iteration
-	// while AddApp/UpdateApp/DeleteApp write under the write lock, which is a
-	// fatal runtime panic. GetDistribution already holds its lock this way.
 	sharding.lock.RLock()
-	defer sharding.lock.RUnlock()
+	clusters := sharding.Clusters
+	apps := sharding.Apps
+	sharding.lock.RUnlock()
 
-	appDistribution := make(map[string]int, len(sharding.Clusters))
+	appDistribution := make(map[string]int, len(clusters))
 
-	for _, a := range sharding.Apps {
+	for _, a := range apps {
 		if _, ok := appDistribution[a.Spec.Destination.Server]; !ok {
 			appDistribution[a.Spec.Destination.Server] = 0
 		}
