@@ -28,6 +28,7 @@ import './application-status-panel.scss';
 
 interface Props {
     application: models.Application;
+    collapsed?: boolean;
     showDiff?: () => any;
     showOperation?: () => any;
     showHydrateOperation?: () => any;
@@ -196,7 +197,7 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
     );
 };
 
-export const ApplicationStatusPanel = ({application, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
+export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
     // Only show Progressive Sync if the application has an ApplicationSet parent
     // The actual strategy validation will be done inside ProgressiveSyncStatus component
     const showProgressiveSync = !!getApplicationSetOwnerRef(application);
@@ -225,6 +226,83 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     const source = getAppDefaultSource(application);
     const hasMultipleSources = application.spec.sources?.length > 0;
     const revisionType = source?.repoURL?.startsWith('oci://') ? 'oci' : source?.chart ? 'helm' : 'git';
+
+    const conditionSummary = (infos || warnings || errors) && (
+        <div className='application-status-panel__collapsed-item application-status-panel__conditions' onClick={() => showConditions && showConditions()}>
+            {infos && (
+                <a className='info'>
+                    <i className='fa fa-info-circle application-status-panel__item-value__status-button' />
+                    <span className='sync-condition-details'>{infos} Info</span>
+                </a>
+            )}
+            {warnings && (
+                <a className='warning'>
+                    <i className='fa fa-exclamation-triangle application-status-panel__item-value__status-button' />
+                    <span className='sync-condition-details'>
+                        {warnings} Warning{warnings !== 1 && 's'}
+                    </span>
+                </a>
+            )}
+            {errors && (
+                <a className='error'>
+                    <i className='fa fa-exclamation-circle application-status-panel__item-value__status-button' />
+                    <span className='sync-condition-details'>
+                        {errors} Error{errors !== 1 && 's'}
+                    </span>
+                </a>
+            )}
+        </div>
+    );
+
+    if (collapsed) {
+        return (
+            <div className='application-status-panel application-status-panel--collapsed row'>
+                <div className='application-status-panel__collapsed-item' title='App Health'>
+                    <HealthStatusIcon state={application.status.health} />
+                    &nbsp;
+                    {application.status.health.status}
+                </div>
+                {application.spec.sourceHydrator && application.status?.sourceHydrator?.currentOperation && (
+                    <div className='application-status-panel__collapsed-item' title='Source Hydrator'>
+                        <a onClick={() => showHydrateOperation && showHydrateOperation()}>
+                            <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} isButton={true} />
+                            &nbsp;
+                            {application.status.sourceHydrator.currentOperation.phase}
+                        </a>
+                    </div>
+                )}
+                <div className='application-status-panel__collapsed-item' title='Sync Status'>
+                    {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
+                        <a onClick={() => showDiff && showDiff()}>
+                            <ComparisonStatusIcon status={application.status.sync.status} label={true} isButton={true} />
+                        </a>
+                    ) : (
+                        // <span> keeps the icon/label spacing: a bare space between flex children is dropped
+                        <span>
+                            <ComparisonStatusIcon status={application.status.sync.status} label={true} />
+                        </span>
+                    )}
+                </div>
+                {appOperationState && (
+                    <div
+                        className={`application-status-panel__collapsed-item application-status-panel__item-value--${appOperationState.phase}`}
+                        title={'Last Sync Result: ' + appOperationState.phase}>
+                        {application.status.operationState ? (
+                            <a onClick={() => showOperation && showOperation()}>
+                                <OperationState app={application} isButton={true} />
+                            </a>
+                        ) : (
+                            <span>
+                                <OperationState app={application} />
+                            </span>
+                        )}
+                    </div>
+                )}
+                {conditionSummary}
+            </div>
+        );
+    }
+
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>

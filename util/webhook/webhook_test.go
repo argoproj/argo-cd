@@ -474,39 +474,35 @@ func TestUnknownEvent(t *testing.T) {
 func TestAppRevisionHasChanged(t *testing.T) {
 	t.Parallel()
 
-	getSource := func(targetRevision string) v1alpha1.ApplicationSource {
-		return v1alpha1.ApplicationSource{TargetRevision: targetRevision}
-	}
-
 	testCases := []struct {
 		name             string
-		source           v1alpha1.ApplicationSource
+		targetRevision   string
 		revision         string
 		touchedHead      bool
 		expectHasChanged bool
 	}{
-		{"no target revision, master, touched head", getSource(""), "master", true, true},
-		{"no target revision, master, did not touch head", getSource(""), "master", false, false},
-		{"dev target revision, master, touched head", getSource("dev"), "master", true, false},
-		{"dev target revision, dev, did not touch head", getSource("dev"), "dev", false, true},
-		{"refs/heads/dev target revision, master, touched head", getSource("refs/heads/dev"), "master", true, false},
-		{"refs/heads/dev target revision, dev, did not touch head", getSource("refs/heads/dev"), "dev", false, true},
-		{"refs/tags/dev target revision, dev, did not touch head", getSource("refs/tags/dev"), "dev", false, true},
-		{"env/test target revision, env/test, did not touch head", getSource("env/test"), "env/test", false, true},
-		{"refs/heads/env/test target revision, env/test, did not touch head", getSource("refs/heads/env/test"), "env/test", false, true},
-		{"refs/tags/env/test target revision, env/test, did not touch head", getSource("refs/tags/env/test"), "env/test", false, true},
-		{"three/part/rev target revision, rev, did not touch head", getSource("three/part/rev"), "rev", false, false},
-		{"1.* target revision (matching), 1.1.0, did not touch head", getSource("1.*"), "1.1.0", false, true},
-		{"refs/tags/1.* target revision (matching), 1.1.0, did not touch head", getSource("refs/tags/1.*"), "1.1.0", false, true},
-		{"1.* target revision (not matching), 2.0.0, did not touch head", getSource("1.*"), "2.0.0", false, false},
-		{"1.* target revision, dev (not semver), did not touch head", getSource("1.*"), "dev", false, false},
+		{"no target revision, master, touched head", "", "master", true, true},
+		{"no target revision, master, did not touch head", "", "master", false, false},
+		{"dev target revision, master, touched head", "dev", "master", true, false},
+		{"dev target revision, dev, did not touch head", "dev", "dev", false, true},
+		{"refs/heads/dev target revision, master, touched head", "refs/heads/dev", "master", true, false},
+		{"refs/heads/dev target revision, dev, did not touch head", "refs/heads/dev", "dev", false, true},
+		{"refs/tags/dev target revision, dev, did not touch head", "refs/tags/dev", "dev", false, true},
+		{"env/test target revision, env/test, did not touch head", "env/test", "env/test", false, true},
+		{"refs/heads/env/test target revision, env/test, did not touch head", "refs/heads/env/test", "env/test", false, true},
+		{"refs/tags/env/test target revision, env/test, did not touch head", "refs/tags/env/test", "env/test", false, true},
+		{"three/part/rev target revision, rev, did not touch head", "three/part/rev", "rev", false, false},
+		{"1.* target revision (matching), 1.1.0, did not touch head", "1.*", "1.1.0", false, true},
+		{"refs/tags/1.* target revision (matching), 1.1.0, did not touch head", "refs/tags/1.*", "1.1.0", false, true},
+		{"1.* target revision (not matching), 2.0.0, did not touch head", "1.*", "2.0.0", false, false},
+		{"1.* target revision, dev (not semver), did not touch head", "1.*", "dev", false, false},
 	}
 
 	for _, tc := range testCases {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
-			changed := sourceRevisionHasChanged(tcc.source, tcc.revision, tcc.touchedHead)
+			changed := RevisionHasChanged(tcc.targetRevision, tcc.revision, tcc.touchedHead)
 			assert.Equal(t, tcc.expectHasChanged, changed)
 		})
 	}
@@ -514,10 +510,6 @@ func TestAppRevisionHasChanged(t *testing.T) {
 
 func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 	t.Parallel()
-
-	sourceWithRevision := func(targetRevision string) v1alpha1.ApplicationSource {
-		return v1alpha1.ApplicationSource{TargetRevision: targetRevision}
-	}
 
 	githubPushPayload := func(branchName string) github.PushPayload {
 		// This payload's "ref" member always has the full git ref, according to the field description.
@@ -653,8 +645,8 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 			t.Parallel()
 			h := NewMockHandler(nil, []string{})
 			_, revisionFromHook, _, _, _ := h.affectedRevisionInfo(testCopy.hookPayload)
-			if got := sourceRevisionHasChanged(sourceWithRevision(testCopy.targetRevision), revisionFromHook, false); got != testCopy.hasChanged {
-				t.Errorf("sourceRevisionHasChanged() = %v, want %v", got, testCopy.hasChanged)
+			if got := RevisionHasChanged(testCopy.targetRevision, revisionFromHook, false); got != testCopy.hasChanged {
+				t.Errorf("RevisionHasChanged() = %v, want %v", got, testCopy.hasChanged)
 			}
 		})
 	}
@@ -705,7 +697,7 @@ func Test_GetWebURLRegex(t *testing.T) {
 			regexp, err := GetWebURLRegex(testCopy.webURL)
 			require.NoError(t, err)
 			if matches := regexp.MatchString(testCopy.repo); matches != testCopy.shouldMatch {
-				t.Errorf("sourceRevisionHasChanged() = %v, want %v", matches, testCopy.shouldMatch)
+				t.Errorf("GetWebURLRegex() = %v, want %v", matches, testCopy.shouldMatch)
 			}
 		})
 	}
@@ -745,7 +737,7 @@ func Test_GetAPIURLRegex(t *testing.T) {
 			regexp, err := GetAPIURLRegex(testCopy.apiURL)
 			require.NoError(t, err)
 			if matches := regexp.MatchString(testCopy.repo); matches != testCopy.shouldMatch {
-				t.Errorf("sourceRevisionHasChanged() = %v, want %v", matches, testCopy.shouldMatch)
+				t.Errorf("GetAPIURLRegex() = %v, want %v", matches, testCopy.shouldMatch)
 			}
 		})
 	}
