@@ -110,56 +110,20 @@ type ArgoCDWebhookHandler struct {
 }
 
 func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, webhookRefreshWorkers int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64, webhookRefreshJitter time.Duration, webhookRefreshJitterThreshold int, appProjectsLister alpha1.AppProjectNamespaceLister) *ArgoCDWebhookHandler {
-	githubWebhook, err := github.New(github.Options.Secret(set.GetWebhookGitHubSecret()))
-	if err != nil {
-		log.Warnf("Unable to init the GitHub webhook")
-	}
-	gitlabWebhook, err := gitlab.New(gitlab.Options.Secret(set.GetWebhookGitLabSecret()))
-	if err != nil {
-		log.Warnf("Unable to init the GitLab webhook")
-	}
-	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(set.GetWebhookBitbucketUUID()))
-	if err != nil {
-		log.Warnf("Unable to init the Bitbucket webhook")
-	}
-	bitbucketserverWebhook, err := bitbucketserver.New(bitbucketserver.Options.Secret(set.GetWebhookBitbucketServerSecret()))
-	if err != nil {
-		log.Warnf("Unable to init the Bitbucket Server webhook")
-	}
-	gogsWebhook, err := gogs.New(gogs.Options.Secret(set.GetWebhookGogsSecret()))
-	if err != nil {
-		log.Warnf("Unable to init the Gogs webhook")
-	}
-	azuredevopsWebhook, err := azuredevops.New(azuredevops.Options.BasicAuth(set.GetWebhookAzureDevOpsUsername(), set.GetWebhookAzureDevOpsPassword()))
-	if err != nil {
-		log.Warnf("Unable to init the Azure DevOps webhook")
-	}
-	// Each upstream constructor returns a nil *Webhook on error; skip those so a
-	// matching request doesn't panic with a nil-pointer dereference in Parse.
-	var parsers []Extractor
-	if azuredevopsWebhook != nil {
-		parsers = append(parsers, &azureDevOpsParser{webhook: azuredevopsWebhook})
-	}
-	// Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
-	if gogsWebhook != nil {
-		parsers = append(parsers, &gogsParser{webhook: gogsWebhook})
-	}
-	if githubWebhook != nil {
-		parsers = append(parsers, &githubParser{webhook: githubWebhook})
-	}
-	if gitlabWebhook != nil {
-		parsers = append(parsers, &gitlabParser{webhook: gitlabWebhook})
-	}
-	if bitbucketWebhook != nil {
-		parsers = append(parsers, &bitbucketParser{webhook: bitbucketWebhook})
-	}
-	if bitbucketserverWebhook != nil {
-		parsers = append(parsers, &bitbucketServerParser{webhook: bitbucketserverWebhook})
-	}
-	parsers = append(parsers, newHarborParser(set.GetWebhookHarborSecret()))
-	parsers = append(parsers, NewGHCRParser(set.GetWebhookGitHubSecret()))
-	parsers = append(parsers, newDockerHubParser(set.GetWebhookDockerHubSecret()))
-
+	parsers := NewParsers(set, ParserOptions{
+		AzureDevOpsEvents: []azuredevops.Event{azuredevops.GitPushEventType},
+		GogsEvents:        []gogs.Event{gogs.PushEvent},
+		GitHubEvents:      []github.Event{github.PushEvent, github.PingEvent},
+		GitLabEvents:      []gitlab.Event{gitlab.PushEvents, gitlab.TagEvents, gitlab.SystemHookEvents},
+		BitbucketEvents:   []bitbucket.Event{bitbucket.RepoPushEvent},
+		BitbucketServerEvents: []bitbucketserver.Event{
+			bitbucketserver.RepositoryReferenceChangedEvent,
+			bitbucketserver.DiagnosticsPingEvent,
+		},
+		Harbor:    true,
+		GHCR:      true,
+		DockerHub: true,
+	})
 	log.Debugf("webhookRefreshJitter=%v", webhookRefreshJitter)
 	log.Debugf("webhookRefreshJitterThreshold=%d", webhookRefreshJitterThreshold)
 
