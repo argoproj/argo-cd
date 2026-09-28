@@ -96,3 +96,30 @@ test('expanded multi-source plugin panel renders NAME and ENV from the per-sourc
     expect(await screen.findByDisplayValue('ENVIRONMENT')).toBeInTheDocument();
     expect(await screen.findByDisplayValue('prod')).toBeInTheDocument();
 });
+
+describe('validateHelmValues', () => {
+    const {validateHelmValues} = require('./application-parameters');
+    test('accepts valid YAML map', () => {
+        expect(validateHelmValues('image:\n  tag: stable')).toBeNull();
+    });
+
+    test('rejects malformed YAML', () => {
+        expect(validateHelmValues('image:ef\n  tag: stable')).toBe('Values must be valid YAML');
+    });
+
+    test('rejects non-map YAML (array)', () => {
+        expect(validateHelmValues('- item')).toBe('Values must be a map');
+    });
+
+    test('rejects non-map YAML (scalar)', () => {
+        expect(validateHelmValues('2026-09-04')).toBe('Values must be a map');
+    });
+
+    test('rejects non-map YAML (null)', () => {
+        expect(validateHelmValues('null')).toBe('Values must be a map');
+    });
+
+    test('accepts empty string gracefully', () => {
+        expect(validateHelmValues('')).toBeNull();
+    });
+});
