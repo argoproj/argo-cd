@@ -408,8 +408,13 @@ func TestGitLabPushEvent(t *testing.T) {
 	h.Handler(w, req)
 	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
-	assertLogContains(t, hook, expectedLogResult)
+	expectedLogResult1 := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
+	expectedLogResult2 := "Received push event repo: ssh://git@gitlab.com:2222/group/name.git, revision: master, touchedHead: true"
+	expectedLogResult3 := "Received push event repo: https://gitlab.com/group/name.git, revision: master, touchedHead: true"
+	logs := hook.AllEntries()
+	assert.Equal(t, expectedLogResult1, logs[len(logs)-3].Message)
+	assert.Equal(t, expectedLogResult2, logs[len(logs)-2].Message)
+	assert.Equal(t, expectedLogResult3, logs[len(logs)-1].Message)
 	hook.Reset()
 }
 
@@ -425,8 +430,13 @@ func TestGitLabSystemEvent(t *testing.T) {
 	h.Handler(w, req)
 	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
-	assertLogContains(t, hook, expectedLogResult)
+	expectedLogResult1 := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
+	expectedLogResult2 := "Received push event repo: ssh://git@gitlab.com:2222/group/name.git, revision: master, touchedHead: true"
+	expectedLogResult3 := "Received push event repo: https://gitlab.com/group/name.git, revision: master, touchedHead: true"
+	logs := hook.AllEntries()
+	assert.Equal(t, expectedLogResult1, logs[len(logs)-3].Message)
+	assert.Equal(t, expectedLogResult2, logs[len(logs)-2].Message)
+	assert.Equal(t, expectedLogResult3, logs[len(logs)-1].Message)
 	hook.Reset()
 }
 
