@@ -781,6 +781,34 @@ func TestClusterSharding_UpdateShard_ConcurrentWithReads(t *testing.T) {
 	assert.Equal(t, 1, sharding.Shard)
 }
 
+// TestClusterSharding_UpdateDistribution_OneGenerationPerRedistribution
+// verifies that all distribution function calls of one redistribution observe
+// the same generation, so the full mapping is computed once per redistribution
+// rather than once per cluster.
+func TestClusterSharding_UpdateDistribution_OneGenerationPerRedistribution(t *testing.T) {
+	t.Parallel()
+	sharding := setupTestSharding(0, 2)
+
+	var seen []uint64
+	sharding.getClusterShard = func(_ *v1alpha1.Cluster) int {
+		seen = append(seen, sharding.getGenerationAccessor()())
+		return 0
+	}
+	sharding.Init(
+		&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
+			{ID: "1", Server: "https://serverA"},
+			{ID: "2", Server: "https://serverB"},
+			{ID: "3", Server: "https://serverC"},
+		}},
+		&v1alpha1.ApplicationList{},
+	)
+	assert.Equal(t, []uint64{1, 1, 1}, seen)
+
+	seen = nil
+	sharding.Add(&v1alpha1.Cluster{ID: "4", Server: "https://serverD"})
+	assert.Equal(t, []uint64{2, 2, 2, 2}, seen)
+}
+
 // TestClusterSharding_UpdateShard_ConcurrentCallers exercises concurrent
 // UpdateShard calls with the same new shard (overlapping readiness probes).
 // The comparison and the write must happen under the same write lock so that

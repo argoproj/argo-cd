@@ -110,7 +110,7 @@ func TestGetClusterFilterUnknown(t *testing.T) {
 	t.Setenv(common.EnvControllerShardingAlgorithm, "unknown")
 	replicasCount := 2
 	db.EXPECT().GetApplicationControllerReplicas().Return(replicasCount).Maybe()
-	distributionFunction := GetDistributionFunction(clusterAccessor, appAccessor, "unknown", replicasCount)
+	distributionFunction := GetDistributionFunction(clusterAccessor, appAccessor, "unknown", replicasCount, nil)
 	assert.Equal(t, 0, distributionFunction(nil))
 	assert.Equal(t, 0, distributionFunction(&cluster1))
 	assert.Equal(t, 1, distributionFunction(&cluster2))
@@ -125,7 +125,7 @@ func TestLegacyGetClusterFilterWithFixedShard(t *testing.T) {
 	appAccessor, _, _, _, _, _ := createTestApps()
 	replicasCount := 5
 	db.EXPECT().GetApplicationControllerReplicas().Return(replicasCount).Maybe()
-	filter := GetDistributionFunction(clusterAccessor, appAccessor, common.DefaultShardingAlgorithm, replicasCount)
+	filter := GetDistributionFunction(clusterAccessor, appAccessor, common.DefaultShardingAlgorithm, replicasCount, nil)
 	assert.Equal(t, 0, filter(nil))
 	assert.Equal(t, 4, filter(&cluster1))
 	assert.Equal(t, 1, filter(&cluster2))
@@ -135,13 +135,13 @@ func TestLegacyGetClusterFilterWithFixedShard(t *testing.T) {
 	var fixedShard int64 = 4
 	cluster5 := &v1alpha1.Cluster{ID: "5", Shard: &fixedShard}
 	clusterAccessor = getClusterAccessor([]v1alpha1.Cluster{cluster1, cluster2, cluster2, cluster4, *cluster5})
-	filter = GetDistributionFunction(clusterAccessor, appAccessor, common.DefaultShardingAlgorithm, replicasCount)
+	filter = GetDistributionFunction(clusterAccessor, appAccessor, common.DefaultShardingAlgorithm, replicasCount, nil)
 	assert.Equal(t, int(fixedShard), filter(cluster5))
 
 	fixedShard = 1
 	cluster5.Shard = &fixedShard
 	clusterAccessor = getClusterAccessor([]v1alpha1.Cluster{cluster1, cluster2, cluster2, cluster4, *cluster5})
-	filter = GetDistributionFunction(clusterAccessor, appAccessor, common.DefaultShardingAlgorithm, replicasCount)
+	filter = GetDistributionFunction(clusterAccessor, appAccessor, common.DefaultShardingAlgorithm, replicasCount, nil)
 	assert.Equal(t, int(fixedShard), filter(&v1alpha1.Cluster{ID: "4", Shard: &fixedShard}))
 }
 
@@ -153,7 +153,7 @@ func TestRoundRobinGetClusterFilterWithFixedShard(t *testing.T) {
 	replicasCount := 4
 	db.EXPECT().GetApplicationControllerReplicas().Return(replicasCount).Maybe()
 
-	filter := GetDistributionFunction(clusterAccessor, appAccessor, common.RoundRobinShardingAlgorithm, replicasCount)
+	filter := GetDistributionFunction(clusterAccessor, appAccessor, common.RoundRobinShardingAlgorithm, replicasCount, nil)
 	assert.Equal(t, 0, filter(nil))
 	assert.Equal(t, 0, filter(&cluster1))
 	assert.Equal(t, 1, filter(&cluster2))
@@ -166,14 +166,14 @@ func TestRoundRobinGetClusterFilterWithFixedShard(t *testing.T) {
 	cluster5 := v1alpha1.Cluster{Name: "cluster5", ID: "5", Shard: &fixedShard}
 	clusters := []v1alpha1.Cluster{cluster1, cluster2, cluster3, cluster4, cluster5}
 	clusterAccessor = getClusterAccessor(clusters)
-	filter = GetDistributionFunction(clusterAccessor, appAccessor, common.RoundRobinShardingAlgorithm, replicasCount)
+	filter = GetDistributionFunction(clusterAccessor, appAccessor, common.RoundRobinShardingAlgorithm, replicasCount, nil)
 	assert.Equal(t, int(fixedShard), filter(&cluster5))
 
 	fixedShard = 1
 	cluster5 = v1alpha1.Cluster{Name: "cluster5", ID: "5", Shard: &fixedShard}
 	clusters = []v1alpha1.Cluster{cluster1, cluster2, cluster3, cluster4, cluster5}
 	clusterAccessor = getClusterAccessor(clusters)
-	filter = GetDistributionFunction(clusterAccessor, appAccessor, common.RoundRobinShardingAlgorithm, replicasCount)
+	filter = GetDistributionFunction(clusterAccessor, appAccessor, common.RoundRobinShardingAlgorithm, replicasCount, nil)
 	assert.Equal(t, int(fixedShard), filter(&v1alpha1.Cluster{Name: "cluster4", ID: "4", Shard: &fixedShard}))
 }
 
@@ -1050,4 +1050,56 @@ func createAppWithNamespace(name string, namespace string, server string) v1alph
 	app := createApp(name, server)
 	app.Namespace = namespace
 	return app
+}
+
+func TestMemoizeByGeneration(t *testing.T) {
+	// Subtests share the calls counter, so they run sequentially.
+	calls := 0
+	compute := func() int { calls++; return calls }
+
+	t.Run("nil generation computes on every call", func(t *testing.T) {
+		calls = 0
+		get := memoizeByGeneration(nil, compute)
+		assert.Equal(t, 1, get())
+		assert.Equal(t, 2, get())
+	})
+
+	t.Run("same generation returns the cached value", func(t *testing.T) {
+		calls = 0
+		gen := uint64(1)
+		get := memoizeByGeneration(func() uint64 { return gen }, compute)
+		assert.Equal(t, 1, get())
+		assert.Equal(t, 1, get())
+		assert.Equal(t, 1, calls)
+
+		gen++
+		assert.Equal(t, 2, get())
+		assert.Equal(t, 2, get())
+		assert.Equal(t, 2, calls)
+	})
+}
+
+// TestGetDistributionFunction_ConsistentHashing_CachesMappingPerGeneration
+// verifies that the consistent-hashing distribution function computes the
+// cluster->shard mapping once per generation: a cluster added without bumping
+// the generation is not seen until the generation changes.
+func TestGetDistributionFunction_ConsistentHashing_CachesMappingPerGeneration(t *testing.T) {
+	t.Parallel()
+	clusters := []*v1alpha1.Cluster{{ID: "1", Server: "https://c1"}, {ID: "2", Server: "https://c2"}}
+	gen := uint64(1)
+	distribution := GetDistributionFunction(
+		func() []*v1alpha1.Cluster { return clusters },
+		func() []*v1alpha1.Application { return nil },
+		common.ConsistentHashingWithBoundedLoadsAlgorithm, 3,
+		func() uint64 { return gen },
+	)
+
+	assert.NotEqual(t, -1, distribution(clusters[0]))
+
+	late := &v1alpha1.Cluster{ID: "3", Server: "https://c3"}
+	clusters = append(clusters, late)
+	assert.Equal(t, -1, distribution(late), "mapping is cached within a generation")
+
+	gen++
+	assert.NotEqual(t, -1, distribution(late), "a new generation recomputes the mapping")
 }

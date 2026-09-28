@@ -53,6 +53,10 @@ type ClusterSharding struct {
 	Apps            map[string]*v1alpha1.Application
 	lock            sync.RWMutex
 	getClusterShard DistributionFunction
+	// generation is bumped once per updateDistribution so the distribution
+	// function computes the full cluster->shard mapping once per redistribution
+	// instead of once per cluster. Guarded by lock.
+	generation uint64
 	// recompute signals the debounce worker that an application change needs a
 	// distribution recompute. Buffered (cap 1) so bursts coalesce.
 	recompute chan struct{}
@@ -76,7 +80,7 @@ func NewClusterSharding(_ db.ArgoDB, shard, replicas int, shardingAlgorithm stri
 	distributionFunction := NoShardingDistributionFunction()
 	if replicas > 1 {
 		log.Debugf("Processing clusters from shard %d: Using filter function:  %s", shard, shardingAlgorithm)
-		distributionFunction = GetDistributionFunction(clusterSharding.getClusterAccessor(), clusterSharding.getAppAccessor(), shardingAlgorithm, replicas)
+		distributionFunction = GetDistributionFunction(clusterSharding.getClusterAccessor(), clusterSharding.getAppAccessor(), shardingAlgorithm, replicas, clusterSharding.getGenerationAccessor())
 	} else {
 		log.Info("Processing all cluster shards")
 	}
@@ -192,6 +196,9 @@ func (sharding *ClusterSharding) GetDistribution() map[string]int {
 }
 
 func (sharding *ClusterSharding) updateDistribution() {
+	// One generation per redistribution: every getClusterShard call below sees
+	// the same value, so the mapping is computed once for all clusters.
+	sharding.generation++
 	for k, c := range sharding.Clusters {
 		shard := 0
 		if c.Shard != nil {
@@ -323,6 +330,13 @@ func (sharding *ClusterSharding) getClusterAccessor() clusterAccessor {
 			clusters = append(clusters, c)
 		}
 		return clusters
+	}
+}
+
+// A read lock should be acquired before calling getGenerationAccessor.
+func (sharding *ClusterSharding) getGenerationAccessor() generationAccessor {
+	return func() uint64 {
+		return sharding.generation
 	}
 }
 
