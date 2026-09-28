@@ -64,3 +64,28 @@ func TestNewParsers(t *testing.T) {
 		require.ErrorIs(t, err, bitbucketserver.ErrMissingHubSignatureHeader)
 	})
 }
+
+func TestDispatch(t *testing.T) {
+	parsers := NewParsers(&settings.ArgoCDSettings{}, ParserOptions{
+		GitHubEvents: []github.Event{github.PushEvent},
+	})
+
+	t.Run("unclaimed request is not handled", func(t *testing.T) {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", strings.NewReader(`{}`))
+		req.Header.Set("X-Gitlab-Event", "Push Hook")
+
+		payload, handled, err := Dispatch(parsers, req)
+		require.NoError(t, err)
+		assert.False(t, handled)
+		assert.Nil(t, payload)
+	})
+
+	t.Run("claimed request is handled even when parsing fails", func(t *testing.T) {
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", strings.NewReader(`{}`))
+		req.Header.Set("X-GitHub-Event", "pull_request")
+
+		_, handled, err := Dispatch(parsers, req)
+		assert.True(t, handled)
+		require.ErrorIs(t, err, github.ErrEventNotFound)
+	})
+}

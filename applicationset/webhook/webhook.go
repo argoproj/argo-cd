@@ -36,10 +36,7 @@ const panicMsgAppSet = "panic while processing applicationset-controller webhook
 
 type WebhookHandler struct {
 	sync.WaitGroup // for testing
-	github         *github.Webhook
-	gitlab         *gitlab.Webhook
-	azuredevops    *azuredevops.Webhook
-	ghcr           *webhook.GHCRParser
+	parsers        []webhook.Extractor
 	client         client.Client
 	generators     map[string]generators.Generator
 	queue          chan any
@@ -84,27 +81,21 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 	if err != nil {
 		return nil, fmt.Errorf("failed to get argocd settings: %w", err)
 	}
-	githubHandler, err := github.New(github.Options.Secret(argocdSettings.GetWebhookGitHubSecret()))
-	if err != nil {
-		return nil, fmt.Errorf("unable to init GitHub webhook: %w", err)
-	}
-	gitlabHandler, err := gitlab.New(gitlab.Options.Secret(argocdSettings.GetWebhookGitLabSecret()))
-	if err != nil {
-		return nil, fmt.Errorf("unable to init GitLab webhook: %w", err)
-	}
-	azuredevopsHandler, err := azuredevops.New(azuredevops.Options.BasicAuth(argocdSettings.GetWebhookAzureDevOpsUsername(), argocdSettings.GetWebhookAzureDevOpsPassword()))
-	if err != nil {
-		return nil, fmt.Errorf("unable to init Azure DevOps webhook: %w", err)
-	}
-
 	webhookHandler := &WebhookHandler{
-		github:      githubHandler,
-		gitlab:      gitlabHandler,
-		azuredevops: azuredevopsHandler,
-		ghcr:        webhook.NewGHCRParser(argocdSettings.GetWebhookGitHubSecret()),
-		client:      client,
-		generators:  generators,
-		queue:       make(chan any, payloadQueueSize),
+		parsers: webhook.NewParsers(argocdSettings, webhook.ParserOptions{
+			AzureDevOpsEvents: []azuredevops.Event{
+				azuredevops.GitPushEventType,
+				azuredevops.GitPullRequestCreatedEventType,
+				azuredevops.GitPullRequestUpdatedEventType,
+				azuredevops.GitPullRequestMergedEventType,
+			},
+			GitHubEvents: []github.Event{github.PushEvent, github.PullRequestEvent, github.PingEvent},
+			GitLabEvents: []gitlab.Event{gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents},
+			GHCR:         true,
+		}),
+		client:     client,
+		generators: generators,
+		queue:      make(chan any, payloadQueueSize),
 	}
 
 	webhookHandler.startWorkerPool(webhookParallelism)
@@ -168,24 +159,11 @@ func (h *WebhookHandler) HandleEvent(payload any) {
 }
 
 func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	var payload any
-	var err error
-
-	switch {
-	case h.ghcr.CanHandle(r):
-		payload, err = h.ghcr.Parse(r)
-	case r.Header.Get("X-GitHub-Event") != "" && r.Header.Get("X-GitHub-Event") != "package":
-		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent)
-	case r.Header.Get("X-Gitlab-Event") != "":
-		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents)
-	case r.Header.Get("X-Vss-Activityid") != "":
-		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
-	default:
-		log.Debug("Ignoring unknown webhook event")
+	payload, handled, err := webhook.Dispatch(h.parsers, r)
+	if !handled {
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
 		return
 	}
-
 	if err != nil {
 		log.Infof("Webhook processing failed: %s", err)
 		status := http.StatusBadRequest

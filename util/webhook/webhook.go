@@ -950,7 +950,7 @@ func isBBServerHeadTouched(client *bitbucketv1.APIClient, projectKey, repoSlug, 
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)
-	payload, handled, err := a.processWebhook(r)
+	payload, handled, err := Dispatch(a.parsers, r)
 	if !handled {
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
 		return
@@ -1003,21 +1003,6 @@ func isParsingPayloadError(err error) bool {
 		errors.Is(err, bitbucket.ErrParsingPayload) ||
 		errors.Is(err, bitbucketserver.ErrParsingPayload) ||
 		errors.Is(err, azuredevops.ErrParsingPayload)
-}
-
-// processWebhook dispatches the request to the first matching parser.
-// The handled return is true when a parser claimed the request, regardless of
-// whether parsing produced a payload or an error; callers use it to distinguish
-// "unknown webhook event" (false) from "claimed but skipped" (true, nil, nil).
-func (a *ArgoCDWebhookHandler) processWebhook(r *http.Request) (any, bool, error) {
-	for _, p := range a.parsers {
-		if p.CanHandle(r) {
-			payload, err := p.Parse(r)
-			return payload, true, err
-		}
-	}
-	log.Debug("Ignoring unknown webhook event")
-	return nil, false, nil
 }
 
 // Shutdown gracefully shuts down the webhook handler by closing queues and waiting for workers

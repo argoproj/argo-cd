@@ -149,6 +149,22 @@ func TestWebhookHandler(t *testing.T) {
 			expectedRefresh:    false,
 		},
 		{
+			desc:               "WebHook from Bitbucket Server is not supported",
+			headerKey:          "X-Event-Key",
+			headerValue:        "repo:refs_changed",
+			payloadFile:        "github-commit-event.json",
+			expectedStatusCode: http.StatusBadRequest,
+			expectedRefresh:    false,
+		},
+		{
+			desc:               "WebHook from Gogs is not supported",
+			headerKey:          "X-Gogs-Event",
+			headerValue:        "push",
+			payloadFile:        "github-commit-event.json",
+			expectedStatusCode: http.StatusBadRequest,
+			expectedRefresh:    false,
+		},
+		{
 			desc:               "WebHook from a GitHub repository via pull_request opened event",
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "pull_request",

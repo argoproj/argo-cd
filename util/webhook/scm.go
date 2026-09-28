@@ -52,7 +52,7 @@ func NewParsers(set *settings.ArgoCDSettings, opts ParserOptions) []Extractor {
 	var parsers []Extractor
 	if len(opts.AzureDevOpsEvents) > 0 {
 		if hook, err := azuredevops.New(azuredevops.Options.BasicAuth(set.GetWebhookAzureDevOpsUsername(), set.GetWebhookAzureDevOpsPassword())); err != nil {
-			log.Warnf("Unable to init the Azure Devops webhook: %v", err)
+			log.Warnf("Unable to init the Azure DevOps webhook: %v", err)
 		} else {
 			parsers = append(parsers, &azureDevOpsParser{webhook: hook, events: opts.AzureDevOpsEvents})
 		}
@@ -106,6 +106,21 @@ func NewParsers(set *settings.ArgoCDSettings, opts ParserOptions) []Extractor {
 	}
 
 	return parsers
+}
+
+// Dispatch hands the request to the first parser that can handle it. The
+// handled return is true when a parser claimed the request, regardless of
+// whether parsing produced a payload or an error; callers use it to distinguish
+// "unknown webhook event" (false) from "claimed but skipped" (true, nil, nil).
+func Dispatch(parsers []Extractor, r *http.Request) (any, bool, error) {
+	for _, p := range parsers {
+		if p.CanHandle(r) {
+			payload, err := p.Parse(r)
+			return payload, true, err
+		}
+	}
+	log.Debug("Ignoring unknown webhook event")
+	return nil, false, nil
 }
 
 type azureDevOpsParser struct {
