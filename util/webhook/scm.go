@@ -65,7 +65,6 @@ func NewParsers(set *settings.ArgoCDSettings, opts ParserOptions) []Extractor {
 			parsers = append(parsers, &gogsParser{webhook: hook, events: opts.GogsEvents})
 		}
 	}
-	// Check for GitHub events now
 	if len(opts.GitHubEvents) > 0 {
 		if hook, err := github.New(github.Options.Secret(set.GetWebhookGitHubSecret())); err != nil {
 			log.Warnf("Unable to init the GitHub webhook: %v", err)
@@ -88,14 +87,14 @@ func NewParsers(set *settings.ArgoCDSettings, opts ParserOptions) []Extractor {
 		}
 	}
 	if len(opts.BitbucketServerEvents) > 0 {
-		if hook, err := bitbucketserver.New(bitbucketserver.Options.Secret(set.GetWebhookGitHubSecret())); err != nil {
+		if hook, err := bitbucketserver.New(bitbucketserver.Options.Secret(set.GetWebhookBitbucketServerSecret())); err != nil {
 			log.Warnf("Unable to init the Bitbucket Server webhook: %v", err)
 		} else {
 			parsers = append(parsers, &bitbucketServerParser{webhook: hook, events: opts.BitbucketServerEvents})
 		}
 	}
 
-	// check for OCI registries now
+	// OCI Registries parsers
 	if opts.Harbor {
 		parsers = append(parsers, newHarborParser(set.GetWebhookHarborSecret()))
 	}
