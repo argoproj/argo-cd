@@ -31,3 +31,9 @@ actionTests:
   - action: resume
     inputPath: testdata/cluster_reconcile_suspended.yaml
     expectedOutputPath: testdata/cluster_healthy.yaml
+  - action: hibernate
+    inputPath: testdata/cluster_healthy.yaml
+    expectedOutputPath: testdata/cluster_hibernated.yaml
+  - action: rehydrate
+    inputPath: testdata/cluster_hibernated.yaml
+    expectedOutputPath: testdata/cluster_rehydrated.yaml

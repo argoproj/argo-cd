@@ -1,0 +1,32 @@
+apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  name: llama-3-8b
+  namespace: kserve-test
+  generation: 2
+spec:
+  model:
+    uri: hf://meta-llama/Meta-Llama-3-70B-Instruct
+status:
+  # The controller has only observed generation 1, while the spec is at
+  # generation 2. The Ready=True condition below is stale and must not be
+  # reported as Healthy until reconciliation catches up.
+  observedGeneration: 1
+  url: http://llama-3-8b.kserve-test.example.com
+  conditions:
+  - type: MainWorkloadReady
+    status: "True"
+    lastTransitionTime: "2026-09-07T10:15:00Z"
+    severity: Info
+  - type: PresetsCombined
+    status: "True"
+    lastTransitionTime: "2026-09-07T10:14:30Z"
+  - type: Ready
+    status: "True"
+    lastTransitionTime: "2026-09-07T10:15:10Z"
+  - type: RouterReady
+    status: "True"
+    lastTransitionTime: "2026-09-07T10:15:05Z"
+  - type: WorkloadsReady
+    status: "True"
+    lastTransitionTime: "2026-09-07T10:15:00Z"

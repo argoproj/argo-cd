@@ -71,7 +71,8 @@ export const AdvancedSettings = () => {
             boolItem('Apps in Any Namespace Enabled', settings.appsInAnyNamespaceEnabled),
             boolItem('Hydrator Enabled', settings.hydratorEnabled),
             boolItem('Sync with Replace Allowed', settings.syncWithReplaceAllowed),
-            boolItem('Impersonation Enabled', settings.impersonationEnabled)
+            boolItem('Impersonation Enabled', settings.impersonationEnabled),
+            boolItem('Resource View Enabled', settings.resourceViewEnabled)
         ];
 
         const helpAnalyticsItems: AdvancedItem[] = [

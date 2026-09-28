@@ -141,12 +141,13 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 		panic(err)
 	}
 
+	d := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
 	transport := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		Dial: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).Dial,
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           d.DialContext,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}

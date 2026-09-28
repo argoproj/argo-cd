@@ -78,9 +78,9 @@ func Test_appNeedsHydration(t *testing.T) {
 		{
 			name: "hard hydrate requested",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "hard"}},
-				Spec:       v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
-				Status:     v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseHydrated}}},
+				Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "hard"},
+				Spec:        v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status:      v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseHydrated}}},
 			},
 			expectedNeedsHydration: true,
 			expectedMessage:        "hard hydrate requested",
@@ -89,8 +89,8 @@ func Test_appNeedsHydration(t *testing.T) {
 		{
 			name: "normal hydrate requested with changes",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "normal"}},
-				Spec:       v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "normal"},
+				Spec:        v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
 				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
 					CurrentOperation:        &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseHydrated, SourceHydrator: v1alpha1.SourceHydrator{}},
 					LastComparedDryRevision: "old-sha",
@@ -109,8 +109,8 @@ func Test_appNeedsHydration(t *testing.T) {
 		{
 			name: "normal hydrate requested without changes",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "normal"}},
-				Spec:       v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "normal"},
+				Spec:        v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
 				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
 					CurrentOperation:        &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseHydrated, SourceHydrator: v1alpha1.SourceHydrator{}},
 					LastComparedDryRevision: "same-sha",
@@ -184,8 +184,8 @@ func Test_appNeedsHydration(t *testing.T) {
 		{
 			name: "failed within cooldown, normal hydrate requested",
 			app: &v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "normal"}},
-				Spec:       v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "normal"},
+				Spec:        v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
 				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
 					CurrentOperation: &v1alpha1.HydrateOperation{
 						StartedAt:      now,
@@ -504,7 +504,7 @@ func TestIsRootPath(t *testing.T) {
 
 func newTestProject() *v1alpha1.AppProject {
 	return &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-project", Namespace: "default"},
+		Name: "test-project", Namespace: "default",
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos: []string{"https://example.com/repo"},
 		},
@@ -513,7 +513,7 @@ func newTestProject() *v1alpha1.AppProject {
 
 func newTestApp(name string) *v1alpha1.Application {
 	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
+		Name: name, Namespace: "default",
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "test-project",
 			SourceHydrator: &v1alpha1.SourceHydrator{
@@ -1386,9 +1386,7 @@ func TestHydrator_getManifests_Success(t *testing.T) {
 	proj := newTestProject()
 
 	cm := kube.MustToUnstructured(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test",
-		},
+		Name: "test",
 	})
 
 	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "sha123", proj).Return([]*unstructured.Unstructured{cm}, &repoclient.ManifestResponse{

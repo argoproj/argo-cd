@@ -3,7 +3,7 @@ import classNames from 'classnames';
 import * as React from 'react';
 import {type ReactNode, useCallback, useContext, useEffect, useRef, useState, Fragment} from 'react';
 import {Form, type FormApi} from 'argo-ui';
-import {helpTip} from '../../../applications/components/utils';
+import {helpTip} from '../app-utils';
 import {Context} from '../../context';
 import {Spinner} from '../spinner';
 

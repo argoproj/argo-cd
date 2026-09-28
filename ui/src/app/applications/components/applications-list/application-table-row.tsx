@@ -1,17 +1,16 @@
-import {DropDownMenu, NotificationType, Tooltip} from 'argo-ui';
+import {Tooltip} from 'argo-ui';
 import * as React from 'react';
 import Moment from 'react-moment';
-import {Cluster} from '../../../shared/components';
+import {ActionMenu, Cluster} from '../../../shared/components';
 import {AuthSettingsCtx, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {NoticeIcon} from '../application-notice/notice-icon';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
-import {isValidManagedByURL} from '../../../shared/utils';
+import {getAppDefaultSource, OperationState} from '../utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
-import {CellLink} from './cell-link';
+import {CellLink} from '../../../shared/components';
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
 
@@ -28,44 +27,16 @@ export interface ApplicationTableRowProps {
 export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, refreshApplication, deleteApplication}: ApplicationTableRowProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
+    const isFav = AppUtils.isFavorite(favList, app);
     const healthStatus = app.status.health.status;
-    const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
     const source = getAppDefaultSource(app);
-    const managedByURL = getManagedByURL(app);
-    const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
     const view = pref.appDetails.view;
     const appLink = AppUtils.getAppListLink(ctx, app, view);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (favList?.includes(app.metadata.name)) {
-            favList.splice(favList.indexOf(app.metadata.name), 1);
-        } else {
-            favList.push(app.metadata.name);
-        }
-        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
-    };
-
-    const handleExternalLinkClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (managedByURLInvalid) {
-            ctx.notifications.show({
-                content: (
-                    <div>
-                        <div style={{fontWeight: 600}}>{MANAGED_BY_URL_INVALID_TEXT}</div>
-                        <div style={{marginTop: 6}}>{MANAGED_BY_URL_INVALID_TOOLTIP}</div>
-                    </div>
-                ),
-                type: NotificationType.Warning
-            });
-            return;
-        }
-        if (linkInfo.isExternal) {
-            window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
-        } else {
-            ctx.navigation.goto(appLink.path, {view});
-        }
+        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: AppUtils.toggleFavorite(favList, app)}});
     };
 
     return (
@@ -81,22 +52,21 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     onClick={appLink.onClick}
                     aria-label={AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
                 />
-                {/* First column: Favorite, URLs, Project, Name */}
+                {/* First column: Favorite, Project, Name, URLs */}
                 <div className='columns small-4'>
                     <div className='applications-list__meta-column'>
                         <div className='applications-list__fav-col'>
-                            <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
+                            <Tooltip content={isFav ? 'Remove Favorite' : 'Add Favorite'}>
                                 <button type='button' onClick={handleFavoriteToggle}>
                                     <i
-                                        className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}
+                                        className={isFav ? 'fas fa-star' : 'far fa-star'}
                                         style={{
                                             cursor: 'pointer',
-                                            color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                                            color: isFav ? '#FFCE25' : '#8fa4b1'
                                         }}
                                     />
                                 </button>
                             </Tooltip>
-                            <ApplicationURLs urls={app.status.summary?.externalURLs} />
                         </div>
                         <div className='applications-list__meta-rows'>
                             <div className='applications-list__meta-row'>
@@ -105,10 +75,8 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                             </div>
                             <div className='applications-list__meta-row'>
                                 <div className='show-for-xxlarge applications-list__meta-label'>Name:</div>
-                                <div className='applications-list__meta-value'>
-                                    {/* Rendered before the name so it stays visible when the name truncates with ellipsis;
-                                        the column's `overflow:hidden; white-space:nowrap` (argo-ui table-list) clips trailing
-                                        inline children. The tile view does the opposite because there the title wraps. */}
+                                <div className='applications-list__meta-value applications-list__name-value'>
+                                    {/* Keep the notice before the truncatable name and the link actions after it. */}
                                     <NoticeIcon annotations={app.metadata.annotations} />
                                     <Tooltip
                                         content={
@@ -124,14 +92,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                             {app.metadata.name}
                                         </a>
                                     </Tooltip>
-                                    <button
-                                        type='button'
-                                        className={managedByURLInvalid ? 'managed-by-url-invalid' : undefined}
-                                        onClick={handleExternalLinkClick}
-                                        style={{marginLeft: '0.5em', cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
-                                        title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
-                                        <i className='fa fa-window-maximize' />
-                                    </button>
+                                    <ApplicationURLs urls={app.status.summary?.externalURLs} />
                                 </div>
                             </div>
                         </div>
@@ -169,7 +130,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                 <div className='columns small-2'>
                     {/* Status text/icons wrapped in CellLink so clicking the cell navigates (the icons
                         carry a `title` and would otherwise sit above the overlay as click dead-zones).
-                        The `…` DropDownMenu below stays OUTSIDE — a <button> nested in an <a> is invalid. */}
+                        The `…` ActionMenu below stays OUTSIDE — a <button> nested in an <a> is invalid. */}
                     <CellLink href={appLink.href} onClick={appLink.onClick}>
                         <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
                         {app.status.sourceHydrator?.currentOperation && (
@@ -181,12 +142,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                         <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
                         <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
                     </CellLink>
-                    <DropDownMenu
-                        anchor={() => (
-                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                <i className='fa fa-ellipsis-v' />
-                            </button>
-                        )}
+                    <ActionMenu
                         items={[
                             {
                                 title: 'Sync',

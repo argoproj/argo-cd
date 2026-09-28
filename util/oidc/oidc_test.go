@@ -18,6 +18,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
@@ -497,6 +498,53 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			assert.Equal(t, http.StatusBadRequest, w.Code)
 			assert.Empty(t, w.Header().Get("Location"))
 		})
+	})
+	t.Run("with multiple dex connectors", func(t *testing.T) {
+		tests := []struct {
+			cdSettings   *settings.ArgoCDSettings
+			name         string
+			expectConnID bool
+		}{
+			{
+				name: "set connector_id if specified",
+				cdSettings: &settings.ArgoCDSettings{
+					URL:                dexTestServer.URL,
+					DexConfig:          "connectors: [{id: github}, {id: gitlab}]",
+					DexAuthConnectorID: "github",
+				},
+				expectConnID: true,
+			},
+			{
+				name: "omit connector_id if empty",
+				cdSettings: &settings.ArgoCDSettings{
+					URL:                dexTestServer.URL,
+					DexConfig:          "connectors: [{id: github}, {id: gitlab}]",
+					DexAuthConnectorID: "",
+				},
+				expectConnID: false,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				app, err := NewClientApp(tt.cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+				require.NoError(t, err)
+
+				req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
+				w := httptest.NewRecorder()
+				app.HandleLogin(w, req)
+
+				assert.Equal(t, http.StatusSeeOther, w.Code)
+				location, err := url.Parse(w.Header().Get("Location"))
+				require.NoError(t, err)
+				values, err := url.ParseQuery(location.RawQuery)
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectConnID, values.Has("connector_id"))
+				if tt.expectConnID {
+					assert.Equal(t, tt.cdSettings.DexAuthConnectorID, values.Get("connector_id"))
+				}
+			})
+		}
 	})
 }
 
@@ -1833,4 +1881,115 @@ func TestClientApp_getRedirectURIForRequest(t *testing.T) {
 			assert.Equal(t, expectedRedirectURI, redirectURI, "expected URI")
 		})
 	}
+}
+
+func findLoginEntry(t *testing.T, hook *logtest.Hook) *log.Entry {
+	t.Helper()
+	for _, e := range hook.AllEntries() {
+		if e.Data["login.type"] == "sso" {
+			return e
+		}
+	}
+	t.Fatal("expected an sso login log entry")
+	return nil
+}
+
+func TestHandleCallback_LogsLoginAttempt(t *testing.T) {
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+	}
+
+	t.Run("successful login", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		t.Cleanup(hook.Reset)
+		app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
+		app.HandleLogin(w, req)
+		redirectURL, err := w.Result().Location()
+		require.NoError(t, err)
+		state := redirectURL.Query().Get("state")
+
+		req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, fmt.Sprintf("https://argocd.example.com/auth/callback?state=%s&code=abc", state), http.NoBody)
+		for _, cookie := range w.Result().Cookies() {
+			req.AddCookie(cookie)
+		}
+		w = httptest.NewRecorder()
+		app.HandleCallback(w, req)
+		require.Equal(t, http.StatusSeeOther, w.Code)
+
+		entry := findLoginEntry(t, hook)
+		assert.Equal(t, log.InfoLevel, entry.Level)
+		assert.Equal(t, "Web login successful", entry.Message)
+		// sub of the token issued by the OIDC test server
+		assert.Equal(t, "1234567890", entry.Data["username"])
+		assert.NotEmpty(t, entry.Data["claims"])
+	})
+
+	t.Run("failed login", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		t.Cleanup(hook.Reset)
+		app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/callback?state=bogus&code=abc", http.NoBody)
+		w := httptest.NewRecorder()
+		app.HandleCallback(w, req)
+		require.Equal(t, http.StatusBadRequest, w.Code)
+
+		entry := findLoginEntry(t, hook)
+		assert.Equal(t, log.WarnLevel, entry.Level)
+		assert.Equal(t, "Login failed", entry.Message)
+		assert.NotEmpty(t, entry.Data["error"])
+		assert.NotContains(t, entry.Data, "username")
+	})
+
+	t.Run("failed implicit flow login", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		t.Cleanup(hook.Reset)
+		app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/callback?state=bogus", http.NoBody)
+		w := httptest.NewRecorder()
+		app.HandleCallback(w, req)
+		require.Equal(t, http.StatusBadRequest, w.Code)
+
+		entry := findLoginEntry(t, hook)
+		assert.Equal(t, log.WarnLevel, entry.Level)
+		assert.Equal(t, "Login failed", entry.Message)
+		assert.NotEmpty(t, entry.Data["error"])
+	})
+
+	t.Run("failed provider setup", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		t.Cleanup(hook.Reset)
+		// the OIDC test server uses a self-signed certificate, so provider discovery fails without OIDCTLSInsecureSkipVerify
+		strictSettings := *cdSettings
+		strictSettings.OIDCTLSInsecureSkipVerify = false
+		app, err := NewClientApp(&strictSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/callback?state=bogus&code=abc", http.NoBody)
+		w := httptest.NewRecorder()
+		app.HandleCallback(w, req)
+		require.Equal(t, http.StatusInternalServerError, w.Code)
+
+		entry := findLoginEntry(t, hook)
+		assert.Equal(t, log.WarnLevel, entry.Level)
+		assert.Equal(t, "Login failed", entry.Message)
+		assert.NotEmpty(t, entry.Data["error"])
+	})
 }

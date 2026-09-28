@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -18,6 +19,7 @@ import (
 	jose "github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
@@ -117,7 +119,7 @@ func TestEnforceProjectToken(t *testing.T) {
 	jwtTokenByRole[roleName] = v1alpha1.JWTTokens{Items: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}, {ID: defaultId}}}
 
 	existingProj := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: projectName, Namespace: test.FakeArgoCDNamespace},
+		Name: projectName, Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			Roles: []v1alpha1.ProjectRole{role},
 		},
@@ -265,8 +267,8 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewClientset(cm, secret)
 	defaultProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.DefaultAppProjectName, Namespace: test.FakeArgoCDNamespace},
-		Spec:       v1alpha1.AppProjectSpec{},
+		Name: v1alpha1.DefaultAppProjectName, Namespace: test.FakeArgoCDNamespace,
+		Spec: v1alpha1.AppProjectSpec{},
 	}
 	appClientSet := apps.NewSimpleClientset(defaultProj)
 
@@ -326,10 +328,8 @@ func TestEnforceProjectGroups(t *testing.T) {
 	defaultPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, defaultObject, defaultEffect)
 
 	existingProj := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      projectName,
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      projectName,
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			Roles: []v1alpha1.ProjectRole{
 				{
@@ -384,10 +384,8 @@ func TestRevokedToken(t *testing.T) {
 	jwtTokenByRole[roleName] = v1alpha1.JWTTokens{Items: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}}}
 
 	existingProj := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      projectName,
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      projectName,
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			Roles: []v1alpha1.ProjectRole{
 				{
@@ -1416,10 +1414,8 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 
 func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 	existingDefaultProject := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      v1alpha1.DefaultAppProjectName,
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      v1alpha1.DefaultAppProjectName,
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"some repo"},
 			Destinations: []v1alpha1.ApplicationDestination{{Server: "some cluster", Namespace: "*"}},
@@ -1956,4 +1952,72 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	argocd.newStaticAssetsHandler()(w, req)
 	resp = w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "should have been able to access the normal file")
+}
+
+// Covers what the util/grpc unit tests cannot: that grpc-gateway puts this server's own metadata after
+// the caller's Grpc-Metadata-* headers, and that the HTTP-layer resolution reaches the call logs.
+func TestSourceIPLoggingThroughGateway(t *testing.T) {
+	s, closer := fakeServer(t)
+	defer closer()
+	logger, hook := logtest.NewNullLogger()
+	s.log = log.NewEntry(logger)
+	s.EnableSourceIPLogging = true
+	s.TrustedProxies = []netip.Prefix{netip.MustParsePrefix("127.0.0.1/32")}
+	s.ClientIPHeader = "X-Real-IP"
+	defer test.StartInformer(s.projInformer)()
+	defer test.StartInformer(s.appInformer)()
+	defer test.StartInformer(s.appsetInformer)()
+	defer test.StartInformer(s.clusterInformer)()
+
+	lns, err := s.Listen()
+	require.NoError(t, err)
+	var wg gosync.WaitGroup
+	wg.Go(func() { s.Run(t.Context(), lns) })
+	defer func() {
+		s.stopCh <- syscall.SIGINT
+		wg.Wait()
+	}()
+	for !s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// loggedCall sends a request through the gateway and returns the fields of the call it logged.
+	loggedCall := func(t *testing.T, header http.Header) log.Fields {
+		t.Helper()
+		hook.Reset()
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, fmt.Sprintf("http://127.0.0.1:%d/api/version", s.ListenPort), http.NoBody)
+		require.NoError(t, err)
+		req.Header = header
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var fields log.Fields
+		require.Eventually(t, func() bool {
+			for _, e := range hook.AllEntries() {
+				if e.Message == "finished call" && e.Data["grpc.method"] == "Version" {
+					fields = e.Data
+					return true
+				}
+			}
+			return false
+		}, 5*time.Second, 10*time.Millisecond)
+		return fields
+	}
+
+	t.Run("caller-supplied gateway metadata is ignored", func(t *testing.T) {
+		fields := loggedCall(t, http.Header{
+			"Grpc-Metadata-X-Argocd-Gateway":   {"not-the-token"},
+			"Grpc-Metadata-X-Argocd-Client-Ip": {"9.9.9.9"},
+			"X-Real-Ip":                        {"203.0.113.9"},
+		})
+		assert.Equal(t, "203.0.113.9", fields["source.ip"])
+	})
+
+	t.Run("rightmost untrusted forwarded entry", func(t *testing.T) {
+		fields := loggedCall(t, http.Header{"X-Forwarded-For": {"9.9.9.9, 198.51.100.7"}})
+		assert.Equal(t, "198.51.100.7", fields["source.ip"])
+		assert.Equal(t, "9.9.9.9, 198.51.100.7", fields["forwarded.for"], "the address the gateway appends is dropped")
+	})
 }

@@ -21,7 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/klog/v2/textlogger"
 	openapiproto "k8s.io/kube-openapi/pkg/util/proto"
@@ -174,6 +173,98 @@ func TestDiff(t *testing.T) {
 	if ascii != "" {
 		t.Log(ascii)
 	}
+}
+
+func TestDiffServerSideApplyAnnotation(t *testing.T) {
+	// The ServerSideApply=true sync-options annotation on the desired state
+	// resource requests Server-Side Diff. It used to select the (now
+	// discontinued) structured-merge-diff strategy.
+	withSSAAnnotation := func(un *unstructured.Unstructured) *unstructured.Unstructured {
+		un = un.DeepCopy()
+		annotations := un.GetAnnotations()
+		if annotations == nil {
+			annotations = map[string]string{}
+		}
+		annotations["argocd.argoproj.io/sync-options"] = "ServerSideApply=true"
+		un.SetAnnotations(annotations)
+		return un
+	}
+
+	t.Run("uses ServerSideDiff when a dry-run runner is configured", func(t *testing.T) {
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ServiceLiveYAMLSSD)
+		desiredState := withSSAAnnotation(StrToUnstructured(testdata.ServiceConfigYAMLSSD))
+
+		dryRunner := mocks.NewServerSideDryRunner(t)
+		// The runner being invoked proves the ServerSideDiff path was taken.
+		dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), "argocd-controller").
+			Return(testdata.ServicePredictedLiveJSONSSD, nil)
+		opts := []Option{
+			WithGVKParser(buildGVKParser(t)),
+			WithManager("argocd-controller"),
+			WithServerSideDryRunner(dryRunner),
+		}
+
+		result, err := Diff(t.Context(), desiredState, liveState, opts...)
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+
+	t.Run("annotation only falls through to client-side diff when no dry-run runner is configured", func(t *testing.T) {
+		t.Parallel()
+		annotated := withSSAAnnotation(mustToUnstructured(newDeployment()))
+
+		// The annotation alone (without the serverSideDiff option) must not cause
+		// an error when no runner is configured: the caller may be a client-side
+		// consumer, so it falls through to the regular three-way / two-way diff.
+		// Diffing an identical config and live confirms the fall-through path
+		// completes successfully rather than erroring on the missing runner.
+		result, err := Diff(t.Context(), annotated, annotated, diffOptionsForTest()...)
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.Modified)
+	})
+
+	t.Run("annotation only still applies full normalization on the client-side fallback", func(t *testing.T) {
+		t.Parallel()
+		// The SSA annotation implies server-side diff, but with no runner configured
+		// the diff falls back to the client-side path. Full normalization (including
+		// the ignore-differences normalizer) must still be applied there; otherwise a
+		// field the user asked to ignore would surface as a spurious diff.
+		config := withSSAAnnotation(mustToUnstructured(newDeployment()))
+		live := config.DeepCopy()
+		// Introduce a difference only in a field that the normalizer removes.
+		require.NoError(t, unstructured.SetNestedField(live.Object, int64(99), "spec", "replicas"))
+
+		normalizer := &testIgnoreDifferencesNormalizer{
+			fieldsToRemove: [][]string{{"spec", "replicas"}},
+		}
+		opts := append(diffOptionsForTest(), WithNormalizer(normalizer))
+
+		result, err := Diff(t.Context(), config, live, opts...)
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		// If normalization were skipped on the fallback path (the bug), the differing
+		// replicas field would remain and the diff would be Modified.
+		assert.False(t, result.Modified,
+			"ignore-differences normalization must be applied on the client-side fallback path")
+	})
+
+	t.Run("explicit serverSideDiff option errors when no dry-run runner is configured", func(t *testing.T) {
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ServiceLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ServiceConfigYAMLSSD)
+
+		// When Server-Side Diff is explicitly requested but no runner is available,
+		// it must error rather than silently degrade to a client-side diff.
+		opts := append(diffOptionsForTest(), WithServerSideDiff(true))
+		_, err := Diff(t.Context(), desiredState, liveState, opts...)
+
+		require.Error(t, err)
+	})
 }
 
 func TestDiff_KnownTypeInvalidValue(t *testing.T) {
@@ -766,124 +857,6 @@ func buildGVKParser(t *testing.T) *managedfields.GvkParser {
 	gvkParser, err := managedfields.NewGVKParser(models, false)
 	require.NoErrorf(t, err, "error building gvkParser: %s", err)
 	return gvkParser
-}
-
-func TestStructuredMergeDiff(t *testing.T) {
-	buildParams := func(live, config *unstructured.Unstructured) *SMDParams {
-		gvkParser := buildGVKParser(t)
-		manager := "argocd-controller"
-		return &SMDParams{
-			config:    config,
-			live:      live,
-			gvkParser: gvkParser,
-			manager:   manager,
-		}
-	}
-
-	t.Run("will apply default values", func(t *testing.T) {
-		// given
-		t.Parallel()
-		liveState := StrToUnstructured(testdata.ServiceLiveYAML)
-		desiredState := StrToUnstructured(testdata.ServiceConfigYAML)
-		params := buildParams(liveState, desiredState)
-
-		// when
-		result, err := structuredMergeDiff(params)
-
-		// then
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.True(t, result.Modified)
-		predictedSVC := YamlToSvc(t, result.PredictedLive)
-		liveSVC := YamlToSvc(t, result.NormalizedLive)
-		require.NotNil(t, predictedSVC.Spec.InternalTrafficPolicy)
-		require.NotNil(t, liveSVC.Spec.InternalTrafficPolicy)
-		assert.Equal(t, "Cluster", string(*predictedSVC.Spec.InternalTrafficPolicy))
-		assert.Equal(t, "Cluster", string(*liveSVC.Spec.InternalTrafficPolicy))
-		assert.Empty(t, predictedSVC.Annotations[AnnotationLastAppliedConfig])
-		assert.Empty(t, liveSVC.Annotations[AnnotationLastAppliedConfig])
-	})
-	t.Run("will remove entries in list", func(t *testing.T) {
-		// given
-		t.Parallel()
-		liveState := StrToUnstructured(testdata.ServiceLiveYAML)
-		desiredState := StrToUnstructured(testdata.ServiceConfigWith2Ports)
-		params := buildParams(liveState, desiredState)
-
-		// when
-		result, err := structuredMergeDiff(params)
-
-		// then
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.True(t, result.Modified)
-		svc := YamlToSvc(t, result.PredictedLive)
-		assert.Len(t, svc.Spec.Ports, 2)
-	})
-	t.Run("will remove previously added fields not present in desired state", func(t *testing.T) {
-		// given
-		t.Parallel()
-		liveState := StrToUnstructured(testdata.LiveServiceWithTypeYAML)
-		desiredState := StrToUnstructured(testdata.ServiceConfigYAML)
-		params := buildParams(liveState, desiredState)
-
-		// when
-		result, err := structuredMergeDiff(params)
-
-		// then
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.True(t, result.Modified)
-		svc := YamlToSvc(t, result.PredictedLive)
-		assert.Equal(t, corev1.ServiceTypeClusterIP, svc.Spec.Type)
-	})
-	t.Run("will apply service with multiple ports", func(t *testing.T) {
-		// given
-		t.Parallel()
-		liveState := StrToUnstructured(testdata.ServiceLiveYAML)
-		desiredState := StrToUnstructured(testdata.ServiceConfigWithSamePortsYAML)
-		params := buildParams(liveState, desiredState)
-
-		// when
-		result, err := structuredMergeDiff(params)
-
-		// then
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.True(t, result.Modified)
-		svc := YamlToSvc(t, result.PredictedLive)
-		assert.Len(t, svc.Spec.Ports, 5)
-	})
-	t.Run("will apply deployment defaults correctly", func(t *testing.T) {
-		// given
-		t.Parallel()
-		liveState := StrToUnstructured(testdata.DeploymentLiveYAML)
-		desiredState := StrToUnstructured(testdata.DeploymentConfigYAML)
-		params := buildParams(liveState, desiredState)
-
-		// when
-		result, err := structuredMergeDiff(params)
-
-		// then
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.False(t, result.Modified)
-		deploy := YamlToDeploy(t, result.PredictedLive)
-		assert.Len(t, deploy.Spec.Template.Spec.Containers, 1)
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().String())
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().String())
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Requests.Storage().String())
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().String())
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().String())
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Limits.Storage().String())
-		require.NotNil(t, deploy.Spec.Strategy.RollingUpdate)
-		expectedMaxSurge := &intstr.IntOrString{
-			Type:   intstr.String,
-			StrVal: "25%",
-		}
-		assert.Equal(t, expectedMaxSurge, deploy.Spec.Strategy.RollingUpdate.MaxSurge)
-		assert.Equal(t, "ClusterFirst", string(deploy.Spec.Template.Spec.DNSPolicy))
-	})
 }
 
 func TestServerSideDiff(t *testing.T) {
@@ -2404,152 +2377,4 @@ spec:
 		assert.Contains(t, predictedLiveStr, "sessionAffinity", "sessionAffinity should still appear in output (no output normalization)")
 		assert.Contains(t, normalizedLiveStr, "sessionAffinity", "sessionAffinity should still appear in output (no output normalization)")
 	})
-}
-
-func TestStructuredMergeDiff_HPAv2ToV1Conversion(t *testing.T) {
-	// Reproduces https://github.com/argoproj/argo-cd/issues/17795
-	gvkParser := buildGVKParser(t)
-
-	config := StrToUnstructured(`
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: test-hpa
-  namespace: default
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: test-deploy
-  minReplicas: 1
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 50
-`)
-
-	live := StrToUnstructured(`
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: test-hpa
-  namespace: default
-  managedFields:
-  - apiVersion: autoscaling/v1
-    fieldsType: FieldsV1
-    fieldsV1:
-      f:spec:
-        f:maxReplicas: {}
-        f:minReplicas: {}
-        f:scaleTargetRef: {}
-    manager: helm
-    operation: Apply
-    time: "2024-01-01T00:00:00Z"
-  - apiVersion: autoscaling/v2
-    fieldsType: FieldsV1
-    fieldsV1:
-      f:spec:
-        f:metrics: {}
-    manager: argocd-controller
-    operation: Apply
-    time: "2024-01-02T00:00:00Z"
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: test-deploy
-  minReplicas: 1
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 50
-`)
-
-	// Identical config and live should not be modified
-	result, err := StructuredMergeDiff(config, live, gvkParser, "argocd-controller")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.False(t, result.Modified, "identical config and live should not show as modified")
-}
-
-func TestStructuredMergeDiff_HPAv2ToV1Conversion_Modified(t *testing.T) {
-	// Verifies that a real change is detected when config differs from live
-	// with cross-version managed fields
-	gvkParser := buildGVKParser(t)
-
-	config := StrToUnstructured(`
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: test-hpa
-  namespace: default
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: test-deploy
-  minReplicas: 2
-  maxReplicas: 20
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 80
-`)
-
-	live := StrToUnstructured(`
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: test-hpa
-  namespace: default
-  managedFields:
-  - apiVersion: autoscaling/v1
-    fieldsType: FieldsV1
-    fieldsV1:
-      f:spec:
-        f:maxReplicas: {}
-        f:minReplicas: {}
-        f:scaleTargetRef: {}
-    manager: helm
-    operation: Apply
-    time: "2024-01-01T00:00:00Z"
-  - apiVersion: autoscaling/v2
-    fieldsType: FieldsV1
-    fieldsV1:
-      f:spec:
-        f:metrics: {}
-    manager: argocd-controller
-    operation: Apply
-    time: "2024-01-02T00:00:00Z"
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: test-deploy
-  minReplicas: 1
-  maxReplicas: 10
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 50
-`)
-
-	result, err := StructuredMergeDiff(config, live, gvkParser, "argocd-controller")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.True(t, result.Modified, "different config and live should show as modified")
 }

@@ -1,0 +1,11 @@
+# An empty conditions array means the same as an absent one.
+apiVersion: helm.m.crossplane.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+  namespace: default
+spec:
+  credentials:
+    source: InjectedIdentity
+status:
+  conditions: []

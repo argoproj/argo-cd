@@ -1,0 +1,13 @@
+# A job that is being suspended after it had already been deployed records a
+# `lastReconciledSpec`. It is still converging, so it must stay Progressing rather
+# than be reported as suspended.
+apiVersion: flink.apache.org/v1alpha1
+kind: FlinkDeployment
+spec:
+  job:
+    state: suspended
+status:
+  jobManagerDeploymentStatus: MISSING
+  reconciliationStatus:
+    state: UPGRADING
+    lastReconciledSpec: '{"spec":{"job":{"state":"running"}},"resource_metadata":{}}'

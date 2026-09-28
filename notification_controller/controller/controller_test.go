@@ -97,9 +97,91 @@ func TestGetAppProj_invalidProjectNestedString(t *testing.T) {
 		},
 	}
 	informer := cache.NewSharedIndexInformer(nil, nil, 0, nil)
-	proj := getAppProj(app, informer)
+	proj := getAppProj(app, informer, "argocd")
 
 	assert.Nil(t, proj)
+}
+
+func TestGetAppProj_appInDifferentNamespace(t *testing.T) {
+	// AppProject lives in the controller namespace...
+	proj := &unstructured.Unstructured{}
+	proj.SetGroupVersionKind(v1alpha1.AppProjectSchemaGroupVersionKind)
+	proj.SetName("my-proj")
+	proj.SetNamespace("argocd")
+
+	informer := cache.NewSharedIndexInformer(&cache.ListWatch{}, &unstructured.Unstructured{}, 0,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+	require.NoError(t, informer.GetIndexer().Add(proj))
+
+	// ...while the application lives in a different (app) namespace. Keying on the
+	// app namespace would miss the cache; the lookup must use the controller namespace.
+	app := &unstructured.Unstructured{
+		Object: map[string]any{
+			"metadata": map[string]any{"name": "my-app", "namespace": "some-app-ns"},
+			"spec":     map[string]any{"project": "my-proj"},
+		},
+	}
+
+	result := getAppProj(app, informer, "argocd")
+	require.NotNil(t, result)
+	assert.Equal(t, "my-proj", result.GetName())
+	assert.Equal(t, "argocd", result.GetNamespace())
+}
+
+func TestGetAppProj_defaultsToDefaultProject(t *testing.T) {
+	// The 'default' project lives in the controller namespace.
+	proj := &unstructured.Unstructured{}
+	proj.SetGroupVersionKind(v1alpha1.AppProjectSchemaGroupVersionKind)
+	proj.SetName("default")
+	proj.SetNamespace("argocd")
+
+	informer := cache.NewSharedIndexInformer(&cache.ListWatch{}, &unstructured.Unstructured{}, 0,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+	require.NoError(t, informer.GetIndexer().Add(proj))
+
+	// An app with no spec.project belongs to the 'default' project.
+	app := &unstructured.Unstructured{
+		Object: map[string]any{
+			"metadata": map[string]any{"name": "my-app", "namespace": "argocd"},
+			"spec":     map[string]any{},
+		},
+	}
+
+	result := getAppProj(app, informer, "argocd")
+	require.NotNil(t, result)
+	assert.Equal(t, "default", result.GetName())
+}
+
+func TestGetAppProj_doesNotMutateCachedObject(t *testing.T) {
+	// Informer cache objects are shared among goroutines; getAppProj must
+	// return a copy so callers can't mutate the indexed AppProject.
+	proj := &unstructured.Unstructured{}
+	proj.SetGroupVersionKind(v1alpha1.AppProjectSchemaGroupVersionKind)
+	proj.SetName("my-proj")
+	proj.SetNamespace("argocd")
+
+	informer := cache.NewSharedIndexInformer(&cache.ListWatch{}, &unstructured.Unstructured{}, 0,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+	require.NoError(t, informer.GetIndexer().Add(proj))
+
+	app := &unstructured.Unstructured{
+		Object: map[string]any{
+			"metadata": map[string]any{"name": "my-app", "namespace": "argocd"},
+			"spec":     map[string]any{"project": "my-proj"},
+		},
+	}
+
+	result := getAppProj(app, informer, "argocd")
+	require.NotNil(t, result)
+	assert.NotSame(t, proj, result)
+
+	// Mutating the returned object must not leak into the indexed object.
+	result.SetAnnotations(map[string]string{"mutated": "true"})
+
+	cached, ok, err := informer.GetIndexer().GetByKey("argocd/my-proj")
+	require.NoError(t, err)
+	require.True(t, ok)
+	assert.Nil(t, cached.(*unstructured.Unstructured).GetAnnotations(), "indexed AppProject must remain unchanged")
 }
 
 func TestInit(t *testing.T) {

@@ -17,7 +17,7 @@ const (
 	DefaultGlobCacheSize = 10000
 )
 
-type compileFn func(pattern string, separators ...rune) (glob.Glob, error)
+type compileFn func(pattern string, separators ...rune) (*glob.Pattern, error)
 
 var (
 	// globCache stores compiled glob patterns using an LRU cache with bounded size.
@@ -58,18 +58,27 @@ func cacheKey(pattern string, separators ...rune) globCacheKey {
 // unique pattern is compiled exactly once even under concurrent access, while unrelated
 // patterns compile in parallel.
 // lru.Cache.Get() promotes entries (mutating), so a Mutex is used rather than RWMutex.
-func getOrCompile(pattern string, compiler compileFn, separators ...rune) (glob.Glob, error) {
+func getOrCompile(pattern string, compiler compileFn, separators ...rune) (*glob.Pattern, error) {
 	key := cacheKey(pattern, separators...)
 
 	globCacheLock.Lock()
 	if cached, ok := globCache.Get(key); ok {
 		globCacheLock.Unlock()
-		return cached.(glob.Glob), nil
+		return cached.(*glob.Pattern), nil
 	}
 	globCacheLock.Unlock()
 
 	sfKey := key.Pattern + "\x00" + key.Separators
 	v, err, _ := compileGroup.Do(sfKey, func() (any, error) {
+		// Double-check cache: another singleflight call may have populated it
+		// between our cache check and this singleflight registration.
+		globCacheLock.Lock()
+		if cached, ok := globCache.Get(key); ok {
+			globCacheLock.Unlock()
+			return cached.(*glob.Pattern), nil
+		}
+		globCacheLock.Unlock()
+
 		compiled, err := compiler(pattern, separators...)
 		if err != nil {
 			return nil, err
@@ -82,7 +91,7 @@ func getOrCompile(pattern string, compiler compileFn, separators ...rune) (glob.
 	if err != nil {
 		return nil, err
 	}
-	return v.(glob.Glob), nil
+	return v.(*glob.Pattern), nil
 }
 
 // Match tries to match a text with a given glob pattern.
