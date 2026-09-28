@@ -439,7 +439,11 @@ spec:
 * `branchMatch`: A regexp matched against branch names.
 
 > [!NOTE]
-> `repositoryMatch`, `labelMatch`, and `branchMatch` support lookahead/lookbehind assertions (e.g. `(?!...)`, `(?<=...)`) via the [regexp2](https://github.com/dlclark/regexp2) engine, in addition to standard RE2 syntax.
+> Filter patterns are evaluated with the [regexp2](https://github.com/dlclark/regexp2) engine in RE2-compatibility mode. Patterns written for Go's `regexp` syntax keep their meaning, and lookahead/lookbehind assertions such as `^(?!.*-deprecated).*` are also supported.
+>
+> Matching a single value is limited to one second. If a pattern takes longer, generation fails with an error instead of skipping the repository or branch, so no Applications are deleted.
+>
+> A few Go `regexp` constructs behave differently: `\Q...\E` literal quoting and `\p{^Name}` negated Unicode classes are rejected with an error, and `\b` treats non-ASCII letters as word characters.
 
 ## Template
 

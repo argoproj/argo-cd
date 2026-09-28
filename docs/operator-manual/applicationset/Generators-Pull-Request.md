@@ -208,7 +208,7 @@ spec:
 * `project`: Required name of the Bitbucket project
 * `repo`: Required name of the Bitbucket repository.
 * `api`: Required URL to access the Bitbucket REST API. For the example above, an API request would be made to `https://mycompany.bitbucket.org/rest/api/1.0/projects/myproject/repos/myrepository/pull-requests`
-* `branchMatch`: Optional regexp filter which should match the source branch name. This is an alternative to labels which are not supported by Bitbucket server. Supports lookahead/lookbehind assertions (regexp2/.NET-flavored syntax), not just RE2 syntax.
+* `branchMatch`: Optional regexp filter which should match the source branch name. This is an alternative to labels which are not supported by Bitbucket server.
 
 If you want to access a private repository, you must also provide the credentials for Basic auth (this is the only auth supported currently):
 * `username`: The username to authenticate with. It only needs read access to the relevant repo.
@@ -281,9 +281,6 @@ spec:
 You can use branch `filters` like
 - `branchMatch`: Optional regexp filter which should match the source branch name.
 - `targetBranchMatch`: Optional regexp filter which should match destination branch name.
-
-> [!NOTE]
-> `branchMatch` and `targetBranchMatch` (and `titleMatch` below) are compiled with the [regexp2](https://github.com/dlclark/regexp2) engine, which supports lookahead/lookbehind assertions (e.g. `(?!...)`, `(?<=...)`) in addition to standard RE2 syntax.
 
 > [!NOTE]
 > Labels are not supported by Bitbucket.
@@ -369,7 +366,11 @@ spec:
 * `titleMatch`: A regexp matched against Pull Request title.
 
 > [!NOTE]
-> These filters support lookahead/lookbehind assertions (e.g. `(?!...)`, `(?<=...)`) via the [regexp2](https://github.com/dlclark/regexp2) engine, in addition to standard RE2 syntax.
+> Filter patterns are evaluated with the [regexp2](https://github.com/dlclark/regexp2) engine in RE2-compatibility mode. Patterns written for Go's `regexp` syntax keep their meaning, and lookahead/lookbehind assertions such as `^(?!release/).*` are also supported.
+>
+> Matching a single value is limited to one second. If a pattern takes longer, generation fails with an error instead of skipping the pull request, so no Applications are deleted.
+>
+> A few Go `regexp` constructs behave differently: `\Q...\E` literal quoting and `\p{^Name}` negated Unicode classes are rejected with an error, and `\b` treats non-ASCII letters as word characters.
 
 [GitHub](#github) and [GitLab](#gitlab) also support a `labels` filter.
 

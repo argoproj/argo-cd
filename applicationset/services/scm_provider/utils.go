@@ -3,13 +3,12 @@ package scm_provider
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/dlclark/regexp2"
-	log "github.com/sirupsen/logrus"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/regex"
 )
 
 func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]*Filter, error) {
@@ -18,14 +17,14 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 		outFilter := &Filter{}
 		var err error
 		if filter.RepositoryMatch != nil {
-			outFilter.RepositoryMatch, err = regexp2.Compile(*filter.RepositoryMatch, 0)
+			outFilter.RepositoryMatch, err = regex.CompileFilter(*filter.RepositoryMatch)
 			if err != nil {
 				return nil, fmt.Errorf("error compiling RepositoryMatch regexp %q: %w", *filter.RepositoryMatch, err)
 			}
 			outFilter.FilterType = FilterTypeRepo
 		}
 		if filter.LabelMatch != nil {
-			outFilter.LabelMatch, err = regexp2.Compile(*filter.LabelMatch, 0)
+			outFilter.LabelMatch, err = regex.CompileFilter(*filter.LabelMatch)
 			if err != nil {
 				return nil, fmt.Errorf("error compiling LabelMatch regexp %q: %w", *filter.LabelMatch, err)
 			}
@@ -40,7 +39,7 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 			outFilter.FilterType = FilterTypeBranch
 		}
 		if filter.BranchMatch != nil {
-			outFilter.BranchMatch, err = regexp2.Compile(*filter.BranchMatch, 0)
+			outFilter.BranchMatch, err = regex.CompileFilter(*filter.BranchMatch)
 			if err != nil {
 				return nil, fmt.Errorf("error compiling BranchMatch regexp %q: %w", *filter.BranchMatch, err)
 			}
@@ -51,29 +50,39 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 	return outFilters, nil
 }
 
-// matchRegexp reports whether re matches text, treating a match-time error as a non-match.
-func matchRegexp(re *regexp2.Regexp, text string) bool {
-	matched, err := re.MatchString(text)
-	if err != nil {
-		log.Warnf("failed to match pattern %s due to error %v", re.String(), err)
-		return false
-	}
-	return matched
-}
-
 func matchFilter(ctx context.Context, provider SCMProviderService, repo *Repository, filter *Filter) (bool, error) {
-	if filter.RepositoryMatch != nil && !matchRegexp(filter.RepositoryMatch, repo.Repository) {
-		return false, nil
-	}
-
-	if filter.BranchMatch != nil && !matchRegexp(filter.BranchMatch, repo.Branch) {
-		return false, nil
+	for _, m := range []struct {
+		re    *regexp2.Regexp
+		field string
+		text  string
+	}{
+		{filter.RepositoryMatch, "RepositoryMatch", repo.Repository},
+		{filter.BranchMatch, "BranchMatch", repo.Branch},
+	} {
+		if m.re == nil {
+			continue
+		}
+		matched, err := m.re.MatchString(m.text)
+		if err != nil {
+			return false, fmt.Errorf("error matching %s regexp %q: %w", m.field, m.re.String(), err)
+		}
+		if !matched {
+			return false, nil
+		}
 	}
 
 	if filter.LabelMatch != nil {
-		found := slices.ContainsFunc(repo.Labels, func(label string) bool {
-			return matchRegexp(filter.LabelMatch, label)
-		})
+		found := false
+		for _, label := range repo.Labels {
+			matched, err := filter.LabelMatch.MatchString(label)
+			if err != nil {
+				return false, fmt.Errorf("error matching LabelMatch regexp %q: %w", filter.LabelMatch.String(), err)
+			}
+			if matched {
+				found = true
+				break
+			}
+		}
 		if !found {
 			return false, nil
 		}

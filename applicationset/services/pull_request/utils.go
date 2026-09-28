@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/dlclark/regexp2"
-	log "github.com/sirupsen/logrus"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/regex"
 )
 
 func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]*Filter, error) {
@@ -16,19 +16,19 @@ func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]
 		outFilter := &Filter{}
 		var err error
 		if filter.BranchMatch != nil {
-			outFilter.BranchMatch, err = regexp2.Compile(*filter.BranchMatch, 0)
+			outFilter.BranchMatch, err = regex.CompileFilter(*filter.BranchMatch)
 			if err != nil {
 				return nil, fmt.Errorf("error compiling BranchMatch regexp %q: %w", *filter.BranchMatch, err)
 			}
 		}
 		if filter.TargetBranchMatch != nil {
-			outFilter.TargetBranchMatch, err = regexp2.Compile(*filter.TargetBranchMatch, 0)
+			outFilter.TargetBranchMatch, err = regex.CompileFilter(*filter.TargetBranchMatch)
 			if err != nil {
 				return nil, fmt.Errorf("error compiling TargetBranchMatch regexp %q: %w", *filter.TargetBranchMatch, err)
 			}
 		}
 		if filter.TitleMatch != nil {
-			outFilter.TitleMatch, err = regexp2.Compile(*filter.TitleMatch, 0)
+			outFilter.TitleMatch, err = regex.CompileFilter(*filter.TitleMatch)
 			if err != nil {
 				return nil, fmt.Errorf("error compiling TitleMatch regexp %q: %w", *filter.TitleMatch, err)
 			}
@@ -38,28 +38,29 @@ func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]
 	return outFilters, nil
 }
 
-// matchRegexp reports whether re matches text, treating a match-time error as a non-match.
-func matchRegexp(re *regexp2.Regexp, text string) bool {
-	matched, err := re.MatchString(text)
-	if err != nil {
-		log.Warnf("failed to match pattern %s due to error %v", re.String(), err)
-		return false
+func matchFilter(pullRequest *PullRequest, filter *Filter) (bool, error) {
+	for _, m := range []struct {
+		re    *regexp2.Regexp
+		field string
+		text  string
+	}{
+		{filter.BranchMatch, "BranchMatch", pullRequest.Branch},
+		{filter.TargetBranchMatch, "TargetBranchMatch", pullRequest.TargetBranch},
+		{filter.TitleMatch, "TitleMatch", pullRequest.Title},
+	} {
+		if m.re == nil {
+			continue
+		}
+		matched, err := m.re.MatchString(m.text)
+		if err != nil {
+			return false, fmt.Errorf("error matching %s regexp %q: %w", m.field, m.re.String(), err)
+		}
+		if !matched {
+			return false, nil
+		}
 	}
-	return matched
-}
 
-func matchFilter(pullRequest *PullRequest, filter *Filter) bool {
-	if filter.BranchMatch != nil && !matchRegexp(filter.BranchMatch, pullRequest.Branch) {
-		return false
-	}
-	if filter.TargetBranchMatch != nil && !matchRegexp(filter.TargetBranchMatch, pullRequest.TargetBranch) {
-		return false
-	}
-	if filter.TitleMatch != nil && !matchRegexp(filter.TitleMatch, pullRequest.Title) {
-		return false
-	}
-
-	return true
+	return true, nil
 }
 
 func ListPullRequests(ctx context.Context, provider PullRequestService, filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]*PullRequest, error) {
@@ -80,7 +81,10 @@ func ListPullRequests(ctx context.Context, provider PullRequestService, filters 
 	filteredPullRequests := make([]*PullRequest, 0, len(pullRequests))
 	for _, pullRequest := range pullRequests {
 		for _, filter := range compiledFilters {
-			matches := matchFilter(pullRequest, filter)
+			matches, err := matchFilter(pullRequest, filter)
+			if err != nil {
+				return nil, fmt.Errorf("error filtering pull request %d: %w", pullRequest.Number, err)
+			}
 			if matches {
 				filteredPullRequests = append(filteredPullRequests, pullRequest)
 				break
