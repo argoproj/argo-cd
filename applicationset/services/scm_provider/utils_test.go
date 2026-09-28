@@ -324,9 +324,70 @@ func TestFilterMatchErrorFailsGeneration(t *testing.T) {
 				},
 			}
 			repos, err := ListRepos(t.Context(), provider, []argoprojiov1alpha1.SCMProviderGeneratorFilter{tt.filter}, "")
-			require.Error(t, err)
+			require.ErrorContains(t, err, "error matching "+tt.name+` regexp "^(a+)+$"`)
+			require.ErrorContains(t, err, "match timeout")
 			assert.Nil(t, repos)
 		})
+	}
+}
+
+// Labels are tried one after another, so an evaluation error on a later label must still fail generation.
+func TestFilterLabelMatchErrorOnLaterLabel(t *testing.T) {
+	t.Parallel()
+	provider := &MockProvider{
+		Repos: []*Repository{
+			{
+				Repository: "one",
+				Labels:     []string{"plain", strings.Repeat("a", 28) + "!"},
+			},
+		},
+	}
+	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
+		{
+			LabelMatch: new(`^(a+)+$`),
+		},
+	}
+	repos, err := ListRepos(t.Context(), provider, filters, "")
+	require.ErrorContains(t, err, "error matching LabelMatch regexp")
+	assert.Nil(t, repos)
+}
+
+// Every filter field compiles its own pattern, so each one must report a bad or unsupported pattern by field name.
+func TestFilterCompileErrorNamesTheField(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		pattern string
+		wantErr string
+	}{
+		{"malformed pattern", `(`, "error parsing regexp"},
+		{"literal quoting", `^\Qa.b\E$`, "literal quoting is not supported"},
+	}
+	fields := []struct {
+		name   string
+		filter func(pattern string) argoprojiov1alpha1.SCMProviderGeneratorFilter
+	}{
+		{"RepositoryMatch", func(p string) argoprojiov1alpha1.SCMProviderGeneratorFilter {
+			return argoprojiov1alpha1.SCMProviderGeneratorFilter{RepositoryMatch: &p}
+		}},
+		{"LabelMatch", func(p string) argoprojiov1alpha1.SCMProviderGeneratorFilter {
+			return argoprojiov1alpha1.SCMProviderGeneratorFilter{LabelMatch: &p}
+		}},
+		{"BranchMatch", func(p string) argoprojiov1alpha1.SCMProviderGeneratorFilter {
+			return argoprojiov1alpha1.SCMProviderGeneratorFilter{BranchMatch: &p}
+		}},
+	}
+	for _, field := range fields {
+		for _, tt := range tests {
+			t.Run(field.name+"/"+tt.name, func(t *testing.T) {
+				t.Parallel()
+				provider := &MockProvider{Repos: []*Repository{{Repository: "one", Branch: "main", Labels: []string{"prod"}}}}
+				repos, err := ListRepos(t.Context(), provider, []argoprojiov1alpha1.SCMProviderGeneratorFilter{field.filter(tt.pattern)}, "")
+				require.ErrorContains(t, err, "error compiling "+field.name+" regexp")
+				require.ErrorContains(t, err, tt.wantErr)
+				assert.Nil(t, repos)
+			})
+		}
 	}
 }
 

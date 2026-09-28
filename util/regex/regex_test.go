@@ -84,6 +84,33 @@ func TestCompileFilterRejectsLiteralQuoting(t *testing.T) {
 	assert.True(t, got)
 }
 
+func TestHasLiteralQuoting(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		pattern string
+		want    bool
+	}{
+		{"empty pattern", ``, false},
+		{"plain pattern", `^feature/.*$`, false},
+		{"quote pair", `\Qa.b\E`, true},
+		{"quote at the start", `\Qa`, true},
+		{"quote in the middle", `a\Qb`, true},
+		{"Q without a backslash", `aQb`, false},
+		{"lowercase q", `a\qb`, false},
+		{"escaped backslash then Q", `a\\Qb`, false},
+		{"escaped backslash then quote", `a\\\Qb`, true},
+		{"two escaped backslashes then Q", `a\\\\Qb`, false},
+		{"trailing backslash", `abc\`, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, hasLiteralQuoting(tt.pattern))
+		})
+	}
+}
+
 func TestCompileFilterRejectsMalformedPattern(t *testing.T) {
 	t.Parallel()
 	_, err := CompileFilter("(")

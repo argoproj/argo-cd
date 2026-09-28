@@ -207,9 +207,50 @@ func TestFilterMatchErrorFailsGeneration(t *testing.T) {
 				nil,
 			)
 			pullRequests, err := ListPullRequests(t.Context(), provider, []argoprojiov1alpha1.PullRequestGeneratorFilter{tt.filter})
-			require.Error(t, err)
+			require.ErrorContains(t, err, "error filtering pull request 1")
+			require.ErrorContains(t, err, "error matching "+tt.name+` regexp "^(a+)+$"`)
+			require.ErrorContains(t, err, "match timeout")
 			assert.Nil(t, pullRequests)
 		})
+	}
+}
+
+// Every filter field compiles its own pattern, so each one must report a bad or unsupported pattern by field name.
+func TestFilterCompileErrorNamesTheField(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		pattern string
+		wantErr string
+	}{
+		{"malformed pattern", `(`, "error parsing regexp"},
+		{"literal quoting", `^\Qa.b\E$`, "literal quoting is not supported"},
+	}
+	fields := []struct {
+		name   string
+		filter func(pattern string) argoprojiov1alpha1.PullRequestGeneratorFilter
+	}{
+		{"BranchMatch", func(p string) argoprojiov1alpha1.PullRequestGeneratorFilter {
+			return argoprojiov1alpha1.PullRequestGeneratorFilter{BranchMatch: &p}
+		}},
+		{"TargetBranchMatch", func(p string) argoprojiov1alpha1.PullRequestGeneratorFilter {
+			return argoprojiov1alpha1.PullRequestGeneratorFilter{TargetBranchMatch: &p}
+		}},
+		{"TitleMatch", func(p string) argoprojiov1alpha1.PullRequestGeneratorFilter {
+			return argoprojiov1alpha1.PullRequestGeneratorFilter{TitleMatch: &p}
+		}},
+	}
+	for _, field := range fields {
+		for _, tt := range tests {
+			t.Run(field.name+"/"+tt.name, func(t *testing.T) {
+				t.Parallel()
+				provider, _ := NewFakeService(t.Context(), []*PullRequest{{Number: 1, Branch: "one", TargetBranch: "master", Title: "PR one"}}, nil)
+				pullRequests, err := ListPullRequests(t.Context(), provider, []argoprojiov1alpha1.PullRequestGeneratorFilter{field.filter(tt.pattern)})
+				require.ErrorContains(t, err, "error compiling "+field.name+" regexp")
+				require.ErrorContains(t, err, tt.wantErr)
+				assert.Nil(t, pullRequests)
+			})
+		}
 	}
 }
 
