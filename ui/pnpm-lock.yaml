@@ -259,8 +259,8 @@ importers:
         specifier: ^17.12.0
         version: 17.12.0
       html-webpack-plugin:
-        specifier: ^5.6.0
-        version: 5.6.7(webpack@5.110.3)
+        specifier: ^5.6.8
+        version: 5.6.8(webpack@5.110.3)
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@24.12.4)(supports-color@8.1.1)(ts-node@10.9.2(@types/node@24.12.4)(typescript@5.9.3))
@@ -3391,11 +3391,11 @@ packages:
     engines: {node: '>=12'}
     hasBin: true
 
-  html-webpack-plugin@5.6.7:
-    resolution: {integrity: sha512-md+vXtdCAe60s1k6AU3dUyMJnDxUyQAwfwPKoLisvgUF1IXjtlLsk2se54+qfL9Mdm26bbwvjJybpNx48NKRLw==}
+  html-webpack-plugin@5.6.8:
+    resolution: {integrity: sha512-MZmKQcTnhEh1SPSyMiEytIeDZDUoBZVorNHivQGXMASHf/BSGGOrKa2xQ5bGx3TCe1n109ecCt+cpww7wwWhKA==}
     engines: {node: '>=10.13.0'}
     peerDependencies:
-      '@rspack/core': 0.x || 1.x
+      '@rspack/core': 0.x || 1.x || 2.x
       webpack: ^5.20.0
     peerDependenciesMeta:
       '@rspack/core':
@@ -9446,7 +9446,7 @@ snapshots:
       relateurl: 0.2.7
       terser: 5.51.2
 
-  html-webpack-plugin@5.6.7(webpack@5.110.3):
+  html-webpack-plugin@5.6.8(webpack@5.110.3):
     dependencies:
       '@types/html-minifier-terser': 6.1.0
       html-minifier-terser: 6.1.0
