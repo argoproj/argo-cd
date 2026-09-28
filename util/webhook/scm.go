@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"sync"
 
@@ -125,6 +126,56 @@ func Dispatch(parsers []Extractor, r *http.Request) (any, bool, error) {
 	return nil, false, nil
 }
 
+// HandleRequest parses a webhook request with the first parser that can handle
+// it and queues the payload for the handler's workers, writing the HTTP
+// response. Request bodies larger than maxPayloadSizeB are rejected.
+func HandleRequest(w http.ResponseWriter, r *http.Request, parsers []Extractor, maxPayloadSizeB int64, queue chan<- any) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxPayloadSizeB)
+	payload, handled, err := Dispatch(parsers, r)
+	if !handled {
+		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		if errors.Is(err, ErrHMACVerificationFailed) || errors.Is(err, ErrSecretVerificationFailed) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Info("Registry webhook authentication failed")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		// If the error is due to a large payload, return a more user-friendly error message
+		if isParsingPayloadError(err) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Warnf("Webhook processing failed: payload too large or corrupted (limit %v MB): %v", maxPayloadSizeB/1024/1024, err)
+			http.Error(w, fmt.Sprintf("Webhook processing failed: payload must be valid JSON under %v MB", maxPayloadSizeB/1024/1024), http.StatusBadRequest)
+			return
+		}
+
+		status := http.StatusBadRequest
+		if r.Method != http.MethodPost {
+			status = http.StatusMethodNotAllowed
+		}
+		log.Infof("Webhook processing failed: %v", err)
+		http.Error(w, "Webhook processing failed", status)
+		return
+	}
+
+	// Parser claimed the request but produced no payload (e.g. GHCR event that
+	// was intentionally skipped). Acknowledge with 200 and skip the queue.
+	if payload == nil {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	select {
+	case queue <- payload:
+	default:
+		log.Info("Queue is full, discarding webhook payload")
+		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 // StartWorkers starts count goroutines, tracked by wg, that pass each payload
 // read from queue to handle until the queue is closed. A panic in handle is
 // logged with panicMsg and the worker moves on to the next payload.
@@ -137,6 +188,16 @@ func StartWorkers(wg *sync.WaitGroup, count int, queue <-chan any, handle func(a
 			}
 		})
 	}
+}
+
+// isParsingPayloadError returns a bool if the error is parsing payload error
+func isParsingPayloadError(err error) bool {
+	return errors.Is(err, github.ErrParsingPayload) ||
+		errors.Is(err, gitlab.ErrParsingPayload) ||
+		errors.Is(err, gogs.ErrParsingPayload) ||
+		errors.Is(err, bitbucket.ErrParsingPayload) ||
+		errors.Is(err, bitbucketserver.ErrParsingPayload) ||
+		errors.Is(err, azuredevops.ErrParsingPayload)
 }
 
 type azureDevOpsParser struct {

@@ -3,7 +3,6 @@ package webhook
 import (
 	"context"
 	"fmt"
-	"html"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -35,9 +34,11 @@ const panicMsgAppSet = "panic while processing applicationset-controller webhook
 type WebhookHandler struct {
 	sync.WaitGroup // for testing
 	parsers        []webhook.Extractor
-	client         client.Client
-	generators     map[string]generators.Generator
-	queue          chan any
+	// maxWebhookPayloadSizeB is the webhook.maxPayloadSizeMB limit from argocd-cm, in bytes
+	maxWebhookPayloadSizeB int64
+	client                 client.Client
+	generators             map[string]generators.Generator
+	queue                  chan any
 }
 
 type gitGeneratorInfo struct {
@@ -91,9 +92,10 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 			GitLabEvents: []gitlab.Event{gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents},
 			GHCR:         true,
 		}),
-		client:     client,
-		generators: generators,
-		queue:      make(chan any, payloadQueueSize),
+		maxWebhookPayloadSizeB: argocdSettingsMgr.GetMaxWebhookPayloadSize(),
+		client:                 client,
+		generators:             generators,
+		queue:                  make(chan any, payloadQueueSize),
 	}
 
 	webhook.StartWorkers(&webhookHandler.WaitGroup, webhookParallelism, webhookHandler.queue, webhookHandler.HandleEvent, "applicationset-webhook", panicMsgAppSet)
@@ -142,34 +144,7 @@ func (h *WebhookHandler) HandleEvent(payload any) {
 }
 
 func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	payload, handled, err := webhook.Dispatch(h.parsers, r)
-	if !handled {
-		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
-		return
-	}
-	if err != nil {
-		log.Infof("Webhook processing failed: %s", err)
-		status := http.StatusBadRequest
-		if r.Method != http.MethodPost {
-			status = http.StatusMethodNotAllowed
-		}
-		http.Error(w, "Webhook processing failed: "+html.EscapeString(err.Error()), status)
-		return
-	}
-
-	// Parser claimed the request but produced no payload (e.g. GHCR event that
-	// was intentionally skipped). Acknowledge with 200 and skip the queue.
-	if payload == nil {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	select {
-	case h.queue <- payload:
-	default:
-		log.Info("Queue is full, discarding webhook payload")
-		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
-	}
+	webhook.HandleRequest(w, r, h.parsers, h.maxWebhookPayloadSizeB, h.queue)
 }
 
 func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
