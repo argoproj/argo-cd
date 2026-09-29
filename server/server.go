@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"os/exec"
@@ -220,6 +222,10 @@ type ArgoCDServer struct {
 	Shutdown           func()
 	terminateRequested atomic.Bool
 	available          atomic.Bool
+	// gatewayToken identifies requests relayed by this process's own grpc-gateway. The gateway dials
+	// the API server's listener over localhost, so it is otherwise indistinguishable from any other
+	// loopback client, sidecar proxies included.
+	gatewayToken string
 }
 
 type ArgoCDServerOpts struct {
@@ -256,6 +262,10 @@ type ArgoCDServerOpts struct {
 	HydratorEnabled         bool
 	SyncWithReplaceAllowed  bool
 	DisableSwaggerUI        bool
+	EnableSourceIPLogging   bool
+	// TrustedProxies and ClientIPHeader decide which address source IP logging attributes a request to.
+	TrustedProxies []netip.Prefix
+	ClientIPHeader string
 	OTLPAddress             string
 	OTLPInsecure            bool
 	OTLPHeaders             map[string]string
@@ -402,6 +412,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 
 	a := &ArgoCDServer{
 		ArgoCDServerOpts:   opts,
+		gatewayToken:       rand.Text(),
 		ApplicationSetOpts: appsetOpts,
 		log:                logger,
 		settings:           settings,
@@ -832,6 +843,7 @@ func (server *ArgoCDServer) watchSettings() {
 	errorsutil.CheckError(err)
 	prevDexAuthConnectorID := server.settings.DexAuthConnectorID
 	prevGitHubSecret := server.settings.GetWebhookGitHubSecret()
+	prevDockerHubSecret := server.settings.GetWebhookDockerHubSecret()
 	prevGitLabSecret := server.settings.GetWebhookGitLabSecret()
 	prevBitbucketUUID := server.settings.GetWebhookBitbucketUUID()
 	prevBitbucketServerSecret := server.settings.GetWebhookBitbucketServerSecret()
@@ -870,6 +882,10 @@ func (server *ArgoCDServer) watchSettings() {
 		}
 		if prevGitHubSecret != server.settings.GetWebhookGitHubSecret() {
 			log.Infof("github secret modified. restarting")
+			break
+		}
+		if prevDockerHubSecret != server.settings.GetWebhookDockerHubSecret() {
+			log.Infof("dockerhub secret modified, restarting")
 			break
 		}
 		if prevGitLabSecret != server.settings.GetWebhookGitLabSecret() {
@@ -989,8 +1005,13 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 	}
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
+	// Logging the source IP is opt-in: it is personal data in many jurisdictions.
+	var loggingOpts []logging.Option
+	if server.EnableSourceIPLogging {
+		loggingOpts = append(loggingOpts, grpc_util.SourceIPLoggingOption(server.gatewayToken, server.TrustedProxies, server.ClientIPHeader))
+	}
 	sOpts = append(sOpts, grpc.ChainStreamInterceptor(
-		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(server.log)),
+		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(server.log), loggingOpts...),
 		serverMetrics.StreamServerInterceptor(),
 		grpc_auth.StreamServerInterceptor(server.Authenticate),
 		grpc_util.UserAgentStreamServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
@@ -1003,7 +1024,7 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 	))
 	sOpts = append(sOpts, grpc.ChainUnaryInterceptor(
 		bug21955WorkaroundInterceptor,
-		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(server.log)),
+		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(server.log), loggingOpts...),
 		serverMetrics.UnaryServerInterceptor(),
 		grpc_auth.UnaryServerInterceptor(server.Authenticate),
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
@@ -1096,6 +1117,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.enf,
 		a.RepoClientset,
 		a.AppClientset,
+		a.appLister,
 		a.appsetInformer,
 		a.appsetLister,
 		nil,
@@ -1237,7 +1259,20 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	// we use our own Marshaler
 	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler))
 	gwCookieOpts := runtime.WithForwardResponseOption(server.translateGrpcCookieHeader)
-	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts)
+	gwOpts := []runtime.ServeMuxOption{gwMuxOpts, gwCookieOpts}
+	if server.EnableSourceIPLogging {
+		// Tell the interceptors which requests this process's own gateway relayed, and hand over the
+		// address it saw at the HTTP layer. grpc-gateway drops non-standard headers such as X-Real-IP, so
+		// this is the only point they could be read; what it does pass on verbatim is Grpc-Metadata-*,
+		// straight from the caller, which is why the interceptors check the token rather than the metadata.
+		gwOpts = append(gwOpts, runtime.WithMetadata(func(_ context.Context, r *http.Request) metadata.MD {
+			return metadata.Pairs(
+				grpc_util.GatewayTokenMetadataKey, server.gatewayToken,
+				grpc_util.ClientIPMetadataKey, grpc_util.HTTPClientIP(r, server.TrustedProxies, server.ClientIPHeader),
+			)
+		}))
+	}
+	gwmux := runtime.NewServeMux(gwOpts...)
 
 	var handler http.Handler = gwmux
 	if server.EnableGZip {
