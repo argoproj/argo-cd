@@ -10,7 +10,7 @@ approvers:
   - TBD
 
 creation-date: 2026-09-27
-last-updated: 2026-09-27
+last-updated: 2026-09-29
 ---
 
 # Audit Trail of User Actions
@@ -31,8 +31,9 @@ Related issues: [#29877](https://github.com/argoproj/argo-cd/issues/29877),
    log stream be the only interface?
 3. **Schema.** Should the record format follow an existing schema, for example the Kubernetes `audit.k8s.io/v1`
    `Event` or the OpenTelemetry log data model, rather than an Argo CD specific one?
-4. **Internal transport (Phase 2).** Shared token or mTLS between `argocd-server` and the audit controller,
+4. **Internal transport (Phase 2).** Shared token or mTLS between the Argo CD components and the audit controller,
    following what the repo server and commit server do?
+5. **Webhooks.** Should `/api/webhook` deliveries be recorded for every delivery, or only when they cause a refresh?
 
 ## Summary
 
@@ -131,7 +132,8 @@ Each record is a single JSON object:
   project tokens, `unauthenticated` for missing or invalid credentials, or `system:<component>` for controllers.
 - `action` is `<resource type>.<rpc name>` (for example `application.sync`, `cluster.rotate-auth`), so new RPCs are
   covered without a mapping table.
-- `result.code` is the gRPC status code for API calls, or the event reason for controller records.
+- `result.code` is the gRPC status code for API calls, the HTTP status for HTTP-only endpoints (SSO login and
+  logout, webhooks), or the operation phase for controller records.
 
 ### Phase 1: audit records from `argocd-server`
 
@@ -139,8 +141,16 @@ A gRPC unary interceptor in `argocd-server` builds a record for every audited ca
 because grpc-gateway turns REST calls into gRPC calls.
 
 - **Which calls.** RPCs whose names start with `Create`, `Update`, `Patch`, `Delete`, `Sync`, `Rollback`,
-  `Terminate`, `RunResourceAction`, `UpdatePassword`, `RotateAuth` or `InvalidateCache`, plus session login and
-  logout. Everything else is read-only and not recorded.
+  `Terminate`, `RunResourceAction`, `UpdatePassword`, `RotateAuth` or `InvalidateCache`, plus local-account login
+  (`SessionService/Create`) and `SessionService/Delete`. Everything else is read-only and not recorded.
+- **Endpoints outside gRPC.** Some actions don't go through gRPC, so the interceptor never sees them. Each one gets
+  an explicit audit call:
+  - SSO login: the OIDC callback handler (`/auth/callback`) records a successful login with the claims it
+    established, and a failed one with the reason (invalid state, token exchange or verification failure).
+  - Logout: the `/auth/logout` handler records who logged out.
+  - Webhooks: the `/api/webhook` handler records each delivery with the provider, the event, the repository
+    (credentials redacted), whether the signature was valid, and which applications were refreshed. The actor is
+    `system:webhook` with the sender's source address, because webhooks carry no Argo CD identity.
 - **Identity.** The interceptor is installed before the authentication interceptor, so calls rejected by
   authentication are recorded too. A second interceptor after authentication captures the claims. When anonymous
   access is enabled and an invalid token is downgraded to anonymous, the record says so instead of showing a plain
@@ -152,37 +162,40 @@ because grpc-gateway turns REST calls into gRPC calls.
 - **Output.** Records are written as JSON lines to a dedicated logger, to standard output with `"kind":"AuditRecord"`,
   or optionally to a file. They are kept apart from the server's operational log format and level, so a log level
   change cannot turn auditing off.
-- **Controller operations.** The application controller already emits Kubernetes Events when it starts and completes
-  an operation. The `OperationCompleted` event is extended to carry the user who initiated the operation. Phase 1
-  documents how to collect these events; Phase 2 turns them into audit records.
+- **Controller operations.** The application and ApplicationSet controllers already report what they do through
+  `argo.AuditLogger` (automated sync started, operation completed, resource action ran...), which today only turns
+  those calls into Kubernetes Events. `AuditLogger` gains an audit sink: every such call also produces an audit
+  record, whether or not Kubernetes Events are enabled with `--enable-k8s-event`, and even if creating the Event
+  fails. The record is attributed to `system:<controller>`, or to the user who initiated the operation (taken from
+  the operation's `initiatedBy`). Kubernetes Events are not an input to the audit trail at all, so there is nothing
+  to watch, checkpoint or replay.
 
-Phase 1 needs no new component and could ship on its own.
+Phase 1 needs no new component and could ship on its own. Each component writes its own records to its own log.
 
 ### Phase 2: `argocd-audit-controller`
 
-A new, optional component becomes the single place the audit trail is written:
+A new, optional component becomes the single place the audit trail is written. It is only a sink: it receives
+records and writes them out, and does not read anything from the cluster.
 
-- `argocd-server` ships its records to the audit controller asynchronously, in batches, over an authenticated
-  internal endpoint, instead of logging them itself. The queue is bounded. If the controller cannot be reached after
-  retries, or the queue is full, the server writes the records to its own log with a distinct message, so they are
-  not lost and API calls are never blocked.
-- The audit controller watches the Kubernetes Events Argo CD emits for `Application`, `ApplicationSet` and
-  `AppProject` objects (reasons `OperationStarted`, `OperationCompleted`, `ResourceActionRan`, ...) and turns them
-  into records. It stores a checkpoint (the last processed event resource version) in a ConfigMap, so events that
-  happen while it restarts are processed on start-up instead of being skipped, and events are not recorded twice.
+- `argocd-server` and the controllers ship the records Phase 1 produces to the audit controller asynchronously, in
+  batches, over an authenticated internal endpoint, instead of logging them themselves. The queue is bounded. If the
+  audit controller cannot be reached after retries, or the queue is full, the component writes the records to its own
+  log with a distinct message, so they are not lost and API calls and reconciliation are never blocked.
 - It writes each record as one JSON line to standard output, and optionally to a file on a persistent volume.
   Standard output is the source of truth: if an optional output fails, the record is still accepted and the failure is
-  counted in a metric, so the server does not retry and duplicate it. Records carry an ID, so consumers can drop the
-  rare duplicate after a retry.
-- It exposes Prometheus metrics: records written by source, action and result; write errors; rejected ingest
-  requests; and events processed by outcome.
+  counted in a metric, so the sender does not retry and duplicate it.
+- Delivery is at least once. Every record carries a unique ID assigned by the component that produced it, so a batch
+  retried after a lost response can be de-duplicated by consumers, or by the audit controller itself within a
+  bounded window.
+- It exposes Prometheus metrics: records written by source, action and result; write errors; and rejected ingest
+  requests.
 - Optionally (Open Question 2), it serves recent records on an API gated by Argo CD RBAC.
 
 ```text
-             mutating API calls,
- users ──► argocd-server ── terminal sessions ──► argocd-audit-controller ──► stdout (pod log)
-                                                          ▲              ├─► optional file
- argocd-application-controller ── Kubernetes Events ──────┘              └─► /metrics
+ users, SSO, webhooks ──► argocd-server ──────────────┐
+                                                      ├─► argocd-audit-controller ──► stdout (pod log)
+ argocd-application-controller ───────────────────────┤                           ├─► optional file
+ argocd-applicationset-controller ────────────────────┘                           └─► /metrics
 ```
 
 ### Implementation Details/Notes/Constraints
@@ -190,14 +203,18 @@ A new, optional component becomes the single place the audit trail is written:
 - **Configuration.** Phase 1: `server.audit.enabled` (and optionally `server.audit.log.file`) in
   `argocd-cmd-params-cm`. Phase 2: `server.audit.controller.address`, plus `auditcontroller.*` keys for the controller.
 - **Manifests.** Phase 2 adds `manifests/base/audit-controller` and an `install-with-audit.yaml` variant, like
-  `install-with-hydrator.yaml`. The controller only needs `get`, `list` and `watch` on `events` in the namespaces it
-  watches.
+  `install-with-hydrator.yaml`. The audit controller needs no Kubernetes API permissions, because it does not read
+  from the cluster.
+- **Existing bug.** `AuditLogger.LogAppProjEvent` prepares the `user` annotation but passes `nil` when creating the
+  Event, so AppProject events never say who made the change. This is fixed independently of this proposal, and the
+  audit record for project changes comes from the API call anyway.
 - **Binary.** The audit controller is another entry point of the existing `argocd` binary, like the other components.
 - **Prototype.** A prototype of both phases exists on
   [ChathushkaRodrigo/argo-cd@feature/audit-trail-controller](https://github.com/ChathushkaRodrigo/argo-cd/tree/feature/audit-trail-controller).
-  It is for discussion only. Its automated review found issues this proposal addresses: redacting credentials in
-  repository URLs, not skipping events across restarts, not duplicating records when an optional output fails,
-  recording every refused terminal session, and distinguishing a downgraded invalid token from anonymous access.
+  It is for discussion only, and it still watches Kubernetes Events, which this revision drops. Its automated review
+  found issues this proposal addresses: redacting credentials in repository URLs, not duplicating records when an
+  optional output fails, recording every refused terminal session, and distinguishing a downgraded invalid token from
+  anonymous access.
 
 ### Detailed examples
 
@@ -219,13 +236,13 @@ kubectl -n argocd logs deploy/argocd-server --since=24h \
   | jq -r 'select(.kind == "AuditRecord" and .verb == "delete") | [.timestamp, .actor.username, .resource.type, .resource.name, .result.status] | @tsv'
 ```
 
-An automated sync, recorded from the controller's event in Phase 2:
+An automated sync, recorded by the application controller:
 
 ```json
-{"kind": "AuditRecord", "source": "kubernetes-event",
+{"kind": "AuditRecord", "source": "argocd-application-controller",
  "actor": {"username": "system:argocd-application-controller"},
  "action": "application.operation-started", "resource": {"type": "application", "name": "guestbook", "namespace": "argocd"},
- "details": {"automated": "true"}, "result": {"status": "success", "code": "OperationStarted"}}
+ "details": {"automated": "true"}, "result": {"status": "success", "code": "Running"}}
 ```
 
 ### Security Considerations
@@ -238,7 +255,9 @@ An automated sync, recorded from the controller's event in Phase 2:
   The feature is opt-in and the documentation says so.
 - **Spoofing.** The client address honours only configured trusted proxies. Records are JSON-encoded, so user input
   such as application names cannot inject fake log lines.
-- **Phase 2 endpoint.** The ingest endpoint only accepts records from `argocd-server` (shared token or mTLS, and a
+- **Webhooks.** Webhook deliveries are recorded even when their signature is invalid, which makes forged or
+  misconfigured webhooks visible. Payloads are never recorded.
+- **Phase 2 endpoint.** The ingest endpoint only accepts records from Argo CD components (shared token or mTLS, and a
   NetworkPolicy). Rejected attempts are counted in a metric so they can be alerted on. Request size and records per
   request are bounded.
 - **Availability.** The in-memory queue is bounded and batches are capped, so a slow or unavailable audit controller
@@ -248,8 +267,10 @@ An automated sync, recorded from the controller's event in Phase 2:
 
 - **Log volume.** Only mutating calls are recorded, so the volume is small compared to request logs. Busy CI pipelines
   that sync often produce one record per sync.
-- **Lost records.** Phase 1 writes synchronously to a local stream. In Phase 2, records the server cannot deliver are
-  written to its own log. The controller's checkpoint covers controller events across restarts.
+- **Lost records.** Phase 1 writes synchronously to a local stream. In Phase 2, records a component cannot deliver
+  are written to its own log. Controller records don't depend on Kubernetes Events, so turning Events off or a failed
+  Event write loses nothing.
+- **Duplicates.** Phase 2 delivery is at least once. Record IDs let consumers drop duplicates.
 - **New RPCs.** Classification by RPC name prefix covers new mutating RPCs that follow the existing naming
   conventions. A unit test lists every registered RPC and fails when a new one is neither audited nor explicitly
   marked read-only.
@@ -272,8 +293,10 @@ records to its own log, with a warning.
 1. **Improve the existing request logs.** Add the user and result to every gRPC log line. This is cheaper, but the
    audit trail stays mixed with operational logs, depends on the log level, and still lacks denied and rejected calls
    in a structured form. Phase 1 is close to this alternative, with a dedicated stream instead.
-2. **Rely on Kubernetes Events.** Events expire (one hour by default), are not emitted for every mutating call, and
-   are not a durable record.
+2. **Rely on Kubernetes Events.** Events expire (one hour by default), are not emitted for every mutating call, can
+   be turned off with `--enable-k8s-event`, and a failed Event write is only logged. Reading controller actions back
+   from Events (as the first draft of this proposal did) also needs a checkpoint to survive restarts and still
+   cannot recover an Event that was never written.
 3. **Rely on the Kubernetes API server audit log.** It names Argo CD's service account instead of the Argo CD user
    and does not see requests Argo CD rejects.
 4. **Export audit records through OpenTelemetry logs.** Argo CD already exports traces via OTLP. Audit records could
