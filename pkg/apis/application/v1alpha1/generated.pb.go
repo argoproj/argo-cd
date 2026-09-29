@@ -16591,6 +16591,15 @@ func (m *SuccessfulHydrateOperation) MarshalToSizedBuffer(dAtA []byte) (int, err
 	_ = i
 	var l int
 	_ = l
+	if len(m.HydratedGroupApps) > 0 {
+		for iNdEx := len(m.HydratedGroupApps) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.HydratedGroupApps[iNdEx])
+			copy(dAtA[i:], m.HydratedGroupApps[iNdEx])
+			i = encodeVarintGenerated(dAtA, i, uint64(len(m.HydratedGroupApps[iNdEx])))
+			i--
+			dAtA[i] = 0x42
+		}
+	}
 	{
 		size, err := m.SourceHydrator.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
@@ -21177,6 +21186,12 @@ func (m *SuccessfulHydrateOperation) Size() (n int) {
 	n += 1 + l + sovGenerated(uint64(l))
 	l = m.SourceHydrator.Size()
 	n += 1 + l + sovGenerated(uint64(l))
+	if len(m.HydratedGroupApps) > 0 {
+		for _, s := range m.HydratedGroupApps {
+			l = len(s)
+			n += 1 + l + sovGenerated(uint64(l))
+		}
+	}
 	return n
 }
 
@@ -24286,6 +24301,7 @@ func (this *SuccessfulHydrateOperation) String() string {
 		`DrySHA:` + fmt.Sprintf("%v", this.DrySHA) + `,`,
 		`HydratedSHA:` + fmt.Sprintf("%v", this.HydratedSHA) + `,`,
 		`SourceHydrator:` + strings.Replace(strings.Replace(this.SourceHydrator.String(), "SourceHydrator", "SourceHydrator", 1), `&`, ``, 1) + `,`,
+		`HydratedGroupApps:` + fmt.Sprintf("%v", this.HydratedGroupApps) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -59103,6 +59119,38 @@ func (m *SuccessfulHydrateOperation) Unmarshal(dAtA []byte) error {
 			if err := m.SourceHydrator.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HydratedGroupApps", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.HydratedGroupApps = append(m.HydratedGroupApps, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

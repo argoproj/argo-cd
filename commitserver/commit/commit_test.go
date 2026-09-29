@@ -424,11 +424,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.EXPECT().CheckoutOrNew(mock.Anything, "main", "env/test", false).Return("", nil).Once()
 		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything, mock.Anything).Return(strnote, nil).Once()
 		mockGitClient.EXPECT().CommitSHA(mock.Anything).Return("hydrated-sha-before-new-path", nil).Once()
-		// Check first path - exists and unchanged
-		mockGitClient.EXPECT().HasFileChanged(mock.Anything, "app1/manifest.yaml").Return(false, nil).Once()
-		// Check second path - new path (file changed = true means new or modified)
-		mockGitClient.EXPECT().HasFileChanged(mock.Anything, "app2/manifest.yaml").Return(true, nil).Once()
-		// Since a new path is detected, proceed with full WriteForPaths
+		// app1 is an existing, unchanged path; app2 is the new path added to this batch.
 		mockGitClient.EXPECT().HasFileChanged(mock.Anything, "app1/manifest.yaml").Return(false, nil).Once()
 		mockGitClient.EXPECT().HasFileChanged(mock.Anything, "app2/manifest.yaml").Return(true, nil).Once()
 		mockGitClient.EXPECT().Commit("test commit message", "").Return("", nil).Once()
@@ -649,17 +645,6 @@ func newServiceWithMocksAndSigning(t *testing.T, signingConfig *gpgsign.Config) 
 	service.repoClientFactory = mockRepoClientFactory
 
 	return service, mockRepoClientFactory
-}
-
-func Test_allHydratedManifestsUnchanged(t *testing.T) {
-	t.Run("empty paths list", func(t *testing.T) {
-		mockGitClient := gitmocks.NewClient(t)
-		paths := []*apiclient.PathDetails{}
-
-		result, err := allHydratedManifestsUnchanged(t.Context(), mockGitClient, paths)
-		require.NoError(t, err)
-		assert.True(t, result, "Should return true when paths list is empty")
-	})
 }
 
 // Test_CommitHydratedManifests_Signing_FullFlow drives the whole signed

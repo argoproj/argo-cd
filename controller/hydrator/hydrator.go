@@ -275,6 +275,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 
 	logCtx.Debug("Successfully hydrated apps")
 	finishedAt := metav1.Now()
+	groupApps := hydrationGroupAppNames(apps)
 	for _, app := range apps {
 		origApp := app.DeepCopy()
 		operation := &appv1.HydrateOperation{
@@ -289,9 +290,10 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 		app.Status.SourceHydrator.CurrentOperation = operation
 		app.Status.SourceHydrator.LastComparedDryRevision = drySHA
 		app.Status.SourceHydrator.LastSuccessfulOperation = &appv1.SuccessfulHydrateOperation{
-			DrySHA:         drySHA,
-			HydratedSHA:    hydratedSHA,
-			SourceHydrator: app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
+			DrySHA:            drySHA,
+			HydratedSHA:       hydratedSHA,
+			SourceHydrator:    app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
+			HydratedGroupApps: groupApps,
 		}
 		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 		h.dependencies.RemoveHydrationAnnotations(origApp)
@@ -455,10 +457,11 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 	logCtx = logCtx.WithFields(log.Fields{"drySha": targetRevision})
 
 	// De-dupe check: Skip hydration only if all apps have already been hydrated with this drySha under
-	// their current hydrator config. We must check every app individually and if any app needs hydration,
-	// we must proceed.
+	// their current hydrator config, as part of exactly this set of apps. We must check every app
+	// individually and if any app needs hydration, we must proceed.
 	if len(apps) > 0 {
 		allAppsAlreadyHydrated := true
+		currentGroupApps := hydrationGroupAppNames(apps)
 
 		for _, app := range apps {
 			if app.Status.SourceHydrator.LastSuccessfulOperation == nil {
@@ -468,8 +471,11 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 
 			lastDrySHA := app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
 			lastConfig := app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator
+			lastGroupApps := app.Status.SourceHydrator.LastSuccessfulOperation.HydratedGroupApps
 
-			if targetRevision != lastDrySHA || !app.Spec.SourceHydrator.DeepEquals(lastConfig) {
+			// The dry SHA and config comparisons catch changes to this app; comparing the recorded
+			// group membership catches an app being added to or removed from the group
+			if targetRevision != lastDrySHA || !app.Spec.SourceHydrator.DeepEquals(lastConfig) || !slices.Equal(lastGroupApps, currentGroupApps) {
 				allAppsAlreadyHydrated = false
 				break
 			}
@@ -750,6 +756,18 @@ func genericHydrationError(validationErrors map[string]error) error {
 		remainder = fmt.Sprintf("and %d more have errors", len(keys)-1)
 	}
 	return fmt.Errorf("cannot hydrate because application %s %s", keys[0], remainder)
+}
+
+// hydrationGroupAppNames returns the sorted, qualified names of every app in a hydration group, suitable
+// for recording on SuccessfulHydrateOperation.HydratedGroupApps or comparing against a previously recorded
+// set to detect a membership change (an app added to or removed from the group).
+func hydrationGroupAppNames(apps []*appv1.Application) []string {
+	names := make([]string, 0, len(apps))
+	for _, app := range apps {
+		names = append(names, app.QualifiedName())
+	}
+	slices.Sort(names)
+	return names
 }
 
 // IsRootPath returns whether the path references a root path

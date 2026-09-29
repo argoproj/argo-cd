@@ -5826,6 +5826,14 @@ spec:
                         description: DrySHA holds the resolved revision (sha) of the
                           dry source as of the most recent reconciliation
                         type: string
+                      hydratedGroupApps:
+                        description: |-
+                          HydratedGroupApps holds the qualified names of every app committed together as of this operation, so a
+                          membership change (an app added to or removed from the group) can be detected without inferring it from
+                          git state.
+                        items:
+                          type: string
+                        type: array
                       hydratedSHA:
                         description: HydratedSHA holds the resolved revision (sha)
                           of the hydrated source as of the most recent reconciliation

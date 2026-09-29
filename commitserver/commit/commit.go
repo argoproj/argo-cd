@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/argoproj/pkg/v2/sync"
@@ -173,15 +172,7 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 	}
 	// short-circuit if already hydrated
 	if isHydrated {
-		// Check if all requested paths are present in the existing hydrated commit
-		// If a new app is created with a path that was not part of the previous hydration, we need to proceed to full WriteForPaths
-		allPresent, err := allHydratedManifestsUnchanged(ctx, gitClient, r.Paths)
-		if err != nil {
-			logCtx.WithError(err).Warn("Failed to perform path existence check; will proceed to full WriteForPaths")
-		} else if allPresent {
-			logCtx.Debugf("this dry sha %s is already hydrated", r.DrySha)
-			return "", hydratedSha, nil
-		}
+		logCtx.Debugf("this dry sha %s is already hydrated", r.DrySha)
 	}
 
 	logCtx.Debug("Writing manifests")
@@ -190,12 +181,14 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
 	if !shouldCommit {
-		// Manifests did not change, so we don't need to create a new commit.
-		// Add a git note to track that this dry SHA has been processed, and return the existing hydrated SHA.
-		logCtx.Debug("Adding commit note")
-		err = AddNote(ctx, gitClient, r.DrySha, hydratedSha)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to add commit note: %w", err)
+		// Manifests did not change, so we don't need to create a new commit. If the note on this commit
+		// doesn't already reflect this dry SHA, add it so future requests can short-circuit here too.
+		if !isHydrated {
+			logCtx.Debug("Adding commit note")
+			err = AddNote(ctx, gitClient, r.DrySha, hydratedSha)
+			if err != nil {
+				return "", "", fmt.Errorf("failed to add commit note: %w", err)
+			}
 		}
 		return "", hydratedSha, nil
 	}
@@ -322,24 +315,4 @@ func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apicl
 	}
 
 	return gitClient, dirPath, cleanupOrLog, nil
-}
-
-// allHydratedManifestsUnchanged checks whether all requested paths already have
-// an unchanged `manifest.yaml` in the current working tree (i.e. the hydrated commit).
-// It returns true when all hydrated manifests exist and are unchanged, false if any
-// are missing or changed, or an error if the git client failed to query the tree.
-func allHydratedManifestsUnchanged(ctx context.Context, gitClient git.Client, paths []*apiclient.PathDetails) (bool, error) {
-	for _, p := range paths {
-		manifestPath := filepath.Join(p.Path, ManifestYaml)
-		changed, err := gitClient.HasFileChanged(ctx, manifestPath)
-		if err != nil {
-			return false, err
-		}
-		// HasFileChanged returns true when the file is new or changed; if any
-		// manifest is new/changed, we must run the full WriteForPaths flow.
-		if changed {
-			return false, nil
-		}
-	}
-	return true, nil
 }

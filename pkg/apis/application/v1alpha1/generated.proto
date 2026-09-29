@@ -2807,6 +2807,11 @@ message SuccessfulHydrateOperation {
 
   // SourceHydrator holds the hydrator config used for the hydrate operation
   optional SourceHydrator sourceHydrator = 7;
+
+  // HydratedGroupApps holds the qualified names of every app committed together as of this operation, so a
+  // membership change (an app added to or removed from the group) can be detected without inferring it from
+  // git state.
+  repeated string hydratedGroupApps = 8;
 }
 
 // SyncOperation contains details about a sync operation.

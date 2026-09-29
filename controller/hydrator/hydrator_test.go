@@ -1543,9 +1543,10 @@ func TestHydrator_hydrate_DeDupe_Success(t *testing.T) {
 	app1 := newTestApp("app1")
 	app2 := newTestApp("app2")
 	lastSuccessfulOperation := &v1alpha1.SuccessfulHydrateOperation{
-		DrySHA:         "sha123",
-		HydratedSHA:    "hydrated123",
-		SourceHydrator: *app1.Spec.SourceHydrator,
+		DrySHA:            "sha123",
+		HydratedSHA:       "hydrated123",
+		SourceHydrator:    *app1.Spec.SourceHydrator,
+		HydratedGroupApps: []string{app1.QualifiedName(), app2.QualifiedName()},
 	}
 	app1.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
 		LastSuccessfulOperation: lastSuccessfulOperation,
@@ -1569,6 +1570,118 @@ func TestHydrator_hydrate_DeDupe_Success(t *testing.T) {
 	assert.Equal(t, "sha123", sha)
 	assert.Equal(t, "hydrated123", hydratedSha)
 	assert.Empty(t, errs)
+}
+
+// TestHydrator_hydrate_DeDupe_ConfigChanged ensures that a change in the source hydrator
+// configuration triggers a re-hydration even if the dry SHA remains the same.
+func TestHydrator_hydrate_DeDupe_ConfigChanged(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+
+	app := newTestApp("app1")
+	lastConfig := *app.Spec.SourceHydrator
+	lastConfig.DrySource.Helm = &v1alpha1.ApplicationSourceHelm{ReleaseName: "old-release"}
+	app.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
+		LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
+			DrySHA:            "abc123", // matches the revision expectSuccessfulHydratePipeline's GetRepoObjs stub returns
+			HydratedSHA:       "stale-hydrated-sha",
+			SourceHydrator:    lastConfig,
+			HydratedGroupApps: []string{app.QualifiedName()},
+		},
+	}
+
+	apps := []*v1alpha1.Application{app}
+	proj := newTestProject()
+	projects := map[string]*v1alpha1.AppProject{app.Spec.Project: proj}
+
+	h := &Hydrator{dependencies: d, repoGetter: r, commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc}, repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc}}
+
+	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "main", proj).
+		Return(nil, &repoclient.ManifestResponse{Revision: "abc123"}, nil).Once()
+	r.EXPECT().GetRepository(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
+	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(nil, nil).Once()
+	d.EXPECT().GetWriteCredentials(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
+	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil).Once()
+	d.EXPECT().GetHydratorReadmeMessageTemplate().Return("readme message", nil).Once()
+	d.EXPECT().GetCommitAuthorName().Return("", nil).Once()
+	d.EXPECT().GetCommitAuthorEmail().Return("", nil).Once()
+	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).
+		Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "def456"}, nil).Once()
+
+	logCtx := log.NewEntry(log.StandardLogger())
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, apps, projects)
+
+	require.NoError(t, err)
+	assert.Equal(t, "abc123", sha)
+	assert.Equal(t, "def456", hydratedSha, "must re-hydrate instead of reusing the stale hydratedSHA when the hydrator config changed")
+	assert.Empty(t, errs)
+}
+
+// TestHydrator_hydrate_DeDupe_NewAppAddedToGroup ensures that when a new app is added to an existing hydration group,
+// the entire group is re-hydrated, even if the existing apps have unchanged dry SHA and hydrator config.
+func TestHydrator_hydrate_DeDupe_NewAppAddedToGroup(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+
+	app1 := newTestApp("app1")
+	app1.Spec.SourceHydrator.SyncSource.Path = "app1"
+	app1.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
+		LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
+			DrySHA:            "abc123",
+			HydratedSHA:       "stale-hydrated-sha",
+			SourceHydrator:    *app1.Spec.SourceHydrator,
+			HydratedGroupApps: []string{app1.QualifiedName()}, // previously hydrated alone
+		},
+	}
+	// app2 is brand new: no prior hydration status at all.
+	app2 := newTestApp("app2")
+	app2.Spec.SourceHydrator.SyncSource.Path = "app2"
+
+	apps := []*v1alpha1.Application{app1, app2}
+	proj := newTestProject()
+	projects := map[string]*v1alpha1.AppProject{app1.Spec.Project: proj}
+
+	h := &Hydrator{dependencies: d, repoGetter: r, commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc}, repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc}}
+
+	// apps[0] resolves the dry SHA using its own target revision ("main"); apps[1:] are then re-fetched
+	// pinned to that already-resolved SHA so every app in the batch hydrates from the same revision.
+	d.EXPECT().GetRepoObjs(mock.Anything, mock.Anything, mock.Anything, "main", proj).
+		Return(nil, &repoclient.ManifestResponse{Revision: "abc123"}, nil).Once()
+	d.EXPECT().GetRepoObjs(mock.Anything, mock.Anything, mock.Anything, "abc123", proj).
+		Return(nil, &repoclient.ManifestResponse{Revision: "abc123"}, nil).Once()
+	r.EXPECT().GetRepository(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
+	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(nil, nil).Once()
+	d.EXPECT().GetWriteCredentials(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
+	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil).Once()
+	d.EXPECT().GetHydratorReadmeMessageTemplate().Return("readme message", nil).Once()
+	d.EXPECT().GetCommitAuthorName().Return("", nil).Once()
+	d.EXPECT().GetCommitAuthorEmail().Return("", nil).Once()
+
+	var committedPaths []string
+	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).
+		Run(func(_ context.Context, in *commitclient.CommitHydratedManifestsRequest, _ ...grpc.CallOption) {
+			for _, p := range in.Paths {
+				committedPaths = append(committedPaths, p.Path)
+			}
+		}).
+		Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "def456"}, nil).Once()
+
+	logCtx := log.NewEntry(log.StandardLogger())
+	sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, apps, projects)
+
+	require.NoError(t, err)
+	assert.Equal(t, "abc123", sha)
+	assert.Equal(t, "def456", hydratedSha, "must re-hydrate the whole group instead of reusing app1's stale hydratedSHA")
+	assert.Empty(t, errs)
+	assert.ElementsMatch(t, []string{"app1", "app2"}, committedPaths, "the new app's path must be included in the same commit")
 }
 
 func Test_newRevisionHasChanges(t *testing.T) {
