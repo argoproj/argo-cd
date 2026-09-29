@@ -75,7 +75,7 @@
     "@types/js-yaml": "^4.0.9",
     "@types/lodash-es": "^4.17.6",
     "@types/minimatch": "^6.0.0",
-    "@types/node": "^24.10.1",
+    "@types/node": "^26.6.3",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/react-helmet": "^6.1.6",
