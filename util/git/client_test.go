@@ -1411,7 +1411,7 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 		err := runCmd(t.Context(), client.Root(), "git", "remote", "set-url", "origin", "file:///nonexistent/repo.git")
 		require.NoError(t, err)
 
-		err = client.AddAndPushNote(t.Context(), sha, "permanent-failure", "note")
+		err = client.AddAndPushNote(sha, "permanent-failure", "note")
 		require.Error(t, err)
 		assert.True(t, strings.HasPrefix(err.Error(), "failed to push note: `git push"),
 			"expected a single unqualified prefix, got: %s", err.Error())
@@ -1430,7 +1430,7 @@ exit 1
 		require.NoError(t, os.WriteFile(filepath.Join(remoteDir, "hooks", "pre-receive"), []byte(hook), 0o755))
 		require.NoError(t, runCmd(t.Context(), client.Root(), "git", "remote", "set-url", "origin", "file://"+remoteDir))
 
-		err := client.AddAndPushNote(t.Context(), sha, "exhausted", "note")
+		err := client.AddAndPushNote(sha, "exhausted", "note")
 		require.Error(t, err)
 		matches := regexp.MustCompile(`^failed to push note after (\d+) attempts: `).FindStringSubmatch(err.Error())
 		require.Len(t, matches, 2, "unexpected error format: %s", err.Error())
