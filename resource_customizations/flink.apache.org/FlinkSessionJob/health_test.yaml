@@ -1,0 +1,33 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: RUNNING
+  inputPath: testdata/healthy_running.yaml
+- healthStatus:
+    status: Healthy
+    message: FINISHED
+  inputPath: testdata/healthy_finished.yaml
+- healthStatus:
+    status: Progressing
+    message: RECONCILING
+  inputPath: testdata/progressing_reconciling.yaml
+- healthStatus:
+    status: Progressing
+    message: CREATED
+  inputPath: testdata/progressing_created.yaml
+- healthStatus:
+    status: Suspended
+    message: SUSPENDED
+  inputPath: testdata/suspended.yaml
+- healthStatus:
+    status: Degraded
+    message: "Job submission failed: Could not find a registered TaskManager"
+  inputPath: testdata/degraded_failed.yaml
+- healthStatus:
+    status: Degraded
+    message: "Session cluster not found: flink-session-cluster"
+  inputPath: testdata/degraded_error.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for FlinkSessionJob to be reconciled
+  inputPath: testdata/progressing_no_status.yaml

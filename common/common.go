@@ -141,7 +141,7 @@ const (
 	// SP tokens are valid for 60 minutes, so cache for 59 minutes to avoid issues with token expiration when taking the cleanup interval of 1 minute into account
 	AzureServicePrincipalCredsExpirationDuration = time.Minute * 59
 
-	// PasswordPatten is the default password patten
+	// PasswordPatten is the default password pattern
 	PasswordPatten = `^.{8,32}$`
 
 	// LegacyShardingAlgorithm is the default value for Sharding Algorithm it uses an `uid` based distribution (non-uniform)
@@ -247,6 +247,14 @@ const (
 	// AnnotationKeyAppSkipReconcile tells the Application to skip the Application controller reconcile.
 	// Skip reconcile when the value is "true" or any other string values that can be strconv.ParseBool() to be true.
 	AnnotationKeyAppSkipReconcile = "argocd.argoproj.io/skip-reconcile"
+
+	// AnnotationKeyIgnoreDifferences allows resources to specify ignore-differences rules as inline YAML.
+	// The value must be a YAML list, currently only supports jsonPointers key listing RFC6901 JSON Pointer paths.
+	// Example:
+	//   argocd.argoproj.io/ignore-differences: |-
+	//     jsonPointers:
+	//     - /spec/replicas
+	AnnotationKeyIgnoreDifferences = "argocd.argoproj.io/ignore-differences"
 
 	// LabelKeyComponentRepoServer is the label key to identify the component as repo-server
 	LabelKeyComponentRepoServer = "app.kubernetes.io/component"

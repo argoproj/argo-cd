@@ -551,6 +551,10 @@ func TestHydratorHydratesAutomatically_NewCommit_WithChanges(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
 		Then().
+		Expect(App(func(app *Application) bool {
+			op := app.Status.SourceHydrator.CurrentOperation
+			return op != nil && op.DrySHA != firstDrySHA
+		})).
 		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
 		And(func(app *Application) {
 			require.NotEqual(t, firstDrySHA, app.Status.SourceHydrator.CurrentOperation.DrySHA,

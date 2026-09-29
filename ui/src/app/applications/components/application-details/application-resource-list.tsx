@@ -104,8 +104,11 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                             <div className='columns small-2 xxxlarge-2' onClick={() => handleSort('name')} style={{cursor: 'pointer'}}>
                                 NAME {getSortArrow('name')}
                             </div>
-                            <div className='columns small-1 xxxlarge-1' onClick={() => handleSort('group-kind')} style={{cursor: 'pointer'}}>
-                                GROUP/KIND {getSortArrow('group-kind')}
+                            <div className='columns small-1 xxxlarge-1 application-resource-list__head-column' onClick={() => handleSort('group-kind')} style={{cursor: 'pointer'}}>
+                                {/* Allow the header to break after the slash instead of overflowing into the next column on narrow windows. */}
+                                GROUP/
+                                <wbr />
+                                KIND {getSortArrow('group-kind')}
                             </div>
                             <div className='columns small-1 xxxlarge-1' onClick={() => handleSort('syncOrder')} style={{cursor: 'pointer'}}>
                                 SYNC ORDER {getSortArrow('syncOrder')}

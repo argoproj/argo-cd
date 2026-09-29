@@ -26,22 +26,18 @@ const (
 
 func getClientset(objects ...runtime.Object) *fake.Clientset {
 	secret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: testNamespace,
-		},
+		Name:      "argocd-secret",
+		Namespace: testNamespace,
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),
 		},
 	}
 	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: testNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cm",
+		Namespace: testNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 	}
 	return fake.NewClientset(append(objects, &cm, &secret)...)
@@ -297,43 +293,37 @@ func TestCreateExistingRepository(t *testing.T) {
 
 func TestGetRepository(t *testing.T) {
 	clientset := getClientset(&corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "known-repo-secret",
-			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-			},
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
-			},
+		Namespace: testNamespace,
+		Name:      "known-repo-secret",
+		Annotations: map[string]string{
+			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+		},
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
 		},
 		Data: map[string][]byte{
 			"url": []byte("https://known/repo"),
 		},
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "secured-repo-secret",
-			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-			},
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
-			},
+		Namespace: testNamespace,
+		Name:      "secured-repo-secret",
+		Annotations: map[string]string{
+			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+		},
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
 		},
 		Data: map[string][]byte{
 			"url": []byte("https://secured/repo"),
 		},
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "secured-repo-creds-secret",
-			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-			},
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds,
-			},
+		Namespace: testNamespace,
+		Name:      "secured-repo-creds-secret",
+		Annotations: map[string]string{
+			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+		},
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds,
 		},
 		Data: map[string][]byte{
 			"url":      []byte("https://secured"),
@@ -375,43 +365,37 @@ func TestGetRepository(t *testing.T) {
 
 func TestGetWriteRepository(t *testing.T) {
 	clientset := getClientset(&corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "known-repo-secret",
-			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-			},
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeRepositoryWrite,
-			},
+		Namespace: testNamespace,
+		Name:      "known-repo-secret",
+		Annotations: map[string]string{
+			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+		},
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeRepositoryWrite,
 		},
 		Data: map[string][]byte{
 			"url": []byte("https://known/repo"),
 		},
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "secured-repo-secret",
-			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-			},
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeRepositoryWrite,
-			},
+		Namespace: testNamespace,
+		Name:      "secured-repo-secret",
+		Annotations: map[string]string{
+			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+		},
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeRepositoryWrite,
 		},
 		Data: map[string][]byte{
 			"url": []byte("https://secured/repo"),
 		},
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "secured-repo-creds-secret",
-			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-			},
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeRepoCredsWrite,
-			},
+		Namespace: testNamespace,
+		Name:      "secured-repo-creds-secret",
+		Annotations: map[string]string{
+			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+		},
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeRepoCredsWrite,
 		},
 		Data: map[string][]byte{
 			"url":      []byte("https://secured"),
@@ -473,15 +457,13 @@ func TestDeleteClusterWithManagedSecret(t *testing.T) {
 	clusterName := "cluster-mycluster-3274446258"
 
 	clientset := getClientset(&corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      clusterName,
-			Namespace: testNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
-			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-			},
+		Name:      clusterName,
+		Namespace: testNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+		},
+		Annotations: map[string]string{
+			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
 		},
 		Data: map[string][]byte{
 			"server": []byte(clusterURL),
@@ -504,12 +486,10 @@ func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
 	clusterName := "mycluster-443"
 
 	clientset := getClientset(&corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      clusterName,
-			Namespace: testNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
+		Name:      clusterName,
+		Namespace: testNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 		},
 		Data: map[string][]byte{
 			"server": []byte(clusterURL),
@@ -565,10 +545,8 @@ func TestGetApplicationControllerReplicas(t *testing.T) {
 
 	expectedReplicas = int32(3)
 	clientset = getClientset(&appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.CommandApplicationController,
-			Namespace: testNamespace,
-		},
+		Name:      common.CommandApplicationController,
+		Namespace: testNamespace,
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &expectedReplicas,
 		},

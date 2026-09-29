@@ -33,9 +33,7 @@ func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, reposit
 	secName := RepoURLToSecretName(secretPrefix, repository.Repo, repository.Project)
 
 	repositorySecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secName,
-		},
+		Name: secName,
 	}
 
 	updatedSecret := s.repositoryToSecret(repository, repositorySecret)
@@ -186,9 +184,7 @@ func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, repoCred
 	secName := RepoURLToSecretName(secretPrefix, repoCreds.URL, "")
 
 	repoCredsSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secName,
-		},
+		Name: secName,
 	}
 
 	updatedSecret := s.repoCredsToSecret(repoCreds, repoCredsSecret)
@@ -466,6 +462,14 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 
 func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*appsv1.RepoCreds, error) {
 	secretCopy := secret.DeepCopy()
+	azureServicePrincipalClientID := secretCopy.Data["azureServicePrincipalClientID"]
+	if len(azureServicePrincipalClientID) == 0 {
+		azureServicePrincipalClientID = secretCopy.Data["azureServicePrincipalClientId"]
+	}
+	azureServicePrincipalTenantID := secretCopy.Data["azureServicePrincipalTenantID"]
+	if len(azureServicePrincipalTenantID) == 0 {
+		azureServicePrincipalTenantID = secretCopy.Data["azureServicePrincipalTenantId"]
+	}
 
 	repository := &appsv1.RepoCreds{
 		URL:                               string(secretCopy.Data["url"]),
@@ -481,9 +485,9 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 		GCPServiceAccountKey:              string(secretCopy.Data["gcpServiceAccountKey"]),
 		Proxy:                             string(secretCopy.Data["proxy"]),
 		NoProxy:                           string(secretCopy.Data["noProxy"]),
-		AzureServicePrincipalClientId:     string(secretCopy.Data["azureServicePrincipalClientID"]),
+		AzureServicePrincipalClientId:     string(azureServicePrincipalClientID),
 		AzureServicePrincipalClientSecret: string(secretCopy.Data["azureServicePrincipalClientSecret"]),
-		AzureServicePrincipalTenantId:     string(secretCopy.Data["azureServicePrincipalTenantID"]),
+		AzureServicePrincipalTenantId:     string(azureServicePrincipalTenantID),
 		AzureActiveDirectoryEndpoint:      string(secretCopy.Data["azureActiveDirectoryEndpoint"]),
 	}
 

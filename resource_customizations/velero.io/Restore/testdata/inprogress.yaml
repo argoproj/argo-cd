@@ -1,0 +1,15 @@
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: restore-20260627
+  namespace: velero
+spec:
+  backupName: daily-backup-20260626
+  includedNamespaces:
+  - '*'
+status:
+  phase: InProgress
+  startTimestamp: "2026-06-27T02:00:00Z"
+  progress:
+    totalItems: 380
+    itemsRestored: 92

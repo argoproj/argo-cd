@@ -5,7 +5,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -30,8 +29,8 @@ func TestSpecComparisonAgreesWithWritePath(t *testing.T) {
 
 	newApp := func(project, rev string) *argov1alpha1.Application {
 		return &argov1alpha1.Application{
-			TypeMeta:   metav1.TypeMeta{APIVersion: "argoproj.io/v1alpha1", Kind: "Application"},
-			ObjectMeta: metav1.ObjectMeta{Name: "app", Namespace: "argocd"},
+			APIVersion: "argoproj.io/v1alpha1", Kind: "Application",
+			Name: "app", Namespace: "argocd",
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: project,
 				Source: &argov1alpha1.ApplicationSource{

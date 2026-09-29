@@ -1,16 +1,14 @@
 package commands
 
 import (
+	"context"
 	stderrors "errors"
 	"fmt"
 	"math"
 	"net"
 	"net/http"
-	"os"
-	"os/signal"
 	"runtime/debug"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/argoproj/pkg/v2/stats"
@@ -34,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	utilgrpc "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	"github.com/argoproj/argo-cd/v3/util/profile"
 	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
@@ -90,7 +89,7 @@ func NewCommand() *cobra.Command {
 		Short:             "Run ArgoCD Repository Server",
 		Long:              "ArgoCD Repository Server is an internal service which maintains a local cache of the Git repository holding the application manifests, and is responsible for generating and returning the Kubernetes manifests.  This command runs Repository Server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
-		RunE: func(c *cobra.Command, _ []string) error {
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, _ []string, _ context.CancelFunc) error {
 			ctx := c.Context()
 
 			vers := common.GetVersion()
@@ -192,7 +191,7 @@ func NewCommand() *cobra.Command {
 					// connect to itself to make sure the repo server is able to serve the connection
 					// used by liveness probe to auto-restart repo server
 					// see https://github.com/argoproj/argo-cd/issues/5110 for more information
-					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60, healthCheckTLSConfig)
+					conn, err := apiclient.NewConnection(utilgrpc.SelfHealthCheckTarget(listenHost, listenPort), 60, healthCheckTLSConfig)
 					if err != nil {
 						return err
 					}
@@ -233,12 +232,9 @@ func NewCommand() *cobra.Command {
 			stats.RegisterHeapDumper("memprofile")
 
 			// Graceful shutdown code adapted from https://gist.github.com/embano1/e0bf49d24f1cdd07cffad93097c04f0a
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 			wg := sync.WaitGroup{}
 			wg.Go(func() {
-				s := <-sigCh
-				log.Printf("got signal %v, attempting graceful shutdown", s)
+				<-ctx.Done()
 				grpc.GracefulStop()
 			})
 
@@ -251,7 +247,7 @@ func NewCommand() *cobra.Command {
 			log.Println("clean shutdown")
 
 			return nil
-		},
+		}),
 	}
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")

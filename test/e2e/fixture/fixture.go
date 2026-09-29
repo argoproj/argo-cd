@@ -21,6 +21,8 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -267,9 +269,21 @@ func init() {
 }
 
 func loginAs(username, password string) error {
+	deadline := time.Now().Add(30 * time.Second)
+	for {
+		err := tryLoginAs(username, password)
+		if status.Code(err) != codes.Unavailable || time.Now().After(deadline) {
+			return err
+		}
+		log.Warnf("API server unavailable while logging in as %s, retrying: %v", username, err)
+		time.Sleep(500 * time.Millisecond)
+	}
+}
+
+func tryLoginAs(username, password string) error {
 	closer, client, err := ArgoCDClientset.NewSessionClient()
 	if err != nil {
-		return err
+		return status.Errorf(codes.Unavailable, "connecting to API server: %v", err)
 	}
 	defer utilio.Close(closer)
 
@@ -575,8 +589,13 @@ func SetResourceFilter(filters settings.ResourcesFilter) error {
 		if err != nil {
 			return err
 		}
+		selectors, err := yaml.Marshal(filters.ResourceSelectors)
+		if err != nil {
+			return err
+		}
 		cm.Data["resource.exclusions"] = string(exclusions)
 		cm.Data["resource.inclusions"] = string(inclusions)
+		cm.Data["resource.selectors"] = string(selectors)
 		return nil
 	})
 }
@@ -635,6 +654,10 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 	// Register this test after it has been run & was successful
 	t.Cleanup(func() {
 		RecordTestRun(t)
+	})
+
+	t.Cleanup(func() {
+		require.NoError(t, LoginAs(adminUsername), "could not restore the %s session after %s", adminUsername, t.Name())
 	})
 
 	// Create TestState to hold test-specific variables
@@ -877,9 +900,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Create(
 				t.Context(),
 				&v1alpha1.AppProject{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "gpg",
-					},
+					Name: "gpg",
 					Spec: v1alpha1.AppProjectSpec{
 						OrphanedResources:        nil,
 						SourceRepos:              []string{"*"},

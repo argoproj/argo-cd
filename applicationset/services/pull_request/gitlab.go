@@ -65,9 +65,7 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 	}
 
 	snippetsListOptions := gitlab.ExploreSnippetsOptions{
-		ListOptions: gitlab.ListOptions{
-			PerPage: 100,
-		},
+		PerPage: 100,
 	}
 	opts := &gitlab.ListProjectMergeRequestsOptions{
 		ListOptions: snippetsListOptions.ListOptions,

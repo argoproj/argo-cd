@@ -57,15 +57,11 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 	externalNamespace := string(utils.ArgoCDExternalNamespace)
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  externalNamespace,
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       "Application",
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  externalNamespace,
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -155,15 +151,11 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 	externalNamespace2 := string(utils.ArgoCDExternalNamespace2)
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  externalNamespace,
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       "Application",
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  externalNamespace,
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -179,15 +171,11 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 	}
 
 	expectedAppExternalNamespace2 := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  externalNamespace2,
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       "Application",
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  externalNamespace2,
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -210,9 +198,7 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 		When().
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace2).
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: externalNamespace2,
-			},
+			Namespace: externalNamespace2,
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
@@ -244,9 +230,7 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 		When().
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: externalNamespace,
-			},
+			Namespace: externalNamespace,
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
@@ -336,15 +320,11 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 
 func TestSimpleListGenerator(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -425,15 +405,11 @@ func TestSimpleListGenerator(t *testing.T) {
 
 func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -514,15 +490,11 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 
 func TestRenderHelmValuesObject(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -586,17 +558,13 @@ func TestRenderHelmValuesObject(t *testing.T) {
 
 func TestTemplatePatch(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			Annotations: map[string]string{
-				"annotation-some-key": "annotation-some-value",
-			},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+		Annotations: map[string]string{
+			"annotation-some-key": "annotation-some-value",
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -708,15 +676,11 @@ func TestTemplatePatch(t *testing.T) {
 
 func TestUpdateHelmValuesObject(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -790,15 +754,11 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 
 func TestSyncPolicyCreateUpdate(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook-sync-policy-create-update",
-			Namespace:  utils.ArgoCDNamespace,
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       "Application",
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook-sync-policy-create-update",
+		Namespace:  utils.ArgoCDNamespace,
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -900,15 +860,11 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 
 func TestSyncPolicyCreateDelete(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook-sync-policy-create-delete",
-			Namespace:  utils.ArgoCDNamespace,
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       "Application",
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook-sync-policy-create-delete",
+		Namespace:  utils.ArgoCDNamespace,
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -995,15 +951,11 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 
 func TestSyncPolicyCreateOnly(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook-sync-policy-create-only",
-			Namespace:  utils.ArgoCDNamespace,
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       "Application",
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook-sync-policy-create-only",
+		Namespace:  utils.ArgoCDNamespace,
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -1306,15 +1258,11 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 	defer ts.Close()
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "argo-cd-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "argo-cd-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -1375,15 +1323,11 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 	defer ts.Close()
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "argo-cd-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "argo-cd-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -1439,15 +1383,11 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 
 func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "argo-cd-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "argo-cd-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -1509,15 +1449,11 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 
 func TestCustomApplicationFinalizers(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.BackgroundPropagationPolicyFinalizer},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.BackgroundPropagationPolicyFinalizer},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -1573,15 +1509,11 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 
 func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.BackgroundPropagationPolicyFinalizer},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "my-cluster-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.BackgroundPropagationPolicyFinalizer},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -1684,15 +1616,11 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 	defer ts.Close()
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "argo-cd-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "argo-cd-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -1710,12 +1638,10 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 	Given(t).
 		And(func() {
 			_, err := utils.GetE2EFixtureK8sClient(t).KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Create(t.Context(), &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: fixture.TestNamespace(),
-					Name:      secretName,
-					Labels: map[string]string{
-						common.LabelKeySecretType: common.LabelValueSecretTypeSCMCreds,
-					},
+				Namespace: fixture.TestNamespace(),
+				Name:      secretName,
+				Labels: map[string]string{
+					common.LabelKeySecretType: common.LabelValueSecretTypeSCMCreds,
 				},
 				Data: map[string][]byte{
 					"hello": []byte("world"),
@@ -1780,17 +1706,13 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 	defer ts.Close()
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "argo-cd-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			Labels: map[string]string{
-				common.LabelKeyAppInstance: "simple-scm-provider-generator-strict-ko",
-			},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "argo-cd-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+		Labels: map[string]string{
+			common.LabelKeyAppInstance: "simple-scm-provider-generator-strict-ko",
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -1809,13 +1731,11 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 	ctx := Given(t)
 	ctx.And(func() {
 		_, err := utils.GetE2EFixtureK8sClient(t).KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Create(t.Context(), &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: fixture.TestNamespace(),
-				Name:      secretName,
-				Labels: map[string]string{
-					// Try to exfiltrate cluster secret
-					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-				},
+			Namespace: fixture.TestNamespace(),
+			Name:      secretName,
+			Labels: map[string]string{
+				// Try to exfiltrate cluster secret
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
 			},
 			Data: map[string][]byte{
 				"hello": []byte("world"),
@@ -1883,15 +1803,11 @@ func TestSimplePullRequestGenerator(t *testing.T) {
 	defer ts.Close()
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "guestbook-1",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "guestbook-1",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -1958,16 +1874,12 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 	defer ts.Close()
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "guestbook-1",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			Labels:     map[string]string{"app": "preview"},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "guestbook-1",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+		Labels:     map[string]string{"app": "preview"},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -2031,17 +1943,13 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 
 func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "guestbook-1",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			Labels: map[string]string{
-				"app": "preview",
-			},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "guestbook-1",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+		Labels: map[string]string{
+			"app": "preview",
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",

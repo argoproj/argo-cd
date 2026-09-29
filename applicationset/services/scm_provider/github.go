@@ -72,7 +72,7 @@ func (g *GithubProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 
 func (g *GithubProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
 	opt := &github.RepositoryListByOrgOptions{
-		ListOptions: github.ListOptions{PerPage: 100},
+		PerPage: 100,
 	}
 	repos := []*Repository{}
 	for {
@@ -142,7 +142,7 @@ func (g *GithubProvider) listBranches(ctx context.Context, repo *Repository) ([]
 	}
 	// Otherwise, scrape the ListBranches API.
 	opt := &github.BranchListOptions{
-		ListOptions: github.ListOptions{PerPage: 100},
+		PerPage: 100,
 	}
 	branches := []github.Branch{}
 	for {

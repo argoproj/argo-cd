@@ -124,7 +124,7 @@ func NewAzureWorkloadIdentityCreds(repoURL string, caPath string, certData []byt
 }
 
 func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
-	registryHost := strings.Split(creds.repoURL, "/")[0]
+	registryHost, _, _ := strings.Cut(creds.repoURL, "/")
 	ctx := context.Background()
 
 	// Compute hash as key for refresh token in the cache

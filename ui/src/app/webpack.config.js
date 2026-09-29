@@ -1,9 +1,11 @@
 'use strict;';
 
+const path = require('path');
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const {codecovWebpackPlugin} = require("@codecov/webpack-plugin");
+const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
 const webpack = require('webpack');
 
 const isProd = process.env.NODE_ENV === 'production';
@@ -31,6 +33,11 @@ const esbuildTsxLoader = {
 // here: running the compiler on esbuild's type-stripped/JSX-lowered output
 // produces spurious bailouts, so we drop esbuild for .tsx when the compiler is
 // on and let Babel + esbuild's JS minify (later) split the work.
+//
+// Fast Refresh is only wired into this babel-loader path via react-refresh/babel
+// below. The esbuild-loader path (REACT_COMPILER=0) has no Babel plugin support,
+// so Fast Refresh doesn't work there; that's an accepted, documented gap since
+// REACT_COMPILER=0 is an explicit niche A/B-testing flag.
 const tsxRule = reactCompiler
     ? {
           test: /\.tsx?$/,
@@ -46,7 +53,10 @@ const tsxRule = reactCompiler
                   ['@babel/preset-react', {runtime: 'automatic'}],
                   ['@babel/preset-typescript', {isTSX: true, allExtensions: true}]
               ],
-              plugins: [['babel-plugin-react-compiler', {target: '19', ...(reactCompilerLog ? {logger: {logEvent: (filename, event) => console.log(`[react-compiler] ${event.kind} ${filename ?? ''}`)}} : {})}]]
+              plugins: [
+                  ['babel-plugin-react-compiler', {target: '19', ...(reactCompilerLog ? {logger: {logEvent: (filename, event) => console.log(`[react-compiler] ${event.kind} ${filename ?? ''}`)}} : {})}],
+                  ...(!isProd ? ['react-refresh/babel'] : [])
+              ]
           }
       }
     : {
@@ -67,9 +77,25 @@ const config = {
         filename: '[name].[contenthash].js',
         chunkFilename: '[name].[contenthash].chunk.js',
         path: __dirname + '/../../dist/app',
-        clean: true
+        // `gitkeep` (and assets/images/resources/.gitkeep) are tracked in git so ui/embed.go
+        // has something to embed before the UI is built; clean would otherwise delete them.
+        clean: {keep: /(^|\/)\.?gitkeep$/}
     },
     cache: { type: 'filesystem' },
+    optimization: {
+        runtimeChunk: 'single',
+        splitChunks: {
+            chunks: 'all',
+            cacheGroups: {
+                vendors: {
+                    test: /[\\/]node_modules[\\/]/,
+                    name: 'vendors',
+                    chunks: 'initial',
+                    priority: -5
+                }
+            }
+        }
+    },
 
     resolve: {
         extensions: ['.ts', '.tsx', '.js', '.json'],
@@ -138,6 +164,12 @@ const config = {
             })
         }),
         new HtmlWebpackPlugin({ template: 'src/app/index.html' }),
+        new webpack.NormalModuleReplacementPlugin(/^\.\/logs-viewer\/logs-viewer$/, resource => {
+            if (resource.context.endsWith(path.join('argo-ui', 'src', 'components'))) {
+                resource.request = path.resolve(__dirname, 'shims', 'logs-viewer.tsx');
+            }
+        }),
+        new webpack.IgnorePlugin({resourceRegExp: /^\.\/locale$/, contextRegExp: /moment$/}),
         new CopyWebpackPlugin({
             patterns: [{
                     from: 'src/assets',
@@ -152,8 +184,9 @@ const config = {
                     to: 'assets/fonts'
                 },
                 {
-                    from: 'node_modules/redoc/bundles/redoc.standalone.js',
-                    to: 'assets/scripts/redoc.standalone.js'
+                    // consumed by the server-rendered /swagger-ui page; keep in sync with swaggerUIAssetsPath in util/swagger
+                    from: 'node_modules/swagger-ui-dist/{swagger-ui-bundle.js,swagger-ui-standalone-preset.js,swagger-ui.css,favicon-16x16.png,favicon-32x32.png}',
+                    to: 'assets/swagger-ui/[name][ext]'
                 },
                 {
                     from: 'node_modules/monaco-editor/min/vs/base/browser/ui/codicons/codicon',
@@ -211,10 +244,14 @@ const config = {
 if (isProd) {
     config.performance = {
         hints: 'error',
-        // Max size is 6MB before gzip.
-        maxEntrypointSize: 6 * 1024 * 1024,
+        // Sizes are raw bytes before gzip.
+        maxEntrypointSize: 1.75 * 1024 * 1024,
         maxAssetSize: 6 * 1024 * 1024,
     };
+}
+
+if (!isProd && reactCompiler) {
+    config.plugins.push(new ReactRefreshWebpackPlugin());
 }
 
 config.devtool = isProd ? 'source-map' : 'eval-source-map';

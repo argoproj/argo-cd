@@ -16,6 +16,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -130,11 +131,9 @@ func newSpiedClient(t *testing.T, repoURL string, cache gitRefCache, loadRefFrom
 	t.Helper()
 	lsRemoteCalls := 0
 	return &nativeGitClient{
-		EventHandlers: EventHandlers{
-			OnLsRemote: func(string) func() {
-				lsRemoteCalls++
-				return func() {}
-			},
+		OnLsRemote: func(string) func() {
+			lsRemoteCalls++
+			return func() {}
 		},
 		repoURL:          repoURL,
 		creds:            NopCreds{},
@@ -1299,7 +1298,7 @@ func Test_nativeGitClient_RemoveContents_SpecificPath(t *testing.T) {
 	require.Equal(t, "README.md", strings.TrimSpace(string(ls)))
 }
 
-func Test_nativeGitClient_CommitAndPush(t *testing.T) {
+func Test_nativeGitClient_Commit_Push(t *testing.T) {
 	ctx := t.Context()
 	tempDir, err := _createEmptyGitRepo(ctx)
 	require.NoError(t, err)
@@ -1333,7 +1332,9 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 	err = runCmd(ctx, client.Root(), "touch", "README.md")
 	require.NoError(t, err)
 
-	out, err = client.CommitAndPush(t.Context(), branch, "docs: README")
+	out, err = client.Commit("docs: README", "")
+	require.NoError(t, err, "error output: %s", out)
+	out, err = client.Push(branch)
 	require.NoError(t, err, "error output: %s", out)
 
 	// get current commit hash of the cloned repository
@@ -1899,7 +1900,9 @@ func Test_nativeGitClient_GetCommitNote(t *testing.T) {
 	// Create and commit a test file
 	err = os.WriteFile(filepath.Join(client.Root(), "README.md"), []byte("content"), 0o644)
 	require.NoError(t, err)
-	out, err = client.CommitAndPush(t.Context(), branch, "initial commit")
+	out, err = client.Commit("initial commit", "")
+	require.NoError(t, err, "error output: %s", out)
+	out, err = client.Push(branch)
 	require.NoError(t, err, "error output: %s", out)
 
 	// Get the latest commit SHA
@@ -1957,7 +1960,9 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 	// Create and commit a test file
 	err = os.WriteFile(filepath.Join(client.Root(), "README.md"), []byte("content"), 0o644)
 	require.NoError(t, err)
-	out, err = client.CommitAndPush(t.Context(), branch, "initial commit")
+	out, err = client.Commit("initial commit", "")
+	require.NoError(t, err, "error output: %s", out)
+	out, err = client.Push(branch)
 	require.NoError(t, err, "error output: %s", out)
 
 	// Get current commit SHA
@@ -1985,6 +1990,38 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 		outBytes, err := outputCmd(ctx, client.Root(), "git", "notes", "--ref="+customNS, "show", sha)
 		require.NoError(t, err)
 		require.Equal(t, customNote, strings.TrimSpace(string(outBytes)))
+	})
+
+	t.Run("permanent failure is not reported as exhausted retries", func(t *testing.T) {
+		err := runCmd(t.Context(), client.Root(), "git", "remote", "set-url", "origin", "file:///nonexistent/repo.git")
+		require.NoError(t, err)
+
+		err = client.AddAndPushNote(t.Context(), sha, "permanent-failure", "note")
+		require.Error(t, err)
+		assert.True(t, strings.HasPrefix(err.Error(), "failed to push note: `git push"),
+			"expected a single unqualified prefix, got: %s", err.Error())
+		assert.NotContains(t, err.Error(), "attempts")
+	})
+
+	t.Run("exhausted retries report the attempt count", func(t *testing.T) {
+		remoteDir := t.TempDir()
+		require.NoError(t, runCmd(t.Context(), remoteDir, "git", "init", "--bare"))
+
+		// Reject every push with a retryable message so the backoff runs to its deadline.
+		hook := `#!/bin/sh
+echo "error: cannot lock ref 'refs/notes/exhausted': is at aaa but expected bbb" >&2
+exit 1
+`
+		require.NoError(t, os.WriteFile(filepath.Join(remoteDir, "hooks", "pre-receive"), []byte(hook), 0o755))
+		require.NoError(t, runCmd(t.Context(), client.Root(), "git", "remote", "set-url", "origin", "file://"+remoteDir))
+
+		err := client.AddAndPushNote(t.Context(), sha, "exhausted", "note")
+		require.Error(t, err)
+		matches := regexp.MustCompile(`^failed to push note after (\d+) attempts: `).FindStringSubmatch(err.Error())
+		require.Len(t, matches, 2, "unexpected error format: %s", err.Error())
+		attempts, convErr := strconv.Atoi(matches[1])
+		require.NoError(t, convErr)
+		assert.Greater(t, attempts, 1, "expected the push to have been retried")
 	})
 }
 
@@ -2078,7 +2115,9 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	require.True(t, changed, "expected untracked file to be reported as changed")
 
 	// After commit, should NOT be changed
-	out, err = client.CommitAndPush(t.Context(), branch, "add sample.txt")
+	out, err = client.Commit("add sample.txt", "")
+	require.NoError(t, err, "error output: %s", out)
+	out, err = client.Push(branch)
 	require.NoError(t, err, "error output: %s", out)
 	changed, err = client.HasFileChanged(t.Context(), filePath)
 	require.NoError(t, err)
