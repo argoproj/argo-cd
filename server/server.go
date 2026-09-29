@@ -679,30 +679,33 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		server.available.Store(false)
 		shutdownCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 		defer cancel()
-		var wg gosync.WaitGroup
 
-		// Shutdown http server
-		wg.Go(func() {
+		// Shut down HTTP before gRPC. gRPC-Web calls grpc.Server.ServeHTTP, and
+		// GracefulStop panics if one of those handler transports is still registered:
+		// serverHandlerTransport.Drain is not implemented in grpc-go 1.81.
+		// https://github.com/grpc/grpc-go/issues/1384
+		var httpWG gosync.WaitGroup
+		httpWG.Go(func() {
 			err := httpS.Shutdown(shutdownCtx)
 			if err != nil {
 				log.Errorf("Error shutting down http server: %s", err)
 			}
 		})
-
 		if server.useTLS() {
-			// Shutdown https server
-			wg.Go(func() {
+			httpWG.Go(func() {
 				err := httpsS.Shutdown(shutdownCtx)
 				if err != nil {
 					log.Errorf("Error shutting down https server: %s", err)
 				}
 			})
 		}
+		httpWG.Wait()
 
-		// Shutdown gRPC server
-		wg.Go(func() {
-			grpcS.GracefulStop()
-		})
+		// On this goroutine, not inside WaitGroup.Go. WaitGroup.Go recovers a Drain
+		// panic and re-panics it, which still exits the process.
+		gracefulStopGRPCServer(grpcS, shutdownCtx)
+
+		var wg gosync.WaitGroup
 
 		// Shutdown metrics server
 		wg.Go(func() {
@@ -766,6 +769,33 @@ func (server *ArgoCDServer) Initialized() bool {
 // as opposed to a watch.
 func (server *ArgoCDServer) TerminateRequested() bool {
 	return server.terminateRequested.Load()
+}
+
+// gracefulStopGRPCServer drains native gRPC connections. ServeHTTP transports
+// (gRPC-Web) panic in Drain on grpc-go 1.81; recover so a Dex or settings reload
+// can restart in-process instead of exiting 2.
+//
+// Do not call Stop concurrently when the deadline fires. GracefulStop holds
+// Server.mu while it waits for RPCs, and Stop needs that lock.
+// See https://github.com/grpc/grpc-go/issues/1384.
+func gracefulStopGRPCServer(grpcS *grpc.Server, ctx context.Context) {
+	stopped := make(chan struct{})
+	go func() {
+		defer close(stopped)
+		defer func() {
+			if r := recover(); r != nil {
+				log.Warnf("gRPC graceful stop panicked (%v); forcing stop", r)
+				grpcS.Stop()
+			}
+		}()
+		grpcS.GracefulStop()
+	}()
+
+	select {
+	case <-stopped:
+	case <-ctx.Done():
+		log.Warn("gRPC graceful stop timed out; continuing shutdown")
+	}
 }
 
 // checkServeErr checks the error from a .Serve() call to decide if it was a graceful shutdown
