@@ -13,8 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/common"
-
 	bb "github.com/ktrysmt/go-bitbucket"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/util/workqueue"
@@ -934,60 +932,7 @@ func isBBServerHeadTouched(client *bitbucketv1.APIClient, projectKey, repoSlug, 
 }
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)
-	payload, handled, err := Dispatch(a.parsers, r)
-	if !handled {
-		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
-		return
-	}
-	if err != nil {
-		if errors.Is(err, ErrHMACVerificationFailed) || errors.Is(err, ErrSecretVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Info("Registry webhook authentication failed")
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		// If the error is due to a large payload, return a more user-friendly error message
-		if isParsingPayloadError(err) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Warnf("Webhook processing failed: payload too large or corrupted (limit %v MB): %v", a.maxWebhookPayloadSizeB/1024/1024, err)
-			http.Error(w, fmt.Sprintf("Webhook processing failed: payload must be valid JSON under %v MB", a.maxWebhookPayloadSizeB/1024/1024), http.StatusBadRequest)
-			return
-		}
-
-		status := http.StatusBadRequest
-		if r.Method != http.MethodPost {
-			status = http.StatusMethodNotAllowed
-		}
-		log.Infof("Webhook processing failed: %v", err)
-		http.Error(w, "Webhook processing failed", status)
-		return
-	}
-
-	// Parser claimed the request but produced no payload (e.g. GHCR event that
-	// was intentionally skipped). Acknowledge with 200 and skip the queue.
-	if payload == nil {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	select {
-	case a.queue <- payload:
-	default:
-		log.Info("Queue is full, discarding webhook payload")
-		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-}
-
-// isParsingPayloadError returns a bool if the error is parsing payload error
-func isParsingPayloadError(err error) bool {
-	return errors.Is(err, github.ErrParsingPayload) ||
-		errors.Is(err, gitlab.ErrParsingPayload) ||
-		errors.Is(err, gogs.ErrParsingPayload) ||
-		errors.Is(err, bitbucket.ErrParsingPayload) ||
-		errors.Is(err, bitbucketserver.ErrParsingPayload) ||
-		errors.Is(err, azuredevops.ErrParsingPayload)
+	HandleRequest(w, r, a.parsers, a.maxWebhookPayloadSizeB, a.queue)
 }
 
 // Shutdown gracefully shuts down the webhook handler by closing queues and waiting for workers
