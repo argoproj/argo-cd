@@ -115,4 +115,10 @@ providers. However other tools can be used instead of Dex. Check the
 documentation](../../operator-manual/user-management/index.md) for
 more details.
 
+## Configuration
+
+Durable product settings for the application-controller are read through the
+[config bus](configbus.md) (`util/configbus`). See that page for how to add or
+change a config field.
+
 
