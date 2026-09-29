@@ -264,14 +264,14 @@ type ArgoCDServerOpts struct {
 	DisableSwaggerUI        bool
 	EnableSourceIPLogging   bool
 	// TrustedProxies and ClientIPHeader decide which address source IP logging attributes a request to.
-	TrustedProxies []netip.Prefix
-	ClientIPHeader string
-	OTLPAddress             string
-	OTLPInsecure            bool
-	OTLPHeaders             map[string]string
-	OTLPAttrs               []string
-	OTLPMetricsEnabled      bool
-	OTLPMetricsInterval     time.Duration
+	TrustedProxies      []netip.Prefix
+	ClientIPHeader      string
+	OTLPAddress         string
+	OTLPInsecure        bool
+	OTLPHeaders         map[string]string
+	OTLPAttrs           []string
+	OTLPMetricsEnabled  bool
+	OTLPMetricsInterval time.Duration
 }
 
 type ApplicationSetOpts struct {
