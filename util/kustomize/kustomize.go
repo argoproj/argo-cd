@@ -398,6 +398,10 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to install git wrapper for kustomize build: %w", err)
 	}
+	cmd.Env, err = withHelmWrapper(cmd.Env)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to install helm wrapper for kustomize build: %w", err)
+	}
 	cmd.Dir = k.repoRoot
 	commands = append(commands, executil.GetCommandArgsToLog(cmd))
 	out, err := executil.Run(cmd)

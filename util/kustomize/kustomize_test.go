@@ -674,6 +674,77 @@ resources:
 	assert.NoFileExists(t, marker, "the git-ref-injected command must not execute")
 }
 
+// TestKustomizeBuildHelmChartsIgnoresConfigHomePlugin is a regression test for
+// GHSA-fw5c-w8rc-j7fx: a kustomization can point helmGlobals.configHome at a directory of its own
+// choosing, and Helm auto-loads any downloader plugin found there with no explicit `helm plugin
+// install` step - reaching arbitrary command execution when a helmCharts entry's repo uses that
+// plugin's registered protocol scheme. The helm wrapper installed by withHelmWrapper must make
+// Helm ignore the kustomization's chosen configHome, so the planted plugin's downloader command
+// is never invoked, regardless of whether the content is trusted or not.
+func TestKustomizeBuildHelmChartsIgnoresConfigHomePlugin(t *testing.T) {
+	appPath := t.TempDir()
+
+	// A marker file the plugin's downloader would create if it ever ran.
+	marker := filepath.Join(appPath, "pwned")
+	pluginDir := filepath.Join(appPath, "helm-home", ".data", "plugins", "probe")
+	require.NoError(t, os.MkdirAll(pluginDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(pluginDir, "run.sh"), []byte(fmt.Sprintf("#!/bin/sh\ntouch %q\n", marker)), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(pluginDir, "plugin.yaml"), []byte(fmt.Sprintf(`name: probe
+version: 1.0.0
+downloaders:
+  - command: /bin/sh %s
+    protocols:
+      - probe
+`, filepath.Join(pluginDir, "run.sh"))), 0o644))
+
+	require.NoError(t, os.WriteFile(filepath.Join(appPath, "kustomization.yaml"), []byte(`apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+helmGlobals:
+  configHome: helm-home
+helmCharts:
+  - name: probe
+    version: 1.0.0
+    repo: probe://chart
+`), 0o644))
+
+	k := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+	_, _, _, err := k.Build(nil, &v1alpha1.KustomizeOptions{BuildOptions: "--enable-helm"}, nil, &BuildOpts{})
+	require.Error(t, err, "the \"probe\" protocol is only known via the planted plugin, which the wrapper must have hidden from helm")
+	_, statErr := os.Stat(marker)
+	assert.True(t, os.IsNotExist(statErr), "the plugin's downloader command must never have been executed")
+}
+
+// TestKustomizeBuildHelmChartsFromRealRepoStillWorksWithWrapper proves the helm wrapper installed
+// by withHelmWrapper doesn't regress ordinary --enable-helm chart inflation, which needs no
+// plugin at all.
+func TestKustomizeBuildHelmChartsFromRealRepoStillWorksWithWrapper(t *testing.T) {
+	appPath := t.TempDir()
+	chartDir := filepath.Join(appPath, "helm-chart")
+	require.NoError(t, os.MkdirAll(filepath.Join(chartDir, "templates"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(appPath, "kustomization.yaml"), []byte(`helmGlobals:
+  chartHome: .
+
+helmCharts:
+- releaseName: test
+  name: helm-chart
+  version: v1.0.0
+`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(chartDir, "Chart.yaml"), []byte("version: 1.0.0\nname: helm-chart\n"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(chartDir, "values.yaml"), nil, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(chartDir, "templates", "config-map.yaml"), []byte(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-map
+data:
+  foo: bar
+`), 0o644))
+
+	k := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+	objs, _, _, err := k.Build(nil, &v1alpha1.KustomizeOptions{BuildOptions: "--enable-helm"}, nil, &BuildOpts{})
+	require.NoError(t, err)
+	assert.Len(t, objs, 1)
+}
+
 func Test_getImageParameters_sorted(t *testing.T) {
 	apps := []*unstructured.Unstructured{
 		{
