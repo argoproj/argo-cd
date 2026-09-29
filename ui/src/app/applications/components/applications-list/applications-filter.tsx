@@ -610,7 +610,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
             <FavoriteFilter value={!!props.pref.showFavorites} onChange={val => props.onChange({...props.pref, showFavorites: val})} />
             <AppHealthFilter {...props} />
             <SyncFilter {...props} />
-            {props.hydratorEnabled && <HydrationFilter {...props} collapsed={true} />}
+            {props.hydratorEnabled && <HydrationFilter {...props} />}
             <OperationFilter {...props} />
             <LabelsFilter apps={props.apps} pref={props.pref} onChange={labelsFilter => props.onChange({...props.pref, labelsFilter})} />
             <AnnotationsFilter {...props} />
