@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -1404,6 +1405,38 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 		outBytes, err := outputCmd(ctx, client.Root(), "git", "notes", "--ref="+customNS, "show", sha)
 		require.NoError(t, err)
 		require.Equal(t, customNote, strings.TrimSpace(string(outBytes)))
+	})
+
+	t.Run("permanent failure is not reported as exhausted retries", func(t *testing.T) {
+		err := runCmd(t.Context(), client.Root(), "git", "remote", "set-url", "origin", "file:///nonexistent/repo.git")
+		require.NoError(t, err)
+
+		err = client.AddAndPushNote(sha, "permanent-failure", "note")
+		require.Error(t, err)
+		assert.True(t, strings.HasPrefix(err.Error(), "failed to push note: `git push"),
+			"expected a single unqualified prefix, got: %s", err.Error())
+		assert.NotContains(t, err.Error(), "attempts")
+	})
+
+	t.Run("exhausted retries report the attempt count", func(t *testing.T) {
+		remoteDir := t.TempDir()
+		require.NoError(t, runCmd(t.Context(), remoteDir, "git", "init", "--bare"))
+
+		// Reject every push with a retryable message so the backoff runs to its deadline.
+		hook := `#!/bin/sh
+echo "error: cannot lock ref 'refs/notes/exhausted': is at aaa but expected bbb" >&2
+exit 1
+`
+		require.NoError(t, os.WriteFile(filepath.Join(remoteDir, "hooks", "pre-receive"), []byte(hook), 0o755))
+		require.NoError(t, runCmd(t.Context(), client.Root(), "git", "remote", "set-url", "origin", "file://"+remoteDir))
+
+		err := client.AddAndPushNote(sha, "exhausted", "note")
+		require.Error(t, err)
+		matches := regexp.MustCompile(`^failed to push note after (\d+) attempts: `).FindStringSubmatch(err.Error())
+		require.Len(t, matches, 2, "unexpected error format: %s", err.Error())
+		attempts, convErr := strconv.Atoi(matches[1])
+		require.NoError(t, convErr)
+		assert.Greater(t, attempts, 1, "expected the push to have been retried")
 	})
 }
 
