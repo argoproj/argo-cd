@@ -5384,8 +5384,8 @@ packages:
   undici-types@8.9.0:
     resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
-  undici@6.26.0:
-    resolution: {integrity: sha512-4yqz8a3n5HmGTlsbADNtr/dJlhkh/55Rq798G6ibiULcXbDtaLpTl1pvdqcbFfeoj3iSi52lePFM7h9H21cw/A==}
+  undici@6.29.0:
+    resolution: {integrity: sha512-R+RODBqp6i2pPflGdq+xIOUkl+RNfGgHwoinecKu/JCuf2uO06cOKoDbI2P7Dn6KcswdKwrczbU6IYJ6K8X+wg==}
     engines: {node: '>=18.17'}
 
   unicode-canonical-property-names-ecmascript@2.0.1:
@@ -5734,17 +5734,17 @@ snapshots:
       '@octokit/plugin-rest-endpoint-methods': 17.0.0(@octokit/core@7.0.6)
       '@octokit/request': 10.0.10
       '@octokit/request-error': 7.1.0
-      undici: 6.26.0
+      undici: 6.29.0
 
   '@actions/http-client@3.0.2':
     dependencies:
       tunnel: 0.0.6
-      undici: 6.26.0
+      undici: 6.29.0
 
   '@actions/http-client@4.0.1':
     dependencies:
       tunnel: 0.0.6
-      undici: 6.26.0
+      undici: 6.29.0
 
   '@actions/io@3.0.2': {}
 
@@ -11673,7 +11673,7 @@ snapshots:
 
   undici-types@8.9.0: {}
 
-  undici@6.26.0: {}
+  undici@6.29.0: {}
 
   unicode-canonical-property-names-ecmascript@2.0.1: {}
 
