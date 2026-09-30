@@ -13,6 +13,7 @@ export const resourceIconGroups = {
     'cert-manager.io': true,
     'cilium.io': true,
     'cluster.cattle.io': true,
+    'cluster.x-k8s.io': true,
     'core.spinkube.dev': true,
     'external-secrets.io': true,
     'flagger.app': true,
