@@ -115,35 +115,73 @@ func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
 	assert.True(t, info.IsDir())
 }
 
-func Test_normalizeChartName(t *testing.T) {
-	t.Run("Test non-slashed name", func(t *testing.T) {
-		n := normalizeChartName("mychart")
-		assert.Equal(t, "mychart", n)
+func Test_extractedChartDir(t *testing.T) {
+	t.Run("returns the extracted directory regardless of its name", func(t *testing.T) {
+		// Simulates an OCI chart whose Chart.yaml name ("foo") differs from the
+		// repository-path basename used as the chart reference ("bar"): the
+		// extracted directory is named after the chart, not the reference.
+		tempDir := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(tempDir, "foo"), 0o755))
+		dir, err := extractedChartDir(tempDir)
+		require.NoError(t, err)
+		assert.Equal(t, filepath.Join(tempDir, "foo"), dir)
 	})
-	t.Run("Test single-slashed name", func(t *testing.T) {
-		n := normalizeChartName("myorg/mychart")
-		assert.Equal(t, "mychart", n)
+	t.Run("errors when no directory was extracted", func(t *testing.T) {
+		_, err := extractedChartDir(t.TempDir())
+		require.Error(t, err)
 	})
-	t.Run("Test chart name with suborg", func(t *testing.T) {
-		n := normalizeChartName("myorg/mysuborg/mychart")
-		assert.Equal(t, "mychart", n)
+	t.Run("errors when the top-level entry is a file", func(t *testing.T) {
+		tempDir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(tempDir, "Chart.yaml"), []byte("name: x\n"), 0o644))
+		_, err := extractedChartDir(tempDir)
+		require.Error(t, err)
 	})
-	t.Run("Test double-slashed name", func(t *testing.T) {
-		n := normalizeChartName("myorg//mychart")
-		assert.Equal(t, "mychart", n)
+	t.Run("errors when multiple top-level entries were extracted", func(t *testing.T) {
+		tempDir := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(tempDir, "a"), 0o755))
+		require.NoError(t, os.Mkdir(filepath.Join(tempDir, "b"), 0o755))
+		_, err := extractedChartDir(tempDir)
+		require.Error(t, err)
 	})
-	t.Run("Test invalid chart name - ends with slash", func(t *testing.T) {
-		n := normalizeChartName("myorg/")
-		assert.Equal(t, "myorg/", n)
-	})
-	t.Run("Test invalid chart name - is dot", func(t *testing.T) {
-		n := normalizeChartName("myorg/.")
-		assert.Equal(t, "myorg/.", n)
-	})
-	t.Run("Test invalid chart name - is two dots", func(t *testing.T) {
-		n := normalizeChartName("myorg/..")
-		assert.Equal(t, "myorg/..", n)
-	})
+}
+
+// legacyNormalizeChartName reproduces the chart-directory derivation ExtractChart
+// used before this change (the removed normalizeChartName): the reference's last
+// path segment, falling back to the whole reference for a degenerate segment.
+func legacyNormalizeChartName(chart string) string {
+	nc := chart
+	if i := strings.LastIndex(chart, "/"); i >= 0 {
+		nc = chart[i+1:]
+	}
+	if nc == "" || nc == "." || nc == ".." {
+		return chart
+	}
+	return nc
+}
+
+// Test_extractedChartDir_matchesLegacyDerivationForExistingCharts is a regression
+// guard: any chart reference that resolved before this change extracted into a
+// directory named legacyNormalizeChartName(chart) — otherwise ExtractChart could not
+// have located Chart.yaml under path.Join(tempDir, normalizeChartName(chart)). So for
+// every previously working reference the archive-driven lookup must return that exact
+// same path; only references whose extracted directory differed (the bug) change from
+// failing to succeeding.
+func Test_extractedChartDir_matchesLegacyDerivationForExistingCharts(t *testing.T) {
+	for _, chartRef := range []string{
+		"grafana",
+		"myrepo/grafana",
+		"registry.example.com/team/charts/grafana",
+	} {
+		t.Run(chartRef, func(t *testing.T) {
+			legacyName := legacyNormalizeChartName(chartRef)
+			tempDir := t.TempDir()
+			require.NoError(t, os.Mkdir(filepath.Join(tempDir, legacyName), 0o755))
+
+			dir, err := extractedChartDir(tempDir)
+			require.NoError(t, err)
+			assert.Equal(t, filepath.Join(tempDir, legacyName), dir)
+		})
+	}
 }
 
 func TestIsHelmOciRepo(t *testing.T) {
