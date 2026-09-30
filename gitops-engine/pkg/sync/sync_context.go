@@ -591,8 +591,13 @@ func (sc *syncContext) Sync(ctx context.Context) {
 	// if (a) we are multi-step and we have any running tasks,
 	// or (b) there are any running hooks,
 	// then wait...
+	// However, once any task has completed unsuccessfully, the operation is going to fail regardless,
+	// so there is no point waiting for the health of running non-hook resources.
 	multiStep := tasks.multiStep()
-	runningTasks := tasks.Filter(func(t *syncTask) bool { return (multiStep || t.isHook()) && t.running() })
+	hasFailedTask := tasks.Any(func(t *syncTask) bool { return t.completed() && !t.successful() })
+	runningTasks := tasks.Filter(func(t *syncTask) bool {
+		return (t.isHook() || (multiStep && !hasFailedTask)) && t.running()
+	})
 	if runningTasks.Len() > 0 {
 		// check if any of the running task's resources are missing to prevent infinite loop of waiting for healthy
 		for _, task := range runningTasks {
@@ -703,7 +708,7 @@ func (sc *syncContext) Sync(ctx context.Context) {
 		// If we failed to apply at least one resource, we need to start the syncFailTasks and wait
 		// for the completion of any running hooks. In this case, the operation should be running.
 		syncFailedTasks := tasks.Filter(func(t *syncTask) bool { return t.syncStatus == common.ResultCodeSyncFailed })
-		runningHooks := tasks.Filter(func(t *syncTask) bool { return t.running() })
+		runningHooks := tasks.Filter(func(t *syncTask) bool { return t.isHook() && t.running() })
 		if len(runningHooks) > 0 {
 			if len(syncFailTasks) > 0 {
 				completed := sc.executeSyncFailPhase(ctx, syncFailTasks, syncFailedTasks, "one or more objects failed to apply")
