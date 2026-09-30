@@ -54,8 +54,8 @@ importers:
         specifier: ^5.4.2
         version: 5.4.2
       json-merge-patch:
-        specifier: ^0.2.3
-        version: 0.2.3
+        specifier: ^1.0.2
+        version: 1.0.2
       lodash-es:
         specifier: ^4.18.1
         version: 4.18.1
@@ -2768,10 +2768,6 @@ packages:
       babel-plugin-macros:
         optional: true
 
-  deep-equal@1.1.2:
-    resolution: {integrity: sha512-5tdhKF6DbU7iIzrIOa1AOUt39ZRm13cmL1cGEh//aqR8x9+tNfbywRf0n5FD/18OKMdo7DNEtrX2t22ZAkI+eg==}
-    engines: {node: '>= 0.4'}
-
   deep-is@0.1.4:
     resolution: {integrity: sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ==}
 
@@ -3523,10 +3519,6 @@ packages:
     resolution: {integrity: sha512-9VGk3HGanVE6JoZXHiCpnGy5X0jYDnN4EA4lntFPj+1vIWlFhIylq2CrrCOJH9EAhc5CYhq18F2Av2tgoAPsYQ==}
     engines: {node: '>= 10'}
 
-  is-arguments@1.2.0:
-    resolution: {integrity: sha512-7bVbi0huj/wrIAOzb8U1aszg9kdi3KN/CyU19CTI7tAoZYEZoL9yCDXpbXN+uPsuWnP02cyug1gleqq+TU+YCA==}
-    engines: {node: '>= 0.4'}
-
   is-array-buffer@3.0.5:
     resolution: {integrity: sha512-DDfANUiiG2wC1qawP66qlTugJeL5HyzMpfr8lLK+jMQirGzNod0B12cFB/9q838Ru27sBwfw78/rdoU7RERz6A==}
     engines: {node: '>= 0.4'}
@@ -3922,8 +3914,8 @@ packages:
   json-buffer@3.0.1:
     resolution: {integrity: sha512-4bV5BfR2mqfQTJm+V5tPPdf+ZpuhiIvTuAB5g8kcrXOZpTT/QwwVRWBywX1ozr6lEuPdbHxwaJlm9G6mI2sfSQ==}
 
-  json-merge-patch@0.2.3:
-    resolution: {integrity: sha512-mjd5eObNGOhWkKCztwVuF25KOzLj2T4TJaWXLBgCQPeoPRJrMxKNgjNBE8sPmXoWRT0WDlo4Itd/gTlFh29TFw==}
+  json-merge-patch@1.0.2:
+    resolution: {integrity: sha512-M6Vp2GN9L7cfuMXiWOmHj9bEFbeC250iVtcKQbqVgEsDVYnIsrNsbU+h/Y/PkbBQCtEa4Bez+Ebv0zfbC8ObLg==}
 
   json-parse-even-better-errors@2.3.1:
     resolution: {integrity: sha512-xyFwyhro/JEof6Ghe2iz2NcXoj2sloNsWr/XsERDK/oiPCfaNhl5ONfp+jQdAZRQQ0IJWNzH9zIZF7li91kh2w==}
@@ -4256,10 +4248,6 @@ packages:
 
   object-inspect@1.13.4:
     resolution: {integrity: sha512-W67iLl4J2EXEGTbfeHCffrjDfitvLANg0UlX3wFUUSTx92KXRFegMHUVgSqE+wvhAbi4WqjGg9czysTV2Epbew==}
-    engines: {node: '>= 0.4'}
-
-  object-is@1.1.6:
-    resolution: {integrity: sha512-F8cZ+KfGlSGi09lJT7/Nd6KJZ9ygtvYC0/UYYLI9nmQKLMnydpB9yvbv9K1uSkEu7FU9vYPmVwLg328tX+ot3Q==}
     engines: {node: '>= 0.4'}
 
   object-keys@1.1.1:
@@ -8665,15 +8653,6 @@ snapshots:
 
   dedent@1.7.2: {}
 
-  deep-equal@1.1.2:
-    dependencies:
-      is-arguments: 1.2.0
-      is-date-object: 1.1.0
-      is-regex: 1.2.1
-      object-is: 1.1.6
-      object-keys: 1.1.1
-      regexp.prototype.flags: 1.5.4
-
   deep-is@0.1.4: {}
 
   deepmerge@4.3.1: {}
@@ -9586,11 +9565,6 @@ snapshots:
 
   ipaddr.js@2.4.0: {}
 
-  is-arguments@1.2.0:
-    dependencies:
-      call-bound: 1.0.4
-      has-tostringtag: 1.0.2
-
   is-array-buffer@3.0.5:
     dependencies:
       call-bind: 1.0.9
@@ -10209,9 +10183,9 @@ snapshots:
 
   json-buffer@3.0.1: {}
 
-  json-merge-patch@0.2.3:
+  json-merge-patch@1.0.2:
     dependencies:
-      deep-equal: 1.1.2
+      fast-deep-equal: 3.1.3
 
   json-parse-even-better-errors@2.3.1: {}
 
@@ -10464,11 +10438,6 @@ snapshots:
   object-assign@4.1.1: {}
 
   object-inspect@1.13.4: {}
-
-  object-is@1.1.6:
-    dependencies:
-      call-bind: 1.0.9
-      define-properties: 1.2.1
 
   object-keys@1.1.1: {}
 
