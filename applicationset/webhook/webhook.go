@@ -3,7 +3,6 @@ package webhook
 import (
 	"context"
 	"fmt"
-	"html"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -26,8 +25,6 @@ import (
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	log "github.com/sirupsen/logrus"
-
-	"github.com/argoproj/argo-cd/v3/util/guard"
 )
 
 const payloadQueueSize = 50000
@@ -36,13 +33,12 @@ const panicMsgAppSet = "panic while processing applicationset-controller webhook
 
 type WebhookHandler struct {
 	sync.WaitGroup // for testing
-	github         *github.Webhook
-	gitlab         *gitlab.Webhook
-	azuredevops    *azuredevops.Webhook
-	ghcr           *webhook.GHCRParser
-	client         client.Client
-	generators     map[string]generators.Generator
-	queue          chan any
+	parsers        []webhook.Extractor
+	// maxWebhookPayloadSizeB is the webhook.maxPayloadSizeMB limit from argocd-cm, in bytes
+	maxWebhookPayloadSizeB int64
+	client                 client.Client
+	generators             map[string]generators.Generator
+	queue                  chan any
 }
 
 type gitGeneratorInfo struct {
@@ -84,47 +80,27 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 	if err != nil {
 		return nil, fmt.Errorf("failed to get argocd settings: %w", err)
 	}
-	githubHandler, err := github.New(github.Options.Secret(argocdSettings.GetWebhookGitHubSecret()))
-	if err != nil {
-		return nil, fmt.Errorf("unable to init GitHub webhook: %w", err)
-	}
-	gitlabHandler, err := gitlab.New(gitlab.Options.Secret(argocdSettings.GetWebhookGitLabSecret()))
-	if err != nil {
-		return nil, fmt.Errorf("unable to init GitLab webhook: %w", err)
-	}
-	azuredevopsHandler, err := azuredevops.New(azuredevops.Options.BasicAuth(argocdSettings.GetWebhookAzureDevOpsUsername(), argocdSettings.GetWebhookAzureDevOpsPassword()))
-	if err != nil {
-		return nil, fmt.Errorf("unable to init Azure DevOps webhook: %w", err)
-	}
-
 	webhookHandler := &WebhookHandler{
-		github:      githubHandler,
-		gitlab:      gitlabHandler,
-		azuredevops: azuredevopsHandler,
-		ghcr:        webhook.NewGHCRParser(argocdSettings.GetWebhookGitHubSecret()),
-		client:      client,
-		generators:  generators,
-		queue:       make(chan any, payloadQueueSize),
+		parsers: webhook.NewParsers(argocdSettings, webhook.ParserOptions{
+			AzureDevOpsEvents: []azuredevops.Event{
+				azuredevops.GitPushEventType,
+				azuredevops.GitPullRequestCreatedEventType,
+				azuredevops.GitPullRequestUpdatedEventType,
+				azuredevops.GitPullRequestMergedEventType,
+			},
+			GitHubEvents: []github.Event{github.PushEvent, github.PullRequestEvent, github.PingEvent},
+			GitLabEvents: []gitlab.Event{gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents},
+			GHCR:         true,
+		}),
+		maxWebhookPayloadSizeB: argocdSettingsMgr.GetMaxWebhookPayloadSize(),
+		client:                 client,
+		generators:             generators,
+		queue:                  make(chan any, payloadQueueSize),
 	}
 
-	webhookHandler.startWorkerPool(webhookParallelism)
+	webhook.StartWorkers(&webhookHandler.WaitGroup, webhookParallelism, webhookHandler.queue, webhookHandler.HandleEvent, "applicationset-webhook", panicMsgAppSet)
 
 	return webhookHandler, nil
-}
-
-func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
-	compLog := log.WithField("component", "applicationset-webhook")
-	for range webhookParallelism {
-		h.Go(func() {
-			for {
-				payload, ok := <-h.queue
-				if !ok {
-					return
-				}
-				guard.RecoverAndLog(func() { h.HandleEvent(payload) }, compLog, panicMsgAppSet)
-			}
-		})
-	}
 }
 
 func (h *WebhookHandler) HandleEvent(payload any) {
@@ -168,47 +144,7 @@ func (h *WebhookHandler) HandleEvent(payload any) {
 }
 
 func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	var payload any
-	var err error
-
-	switch {
-	case h.ghcr.CanHandle(r):
-		payload, err = h.ghcr.Parse(r)
-	case r.Header.Get("X-GitHub-Event") != "" && r.Header.Get("X-GitHub-Event") != "package":
-		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent)
-	case r.Header.Get("X-Gitlab-Event") != "":
-		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents)
-	case r.Header.Get("X-Vss-Activityid") != "":
-		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
-	default:
-		log.Debug("Ignoring unknown webhook event")
-		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
-		return
-	}
-
-	if err != nil {
-		log.Infof("Webhook processing failed: %s", err)
-		status := http.StatusBadRequest
-		if r.Method != http.MethodPost {
-			status = http.StatusMethodNotAllowed
-		}
-		http.Error(w, "Webhook processing failed: "+html.EscapeString(err.Error()), status)
-		return
-	}
-
-	// Parser claimed the request but produced no payload (e.g. GHCR event that
-	// was intentionally skipped). Acknowledge with 200 and skip the queue.
-	if payload == nil {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	select {
-	case h.queue <- payload:
-	default:
-		log.Info("Queue is full, discarding webhook payload")
-		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
-	}
+	webhook.HandleRequest(w, r, h.parsers, h.maxWebhookPayloadSizeB, h.queue)
 }
 
 func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
@@ -226,6 +162,12 @@ func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 		webURL = payload.Project.WebURL
 		revision = webhook.ParseRevision(payload.Ref)
 		touchedHead = payload.Project.DefaultBranch == revision
+	case gitlab.TagEventPayload:
+		// A tag push never moves the default branch, so it only refreshes generators
+		// whose revision names or matches the tag.
+		webURL = payload.Project.WebURL
+		revision = webhook.ParseRevision(payload.Ref)
+		touchedHead = false
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
 		webURL = payload.Resource.Repository.RemoteURL
@@ -350,10 +292,10 @@ func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInf
 		return false
 	}
 
-	if !gitGeneratorUsesURL(gen, info.Revision, info.RepoRegexp) {
+	if !webhook.RepoURLMatches(gen.RepoURL, info.RepoRegexp) {
 		return false
 	}
-	if !genRevisionHasChanged(gen, info.Revision, info.TouchedHead) {
+	if !webhook.RevisionHasChanged(gen.Revision, info.Revision, info.TouchedHead) {
 		return false
 	}
 	return true
@@ -377,25 +319,6 @@ func shouldRefreshOciGenerator(gen *v1alpha1.OciGenerator, info *ociGeneratorInf
 		return false
 	}
 
-	return true
-}
-
-func genRevisionHasChanged(gen *v1alpha1.GitGenerator, revision string, touchedHead bool) bool {
-	targetRev := webhook.ParseRevision(gen.Revision)
-	if targetRev == "HEAD" || targetRev == "" { // revision is head
-		return touchedHead
-	}
-
-	return targetRev == revision || gen.Revision == revision
-}
-
-func gitGeneratorUsesURL(gen *v1alpha1.GitGenerator, webURL string, repoRegexp *regexp.Regexp) bool {
-	if !repoRegexp.MatchString(gen.RepoURL) {
-		log.Warnf("%s does not match %s", gen.RepoURL, repoRegexp.String())
-		return false
-	}
-
-	log.Debugf("%s uses repoURL %s", gen.RepoURL, webURL)
 	return true
 }
 

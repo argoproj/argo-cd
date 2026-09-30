@@ -13,8 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/common"
-
 	bb "github.com/ktrysmt/go-bitbucket"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/util/workqueue"
@@ -110,55 +108,20 @@ type ArgoCDWebhookHandler struct {
 }
 
 func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, webhookRefreshWorkers int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64, webhookRefreshJitter time.Duration, webhookRefreshJitterThreshold int, appProjectsLister alpha1.AppProjectNamespaceLister) *ArgoCDWebhookHandler {
-	githubWebhook, err := github.New(github.Options.Secret(set.GetWebhookGitHubSecret()))
-	if err != nil {
-		log.Warnf("Unable to init the GitHub webhook")
-	}
-	gitlabWebhook, err := gitlab.New(gitlab.Options.Secret(set.GetWebhookGitLabSecret()))
-	if err != nil {
-		log.Warnf("Unable to init the GitLab webhook")
-	}
-	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(set.GetWebhookBitbucketUUID()))
-	if err != nil {
-		log.Warnf("Unable to init the Bitbucket webhook")
-	}
-	bitbucketserverWebhook, err := bitbucketserver.New(bitbucketserver.Options.Secret(set.GetWebhookBitbucketServerSecret()))
-	if err != nil {
-		log.Warnf("Unable to init the Bitbucket Server webhook")
-	}
-	gogsWebhook, err := gogs.New(gogs.Options.Secret(set.GetWebhookGogsSecret()))
-	if err != nil {
-		log.Warnf("Unable to init the Gogs webhook")
-	}
-	azuredevopsWebhook, err := azuredevops.New(azuredevops.Options.BasicAuth(set.GetWebhookAzureDevOpsUsername(), set.GetWebhookAzureDevOpsPassword()))
-	if err != nil {
-		log.Warnf("Unable to init the Azure DevOps webhook")
-	}
-	// Each upstream constructor returns a nil *Webhook on error; skip those so a
-	// matching request doesn't panic with a nil-pointer dereference in Parse.
-	var parsers []Extractor
-	if azuredevopsWebhook != nil {
-		parsers = append(parsers, &azureDevOpsParser{webhook: azuredevopsWebhook})
-	}
-	// Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
-	if gogsWebhook != nil {
-		parsers = append(parsers, &gogsParser{webhook: gogsWebhook})
-	}
-	if githubWebhook != nil {
-		parsers = append(parsers, &githubParser{webhook: githubWebhook})
-	}
-	if gitlabWebhook != nil {
-		parsers = append(parsers, &gitlabParser{webhook: gitlabWebhook})
-	}
-	if bitbucketWebhook != nil {
-		parsers = append(parsers, &bitbucketParser{webhook: bitbucketWebhook})
-	}
-	if bitbucketserverWebhook != nil {
-		parsers = append(parsers, &bitbucketServerParser{webhook: bitbucketserverWebhook})
-	}
-	parsers = append(parsers, newHarborParser(set.GetWebhookHarborSecret()))
-	parsers = append(parsers, NewGHCRParser(set.GetWebhookGitHubSecret()))
-
+	parsers := NewParsers(set, ParserOptions{
+		AzureDevOpsEvents: []azuredevops.Event{azuredevops.GitPushEventType},
+		GogsEvents:        []gogs.Event{gogs.PushEvent},
+		GitHubEvents:      []github.Event{github.PushEvent, github.PingEvent},
+		GitLabEvents:      []gitlab.Event{gitlab.PushEvents, gitlab.TagEvents, gitlab.SystemHookEvents},
+		BitbucketEvents:   []bitbucket.Event{bitbucket.RepoPushEvent},
+		BitbucketServerEvents: []bitbucketserver.Event{
+			bitbucketserver.RepositoryReferenceChangedEvent,
+			bitbucketserver.DiagnosticsPingEvent,
+		},
+		Harbor:    true,
+		GHCR:      true,
+		DockerHub: true,
+	})
 	log.Debugf("webhookRefreshJitter=%v", webhookRefreshJitter)
 	log.Debugf("webhookRefreshJitterThreshold=%d", webhookRefreshJitterThreshold)
 
@@ -181,25 +144,10 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		webhookRefreshJitterThreshold: webhookRefreshJitterThreshold,
 	}
 
-	acdWebhook.startWorkerPool(webhookParallelism)
+	StartWorkers(&acdWebhook.WaitGroup, webhookParallelism, acdWebhook.queue, acdWebhook.HandleEvent, "api-server-webhook", panicMsgServer)
 	acdWebhook.startRefreshWorkers(webhookRefreshWorkers)
 
 	return &acdWebhook
-}
-
-func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
-	compLog := log.WithField("component", "api-server-webhook")
-	for range webhookParallelism {
-		a.Go(func() {
-			for {
-				payload, ok := <-a.queue
-				if !ok {
-					return
-				}
-				guard.RecoverAndLog(func() { a.HandleEvent(payload) }, compLog, panicMsgServer)
-			}
-		})
-	}
 }
 
 // startRefreshWorkers starts worker goroutines to process app refresh requests from the refresh queue
@@ -517,7 +465,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 
 			// iterate over all sources and check if any files specified in refresh paths have changed
 			for _, source := range sources {
-				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
+				if RevisionHasChanged(source.TargetRevision, revision, touchedHead) && RepoURLMatches(source.RepoURL, repoRegexp) {
 					refreshPaths := path.GetSourceRefreshPaths(&app, source)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
 						var hydrateType *v1alpha1.HydrateType
@@ -697,19 +645,26 @@ func (a *ArgoCDWebhookHandler) lookupRepository(ctx context.Context, repoURL str
 	return repository, nil
 }
 
-func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string, touchedHead bool) bool {
-	targetRev := ParseRevision(source.TargetRevision)
+// RevisionHasChanged reports whether a webhook payload for revision affects targetRevision.
+//
+// targetRevision is the configured target: "HEAD", a branch or tag name, a fully qualified
+// ref such as "refs/heads/main", or a semver constraint such as ">=1.0.0". revision is the
+// ref carried by the payload, already reduced by ParseRevision. A targetRevision of "HEAD"
+// or "" tracks the repository's default branch, so it is affected exactly when touchedHead
+// is true; anything else is compared with CompareRevisions.
+func RevisionHasChanged(targetRevision string, revision string, touchedHead bool) bool {
+	targetRev := ParseRevision(targetRevision)
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
 		return touchedHead
 	}
 	targetRevisionHasPrefixList := []string{"refs/heads/", "refs/tags/"}
 	for _, prefix := range targetRevisionHasPrefixList {
-		if strings.HasPrefix(source.TargetRevision, prefix) {
+		if strings.HasPrefix(targetRevision, prefix) {
 			return CompareRevisions(revision, targetRev)
 		}
 	}
 
-	return CompareRevisions(revision, source.TargetRevision)
+	return CompareRevisions(revision, targetRevision)
 }
 
 func CompareRevisions(revision string, targetRevision string) bool {
@@ -734,13 +689,16 @@ func CompareRevisions(revision string, targetRevision string) bool {
 	return constraint.Check(version)
 }
 
-func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp *regexp.Regexp) bool {
-	if !repoRegexp.MatchString(source.RepoURL) {
-		log.Debugf("%s does not match %s", source.RepoURL, repoRegexp.String())
+// RepoURLMatches reports whether repoURL refers to the same repository as the webhook payload that
+// repoRegexp was built from. A non-match is the normal case, since every configured repository is
+// checked against every incoming event, so it is logged at debug level.
+func RepoURLMatches(repoURL string, repoRegexp *regexp.Regexp) bool {
+	if !repoRegexp.MatchString(repoURL) {
+		log.Debugf("%s does not match %s", repoURL, repoRegexp.String())
 		return false
 	}
 
-	log.Debugf("%s uses repoURL %s", source.RepoURL, webURL)
+	log.Debugf("%s matches %s", repoURL, repoRegexp.String())
 	return true
 }
 
@@ -974,75 +932,7 @@ func isBBServerHeadTouched(client *bitbucketv1.APIClient, projectKey, repoSlug, 
 }
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)
-	payload, handled, err := a.processWebhook(r)
-	if !handled {
-		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
-		return
-	}
-	if err != nil {
-		if errors.Is(err, ErrHMACVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Registry webhook HMAC verification failed")
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		// If the error is due to a large payload, return a more user-friendly error message
-		if isParsingPayloadError(err) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Warnf("Webhook processing failed: payload too large or corrupted (limit %v MB): %v", a.maxWebhookPayloadSizeB/1024/1024, err)
-			http.Error(w, fmt.Sprintf("Webhook processing failed: payload must be valid JSON under %v MB", a.maxWebhookPayloadSizeB/1024/1024), http.StatusBadRequest)
-			return
-		}
-
-		status := http.StatusBadRequest
-		if r.Method != http.MethodPost {
-			status = http.StatusMethodNotAllowed
-		}
-		log.Infof("Webhook processing failed: %v", err)
-		http.Error(w, "Webhook processing failed", status)
-		return
-	}
-
-	// Parser claimed the request but produced no payload (e.g. GHCR event that
-	// was intentionally skipped). Acknowledge with 200 and skip the queue.
-	if payload == nil {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	select {
-	case a.queue <- payload:
-	default:
-		log.Info("Queue is full, discarding webhook payload")
-		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-}
-
-// isParsingPayloadError returns a bool if the error is parsing payload error
-func isParsingPayloadError(err error) bool {
-	return errors.Is(err, github.ErrParsingPayload) ||
-		errors.Is(err, gitlab.ErrParsingPayload) ||
-		errors.Is(err, gogs.ErrParsingPayload) ||
-		errors.Is(err, bitbucket.ErrParsingPayload) ||
-		errors.Is(err, bitbucketserver.ErrParsingPayload) ||
-		errors.Is(err, azuredevops.ErrParsingPayload)
-}
-
-// processWebhook dispatches the request to the first matching parser.
-// The handled return is true when a parser claimed the request, regardless of
-// whether parsing produced a payload or an error; callers use it to distinguish
-// "unknown webhook event" (false) from "claimed but skipped" (true, nil, nil).
-func (a *ArgoCDWebhookHandler) processWebhook(r *http.Request) (any, bool, error) {
-	for _, p := range a.parsers {
-		if p.CanHandle(r) {
-			payload, err := p.Parse(r)
-			return payload, true, err
-		}
-	}
-	log.Debug("Ignoring unknown webhook event")
-	return nil, false, nil
+	HandleRequest(w, r, a.parsers, a.maxWebhookPayloadSizeB, a.queue)
 }
 
 // Shutdown gracefully shuts down the webhook handler by closing queues and waiting for workers

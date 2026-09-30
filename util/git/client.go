@@ -1736,6 +1736,7 @@ func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namesp
 	b.MaxInterval = 1 * time.Second
 
 	attempt := 0
+	permanent := false
 	operation := func() (struct{}, error) {
 		attempt++
 
@@ -1771,6 +1772,7 @@ func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namesp
 
 		// Check if this is a retryable error
 		if !isRetryableNotePushError(err.Error()) {
+			permanent = true
 			return struct{}{}, backoff.Permanent(fmt.Errorf("failed to push note: %w", err))
 		}
 
@@ -1782,7 +1784,11 @@ func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namesp
 		backoff.WithMaxElapsedTime(5*time.Second),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to push note after retries: %w", err)
+		if permanent {
+			// The operation already prefixed this error; prefixing again would duplicate it.
+			return err
+		}
+		return fmt.Errorf("failed to push note after %d attempts: %w", attempt, err)
 	}
 	return nil
 }
