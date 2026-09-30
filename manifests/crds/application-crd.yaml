@@ -5829,8 +5829,7 @@ spec:
                       hydratedGroupApps:
                         description: |-
                           HydratedGroupApps holds the qualified names of every app committed together as of this operation, so a
-                          membership change (an app added to or removed from the group) can be detected without inferring it from
-                          git state.
+                          membership change (an app added to or removed from the group) can be detected
                         items:
                           type: string
                         type: array

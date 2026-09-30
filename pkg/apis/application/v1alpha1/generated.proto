@@ -2809,8 +2809,7 @@ message SuccessfulHydrateOperation {
   optional SourceHydrator sourceHydrator = 7;
 
   // HydratedGroupApps holds the qualified names of every app committed together as of this operation, so a
-  // membership change (an app added to or removed from the group) can be detected without inferring it from
-  // git state.
+  // membership change (an app added to or removed from the group) can be detected
   repeated string hydratedGroupApps = 8;
 }
 
