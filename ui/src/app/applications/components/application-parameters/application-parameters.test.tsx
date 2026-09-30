@@ -52,6 +52,14 @@ jest.mock('../../../shared/components', () => ({
 // The add-source panel is not exercised by these tests and depends on backend services.
 jest.mock('./source-panel', () => ({SourcePanel: () => null}));
 
+jest.mock('./application-parameters-source', () => {
+    const actual = jest.requireActual('./application-parameters-source');
+    return {
+        ...actual,
+        ApplicationParametersSource: jest.fn((props: any) => actual.ApplicationParametersSource(props))
+    };
+});
+
 const multiSourceApp = (): models.Application =>
     ({
         metadata: {name: 'test-app'},
@@ -122,4 +130,94 @@ describe('validateHelmValues', () => {
     test('accepts empty string gracefully', () => {
         expect(validateHelmValues('')).toBeNull();
     });
+});
+
+test('multi-source helm values do not clear invalid yaml on save', async () => {
+    const {ApplicationParametersSource} = require('./application-parameters-source');
+    const mockSave = jest.fn();
+    
+    // Create an app that simulates the state just before saving.
+    // The user has typed invalid YAML in the UI, which updates the local `app` state's helm.values.
+    const app = multiSourceApp();
+    app.spec.sources[0].plugin = undefined;
+    app.spec.sources[0].helm = {
+        values: 'invalid: yaml: :\n',
+        valuesObject: {valid: 'yaml'}
+    };
+    app.spec.sources[0].chart = 'my-chart'; // to make it helm
+    
+    // Mock the DataLoader to resolve the source as Helm
+    jest.spyOn(require('../../../shared/services').services.repos, 'appDetails')
+        .mockResolvedValueOnce({type: 'Helm', helm: {}});
+        
+    renderWithContext(<ApplicationParameters application={app} save={mockSave} collapsedSources={[false]} handleCollapse={() => undefined} />);
+    
+    // Wait for the ApplicationParametersSource component to be rendered (it renders after DataLoader resolves)
+    const {waitFor} = require('@testing-library/react');
+    await waitFor(() => expect(ApplicationParametersSource).toHaveBeenCalled());
+    
+    // The ApplicationParameters component passes saveBottom to ApplicationParametersSource
+    const calls = (ApplicationParametersSource as jest.Mock).mock.calls;
+    const saveBottom = calls[calls.length - 1][0].saveBottom;
+    
+    // The user clicks save, passing the current form state to saveBottom
+    const formInputApp = JSON.parse(JSON.stringify(app));
+    await saveBottom(formInputApp);
+    
+    // We expect the original save prop to have been called
+    expect(mockSave).toHaveBeenCalled();
+    
+    // Crucially, the invalid YAML string should NOT be cleared from the payload.
+    const savedApp = mockSave.mock.calls[0][0];
+    expect(savedApp.spec.sources[0].helm.values).toBe('invalid: yaml: :\n');
+});
+
+test('single-source helm values editor handles invalid yaml gracefully and prevents autosave', async () => {
+    const { fireEvent, screen } = require('@testing-library/react');
+    const mockSave = jest.fn();
+
+    // Create a single-source app with valid Helm values initially
+    const app = {
+        metadata: {name: 'test-app'},
+        spec: {
+            project: 'default',
+            source: {
+                repoURL: 'https://example.com/repo',
+                path: 'my-chart',
+                helm: {
+                    values: 'valid: true\n'
+                }
+            }
+        }
+    } as any;
+
+    // Mock DataLoader resolution for single source to render Helm panel
+    jest.spyOn(require('../../../shared/services').services.repos, 'appDetails')
+        .mockResolvedValueOnce({type: 'Helm', helm: {}});
+
+    // Render in noReadonlyMode=true to enable auto-save on input change
+    renderWithContext(<ApplicationParameters application={app} save={mockSave} noReadonlyMode={true} />);
+
+    // Find the actual Helm values editor textarea
+    const { waitFor } = require('@testing-library/react');
+    const textarea = await waitFor(() => {
+        const ta = document.querySelector('textarea');
+        if (!ta) throw new Error('Textarea not found');
+        return ta;
+    });
+
+    // Simulate the user typing malformed YAML exactly once
+    fireEvent.change(textarea, { target: { value: 'invalid: yaml: :\n' } });
+
+    // Wait for validation to report the invalid YAML error in the UI
+    expect(await screen.findByText('Values must be valid YAML')).toBeInTheDocument();
+
+    // The formDidUpdate callback attempts autosave. Verify it did NOT save the invalid YAML.
+    const invalidCalls = mockSave.mock.calls.filter(call => 
+        call[0].spec.source?.helm?.values === 'invalid: yaml: :\n'
+    );
+    expect(invalidCalls).toHaveLength(0);
+
+    // The UI should remain rendered without crashing
+    expect(textarea).toBeInTheDocument();
 });

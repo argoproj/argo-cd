@@ -81,7 +81,7 @@ export function validateHelmValues(values: string | undefined): string | null {
         const parsedValues = jsYaml.load(values);
         const isMap = parsedValues !== null && typeof parsedValues === 'object' && !Array.isArray(parsedValues);
         return isMap ? null : 'Values must be a map';
-    } catch (e) {
+    } catch {
         return 'Values must be valid YAML';
     }
 }
@@ -411,10 +411,10 @@ export const ApplicationParameters = (props: {
                             if (updatedSrc && updatedSrc.helm?.valuesObject) {
                                 try {
                                     updatedSrc.helm.valuesObject = jsYaml.load(updatedSrc.helm.values); // Deserialize json
-                                } catch (e) {
+                                    updatedSrc.helm.values = '';
+                                } catch {
                                     // ignore, should be caught by validation
                                 }
-                                updatedSrc.helm.values = '';
                             }
                             await props.save(input, {});
                             setRemovedOverrides(new Array<boolean>());
@@ -557,10 +557,10 @@ export const ApplicationParameters = (props: {
                         if (appSrc.helm && appSrc.helm.valuesObject) {
                             try {
                                 appSrc.helm.valuesObject = jsYaml.load(appSrc.helm.values); // Deserialize json
-                            } catch (e) {
+                                appSrc.helm.values = '';
+                            } catch {
                                 // ignore, should be caught by validation
                             }
-                            appSrc.helm.values = '';
                         }
 
                         await props.save(input, {});
