@@ -34389,6 +34389,7 @@ rules:
   - delete
   - get
   - patch
+  - update
 - apiGroups:
   - '*'
   resources:
@@ -34401,6 +34402,7 @@ rules:
   - events
   verbs:
   - list
+  - update
 - apiGroups:
   - ""
   resources:
@@ -34408,6 +34410,45 @@ rules:
   - pods/log
   verbs:
   - get
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - list
+  - watch
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  - validatingwebhookconfigurations
+  verbs:
+  - list
+  - watch
+  - update
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - list
+  - watch
+  - update
+- apiGroups:
+  - apiregistration.k8s.io
+  resources:
+  - apiservices
+  verbs:
+  - list
+  - watch
+  - update
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificates
+  verbs:
+  - list
+  - watch
 - apiGroups:
   - argoproj.io
   resources:
