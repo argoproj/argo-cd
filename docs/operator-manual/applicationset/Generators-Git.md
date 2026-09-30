@@ -509,6 +509,27 @@ URL configured in the Git provider should use the `/api/webhook` endpoint of you
 (e.g. `https://applicationset.example.com/api/webhook`). If you wish to use a shared secret, input an
 arbitrary value in the secret. This value will be used when configuring the webhook in the next step.
 
+To limit the impact of unauthenticated webhook events, the ApplicationSet webhook rejects payloads
+larger than the `webhook.maxPayloadSizeMB` value in the `argocd-cm` ConfigMap. This is the same
+setting the [API server webhook](../webhook.md) uses, and the default is 50MB:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  webhook.maxPayloadSizeMB: "50"
+```
+
+> [!NOTE]
+> The ApplicationSet controller reads `webhook.maxPayloadSizeMB` when it starts. Restart the
+> controller after changing the value.
+
 ![Add Webhook](../../assets/applicationset/webhook-config.png "Add Webhook")
 
 > [!NOTE]
