@@ -611,7 +611,7 @@ Exit codes:
 					os.Exit(1)
 				}
 			case "wide", "":
-				printGitGpgSourceIntegrityResponse(c.OutOrStdout(), data.GetItems())
+				printGitGpgSourceIntegrityResponse(c.OutOrStdout(), data.GetItems(), hasSourceIntegrityProblems)
 			}
 
 			if hasSourceIntegrityProblems {
@@ -635,9 +635,7 @@ func hasSourceIntegrityProblems(items []*applicationpkg.InspectGitGPGSourceInteg
 	return false
 }
 
-func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.InspectGitGPGSourceIntegrityResponse) {
-	hasSourceIntegrityProblems := false
-
+func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.InspectGitGPGSourceIntegrityResponse, hasSourceIntegrityProblems bool) {
 	for i, item := range items {
 		gpgPolicy := item.GetGitGpgPolicy()
 		isStrictMode := gpgPolicy != nil && gpgPolicy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict
@@ -648,7 +646,6 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 		printGitGpgSourceIntegrityItemHeader(w, item)
 
 		if item.GetErrorMessage() != "" {
-			hasSourceIntegrityProblems = true
 			fmt.Fprintf(w, "\nPROBLEMS: %s\n", item.GetErrorMessage())
 		}
 
@@ -657,8 +654,6 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 		}
 
 		if len(item.GetCommits()) > 0 {
-			hasSourceIntegrityProblems = true
-
 			fmt.Fprintln(w, "\nPROBLEMATIC COMMITS:")
 			tabW := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 			fmt.Fprint(tabW, "  Revision\tDate\tAuthor\tSubject\tResult\n")
