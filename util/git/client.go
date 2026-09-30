@@ -1368,6 +1368,10 @@ func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision s
 
 	// Final LF will be cut by executil
 	for line := range strings.SplitSeq(commitSignaturesRawOut, "\n") {
+		if line == "" {
+			continue
+		}
+
 		r := strings.SplitN(line, zeroByte, 6)
 
 		if len(r) < 6 {
