@@ -24,7 +24,7 @@ export interface ApplicationTableRowProps {
     deleteApplication: (appName: string, appNamespace: string) => void;
 }
 
-export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, refreshApplication, deleteApplication}: ApplicationTableRowProps) => {
+export const ApplicationTableRow = React.memo(({app, selected, pref, ctx, syncApplication, refreshApplication, deleteApplication}: ApplicationTableRowProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
     const isFav = AppUtils.isFavorite(favList, app);
@@ -165,4 +165,5 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
             </div>
         </div>
     );
-};
+});
+ApplicationTableRow.displayName = 'ApplicationTableRow';
