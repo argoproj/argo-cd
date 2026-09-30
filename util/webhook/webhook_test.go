@@ -36,6 +36,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/db/mocks"
+	"github.com/argoproj/argo-cd/v3/util/security"
 
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -179,7 +180,7 @@ func newMockHandler(reactor *reactorDef, applicationNamespaces []string, maxPayl
 		appClientset.AddReactor(reactor.verb, reactor.resource, reactor.reaction)
 	}
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
-	return NewHandler("argocd", applicationNamespaces, 10, 10, appClientset, &fakeAppsLister{clientset: appClientset}, argoSettings, &fakeSettingsSrc{}, cache.NewCache(
+	return NewHandler("argocd", security.NewApplicationNamespaceSet(applicationNamespaces), 10, 10, appClientset, &fakeAppsLister{clientset: appClientset}, argoSettings, &fakeSettingsSrc{}, cache.NewCache(
 		cacheClient,
 		1*time.Minute,
 		1*time.Minute,
@@ -1127,7 +1128,7 @@ func TestHandleEvent(t *testing.T) {
 
 			h := NewHandler(
 				"argocd",
-				[]string{},
+				security.NewApplicationNamespaceSet([]string{}),
 				10,
 				1,
 				appClientset,
@@ -1355,7 +1356,7 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 
 			h := NewHandler(
 				"argocd",
-				[]string{},
+				security.NewApplicationNamespaceSet([]string{}),
 				10,
 				5,
 				appClientset,
@@ -1932,7 +1933,7 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 		cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
 		h := NewHandler(
 			"argocd",
-			[]string{},
+			security.NewApplicationNamespaceSet([]string{}),
 			10,
 			5,
 			appClientset,
@@ -1973,7 +1974,7 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 		cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
 		h := NewHandler(
 			"argocd",
-			[]string{},
+			security.NewApplicationNamespaceSet([]string{}),
 			10,
 			5,
 			appClientset,

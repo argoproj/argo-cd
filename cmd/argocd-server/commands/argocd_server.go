@@ -56,48 +56,49 @@ var (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		redisClient              *redis.Client
-		insecure                 bool
-		listenHost               string
-		listenPort               int
-		metricsHost              string
-		metricsPort              int
-		otlpAddress              string
-		otlpInsecure             bool
-		otlpHeaders              map[string]string
-		otlpAttrs                []string
-		otlpSampleRatio          float64
-		glogLevel                int
-		clientConfig             clientcmd.ClientConfig
-		repoServerTimeoutSeconds int
-		baseHRef                 string
-		rootPath                 string
-		repoServerAddress        string
-		dexServerAddress         string
-		disableAuth              bool
-		contentTypes             string
-		enableGZip               bool
-		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
-		cacheSrc                 func() (*servercache.Cache, error)
-		repoServerCacheSrc       func() (*reposervercache.Cache, error)
-		frameOptions             string
-		contentSecurityPolicy    string
-		repoServerPlaintext      bool
-		repoServerStrictTLS      bool
-		dexServerPlaintext       bool
-		dexServerStrictTLS       bool
-		staticAssetsDir          string
-		applicationNamespaces    []string
-		enableProxyExtension     bool
-		webhookParallelism       int
-		globCacheSize            int
-		webhookRefreshWorkers    int
-		hydratorEnabled          bool
-		syncWithReplaceAllowed   bool
-		disableSwaggerUI         bool
-		enableSourceIPLogging    bool
-		trustedProxies           []string
-		clientIPHeader           string
+		redisClient                 *redis.Client
+		insecure                    bool
+		listenHost                  string
+		listenPort                  int
+		metricsHost                 string
+		metricsPort                 int
+		otlpAddress                 string
+		otlpInsecure                bool
+		otlpHeaders                 map[string]string
+		otlpAttrs                   []string
+		otlpSampleRatio             float64
+		glogLevel                   int
+		clientConfig                clientcmd.ClientConfig
+		repoServerTimeoutSeconds    int
+		baseHRef                    string
+		rootPath                    string
+		repoServerAddress           string
+		dexServerAddress            string
+		disableAuth                 bool
+		contentTypes                string
+		enableGZip                  bool
+		tlsConfigCustomizerSrc      func() (tls.ConfigCustomizer, error)
+		cacheSrc                    func() (*servercache.Cache, error)
+		repoServerCacheSrc          func() (*reposervercache.Cache, error)
+		frameOptions                string
+		contentSecurityPolicy       string
+		repoServerPlaintext         bool
+		repoServerStrictTLS         bool
+		dexServerPlaintext          bool
+		dexServerStrictTLS          bool
+		staticAssetsDir             string
+		applicationNamespaces       []string
+		enableAppNamespaceDiscovery bool
+		enableProxyExtension        bool
+		webhookParallelism          int
+		globCacheSize               int
+		webhookRefreshWorkers       int
+		hydratorEnabled             bool
+		syncWithReplaceAllowed      bool
+		disableSwaggerUI            bool
+		enableSourceIPLogging       bool
+		trustedProxies              []string
+		clientIPHeader              string
 
 		// ApplicationSet
 		enableNewGitFileGlobbing bool
@@ -260,6 +261,7 @@ func NewCommand() *cobra.Command {
 				RedisClient:             redisClient,
 				StaticAssetsDir:         staticAssetsDir,
 				ApplicationNamespaces:   applicationNamespaces,
+				AppNamespaceDiscovery:   enableAppNamespaceDiscovery,
 				EnableProxyExtension:    enableProxyExtension,
 				WebhookParallelism:      webhookParallelism,
 				WebhookRefreshWorkers:   webhookRefreshWorkers,
@@ -352,6 +354,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&dexServerPlaintext, "dex-server-plaintext", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to dex server")
 	command.Flags().BoolVar(&dexServerStrictTLS, "dex-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to dex server")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
+	command.Flags().BoolVar(&enableAppNamespaceDiscovery, "enable-app-namespace-discovery", env.ParseBoolFromEnv("ARGOCD_APP_NAMESPACE_DISCOVERY", false), "Enable application namespaces to be discovered by label")
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
 	command.Flags().IntVar(&globCacheSize, "glob-cache-size", env.ParseNumFromEnv("ARGOCD_SERVER_GLOB_CACHE_SIZE", utilglob.DefaultGlobCacheSize, 1, math.MaxInt32), "Maximum number of compiled glob patterns to cache for RBAC evaluation")

@@ -398,7 +398,7 @@ spec:
               optional: true
         - name: KUBECACHEDIR
           value: /tmp/kubecache
-        - name: ARGOCD_SOURCE_NAMESPACE_DISCOVERY
+        - name: ARGOCD_APP_NAMESPACE_DISCOVERY
           valueFrom:
             configMapKeyRef:
               name: argocd-cmd-params-cm
