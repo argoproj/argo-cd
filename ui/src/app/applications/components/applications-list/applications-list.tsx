@@ -360,11 +360,22 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
         // add refreshing annotation in the UI to improve user experience
         if (loaderRef.current) {
             const applications = loaderRef.current.getData() as models.Application[];
-            const app = applications.find(item => item.metadata.name === appName && item.metadata.namespace === appNamespace);
-            if (app) {
-                AppUtils.setAppRefreshing(app);
-                loaderRef.current.setData(applications);
-            }
+            // New app + array refs so React.memo tiles/rows re-render the refresh spinner.
+            const nextApplications = applications.map(item => {
+                if (item.metadata.name !== appName || item.metadata.namespace !== appNamespace) {
+                    return item;
+                }
+                const nextApp: models.Application = {
+                    ...item,
+                    metadata: {
+                        ...item.metadata,
+                        annotations: {...(item.metadata.annotations || {})}
+                    }
+                };
+                AppUtils.setAppRefreshing(nextApp);
+                return nextApp;
+            });
+            loaderRef.current.setData(nextApplications);
         }
         services.applications.get(appName, appNamespace, 'application', 'normal');
     }, []);
