@@ -484,6 +484,28 @@ func TestKustomizeCustomVersion(t *testing.T) {
 	assert.Equal(t, "ARGOCD_APP_NAME=argo-cd-tests\n", string(content))
 }
 
+func TestKustomizeBuildComponents(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization6)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Components:              []string{"./components"},
+		IgnoreMissingComponents: false,
+	}
+	objs, _, _, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.NoError(t, err)
+	obj := objs[0]
+	assert.Equal(t, "nginx-deployment", obj.GetName())
+	assert.Equal(t, map[string]string{
+		"app": "nginx",
+	}, obj.GetLabels())
+	replicas, ok, err := unstructured.NestedInt64(obj.Object, "spec", "replicas")
+	require.NoError(t, err)
+	require.True(t, ok)
+	assert.Equal(t, int64(3), replicas)
+}
+
 func TestKustomizeBuildComponentsFailMissing(t *testing.T) {
 	appPath, err := testDataDir(t, kustomization6)
 	require.NoError(t, err)
