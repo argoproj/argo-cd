@@ -1,7 +1,9 @@
 package kustomize
 
 import (
+	"encoding/base64"
 	"fmt"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -633,6 +635,43 @@ func TestKustomizeBuildComponentsNoFoundComponents(t *testing.T) {
 	for _, cmd := range commands {
 		assert.NotContains(t, cmd, "edit add component", "kustomize edit add component should not be invoked when foundComponents is empty")
 	}
+}
+
+// TestKustomizeBuildGitRefArgumentInjection is a regression test for GHSA-9v9p-x54c-58gc.
+//
+// kustomize passes a remote resource's `ref=` query value unsanitized to `git fetch` as a
+// positional argument. A value beginning with `-`, such as `--upload-pack=<command>`, is instead
+// interpreted by git as a flag, and `--upload-pack` makes git execute an arbitrary local command
+// while resolving the "remote" side of a file:// transfer - achieving command execution wherever
+// `kustomize build` runs.
+//
+// This is closed by a git wrapper installed ahead of the real git on the build subprocess's PATH.
+// It inserts `--end-of-options` before a `fetch`'s positional arguments, so a
+// `--upload-pack=<command>` ref is treated as an ordinary (non-existent) refspec rather than a git
+// option, and no command is executed - while remote bases remain a fully supported feature. See
+// gitwrapper.go.
+func TestKustomizeBuildGitRefArgumentInjection(t *testing.T) {
+	appPath := t.TempDir()
+	marker := filepath.Join(t.TempDir(), "pwned")
+
+	// Base64-wrap the payload so its shell metacharacters and spaces survive being embedded in a
+	// URL query parameter and re-parsed by git, mirroring the technique used in the public PoC.
+	script := fmt.Sprintf("touch %s", marker)
+	encoded := base64.StdEncoding.EncodeToString([]byte(script))
+	runner := url.QueryEscape(fmt.Sprintf(`sh -c "echo %s|base64 -d|sh"`, encoded))
+	kustomization := fmt.Sprintf(`apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- 'file:///a/b/c?ref=--upload-pack=%s'
+`, runner)
+	require.NoError(t, os.WriteFile(filepath.Join(appPath, "kustomization.yaml"), []byte(kustomization), 0o644))
+
+	k := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+	// The build always fails (the "remote" cannot be resolved); we only care whether the payload
+	// ran as a side effect.
+	_, _, _, _ = k.Build(nil, nil, nil, &BuildOpts{})
+
+	assert.NoFileExists(t, marker, "the git-ref-injected command must not execute")
 }
 
 func Test_getImageParameters_sorted(t *testing.T) {

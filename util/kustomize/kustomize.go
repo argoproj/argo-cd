@@ -393,6 +393,15 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 	cmd.Env = env
 	cmd.Env = proxy.UpsertEnv(cmd, k.proxy, k.noProxy)
+	// Install a git wrapper ahead of the real git on the subprocess PATH so that any `git fetch`
+	// kustomize runs to resolve a remote base cannot be tricked into interpreting an
+	// attacker-controlled ref (e.g. `?ref=--upload-pack=<cmd>`) as a git option. This protects
+	// trusted, Git-backed Applications without disabling remote bases entirely. See
+	// GHSA-9v9p-x54c-58gc.
+	cmd.Env, err = withGitWrapper(cmd.Env)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to install git wrapper for kustomize build: %w", err)
+	}
 	cmd.Dir = k.repoRoot
 	commands = append(commands, executil.GetCommandArgsToLog(cmd))
 	out, err := executil.Run(cmd)
