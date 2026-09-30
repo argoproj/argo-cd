@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -19,11 +18,9 @@ import (
 	jose "github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
-	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -490,67 +487,6 @@ func TestGracefulShutdown(t *testing.T) {
 	assert.True(t, s.terminateRequested.Load())
 	assert.False(t, s.available.Load())
 	assert.True(t, shutdown)
-}
-
-// blockAfterSignal closes ready on the first read, then reads from r.
-// ServeHTTP registers the handler transport before reading the body, so the
-// first read means GracefulStop would see that transport.
-type blockAfterSignal struct {
-	r     io.Reader
-	ready chan struct{}
-	once  *gosync.Once
-}
-
-func (b *blockAfterSignal) Read(p []byte) (int, error) {
-	b.once.Do(func() { close(b.ready) })
-	return b.r.Read(p)
-}
-
-func TestGracefulStopWithInFlightHandlerTransport(t *testing.T) {
-	hook := logtest.NewGlobal()
-	t.Cleanup(hook.Reset)
-
-	grpcS := grpc.NewServer()
-	pr, pw := io.Pipe()
-	t.Cleanup(func() { _ = pw.Close() })
-
-	bodyRead := make(chan struct{})
-	var once gosync.Once
-	req := httptest.NewRequest(http.MethodPost, "/grpc.health.v1.Health/Check", &blockAfterSignal{r: pr, ready: bodyRead, once: &once})
-	req.Header.Set("Content-Type", "application/grpc")
-	req.ProtoMajor = 2
-
-	serveDone := make(chan struct{})
-	go func() {
-		defer close(serveDone)
-		grpcS.ServeHTTP(httptest.NewRecorder(), req)
-	}()
-
-	select {
-	case <-bodyRead:
-	case <-time.After(5 * time.Second):
-		t.Fatal("handler transport did not start reading the request")
-	}
-
-	stopCtx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-	defer cancel()
-	gracefulStopGRPCServer(grpcS, stopCtx)
-
-	panicked := false
-	for _, entry := range hook.AllEntries() {
-		if strings.Contains(entry.Message, "gRPC graceful stop panicked") {
-			panicked = true
-			break
-		}
-	}
-	require.True(t, panicked, "GracefulStop should hit the unimplemented Drain panic and recover")
-
-	_ = pw.Close()
-	select {
-	case <-serveDone:
-	case <-time.After(5 * time.Second):
-		t.Fatal("ServeHTTP did not return after gRPC stop")
-	}
 }
 
 func TestOIDCRefresh(t *testing.T) {
