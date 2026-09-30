@@ -10,6 +10,7 @@ export const resourceIconGroups = {
     '*.promoter.argoproj.io': true,
     'cassandra.rook.io': true,
     'cert-manager.io': true,
+    'cilium.io': true,
     'core.spinkube.dev': true,
     'external-secrets.io': true,
     'flagger.app': true,
