@@ -47,6 +47,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
+	"github.com/argoproj/argo-cd/v3/util/security"
 
 	mockcommitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient/mocks"
 	mockstatecache "github.com/argoproj/argo-cd/v3/controller/cache/mocks"
@@ -3645,7 +3646,7 @@ func TestToAppKey(t *testing.T) {
 func Test_canProcessApp(t *testing.T) {
 	app := newFakeApp()
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-	ctrl.applicationNamespaces = []string{"good"}
+	ctrl.applicationNamespaces = security.NewApplicationNamespaceSet([]string{"good"})
 	t.Run("without cluster filter, good namespace", func(t *testing.T) {
 		app.Namespace = "good"
 		canProcess := ctrl.canProcessApp(app)
@@ -4794,18 +4795,4 @@ func TestFinalizeApplicationDeletion_EvictsApplicationGoneFromAPIServer(t *testi
 	_, exists, err := ctrl.appInformer.GetStore().Get(phantom)
 	require.NoError(t, err)
 	assert.False(t, exists)
-}
-
-func Test_addApplicationNamespace(t *testing.T) {
-	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
-	ctrl.applicationNamespaces = []string{}
-	ctrl.applicationNamespacesMu = sync.RWMutex{}
-
-	ctrl.addApplicationNamespace("test-ns1")
-	ctrl.addApplicationNamespace("test-ns2")
-	ctrl.addApplicationNamespace("test-ns1")
-
-	assert.Len(t, ctrl.applicationNamespaces, 2)
-	assert.Equal(t, "test-ns1", ctrl.applicationNamespaces[0])
-	assert.Equal(t, "test-ns2", ctrl.applicationNamespaces[1])
 }

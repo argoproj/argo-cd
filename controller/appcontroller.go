@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"reflect"
 	"runtime/debug"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -65,6 +64,7 @@ import (
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/stats"
 
 	"github.com/argoproj/argo-cd/v3/pkg/ratelimiter"
@@ -129,36 +129,35 @@ type ApplicationController struct {
 	// queue contains app namespace/name
 	appRefreshQueue workqueue.TypedRateLimitingInterface[string]
 	// queue contains app namespace/name/comparisonType and used to request app refresh with the predefined comparison type
-	appComparisonTypeRefreshQueue   workqueue.TypedRateLimitingInterface[string]
-	appOperationQueue               workqueue.TypedRateLimitingInterface[string]
-	projectRefreshQueue             workqueue.TypedRateLimitingInterface[string]
-	appHydrateQueue                 workqueue.TypedRateLimitingInterface[string]
-	hydrationQueue                  workqueue.TypedRateLimitingInterface[hydratortypes.HydrationQueueKey]
-	appInformer                     cache.SharedIndexInformer
-	appLister                       applisters.ApplicationLister
-	projInformer                    cache.SharedIndexInformer
-	appStateManager                 AppStateManager
-	stateCache                      statecache.LiveStateCache
-	statusRefreshTimeout            time.Duration
-	statusHardRefreshTimeout        time.Duration
-	statusRefreshJitter             time.Duration
-	selfHealTimeout                 time.Duration
-	selfHealBackoff                 *wait.Backoff
-	syncTimeout                     time.Duration
-	db                              db.ArgoDB
-	settingsMgr                     *settings_util.SettingsManager
-	refreshRequestedApps            map[string]CompareWith
-	refreshRequestedAppsMutex       *sync.Mutex
-	metricsServer                   *metrics.MetricsServer
-	metricsClusterLabels            []string
-	kubectlSemaphore                *semaphore.Weighted
-	clusterSharding                 sharding.ClusterShardingCache
-	projByNameCache                 sync.Map
-	applicationNamespaces           []string
-	applicationNamespacesMu         sync.RWMutex
-	sourceNamespaceDiscoveryEnabled bool
-	namespaceInformer               informersv1.NamespaceInformer
-	ignoreNormalizerOpts            normalizers.IgnoreNormalizerOpts
+	appComparisonTypeRefreshQueue workqueue.TypedRateLimitingInterface[string]
+	appOperationQueue             workqueue.TypedRateLimitingInterface[string]
+	projectRefreshQueue           workqueue.TypedRateLimitingInterface[string]
+	appHydrateQueue               workqueue.TypedRateLimitingInterface[string]
+	hydrationQueue                workqueue.TypedRateLimitingInterface[hydratortypes.HydrationQueueKey]
+	appInformer                   cache.SharedIndexInformer
+	appLister                     applisters.ApplicationLister
+	projInformer                  cache.SharedIndexInformer
+	appStateManager               AppStateManager
+	stateCache                    statecache.LiveStateCache
+	statusRefreshTimeout          time.Duration
+	statusHardRefreshTimeout      time.Duration
+	statusRefreshJitter           time.Duration
+	selfHealTimeout               time.Duration
+	selfHealBackoff               *wait.Backoff
+	syncTimeout                   time.Duration
+	db                            db.ArgoDB
+	settingsMgr                   *settings_util.SettingsManager
+	refreshRequestedApps          map[string]CompareWith
+	refreshRequestedAppsMutex     *sync.Mutex
+	metricsServer                 *metrics.MetricsServer
+	metricsClusterLabels          []string
+	kubectlSemaphore              *semaphore.Weighted
+	clusterSharding               sharding.ClusterShardingCache
+	projByNameCache               sync.Map
+	applicationNamespaces         *security.ApplicationNamespaceSet
+	appNamespaceDiscoveryEnabled  bool
+	namespaceInformer             informersv1.NamespaceInformer
+	ignoreNormalizerOpts          normalizers.IgnoreNormalizerOpts
 
 	// dynamicClusterDistributionEnabled if disabled deploymentInformer is never initialized
 	dynamicClusterDistributionEnabled bool
@@ -199,7 +198,7 @@ func NewApplicationController(
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 	enableK8sEvent []string,
 	hydratorEnabled bool,
-	sourceNamespaceDiscoveryEnabled bool,
+	appNamespaceDiscoveryEnabled bool,
 ) (*ApplicationController, error) {
 	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v, appResyncJitter=%v", appResyncPeriod, appHardResyncPeriod, appResyncJitter)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
@@ -232,9 +231,7 @@ func NewApplicationController(
 		syncTimeout:                       syncTimeout,
 		clusterSharding:                   clusterSharding,
 		projByNameCache:                   sync.Map{},
-		applicationNamespaces:             applicationNamespaces,
-		applicationNamespacesMu:           sync.RWMutex{},
-		sourceNamespaceDiscoveryEnabled:   sourceNamespaceDiscoveryEnabled,
+		appNamespaceDiscoveryEnabled:      appNamespaceDiscoveryEnabled,
 		dynamicClusterDistributionEnabled: dynamicClusterDistributionEnabled,
 		ignoreNormalizerOpts:              ignoreNormalizerOpts,
 		metricsClusterLabels:              metricsClusterLabels,
@@ -247,15 +244,12 @@ func NewApplicationController(
 	}
 	kubectl.SetOnKubectlRun(ctrl.onKubectlRun)
 
+	ctrl.applicationNamespaces = security.NewApplicationNamespaceSet(applicationNamespaces)
 	// get all namespaces with the source namespace label and initialize the namespace informer
 	// if source namespace discovery is enabled
 	var err error
-	sourceNamespaceLabel, err := settingsMgr.GetAppSourceNamespaceKey()
-	if err != nil {
-		return nil, err
-	}
 	namespaces, err := ctrl.kubeClientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{
-		LabelSelector: sourceNamespaceLabel,
+		LabelSelector: fmt.Sprintf("%s=%s", common.LabelKeyReconcileBy, ctrl.namespace),
 	})
 	if err != nil {
 		if !apierrors.IsForbidden(err) {
@@ -264,15 +258,15 @@ func NewApplicationController(
 		log.Error("App controller is forbidden from listing namespaces, namespaces with label will not allow applications!")
 	}
 	for _, ns := range namespaces.Items {
-		ctrl.addApplicationNamespace(ns.Name)
+		ctrl.applicationNamespaces.Add(ns.Name)
 	}
 
 	namespaceFactory := informers.NewSharedInformerFactoryWithOptions(ctrl.kubeClientset, defaultNamespaceInformerResyncDuration, informers.WithTweakListOptions(func(opts *metav1.ListOptions) {
-		opts.LabelSelector = sourceNamespaceLabel
+		opts.LabelSelector = fmt.Sprintf("%s=%s", common.LabelKeyReconcileBy, ctrl.namespace)
 	}))
-	if sourceNamespaceDiscoveryEnabled {
+	if appNamespaceDiscoveryEnabled {
 		ctrl.namespaceInformer = namespaceFactory.Core().V1().Namespaces()
-		_, err := ctrl.namespaceInformer.Informer().AddEventHandler(ctrl.namespaceEventHandlerFuncs())
+		_, err := ctrl.namespaceInformer.Informer().AddEventHandler(ctrl.namespaceEventHandlerFuncs(common.LabelKeyReconcileBy))
 		if err != nil {
 			return nil, err
 		}
@@ -991,7 +985,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 		go ctrl.deploymentInformer.Informer().Run(ctx.Done())
 	}
 
-	if ctrl.sourceNamespaceDiscoveryEnabled {
+	if ctrl.appNamespaceDiscoveryEnabled {
 		// namespace informer should only start if source namespace discovery is enabled
 		go ctrl.namespaceInformer.Informer().Run(ctx.Done())
 	}
@@ -2898,9 +2892,7 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 // isAppNamespaceAllowed returns whether the application is allowed in the
 // namespace it's residing in.
 func (ctrl *ApplicationController) isAppNamespaceAllowed(app *appv1.Application) bool {
-	ctrl.applicationNamespacesMu.RLock()
-	defer ctrl.applicationNamespacesMu.RUnlock()
-	return app.Namespace == ctrl.namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, glob.REGEXP)
+	return app.Namespace == ctrl.namespace || glob.MatchStringInList(ctrl.applicationNamespaces.List(), app.Namespace, glob.REGEXP)
 }
 
 func (ctrl *ApplicationController) canProcessApp(obj any) bool {
@@ -2961,11 +2953,9 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 	watchNamespace := ctrl.namespace
 	// If we have at least one additional namespace configured, we need to
 	// watch on them all.
-	ctrl.applicationNamespacesMu.RLock()
-	if len(ctrl.applicationNamespaces) > 0 {
+	if len(ctrl.applicationNamespaces.List()) > 0 {
 		watchNamespace = ""
 	}
-	ctrl.applicationNamespacesMu.RUnlock()
 	refreshTimeout := ctrl.statusRefreshTimeout
 	if ctrl.statusHardRefreshTimeout.Seconds() != 0 && (ctrl.statusHardRefreshTimeout < ctrl.statusRefreshTimeout) {
 		refreshTimeout = ctrl.statusHardRefreshTimeout
@@ -3215,11 +3205,9 @@ func (ctrl *ApplicationController) getAppList(options metav1.ListOptions) (*appv
 	watchNamespace := ctrl.namespace
 	// If we have at least one additional namespace configured, we need to
 	// watch on them all.
-	ctrl.applicationNamespacesMu.RLock()
-	if len(ctrl.applicationNamespaces) > 0 {
+	if len(ctrl.applicationNamespaces.List()) > 0 {
 		watchNamespace = ""
 	}
-	ctrl.applicationNamespacesMu.RUnlock()
 
 	appList, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(watchNamespace).List(context.TODO(), options)
 	if err != nil {
@@ -3260,44 +3248,38 @@ func (ctrl *ApplicationController) applyImpersonationConfig(config *rest.Config,
 
 type ClusterFilterFunction func(c *appv1.Cluster, distributionFunction sharding.DistributionFunction) bool
 
-// addApplicationNamespace is a thread safe add function for application namespaces. It also
-// ensures that namespaces only appear.
-func (ctrl *ApplicationController) addApplicationNamespace(ns string) {
-	ctrl.applicationNamespacesMu.Lock()
-	defer ctrl.applicationNamespacesMu.Unlock()
-	if slices.Index(ctrl.applicationNamespaces, ns) == -1 {
-		ctrl.applicationNamespaces = append(ctrl.applicationNamespaces, ns)
-	}
-}
-
 // namespaceEventHandlerFuncs returns handler events for the namespace informer.
 // These events update the application namespaces based on the event observed
-func (ctrl *ApplicationController) namespaceEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
+func (ctrl *ApplicationController) namespaceEventHandlerFuncs(label string) cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
 			ns, ok := obj.(*corev1.Namespace)
 			if !ok {
 				return
 			}
-			ctrl.addApplicationNamespace(ns.Name)
+
+			if val, ok := ns.Labels[label]; ok && val == ctrl.namespace {
+				ctrl.applicationNamespaces.Add(ns.Name)
+			}
 		},
 		UpdateFunc: func(_ any, newObj any) {
-			ns, ok := newObj.(*corev1.Namespace)
+			newNS, ok := newObj.(*corev1.Namespace)
 			if !ok {
 				return
 			}
-			ctrl.addApplicationNamespace(ns.Name)
+
+			if newVal, ok := newNS.Labels[label]; ok && newVal == ctrl.namespace {
+				ctrl.applicationNamespaces.Add(newNS.Name)
+			} else {
+				ctrl.applicationNamespaces.Delete(newNS.Name)
+			}
 		},
 		DeleteFunc: func(obj any) {
 			ns, ok := obj.(*corev1.Namespace)
 			if !ok {
 				return
 			}
-			ctrl.applicationNamespacesMu.Lock()
-			defer ctrl.applicationNamespacesMu.Unlock()
-			if i := slices.Index(ctrl.applicationNamespaces, ns.Name); i != -1 {
-				ctrl.applicationNamespaces = slices.Delete(ctrl.applicationNamespaces, i, i+1)
-			}
+			ctrl.applicationNamespaces.Delete(ns.Name)
 		},
 	}
 }
