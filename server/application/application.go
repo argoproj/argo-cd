@@ -2297,7 +2297,12 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	if a.DeletionTimestamp != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
 	}
-	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
+	rollbackAwareDefault, err := s.settingsMgr.GetRollbackAwareAutoSyncEnabled()
+	if err != nil {
+		return nil, fmt.Errorf("error getting application.rollbackAwareAutoSyncEnabled config: %w", err)
+	}
+	rollbackAware := a.Spec.SyncPolicy.IsRollbackAwareAutoSync(rollbackAwareDefault)
+	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !rollbackAware {
 		return nil, status.Errorf(codes.FailedPrecondition, "rollback cannot be initiated when auto-sync is enabled")
 	}
 
@@ -2336,6 +2341,18 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 			Sources:      deploymentInfo.Sources,
 		},
 		InitiatedBy: v1alpha1.OperationInitiator{Username: session.Username(ctx)},
+	}
+	if rollbackAware {
+		// Record the revision currently desired by the application source so that, once the rollback succeeds,
+		// automated sync skips it until the source moves to a different revision. Rolling back to the revision
+		// that is already desired is not a rollback away from anything, so nothing is recorded in that case.
+		if a.Spec.HasMultipleSources() {
+			if len(a.Status.Sync.Revisions) > 0 && !slices.Equal(a.Status.Sync.Revisions, deploymentInfo.Revisions) {
+				op.Sync.RolledBackFromRevisions = a.Status.Sync.Revisions
+			}
+		} else if a.Status.Sync.Revision != "" && a.Status.Sync.Revision != deploymentInfo.Revision {
+			op.Sync.RolledBackFromRevision = a.Status.Sync.Revision
+		}
 	}
 	appName := rollbackReq.GetName()
 	appNs := s.appNamespaceOrDefault(rollbackReq.GetAppNamespace())

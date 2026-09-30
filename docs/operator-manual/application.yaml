@@ -231,6 +231,7 @@ spec:
       prune: true # Specifies if resources should be pruned during auto-syncing ( false by default ).
       selfHeal: true # Specifies if partial app sync should be executed when resources are changed only in target Kubernetes cluster and no git change detected ( false by default ).
       allowEmpty: false # Allows deleting all application resources during automatic syncing ( false by default ).
+      rollbackAware: false # Allows rollbacks while automated sync is enabled; automated sync then skips the rolled-back revision until a new revision is available. Falls back to `application.rollbackAwareAutoSyncEnabled` in argocd-cm when unset ( false by default ).
     syncOptions:     # Sync options which modifies sync behavior
     - Validate=false # disables resource validation (equivalent to 'kubectl apply --validate=false') ( true by default ).
     - CreateNamespace=true # Namespace Auto-Creation ensures that namespace specified as the application destination exists in the destination cluster.

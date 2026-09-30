@@ -2986,6 +2986,134 @@ func TestRollbackApp_WithRefresh(t *testing.T) {
 	assert.False(t, updatedApp.Operation.Retry.Refresh, "refresh should never be set on rollback")
 }
 
+func TestRollbackApp_RollbackAwareAutoSync(t *testing.T) {
+	const badRevision = "bad"
+	const goodRevision = "abc"
+	newAppWithHistory := func() *v1alpha1.Application {
+		app := newTestApp()
+		app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
+		app.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync, Revision: badRevision}
+		app.Status.History = []v1alpha1.RevisionHistory{{
+			ID:       1,
+			Revision: goodRevision,
+			Source:   *app.Spec.Source.DeepCopy(),
+		}}
+		return app
+	}
+	newServer := func(t *testing.T, app *v1alpha1.Application, globalEnabled bool) *Server {
+		t.Helper()
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+		config := map[string]string{}
+		if globalEnabled {
+			config["application.rollbackAwareAutoSyncEnabled"] = "true"
+		}
+		return newTestAppServerWithEnforcerConfigure(t, f, config, app)
+	}
+	rollback := func(t *testing.T, s *Server, app *v1alpha1.Application) (*v1alpha1.Application, error) {
+		t.Helper()
+		return s.Rollback(t.Context(), &application.ApplicationRollbackRequest{Name: &app.Name, Id: new(int64(1))})
+	}
+
+	t.Run("rejected when auto-sync is enabled and the feature is off", func(t *testing.T) {
+		app := newAppWithHistory()
+		_, err := rollback(t, newServer(t, app, false), app)
+		require.Error(t, err)
+		assert.Equal(t, codes.FailedPrecondition, status.Code(err))
+		assert.Contains(t, err.Error(), "rollback cannot be initiated when auto-sync is enabled")
+	})
+
+	t.Run("allowed by the instance-wide setting and records the rolled-back revision", func(t *testing.T) {
+		app := newAppWithHistory()
+		updated, err := rollback(t, newServer(t, app, true), app)
+		require.NoError(t, err)
+		require.NotNil(t, updated.Operation)
+		assert.Equal(t, goodRevision, updated.Operation.Sync.Revision)
+		assert.Equal(t, badRevision, updated.Operation.Sync.RolledBackFromRevision)
+		assert.Empty(t, updated.Operation.Sync.RolledBackFromRevisions)
+	})
+
+	t.Run("allowed by the per-application setting", func(t *testing.T) {
+		app := newAppWithHistory()
+		app.Spec.SyncPolicy.Automated.RollbackAware = new(true)
+		updated, err := rollback(t, newServer(t, app, false), app)
+		require.NoError(t, err)
+		assert.Equal(t, badRevision, updated.Operation.Sync.RolledBackFromRevision)
+	})
+
+	t.Run("per-application opt-out overrides the instance-wide setting", func(t *testing.T) {
+		app := newAppWithHistory()
+		app.Spec.SyncPolicy.Automated.RollbackAware = new(false)
+		_, err := rollback(t, newServer(t, app, true), app)
+		require.Error(t, err)
+		assert.Equal(t, codes.FailedPrecondition, status.Code(err))
+	})
+
+	t.Run("records nothing when rolling back to the currently desired revision", func(t *testing.T) {
+		app := newAppWithHistory()
+		app.Status.Sync.Revision = goodRevision
+		updated, err := rollback(t, newServer(t, app, true), app)
+		require.NoError(t, err)
+		assert.Empty(t, updated.Operation.Sync.RolledBackFromRevision)
+	})
+
+	t.Run("records nothing when the desired revision is unknown", func(t *testing.T) {
+		app := newAppWithHistory()
+		app.Status.Sync.Revision = ""
+		updated, err := rollback(t, newServer(t, app, true), app)
+		require.NoError(t, err)
+		assert.Empty(t, updated.Operation.Sync.RolledBackFromRevision)
+	})
+
+	t.Run("records nothing when the feature is off and auto-sync is disabled", func(t *testing.T) {
+		app := newAppWithHistory()
+		app.Spec.SyncPolicy = nil
+		updated, err := rollback(t, newServer(t, app, false), app)
+		require.NoError(t, err)
+		assert.Empty(t, updated.Operation.Sync.RolledBackFromRevision)
+	})
+
+	t.Run("records the revision even when auto-sync is currently disabled", func(t *testing.T) {
+		// Re-enabling auto-sync later must not re-deploy the rolled-back revision.
+		app := newAppWithHistory()
+		app.Spec.SyncPolicy.Automated.Enabled = new(false)
+		updated, err := rollback(t, newServer(t, app, true), app)
+		require.NoError(t, err)
+		assert.Equal(t, badRevision, updated.Operation.Sync.RolledBackFromRevision)
+	})
+
+	t.Run("multi-source records the rolled-back revisions", func(t *testing.T) {
+		app := newMultiSourceTestApp()
+		app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
+		app.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync, Revisions: []string{"bad1", "bad2"}}
+		app.Status.History = []v1alpha1.RevisionHistory{{
+			ID:        1,
+			Revisions: []string{"good1", "good2"},
+			Sources:   app.Spec.Sources.DeepCopy(),
+		}}
+		updated, err := rollback(t, newServer(t, app, true), app)
+		require.NoError(t, err)
+		assert.Empty(t, updated.Operation.Sync.RolledBackFromRevision)
+		assert.Equal(t, []string{"bad1", "bad2"}, updated.Operation.Sync.RolledBackFromRevisions)
+	})
+
+	t.Run("multi-source records nothing when rolling back to the desired revisions", func(t *testing.T) {
+		app := newMultiSourceTestApp()
+		app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
+		app.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync, Revisions: []string{"good1", "good2"}}
+		app.Status.History = []v1alpha1.RevisionHistory{{
+			ID:        1,
+			Revisions: []string{"good1", "good2"},
+			Sources:   app.Spec.Sources.DeepCopy(),
+		}}
+		updated, err := rollback(t, newServer(t, app, true), app)
+		require.NoError(t, err)
+		assert.Empty(t, updated.Operation.Sync.RolledBackFromRevisions)
+	})
+}
+
 func TestUpdateAppProject(t *testing.T) {
 	testApp := newTestApp()
 	ctx := t.Context()

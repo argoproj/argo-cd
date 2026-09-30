@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"reflect"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -2102,19 +2103,17 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false, nil)
 	if canSync {
-		syncErrCond, opDuration := ctrl.autoSync(ctx, app, compareResult.syncStatus, compareResult.resources, compareResult.revisionsMayHaveChanges)
+		autoSyncCond, opDuration := ctrl.autoSync(ctx, app, compareResult.syncStatus, compareResult.resources, compareResult.revisionsMayHaveChanges)
 		setOpDuration = opDuration
-		if syncErrCond != nil {
-			app.Status.SetConditions(
-				[]appv1.ApplicationCondition{*syncErrCond},
-				map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true},
-			)
-		} else {
-			app.Status.SetConditions(
-				[]appv1.ApplicationCondition{},
-				map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true},
-			)
+		autoSyncConditions := []appv1.ApplicationCondition{}
+		if autoSyncCond != nil {
+			autoSyncConditions = append(autoSyncConditions, *autoSyncCond)
 		}
+		// autoSync owns both condition types: whichever it did not return this round is cleared.
+		app.Status.SetConditions(autoSyncConditions, map[appv1.ApplicationConditionType]bool{
+			appv1.ApplicationConditionSyncError:             true,
+			appv1.ApplicationConditionAutoSyncPausedWarning: true,
+		})
 	} else {
 		logCtx.Info("Sync prevented by sync window")
 	}
@@ -2652,6 +2651,10 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 		return nil, 0
 	}
 
+	if cond := ctrl.skipRolledBackRevision(app, syncStatus, logCtx); cond != nil {
+		return cond, 0
+	}
+
 	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
 	// a sync when application is already in a Synced or Unknown state
 	if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
@@ -2776,6 +2779,53 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 	ctrl.logAppEvent(context.TODO(), app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: corev1.EventTypeNormal}, message)
 	logCtx.Info(message)
 	return nil, setOpTime
+}
+
+// skipRolledBackRevision implements rollback-aware automated sync. When the application recorded a rolled-back
+// revision and the desired revision still matches it while the application is OutOfSync, automated sync is paused
+// and a condition explaining why is returned. Otherwise the record is stale: it is cleared in place (persisted with
+// the rest of the status by the caller) and nil is returned so that the sync proceeds. Applications without the
+// feature enabled never consult the record.
+func (ctrl *ApplicationController) skipRolledBackRevision(app *appv1.Application, syncStatus *appv1.SyncStatus, logCtx *log.Entry) *appv1.ApplicationCondition {
+	if app.Status.RolledBackRevision == "" && len(app.Status.RolledBackRevisions) == 0 {
+		return nil
+	}
+	rollbackAwareDefault, err := ctrl.settingsMgr.GetRollbackAwareAutoSyncEnabled()
+	if err != nil {
+		logCtx.WithError(err).Warn("Failed to read application.rollbackAwareAutoSyncEnabled setting, assuming disabled")
+		rollbackAwareDefault = false
+	}
+	if !app.Spec.SyncPolicy.IsRollbackAwareAutoSync(rollbackAwareDefault) {
+		return nil
+	}
+
+	var rolledBack, desired []string
+	if app.Spec.HasMultipleSources() {
+		rolledBack, desired = app.Status.RolledBackRevisions, syncStatus.Revisions
+	} else {
+		rolledBack, desired = []string{app.Status.RolledBackRevision}, []string{syncStatus.Revision}
+	}
+	if len(desired) == 0 || slices.Contains(desired, "") {
+		return nil
+	}
+	if slices.Equal(rolledBack, desired) {
+		// The source still points at the rolled-back revision. Pause while the application is OutOfSync, and
+		// otherwise leave the record alone: a comparison that reports the rolled-back revision as Synced can
+		// simply predate the rollback, and clearing on it would let the next sync deploy that revision again.
+		// A deliberate sync of the rolled-back revision clears the record through persistRevisionHistory.
+		if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
+			return nil
+		}
+		message := fmt.Sprintf("Skipping auto-sync: revision %s was rolled back; waiting for a new revision", strings.Join(rolledBack, ", "))
+		logCtx.Info(message)
+		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionAutoSyncPausedWarning, Message: message}
+	}
+
+	// The source moved to a different revision, so the record is stale.
+	logCtx.Infof("Clearing rolled back revision %s: desired revision is now %s and the application is %s", strings.Join(rolledBack, ", "), strings.Join(desired, ", "), syncStatus.Status)
+	app.Status.RolledBackRevision = ""
+	app.Status.RolledBackRevisions = nil
+	return nil
 }
 
 // alreadyAttemptedSync returns whether the most recently synced revision(s) exactly match the given desiredRevisions

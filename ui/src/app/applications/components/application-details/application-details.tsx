@@ -8,7 +8,7 @@ import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
-import {AppContext, Context, ContextApis} from '../../../shared/context';
+import {AppContext, AuthSettingsCtx, Context, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
 
@@ -33,6 +33,7 @@ import {Filters, FiltersProps, getEffectiveResourceFilter} from './application-r
 import {getAppDefaultSource, getAppCurrentVersion, urlPattern, getApplicationDetailsContainerClass} from '../utils';
 import {ChartDetails, OCIMetadata} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
+import {getRollbackConfirmation} from './rollback-confirmation';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
@@ -89,6 +90,7 @@ export const SelectNode = (fullName: string, containerIndex = 0, tab: string = n
 
 export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; name: string}> & {objectListKind: string}> = props => {
     const appContext = useContext(Context);
+    const authSettings = useContext(AuthSettingsCtx);
     const [appChanged] = useState(() => new BehaviorSubject<appModels.AbstractApplication>(null));
     const objectListKind = props.objectListKind;
 
@@ -289,14 +291,9 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
     const rollbackApplication = useCallback(
         async (revisionHistory: appModels.RevisionHistory, application: appModels.Application) => {
             try {
-                const needDisableRollback = application.spec.syncPolicy && application.spec.syncPolicy.automated && application.spec.syncPolicy.automated.enabled !== false;
-                let confirmationMessage = `Are you sure you want to rollback application '${props.match.params.name}'?`;
-                if (needDisableRollback) {
-                    confirmationMessage = `Auto-Sync needs to be disabled in order for rollback to occur.
-Are you sure you want to disable auto-sync and rollback application '${props.match.params.name}'?`;
-                }
+                const {needDisableRollback, message} = getRollbackConfirmation(application, props.match.params.name, authSettings?.rollbackAwareAutoSyncEnabled);
 
-                const confirmed = await appContext.popup.confirm('Rollback application', confirmationMessage);
+                const confirmed = await appContext.popup.confirm('Rollback application', message);
                 if (confirmed) {
                     if (needDisableRollback) {
                         const update = JSON.parse(JSON.stringify(application)) as appModels.Application;
@@ -314,7 +311,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 });
             }
         },
-        [props.match.params.name, getAppNamespace, appContext, objectListKind, appChanged, setRollbackPanelVisible]
+        [props.match.params.name, getAppNamespace, appContext, authSettings, objectListKind, appChanged, setRollbackPanelVisible]
     );
 
     const getPageTitle = useCallback(

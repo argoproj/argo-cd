@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -208,5 +209,260 @@ func TestAutoSyncAllowEmptyCanBeDisabled(t *testing.T) {
 		And(func(app *Application) {
 			require.NotNil(t, app.Spec.SyncPolicy.Automated.AllowEmpty, "allowEmpty should not be nil after being explicitly set to false")
 			assert.False(t, *app.Spec.SyncPolicy.Automated.AllowEmpty, "allowEmpty=false should be persisted, not silently dropped")
+		})
+}
+
+type pausedRollbackApp struct {
+	// firstRevision is the revision the application was rolled back to, and the one now deployed.
+	firstRevision string
+	// badRevision is the revision the application was rolled back from, and the one now recorded.
+	badRevision string
+	// firstHistoryID identifies the history entry holding firstRevision.
+	firstHistoryID int64
+	// historyLen is the length of the revision history once the rollback has been recorded.
+	historyLen int
+	// reconciledAt is the last reconciliation before the caller does anything of its own.
+	reconciledAt metav1.Time
+	// rollbackToFirst rolls the application back to firstHistoryID again.
+	rollbackToFirst func()
+}
+
+func givenPausedRollbackAwareApp(t *testing.T, ctx *Context, automated *SyncPolicyAutomated) *pausedRollbackApp {
+	t.Helper()
+	paused := &pausedRollbackApp{}
+	paused.rollbackToFirst = func() {
+		_, err := fixture.RunCli("app", "rollback", ctx.AppName(), strconv.FormatInt(paused.firstHistoryID, 10))
+		require.NoError(t, err)
+	}
+	ctx.Path(guestbookPath).
+		When().
+		SetParamInSettingConfigMap("application.rollbackAwareAutoSyncEnabled", "true").
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: automated}
+		}).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.Len(t, app.Status.History, 1)
+			paused.firstRevision = app.Status.Sync.Revision
+			paused.firstHistoryID = app.Status.History[0].ID
+		}).
+		// the offending commit, which automated sync deploys as usual
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 1}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.Len(t, app.Status.History, 2)
+			require.NotEqual(t, paused.firstRevision, app.Status.Sync.Revision)
+			paused.badRevision = app.Status.Sync.Revision
+		}).
+		// the rollback is accepted with automated sync still enabled, and pauses it
+		When().
+		And(paused.rollbackToFirst).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(Condition(ApplicationConditionAutoSyncPausedWarning, "was rolled back")).
+		And(func(app *Application) {
+			require.Equal(t, paused.badRevision, app.Status.RolledBackRevision)
+			require.NotNil(t, app.Status.OperationState.SyncResult)
+			require.NotNil(t, app.Status.ReconciledAt)
+			assert.Equal(t, paused.firstRevision, app.Status.OperationState.SyncResult.Revision, "the rollback deployed the earlier revision")
+			assert.Nil(t, app.Operation, "automated sync must not re-deploy the rolled-back revision")
+			paused.historyLen = len(app.Status.History)
+			paused.reconciledAt = *app.Status.ReconciledAt
+		})
+	return paused
+}
+
+func TestAutoSyncRollbackAware(t *testing.T) {
+	ctx := Given(t)
+	paused := givenPausedRollbackAwareApp(t, ctx, &SyncPolicyAutomated{})
+	ctx.When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 2}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		And(func(app *Application) {
+			assert.Empty(t, app.Status.RolledBackRevision)
+			assert.NotEqual(t, paused.badRevision, app.Status.Sync.Revision)
+			assert.Equal(t, app.Status.Sync.Revision, app.Status.OperationState.SyncResult.Revision)
+		})
+}
+
+func TestAutoSyncRollbackAwareRevertClearsRecord(t *testing.T) {
+	ctx := Given(t)
+	paused := givenPausedRollbackAwareApp(t, ctx, &SyncPolicyAutomated{})
+	// restoring the original value is a revert: the manifests match what the rollback already applied
+	ctx.When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 3}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		Expect(Status(func(status ApplicationStatus) (bool, string) {
+			return status.RolledBackRevision == "", fmt.Sprintf("rolled back revision to be cleared, is %q", status.RolledBackRevision)
+		})).
+		And(func(app *Application) {
+			assert.NotEqual(t, paused.badRevision, app.Status.Sync.Revision, "the revert is a new revision")
+			// Nothing needed applying, so the last operation is still the rollback itself.
+			assert.Equal(t, paused.firstRevision, app.Status.OperationState.SyncResult.Revision)
+			assert.Len(t, app.Status.History, paused.historyLen, "no sync runs when the revert leaves the application Synced")
+		})
+}
+
+func TestAutoSyncRollbackAwarePausesSelfHeal(t *testing.T) {
+	ctx := Given(t)
+	paused := givenPausedRollbackAwareApp(t, ctx, &SyncPolicyAutomated{SelfHeal: new(true)})
+	var reconciledAfterFirstRound metav1.Time
+	reconciledAfter := func(mark *metav1.Time) func(ApplicationStatus) (bool, string) {
+		return func(status ApplicationStatus) (bool, string) {
+			if status.ReconciledAt == nil || !status.ReconciledAt.After(mark.Time) {
+				return false, fmt.Sprintf("a reconciliation later than %s", mark)
+			}
+			return true, fmt.Sprintf("reconciled after %s", mark)
+		}
+	}
+	deployments := fixture.KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace())
+	liveRevisionHistoryLimit := func() int32 {
+		deploy, err := deployments.Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, deploy.Spec.RevisionHistoryLimit)
+		return *deploy.Spec.RevisionHistoryLimit
+	}
+	// change the live cluster behind Argo CD's back
+	ctx.When().
+		And(func() {
+			errors.NewHandler(t).FailOnErr(deployments.Patch(t.Context(),
+				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), metav1.PatchOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(Status(reconciledAfter(&paused.reconciledAt))).
+		And(func(app *Application) {
+			reconciledAfterFirstRound = *app.Status.ReconciledAt
+		}).
+		// a second round, so that more than one reconciliation has seen both the drift and self-heal enabled
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(Status(reconciledAfter(&reconciledAfterFirstRound))).
+		Expect(Condition(ApplicationConditionAutoSyncPausedWarning, "was rolled back")).
+		And(func(app *Application) {
+			assert.Equal(t, paused.badRevision, app.Status.RolledBackRevision, "self-heal must not clear the record")
+			assert.Len(t, app.Status.History, paused.historyLen, "self-heal must not sync while paused")
+			assert.Equal(t, paused.firstRevision, app.Status.OperationState.SyncResult.Revision)
+			assert.Equal(t, int32(0), liveRevisionHistoryLimit(), "the live change must survive while automated sync is paused")
+		}).
+		// once the source moves on, the pause lifts and the drift is corrected along with it
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 2}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		And(func(app *Application) {
+			assert.Empty(t, app.Status.RolledBackRevision)
+			assert.Equal(t, int32(2), liveRevisionHistoryLimit(), "self-heal works again once the pause lifts")
+		})
+}
+
+func TestAutoSyncRollbackAwareManualSyncClearsRecord(t *testing.T) {
+	ctx := Given(t)
+	paused := givenPausedRollbackAwareApp(t, ctx, &SyncPolicyAutomated{})
+	ctx.When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		And(func(app *Application) {
+			assert.Empty(t, app.Status.RolledBackRevision, "a manual sync clears the record")
+			assert.Equal(t, paused.badRevision, app.Status.Sync.Revision, "the revision that was rolled back from is deployed again")
+			require.NotNil(t, app.Status.OperationState.SyncResult)
+			assert.Equal(t, paused.badRevision, app.Status.OperationState.SyncResult.Revision)
+		}).
+		// with the record gone there is nothing left to pause on
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		And(func(app *Application) {
+			assert.Empty(t, app.Status.RolledBackRevision, "automated sync must not pause again on an accepted revision")
+			assert.Nil(t, app.Operation)
+		})
+}
+
+func TestAutoSyncRollbackAwareSecondRollbackReplacesRecord(t *testing.T) {
+	ctx := Given(t)
+	paused := givenPausedRollbackAwareApp(t, ctx, &SyncPolicyAutomated{})
+	var secondBadRevision string
+	// a second commit moves the desired revision, so the first record is cleared and the commit is deployed
+	ctx.When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 4}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		And(func(app *Application) {
+			secondBadRevision = app.Status.Sync.Revision
+			require.NotEqual(t, paused.badRevision, secondBadRevision)
+			assert.Empty(t, app.Status.RolledBackRevision, "a new desired revision clears the record")
+		}).
+		// rolling back again records the second revision in place of the first
+		When().
+		And(paused.rollbackToFirst).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(Condition(ApplicationConditionAutoSyncPausedWarning, "was rolled back")).
+		And(func(app *Application) {
+			assert.Equal(t, secondBadRevision, app.Status.RolledBackRevision, "only the most recent rollback is remembered")
+			assert.NotEqual(t, paused.badRevision, app.Status.RolledBackRevision, "the first rollback must not still be recorded")
+			assert.Empty(t, app.Status.RolledBackRevisions, "a single-source application must not use the plural field")
+		}).
+		// the condition names the second revision, which is what the UI renders in the sync status panel
+		Expect(Condition(ApplicationConditionAutoSyncPausedWarning, secondBadRevision)).
+		// a fix clears the record for good
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 5}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		And(func(app *Application) {
+			assert.Empty(t, app.Status.RolledBackRevision)
+			assert.Empty(t, app.Status.RolledBackRevisions)
+		})
+}
+
+// TestAutoSyncRollbackRejectedWhenNotRollbackAware verifies the default behaviour is unchanged: with the feature
+// disabled, a rollback is rejected while automated sync is enabled.
+func TestAutoSyncRollbackRejectedWhenNotRollbackAware(t *testing.T) {
+	ctx := Given(t)
+	ctx.Path(guestbookPath).
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{}}
+		}).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.Len(t, app.Status.History, 1)
+			_, err := fixture.RunCli("app", "rollback", ctx.AppName(), strconv.FormatInt(app.Status.History[0].ID, 10))
+			require.ErrorContains(t, err, "rollback cannot be initiated when auto-sync is enabled")
 		})
 }

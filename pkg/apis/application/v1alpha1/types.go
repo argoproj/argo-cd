@@ -1246,6 +1246,12 @@ type ApplicationStatus struct {
 	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
 	// SourceHydrator stores information about the current state of source hydration
 	SourceHydrator SourceHydratorStatus `json:"sourceHydrator,omitempty" protobuf:"bytes,14,opt,name=sourceHydrator"`
+	// RolledBackRevision is the revision that was deployed before the most recent rollback. When rollback-aware
+	// automated sync is enabled, automated sync skips this revision until a different revision is available.
+	// It is cleared when any other revision is successfully synced.
+	RolledBackRevision string `json:"rolledBackRevision,omitempty" protobuf:"bytes,15,opt,name=rolledBackRevision"`
+	// RolledBackRevisions is the multi-source equivalent of RolledBackRevision
+	RolledBackRevisions []string `json:"rolledBackRevisions,omitempty" protobuf:"bytes,16,opt,name=rolledBackRevisions"`
 }
 
 // SourceHydratorStatus contains information about the current state of source hydration
@@ -1448,6 +1454,18 @@ type SyncOperation struct {
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,11,opt,name=revisions"`
 	// SelfHealAttemptsCount contains the number of auto-heal attempts
 	SelfHealAttemptsCount int64 `json:"autoHealAttemptsCount,omitempty" protobuf:"bytes,12,opt,name=autoHealAttemptsCount"`
+	// RolledBackFromRevision is the revision that was deployed when a rollback operation was initiated.
+	// It is only set by rollback operations when rollback-aware automated sync is enabled, and is recorded in
+	// the application status once the rollback succeeds so that automated sync can skip that revision.
+	RolledBackFromRevision string `json:"rolledBackFromRevision,omitempty" protobuf:"bytes,13,opt,name=rolledBackFromRevision"`
+	// RolledBackFromRevisions is the multi-source equivalent of RolledBackFromRevision
+	RolledBackFromRevisions []string `json:"rolledBackFromRevisions,omitempty" protobuf:"bytes,14,opt,name=rolledBackFromRevisions"`
+}
+
+// IsRollback returns true if the sync operation was initiated by a rollback that recorded the revision it
+// rolled back from.
+func (o *SyncOperation) IsRollback() bool {
+	return o != nil && (o.RolledBackFromRevision != "" || len(o.RolledBackFromRevisions) > 0)
 }
 
 // IsApplyStrategy returns true if the sync strategy is "apply"
@@ -1543,6 +1561,15 @@ func (p *SyncPolicy) IsAutomatedSyncEnabled() bool {
 	return false
 }
 
+// IsRollbackAwareAutoSync returns whether rollback-aware automated sync applies to this policy. An explicit
+// per-application value wins; otherwise the given instance-wide default applies.
+func (p *SyncPolicy) IsRollbackAwareAutoSync(defaultValue bool) bool {
+	if p != nil && p.Automated != nil && p.Automated.RollbackAware != nil {
+		return *p.Automated.RollbackAware
+	}
+	return defaultValue
+}
+
 // IsZero returns true if the sync policy is empty
 func (p *SyncPolicy) IsZero() bool {
 	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
@@ -1622,6 +1649,10 @@ type SyncPolicyAutomated struct {
 	AllowEmpty *bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 	// Enable allows apps to explicitly control automated sync
 	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enabled"`
+	// RollbackAware allows rollbacks while automated sync is enabled. After a rollback, automated sync skips the
+	// rolled-back revision until a different revision is available. When unset, the value of the
+	// `application.rollbackAwareAutoSyncEnabled` key in the argocd-cm ConfigMap applies (default: false).
+	RollbackAware *bool `json:"rollbackAware,omitempty" protobuf:"bytes,5,opt,name=rollbackAware"`
 }
 
 // GetPrune returns the value of Prune, defaulting to false if nil.
@@ -1912,6 +1943,8 @@ const (
 	ApplicationConditionComparisonError = "ComparisonError"
 	// ApplicationConditionSyncError indicates controller failed to automatically sync the application
 	ApplicationConditionSyncError = "SyncError"
+	// ApplicationConditionAutoSyncPausedWarning indicates that automated sync is skipping a revision that was rolled back
+	ApplicationConditionAutoSyncPausedWarning = "AutoSyncPausedWarning"
 	// ApplicationConditionUnknownError indicates an unknown controller error
 	ApplicationConditionUnknownError = "UnknownError"
 	// ApplicationConditionSharedResourceWarning indicates that controller detected resources which belongs to more than one application

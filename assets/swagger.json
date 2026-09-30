@@ -5802,6 +5802,9 @@
         "resourceViewEnabled": {
           "type": "boolean"
         },
+        "rollbackAwareAutoSyncEnabled": {
+          "type": "boolean"
+        },
         "statusBadgeEnabled": {
           "type": "boolean"
         },
@@ -8068,6 +8071,17 @@
           "title": "Resources is a list of Kubernetes resources managed by this application",
           "items": {
             "$ref": "#/definitions/applicationv1alpha1ResourceStatus"
+          }
+        },
+        "rolledBackRevision": {
+          "description": "RolledBackRevision is the revision that was deployed before the most recent rollback. When rollback-aware\nautomated sync is enabled, automated sync skips this revision until a different revision is available.\nIt is cleared when any other revision is successfully synced.",
+          "type": "string"
+        },
+        "rolledBackRevisions": {
+          "type": "array",
+          "title": "RolledBackRevisions is the multi-source equivalent of RolledBackRevision",
+          "items": {
+            "type": "string"
           }
         },
         "sourceHydrator": {
@@ -11019,6 +11033,17 @@
             "type": "string"
           }
         },
+        "rolledBackFromRevision": {
+          "description": "RolledBackFromRevision is the revision that was deployed when a rollback operation was initiated.\nIt is only set by rollback operations when rollback-aware automated sync is enabled, and is recorded in\nthe application status once the rollback succeeds so that automated sync can skip that revision.",
+          "type": "string"
+        },
+        "rolledBackFromRevisions": {
+          "type": "array",
+          "title": "RolledBackFromRevisions is the multi-source equivalent of RolledBackFromRevision",
+          "items": {
+            "type": "string"
+          }
+        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
@@ -11133,6 +11158,10 @@
         "prune": {
           "type": "boolean",
           "title": "Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)"
+        },
+        "rollbackAware": {
+          "description": "RollbackAware allows rollbacks while automated sync is enabled. After a rollback, automated sync skips the\nrolled-back revision until a different revision is available. When unset, the value of the\n`application.rollbackAwareAutoSync` key in the argocd-cm ConfigMap applies (default: false).",
+          "type": "boolean"
         },
         "selfHeal": {
           "type": "boolean",
