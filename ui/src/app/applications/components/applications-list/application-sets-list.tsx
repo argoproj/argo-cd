@@ -31,6 +31,7 @@ import {
     TILE_GAP,
     TILE_HEIGHT,
     TILE_MIN_WIDTH,
+    useItemsPerContainer,
     useWindowScrollerPosition
 } from './virtual-scroll';
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
@@ -249,35 +250,15 @@ const ApplicationSetsToolbar = (props: {
     );
 };
 
-const useItemsPerContainer = (itemRef: React.RefObject<HTMLDivElement | null>, containerRef: React.RefObject<HTMLElement | null>, enabled: boolean = true): number => {
-    const [itemsPer, setItemsPer] = React.useState(0);
-
-    React.useEffect(() => {
-        if (!enabled) {
-            return;
-        }
-        let timeoutId: ReturnType<typeof setTimeout>;
-        const handleResize = () => {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => {
-                const itemWidth = itemRef.current ? itemRef.current.offsetWidth : -1;
-                const containerWidth = containerRef.current ? containerRef.current.offsetWidth : -1;
-                const curItemsPer = containerWidth > 0 && itemWidth > 0 ? Math.floor(containerWidth / itemWidth) : 1;
-                setItemsPer(prev => (curItemsPer !== prev ? curItemsPer : prev));
-            }, 1000);
-        };
-        window.addEventListener('resize', handleResize);
-        handleResize();
-        return () => {
-            clearTimeout(timeoutId);
-            window.removeEventListener('resize', handleResize);
-        };
-    }, [itemRef, containerRef, enabled]);
-
-    return itemsPer || 1;
-};
-
-const ApplicationSetTiles = ({appSets, useVirtualScrolling, statusBarVisible}: {appSets: models.ApplicationSet[]; useVirtualScrolling?: boolean; statusBarVisible?: boolean}) => {
+export const ApplicationSetTiles = ({
+    appSets,
+    useVirtualScrolling,
+    statusBarVisible
+}: {
+    appSets: models.ApplicationSet[];
+    useVirtualScrolling?: boolean;
+    statusBarVisible?: boolean;
+}) => {
     const [selectedAppSet, navAppSet, reset] = useNav(appSets.length);
     const ctxh = React.useContext(Context);
     const firstTileRef = React.useRef<HTMLDivElement>(null);
@@ -421,7 +402,15 @@ const ApplicationSetTiles = ({appSets, useVirtualScrolling, statusBarVisible}: {
     );
 };
 
-const ApplicationSetTable = ({appSets, useVirtualScrolling, statusBarVisible}: {appSets: models.ApplicationSet[]; useVirtualScrolling?: boolean; statusBarVisible?: boolean}) => {
+export const ApplicationSetTable = ({
+    appSets,
+    useVirtualScrolling,
+    statusBarVisible
+}: {
+    appSets: models.ApplicationSet[];
+    useVirtualScrolling?: boolean;
+    statusBarVisible?: boolean;
+}) => {
     const [selectedAppSet, navAppSet, reset] = useNav(appSets.length);
     const ctxh = React.useContext(Context);
     const listRef = React.useRef<List>(null);
