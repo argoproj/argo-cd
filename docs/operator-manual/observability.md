@@ -74,13 +74,15 @@ verified against the first of the following that is configured:
 3. The system root CAs.
 
 For mTLS, set `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` and `OTEL_EXPORTER_OTLP_CLIENT_KEY`, or their
-signal-specific variants. The client certificate works with any of the CAs above. Signal-specific
-variables take precedence over the generic ones, and empty values are ignored.
+signal-specific variants. The client certificate works with any of the CAs above. The certificate
+and key are read as a pair: the signal-specific pair is used if both are set, otherwise the generic
+pair. Signal-specific CA variables take precedence over the generic one, and empty values are
+ignored.
 
 > [!NOTE]
 > A component fails to start if a configured CA file cannot be read or contains no certificates,
-> or if only one of the client certificate and key is set. `OTEL_EXPORTER_OTLP_INSECURE` and
-> `http://` endpoints do not override `otlp.insecure: "false"`.
+> or if a client certificate or key is set without a complete pair.
+> `OTEL_EXPORTER_OTLP_INSECURE` and `http://` endpoints do not override `otlp.insecure: "false"`.
 
 To trust a private CA for the collector, add it to `argocd-tls-certs-cm` the same way as for a
 repository:

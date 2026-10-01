@@ -65,18 +65,21 @@ func collectorTLSCredentials(otlpAddress, signal string) (credentials.TransportC
 		}
 	}
 
-	certPath := env(signal + "_CLIENT_CERTIFICATE")
-	if certPath == "" {
-		certPath = env("CLIENT_CERTIFICATE")
+	// Like the SDK, the cert and key are read as a pair: the signal-specific
+	// pair if both are set, else the generic one. Unlike the SDK, a lone half is
+	// an error rather than silently dropping the client cert.
+	var certPath, keyPath string
+	sc, sk := env(signal+"_CLIENT_CERTIFICATE"), env(signal+"_CLIENT_KEY")
+	gc, gk := env("CLIENT_CERTIFICATE"), env("CLIENT_KEY")
+	switch {
+	case sc != "" && sk != "":
+		certPath, keyPath = sc, sk
+	case gc != "" && gk != "":
+		certPath, keyPath = gc, gk
+	case sc != "" || sk != "" || gc != "" || gk != "":
+		return nil, errors.New("OTLP client certificate and key must both be set")
 	}
-	keyPath := env(signal + "_CLIENT_KEY")
-	if keyPath == "" {
-		keyPath = env("CLIENT_KEY")
-	}
-	if certPath != "" || keyPath != "" {
-		if certPath == "" || keyPath == "" {
-			return nil, errors.New("OTLP client certificate and key must both be set")
-		}
+	if certPath != "" {
 		pair, err := tls.LoadX509KeyPair(certPath, keyPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load OTLP client certificate: %w", err)
