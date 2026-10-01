@@ -1,6 +1,8 @@
 # Metrics
 
-Argo CD exposes different sets of Prometheus metrics per server.
+Argo CD exposes different sets of Prometheus metrics per server. To push these metrics to an
+OpenTelemetry collector instead of scraping them, see
+[Pushing metrics via OTLP](observability.md#pushing-metrics-via-otlp).
 
 ## Application Controller Metrics
 
@@ -304,95 +306,6 @@ Scraped at the `argocd-commit-server:8087/metrics` endpoint.
 | `argocd_commitserver_commit_request_duration_seconds`   | histogram | Commit requests duration seconds.                    |
 | `argocd_commitserver_userinfo_request_duration_seconds` | histogram | Userinfo requests duration seconds.                  |
 | `argocd_commitserver_commit_request_total`              |  counter  | Number of commit requests performed by commit server |
-
-## Pushing metrics via OTLP
-
-Every component keeps serving its metrics at `/metrics` for scraping. For environments without a
-Prometheus that can reach Argo CD, the API server, application controller and repo server can
-additionally push the same metrics to an OpenTelemetry collector over OTLP/gRPC.
-
-Pushing reuses the tracing connection settings and is off by default. Set it in `argocd-cmd-params-cm`:
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: argocd-cmd-params-cm
-  namespace: argocd
-data:
-  # Collector address; required for both tracing and metrics push.
-  otlp.address: "otel-collector.observability:4317"
-  otlp.insecure: "true"
-  otlp.metrics.enabled: "true"
-  # Push interval, minimum 1s. Defaults to 30s.
-  otlp.metrics.interval: "30s"
-```
-
-The equivalent flags are `--otlp-metrics-enabled` and `--otlp-metrics-interval`, alongside the
-existing `--otlp-address`, `--otlp-insecure`, `--otlp-headers` and `--otlp-attrs`.
-
-> [!NOTE]
-> Setting `otlp.address` also enables trace export. To push metrics without traces, set
-> `otlp.sample.ratio: "0"`.
-
-### Collector authentication
-
-Collectors that authenticate with a static header, such as a bearer token or vendor API key, are
-supported through `otlp.headers`. The headers are sent with both traces and metrics. Because
-`argocd-cmd-params-cm` is not a Secret, set the header from a Secret by overriding the
-component's `*_OTLP_HEADERS` environment variable (`ARGOCD_SERVER_OTLP_HEADERS`,
-`ARGOCD_REPO_SERVER_OTLP_HEADERS` or `ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS`):
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: argocd-otlp-auth
-  namespace: argocd
-stringData:
-  headers: "authorization=Bearer <token>"
----
-# Patch for the argocd-server Deployment; repeat for the other components.
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: argocd-server
-spec:
-  template:
-    spec:
-      containers:
-        - name: argocd-server
-          env:
-            - name: ARGOCD_SERVER_OTLP_HEADERS
-              valueFrom:
-                secretKeyRef:
-                  name: argocd-otlp-auth
-                  key: headers
-```
-
-Headers are comma-separated `key=value` pairs, so a header value must not contain `,` or `=`.
-
-> [!NOTE]
-> With `otlp.insecure: "false"`, the collector certificate is verified against the system root
-> CAs only. Custom CAs, client certificates (mTLS) and the standard `OTEL_EXPORTER_OTLP_*`
-> environment variables are not supported. For those, or for credentials that must be signed or
-> refreshed (for example AWS SigV4 or OAuth), push to an OpenTelemetry Collector running in the
-> cluster and configure authentication to the backend on that collector.
-
-What is pushed is exactly the set of metric families served at `/metrics`, converted by the
-OpenTelemetry Prometheus bridge with names unchanged. Each push carries the resource attributes
-`service.name` (`argocd-server`, `argocd-controller` or `argocd-repo-server`),
-`service.instance.id` (the pod hostname) and any pairs from `otlp.attrs`. Because pushed metrics
-have no scrape target, `service.instance.id` is what keeps series from different replicas apart.
-
-> [!WARNING]
-> If a collector already scrapes `/metrics`, enabling push delivers every series twice: once with
-> the scrape's `instance`/`job` labels and once with the push's resource attributes. Use one or
-> the other per component.
-
-A registry that fails to gather (for example, an inconsistent label set in
-`argocd_app_labels`) is omitted from that push while the other registries are still sent. The
-failure is logged at error level by the component.
 
 ## Prometheus Operator
 

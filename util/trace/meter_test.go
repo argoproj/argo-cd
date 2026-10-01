@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"go.opentelemetry.io/otel"
 	collectormetricspb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -38,12 +40,12 @@ func (c *fakeCollector) Export(ctx context.Context, req *collectormetricspb.Expo
 	return &collectormetricspb.ExportMetricsServiceResponse{}, nil
 }
 
-func startCollector(t *testing.T) (string, *fakeCollector) {
+func startCollector(t *testing.T, opts ...grpc.ServerOption) (string, *fakeCollector) {
 	t.Helper()
 	lis, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	c := &fakeCollector{calls: make(chan exportCall, 64)}
-	srv := grpc.NewServer()
+	srv := grpc.NewServer(opts...)
 	collectormetricspb.RegisterMetricsServiceServer(srv, c)
 	go func() { _ = srv.Serve(lis) }()
 	t.Cleanup(srv.Stop)
@@ -177,4 +179,36 @@ func TestInitMeter_CloserFlushesAfterContextCancel(t *testing.T) {
 	closer()
 
 	assert.Contains(t, metricNames(collector.next(t).req), "argocd_flushed_total")
+}
+
+func TestInitMeter_HonorsStandardOTLPEnv(t *testing.T) {
+	serverCert, caPath := selfSignedCert(t)
+	addr, collector := startCollector(t, grpc.Creds(credentials.NewServerTLSFromCert(&serverCert)))
+	t.Setenv("OTEL_EXPORTER_OTLP_CERTIFICATE", caPath)
+	t.Setenv("OTEL_EXPORTER_OTLP_HEADERS", "authorization=Bearer from-env")
+
+	closer, err := InitMeter(t.Context(), "argocd-test", addr, false, nil, nil,
+		50*time.Millisecond, newCounterRegistry(t, "argocd_env_total"))
+	require.NoError(t, err)
+	t.Cleanup(closer)
+
+	assert.Equal(t, []string{"Bearer from-env"}, collector.next(t).md.Get("authorization"))
+}
+
+func TestInitMeter_UsesCAFromTLSCertsConfigMap(t *testing.T) {
+	serverCert, caPath := selfSignedCert(t)
+	addr, collector := startCollector(t, grpc.Creds(credentials.NewServerTLSFromCert(&serverCert)))
+	// argocd-tls-certs-cm is mounted as one file per hostname.
+	tlsDataPath := t.TempDir()
+	ca, err := os.ReadFile(caPath)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(tlsDataPath, "127.0.0.1"), ca, 0o600))
+	t.Setenv("ARGOCD_TLS_DATA_PATH", tlsDataPath)
+
+	closer, err := InitMeter(t.Context(), "argocd-test", addr, false, nil, nil,
+		50*time.Millisecond, newCounterRegistry(t, "argocd_cm_ca_total"))
+	require.NoError(t, err)
+	t.Cleanup(closer)
+
+	assert.Contains(t, metricNames(collector.next(t).req), "argocd_cm_ca_total")
 }

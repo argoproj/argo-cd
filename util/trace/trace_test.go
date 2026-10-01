@@ -37,9 +37,9 @@ func (c *fakeTraceCollector) Export(ctx context.Context, _ *collectortrace.Expor
 	return &collectortrace.ExportTraceServiceResponse{}, nil
 }
 
-// startTLSCollector serves a fake OTLP trace collector with a self-signed
-// certificate and returns its address and the path of the CA to trust.
-func startTLSCollector(t *testing.T) (string, string, *fakeTraceCollector) {
+// selfSignedCert returns a server certificate for 127.0.0.1 that is its own
+// CA, and the path of that CA in PEM.
+func selfSignedCert(t *testing.T) (tls.Certificate, string) {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
@@ -58,10 +58,17 @@ func startTLSCollector(t *testing.T) (string, string, *fakeTraceCollector) {
 	require.NoError(t, err)
 	caPath := filepath.Join(t.TempDir(), "ca.crt")
 	require.NoError(t, os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o600))
+	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}, caPath
+}
 
+// startTLSCollector serves a fake OTLP trace collector with a self-signed
+// certificate and returns its address and the path of the CA to trust.
+func startTLSCollector(t *testing.T) (string, string, *fakeTraceCollector) {
+	t.Helper()
+	serverCert, caPath := selfSignedCert(t)
 	lis, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	srv := grpc.NewServer(grpc.Creds(credentials.NewServerTLSFromCert(&tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key})))
+	srv := grpc.NewServer(grpc.Creds(credentials.NewServerTLSFromCert(&serverCert)))
 	collector := &fakeTraceCollector{headers: make(chan metadata.MD, 10)}
 	collectortrace.RegisterTraceServiceServer(srv, collector)
 	go func() { _ = srv.Serve(lis) }()

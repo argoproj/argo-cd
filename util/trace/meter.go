@@ -2,6 +2,7 @@ package trace
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"time"
 
@@ -31,23 +32,31 @@ func InitMeter(ctx context.Context, serviceName, otlpAddress string, otlpInsecur
 	}
 	installErrorHandler()
 
-	// set up grpc options based on secure/insecure connection
-	var secureOption otlpmetricgrpc.Option
-	if otlpInsecure {
-		secureOption = otlpmetricgrpc.WithInsecure()
-	} else {
-		secureOption = otlpmetricgrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, ""))
-	}
-
-	exporter, err := otlpmetricgrpc.New(ctx,
-		secureOption,
+	// Mirrors InitTracer: only set what is configured so the standard
+	// OTEL_EXPORTER_OTLP_* env vars still apply.
+	opts := []otlpmetricgrpc.Option{
 		otlpmetricgrpc.WithEndpoint(otlpAddress),
-		otlpmetricgrpc.WithHeaders(otlpHeaders),
 		// No retry: metrics are cumulative so the next push covers a miss, and retry
 		// backoff would stall the closer's final flush (run on every argocd-server
 		// graceful restart) when the collector is down.
 		otlpmetricgrpc.WithRetry(otlpmetricgrpc.RetryConfig{Enabled: false}),
-	)
+	}
+	if otlpInsecure {
+		opts = append(opts, otlpmetricgrpc.WithInsecure())
+	} else {
+		rootCAs, err := collectorRootCAs(otlpAddress)
+		if err != nil {
+			return nil, err
+		}
+		if rootCAs != nil {
+			opts = append(opts, otlpmetricgrpc.WithTLSCredentials(credentials.NewTLS(&tls.Config{RootCAs: rootCAs})))
+		}
+	}
+	if len(otlpHeaders) > 0 {
+		opts = append(opts, otlpmetricgrpc.WithHeaders(otlpHeaders))
+	}
+
+	exporter, err := otlpmetricgrpc.New(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metric exporter: %w", err)
 	}
