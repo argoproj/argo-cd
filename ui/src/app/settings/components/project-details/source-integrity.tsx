@@ -13,54 +13,6 @@ type SourceIntegritySection<T> = {
     getProps: (si?: ProjectSourceIntegrity) => T;
 };
 
-const removeEl = (items: any[], index: number) => items.slice(0, index).concat(items.slice(index + 1));
-const getIncludedRepoUrlsOnly = (repos?: string[]) => repos?.filter(repo => !repo.startsWith('!'));
-const getExcludedRepoUrlsOnly = (repos?: string[]) => repos?.filter(repo => repo.startsWith('!')).map(repo => repo.slice(1));
-
-const GitSourceIntegritySection = ({git}: {git?: SourceIntegrityGit}) => (
-    <>
-        <p className='project-details__list-title'>GIT</p>
-        {git?.policies?.map((policy, policyIndex) => {
-            const includedRepoUrls = getIncludedRepoUrlsOnly(policy.repos?.map(repo => repo.url));
-            const excludedRepoUrls = getExcludedRepoUrlsOnly(policy.repos?.map(repo => repo.url));
-            return (
-                <div key={policyIndex} className='white-box source-integrity-panel__policy'>
-                    {policy.gpg && (
-                        <>
-                            <div className='row white-box__details-row'>
-                                <div className='columns small-2 columns--no-border'>GPG</div>
-                                <div className='columns small-2'>MODE</div>
-                                <div className='columns small-8'>{policy.gpg?.mode}</div>
-                            </div>
-                            <div className='row white-box__details-row'>
-                                <div className='columns small-2'></div>
-                                <div className='columns small-2'>KEYS</div>
-                                <div className='columns small-8'>{(policy.gpg?.keys ?? []).join(', ')}</div>
-                            </div>
-                        </>
-                    )}
-                    <div className='row white-box__details-row'>
-                        <div className='columns small-4'>REPO-URLS</div>
-                        <div className='columns small-8'>
-                            {(includedRepoUrls?.length ?? 0) === 0 ? <div>None</div> : includedRepoUrls?.map((repoUrl, repoIndex) => <div key={repoIndex}>{repoUrl}</div>)}
-                        </div>
-                    </div>
-                    {(excludedRepoUrls?.length ?? 0) > 0 && (
-                        <div className='row white-box__details-row'>
-                            <div className='columns small-4'>EXCLUDED REPO-URLS</div>
-                            <div className='columns small-8'>
-                                {excludedRepoUrls?.map((repoUrl, repoIndex) => (
-                                    <div key={repoIndex}>{repoUrl}</div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        })}
-    </>
-);
-
 const SOURCE_INTEGRITY_SECTIONS: SourceIntegritySection<ProjectSourceIntegrity>[] = [
     {
         key: 'git',
@@ -71,15 +23,40 @@ const SOURCE_INTEGRITY_SECTIONS: SourceIntegritySection<ProjectSourceIntegrity>[
     // Add other sections here as new source integrity types are added
 ];
 
-const SourceIntegrityContent = ({sourceIntegrity}: {sourceIntegrity?: ProjectSourceIntegrity}) => {
-    const configuredSections = SOURCE_INTEGRITY_SECTIONS.filter(section => section.isConfigured(sourceIntegrity));
+export const SourceIntegrityTab = ({
+    proj,
+    loadSignatureKeys,
+    saveProject
+}: {
+    proj: Project;
+    loadSignatureKeys: () => Promise<GnuPGPublicKey[]>;
+    saveProject: (proj: Project) => Promise<void>;
+}) => (
+    <>
+        <SourceIntegrityInfoBanner />
+        <div className='argo-container source-integrity-tab-container'>
+            <SourceIntegrityPanel proj={proj} />
+            <LegacyGPGSignatureKeysPanel proj={proj} saveProject={saveProject} loadSignatureKeys={loadSignatureKeys} />
+        </div>
+    </>
+);
 
-    if (configuredSections.length === 0) {
-        return <p>Source Integrity is not configured.</p>;
-    }
-
-    return configuredSections.map(section => <section.View key={section.key} {...section.getProps(sourceIntegrity)} />);
-};
+const SourceIntegrityInfoBanner = () => (
+    <div className='source-integrity__info-banner'>
+        <i className='fa fa-info-circle' />
+        <span>
+            Source Integrity is configured via CLI or manifests. See{' '}
+            <a href='https://argo-cd.readthedocs.io/en/stable/user-guide/source-integrity/' target='_blank' rel='noopener noreferrer'>
+                <i className='fa fa-external-link-alt' /> documentation
+            </a>{' '}
+            or{' '}
+            <a href='https://argo-cd.readthedocs.io/en/stable/user-guide/commands/argocd_proj_source-integrity/' target='_blank' rel='noopener noreferrer'>
+                <i className='fa fa-external-link-alt' /> CLI reference
+            </a>
+            .
+        </span>
+    </div>
+);
 
 const SourceIntegrityPanel = ({proj}: {proj: Project}) => (
     <EditablePanel
@@ -89,6 +66,16 @@ const SourceIntegrityPanel = ({proj}: {proj: Project}) => (
         items={[]}
     />
 );
+
+const SourceIntegrityContent = ({sourceIntegrity}: {sourceIntegrity?: ProjectSourceIntegrity}) => {
+    const configuredSections = SOURCE_INTEGRITY_SECTIONS.filter(section => section.isConfigured(sourceIntegrity));
+
+    if (configuredSections.length === 0) {
+        return <p>Source Integrity is not configured.</p>;
+    }
+
+    return configuredSections.map(section => <section.View key={section.key} {...section.getProps(sourceIntegrity)} />);
+};
 
 const LegacyGPGSignatureKeysPanel = ({
     proj,
@@ -161,37 +148,52 @@ const LegacyGPGSignatureKeysPanel = ({
     );
 };
 
-const SourceIntegrityInfoBanner = () => (
-    <div className='source-integrity__info-banner'>
-        <i className='fa fa-info-circle' />
-        <span>
-            Source Integrity is configured via CLI or manifests. See{' '}
-            <a href='https://argo-cd.readthedocs.io/en/stable/user-guide/source-integrity/' target='_blank' rel='noopener noreferrer'>
-                <i className='fa fa-external-link-alt' /> documentation
-            </a>{' '}
-            or{' '}
-            <a href='https://argo-cd.readthedocs.io/en/stable/user-guide/commands/argocd_proj_source-integrity/' target='_blank' rel='noopener noreferrer'>
-                <i className='fa fa-external-link-alt' /> CLI reference
-            </a>
-            .
-        </span>
-    </div>
-);
+function GitSourceIntegritySection({git}: {git?: SourceIntegrityGit}) {
+    return (
+        <>
+            <p className='project-details__list-title'>GIT</p>
+            {git?.policies?.map((policy, policyIndex) => {
+                const includedRepoUrls = getIncludedRepoUrlsOnly(policy.repos?.map(repo => repo.url));
+                const excludedRepoUrls = getExcludedRepoUrlsOnly(policy.repos?.map(repo => repo.url));
+                return (
+                    <div key={policyIndex} className='white-box source-integrity-panel__policy'>
+                        {policy.gpg && (
+                            <>
+                                <div className='row white-box__details-row'>
+                                    <div className='columns small-2 columns--no-border'>GPG</div>
+                                    <div className='columns small-2'>MODE</div>
+                                    <div className='columns small-8'>{policy.gpg?.mode}</div>
+                                </div>
+                                <div className='row white-box__details-row'>
+                                    <div className='columns small-2'></div>
+                                    <div className='columns small-2'>KEYS</div>
+                                    <div className='columns small-8'>{(policy.gpg?.keys ?? []).join(', ')}</div>
+                                </div>
+                            </>
+                        )}
+                        <div className='row white-box__details-row'>
+                            <div className='columns small-4'>REPO-URLS</div>
+                            <div className='columns small-8'>
+                                {(includedRepoUrls?.length ?? 0) === 0 ? <div>None</div> : includedRepoUrls?.map((repoUrl, repoIndex) => <div key={repoIndex}>{repoUrl}</div>)}
+                            </div>
+                        </div>
+                        {(excludedRepoUrls?.length ?? 0) > 0 && (
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-4'>EXCLUDED REPO-URLS</div>
+                                <div className='columns small-8'>
+                                    {excludedRepoUrls?.map((repoUrl, repoIndex) => (
+                                        <div key={repoIndex}>{repoUrl}</div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+        </>
+    );
+}
 
-export const SourceIntegrityTab = ({
-    proj,
-    loadSignatureKeys,
-    saveProject
-}: {
-    proj: Project;
-    loadSignatureKeys: () => Promise<GnuPGPublicKey[]>;
-    saveProject: (proj: Project) => Promise<void>;
-}) => (
-    <>
-        <SourceIntegrityInfoBanner />
-        <div className='argo-container source-integrity-tab-container'>
-            <SourceIntegrityPanel proj={proj} />
-            <LegacyGPGSignatureKeysPanel proj={proj} saveProject={saveProject} loadSignatureKeys={loadSignatureKeys} />
-        </div>
-    </>
-);
+const getIncludedRepoUrlsOnly = (repos?: string[]) => repos?.filter(repo => !repo.startsWith('!'));
+const getExcludedRepoUrlsOnly = (repos?: string[]) => repos?.filter(repo => repo.startsWith('!')).map(repo => repo.slice(1));
+const removeEl = (items: any[], index: number) => items.slice(0, index).concat(items.slice(index + 1));
