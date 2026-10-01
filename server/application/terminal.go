@@ -35,7 +35,7 @@ type terminalHandler struct {
 	appResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
 	allowedShells     []string
 	namespace         string
-	enabledNamespaces []string
+	enabledNamespaces *security.ApplicationNamespaceSet
 	sessionManager    *util_session.SessionManager
 	terminalOptions   *TerminalOptions
 }
@@ -46,7 +46,7 @@ type TerminalOptions struct {
 }
 
 // NewHandler returns a new terminal handler.
-func NewHandler(appLister applisters.ApplicationLister, namespace string, enabledNamespaces []string, db db.ArgoDB, appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager *util_session.SessionManager, terminalOptions *TerminalOptions) *terminalHandler {
+func NewHandler(appLister applisters.ApplicationLister, namespace string, enabledNamespaces *security.ApplicationNamespaceSet, db db.ArgoDB, appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager *util_session.SessionManager, terminalOptions *TerminalOptions) *terminalHandler {
 	return &terminalHandler{
 		appLister:         appLister,
 		db:                db,
@@ -137,7 +137,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ns = s.namespace
 	}
 
-	if !security.IsNamespaceEnabled(ns, s.namespace, s.enabledNamespaces) {
+	if !security.IsNamespaceEnabled(ns, s.namespace, s.enabledNamespaces.List()) {
 		http.Error(w, security.NamespaceNotPermittedError(ns).Error(), http.StatusForbidden)
 		return
 	}

@@ -6,12 +6,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/security"
 )
 
 // drainKeys returns all keys currently queued, marking each as done.
@@ -223,5 +226,92 @@ func TestApplicationEventHandlerFuncs(t *testing.T) {
 			h.OnDelete("not-an-app")
 		})
 		assertNotEnqueued(t, ctrl.appRefreshQueue)
+	})
+}
+
+func TestNamespaceEventHandlerFuncs(t *testing.T) {
+	createNamespace := func(name string) *corev1.Namespace {
+		return &corev1.Namespace{
+			Name: name,
+		}
+	}
+
+	t.Run("add respects that source namespace label value is the controller's namespace", func(t *testing.T) {
+		ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+		ctrl.applicationNamespaces = security.NewApplicationNamespaceSet([]string{"some-namespace"})
+
+		h := ctrl.namespaceEventHandlerFuncs(common.LabelKeyReconcileBy)
+
+		ns1 := createNamespace("some-namespace")
+		ns1.SetLabels(map[string]string{
+			common.LabelKeyReconcileBy: "fake-argocd-ns",
+		})
+		h.AddFunc(ns1)
+
+		ns2 := createNamespace("should-not-us-namespace")
+		ns2.SetLabels(map[string]string{
+			common.LabelKeyReconcileBy: "no-controller-ns",
+		})
+		h.AddFunc(ns2)
+
+		assert.Len(t, ctrl.applicationNamespaces.List(), 1)
+		assert.Contains(t, ctrl.applicationNamespaces.List(), "some-namespace")
+		assert.NotContains(t, ctrl.applicationNamespaces.List(), "should-not-us-namespace")
+	})
+
+	t.Run("for a namespace to be added it must have the controller namespace as the label value", func(t *testing.T) {
+		ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+		ctrl.applicationNamespaces = security.NewApplicationNamespaceSet([]string{})
+		h := ctrl.namespaceEventHandlerFuncs(common.LabelKeyReconcileBy)
+
+		newNS := createNamespace("some-namespace")
+		newNS.SetLabels(map[string]string{
+			common.LabelKeyReconcileBy: "fake-argocd-ns",
+		})
+		h.UpdateFunc(nil, newNS)
+
+		assert.Len(t, ctrl.applicationNamespaces.List(), 1)
+		assert.Contains(t, ctrl.applicationNamespaces.List(), "some-namespace")
+	})
+
+	t.Run("if updated namespace does not have the label it is deleted", func(t *testing.T) {
+		ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+
+		ctrl.applicationNamespaces = security.NewApplicationNamespaceSet([]string{"some-namespace"})
+		h := ctrl.namespaceEventHandlerFuncs(common.LabelKeyReconcileBy)
+
+		newNS := createNamespace("some-namespace")
+		h.UpdateFunc(nil, newNS)
+
+		assert.Empty(t, ctrl.applicationNamespaces.List())
+		assert.NotContains(t, ctrl.applicationNamespaces.List(), "some-namespace")
+	})
+
+	t.Run("a namespace that is an application namespace is updated, it should not be removed", func(t *testing.T) {
+		ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+		ctrl.applicationNamespaces = security.NewApplicationNamespaceSet([]string{"some-namespace"})
+		h := ctrl.namespaceEventHandlerFuncs(common.LabelKeyReconcileBy)
+
+		newNS := createNamespace("some-namespace")
+		newNS.SetLabels(map[string]string{
+			common.LabelKeyReconcileBy: "fake-argocd-ns",
+		})
+		h.UpdateFunc(nil, newNS)
+
+		assert.Len(t, ctrl.applicationNamespaces.List(), 1)
+		assert.Contains(t, ctrl.applicationNamespaces.List(), "some-namespace")
+	})
+
+	t.Run("delete event removes namespace", func(t *testing.T) {
+		ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+		ctrl.applicationNamespaces = security.NewApplicationNamespaceSet([]string{"some-namespace", "to-remove-namespace"})
+		h := ctrl.namespaceEventHandlerFuncs("argocd")
+
+		ns := createNamespace("to-remove-namespace")
+		h.DeleteFunc(ns)
+
+		assert.Len(t, ctrl.applicationNamespaces.List(), 1)
+		assert.NotContains(t, ctrl.applicationNamespaces.List(), "to-remove-namespace")
+		assert.Contains(t, ctrl.applicationNamespaces.List(), "some-namespace")
 	})
 }

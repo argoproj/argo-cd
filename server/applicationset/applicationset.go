@@ -67,7 +67,7 @@ type Server struct {
 	appSetBroadcaster        broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent]
 	auditLogger              *argo.AuditLogger
 	projectLock              sync.KeyLock
-	enabledNamespaces        []string
+	enabledNamespaces        *security.ApplicationNamespaceSet
 	clusterInformer          *settings.ClusterInformer
 	GitSubmoduleEnabled      bool
 	EnableNewGitFileGlobbing bool
@@ -157,7 +157,7 @@ func (s *Server) isApplicationsetPermitted(selector labels.Selector, minVersion 
 	}
 	// Skip any applicationsets that is neither in the control plane's namespace
 	// nor in the list of enabled namespaces.
-	if !security.IsNamespaceEnabled(appset.Namespace, s.ns, s.enabledNamespaces) {
+	if !security.IsNamespaceEnabled(appset.Namespace, s.ns, s.enabledNamespaces.List()) {
 		return false
 	}
 
@@ -183,7 +183,7 @@ func NewServer(
 	appSetBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent],
 	namespace string,
 	projectLock sync.KeyLock,
-	enabledNamespaces []string,
+	enabledNamespaces *security.ApplicationNamespaceSet,
 	gitSubmoduleEnabled bool,
 	enableNewGitFileGlobbing bool,
 	scmRootCAPath string,
@@ -261,7 +261,7 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 	for _, a := range appsets {
 		// Skip any applicationsets that is neither in the conrol plane's namespace
 		// nor in the list of enabled namespaces.
-		if !security.IsNamespaceEnabled(a.Namespace, s.ns, s.enabledNamespaces) {
+		if !security.IsNamespaceEnabled(a.Namespace, s.ns, s.enabledNamespaces.List()) {
 			continue
 		}
 
@@ -627,7 +627,7 @@ func (s *Server) appsetNamespaceOrDefault(appNs string) string {
 }
 
 func (s *Server) isNamespaceEnabled(namespace string) bool {
-	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces)
+	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces.List())
 }
 
 // getAppSetEnforceRBAC gets the ApplicationSet with the given name in the given namespace and

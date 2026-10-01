@@ -21,7 +21,7 @@ import (
 )
 
 // NewHandler creates handler serving to do api/badge endpoint
-func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, namespace string, enabledNamespaces []string) http.Handler {
+func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, namespace string, enabledNamespaces *security.ApplicationNamespaceSet) http.Handler {
 	return &Handler{appClientset: appClientset, namespace: namespace, settingsMgr: settingsMrg, enabledNamespaces: enabledNamespaces}
 }
 
@@ -30,7 +30,7 @@ type Handler struct {
 	namespace         string
 	appClientset      versioned.Interface
 	settingsMgr       *settings.SettingsManager
-	enabledNamespaces []string
+	enabledNamespaces *security.ApplicationNamespaceSet
 }
 
 var (
@@ -111,7 +111,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if security.IsNamespaceEnabled(ns[0], h.namespace, h.enabledNamespaces) {
+		if security.IsNamespaceEnabled(ns[0], h.namespace, h.enabledNamespaces.List()) {
 			reqNs = ns[0]
 		} else {
 			notFound = true

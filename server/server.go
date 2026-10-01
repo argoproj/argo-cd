@@ -68,6 +68,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/informers"
+	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -143,6 +145,9 @@ const (
 	maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
 	replicasCountEnv                   = "ARGOCD_API_SERVER_REPLICAS"
 	renewTokenKey                      = "renew-token"
+	// defaultAppResyncPeriod controls the resync time for the app informer when app namespace discovery is enabled
+	defaultAppResyncPeriod       = 5 * time.Minute
+	defaultNamespaceResyncPeriod = 1 * time.Minute
 )
 
 // ErrNoSession indicates no auth token was supplied as part of a request
@@ -190,21 +195,22 @@ type ArgoCDServer struct {
 	ArgoCDServerOpts
 	ApplicationSetOpts
 
-	ssoClientApp    *oidc.ClientApp
-	settings        *settings_util.ArgoCDSettings
-	log             *log.Entry
-	sessionMgr      *util_session.SessionManager
-	settingsMgr     *settings_util.SettingsManager
-	enf             *rbac.Enforcer
-	projInformer    cache.SharedIndexInformer
-	projLister      applisters.AppProjectNamespaceLister
-	policyEnforcer  *rbacpolicy.RBACPolicyEnforcer
-	clusterInformer *settings_util.ClusterInformer
-	appInformer     cache.SharedIndexInformer
-	appLister       applisters.ApplicationLister
-	appsetInformer  cache.SharedIndexInformer
-	appsetLister    applisters.ApplicationSetLister
-	db              db.ArgoDB
+	ssoClientApp      *oidc.ClientApp
+	settings          *settings_util.ArgoCDSettings
+	log               *log.Entry
+	sessionMgr        *util_session.SessionManager
+	settingsMgr       *settings_util.SettingsManager
+	enf               *rbac.Enforcer
+	projInformer      cache.SharedIndexInformer
+	projLister        applisters.AppProjectNamespaceLister
+	policyEnforcer    *rbacpolicy.RBACPolicyEnforcer
+	clusterInformer   *settings_util.ClusterInformer
+	appInformer       cache.SharedIndexInformer
+	namespaceInformer informersv1.NamespaceInformer
+	appLister         applisters.ApplicationLister
+	appsetInformer    cache.SharedIndexInformer
+	appsetLister      applisters.ApplicationSetLister
+	db                db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
 	stopCh             chan os.Signal
@@ -254,6 +260,8 @@ type ArgoCDServerOpts struct {
 	XFrameOptions           string
 	ContentSecurityPolicy   string
 	ApplicationNamespaces   []string
+	ApplicationNamespaceSet *security.ApplicationNamespaceSet
+	AppNamespaceDiscovery   bool
 	EnableProxyExtension    bool
 	WebhookParallelism      int
 	WebhookRefreshWorkers   int
@@ -331,12 +339,31 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	clusterInformer, err := settings_util.NewClusterInformer(opts.KubeClientset, opts.Namespace)
 	errorsutil.CheckError(err)
 
+	opts.ApplicationNamespaceSet = security.NewApplicationNamespaceSet(opts.ApplicationNamespaces)
+	namespaces, err := opts.KubeClientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", common.LabelKeyReconcileBy, opts.Namespace),
+	})
+	if !apierrors.IsForbidden(err) {
+		errorsutil.CheckError(err)
+	} else if apierrors.IsForbidden(err) {
+		log.Warn("Server does not have permissions to list namespace")
+	}
+	for _, ns := range namespaces.Items {
+		opts.ApplicationNamespaceSet.Add(ns.Name)
+	}
+
 	appInformerNs := opts.Namespace
-	if len(opts.ApplicationNamespaces) > 0 {
+	if len(opts.ApplicationNamespaceSet.List()) > 0 || opts.AppNamespaceDiscovery {
 		appInformerNs = ""
 	}
+
+	var appResyncPeriod time.Duration
+	if opts.AppNamespaceDiscovery {
+		appResyncPeriod = defaultAppResyncPeriod
+	}
+
 	projFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(opts.Namespace), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
-	appFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(appInformerNs), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
+	appFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, appResyncPeriod, appinformer.WithNamespace(appInformerNs), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
 
 	projInformer := projFactory.Argoproj().V1alpha1().AppProjects().Informer()
 	projLister := projFactory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(opts.Namespace)
@@ -352,8 +379,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	// they enter the informer cache. This avoids caching Applications and
 	// ApplicationSets that the server is not configured to manage, which
 	// reduces memory usage in multi-tenant clusters.
-	if len(opts.ApplicationNamespaces) > 0 {
-		filter := newNamespaceFilterTransform(opts.Namespace, opts.ApplicationNamespaces)
+	if len(opts.ApplicationNamespaceSet.List()) > 0 || opts.AppNamespaceDiscovery {
+		filter := newNamespaceFilterTransform(opts.Namespace, opts.ApplicationNamespaceSet)
 		errorsutil.CheckError(appInformer.SetTransform(filter))
 		errorsutil.CheckError(appsetInformer.SetTransform(filter))
 	}
@@ -429,6 +456,15 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		extensionManager:   em,
 		Shutdown:           noopShutdown,
 		stopCh:             make(chan os.Signal, 1),
+	}
+
+	namespaceFactory := informers.NewSharedInformerFactoryWithOptions(opts.KubeClientset, defaultNamespaceResyncPeriod, informers.WithTweakListOptions(func(listOpts *metav1.ListOptions) {
+		listOpts.LabelSelector = fmt.Sprintf("%s=%s", common.LabelKeyReconcileBy, opts.Namespace)
+	}))
+	if opts.AppNamespaceDiscovery {
+		a.namespaceInformer = namespaceFactory.Core().V1().Namespaces()
+		_, err := a.namespaceInformer.Informer().AddEventHandler(a.namespaceEventHandlerFuncs(common.LabelKeyReconcileBy))
+		errorsutil.CheckError(err)
 	}
 
 	err = a.logInClusterWarnings()
@@ -582,6 +618,10 @@ func (server *ArgoCDServer) Init(ctx context.Context) {
 	go server.clusterInformer.Run(ctx.Done())
 	go server.configMapInformer.Run(ctx.Done())
 	go server.secretInformer.Run(ctx.Done())
+
+	if server.AppNamespaceDiscovery {
+		go server.namespaceInformer.Informer().Run(ctx.Done())
+	}
 }
 
 // Run runs the API Server
@@ -689,6 +729,10 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	go func() { server.checkServeErr("metrics", metricsServ.Serve(listeners.Metrics)) }()
 	if !cache.WaitForCacheSync(ctx.Done(), server.projInformer.HasSynced, server.appInformer.HasSynced, server.clusterInformer.HasSynced) {
 		log.Fatal("Timed out waiting for project cache to sync")
+	}
+
+	if server.AppNamespaceDiscovery && !cache.WaitForCacheSync(ctx.Done(), server.namespaceInformer.Informer().HasSynced) {
+		log.Fatal("Time out waitinf for namespace cache to sync")
 	}
 
 	shutdownFunc := func() {
@@ -1084,7 +1128,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		projectLock,
 		a.settingsMgr,
 		a.projInformer,
-		a.ApplicationNamespaces,
+		a.ApplicationNamespaceSet,
 		a.EnableK8sEvent,
 		a.SyncWithReplaceAllowed,
 	)
@@ -1103,7 +1147,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		nil,
 		a.Namespace,
 		projectLock,
-		a.ApplicationNamespaces,
+		a.ApplicationNamespaceSet,
 		a.GitSubmoduleEnabled,
 		a.EnableNewGitFileGlobbing,
 		a.ScmRootCAPath,
@@ -1115,7 +1159,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	)
 
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.EnableK8sEvent)
-	appsInAnyNamespaceEnabled := len(a.ApplicationNamespaces) > 0
+	appsInAnyNamespaceEnabled := len(a.ApplicationNamespaceSet.List()) > 0
 	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled, a.HydratorEnabled, a.SyncWithReplaceAllowed)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf, a.Namespace)
 
@@ -1222,7 +1266,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 		Handler: &handlerSwitcher{
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
-				"/api/badge":          otelhttp.NewHandler(badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.ApplicationNamespaces), "server.ArgoCDServer/badge"),
+				"/api/badge":          otelhttp.NewHandler(badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.ApplicationNamespaceSet), "server.ArgoCDServer/badge"),
 				common.LogoutEndpoint: otelhttp.NewHandler(logout.NewHandler(server.settingsMgr, server.sessionMgr, server.RootPath, server.BaseHRef), "server.ArgoCDServer/logout"),
 			},
 			contentTypeToHandler: map[string]http.Handler{
@@ -1278,7 +1322,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	terminalOpts := application.TerminalOptions{DisableAuth: server.DisableAuth, Enf: server.enf}
 
-	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
+	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaceSet, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
 		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
 	th := util_session.WithAuthMiddleware(server.DisableAuth, server.settings.IsSSOConfigured(), server.ssoClientApp, server.sessionMgr, terminal)
 	mux.Handle("/terminal", th)
@@ -1314,7 +1358,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.WebhookRefreshWorkers, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize(), server.settingsMgr.GetWebhookRefreshJitter(), server.settingsMgr.GetWebhookRefreshJitterThreshold(), server.projLister)
+	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaceSet, server.WebhookParallelism, server.WebhookRefreshWorkers, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize(), server.settingsMgr.GetWebhookRefreshJitter(), server.settingsMgr.GetWebhookRefreshJitterThreshold(), server.projLister)
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
@@ -1832,9 +1876,9 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req any, _ *grpc.UnarySe
 // of allowed application namespaces
 func (server *ArgoCDServer) allowedApplicationNamespacesAsString() string {
 	ns := server.Namespace
-	if len(server.ApplicationNamespaces) > 0 {
+	if len(server.ApplicationNamespaceSet.List()) > 0 {
 		ns += ", "
-		ns += strings.Join(server.ApplicationNamespaces, ", ")
+		ns += strings.Join(server.ApplicationNamespaceSet.List(), ", ")
 	}
 	return ns
 }
@@ -1853,7 +1897,7 @@ func (server *ArgoCDServer) allowedApplicationNamespacesAsString() string {
 // resulting per-item error is swallowed by the shared informer's process
 // loop without re-queueing. The behavior is exercised end-to-end by
 // TestInformerFilterDoesNotCacheDisallowedNamespaces.
-func newNamespaceFilterTransform(serverNamespace string, applicationNamespaces []string) cache.TransformFunc {
+func newNamespaceFilterTransform(serverNamespace string, applicationNamespaceSet *security.ApplicationNamespaceSet) cache.TransformFunc {
 	return func(obj any) (any, error) {
 		accessor, err := meta.Accessor(obj)
 		if err != nil {
@@ -1861,9 +1905,43 @@ func newNamespaceFilterTransform(serverNamespace string, applicationNamespaces [
 			// Pass through so we don't accidentally drop deletion events.
 			return obj, nil
 		}
-		if !security.IsNamespaceEnabled(accessor.GetNamespace(), serverNamespace, applicationNamespaces) {
+		if !security.IsNamespaceEnabled(accessor.GetNamespace(), serverNamespace, applicationNamespaceSet.List()) {
 			return nil, nil
 		}
 		return obj, nil
+	}
+}
+
+func (server *ArgoCDServer) namespaceEventHandlerFuncs(label string) cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			ns, ok := obj.(*corev1.Namespace)
+			if !ok {
+				return
+			}
+
+			if val, ok := ns.Labels[label]; ok && val == server.Namespace {
+				server.ApplicationNamespaceSet.Add(ns.Name)
+			}
+		},
+		UpdateFunc: func(_ any, newObj any) {
+			newNS, ok := newObj.(*corev1.Namespace)
+			if !ok {
+				return
+			}
+
+			if newVal, ok := newNS.Labels[label]; ok && newVal == server.Namespace {
+				server.ApplicationNamespaceSet.Add(newNS.Name)
+			} else {
+				server.ApplicationNamespaceSet.Delete(newNS.Name)
+			}
+		},
+		DeleteFunc: func(obj any) {
+			ns, ok := obj.(*corev1.Namespace)
+			if !ok {
+				return
+			}
+			server.ApplicationNamespaceSet.Delete(ns.Name)
+		},
 	}
 }
