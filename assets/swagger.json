@@ -8329,6 +8329,11 @@
           "description": "Server requires Bearer authentication. This client will not attempt to use\nrefresh tokens for an OAuth2 flow.\nTODO: demonstrate an OAuth2 compatible client.",
           "type": "string"
         },
+        "burst": {
+          "description": "Burst allows extra queries to accumulate for a rapid burst of requests to this cluster.",
+          "type": "integer",
+          "format": "int64"
+        },
         "disableCompression": {
           "description": "DisableCompression bypasses automatic GZip compression requests to the server.",
           "type": "boolean"
@@ -8342,6 +8347,11 @@
         "proxyUrl": {
           "type": "string",
           "title": "ProxyURL is the URL to the proxy to be used for all requests send to the server"
+        },
+        "qps": {
+          "description": "QPS controls the number of queries per second allowed for this cluster.",
+          "type": "number",
+          "format": "float"
         },
         "tlsClientConfig": {
           "$ref": "#/definitions/v1alpha1TLSClientConfig"

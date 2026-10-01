@@ -1,13 +1,11 @@
 import * as React from 'react';
 
 import type * as monacoEditor from 'monaco-editor';
+import {applyEditorInput, EditorInput} from './monaco-apply-input';
 import {services} from '../services';
 import {getTheme, createSystemThemeListener} from '../utils';
 
-export interface EditorInput {
-    text: string;
-    language?: string;
-}
+export type {EditorInput};
 
 export interface MonacoProps {
     minHeight?: number;
@@ -19,18 +17,19 @@ export interface MonacoProps {
     };
 }
 
-function IsEqualInput(first?: EditorInput, second?: EditorInput) {
-    return first && second && first.text === second.text && (first.language || '') === (second.language || '');
-}
-
 const DEFAULT_LINE_HEIGHT = 18;
+
+function heightForLineCount(lineCount: number, minHeight?: number) {
+    const newHeight = lineCount * DEFAULT_LINE_HEIGHT + 50;
+    return Math.max(minHeight || 0, newHeight > window.innerHeight * 0.95 ? window.innerHeight * 0.95 : newHeight);
+}
 
 const MonacoEditorLazy = React.lazy(() =>
     import('monaco-editor').then(monaco => {
         const Component = (props: MonacoProps) => {
             const [height, setHeight] = React.useState(0);
             const [theme, setTheme] = React.useState('dark');
-            const editorApiRef = React.useRef<monacoEditor.editor.IEditor | null>(null);
+            const editorApiRef = React.useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(null);
             const containerRef = React.useRef<HTMLElement | null>(null);
 
             React.useEffect(() => {
@@ -91,13 +90,15 @@ const MonacoEditorLazy = React.lazy(() =>
                         if (el) {
                             containerRef.current = el;
                             const container = el as {
-                                editorApi?: monacoEditor.editor.IEditor;
+                                editorApi?: monacoEditor.editor.IStandaloneCodeEditor;
                                 prevEditorInput?: EditorInput;
                             };
                             if (props.editor) {
                                 if (!container.editorApi) {
                                     const editor = monaco.editor.create(el, {
                                         ...props.editor.options,
+                                        value: props.editor.input.text,
+                                        language: props.editor.input.language,
                                         scrollBeyondLastLine: props.vScrollBar,
                                         scrollbar: {
                                             alwaysConsumeMouseWheel: false,
@@ -106,18 +107,15 @@ const MonacoEditorLazy = React.lazy(() =>
                                     });
 
                                     container.editorApi = editor;
-                                    editorApiRef.current = editor;
-                                }
-
-                                const model = monaco.editor.createModel(props.editor.input.text, props.editor.input.language);
-                                const lineCount = model.getLineCount();
-                                const newHeight = lineCount * DEFAULT_LINE_HEIGHT + 50;
-                                setHeight(newHeight > window.innerHeight * 0.95 ? window.innerHeight * 0.95 : newHeight);
-
-                                if (!IsEqualInput(container.prevEditorInput, props.editor.input)) {
                                     container.prevEditorInput = props.editor.input;
-                                    container.editorApi.setModel(model);
+                                    editorApiRef.current = editor;
+                                } else {
+                                    applyEditorInput(monaco, container.editorApi, container.prevEditorInput, props.editor.input);
+                                    container.prevEditorInput = props.editor.input;
                                 }
+
+                                const lineCount = container.editorApi.getModel()?.getLineCount() ?? 0;
+                                setHeight(heightForLineCount(lineCount, props.minHeight));
                                 container.editorApi.updateOptions(props.editor.options);
                                 container.editorApi.layout();
                                 if (props.editor.getApi) {
