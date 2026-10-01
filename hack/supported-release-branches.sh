@@ -18,6 +18,9 @@ is_digits() {
   esac
 }
 
+# Assign before the loop. A process substitution would hide a failed ls-remote,
+# and the script would exit 0 with an empty or partial branch list.
+branch_refs="$(git ls-remote --heads "$remote" 'refs/heads/release-*' | awk '{print $2}')"
 branches=()
 while IFS= read -r ref; do
   name="${ref##*/}"
@@ -31,9 +34,10 @@ while IFS= read -r ref; do
       fi
       ;;
   esac
-done < <(git ls-remote --heads "$remote" 'refs/heads/release-*' | awk '{print $2}')
+done <<< "$branch_refs"
 
 stable_lines=""
+tag_refs="$(git ls-remote --tags "$remote" 'refs/tags/v*' | awk '{print $2}')"
 while IFS= read -r ref; do
   name="${ref#refs/tags/}"
   peeled_suffix='^{}'
@@ -50,7 +54,7 @@ while IFS= read -r ref; do
       fi
       ;;
   esac
-done < <(git ls-remote --tags "$remote" 'refs/tags/v*' | awk '{print $2}')
+done <<< "$tag_refs"
 
 stable_series="$(printf '%s' "$stable_lines" | sort -u)"
 

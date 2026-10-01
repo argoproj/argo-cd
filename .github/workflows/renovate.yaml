@@ -76,10 +76,13 @@ jobs:
         run: |
           set -euo pipefail
           json='["master"'
+          # Assign before the loop. A process substitution would hide a failed
+          # script, and Renovate would update master only.
+          release_branches="$(hack/supported-release-branches.sh)"
           while IFS= read -r branch; do
             [[ -z "$branch" ]] && continue
             json+=",\"${branch}\""
-          done < <(hack/supported-release-branches.sh)
+          done <<< "$release_branches"
           json+=']'
           echo "Renovate base branches: ${json}"
           echo "branches=${json}" >> "$GITHUB_OUTPUT"
