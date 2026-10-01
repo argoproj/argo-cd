@@ -218,14 +218,14 @@ func TestInitTracer_MutualTLS(t *testing.T) {
 		prefix          string
 		clientCert      bool
 		caFromConfigMap bool
-		mixed           bool // signal-specific cert with a generic key
+		strayCert       bool // incomplete traces pair next to a complete generic one
 		want            bool
 	}{
-		"generic vars":   {prefix: "OTEL_EXPORTER_OTLP_", clientCert: true, want: true},
-		"traces vars":    {prefix: "OTEL_EXPORTER_OTLP_TRACES_", clientCert: true, want: true},
-		"mixed vars":     {prefix: "OTEL_EXPORTER_OTLP_", clientCert: true, mixed: true, want: true},
-		"no client cert": {prefix: "OTEL_EXPORTER_OTLP_", clientCert: false, want: false},
-		"configmap CA":   {prefix: "OTEL_EXPORTER_OTLP_", clientCert: true, caFromConfigMap: true, want: true},
+		"generic vars":      {prefix: "OTEL_EXPORTER_OTLP_", clientCert: true, want: true},
+		"traces vars":       {prefix: "OTEL_EXPORTER_OTLP_TRACES_", clientCert: true, want: true},
+		"stray traces cert": {prefix: "OTEL_EXPORTER_OTLP_", clientCert: true, strayCert: true, want: true},
+		"no client cert":    {prefix: "OTEL_EXPORTER_OTLP_", clientCert: false, want: false},
+		"configmap CA":      {prefix: "OTEL_EXPORTER_OTLP_", clientCert: true, caFromConfigMap: true, want: true},
 	} {
 		t.Run(name, func(t *testing.T) {
 			serverCert, caPath := selfSignedCert(t)
@@ -251,13 +251,13 @@ func TestInitTracer_MutualTLS(t *testing.T) {
 			} else {
 				t.Setenv(tc.prefix+"CERTIFICATE", caPath)
 			}
-			switch {
-			case tc.mixed:
-				t.Setenv("OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE", clientCertPath)
-				t.Setenv("OTEL_EXPORTER_OTLP_CLIENT_KEY", clientKeyPath)
-			case tc.clientCert:
+			if tc.clientCert {
 				t.Setenv(tc.prefix+"CLIENT_CERTIFICATE", clientCertPath)
 				t.Setenv(tc.prefix+"CLIENT_KEY", clientKeyPath)
+			}
+			if tc.strayCert {
+				// Ignored, as in the SDK: the traces pair is incomplete.
+				t.Setenv("OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE", "/nonexistent/client.crt")
 			}
 
 			assert.Equal(t, tc.want, tryExportSpan(t, lis.Addr().String(), false, collector.headers))
@@ -271,11 +271,12 @@ func TestInitTracer_InvalidTLSEnvFails(t *testing.T) {
 	require.NoError(t, os.WriteFile(notPEM, []byte("not a certificate"), 0o600))
 
 	for name, env := range map[string]map[string]string{
-		"client cert without key":  {"OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE": clientCertPath},
-		"client key without cert":  {"OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY": clientKeyPath},
-		"mismatched client pair":   {"OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE": clientCertPath, "OTEL_EXPORTER_OTLP_CLIENT_KEY": clientCertPath},
-		"unreadable CA":            {"OTEL_EXPORTER_OTLP_CERTIFICATE": "/nonexistent/ca.crt"},
-		"CA without a certificate": {"OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE": notPEM},
+		"client cert without key":      {"OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE": clientCertPath},
+		"client key without cert":      {"OTEL_EXPORTER_OTLP_TRACES_CLIENT_KEY": clientKeyPath},
+		"traces cert with generic key": {"OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE": clientCertPath, "OTEL_EXPORTER_OTLP_CLIENT_KEY": clientKeyPath},
+		"mismatched client pair":       {"OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE": clientCertPath, "OTEL_EXPORTER_OTLP_CLIENT_KEY": clientCertPath},
+		"unreadable CA":                {"OTEL_EXPORTER_OTLP_CERTIFICATE": "/nonexistent/ca.crt"},
+		"CA without a certificate":     {"OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE": notPEM},
 	} {
 		t.Run(name, func(t *testing.T) {
 			// Without credentials, this would let the exporter fall back to plaintext.
