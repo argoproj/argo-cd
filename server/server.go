@@ -1649,7 +1649,9 @@ type bug21955Workaround struct {
 var pathPatters = []*regexp.Regexp{
 	regexp.MustCompile(`/api/v1/clusters/[^/]+`),
 	regexp.MustCompile(`/api/v1/repositories/[^/]+`),
+	regexp.MustCompile(`/api/v1/write-repositories/[^/]+`),
 	regexp.MustCompile(`/api/v1/repocreds/[^/]+`),
+	regexp.MustCompile(`/api/v1/write-repocreds/[^/]+`),
 	regexp.MustCompile(`/api/v1/repositories/[^/]+/apps`),
 	regexp.MustCompile(`/api/v1/repositories/[^/]+/apps/[^/]+`),
 	regexp.MustCompile(`/settings/clusters/[^/]+`),
