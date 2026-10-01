@@ -335,6 +335,50 @@ existing `--otlp-address`, `--otlp-insecure`, `--otlp-headers` and `--otlp-attrs
 > Setting `otlp.address` also enables trace export. To push metrics without traces, set
 > `otlp.sample.ratio: "0"`.
 
+### Collector authentication
+
+Collectors that authenticate with a static header, such as a bearer token or vendor API key, are
+supported through `otlp.headers`. The headers are sent with both traces and metrics. Because
+`argocd-cmd-params-cm` is not a Secret, set the header from a Secret by overriding the
+component's `*_OTLP_HEADERS` environment variable (`ARGOCD_SERVER_OTLP_HEADERS`,
+`ARGOCD_REPO_SERVER_OTLP_HEADERS` or `ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS`):
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-otlp-auth
+  namespace: argocd
+stringData:
+  headers: "authorization=Bearer <token>"
+---
+# Patch for the argocd-server Deployment; repeat for the other components.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-server
+spec:
+  template:
+    spec:
+      containers:
+        - name: argocd-server
+          env:
+            - name: ARGOCD_SERVER_OTLP_HEADERS
+              valueFrom:
+                secretKeyRef:
+                  name: argocd-otlp-auth
+                  key: headers
+```
+
+Headers are comma-separated `key=value` pairs, so a header value must not contain `,` or `=`.
+
+> [!NOTE]
+> With `otlp.insecure: "false"`, the collector certificate is verified against the system root
+> CAs only. Custom CAs, client certificates (mTLS) and the standard `OTEL_EXPORTER_OTLP_*`
+> environment variables are not supported. For those, or for credentials that must be signed or
+> refreshed (for example AWS SigV4 or OAuth), push to an OpenTelemetry Collector running in the
+> cluster and configure authentication to the backend on that collector.
+
 What is pushed is exactly the set of metric families served at `/metrics`, converted by the
 OpenTelemetry Prometheus bridge with names unchanged. Each push carries the resource attributes
 `service.name` (`argocd-server`, `argocd-controller` or `argocd-repo-server`),
