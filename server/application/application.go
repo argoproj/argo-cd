@@ -2354,9 +2354,13 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 		if a.Spec.HasMultipleSources() {
 			if len(deployed.Revisions) > 0 && !slices.Equal(deployed.Revisions, deploymentInfo.Revisions) {
 				op.Sync.RolledBackFromRevisions = deployed.Revisions
+			} else if len(a.Status.RolledBackRevisions) > 0 {
+				op.Sync.RolledBackFromRevisions = a.Status.RolledBackRevisions
 			}
 		} else if deployed.Revision != "" && deployed.Revision != deploymentInfo.Revision {
 			op.Sync.RolledBackFromRevision = deployed.Revision
+		} else if a.Status.RolledBackRevision != "" {
+			op.Sync.RolledBackFromRevision = a.Status.RolledBackRevision
 		}
 	}
 	appName := rollbackReq.GetName()
