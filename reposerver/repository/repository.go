@@ -88,6 +88,51 @@ var ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined m
 
 var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/reposerver/repository")
 
+// helmDepMarkers tracks the .argocd-helm-dep-up marker files created by Helm
+// chart processing, keyed by the repository working copy root. When the
+// processed revision changes, these markers must be removed so that
+// `helm dependency build` is re-run for the new revision. Removing only the
+// recorded markers is a much cheaper alternative to a full git clean, which
+// can time out on large repositories (https://github.com/argoproj/argo-cd/issues/29856,
+// https://github.com/argoproj/argo-cd/issues/28677).
+var helmDepMarkers = newHelmDepMarkerRegistry()
+
+type helmDepMarkerRegistry struct {
+	lock    gosync.Mutex
+	markers map[string]map[string]struct{}
+}
+
+func newHelmDepMarkerRegistry() *helmDepMarkerRegistry {
+	return &helmDepMarkerRegistry{markers: map[string]map[string]struct{}{}}
+}
+
+// add records a marker file that was created in the given repository working copy.
+func (r *helmDepMarkerRegistry) add(repoRoot, markerPath string) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	markers, ok := r.markers[repoRoot]
+	if !ok {
+		markers = map[string]struct{}{}
+		r.markers[repoRoot] = markers
+	}
+	markers[markerPath] = struct{}{}
+}
+
+// removeAll removes all marker files recorded for the given repository working
+// copy and clears the records. Marker files that no longer exist (e.g. because
+// they were already removed by a full clean) are ignored.
+func (r *helmDepMarkerRegistry) removeAll(repoRoot string) {
+	r.lock.Lock()
+	markers := r.markers[repoRoot]
+	delete(r.markers, repoRoot)
+	r.lock.Unlock()
+	for markerPath := range markers {
+		if err := os.Remove(markerPath); err != nil && !os.IsNotExist(err) {
+			log.Warnf("Failed to remove Helm dependency build marker %s: %v", markerPath, err)
+		}
+	}
+}
+
 // Service implements ManifestService interface
 type Service struct {
 	gitCredsStore             git.CredsStore
@@ -1241,7 +1286,7 @@ func sanitizeRepoName(repoName string) string {
 // if multiple threads are trying to run it.
 // Multiple goroutines might process same helm app in one repo concurrently when repo server process multiple
 // manifest generation requests of the same commit.
-func runHelmBuild(ctx context.Context, appPath string, h helm.Helm) error {
+func runHelmBuild(ctx context.Context, appPath string, repoRoot string, h helm.Helm) error {
 	manifestGenerateLock.Lock(appPath)
 	defer manifestGenerateLock.Unlock(appPath)
 
@@ -1260,7 +1305,13 @@ func runHelmBuild(ctx context.Context, appPath string, h helm.Helm) error {
 	if err != nil {
 		return fmt.Errorf("error building helm chart dependencies: %w", err)
 	}
-	return os.WriteFile(markerFile, []byte("marker"), 0o644)
+	if err := os.WriteFile(markerFile, []byte("marker"), 0o644); err != nil {
+		return err
+	}
+	// Track the marker so that it can be removed when another revision is
+	// processed, see helmDepMarkers.
+	helmDepMarkers.add(repoRoot, markerFile)
+	return nil
 }
 
 func isSourcePermitted(url string, repos []string) bool {
@@ -1406,7 +1457,7 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1a
 			return nil, "", err
 		}
 
-		err = runHelmBuild(ctx, appPath, h)
+		err = runHelmBuild(ctx, appPath, repoRoot, h)
 		if err != nil {
 			var reposNotPermitted []string
 			// We do a sanity check here to give a nicer error message in case any of the Helm repositories are not permitted by
