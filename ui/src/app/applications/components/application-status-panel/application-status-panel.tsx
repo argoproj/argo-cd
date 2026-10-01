@@ -225,7 +225,17 @@ const ProgressiveSyncStatus = ({application, collapsed}: {application: models.Ap
     );
 };
 
-export const ApplicationStatusPanel = ({application, collapsed, hasDebugContainer, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
+export const ApplicationStatusPanel = ({
+    application,
+    collapsed,
+    hasDebugContainer,
+    showDiff,
+    showOperation,
+    showHydrateOperation,
+    showConditions,
+    showExtension,
+    showMetadataInfo
+}: Props) => {
     // Keep the full panel mounted once shown: unmounting it on collapse would re-run its
     // data loaders (and re-fire their requests) on every expand.
     const [everExpanded, setEverExpanded] = React.useState(!collapsed);
