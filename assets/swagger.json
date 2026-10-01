@@ -11160,7 +11160,7 @@
           "title": "Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)"
         },
         "rollbackAware": {
-          "description": "RollbackAware allows rollbacks while automated sync is enabled. After a rollback, automated sync skips the\nrolled-back revision until a different revision is available. When unset, the value of the\n`application.rollbackAwareAutoSync` key in the argocd-cm ConfigMap applies (default: false).",
+          "description": "RollbackAware allows rollbacks while automated sync is enabled. After a rollback, automated sync skips the\nrolled-back revision until a different revision is available. When unset, the value of the\n`application.rollbackAwareAutoSyncEnabled` key in the argocd-cm ConfigMap applies (default: false).",
           "type": "boolean"
         },
         "selfHeal": {

@@ -221,8 +221,6 @@ type pausedRollbackApp struct {
 	firstHistoryID int64
 	// historyLen is the length of the revision history once the rollback has been recorded.
 	historyLen int
-	// reconciledAt is the last reconciliation before the caller does anything of its own.
-	reconciledAt metav1.Time
 	// rollbackToFirst rolls the application back to firstHistoryID again.
 	rollbackToFirst func()
 }
@@ -271,11 +269,9 @@ func givenPausedRollbackAwareApp(t *testing.T, ctx *Context, automated *SyncPoli
 		And(func(app *Application) {
 			require.Equal(t, paused.badRevision, app.Status.RolledBackRevision)
 			require.NotNil(t, app.Status.OperationState.SyncResult)
-			require.NotNil(t, app.Status.ReconciledAt)
 			assert.Equal(t, paused.firstRevision, app.Status.OperationState.SyncResult.Revision, "the rollback deployed the earlier revision")
 			assert.Nil(t, app.Operation, "automated sync must not re-deploy the rolled-back revision")
 			paused.historyLen = len(app.Status.History)
-			paused.reconciledAt = *app.Status.ReconciledAt
 		})
 	return paused
 }
@@ -321,15 +317,6 @@ func TestAutoSyncRollbackAwareRevertClearsRecord(t *testing.T) {
 func TestAutoSyncRollbackAwarePausesSelfHeal(t *testing.T) {
 	ctx := Given(t)
 	paused := givenPausedRollbackAwareApp(t, ctx, &SyncPolicyAutomated{SelfHeal: new(true)})
-	var reconciledAfterFirstRound metav1.Time
-	reconciledAfter := func(mark *metav1.Time) func(ApplicationStatus) (bool, string) {
-		return func(status ApplicationStatus) (bool, string) {
-			if status.ReconciledAt == nil || !status.ReconciledAt.After(mark.Time) {
-				return false, fmt.Sprintf("a reconciliation later than %s", mark)
-			}
-			return true, fmt.Sprintf("reconciled after %s", mark)
-		}
-	}
 	deployments := fixture.KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace())
 	liveRevisionHistoryLimit := func() int32 {
 		deploy, err := deployments.Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
@@ -343,17 +330,15 @@ func TestAutoSyncRollbackAwarePausesSelfHeal(t *testing.T) {
 			errors.NewHandler(t).FailOnErr(deployments.Patch(t.Context(),
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), metav1.PatchOptions{}))
 		}).
+		// Two refreshes, so that more than one reconciliation has seen both the drift and self-heal
+		// enabled. Refresh is synchronous: the API server holds the request open until the controller
+		// has processed the refresh annotation and removed it again, so each call is one completed
+		// reconciliation. Waiting on status.reconciledAt instead cannot work, because metav1.Time
+		// serialises at second precision, so two reconciliations within the same second are not
+		// After() one another and the wait can never be satisfied.
+		Refresh(RefreshTypeNormal).
 		Refresh(RefreshTypeNormal).
 		Then().
-		Expect(Status(reconciledAfter(&paused.reconciledAt))).
-		And(func(app *Application) {
-			reconciledAfterFirstRound = *app.Status.ReconciledAt
-		}).
-		// a second round, so that more than one reconciliation has seen both the drift and self-heal enabled
-		When().
-		Refresh(RefreshTypeNormal).
-		Then().
-		Expect(Status(reconciledAfter(&reconciledAfterFirstRound))).
 		Expect(Condition(ApplicationConditionAutoSyncPausedWarning, "was rolled back")).
 		And(func(app *Application) {
 			assert.Equal(t, paused.badRevision, app.Status.RolledBackRevision, "self-heal must not clear the record")
@@ -445,6 +430,74 @@ func TestAutoSyncRollbackAwareSecondRollbackReplacesRecord(t *testing.T) {
 		And(func(app *Application) {
 			assert.Empty(t, app.Status.RolledBackRevision)
 			assert.Empty(t, app.Status.RolledBackRevisions)
+		})
+}
+
+func TestAutoSyncRollbackAwareRecordsDeployedRevision(t *testing.T) {
+	ctx := Given(t)
+	var firstHistoryID int64
+	var deployedRevision, newerRevision string
+	ctx.Path(guestbookPath).
+		When().
+		SetParamInSettingConfigMap("application.rollbackAwareAutoSyncEnabled", "true").
+		// automated sync is off for now, so the desired revision can move ahead of the deployed one
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Enabled: new(false)}}
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.Len(t, app.Status.History, 1)
+			firstHistoryID = app.Status.History[0].ID
+		}).
+		// a second manual sync gives the application a revision to roll back from
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 1}]`).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.Len(t, app.Status.History, 2)
+			deployedRevision = app.Status.Sync.Revision
+		}).
+		// a third commit is never deployed, so it is only the desired revision
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 2}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
+			newerRevision = app.Status.Sync.Revision
+			require.NotEqual(t, deployedRevision, newerRevision)
+			require.Len(t, app.Status.History, 2, "the newer revision must not have been deployed")
+		}).
+		// the rollback records the deployed revision, not the newer desired one
+		When().
+		And(func() {
+			_, err := fixture.RunCli("app", "rollback", ctx.AppName(), strconv.FormatInt(firstHistoryID, 10))
+			require.NoError(t, err)
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		And(func(app *Application) {
+			assert.Equal(t, deployedRevision, app.Status.RolledBackRevision)
+			assert.NotEqual(t, newerRevision, app.Status.RolledBackRevision, "a revision that was never deployed must not be recorded")
+		}).
+		// re-enabling automated sync must therefore deploy the newer revision instead of pausing on it
+		When().
+		PatchApp(`[{"op": "replace", "path": "/spec/syncPolicy/automated/enabled", "value": true}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NoConditions()).
+		And(func(app *Application) {
+			assert.Equal(t, newerRevision, app.Status.Sync.Revision, "automated sync must deploy the newer revision")
+			assert.Empty(t, app.Status.RolledBackRevision)
 		})
 }
 

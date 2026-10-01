@@ -1075,7 +1075,7 @@ func TestAutoSyncRollbackAware(t *testing.T) {
 		assert.Nil(t, getApp(t, ctrl).Operation, "the rolled-back revision must not be deployed again")
 	})
 
-	t.Run("keeps the record while the desired revision is unknown", func(t *testing.T) {
+	t.Run("keeps the record when the comparison reported no revision at all", func(t *testing.T) {
 		app := newFakeApp()
 		app.Status.RolledBackRevision = badRevision
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}, configMapData: globalOn}, nil)
@@ -1085,6 +1085,46 @@ func TestAutoSyncRollbackAware(t *testing.T) {
 
 		assert.Nil(t, cond)
 		assert.Equal(t, badRevision, app.Status.RolledBackRevision, "a failed comparison must not drop the record")
+		assert.Nil(t, getApp(t, ctrl).Operation)
+	})
+
+	t.Run("keeps the record when the comparison left the target revision unresolved", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Source.TargetRevision = "HEAD"
+		app.Status.RolledBackRevision = badRevision
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}, configMapData: globalOn}, nil)
+		syncStatus := v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeUnknown, Revision: "HEAD"}
+
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, outOfSyncResources, true)
+
+		assert.Nil(t, cond)
+		assert.Equal(t, badRevision, app.Status.RolledBackRevision, "an unresolved revision is not a new revision")
+		assert.Nil(t, getApp(t, ctrl).Operation)
+	})
+
+	t.Run("does not sync an OutOfSync application with an unknown desired revision", func(t *testing.T) {
+		app := newFakeApp()
+		app.Status.RolledBackRevision = badRevision
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}, configMapData: globalOn}, nil)
+		syncStatus := v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync}
+
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, outOfSyncResources, true)
+
+		assert.Nil(t, cond)
+		assert.Equal(t, badRevision, app.Status.RolledBackRevision)
+		assert.Nil(t, getApp(t, ctrl).Operation, "an empty revision resolves back to the rolled-back revision")
+	})
+
+	t.Run("multi-source keeps the record when the comparison reported no revisions", func(t *testing.T) {
+		app := newFakeMultiSourceApp()
+		app.Status.RolledBackRevisions = []string{"b1", "b2", "b3"}
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}, configMapData: globalOn}, nil)
+		syncStatus := v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeUnknown}
+
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, outOfSyncResources, true)
+
+		assert.Nil(t, cond)
+		assert.Equal(t, []string{"b1", "b2", "b3"}, app.Status.RolledBackRevisions, "a failed comparison must not drop the record")
 		assert.Nil(t, getApp(t, ctrl).Operation)
 	})
 

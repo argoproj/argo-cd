@@ -2343,15 +2343,20 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 		InitiatedBy: v1alpha1.OperationInitiator{Username: session.Username(ctx)},
 	}
 	if rollbackAware {
-		// Record the revision currently desired by the application source so that, once the rollback succeeds,
-		// automated sync skips it until the source moves to a different revision. Rolling back to the revision
-		// that is already desired is not a rollback away from anything, so nothing is recorded in that case.
+		// Record the revision that is currently deployed so that, once the rollback succeeds, automated sync
+		// skips it until the application source moves to a different revision. The deployed revision is the most
+		// recent history entry, not status.sync.revision: the latter is the revision the comparison was performed
+		// against, which may already be a newer revision that has never been deployed, and recording that one
+		// would make automated sync refuse the very revision the user is about to push as a fix. Rolling back to
+		// the revision that is already deployed is not a rollback away from anything, so nothing is recorded in
+		// that case.
+		deployed := a.Status.History.LastRevisionHistory()
 		if a.Spec.HasMultipleSources() {
-			if len(a.Status.Sync.Revisions) > 0 && !slices.Equal(a.Status.Sync.Revisions, deploymentInfo.Revisions) {
-				op.Sync.RolledBackFromRevisions = a.Status.Sync.Revisions
+			if len(deployed.Revisions) > 0 && !slices.Equal(deployed.Revisions, deploymentInfo.Revisions) {
+				op.Sync.RolledBackFromRevisions = deployed.Revisions
 			}
-		} else if a.Status.Sync.Revision != "" && a.Status.Sync.Revision != deploymentInfo.Revision {
-			op.Sync.RolledBackFromRevision = a.Status.Sync.Revision
+		} else if deployed.Revision != "" && deployed.Revision != deploymentInfo.Revision {
+			op.Sync.RolledBackFromRevision = deployed.Revision
 		}
 	}
 	appName := rollbackReq.GetName()
