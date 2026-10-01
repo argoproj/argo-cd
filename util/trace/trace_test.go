@@ -218,10 +218,12 @@ func TestInitTracer_MutualTLS(t *testing.T) {
 		prefix          string
 		clientCert      bool
 		caFromConfigMap bool
+		mixed           bool // signal-specific cert with a generic key
 		want            bool
 	}{
 		"generic vars":   {prefix: "OTEL_EXPORTER_OTLP_", clientCert: true, want: true},
 		"traces vars":    {prefix: "OTEL_EXPORTER_OTLP_TRACES_", clientCert: true, want: true},
+		"mixed vars":     {prefix: "OTEL_EXPORTER_OTLP_", clientCert: true, mixed: true, want: true},
 		"no client cert": {prefix: "OTEL_EXPORTER_OTLP_", clientCert: false, want: false},
 		"configmap CA":   {prefix: "OTEL_EXPORTER_OTLP_", clientCert: true, caFromConfigMap: true, want: true},
 	} {
@@ -249,7 +251,11 @@ func TestInitTracer_MutualTLS(t *testing.T) {
 			} else {
 				t.Setenv(tc.prefix+"CERTIFICATE", caPath)
 			}
-			if tc.clientCert {
+			switch {
+			case tc.mixed:
+				t.Setenv("OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE", clientCertPath)
+				t.Setenv("OTEL_EXPORTER_OTLP_CLIENT_KEY", clientKeyPath)
+			case tc.clientCert:
 				t.Setenv(tc.prefix+"CLIENT_CERTIFICATE", clientCertPath)
 				t.Setenv(tc.prefix+"CLIENT_KEY", clientKeyPath)
 			}
@@ -281,4 +287,19 @@ func TestInitTracer_InvalidTLSEnvFails(t *testing.T) {
 			assert.Error(t, err)
 		})
 	}
+}
+
+func TestInitTracer_InsecureIgnoresTLSEnv(t *testing.T) {
+	lis, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	srv := grpc.NewServer() // plaintext
+	collector := &fakeTraceCollector{headers: make(chan metadata.MD, 10)}
+	collectortrace.RegisterTraceServiceServer(srv, collector)
+	go func() { _ = srv.Serve(lis) }()
+	t.Cleanup(srv.Stop)
+	_, caPath := selfSignedCert(t)
+	t.Setenv("OTEL_EXPORTER_OTLP_CERTIFICATE", caPath)
+
+	assert.True(t, tryExportSpan(t, lis.Addr().String(), true, collector.headers),
+		"otlp.insecure=true must stay plaintext despite OTEL_EXPORTER_OTLP_CERTIFICATE")
 }
