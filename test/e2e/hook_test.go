@@ -96,7 +96,7 @@ func TestPreDeleteHookFailureAndRetry(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
-		Delete(false). // Non-blocking delete
+		Delete(true).
 		Then().
 		// App should still exist because pre-delete hook failed
 		Expect(Condition(ApplicationConditionDeletionError, "")).
