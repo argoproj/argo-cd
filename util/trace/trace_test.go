@@ -26,20 +26,20 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-type fakeCollector struct {
+type fakeTraceCollector struct {
 	collectortrace.UnimplementedTraceServiceServer
 	headers chan metadata.MD
 }
 
-func (c *fakeCollector) Export(ctx context.Context, _ *collectortrace.ExportTraceServiceRequest) (*collectortrace.ExportTraceServiceResponse, error) {
+func (c *fakeTraceCollector) Export(ctx context.Context, _ *collectortrace.ExportTraceServiceRequest) (*collectortrace.ExportTraceServiceResponse, error) {
 	md, _ := metadata.FromIncomingContext(ctx)
 	c.headers <- md
 	return &collectortrace.ExportTraceServiceResponse{}, nil
 }
 
-// startTLSCollector serves a fake OTLP trace collector with a self-signed
-// certificate and returns its address and the path of the CA to trust.
-func startTLSCollector(t *testing.T) (string, string, *fakeCollector) {
+// selfSignedCert returns a server certificate for 127.0.0.1 that is its own
+// CA, and the path of that CA in PEM.
+func selfSignedCert(t *testing.T) (tls.Certificate, string) {
 	t.Helper()
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
@@ -58,11 +58,18 @@ func startTLSCollector(t *testing.T) (string, string, *fakeCollector) {
 	require.NoError(t, err)
 	caPath := filepath.Join(t.TempDir(), "ca.crt")
 	require.NoError(t, os.WriteFile(caPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o600))
+	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}, caPath
+}
 
+// startTLSCollector serves a fake OTLP trace collector with a self-signed
+// certificate and returns its address and the path of the CA to trust.
+func startTLSCollector(t *testing.T) (string, string, *fakeTraceCollector) {
+	t.Helper()
+	serverCert, caPath := selfSignedCert(t)
 	lis, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	srv := grpc.NewServer(grpc.Creds(credentials.NewServerTLSFromCert(&tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key})))
-	collector := &fakeCollector{headers: make(chan metadata.MD, 10)}
+	srv := grpc.NewServer(grpc.Creds(credentials.NewServerTLSFromCert(&serverCert)))
+	collector := &fakeTraceCollector{headers: make(chan metadata.MD, 10)}
 	collectortrace.RegisterTraceServiceServer(srv, collector)
 	go func() { _ = srv.Serve(lis) }()
 	t.Cleanup(srv.Stop)
@@ -138,6 +145,106 @@ func TestInitTracer_UsesCAFromTLSCertsConfigMap(t *testing.T) {
 			default:
 				t.Fatal("collector received no export")
 			}
+		})
+	}
+}
+
+// clientCertFiles writes a self-signed client certificate and key, and returns
+// their paths and a pool for the collector to verify them with.
+func clientCertFiles(t *testing.T) (string, string, *x509.CertPool) {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	tmpl := &x509.Certificate{
+		SerialNumber:          big.NewInt(2),
+		Subject:               pkix.Name{CommonName: "argocd"},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	require.NoError(t, err)
+	keyDER, err := x509.MarshalECPrivateKey(key)
+	require.NoError(t, err)
+	dir := t.TempDir()
+	certPath, keyPath := filepath.Join(dir, "client.crt"), filepath.Join(dir, "client.key")
+	require.NoError(t, os.WriteFile(certPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o600))
+	require.NoError(t, os.WriteFile(keyPath, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}), 0o600))
+	parsed, err := x509.ParseCertificate(der)
+	require.NoError(t, err)
+	pool := x509.NewCertPool()
+	pool.AddCert(parsed)
+	return certPath, keyPath, pool
+}
+
+// tryExportSpan exports one span and reports whether the collector received it.
+func tryExportSpan(t *testing.T, addr string, insecure bool, received <-chan metadata.MD) bool {
+	t.Helper()
+	closer, err := InitTracer(t.Context(), "test", addr, insecure, nil, nil, 1.0)
+	require.NoError(t, err)
+	t.Cleanup(closer)
+	_, span := otel.Tracer("test").Start(t.Context(), "span")
+	span.End()
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	defer cancel()
+	_ = otel.GetTracerProvider().(*sdktrace.TracerProvider).ForceFlush(ctx)
+	select {
+	case <-received:
+		return true
+	default:
+		return false
+	}
+}
+
+func TestInitTracer_SecureIgnoresInsecureEnv(t *testing.T) {
+	lis, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	srv := grpc.NewServer() // plaintext
+	collector := &fakeTraceCollector{headers: make(chan metadata.MD, 10)}
+	collectortrace.RegisterTraceServiceServer(srv, collector)
+	go func() { _ = srv.Serve(lis) }()
+	t.Cleanup(srv.Stop)
+	t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
+
+	assert.False(t, tryExportSpan(t, lis.Addr().String(), false, collector.headers),
+		"otlp.insecure=false must not be downgraded to plaintext by OTEL_EXPORTER_OTLP_INSECURE")
+}
+
+func TestInitTracer_MutualTLS(t *testing.T) {
+	for name, tc := range map[string]struct {
+		prefix     string
+		clientCert bool
+		want       bool
+	}{
+		"generic vars":   {prefix: "OTEL_EXPORTER_OTLP_", clientCert: true, want: true},
+		"traces vars":    {prefix: "OTEL_EXPORTER_OTLP_TRACES_", clientCert: true, want: true},
+		"no client cert": {prefix: "OTEL_EXPORTER_OTLP_", clientCert: false, want: false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			serverCert, caPath := selfSignedCert(t)
+			clientCertPath, clientKeyPath, clientCAs := clientCertFiles(t)
+			lis, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+			require.NoError(t, err)
+			srv := grpc.NewServer(grpc.Creds(credentials.NewTLS(&tls.Config{
+				Certificates: []tls.Certificate{serverCert},
+				ClientAuth:   tls.RequireAndVerifyClientCert,
+				ClientCAs:    clientCAs,
+			})))
+			collector := &fakeTraceCollector{headers: make(chan metadata.MD, 10)}
+			collectortrace.RegisterTraceServiceServer(srv, collector)
+			go func() { _ = srv.Serve(lis) }()
+			t.Cleanup(srv.Stop)
+
+			t.Setenv(tc.prefix+"CERTIFICATE", caPath)
+			if tc.clientCert {
+				t.Setenv(tc.prefix+"CLIENT_CERTIFICATE", clientCertPath)
+				t.Setenv(tc.prefix+"CLIENT_KEY", clientKeyPath)
+			}
+
+			assert.Equal(t, tc.want, tryExportSpan(t, lis.Addr().String(), false, collector.headers))
 		})
 	}
 }

@@ -23,12 +23,17 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cert"
 )
 
-// collectorRootCAs returns the CAs configured for the collector host in
-// argocd-tls-certs-cm, or nil to keep the exporter default: system roots, or the
-// OTEL_EXPORTER_OTLP_*CERTIFICATE env vars, which take precedence when set.
+// collectorTLSCredentials returns the TLS credentials for a secure collector
+// connection: the CA configured for the collector host in argocd-tls-certs-cm,
+// else the system roots. It returns nil when the OTEL_EXPORTER_OTLP_*CERTIFICATE
+// env vars are set, so the exporter builds TLS from them (custom CA, mTLS).
 // signal is the exporter's env var infix ("TRACES" or "METRICS"); like the SDK,
 // other signals' vars and empty values are ignored.
-func collectorRootCAs(otlpAddress, signal string) (*x509.CertPool, error) {
+//
+// Credentials are always explicit otherwise: without them, the exporter would
+// honor OTEL_EXPORTER_OTLP_INSECURE or an http:// OTEL_EXPORTER_OTLP_ENDPOINT
+// and silently send plaintext despite otlp.insecure=false.
+func collectorTLSCredentials(otlpAddress, signal string) (credentials.TransportCredentials, error) {
 	for _, name := range []string{"CERTIFICATE", "CLIENT_CERTIFICATE", signal + "_CERTIFICATE", signal + "_CLIENT_CERTIFICATE"} {
 		if strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_"+name)) != "" {
 			return nil, nil
@@ -38,10 +43,11 @@ func collectorRootCAs(otlpAddress, signal string) (*x509.CertPool, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load TLS certificates for OTLP collector %s: %w", otlpAddress, err)
 	}
-	if len(certs) == 0 {
-		return nil, nil
+	var rootCAs *x509.CertPool // nil: system roots
+	if len(certs) > 0 {
+		rootCAs = cert.GetCertPoolFromPEMData(certs)
 	}
-	return cert.GetCertPoolFromPEMData(certs), nil
+	return credentials.NewTLS(&tls.Config{RootCAs: rootCAs}), nil
 }
 
 // InitTracer initializes the trace provider and the otel grpc exporter.
@@ -81,18 +87,17 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 	}
 
 	// Explicit options override the standard OTEL_EXPORTER_OTLP_* env vars, so
-	// only set them when configured: the secure default (system roots) leaves
-	// the CERTIFICATE/CLIENT_* vars for custom CAs and mTLS.
+	// headers are only set when configured; see collectorTLSCredentials for TLS.
 	opts := []otlptracegrpc.Option{otlptracegrpc.WithEndpoint(otlpAddress)}
 	if otlpInsecure {
 		opts = append(opts, otlptracegrpc.WithInsecure())
 	} else {
-		rootCAs, err := collectorRootCAs(otlpAddress, "TRACES")
+		creds, err := collectorTLSCredentials(otlpAddress, "TRACES")
 		if err != nil {
 			return nil, err
 		}
-		if rootCAs != nil {
-			opts = append(opts, otlptracegrpc.WithTLSCredentials(credentials.NewTLS(&tls.Config{RootCAs: rootCAs})))
+		if creds != nil {
+			opts = append(opts, otlptracegrpc.WithTLSCredentials(creds))
 		}
 	}
 	if len(otlpHeaders) > 0 {
