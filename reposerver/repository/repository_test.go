@@ -31,6 +31,8 @@ import (
 
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 
+	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -3592,6 +3594,55 @@ func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 
 	err := checkoutRevision(t.Context(), gitClient, revision, false, 0, true)
 	require.NoError(t, err)
+}
+
+type fakeHelmForDepBuild struct {
+	dependencyBuildCalls int
+}
+
+func (f *fakeHelmForDepBuild) Template(_ *helm.TemplateOpts) (string, string, error) {
+	return "", "", nil
+}
+
+func (f *fakeHelmForDepBuild) GetParameters(_ []pathutil.ResolvedFilePath, _, _ string) (map[string]string, error) {
+	return nil, nil
+}
+
+func (f *fakeHelmForDepBuild) DependencyBuild(_ context.Context) error {
+	f.dependencyBuildCalls++
+	return nil
+}
+
+func (f *fakeHelmForDepBuild) Dispose() {}
+
+func TestRunHelmBuildRecordsMarker(t *testing.T) {
+	t.Parallel()
+	repoRoot := t.TempDir()
+	appPath := t.TempDir()
+	helmClient := &fakeHelmForDepBuild{}
+
+	// The marker file is created and registered for removal when another
+	// revision is processed.
+	err := runHelmBuild(t.Context(), appPath, repoRoot, helmClient)
+	require.NoError(t, err)
+
+	markerFile := filepath.Join(appPath, helmDepUpMarkerFile)
+	assert.FileExists(t, markerFile)
+
+	// The marker prevents an unnecessary second run of helm dependency build.
+	err = runHelmBuild(t.Context(), appPath, repoRoot, helmClient)
+	require.NoError(t, err)
+	assert.Equal(t, 1, helmClient.dependencyBuildCalls)
+
+	// Once the marker is removed (which happens when another revision is
+	// processed, see TestLock_RemoveHelmDepMarkersOnRevisionChange), helm
+	// dependency build runs again.
+	helmDepMarkers.removeAll(repoRoot)
+	assert.NoFileExists(t, markerFile)
+
+	err = runHelmBuild(t.Context(), appPath, repoRoot, helmClient)
+	require.NoError(t, err)
+	assert.Equal(t, 2, helmClient.dependencyBuildCalls)
 }
 
 func TestFetch(t *testing.T) {

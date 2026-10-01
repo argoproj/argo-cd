@@ -3,10 +3,13 @@ package repository
 import (
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
@@ -223,8 +226,11 @@ func TestLock_CleanOnRevisionChange(t *testing.T) {
 		return lock.Lock("myRepo", "2", true, init)
 	})
 	assert.True(t, done)
-	// Revision changed → must clean to remove untracked files from revision "1".
-	assert.True(t, cleanValues[1])
+	// Revision changed, but a full clean is skipped: it is too expensive for
+	// large repositories (https://github.com/argoproj/argo-cd/issues/29856).
+	// Instead, the Helm dependency build markers are removed so that
+	// `helm dependency build` is re-run for the new revision.
+	assert.False(t, cleanValues[1])
 	utilio.Close(closer)
 
 	// Third op: same revision "2" again, concurrent allowed - no clean needed.
@@ -234,4 +240,45 @@ func TestLock_CleanOnRevisionChange(t *testing.T) {
 	assert.True(t, done)
 	assert.False(t, cleanValues[2])
 	utilio.Close(closer)
+}
+
+func TestLock_RemoveHelmDepMarkersOnRevisionChange(t *testing.T) {
+	t.Parallel()
+	lock := NewRepositoryLock()
+	repoRoot := t.TempDir()
+	init := func(_ bool) (io.Closer, error) {
+		return utilio.NopCloser, nil
+	}
+
+	// Process revision "rev1", leaving behind a Helm dependency build marker
+	// in the repository working copy.
+	closer, done := lockQuickly(func() (io.Closer, error) {
+		return lock.Lock(repoRoot, "rev1", true, init)
+	})
+	assert.True(t, done)
+	markerFile := filepath.Join(repoRoot, "my-chart", helmDepUpMarkerFile)
+	assert.NoError(t, os.MkdirAll(filepath.Dir(markerFile), 0o755))
+	assert.NoError(t, os.WriteFile(markerFile, []byte("marker"), 0o644))
+	helmDepMarkers.add(repoRoot, markerFile)
+	utilio.Close(closer)
+
+	// Process the same revision again: the marker must be preserved so that
+	// `helm dependency build` is not run again unnecessarily.
+	closer, done = lockQuickly(func() (io.Closer, error) {
+		return lock.Lock(repoRoot, "rev1", true, init)
+	})
+	assert.True(t, done)
+	utilio.Close(closer)
+	_, err := os.Stat(markerFile)
+	require.NoError(t, err)
+
+	// Process another revision: the marker left by the previous revision must
+	// be removed so that `helm dependency build` is re-run.
+	closer, done = lockQuickly(func() (io.Closer, error) {
+		return lock.Lock(repoRoot, "rev2", true, init)
+	})
+	assert.True(t, done)
+	utilio.Close(closer)
+	_, err = os.Stat(markerFile)
+	assert.True(t, os.IsNotExist(err))
 }
