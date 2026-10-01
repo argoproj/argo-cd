@@ -1,0 +1,17 @@
+apiVersion: hypershift.openshift.io/v1beta1
+kind: AzurePrivateLinkService
+metadata:
+  name: kube-apiserver
+  namespace: clusters-example
+  generation: 1
+spec:
+  subscriptionID: "550e8400-e29b-41d4-a716-446655440000"
+  resourceGroupName: my-resource-group
+  location: eastus
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: "Provisioning Private Link Service"
+    reason: AzureSuccess
+    status: "False"
+    type: AzurePrivateLinkServiceAvailable

@@ -1,0 +1,10 @@
+apiVersion: hypershift.openshift.io/v1beta1
+kind: HostedCluster
+metadata:
+  name: example
+  namespace: clusters
+  generation: 1
+spec:
+  release:
+    image: quay.io/openshift-release-dev/ocp-release:4.16.0-x86_64
+status: {}

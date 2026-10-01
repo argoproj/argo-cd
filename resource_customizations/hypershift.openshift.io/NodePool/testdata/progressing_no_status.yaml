@@ -1,0 +1,12 @@
+apiVersion: hypershift.openshift.io/v1beta1
+kind: NodePool
+metadata:
+  name: example
+  namespace: clusters
+  generation: 1
+spec:
+  clusterName: example
+  replicas: 3
+  release:
+    image: quay.io/openshift-release-dev/ocp-release:4.16.0-x86_64
+status: {}
