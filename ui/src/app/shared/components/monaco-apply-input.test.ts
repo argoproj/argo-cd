@@ -1,12 +1,19 @@
 import type * as monacoEditor from 'monaco-editor';
 import {applyEditorInput, EditorInput, MonacoModelFactory} from './monaco-apply-input';
 
+const FULL_RANGE = {startLineNumber: 1, startColumn: 1, endLineNumber: 99, endColumn: 1};
+
 function createFakeModel(initialText: string, languageId = 'yaml') {
     const model = {
         text: initialText,
         languageId,
         setValue: jest.fn((value: string) => {
             model.text = value;
+        }),
+        getFullModelRange: jest.fn(() => FULL_RANGE as unknown as monacoEditor.Range),
+        pushEditOperations: jest.fn((_before: unknown, edits: {text: string}[]) => {
+            model.text = edits[0].text;
+            return null;
         }),
         getLanguageId: jest.fn(() => model.languageId),
         getLineCount: jest.fn(() => model.text.split('\n').length),
@@ -24,7 +31,9 @@ function createFakeEditor(model: ReturnType<typeof createFakeModel> | null) {
         getModel: jest.fn(() => currentModel),
         setModel: jest.fn((next: monacoEditor.editor.ITextModel | null) => {
             currentModel = next;
-        })
+        }),
+        // Monaco refuses editor-level edits while readOnly is set, so this must never be used.
+        executeEdits: jest.fn(() => false)
     };
     return {editor: editor as unknown as monacoEditor.editor.IStandaloneCodeEditor, mocks: editor, viewState};
 }
@@ -45,7 +54,7 @@ function createFakeMonaco(created: ReturnType<typeof createFakeModel>[]) {
 describe('applyEditorInput', () => {
     const prev: EditorInput = {text: 'apiVersion: v1\nkind: ConfigMap\n', language: 'yaml'};
 
-    test('text change updates the same model and restores view state without setModel', () => {
+    test('text change replaces the same model and restores view state', () => {
         const model = createFakeModel(prev.text, 'yaml');
         const {editor, mocks, viewState} = createFakeEditor(model);
         const created: ReturnType<typeof createFakeModel>[] = [];
@@ -55,6 +64,7 @@ describe('applyEditorInput', () => {
         applyEditorInput(monaco, editor, prev, next);
 
         expect(model.setValue).toHaveBeenCalledWith(next.text);
+        expect(model.text).toBe(next.text);
         expect(mocks.setModel).not.toHaveBeenCalled();
         expect(monaco.editor.createModel).not.toHaveBeenCalled();
         expect(mocks.saveViewState).toHaveBeenCalled();
@@ -62,6 +72,22 @@ describe('applyEditorInput', () => {
         expect(model.dispose).not.toHaveBeenCalled();
         expect(mocks.saveViewState.mock.invocationCallOrder[0]).toBeLessThan(model.setValue.mock.invocationCallOrder[0]);
         expect(model.setValue.mock.invocationCallOrder[0]).toBeLessThan(mocks.restoreViewState.mock.invocationCallOrder[0]);
+    });
+
+    test('refreshes cannot be undone back into the buffer and saved over the cluster', () => {
+        const model = createFakeModel(prev.text, 'yaml');
+        const {editor, mocks} = createFakeEditor(model);
+        const monaco = createFakeMonaco([]);
+        const next: EditorInput = {text: 'kind: Secret\n', language: 'yaml'};
+
+        applyEditorInput(monaco, editor, prev, next);
+
+        // Only setValue drops the model's edit history. An edit operation would leave every stale
+        // refresh on the undo stack, reachable with a ctrl-z once the user enters edit mode.
+        expect(model.pushEditOperations).not.toHaveBeenCalled();
+        // executeEdits would also be a no-op, because the manifest view is readOnly until edited.
+        expect(mocks.executeEdits).not.toHaveBeenCalled();
+        expect(model.text).toBe(next.text);
     });
 
     test('unchanged input is a no-op', () => {
