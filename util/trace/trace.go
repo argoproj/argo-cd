@@ -20,6 +20,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.6.1"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/argoproj/argo-cd/v3/util/cert"
 )
@@ -125,7 +126,9 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 	// headers are only set when configured; see collectorTLSCredentials for TLS.
 	opts := []otlptracegrpc.Option{otlptracegrpc.WithEndpoint(otlpAddress)}
 	if otlpInsecure {
-		opts = append(opts, otlptracegrpc.WithInsecure())
+		// Credentials, not WithInsecure: the exporter prefers TLS built from the
+		// OTEL_EXPORTER_OTLP_*CERTIFICATE env vars over its insecure flag.
+		opts = append(opts, otlptracegrpc.WithTLSCredentials(insecure.NewCredentials()))
 	} else {
 		creds, err := collectorTLSCredentials(otlpAddress, "TRACES")
 		if err != nil {

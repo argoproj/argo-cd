@@ -36,7 +36,8 @@ metadata:
 data:
   # Collector address. Tracing is disabled when empty.
   otlp.address: "otel-collector.observability:4317"
-  # Set to "false" to connect over TLS. Defaults to "true" (plaintext).
+  # Set to "false" to connect over TLS. Defaults to "true" (plaintext), which ignores the
+  # OTEL_EXPORTER_OTLP_* TLS environment variables.
   otlp.insecure: "false"
   # Extra headers sent with each export, as comma-separated key=value pairs.
   otlp.headers: ""

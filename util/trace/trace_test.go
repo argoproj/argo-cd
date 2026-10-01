@@ -288,3 +288,18 @@ func TestInitTracer_InvalidTLSEnvFails(t *testing.T) {
 		})
 	}
 }
+
+func TestInitTracer_InsecureIgnoresTLSEnv(t *testing.T) {
+	lis, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	srv := grpc.NewServer() // plaintext
+	collector := &fakeTraceCollector{headers: make(chan metadata.MD, 10)}
+	collectortrace.RegisterTraceServiceServer(srv, collector)
+	go func() { _ = srv.Serve(lis) }()
+	t.Cleanup(srv.Stop)
+	_, caPath := selfSignedCert(t)
+	t.Setenv("OTEL_EXPORTER_OTLP_CERTIFICATE", caPath)
+
+	assert.True(t, tryExportSpan(t, lis.Addr().String(), true, collector.headers),
+		"otlp.insecure=true must stay plaintext despite OTEL_EXPORTER_OTLP_CERTIFICATE")
+}
