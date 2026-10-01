@@ -66,11 +66,19 @@ repo server and plugins. Set the same ratio on every component to get a consiste
 With `otlp.insecure: "false"`, the collector certificate is verified against the first of the
 following that is configured:
 
-1. The standard `OTEL_EXPORTER_OTLP_CERTIFICATE`, `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` and
-   `OTEL_EXPORTER_OTLP_CLIENT_KEY` environment variables. Use these for mTLS.
+1. The standard OpenTelemetry TLS environment variables, when `OTEL_EXPORTER_OTLP_CERTIFICATE` or
+   `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE`, or a signal-specific variant such as
+   `OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE`, is set to a non-empty value. The collector certificate is
+   then verified against the CA in `OTEL_EXPORTER_OTLP_CERTIFICATE`, or against the system root CAs
+   if that variable is not set.
 2. The CA configured for the collector host in `argocd-tls-certs-cm`. The port is ignored when
    matching the host.
 3. The system root CAs.
+
+> [!NOTE]
+> Setting a client certificate for mTLS disables the `argocd-tls-certs-cm` lookup. If the collector
+> uses a private CA, also set `OTEL_EXPORTER_OTLP_CERTIFICATE` to that CA, as in the mTLS example
+> below.
 
 To trust a private CA for the collector, add it to `argocd-tls-certs-cm` the same way as for a
 repository:

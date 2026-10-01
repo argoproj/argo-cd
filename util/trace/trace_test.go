@@ -112,19 +112,32 @@ func TestInitTracer_ExplicitHeadersOverrideEnv(t *testing.T) {
 }
 
 func TestInitTracer_UsesCAFromTLSCertsConfigMap(t *testing.T) {
-	addr, caPath, collector := startTLSCollector(t)
-	// argocd-tls-certs-cm is mounted as one file per hostname.
-	tlsDataPath := t.TempDir()
-	ca, err := os.ReadFile(caPath)
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(filepath.Join(tlsDataPath, "127.0.0.1"), ca, 0o600))
-	t.Setenv("ARGOCD_TLS_DATA_PATH", tlsDataPath)
+	// None of these override the ConfigMap CA for traces: the SDK ignores
+	// empty values and other signals' variables.
+	for name, env := range map[string]map[string]string{
+		"no env vars":         {},
+		"empty certificate":   {"OTEL_EXPORTER_OTLP_CERTIFICATE": " "},
+		"metrics certificate": {"OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE": "/nonexistent/ca.crt"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			addr, caPath, collector := startTLSCollector(t)
+			// argocd-tls-certs-cm is mounted as one file per hostname.
+			tlsDataPath := t.TempDir()
+			ca, err := os.ReadFile(caPath)
+			require.NoError(t, err)
+			require.NoError(t, os.WriteFile(filepath.Join(tlsDataPath, "127.0.0.1"), ca, 0o600))
+			t.Setenv("ARGOCD_TLS_DATA_PATH", tlsDataPath)
+			for k, v := range env {
+				t.Setenv(k, v)
+			}
 
-	exportSpan(t, addr, nil)
+			exportSpan(t, addr, nil)
 
-	select {
-	case <-collector.headers:
-	default:
-		t.Fatal("collector received no export")
+			select {
+			case <-collector.headers:
+			default:
+				t.Fatal("collector received no export")
+			}
+		})
 	}
 }

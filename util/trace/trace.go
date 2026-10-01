@@ -26,10 +26,11 @@ import (
 // collectorRootCAs returns the CAs configured for the collector host in
 // argocd-tls-certs-cm, or nil to keep the exporter default: system roots, or the
 // OTEL_EXPORTER_OTLP_*CERTIFICATE env vars, which take precedence when set.
-func collectorRootCAs(otlpAddress string) (*x509.CertPool, error) {
-	for _, kv := range os.Environ() {
-		name, _, _ := strings.Cut(kv, "=")
-		if strings.HasPrefix(name, "OTEL_EXPORTER_OTLP_") && strings.HasSuffix(name, "CERTIFICATE") {
+// signal is the exporter's env var infix ("TRACES" or "METRICS"); like the SDK,
+// other signals' vars and empty values are ignored.
+func collectorRootCAs(otlpAddress, signal string) (*x509.CertPool, error) {
+	for _, name := range []string{"CERTIFICATE", "CLIENT_CERTIFICATE", signal + "_CERTIFICATE", signal + "_CLIENT_CERTIFICATE"} {
+		if strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_"+name)) != "" {
 			return nil, nil
 		}
 	}
@@ -86,7 +87,7 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 	if otlpInsecure {
 		opts = append(opts, otlptracegrpc.WithInsecure())
 	} else {
-		rootCAs, err := collectorRootCAs(otlpAddress)
+		rootCAs, err := collectorRootCAs(otlpAddress, "TRACES")
 		if err != nil {
 			return nil, err
 		}
