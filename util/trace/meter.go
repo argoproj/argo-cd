@@ -46,9 +46,7 @@ func InitMeter(ctx context.Context, serviceName, otlpAddress string, otlpInsecur
 		if err != nil {
 			return nil, err
 		}
-		if creds != nil {
-			opts = append(opts, otlpmetricgrpc.WithTLSCredentials(creds))
-		}
+		opts = append(opts, otlpmetricgrpc.WithTLSCredentials(creds))
 	}
 	if len(otlpHeaders) > 0 {
 		opts = append(opts, otlpmetricgrpc.WithHeaders(otlpHeaders))

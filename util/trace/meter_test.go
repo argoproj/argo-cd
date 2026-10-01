@@ -258,3 +258,14 @@ func TestInitMeter_MutualTLS(t *testing.T) {
 		})
 	}
 }
+
+func TestInitMeter_InvalidTLSEnvFails(t *testing.T) {
+	clientCertPath, _, _ := clientCertFiles(t)
+	// Without credentials, this would let the exporter fall back to plaintext.
+	t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
+	t.Setenv("OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE", clientCertPath)
+
+	_, err := InitMeter(t.Context(), "argocd-test", "127.0.0.1:4317", false, nil, nil,
+		time.Second, newCounterRegistry(t, "argocd_invalid_tls_total"))
+	assert.Error(t, err)
+}
