@@ -129,6 +129,14 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 }
 
 func TestPolicyMatching(t *testing.T) {
+	onlyExcluded := &v1alpha1.SourceIntegrityGitPolicy{
+		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
+			{URL: "!https://test.example.com/group/*"},
+		},
+		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
+		},
+	}
 	group := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
 			{URL: "https://github.com/group/*"},
@@ -165,7 +173,7 @@ func TestPolicyMatching(t *testing.T) {
 		},
 	}
 	sig := &v1alpha1.SourceIntegrityGit{
-		Policies: []*v1alpha1.SourceIntegrityGitPolicy{group, legacy, critical, duplicated},
+		Policies: []*v1alpha1.SourceIntegrityGitPolicy{group, legacy, critical, duplicated, onlyExcluded},
 	}
 
 	p := func(ps ...*v1alpha1.SourceIntegrityGitPolicy) []*v1alpha1.SourceIntegrityGitPolicy { return ps }
@@ -200,6 +208,13 @@ func TestPolicyMatching(t *testing.T) {
 			repo:             "https://gitlab.com/foo/bar.git",
 			expectedPolicies: p(),
 			expectedLogs:     []string{"No git source integrity policies found for repo URL: https://gitlab.com/foo/bar.git"},
+			expectedNoFunc:   true,
+		},
+		{
+			// policy with only excluded url patterns should not match anything
+			repo:             "https://anything.example.com/group/head.git",
+			expectedPolicies: p(),
+			expectedLogs:     []string{"No git source integrity policies found for repo URL: https://anything.example.com/group/head.git"},
 			expectedNoFunc:   true,
 		},
 	}
