@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -23,31 +24,62 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cert"
 )
 
-// collectorTLSCredentials returns the TLS credentials for a secure collector
-// connection: the CA configured for the collector host in argocd-tls-certs-cm,
-// else the system roots. It returns nil when the OTEL_EXPORTER_OTLP_*CERTIFICATE
-// env vars are set, so the exporter builds TLS from them (custom CA, mTLS).
-// signal is the exporter's env var infix ("TRACES" or "METRICS"); like the SDK,
-// other signals' vars and empty values are ignored.
+// collectorTLSCredentials builds the TLS credentials for a secure collector
+// connection from the standard OTEL_EXPORTER_OTLP_[<signal>_]CERTIFICATE,
+// CLIENT_CERTIFICATE and CLIENT_KEY env vars, where signal is "TRACES" or
+// "METRICS" and the signal-specific vars win, as in the SDK. Without a CA
+// there, the CA for the collector host in argocd-tls-certs-cm is used, else the
+// system roots.
 //
-// Credentials are always explicit otherwise: without them, the exporter would
-// honor OTEL_EXPORTER_OTLP_INSECURE or an http:// OTEL_EXPORTER_OTLP_ENDPOINT
-// and silently send plaintext despite otlp.insecure=false.
+// The exporter could read these vars itself, but it silently skips an
+// unreadable CA or an incomplete client cert/key pair, and without credentials
+// it honors OTEL_EXPORTER_OTLP_INSECURE or an http:// endpoint. Building them
+// here keeps otlp.insecure=false on TLS and turns bad TLS config into an error.
 func collectorTLSCredentials(otlpAddress, signal string) (credentials.TransportCredentials, error) {
-	for _, name := range []string{"CERTIFICATE", "CLIENT_CERTIFICATE", signal + "_CERTIFICATE", signal + "_CLIENT_CERTIFICATE"} {
-		if strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_"+name)) != "" {
-			return nil, nil
+	env := func(name string) string {
+		return strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_" + name))
+	}
+	cfg := &tls.Config{}
+
+	caPath := env(signal + "_CERTIFICATE")
+	if caPath == "" {
+		caPath = env("CERTIFICATE")
+	}
+	if caPath != "" {
+		data, err := os.ReadFile(caPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read OTLP collector CA: %w", err)
+		}
+		cfg.RootCAs = x509.NewCertPool()
+		if !cfg.RootCAs.AppendCertsFromPEM(data) {
+			return nil, fmt.Errorf("no certificates found in OTLP collector CA %s", caPath)
+		}
+	} else {
+		certs, err := cert.GetCertificateForConnect(otlpAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load TLS certificates for OTLP collector %s: %w", otlpAddress, err)
+		}
+		if len(certs) > 0 {
+			cfg.RootCAs = cert.GetCertPoolFromPEMData(certs)
 		}
 	}
-	certs, err := cert.GetCertificateForConnect(otlpAddress)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load TLS certificates for OTLP collector %s: %w", otlpAddress, err)
+
+	// The cert and key come as a pair, signal-specific or generic.
+	certPath, keyPath := env(signal+"_CLIENT_CERTIFICATE"), env(signal+"_CLIENT_KEY")
+	if certPath == "" && keyPath == "" {
+		certPath, keyPath = env("CLIENT_CERTIFICATE"), env("CLIENT_KEY")
 	}
-	var rootCAs *x509.CertPool // nil: system roots
-	if len(certs) > 0 {
-		rootCAs = cert.GetCertPoolFromPEMData(certs)
+	if certPath != "" || keyPath != "" {
+		if certPath == "" || keyPath == "" {
+			return nil, errors.New("OTLP client certificate and key must both be set")
+		}
+		pair, err := tls.LoadX509KeyPair(certPath, keyPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load OTLP client certificate: %w", err)
+		}
+		cfg.Certificates = []tls.Certificate{pair}
 	}
-	return credentials.NewTLS(&tls.Config{RootCAs: rootCAs}), nil
+	return credentials.NewTLS(cfg), nil
 }
 
 // InitTracer initializes the trace provider and the otel grpc exporter.
@@ -96,9 +128,7 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 		if err != nil {
 			return nil, err
 		}
-		if creds != nil {
-			opts = append(opts, otlptracegrpc.WithTLSCredentials(creds))
-		}
+		opts = append(opts, otlptracegrpc.WithTLSCredentials(creds))
 	}
 	if len(otlpHeaders) > 0 {
 		opts = append(opts, otlptracegrpc.WithHeaders(otlpHeaders))
