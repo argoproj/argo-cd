@@ -218,10 +218,12 @@ func TestInitTracer_MutualTLS(t *testing.T) {
 		prefix          string
 		clientCert      bool
 		caFromConfigMap bool
+		mixed           bool // signal-specific cert with a generic key
 		want            bool
 	}{
 		"generic vars":   {prefix: "OTEL_EXPORTER_OTLP_", clientCert: true, want: true},
 		"traces vars":    {prefix: "OTEL_EXPORTER_OTLP_TRACES_", clientCert: true, want: true},
+		"mixed vars":     {prefix: "OTEL_EXPORTER_OTLP_", clientCert: true, mixed: true, want: true},
 		"no client cert": {prefix: "OTEL_EXPORTER_OTLP_", clientCert: false, want: false},
 		"configmap CA":   {prefix: "OTEL_EXPORTER_OTLP_", clientCert: true, caFromConfigMap: true, want: true},
 	} {
@@ -249,7 +251,11 @@ func TestInitTracer_MutualTLS(t *testing.T) {
 			} else {
 				t.Setenv(tc.prefix+"CERTIFICATE", caPath)
 			}
-			if tc.clientCert {
+			switch {
+			case tc.mixed:
+				t.Setenv("OTEL_EXPORTER_OTLP_TRACES_CLIENT_CERTIFICATE", clientCertPath)
+				t.Setenv("OTEL_EXPORTER_OTLP_CLIENT_KEY", clientKeyPath)
+			case tc.clientCert:
 				t.Setenv(tc.prefix+"CLIENT_CERTIFICATE", clientCertPath)
 				t.Setenv(tc.prefix+"CLIENT_KEY", clientKeyPath)
 			}

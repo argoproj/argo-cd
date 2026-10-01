@@ -64,10 +64,13 @@ func collectorTLSCredentials(otlpAddress, signal string) (credentials.TransportC
 		}
 	}
 
-	// The cert and key come as a pair, signal-specific or generic.
-	certPath, keyPath := env(signal+"_CLIENT_CERTIFICATE"), env(signal+"_CLIENT_KEY")
-	if certPath == "" && keyPath == "" {
-		certPath, keyPath = env("CLIENT_CERTIFICATE"), env("CLIENT_KEY")
+	certPath := env(signal + "_CLIENT_CERTIFICATE")
+	if certPath == "" {
+		certPath = env("CLIENT_CERTIFICATE")
+	}
+	keyPath := env(signal + "_CLIENT_KEY")
+	if keyPath == "" {
+		keyPath = env("CLIENT_KEY")
 	}
 	if certPath != "" || keyPath != "" {
 		if certPath == "" || keyPath == "" {
