@@ -204,6 +204,8 @@ func TestInitMeter_UsesCAFromTLSCertsConfigMap(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(tlsDataPath, "127.0.0.1"), ca, 0o600))
 	t.Setenv("ARGOCD_TLS_DATA_PATH", tlsDataPath)
+	// Read only by the trace exporter, so it must not disable the ConfigMap CA here.
+	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE", "/nonexistent/ca.crt")
 
 	closer, err := InitMeter(t.Context(), "argocd-test", addr, false, nil, nil,
 		50*time.Millisecond, newCounterRegistry(t, "argocd_cm_ca_total"))
