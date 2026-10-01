@@ -2,6 +2,7 @@ package trace
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"net"
 	"os"
@@ -213,4 +214,47 @@ func TestInitMeter_UsesCAFromTLSCertsConfigMap(t *testing.T) {
 	t.Cleanup(closer)
 
 	assert.Contains(t, metricNames(collector.next(t).req), "argocd_cm_ca_total")
+}
+
+func TestInitMeter_SecureIgnoresInsecureEnv(t *testing.T) {
+	addr, collector := startCollector(t) // plaintext
+	t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
+
+	closer, err := InitMeter(t.Context(), "argocd-test", addr, false, nil, nil,
+		50*time.Millisecond, newCounterRegistry(t, "argocd_downgrade_total"))
+	require.NoError(t, err)
+	t.Cleanup(closer)
+
+	select {
+	case <-collector.calls:
+		t.Fatal("otlp.insecure=false must not be downgraded to plaintext by OTEL_EXPORTER_OTLP_INSECURE")
+	case <-time.After(time.Second):
+	}
+}
+
+func TestInitMeter_MutualTLS(t *testing.T) {
+	for name, prefix := range map[string]string{
+		"generic vars": "OTEL_EXPORTER_OTLP_",
+		"metrics vars": "OTEL_EXPORTER_OTLP_METRICS_",
+	} {
+		t.Run(name, func(t *testing.T) {
+			serverCert, caPath := selfSignedCert(t)
+			clientCertPath, clientKeyPath, clientCAs := clientCertFiles(t)
+			addr, collector := startCollector(t, grpc.Creds(credentials.NewTLS(&tls.Config{
+				Certificates: []tls.Certificate{serverCert},
+				ClientAuth:   tls.RequireAndVerifyClientCert,
+				ClientCAs:    clientCAs,
+			})))
+			t.Setenv(prefix+"CERTIFICATE", caPath)
+			t.Setenv(prefix+"CLIENT_CERTIFICATE", clientCertPath)
+			t.Setenv(prefix+"CLIENT_KEY", clientKeyPath)
+
+			closer, err := InitMeter(t.Context(), "argocd-test", addr, false, nil, nil,
+				50*time.Millisecond, newCounterRegistry(t, "argocd_mtls_total"))
+			require.NoError(t, err)
+			t.Cleanup(closer)
+
+			assert.Contains(t, metricNames(collector.next(t).req), "argocd_mtls_total")
+		})
+	}
 }
