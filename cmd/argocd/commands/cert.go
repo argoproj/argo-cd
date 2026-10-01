@@ -7,10 +7,12 @@ import (
 	"encoding/hex"
 	stderrors "errors"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -56,6 +58,7 @@ func NewCertCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 	command.AddCommand(NewCertAddSSHCommand(clientOpts))
 	command.AddCommand(NewCertAddTLSCommand(clientOpts))
+	command.AddCommand(NewCertGetCommand(clientOpts))
 	command.AddCommand(NewCertListCommand(clientOpts))
 	command.AddCommand(NewCertRemoveCommand(clientOpts))
 	return command
@@ -301,6 +304,101 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	command.Flags().StringVar(&certType, "cert-type", "", "Only remove certs of given type (ssh, https)")
 	command.Flags().StringVar(&certSubType, "cert-sub-type", "", "Only remove certs of given sub-type (only for ssh)")
 	return command
+}
+
+// NewCertGetCommand returns a new instance of an `argocd cert get` command
+func NewCertGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		certType    string
+		certSubType string
+		output      string
+	)
+	command := &cobra.Command{
+		Use:   "get SERVERNAME",
+		Short: "Get the certificates and SSH known hosts entries configured for SERVERNAME",
+		Example: `  # Get all certificates and SSH known hosts entries for github.com
+  argocd cert get github.com
+
+  # Get only the TLS certificates for cd.example.com in YAML format
+  argocd cert get cd.example.com --cert-type https -o yaml
+`,
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
+			ctx := c.Context()
+
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			switch certType {
+			case "", "ssh", "https":
+			default:
+				errors.Fatal(errors.ErrorGeneric, "cert-type must be either ssh or https")
+			}
+
+			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDieWithContext(ctx)
+			defer utilio.Close(conn)
+			certificates, err := certIf.GetCertificate(ctx, &certificatepkg.RepositoryCertificateGetRequest{
+				ServerName:  args[0],
+				CertType:    certType,
+				CertSubType: certSubType,
+			})
+			errors.CheckError(err)
+
+			switch output {
+			case "yaml", "json":
+				err := PrintResourceList(certificates.Items, output, false)
+				errors.CheckError(err)
+			case "wide", "":
+				printCertDetails(os.Stdout, certificates.Items, time.Now())
+			default:
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+			}
+		}),
+	}
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
+	command.Flags().StringVar(&certType, "cert-type", "", "Only get certs of given type (ssh, https)")
+	command.Flags().StringVar(&certSubType, "cert-sub-type", "", "Only get certs of given sub-type (only for ssh)")
+	return command
+}
+
+// printCertDetails prints all details of the given certificates, including
+// their data. TLS certificates are decoded to show their X.509 metadata, and
+// now is used to flag certificates that are expired or not yet valid.
+func printCertDetails(out io.Writer, certs []appsv1.RepositoryCertificate, now time.Time) {
+	for i, c := range certs {
+		if i > 0 {
+			fmt.Fprintln(out)
+		}
+		fmt.Fprintf(out, "Server name:  %s\n", c.ServerName)
+		fmt.Fprintf(out, "Type:         %s\n", c.CertType)
+		fmt.Fprintf(out, "Sub type:     %s\n", c.CertSubType)
+
+		if c.CertType != "https" {
+			fmt.Fprintf(out, "Fingerprint:  %s\n", c.CertInfo)
+			fmt.Fprintf(out, "Data:         %s %s %s\n", c.ServerName, c.CertSubType, c.CertData)
+			continue
+		}
+
+		x509Cert, err := certutil.DecodePEMCertificateToX509(string(c.CertData))
+		if err != nil {
+			fmt.Fprintf(out, "Info:         %s\n", c.CertInfo)
+		} else {
+			validity := ""
+			switch {
+			case now.After(x509Cert.NotAfter):
+				validity = " (expired)"
+			case now.Before(x509Cert.NotBefore):
+				validity = " (not yet valid)"
+			}
+			fmt.Fprintf(out, "Subject:      %s\n", x509Cert.Subject.String())
+			fmt.Fprintf(out, "Issuer:       %s\n", x509Cert.Issuer.String())
+			fmt.Fprintf(out, "DNS names:    %s\n", strings.Join(x509Cert.DNSNames, ", "))
+			fmt.Fprintf(out, "Valid from:   %s\n", x509Cert.NotBefore.UTC().Format(time.RFC3339))
+			fmt.Fprintf(out, "Valid until:  %s%s\n", x509Cert.NotAfter.UTC().Format(time.RFC3339), validity)
+			fmt.Fprintf(out, "Fingerprint:  SHA256:%s\n", certFingerprintSHA256(x509Cert))
+		}
+		fmt.Fprintf(out, "Data:\n%s\n", strings.TrimSpace(string(c.CertData)))
+	}
 }
 
 // NewCertListCommand returns a new instance of an `argocd cert rm` command

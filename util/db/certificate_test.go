@@ -376,6 +376,57 @@ func TestListCertificateSSHUnparseableKey(t *testing.T) {
 	assert.Empty(t, certList.Items[0].CertInfo)
 }
 
+func TestGetRepoCertificates(t *testing.T) {
+	t.Parallel()
+	clientset := getCertClientset()
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+
+	tests := []struct {
+		name          string
+		serverName    string
+		certType      string
+		certSubType   string
+		expectedCount int
+	}{
+		{name: "all types of a server", serverName: "gitlab.com", expectedCount: 4},
+		{name: "SSH entries only", serverName: "gitlab.com", certType: "ssh", expectedCount: 3},
+		{name: "SSH entries of a sub type", serverName: "gitlab.com", certType: "ssh", certSubType: "ssh-ed25519", expectedCount: 1},
+		{name: "TLS bundle with multiple certificates", serverName: "test.example.com", certType: "https", expectedCount: 2},
+		// The server name is matched exactly, so glob characters must not match anything.
+		{name: "glob pattern is not expanded", serverName: "*", expectedCount: 0},
+		{name: "unknown server", serverName: "unknown.example.com", expectedCount: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			certList, err := db.GetRepoCertificates(t.Context(), tt.serverName, tt.certType, tt.certSubType)
+			require.NoError(t, err)
+			require.Len(t, certList.Items, tt.expectedCount)
+			for _, entry := range certList.Items {
+				assert.Equal(t, tt.serverName, entry.ServerName)
+				assert.NotEmpty(t, entry.CertData, "missing data for %s entry of %s", entry.CertType, entry.ServerName)
+				assert.NotEmpty(t, entry.CertInfo, "missing info for %s entry of %s", entry.CertType, entry.ServerName)
+			}
+		})
+	}
+}
+
+// The list result is meant to be lightweight, so it must keep leaving out the
+// certificate data that GetRepoCertificates returns.
+func TestListCertificateOmitsCertData(t *testing.T) {
+	t.Parallel()
+	clientset := getCertClientset()
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+
+	certList, err := db.ListRepoCertificates(t.Context(), nil)
+	require.NoError(t, err)
+	require.NotEmpty(t, certList.Items)
+	for _, entry := range certList.Items {
+		assert.Empty(t, entry.CertData, "unexpected data for %s entry of %s", entry.CertType, entry.ServerName)
+	}
+}
+
 // CreateRepoCertificate reports the fingerprint of the entries it created, and
 // it must do so in the same format ListRepoCertificates uses. It used to return
 // the bare hash without the "SHA256:" prefix that the listing adds.

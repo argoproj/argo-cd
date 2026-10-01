@@ -12,7 +12,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	certutil "github.com/argoproj/argo-cd/v3/util/cert"
 )
 
 func generateTestCert(t *testing.T, cn string) string {
@@ -105,4 +109,66 @@ func TestDeduplicatePEMCertificates_MixedValidAndInvalid(t *testing.T) {
 	pems = []string{cert1, "not a cert", cert2}
 	_, err = deduplicatePEMCertificates(pems)
 	require.Error(t, err)
+}
+
+func TestPrintCertDetails_SSH(t *testing.T) {
+	var out bytes.Buffer
+	printCertDetails(&out, []appsv1.RepositoryCertificate{{
+		ServerName:  "github.com",
+		CertType:    "ssh",
+		CertSubType: "ssh-ed25519",
+		CertData:    []byte("AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"),
+		CertInfo:    "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU",
+	}}, time.Now())
+
+	assert.Contains(t, out.String(), "Fingerprint:  SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU\n")
+	assert.Contains(t, out.String(), "Data:         github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n")
+}
+
+func TestPrintCertDetails_TLS(t *testing.T) {
+	pemData := generateTestCert(t, "cd.example.com")
+	x509Cert, err := certutil.DecodePEMCertificateToX509(pemData)
+	require.NoError(t, err)
+	certs := []appsv1.RepositoryCertificate{{
+		ServerName:  "cd.example.com",
+		CertType:    "https",
+		CertSubType: "rsa",
+		CertData:    []byte(pemData),
+	}}
+
+	tests := []struct {
+		name     string
+		now      time.Time
+		validity string
+	}{
+		{name: "valid", now: x509Cert.NotBefore.Add(time.Minute), validity: "\n"},
+		{name: "expired", now: x509Cert.NotAfter.Add(time.Minute), validity: " (expired)\n"},
+		{name: "not yet valid", now: x509Cert.NotBefore.Add(-time.Minute), validity: " (not yet valid)\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var out bytes.Buffer
+			printCertDetails(&out, certs, tt.now)
+
+			assert.Contains(t, out.String(), "Subject:      CN=cd.example.com\n")
+			assert.Contains(t, out.String(), "Issuer:       CN=cd.example.com\n")
+			assert.Contains(t, out.String(), "Valid until:  "+x509Cert.NotAfter.UTC().Format(time.RFC3339)+tt.validity)
+			assert.Contains(t, out.String(), "Fingerprint:  SHA256:"+certFingerprintSHA256(x509Cert)+"\n")
+			assert.Contains(t, out.String(), "-----BEGIN CERTIFICATE-----")
+		})
+	}
+}
+
+// Data that cannot be decoded must not prevent the entry from being shown.
+func TestPrintCertDetails_InvalidTLSData(t *testing.T) {
+	var out bytes.Buffer
+	printCertDetails(&out, []appsv1.RepositoryCertificate{{
+		ServerName: "cd.example.com",
+		CertType:   "https",
+		CertData:   []byte("invalid"),
+		CertInfo:   "could not decode PEM data from input",
+	}}, time.Now())
+
+	assert.Contains(t, out.String(), "Info:         could not decode PEM data from input\n")
+	assert.Contains(t, out.String(), "Data:\ninvalid\n")
 }

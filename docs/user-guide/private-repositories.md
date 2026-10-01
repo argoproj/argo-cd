@@ -341,6 +341,28 @@ docker-build  https  rsa      CN=ArgoCD Test CA
 localhost     https  rsa      CN=localhost
 ```
 
+To inspect the certificates configured for a single server, use the `argocd cert get` command. Besides the PEM data, it shows the issuer, the DNS names and the validity period of each certificate, which helps to find out whether a certificate has expired:
+
+```bash
+$ argocd cert get --cert-type https localhost
+Server name:  localhost
+Type:         https
+Sub type:     rsa
+Subject:      CN=localhost
+Issuer:       CN=ArgoCD Test CA
+DNS names:    localhost
+Valid from:   2025-01-01T00:00:00Z
+Valid until:  2026-01-01T00:00:00Z (expired)
+Fingerprint:  SHA256:3b0f...
+Data:
+-----BEGIN CERTIFICATE-----
+...
+-----END CERTIFICATE-----
+```
+
+> [!NOTE]
+> Unlike the `--hostname-pattern` of `argocd cert list`, the server name given to `argocd cert get` is matched exactly. Use `-o json` or `-o yaml` to get the raw certificate data in a machine-readable format.
+
 Example for adding  a HTTPS repository to ArgoCD without verifying the server's certificate (**Caution:** This is **not** recommended for production use):
 
 ```bash
@@ -388,6 +410,8 @@ It is possible to add and remove TLS certificates using the ArgoCD web UI:
 
     ![remove certificate](../assets/cert-management-remove.png)
 
+5. To view the stored data of an entry, click on it, or select "Details" from the pop-up menu. Since certificates are configured per server, the details show all entries of the same type configured for that server.
+
 ### Managing TLS certificates using declarative configuration
 
 You can also manage TLS certificates in a declarative, self-managed ArgoCD setup. All TLS certificates are stored in the ConfigMap object `argocd-tls-certs-cm`.
@@ -421,6 +445,17 @@ gitlab.com               ssh   ssh-ed25519          SHA256:eUXGGm1YGsMAS7vkcx6JO
 gitlab.com               ssh   ssh-rsa              SHA256:ROQFvPThGrW4RuWLoL9tq9I9zJ42fK4XywyRtbOz/EQ
 ssh.dev.azure.com        ssh   ssh-rsa              SHA256:ohD8VZEXGWo6Ez8GSEJQ9WpafgLFsOfLOtGGQCQo6Og
 vs-ssh.visualstudio.com  ssh   ssh-rsa              SHA256:ohD8VZEXGWo6Ez8GSEJQ9WpafgLFsOfLOtGGQCQo6Og
+```
+
+To see the public host keys configured for a single server, use the `argocd cert get` command with the `--cert-type ssh` modifier. The `Data` line of each entry is in `known_hosts` format:
+
+```bash
+$ argocd cert get --cert-type ssh --cert-sub-type ssh-ed25519 gitlab.com
+Server name:  gitlab.com
+Type:         ssh
+Sub type:     ssh-ed25519
+Fingerprint:  SHA256:eUXGGm1YGsMAS7vkcx6JOJdOGHPem5gQp4taiCfCLB8
+Data:         gitlab.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAfuCHKVTjquxvt6CM6tdG4SLp1Btn/nOeHHE5UOzRdf
 ```
 
 For adding SSH known host entries, the `argocd cert add-ssh` command can be used. You can either add from a file (using the `--from <file>` modifier), or by reading `stdin` when the `--batch` modifier was specified. In both cases, input must be in `known_hosts` format as understood by the OpenSSH client.
@@ -467,6 +502,8 @@ It is possible to add and remove SSH known hosts entries using the ArgoCD web UI
 4. To remove a certificate, click on the small three-dotted button next to the certificate entry, select "Remove" from the pop-up menu and confirm the removal in the following dialogue.
 
     ![remove certificate](../assets/cert-management-remove.png)
+
+5. To view the stored data of an entry, click on it, or select "Details" from the pop-up menu. Since certificates are configured per server, the details show all entries of the same type configured for that server.
 
 ### Managing SSH known hosts data using declarative setup
 

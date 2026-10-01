@@ -13,6 +13,7 @@ import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {FlexTopBar} from '../../../shared/components';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {CertsFilter, CertsListPreferences, getCertFilterResults, filterCerts} from './certs-filter';
+import {CertDetails} from './cert-details';
 
 require('./certs-list.scss');
 
@@ -151,6 +152,16 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
         ctx.history.push(`${match.url}?addSSHKnownHosts=${val}`);
     };
 
+    // TLS certificates are stored per server name, so the details show the whole bundle of a server.
+    const certDetails = {
+        serverName: query.get('certDetails'),
+        certType: query.get('certDetailsType')
+    };
+
+    const showCertDetails = (cert: models.RepoCert | null) => {
+        ctx.navigation.goto('.', {certDetails: cert?.serverName || null, certDetailsType: cert?.certType || null}, {replace: !cert});
+    };
+
     return (
         <Page title='Repository certificates and known hosts' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repository certificates and known hosts'}]}}>
             <FlexTopBar
@@ -249,7 +260,10 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                                                         </div>
                                                     </div>
                                                     {certsToDisplay.map(cert => (
-                                                        <div className='argo-table-list__row' key={cert.certType + '_' + cert.certSubType + '_' + cert.serverName}>
+                                                        <div
+                                                            className='argo-table-list__row'
+                                                            key={cert.certType + '_' + cert.certSubType + '_' + cert.serverName}
+                                                            onClick={() => showCertDetails(cert)}>
                                                             <div className='row'>
                                                                 <IconColumn icon='argo-icon-git' />
                                                                 <div className='columns small-3'>{cert.serverName}</div>
@@ -260,6 +274,10 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                                                                     {cert.certInfo}
                                                                     <ActionMenu
                                                                         items={[
+                                                                            {
+                                                                                title: 'Details',
+                                                                                action: () => showCertDetails(cert)
+                                                                            },
                                                                             {
                                                                                 title: 'Remove',
                                                                                 action: () => removeCert(cert.serverName, cert.certType, cert.certSubType)
@@ -296,6 +314,13 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                     </DataLoader>
                 </div>
             </div>
+            <SlidingPanel isShown={!!certDetails.serverName} onClose={() => showCertDetails(null)}>
+                {certDetails.serverName && (
+                    <DataLoader input={certDetails} load={params => services.certs.get(params.serverName, params.certType)}>
+                        {(certs: models.RepoCert[]) => <CertDetails certs={certs} />}
+                    </DataLoader>
+                )}
+            </SlidingPanel>
             <SlidingPanel
                 isShown={showAddTLSCertificate()}
                 onClose={() => setAddTLSCertificate(false)}
