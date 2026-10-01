@@ -46,6 +46,9 @@ func TestHelmRepoCredMatrix(t *testing.T) {
 		{
 			// Type oci prepends oci:// before the prefix check, so a dependency URL
 			// that already starts with oci:// does not match a credential that also does.
+			// getHelmDependencyRepos strips that prefix before calling this helper,
+			// so a Chart.yaml dependency never arrives here still carrying oci://.
+			// This case records the helper's own result, which that caller cannot reach.
 			intent:   "An OCI-typed credential whose URL starts with oci:// does not attach to an oci:// dependency URL",
 			credURL:  "oci://registry.example.com",
 			credType: "oci",
