@@ -236,6 +236,15 @@ See the [Deployment actions discovery script](https://github.com/argoproj/argo-c
 
 The [resource scale actions](../user-guide/scale_application_resources.md) documentation shows how this function behaves in the UI.
 
+Action parameters can also be passed from the CLI using the `--param` flag in `key=value` format. The flag may be repeated to pass multiple parameters:
+
+```bash
+argocd app actions run APPNAME ACTION --kind KIND --resource-name RESOURCE --param key1=value1 --param key2=value2
+```
+
+> [!NOTE]
+> If the same parameter is specified more than once, the last provided value for that parameter will be used.
+
 ## Contributing a Custom Resource Action
 
 A resource action can be bundled into Argo CD. Custom resource action scripts are located in the `resource_customizations` directory of [https://github.com/argoproj/argo-cd](https://github.com/argoproj/argo-cd). Each contributed custom action needs to have a Lua script for discovery and a Lua script for the actual action logic. It also needs to have testdata and expected K8s resource manifests, which represent the outcome of performing the action.
