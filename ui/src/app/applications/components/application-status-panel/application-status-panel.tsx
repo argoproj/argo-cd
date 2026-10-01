@@ -198,7 +198,17 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
     );
 };
 
-export const ApplicationStatusPanel = ({application, collapsed, hasDebugContainer, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
+export const ApplicationStatusPanel = ({
+    application,
+    collapsed,
+    hasDebugContainer,
+    showDiff,
+    showOperation,
+    showHydrateOperation,
+    showConditions,
+    showExtension,
+    showMetadataInfo
+}: Props) => {
     // Only show Progressive Sync if the application has an ApplicationSet parent
     // The actual strategy validation will be done inside ProgressiveSyncStatus component
     const showProgressiveSync = !!getApplicationSetOwnerRef(application);
