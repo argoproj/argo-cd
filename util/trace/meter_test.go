@@ -269,3 +269,16 @@ func TestInitMeter_InvalidTLSEnvFails(t *testing.T) {
 		time.Second, newCounterRegistry(t, "argocd_invalid_tls_total"))
 	assert.Error(t, err)
 }
+
+func TestInitMeter_InsecureIgnoresTLSEnv(t *testing.T) {
+	addr, collector := startCollector(t) // plaintext
+	_, caPath := selfSignedCert(t)
+	t.Setenv("OTEL_EXPORTER_OTLP_CERTIFICATE", caPath)
+
+	closer, err := InitMeter(t.Context(), "argocd-test", addr, true, nil, nil,
+		50*time.Millisecond, newCounterRegistry(t, "argocd_insecure_total"))
+	require.NoError(t, err)
+	t.Cleanup(closer)
+
+	assert.Contains(t, metricNames(collector.next(t).req), "argocd_insecure_total")
+}
