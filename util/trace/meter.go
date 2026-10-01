@@ -44,7 +44,7 @@ func InitMeter(ctx context.Context, serviceName, otlpAddress string, otlpInsecur
 	if otlpInsecure {
 		opts = append(opts, otlpmetricgrpc.WithInsecure())
 	} else {
-		rootCAs, err := collectorRootCAs(otlpAddress)
+		rootCAs, err := collectorRootCAs(otlpAddress, "METRICS")
 		if err != nil {
 			return nil, err
 		}
