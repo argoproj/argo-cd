@@ -1,8 +1,27 @@
 import * as React from 'react';
 
+import {DataLoader} from '../../../shared/components';
 import * as models from '../../../shared/models';
+import {services} from '../../../shared/services';
 
 require('./cert-details.scss');
+
+export interface CertDetailsSelection {
+    serverName: string | null;
+    certType: string | null;
+}
+
+// The selected server is kept in the URL, so the details view can be shared.
+export const certDetailsFromQuery = (query: URLSearchParams): CertDetailsSelection => ({
+    serverName: query.get('certDetails'),
+    certType: query.get('certDetailsType')
+});
+
+export const CertDetailsPanel = ({selection}: {selection: CertDetailsSelection}) => (
+    <DataLoader input={selection} load={(params: CertDetailsSelection) => services.certs.get(params.serverName, params.certType || undefined)}>
+        {(certs: models.RepoCert[]) => <CertDetails certs={certs} />}
+    </DataLoader>
+);
 
 // certData is a byte array in the API, so it is transferred base64 encoded.
 const decodeCertData = (certData: string): string => {

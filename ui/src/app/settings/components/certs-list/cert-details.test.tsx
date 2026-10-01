@@ -2,7 +2,12 @@ import * as React from 'react';
 import {render, screen} from '@testing-library/react';
 
 import * as models from '../../../shared/models';
-import {CertDetails} from './cert-details';
+import {services} from '../../../shared/services';
+import {CertDetails, CertDetailsPanel, certDetailsFromQuery} from './cert-details';
+
+jest.mock('../../../shared/services', () => ({
+    services: {certs: {get: jest.fn()}}
+}));
 
 const sshCert: models.RepoCert = {
     serverName: 'github.com',
@@ -44,5 +49,38 @@ describe('CertDetails', () => {
 
         expect(screen.getAllByText('TLS CERTIFICATE')).toHaveLength(2);
         expect(screen.getByText('CN=intermediate')).toBeInTheDocument();
+    });
+});
+
+describe('certDetailsFromQuery', () => {
+    it('reads the selected server and type from a shared link', () => {
+        const query = new URLSearchParams('certDetails=%5Bssh.github.com%5D%3A443&certDetailsType=ssh');
+        expect(certDetailsFromQuery(query)).toEqual({serverName: '[ssh.github.com]:443', certType: 'ssh'});
+    });
+
+    it('selects nothing when the link has no details', () => {
+        expect(certDetailsFromQuery(new URLSearchParams('certType=https'))).toEqual({serverName: null, certType: null});
+    });
+});
+
+describe('CertDetailsPanel', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    it('loads and shows the certificates of the selected server', async () => {
+        (services.certs.get as jest.Mock).mockResolvedValue([sshCert]);
+
+        render(<CertDetailsPanel selection={{serverName: 'github.com', certType: 'ssh'}} />);
+
+        expect(await screen.findByText('SSH KNOWN HOSTS ENTRY')).toBeInTheDocument();
+        expect(services.certs.get).toHaveBeenCalledWith('github.com', 'ssh');
+    });
+
+    it('requests all types when none is selected', async () => {
+        (services.certs.get as jest.Mock).mockResolvedValue([tlsCert]);
+
+        render(<CertDetailsPanel selection={{serverName: 'cd.example.com', certType: null}} />);
+
+        expect(await screen.findByText('TLS CERTIFICATE')).toBeInTheDocument();
+        expect(services.certs.get).toHaveBeenCalledWith('cd.example.com', undefined);
     });
 });

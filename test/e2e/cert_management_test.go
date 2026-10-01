@@ -10,6 +10,8 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"math/big"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
@@ -76,4 +78,45 @@ func TestCertGet(t *testing.T) {
 	// The server name is matched exactly, so a pattern must not match.
 	_, err = fixture.RunCli("cert", "get", "cert-get.*")
 	assert.ErrorContains(t, err, "NotFound")
+}
+
+// The UI requests certificate details through the REST API, where a colon in
+// the server name must not be taken for a custom verb of the route.
+func TestCertGetHTTP(t *testing.T) {
+	fixture.EnsureCleanState(t)
+	const (
+		tlsServerName = "cert-get-http.example.com"
+		sshServerName = "[cert-get-http.example.com]:2222"
+		sshKey        = "AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
+	)
+
+	_, err := fixture.RunCli("cert", "add-tls", tlsServerName, "--from", writeSelfSignedCert(t, tlsServerName))
+	require.NoError(t, err)
+	_, err = fixture.RunCliWithStdin(sshServerName+" ssh-ed25519 "+sshKey+"\n", false, "cert", "add-ssh", "--batch")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, err := fixture.RunCli("cert", "rm", tlsServerName, "--cert-type", "https", "--prompts-enabled=false")
+		assert.NoError(t, err)
+		_, err = fixture.RunCli("cert", "rm", sshServerName, "--cert-type", "ssh", "--prompts-enabled=false")
+		assert.NoError(t, err)
+	})
+
+	tests := []struct {
+		name       string
+		serverName string
+		certType   string
+	}{
+		{name: "TLS certificate", serverName: tlsServerName, certType: "https"},
+		{name: "SSH entry with port", serverName: sshServerName, certType: "ssh"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var certs v1alpha1.RepositoryCertificateList
+			path := "/api/v1/certificates/" + url.PathEscape(tt.serverName) + "/details?certType=" + tt.certType
+			require.NoError(t, fixture.DoHttpJsonRequest(http.MethodGet, path, &certs))
+			require.Len(t, certs.Items, 1)
+			assert.Equal(t, tt.serverName, certs.Items[0].ServerName)
+			assert.NotEmpty(t, certs.Items[0].CertData)
+		})
+	}
 }

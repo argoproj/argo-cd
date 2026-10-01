@@ -98,7 +98,7 @@ func (db *db) listRepoCertificates(selector *CertificateListSelector, matchHost 
 		}
 
 		for _, entry := range sshKnownHosts {
-			if matchHost(entry.Host) && matchSSHSubType(entry, selector) {
+			if matchHost(entry.Host) && matchCertSubType(entry.SubType, selector) {
 				certificate := appsv1.RepositoryCertificate{
 					ServerName:  entry.Host,
 					CertType:    "ssh",
@@ -135,10 +135,14 @@ func (db *db) listRepoCertificates(selector *CertificateListSelector, matchHost 
 						certInfo = x509Data.Subject.String()
 						certSubType = x509Data.PublicKeyAlgorithm.String()
 					}
+					certSubType = strings.ToLower(certSubType)
+					if !matchCertSubType(certSubType, selector) {
+						continue
+					}
 					certificate := appsv1.RepositoryCertificate{
 						ServerName:  entry.Subject,
 						CertType:    "https",
-						CertSubType: strings.ToLower(certSubType),
+						CertSubType: certSubType,
 						CertInfo:    certInfo,
 					}
 					if includeData {
@@ -517,9 +521,9 @@ func (db *db) getSSHKnownHostsData() ([]*SSHKnownHostsEntry, error) {
 }
 
 func matchSSHKnownHostsEntry(entry *SSHKnownHostsEntry, selector *CertificateListSelector) bool {
-	return certutil.MatchHostName(entry.Host, selector.HostNamePattern) && matchSSHSubType(entry, selector)
+	return certutil.MatchHostName(entry.Host, selector.HostNamePattern) && matchCertSubType(entry.SubType, selector)
 }
 
-func matchSSHSubType(entry *SSHKnownHostsEntry, selector *CertificateListSelector) bool {
-	return selector.CertSubType == "" || selector.CertSubType == "*" || selector.CertSubType == entry.SubType
+func matchCertSubType(subType string, selector *CertificateListSelector) bool {
+	return selector.CertSubType == "" || selector.CertSubType == "*" || selector.CertSubType == subType
 }

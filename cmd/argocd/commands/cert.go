@@ -329,11 +329,7 @@ func NewCertGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			switch certType {
-			case "", "ssh", "https":
-			default:
-				errors.Fatal(errors.ErrorGeneric, "cert-type must be either ssh or https")
-			}
+			errors.CheckError(validateCertGetFlags(certType, output))
 
 			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
@@ -343,22 +339,41 @@ func NewCertGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				CertSubType: certSubType,
 			})
 			errors.CheckError(err)
-
-			switch output {
-			case "yaml", "json":
-				err := PrintResourceList(certificates.Items, output, false)
-				errors.CheckError(err)
-			case "wide", "":
-				printCertDetails(os.Stdout, certificates.Items, time.Now())
-			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
-			}
+			errors.CheckError(printCertificates(certificates.Items, output, time.Now()))
 		}),
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	command.Flags().StringVar(&certType, "cert-type", "", "Only get certs of given type (ssh, https)")
-	command.Flags().StringVar(&certSubType, "cert-sub-type", "", "Only get certs of given sub-type (only for ssh)")
+	command.Flags().StringVar(&certSubType, "cert-sub-type", "", "Only get certs of given sub-type (e.g. ssh-ed25519 or rsa)")
 	return command
+}
+
+// validateCertGetFlags checks the flags of `argocd cert get` before the server is contacted.
+func validateCertGetFlags(certType, output string) error {
+	switch certType {
+	case "", "ssh", "https":
+	default:
+		return stderrors.New("cert-type must be either ssh or https")
+	}
+	switch output {
+	case "", "wide", "json", "yaml":
+	default:
+		return fmt.Errorf("unknown output format: %s", output)
+	}
+	return nil
+}
+
+// printCertificates prints the given certificates in the requested output format.
+func printCertificates(certs []appsv1.RepositoryCertificate, output string, now time.Time) error {
+	switch output {
+	case "yaml", "json":
+		return PrintResourceList(certs, output, false)
+	case "wide", "":
+		printCertDetails(os.Stdout, certs, now)
+		return nil
+	default:
+		return fmt.Errorf("unknown output format: %s", output)
+	}
 }
 
 // printCertDetails prints all details of the given certificates, including

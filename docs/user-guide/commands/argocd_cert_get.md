@@ -22,7 +22,7 @@ argocd cert get SERVERNAME [flags]
 ### Options
 
 ```
-      --cert-sub-type string   Only get certs of given sub-type (only for ssh)
+      --cert-sub-type string   Only get certs of given sub-type (e.g. ssh-ed25519 or rsa)
       --cert-type string       Only get certs of given type (ssh, https)
   -h, --help                   help for get
   -o, --output string          Output format. One of: json|yaml|wide (default "wide")

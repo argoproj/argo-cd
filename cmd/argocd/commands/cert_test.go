@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"math/big"
@@ -15,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	certutil "github.com/argoproj/argo-cd/v3/util/cert"
 )
@@ -171,4 +173,80 @@ func TestPrintCertDetails_InvalidTLSData(t *testing.T) {
 
 	assert.Contains(t, out.String(), "Info:         could not decode PEM data from input\n")
 	assert.Contains(t, out.String(), "Data:\ninvalid\n")
+}
+
+func TestNewCertGetCommand(t *testing.T) {
+	command := NewCertGetCommand(&argocdclient.ClientOptions{})
+	assert.Equal(t, "get SERVERNAME", command.Use)
+	assert.Equal(t, "wide", command.Flag("output").DefValue)
+	assert.NotNil(t, command.Flag("cert-type"))
+	assert.NotNil(t, command.Flag("cert-sub-type"))
+
+	subCommand, _, err := NewCertCommand(&argocdclient.ClientOptions{}).Find([]string{"get"})
+	require.NoError(t, err)
+	assert.Equal(t, "get", subCommand.Name())
+}
+
+func TestValidateCertGetFlags(t *testing.T) {
+	tests := []struct {
+		name        string
+		certType    string
+		output      string
+		expectedErr string
+	}{
+		{name: "defaults", output: "wide"},
+		{name: "ssh as json", certType: "ssh", output: "json"},
+		{name: "https as yaml", certType: "https", output: "yaml"},
+		{name: "empty output", output: ""},
+		{name: "invalid cert type", certType: "tls", output: "wide", expectedErr: "cert-type must be either ssh or https"},
+		{name: "invalid output", output: "table", expectedErr: "unknown output format: table"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateCertGetFlags(tt.certType, tt.output)
+			if tt.expectedErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.EqualError(t, err, tt.expectedErr)
+			}
+		})
+	}
+}
+
+func TestPrintCertificates(t *testing.T) {
+	certs := []appsv1.RepositoryCertificate{{
+		ServerName:  "github.com",
+		CertType:    "ssh",
+		CertSubType: "ssh-ed25519",
+		CertData:    []byte("AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"),
+		CertInfo:    "SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU",
+	}}
+
+	t.Run("json", func(t *testing.T) {
+		out, err := captureOutput(func() error { return printCertificates(certs, "json", time.Now()) })
+		require.NoError(t, err)
+		var printed []appsv1.RepositoryCertificate
+		require.NoError(t, json.Unmarshal([]byte(out), &printed))
+		assert.Equal(t, certs, printed)
+	})
+
+	t.Run("yaml", func(t *testing.T) {
+		out, err := captureOutput(func() error { return printCertificates(certs, "yaml", time.Now()) })
+		require.NoError(t, err)
+		assert.Contains(t, out, "serverName: github.com")
+		assert.Contains(t, out, "certSubType: ssh-ed25519")
+	})
+
+	for _, output := range []string{"wide", ""} {
+		t.Run("wide output "+output, func(t *testing.T) {
+			out, err := captureOutput(func() error { return printCertificates(certs, output, time.Now()) })
+			require.NoError(t, err)
+			assert.Contains(t, out, "Server name:  github.com\n")
+		})
+	}
+
+	t.Run("unknown output", func(t *testing.T) {
+		_, err := captureOutput(func() error { return printCertificates(certs, "table", time.Now()) })
+		require.EqualError(t, err, "unknown output format: table")
+	})
 }

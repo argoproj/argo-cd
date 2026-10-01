@@ -13,7 +13,7 @@ import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {FlexTopBar} from '../../../shared/components';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {CertsFilter, CertsListPreferences, getCertFilterResults, filterCerts} from './certs-filter';
-import {CertDetails} from './cert-details';
+import {CertDetailsPanel, certDetailsFromQuery} from './cert-details';
 
 require('./certs-list.scss');
 
@@ -153,10 +153,7 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
     };
 
     // TLS certificates are stored per server name, so the details show the whole bundle of a server.
-    const certDetails = {
-        serverName: query.get('certDetails'),
-        certType: query.get('certDetailsType')
-    };
+    const certDetails = certDetailsFromQuery(query);
 
     const showCertDetails = (cert: models.RepoCert | null) => {
         ctx.navigation.goto('.', {certDetails: cert?.serverName || null, certDetailsType: cert?.certType || null}, {replace: !cert});
@@ -315,11 +312,7 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                 </div>
             </div>
             <SlidingPanel isShown={!!certDetails.serverName} onClose={() => showCertDetails(null)}>
-                {certDetails.serverName && (
-                    <DataLoader input={certDetails} load={params => services.certs.get(params.serverName, params.certType)}>
-                        {(certs: models.RepoCert[]) => <CertDetails certs={certs} />}
-                    </DataLoader>
-                )}
+                {certDetails.serverName && <CertDetailsPanel selection={certDetails} />}
             </SlidingPanel>
             <SlidingPanel
                 isShown={showAddTLSCertificate()}
