@@ -2348,18 +2348,21 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 		// recent history entry, not status.sync.revision: the latter is the revision the comparison was performed
 		// against, which may already be a newer revision that has never been deployed, and recording that one
 		// would make automated sync refuse the very revision the user is about to push as a fix. Rolling back to
-		// the revision that is already deployed is not a rollback away from anything, so nothing is recorded in
-		// that case.
+		// the revision that is already deployed is not a rollback away from anything, so there is nothing new to
+		// record, and any existing record is carried forward rather than dropped: dropping it would let the next
+		// automated sync deploy the revision the earlier rollback was escaping.
 		deployed := a.Status.History.LastRevisionHistory()
-		if a.Spec.HasMultipleSources() {
-			if len(deployed.Revisions) > 0 && !slices.Equal(deployed.Revisions, deploymentInfo.Revisions) {
+		switch {
+		case a.Spec.HasMultipleSources():
+			switch {
+			case len(deployed.Revisions) > 0 && !slices.Equal(deployed.Revisions, deploymentInfo.Revisions):
 				op.Sync.RolledBackFromRevisions = deployed.Revisions
-			} else if len(a.Status.RolledBackRevisions) > 0 {
+			case len(a.Status.RolledBackRevisions) > 0:
 				op.Sync.RolledBackFromRevisions = a.Status.RolledBackRevisions
 			}
-		} else if deployed.Revision != "" && deployed.Revision != deploymentInfo.Revision {
+		case deployed.Revision != "" && deployed.Revision != deploymentInfo.Revision:
 			op.Sync.RolledBackFromRevision = deployed.Revision
-		} else if a.Status.RolledBackRevision != "" {
+		case a.Status.RolledBackRevision != "":
 			op.Sync.RolledBackFromRevision = a.Status.RolledBackRevision
 		}
 	}

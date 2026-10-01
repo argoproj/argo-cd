@@ -3127,6 +3127,29 @@ func TestRollbackApp_RollbackAwareAutoSync(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, updated.Operation.Sync.RolledBackFromRevisions)
 	})
+
+	t.Run("a repeat rollback to the deployed revision keeps the existing record", func(t *testing.T) {
+		app := newAppWithHistory()
+		app.Status.History = append(app.Status.History, v1alpha1.RevisionHistory{ID: 3, Revision: targetRevision, Source: *app.Spec.Source.DeepCopy()})
+		app.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync, Revision: deployedRevision}
+		app.Status.RolledBackRevision = deployedRevision
+
+		updated, err := rollbackTo(t, newServer(t, app, true), app, 3)
+		require.NoError(t, err)
+		assert.Equal(t, deployedRevision, updated.Operation.Sync.RolledBackFromRevision)
+	})
+
+	t.Run("multi-source repeat rollback to the deployed revisions keeps the existing record", func(t *testing.T) {
+		app := newMultiSourceAppWithHistory()
+		app.Status.History = append(app.Status.History, v1alpha1.RevisionHistory{ID: 3, Revisions: []string{"good1", "good2"}, Sources: app.Spec.Sources.DeepCopy()})
+		app.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync, Revisions: []string{"bad1", "bad2"}}
+		app.Status.RolledBackRevisions = []string{"bad1", "bad2"}
+
+		updated, err := rollbackTo(t, newServer(t, app, true), app, 3)
+		require.NoError(t, err)
+		assert.Empty(t, updated.Operation.Sync.RolledBackFromRevision)
+		assert.Equal(t, []string{"bad1", "bad2"}, updated.Operation.Sync.RolledBackFromRevisions)
+	})
 }
 
 func TestUpdateAppProject(t *testing.T) {
