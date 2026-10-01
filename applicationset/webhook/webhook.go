@@ -74,6 +74,21 @@ type ociGeneratorInfo struct {
 	Tag         string
 }
 
+// appSetParserOptions returns the webhook events the ApplicationSet webhook handles.
+func appSetParserOptions() webhook.ParserOptions {
+	return webhook.ParserOptions{
+		AzureDevOpsEvents: []azuredevops.Event{
+			azuredevops.GitPushEventType,
+			azuredevops.GitPullRequestCreatedEventType,
+			azuredevops.GitPullRequestUpdatedEventType,
+			azuredevops.GitPullRequestMergedEventType,
+		},
+		GitHubEvents: []github.Event{github.PushEvent, github.PullRequestEvent, github.PingEvent},
+		GitLabEvents: []gitlab.Event{gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents},
+		GHCR:         true,
+	}
+}
+
 func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
 	// register the webhook secrets stored under "argocd-secret" for verifying incoming payloads
 	argocdSettings, err := argocdSettingsMgr.GetSettings()
@@ -81,17 +96,7 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 		return nil, fmt.Errorf("failed to get argocd settings: %w", err)
 	}
 	webhookHandler := &WebhookHandler{
-		parsers: webhook.NewParsers(argocdSettings, webhook.ParserOptions{
-			AzureDevOpsEvents: []azuredevops.Event{
-				azuredevops.GitPushEventType,
-				azuredevops.GitPullRequestCreatedEventType,
-				azuredevops.GitPullRequestUpdatedEventType,
-				azuredevops.GitPullRequestMergedEventType,
-			},
-			GitHubEvents: []github.Event{github.PushEvent, github.PullRequestEvent, github.PingEvent},
-			GitLabEvents: []gitlab.Event{gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents},
-			GHCR:         true,
-		}),
+		parsers:                webhook.NewParsers(argocdSettings, appSetParserOptions()),
 		maxWebhookPayloadSizeB: argocdSettingsMgr.GetMaxWebhookPayloadSize(),
 		client:                 client,
 		generators:             generators,
@@ -148,37 +153,16 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
-	var (
-		webURL      string
-		revision    string
-		touchedHead bool
-	)
-	switch payload := payload.(type) {
-	case github.PushPayload:
-		webURL = payload.Repository.HTMLURL
-		revision = webhook.ParseRevision(payload.Ref)
-		touchedHead = payload.Repository.DefaultBranch == revision
-	case gitlab.PushEventPayload:
-		webURL = payload.Project.WebURL
-		revision = webhook.ParseRevision(payload.Ref)
-		touchedHead = payload.Project.DefaultBranch == revision
-	case gitlab.TagEventPayload:
-		// A tag push never moves the default branch, so it only refreshes generators
-		// whose revision names or matches the tag.
-		webURL = payload.Project.WebURL
-		revision = webhook.ParseRevision(payload.Ref)
-		touchedHead = false
-	case azuredevops.GitPushEvent:
-		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
-		webURL = payload.Resource.Repository.RemoteURL
-		revision = webhook.ParseRevision(payload.Resource.RefUpdates[0].Name)
-		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
-		// unfortunately, Azure DevOps doesn't provide a list of changed files
-	default:
+	info := webhook.ParsePushEvent(payload)
+	if info == nil || len(info.WebURLs) == 0 {
 		return nil
 	}
+	// Only providers that send a single repository URL reach this handler today.
+	// Bitbucket Server sends both HTTP and SSH clone URLs, so all of them need
+	// matching once it is enabled here.
+	webURL := info.WebURLs[0]
 
-	log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
+	log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, info.Revision, info.TouchedHead)
 	repoRegexp, err := webhook.GetWebURLRegex(webURL)
 	if err != nil {
 		log.Errorf("Failed to compile regexp for repoURL '%s'", webURL)
@@ -187,8 +171,8 @@ func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 
 	return &gitGeneratorInfo{
 		RepoRegexp:  repoRegexp,
-		TouchedHead: touchedHead,
-		Revision:    revision,
+		TouchedHead: info.TouchedHead,
+		Revision:    info.Revision,
 	}
 }
 
