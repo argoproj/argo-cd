@@ -2,7 +2,6 @@ package trace
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"time"
 
@@ -11,7 +10,6 @@ import (
 	prombridge "go.opentelemetry.io/contrib/bridges/prometheus"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	"google.golang.org/grpc/credentials"
 )
 
 // InitMeter pushes the Prometheus metrics in gatherers (what /metrics serves) to
@@ -44,12 +42,12 @@ func InitMeter(ctx context.Context, serviceName, otlpAddress string, otlpInsecur
 	if otlpInsecure {
 		opts = append(opts, otlpmetricgrpc.WithInsecure())
 	} else {
-		rootCAs, err := collectorRootCAs(otlpAddress, "METRICS")
+		creds, err := collectorTLSCredentials(otlpAddress, "METRICS")
 		if err != nil {
 			return nil, err
 		}
-		if rootCAs != nil {
-			opts = append(opts, otlpmetricgrpc.WithTLSCredentials(credentials.NewTLS(&tls.Config{RootCAs: rootCAs})))
+		if creds != nil {
+			opts = append(opts, otlpmetricgrpc.WithTLSCredentials(creds))
 		}
 	}
 	if len(otlpHeaders) > 0 {
