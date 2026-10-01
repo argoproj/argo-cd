@@ -428,6 +428,9 @@ spec:
           mountPath: /home/argocd
         - name: argocd-cmd-params-cm
           mountPath: /home/argocd/params
+        # CA for the OTLP collector, looked up by --otlp-address host.
+        - name: tls-certs
+          mountPath: /app/config/tls
         - name: argocd-application-controller-tmp
           mountPath: /tmp
       serviceAccountName: argocd-application-controller
@@ -449,6 +452,9 @@ spec:
       volumes:
       - emptyDir: {}
         name: argocd-home
+      - name: tls-certs
+        configMap:
+          name: argocd-tls-certs-cm
       - emptyDir: {}
         name: argocd-application-controller-tmp
       - name: argocd-repo-server-tls
