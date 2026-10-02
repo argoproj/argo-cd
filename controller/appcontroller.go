@@ -182,6 +182,7 @@ func NewApplicationController(
 	metricsCacheExpiration time.Duration,
 	metricsApplicationLabels []string,
 	metricsApplicationConditions []string,
+	metricsSyncWindowProjects []string,
 	metricsClusterLabels []string,
 	kubectlParallelismLimit int64,
 	persistResourceHealth bool,
@@ -303,7 +304,7 @@ func NewApplicationController(
 
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 
-	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessAppWithDestination, readinessHealthCheck, metricsApplicationLabels, metricsApplicationConditions, ctrl.getAppProj)
+	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessAppWithDestination, readinessHealthCheck, metricsApplicationLabels, metricsApplicationConditions, ctrl.getAppProj, metricsSyncWindowProjects)
 	if err != nil {
 		return nil, err
 	}

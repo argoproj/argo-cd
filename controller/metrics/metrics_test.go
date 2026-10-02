@@ -443,14 +443,15 @@ func (f *fakeClusterInfo) GetClustersInfo() []gitopsCache.ClusterInfo {
 }
 
 type TestMetricServerConfig struct {
-	FakeAppYAMLs     []string
-	ExpectedResponse string
-	AppLabels        []string
-	AppConditions    []string
-	ClusterLabels    []string
-	ClustersInfo     []gitopsCache.ClusterInfo
-	ClusterLister    ClusterLister
-	GetAppProject    AppProjectGetter
+	FakeAppYAMLs       []string
+	ExpectedResponse   string
+	AppLabels          []string
+	AppConditions      []string
+	ClusterLabels      []string
+	ClustersInfo       []gitopsCache.ClusterInfo
+	ClusterLister      ClusterLister
+	GetAppProject      AppProjectGetter
+	SyncWindowProjects []string
 }
 
 func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, appLabels []string, appConditions []string) {
@@ -470,7 +471,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	t.Helper()
 	cancel, appLister := newFakeLister(t.Context(), cfg.FakeAppYAMLs...)
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppConditions, cfg.GetAppProject)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppConditions, cfg.GetAppProject, cfg.SyncWindowProjects)
 	require.NoError(t, err)
 
 	if len(cfg.ClustersInfo) > 0 {
@@ -651,7 +652,7 @@ argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespa
 func TestMetricsSyncCounter(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil, nil)
 	require.NoError(t, err)
 
 	appSyncTotal := `
@@ -704,7 +705,7 @@ func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
 func TestMetricsSyncDuration(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil, nil)
 	require.NoError(t, err)
 
 	t.Run("metric is not generated during Operation Running.", func(t *testing.T) {
@@ -744,7 +745,7 @@ argocd_app_sync_duration_seconds_total{dest_server="https://localhost:6443",name
 func TestReconcileMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil, nil)
 	require.NoError(t, err)
 
 	appReconcileMetrics := `
@@ -777,7 +778,7 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 func TestOrphanedResourcesMetric(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil, nil)
 	require.NoError(t, err)
 
 	expectedMetrics := `
@@ -924,13 +925,14 @@ func TestSyncWindowMetric(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
 			cfg := TestMetricServerConfig{
-				FakeAppYAMLs:     []string{fakeApp},
-				ExpectedResponse: c.expectedResponse,
-				AppLabels:        []string{},
-				AppConditions:    []string{},
-				ClusterLabels:    []string{},
-				ClustersInfo:     []gitopsCache.ClusterInfo{},
-				GetAppProject:    c.getAppProject,
+				FakeAppYAMLs:       []string{fakeApp},
+				ExpectedResponse:   c.expectedResponse,
+				AppLabels:          []string{},
+				AppConditions:      []string{},
+				ClusterLabels:      []string{},
+				ClustersInfo:       []gitopsCache.ClusterInfo{},
+				GetAppProject:      c.getAppProject,
+				SyncWindowProjects: []string{"*"},
 			}
 			runTest(t, cfg)
 		})
@@ -952,7 +954,7 @@ func TestSyncWindowMetricProjectFailureIsResolvedOncePerScrape(t *testing.T) {
 		return nil, stderrors.New("project not found")
 	}
 
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, getAppProject)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, getAppProject, []string{"*"})
 	require.NoError(t, err)
 
 	scrape := func() string {
@@ -976,6 +978,58 @@ func TestSyncWindowMetricProjectFailureIsResolvedOncePerScrape(t *testing.T) {
 	// The cache lives for one scrape only, so the next scrape retries.
 	scrape()
 	assert.Equal(t, 2, calls, "the cache must not outlive a scrape")
+}
+
+// Sync window metrics add four series per application, so they are emitted
+// only for projects matching --metrics-sync-window-projects.
+func TestSyncWindowMetricProjectFilter(t *testing.T) {
+	otherProjectApp := strings.Replace(fakeApp2, "project: important-project", "project: other-project", 1)
+
+	cases := []struct {
+		description string
+		projects    []string
+		emitted     []string
+		notEmitted  []string
+	}{
+		{description: "nil disables sync window metrics", projects: nil, notEmitted: []string{"my-app", "my-app-2"}},
+		{description: "empty disables sync window metrics", projects: []string{}, notEmitted: []string{"my-app", "my-app-2"}},
+		{description: "glob matches some projects", projects: []string{"important-*"}, emitted: []string{"my-app"}, notEmitted: []string{"my-app-2"}},
+		{description: "exact names match", projects: []string{"important-project", "other-project"}, emitted: []string{"my-app", "my-app-2"}},
+		{description: "* matches every project", projects: []string{"*"}, emitted: []string{"my-app", "my-app-2"}},
+	}
+
+	for _, c := range cases {
+		t.Run(c.description, func(t *testing.T) {
+			cancel, appLister := newFakeLister(t.Context(), fakeApp, otherProjectApp)
+			defer cancel()
+
+			var resolved []string
+			getAppProject := func(app *argoappv1.Application) (*argoappv1.AppProject, error) {
+				resolved = append(resolved, app.Name)
+				return &argoappv1.AppProject{Name: app.Spec.GetProject(), Namespace: "argocd"}, nil
+			}
+			metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, getAppProject, c.projects)
+			require.NoError(t, err)
+
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+			require.NoError(t, err)
+			rr := httptest.NewRecorder()
+			metricsServ.Handler.ServeHTTP(rr, req)
+			require.Equal(t, http.StatusOK, rr.Code)
+			body := rr.Body.String()
+
+			for _, name := range c.emitted {
+				assert.Contains(t, body, fmt.Sprintf(`argocd_app_sync_blocked{name=%q`, name))
+			}
+			for _, name := range c.notEmitted {
+				assert.NotContains(t, body, fmt.Sprintf(`argocd_app_sync_window{name=%q`, name))
+				assert.NotContains(t, body, fmt.Sprintf(`argocd_app_sync_blocked{name=%q`, name))
+				assert.NotContains(t, body, fmt.Sprintf(`argocd_app_sync_window_error{name=%q`, name))
+			}
+			// Unmatched projects are not resolved at all.
+			assert.ElementsMatch(t, c.emitted, resolved)
+		})
+	}
 }
 
 // The controller's sync gate parses only the windows matching the application,
@@ -1065,7 +1119,7 @@ func TestSyncWindowMetricEvaluationErrorIsReportedOncePerProject(t *testing.T) {
 func TestMetricsReset(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil, nil)
 	require.NoError(t, err)
 
 	appSyncTotal := `
@@ -1102,7 +1156,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=
 func TestWorkqueueMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil, nil)
 	require.NoError(t, err)
 
 	expectedMetrics := `
@@ -1132,7 +1186,7 @@ workqueue_unfinished_work_seconds{controller="test",name="test"}
 func TestGoMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister(t.Context())
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil, nil)
 	require.NoError(t, err)
 
 	expectedMetrics := `
@@ -1176,7 +1230,7 @@ func TestAppCollector_WarnsOnDestinationResolutionFailure(t *testing.T) {
 		return true, "", resolutionErr
 	})
 
-	registry := NewAppRegistry(appLister, failingFilter, []string{}, []string{}, nil)
+	registry := NewAppRegistry(appLister, failingFilter, []string{}, []string{}, nil, nil)
 	families, err := registry.Gather()
 	require.NoError(t, err)
 

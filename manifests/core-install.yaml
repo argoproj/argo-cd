@@ -35522,6 +35522,12 @@ spec:
               key: controller.metrics.application.conditions
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_SYNC_WINDOW_PROJECTS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.metrics.sync.window.projects
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS
           valueFrom:
             configMapKeyRef:

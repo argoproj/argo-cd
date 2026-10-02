@@ -74,6 +74,7 @@ func NewCommand() *cobra.Command {
 		metricsCacheExpiration           time.Duration
 		metricsApplicationLabels         []string
 		metricsApplicationConditions     []string
+		metricsSyncWindowProjects        []string
 		metricsClusterLabels             []string
 		kubectlParallelismLimit          int64
 		cacheSource                      func() (*appstatecache.Cache, error)
@@ -208,6 +209,7 @@ func NewCommand() *cobra.Command {
 				metricsCacheExpiration,
 				metricsApplicationLabels,
 				metricsApplicationConditions,
+				metricsSyncWindowProjects,
 				metricsClusterLabels,
 				kubectlParallelismLimit,
 				persistResourceHealth,
@@ -277,6 +279,7 @@ func NewCommand() *cobra.Command {
 	errors.CheckError(command.Flags().MarkDeprecated("repo-server-strict-tls", "use --repo-server-ca-cert-path instead"))
 	command.Flags().StringSliceVar(&metricsApplicationLabels, "metrics-application-labels", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_LABELS", []string{}, ","), "List of Application labels that will be added to the argocd_app_labels metric")
 	command.Flags().StringSliceVar(&metricsApplicationConditions, "metrics-application-conditions", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_CONDITIONS", []string{}, ","), "List of Application conditions that will be added to the argocd_app_condition metric")
+	command.Flags().StringSliceVar(&metricsSyncWindowProjects, "metrics-sync-window-projects", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_SYNC_WINDOW_PROJECTS", []string{}, ","), "List of AppProject name globs whose Applications get the argocd_app_sync_window, argocd_app_sync_blocked and argocd_app_sync_window_error metrics (e.g. '*' for all). Disabled when empty")
 	command.Flags().StringSliceVar(&metricsClusterLabels, "metrics-cluster-labels", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS", []string{}, ","), "List of Cluster labels that will be added to the argocd_cluster_labels metric")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")

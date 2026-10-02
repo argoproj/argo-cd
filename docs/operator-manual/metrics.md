@@ -44,13 +44,9 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | `argocd_kubectl_transport_create_calls_total`     |  counter  | Number of kubectl transport create calls.                                                                                                                                                               |
 
 > [!NOTE]
-> The sync window metrics are emitted for every Application, whether or not its
-> `AppProject` configures any sync windows: four series each
-> (`argocd_app_sync_window` per `window_kind`, `argocd_app_sync_blocked` and
-> `argocd_app_sync_window_error`). An installation with no sync windows at all
-> still pays that cardinality, with every series at 0. The zeros are deliberate:
-> `argocd_app_sync_blocked` reporting 0 is what distinguishes "no windows
-> configured" from "blocked because a matching allow window is inactive".
+> The sync window metrics (`argocd_app_sync_window`, `argocd_app_sync_blocked`
+> and `argocd_app_sync_window_error`) are disabled by default. See
+> [Exposing sync window metrics](#exposing-sync-window-metrics).
 
 ### Labels
 
@@ -152,6 +148,23 @@ containers:
       - --metrics-application-conditions
       - ExcludedResourceWarning
 ```
+
+### Exposing sync window metrics
+
+The sync window metrics add four series per Application (`argocd_app_sync_window` per `window_kind`,
+`argocd_app_sync_blocked` and `argocd_app_sync_window_error`), so they are disabled by default. To enable them, set the
+comma-separated `controller.metrics.sync.window.projects` key in the `argocd-cmd-params-cm` ConfigMap to the
+`AppProject` names, or globs, whose Applications should report them:
+
+```yaml
+controller.metrics.sync.window.projects: "production-*,staging"
+```
+
+Use `"*"` to report them for every project. Alternatively, pass `--metrics-sync-window-projects` to the application controller.
+
+Applications in a matching project emit the metrics even when the project configures no sync windows. The zeros are
+deliberate: `argocd_app_sync_blocked` reporting 0 distinguishes "no windows configured" from "blocked because a
+matching allow window is inactive".
 
 ### Exposing Cluster labels as Prometheus metrics
 
