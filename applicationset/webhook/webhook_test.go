@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -145,6 +147,22 @@ func TestWebhookHandler(t *testing.T) {
 			headerValue:        "Push Hook",
 			payloadFile:        "invalid-event.json",
 			effectedAppSets:    []string{"git-gitlab", "git-gitlab-ssh", "git-gitlab-alt-ssh", "plugin"},
+			expectedStatusCode: http.StatusBadRequest,
+			expectedRefresh:    false,
+		},
+		{
+			desc:               "WebHook from Bitbucket Server is not supported",
+			headerKey:          "X-Event-Key",
+			headerValue:        "repo:refs_changed",
+			payloadFile:        "github-commit-event.json",
+			expectedStatusCode: http.StatusBadRequest,
+			expectedRefresh:    false,
+		},
+		{
+			desc:               "WebHook from Gogs is not supported",
+			headerKey:          "X-Gogs-Event",
+			headerValue:        "push",
+			payloadFile:        "github-commit-event.json",
 			expectedStatusCode: http.StatusBadRequest,
 			expectedRefresh:    false,
 		},
@@ -361,6 +379,134 @@ func mockGenerators() map[string]generators.Generator {
 		"Matrix":      generators.NewMatrixGenerator(nestedGenerators),
 		"Merge":       generators.NewMergeGenerator(nestedGenerators),
 	}
+}
+
+// TestWebhookHandlerRejectsRequests covers the responses the ApplicationSet webhook
+// shares with the API server webhook for requests it cannot accept.
+func TestWebhookHandlerRejectsRequests(t *testing.T) {
+	t.Parallel()
+	namespace := "test"
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	ghcrEvent, err := os.ReadFile(filepath.Join("testdata", "ghcr-package-event.json"))
+	require.NoError(t, err)
+
+	tests := []struct {
+		desc               string
+		headerValue        string
+		body               []byte
+		expectedStatusCode int
+		expectedBody       string
+	}{
+		{
+			desc:               "GHCR event without a valid signature is unauthorized",
+			headerValue:        "package",
+			body:               ghcrEvent,
+			expectedStatusCode: http.StatusUnauthorized,
+			expectedBody:       "Unauthorized",
+		},
+		{
+			desc:               "payload over webhook.maxPayloadSizeMB is rejected",
+			headerValue:        "push",
+			body:               bytes.Repeat([]byte("a"), 1024*1024+1),
+			expectedStatusCode: http.StatusBadRequest,
+			expectedBody:       "Webhook processing failed: payload must be valid JSON under 1 MB",
+		},
+		{
+			desc:               "parse error is not echoed to the caller",
+			headerValue:        "issues",
+			body:               []byte(`{}`),
+			expectedStatusCode: http.StatusBadRequest,
+			expectedBody:       "Webhook processing failed",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			t.Parallel()
+			kubeClient := newFakeClientWithSettings(namespace,
+				map[string]string{"webhook.maxPayloadSizeMB": "1"},
+				map[string][]byte{"webhook.github.secret": []byte("secret")},
+			)
+			fc := fake.NewClientBuilder().WithScheme(scheme).Build()
+			set := argosettings.NewSettingsManager(t.Context(), kubeClient, namespace)
+			h, err := NewWebhookHandler(1, set, fc, mockGenerators())
+			require.NoError(t, err)
+
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewReader(test.body))
+			req.Header.Set("X-GitHub-Event", test.headerValue)
+			w := httptest.NewRecorder()
+
+			h.Handler(w, req)
+			close(h.queue)
+			h.Wait()
+
+			assert.Equal(t, test.expectedStatusCode, w.Code)
+			assert.Equal(t, test.expectedBody, strings.TrimSpace(w.Body.String()))
+		})
+	}
+}
+
+// TestParserOptionsParity makes sure every webhook event the Argo CD API server
+// handles is also handled by the ApplicationSet webhook, so a provider added to one
+// handler is not silently missing from the other.
+func TestParserOptionsParity(t *testing.T) {
+	// Providers the Argo CD webhook handles that the ApplicationSet webhook does not
+	// yet. Delete an entry when adding that provider to appSetParserOptions.
+	knownGaps := map[string]bool{
+		"bitbucket":       true,
+		"bitbucketserver": true,
+		"gogs":            true,
+		"harbor":          true,
+		"dockerhub":       true,
+	}
+
+	argocdEvents := parserEvents(webhook.ArgoCDParserOptions())
+	appSetEvents := parserEvents(appSetParserOptions())
+	for event := range argocdEvents {
+		provider, _, _ := strings.Cut(event, ":")
+		if knownGaps[provider] {
+			assert.NotContains(t, appSetEvents, event, "the ApplicationSet webhook handles %s now, remove %q from knownGaps", event, provider)
+			continue
+		}
+		assert.Contains(t, appSetEvents, event, "the Argo CD webhook handles %s but the ApplicationSet webhook does not", event)
+	}
+}
+
+// parserEvents flattens opts into "provider:event" keys, e.g. "github:push".
+func parserEvents(opts webhook.ParserOptions) map[string]bool {
+	events := map[string]bool{}
+	add := func(provider string, event any) {
+		events[fmt.Sprintf("%s:%v", provider, event)] = true
+	}
+	for _, e := range opts.AzureDevOpsEvents {
+		add("azuredevops", e)
+	}
+	for _, e := range opts.GogsEvents {
+		add("gogs", e)
+	}
+	for _, e := range opts.GitHubEvents {
+		add("github", e)
+	}
+	for _, e := range opts.GitLabEvents {
+		add("gitlab", e)
+	}
+	for _, e := range opts.BitbucketEvents {
+		add("bitbucket", e)
+	}
+	for _, e := range opts.BitbucketServerEvents {
+		add("bitbucketserver", e)
+	}
+	if opts.Harbor {
+		add("harbor", "registry")
+	}
+	if opts.GHCR {
+		add("ghcr", "registry")
+	}
+	if opts.DockerHub {
+		add("dockerhub", "registry")
+	}
+	return events
 }
 
 func TestGenRevisionHasChanged(t *testing.T) {
@@ -834,18 +980,24 @@ func fakeAppWithMatrixAndPullRequestGeneratorWithPluginGenerator(name, namespace
 }
 
 func newFakeClient(ns string) *kubefake.Clientset {
-	s := runtime.NewScheme()
-	s.AddKnownTypes(v1alpha1.SchemeGroupVersion, &v1alpha1.ApplicationSet{})
+	return newFakeClientWithSettings(ns, nil, nil)
+}
+
+// newFakeClientWithSettings returns a clientset holding argocd-cm and argocd-secret
+// with the given extra data.
+func newFakeClientWithSettings(ns string, cmData map[string]string, secretData map[string][]byte) *kubefake.Clientset {
+	data := map[string][]byte{
+		"server.secretkey": nil,
+	}
+	maps.Copy(data, secretData)
 	return kubefake.NewClientset(&corev1.ConfigMap{Name: "argocd-cm", Namespace: ns, Labels: map[string]string{
 		"app.kubernetes.io/part-of": "argocd",
-	}}, &corev1.Secret{
+	}, Data: cmData}, &corev1.Secret{
 		Name:      common.ArgoCDSecretName,
 		Namespace: ns,
 		Labels: map[string]string{
 			"app.kubernetes.io/part-of": "argocd",
 		},
-		Data: map[string][]byte{
-			"server.secretkey": nil,
-		},
+		Data: data,
 	})
 }
