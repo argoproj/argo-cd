@@ -201,6 +201,11 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
     // Only show Progressive Sync if the application has an ApplicationSet parent
     // The actual strategy validation will be done inside ProgressiveSyncStatus component
     const showProgressiveSync = !!getApplicationSetOwnerRef(application);
+    const rolledBackRevisions = application.status.rolledBackRevisions?.length
+        ? application.status.rolledBackRevisions
+        : application.status.rolledBackRevision
+          ? [application.status.rolledBackRevision]
+          : [];
 
     const today = new Date();
 
@@ -373,6 +378,12 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                 <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                     {application.spec.syncPolicy?.automated && application.spec.syncPolicy.automated.enabled !== false ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
                 </div>
+                {rolledBackRevisions.length > 0 && (
+                    <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}} title={rolledBackRevisions.join(', ')}>
+                        <i className='fa fa-pause-circle' /> Auto sync skips rolled back revision {rolledBackRevisions.map(r => r.substring(0, 7)).join(', ')} until a new revision
+                        is available.
+                    </div>
+                )}
                 {application.status &&
                     application.status.sync &&
                     (hasMultipleSources

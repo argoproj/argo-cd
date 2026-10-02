@@ -325,6 +325,21 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NotNil(t, f.spec.SyncPolicy.Automated.AllowEmpty)
 		assert.False(t, *f.spec.SyncPolicy.Automated.AllowEmpty)
 	})
+	t.Run("RollbackAwareFlag", func(t *testing.T) {
+		f := newAppOptionsFixture()
+
+		require.NoError(t, f.SetFlag("rollback-aware", "true"))
+		require.NotNil(t, f.spec.SyncPolicy.Automated.Enabled)
+		assert.False(t, *f.spec.SyncPolicy.Automated.Enabled)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.RollbackAware)
+		assert.True(t, *f.spec.SyncPolicy.Automated.RollbackAware)
+
+		*f.spec.SyncPolicy.Automated.Enabled = true
+		require.NoError(t, f.SetFlag("rollback-aware", "false"))
+		assert.True(t, *f.spec.SyncPolicy.Automated.Enabled)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.RollbackAware)
+		assert.False(t, *f.spec.SyncPolicy.Automated.RollbackAware)
+	})
 	t.Run("RetryLimit", func(t *testing.T) {
 		require.NoError(t, f.SetFlag("sync-retry-limit", "5"))
 		assert.Equal(t, int64(5), f.spec.SyncPolicy.Retry.Limit)

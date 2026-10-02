@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"reflect"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -2102,19 +2103,17 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false, nil)
 	if canSync {
-		syncErrCond, opDuration := ctrl.autoSync(ctx, app, compareResult.syncStatus, compareResult.resources, compareResult.revisionsMayHaveChanges)
+		autoSyncCond, opDuration := ctrl.autoSync(ctx, app, compareResult.syncStatus, compareResult.resources, compareResult.revisionsMayHaveChanges)
 		setOpDuration = opDuration
-		if syncErrCond != nil {
-			app.Status.SetConditions(
-				[]appv1.ApplicationCondition{*syncErrCond},
-				map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true},
-			)
-		} else {
-			app.Status.SetConditions(
-				[]appv1.ApplicationCondition{},
-				map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionSyncError: true},
-			)
+		autoSyncConditions := []appv1.ApplicationCondition{}
+		if autoSyncCond != nil {
+			autoSyncConditions = append(autoSyncConditions, *autoSyncCond)
 		}
+		// autoSync owns both condition types: whichever it did not return this round is cleared.
+		app.Status.SetConditions(autoSyncConditions, map[appv1.ApplicationConditionType]bool{
+			appv1.ApplicationConditionSyncError:             true,
+			appv1.ApplicationConditionAutoSyncPausedWarning: true,
+		})
 	} else {
 		logCtx.Info("Sync prevented by sync window")
 	}
@@ -2652,6 +2651,10 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 		return nil, 0
 	}
 
+	if skip, cond := ctrl.skipRolledBackRevision(app, syncStatus, logCtx); skip {
+		return cond, 0
+	}
+
 	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
 	// a sync when application is already in a Synced or Unknown state
 	if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
@@ -2776,6 +2779,65 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 	ctrl.logAppEvent(context.TODO(), app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: corev1.EventTypeNormal}, message)
 	logCtx.Info(message)
 	return nil, setOpTime
+}
+
+// skipRolledBackRevision implements rollback-aware automated sync. It reports whether automated sync has to be
+// skipped, along with the condition explaining why when there is one worth surfacing. Automated sync is skipped
+// while the desired revision is still the revision the application was rolled back from, and also while the
+// desired revision cannot be established at all. Once a successful comparison reports a different desired
+// revision the record is stale: it is cleared in place (persisted with the rest of the status by the caller) and
+// automated sync proceeds. Applications without the feature enabled never consult the record.
+func (ctrl *ApplicationController) skipRolledBackRevision(app *appv1.Application, syncStatus *appv1.SyncStatus, logCtx *log.Entry) (bool, *appv1.ApplicationCondition) {
+	if app.Status.RolledBackRevision == "" && len(app.Status.RolledBackRevisions) == 0 {
+		return false, nil
+	}
+	rollbackAwareDefault, err := ctrl.settingsMgr.GetRollbackAwareAutoSyncEnabled()
+	if err != nil {
+		logCtx.WithError(err).Warn("Failed to read application.rollbackAwareAutoSyncEnabled setting, assuming disabled")
+		rollbackAwareDefault = false
+	}
+	if !app.Spec.SyncPolicy.IsRollbackAwareAutoSync(rollbackAwareDefault) {
+		return false, nil
+	}
+
+	var rolledBack, desired []string
+	if app.Spec.HasMultipleSources() {
+		rolledBack, desired = app.Status.RolledBackRevisions, syncStatus.Revisions
+	} else {
+		rolledBack, desired = []string{app.Status.RolledBackRevision}, []string{syncStatus.Revision}
+	}
+
+	// The sync status only carries the revision the manifests were generated from when the comparison itself
+	// succeeded. A comparison that failed to load the target state reports Unknown and leaves the unresolved
+	// target revision of the application source in syncStatus.Revision (or no revision at all in
+	// syncStatus.Revisions), which is neither a match for the rolled back revision nor evidence that the source
+	// moved on. Fail closed there and keep the record: clearing it would let the next healthy reconciliation
+	// deploy the rolled back revision again, and syncing an unresolved revision would resolve straight back to
+	// it. The comparison error is already reported as its own condition, so do not add a misleading one here.
+	if syncStatus.Status == appv1.SyncStatusCodeUnknown || len(desired) == 0 || slices.Contains(desired, "") {
+		logCtx.Infof("Skipping auto-sync: cannot tell whether the application source still points at rolled back revision %s (sync status %s, desired revision %q)",
+			strings.Join(rolledBack, ", "), syncStatus.Status, strings.Join(desired, ", "))
+		return true, nil
+	}
+
+	if slices.Equal(rolledBack, desired) {
+		// The source still points at the rolled-back revision. Pause while the application is OutOfSync, and
+		// otherwise leave the record alone: a comparison that reports the rolled-back revision as Synced can
+		// simply predate the rollback, and clearing on it would let the next sync deploy that revision again.
+		// A deliberate sync of the rolled-back revision clears the record through persistRevisionHistory.
+		if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
+			return false, nil
+		}
+		message := fmt.Sprintf("Skipping auto-sync: revision %s was rolled back; waiting for a new revision", strings.Join(rolledBack, ", "))
+		logCtx.Info(message)
+		return true, &appv1.ApplicationCondition{Type: appv1.ApplicationConditionAutoSyncPausedWarning, Message: message}
+	}
+
+	// A successful comparison resolved a different desired revision, so the record is stale.
+	logCtx.Infof("Clearing rolled back revision %s: desired revision is now %s and the application is %s", strings.Join(rolledBack, ", "), strings.Join(desired, ", "), syncStatus.Status)
+	app.Status.RolledBackRevision = ""
+	app.Status.RolledBackRevisions = nil
+	return false, nil
 }
 
 // alreadyAttemptedSync returns whether the most recently synced revision(s) exactly match the given desiredRevisions

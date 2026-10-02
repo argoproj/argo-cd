@@ -94,6 +94,70 @@ describe('ApplicationStatusPanel', () => {
     });
 });
 
+const withRolledBack = (status: Partial<models.ApplicationStatus>) =>
+    ({
+        ...application,
+        spec: {...application.spec, syncPolicy: {automated: {prune: false, selfHeal: false, enabled: true}}},
+        status: {...application.status, ...status}
+    }) as unknown as models.Application;
+
+const pauseLine = (container: HTMLElement) => {
+    const icon = container.querySelector('.fa-pause-circle');
+    return icon && icon.parentElement.textContent.replace(/\s+/g, ' ').trim();
+};
+
+describe('ApplicationStatusPanel rolled back revision', () => {
+    it('does not mention a rolled back revision when none is recorded', () => {
+        const {container} = render(<ApplicationStatusPanel application={application} />);
+        expect(pauseLine(container)).toBeNull();
+    });
+
+    it('names the paused revision, abbreviated to seven characters', () => {
+        const {container} = render(<ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: ['9639592aa0f1e2d3c4b5a6978899aabbccddeeff']})} />);
+        expect(pauseLine(container)).toBe('Auto sync skips rolled back revision 9639592 until a new revision is available.');
+    });
+
+    it('keeps the full revisions in the tooltip', () => {
+        const revision = '9639592aa0f1e2d3c4b5a6978899aabbccddeeff';
+        const {container} = render(<ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: [revision]})} />);
+        expect(container.querySelector('.fa-pause-circle').parentElement.getAttribute('title')).toBe(revision);
+    });
+
+    it('lists one revision per source for a multi-source application', () => {
+        const {container} = render(
+            <ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: ['9639592aa0f1e2d3c4b5a6978899aabbccddeeff', '112f220bb1c2d3e4f5061728394a5b6c7d8e9f00']})} />
+        );
+        expect(pauseLine(container)).toBe('Auto sync skips rolled back revision 9639592, 112f220 until a new revision is available.');
+    });
+
+    it('falls back to the singular revision field', () => {
+        const {container} = render(<ApplicationStatusPanel application={withRolledBack({rolledBackRevision: '112f220bb1c2d3e4f5061728394a5b6c7d8e9f00'})} />);
+        expect(pauseLine(container)).toBe('Auto sync skips rolled back revision 112f220 until a new revision is available.');
+    });
+
+    it('prefers the plural field when an application carries both', () => {
+        const {container} = render(
+            <ApplicationStatusPanel
+                application={withRolledBack({
+                    rolledBackRevision: '112f220bb1c2d3e4f5061728394a5b6c7d8e9f00',
+                    rolledBackRevisions: ['9639592aa0f1e2d3c4b5a6978899aabbccddeeff']
+                })}
+            />
+        );
+        expect(pauseLine(container)).toBe('Auto sync skips rolled back revision 9639592 until a new revision is available.');
+    });
+
+    it('treats an empty plural field as no record rather than falling back', () => {
+        const {container} = render(<ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: []})} />);
+        expect(pauseLine(container)).toBeNull();
+    });
+
+    it('leaves the collapsed panel unchanged', () => {
+        const {container} = render(<ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: ['9639592aa0f1e2d3c4b5a6978899aabbccddeeff']})} collapsed={true} />);
+        expect(pauseLine(container)).toBeNull();
+    });
+});
+
 describe('ApplicationSetStatusPanel', () => {
     it('renders the full panel by default', () => {
         const {container} = render(<ApplicationSetStatusPanel appSet={appSet} />);

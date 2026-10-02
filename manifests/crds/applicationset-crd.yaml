@@ -907,6 +907,8 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        rollbackAware:
+                                          type: boolean
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -1826,6 +1828,8 @@ spec:
                                         enabled:
                                           type: boolean
                                         prune:
+                                          type: boolean
+                                        rollbackAware:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
@@ -2748,6 +2752,8 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        rollbackAware:
+                                          type: boolean
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -3646,6 +3652,8 @@ spec:
                                         enabled:
                                           type: boolean
                                         prune:
+                                          type: boolean
+                                        rollbackAware:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
@@ -4571,6 +4579,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -5490,6 +5500,8 @@ spec:
                                                   enabled:
                                                     type: boolean
                                                   prune:
+                                                    type: boolean
+                                                  rollbackAware:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
@@ -6412,6 +6424,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -7310,6 +7324,8 @@ spec:
                                                   enabled:
                                                     type: boolean
                                                   prune:
+                                                    type: boolean
+                                                  rollbackAware:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
@@ -8232,6 +8248,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -9141,6 +9159,8 @@ spec:
                                                   enabled:
                                                     type: boolean
                                                   prune:
+                                                    type: boolean
+                                                  rollbackAware:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
@@ -10276,6 +10296,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -11407,6 +11429,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -12322,6 +12346,8 @@ spec:
                                         enabled:
                                           type: boolean
                                         prune:
+                                          type: boolean
+                                        rollbackAware:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
@@ -13249,6 +13275,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -14168,6 +14196,8 @@ spec:
                                                   enabled:
                                                     type: boolean
                                                   prune:
+                                                    type: boolean
+                                                  rollbackAware:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
@@ -15090,6 +15120,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -15988,6 +16020,8 @@ spec:
                                                   enabled:
                                                     type: boolean
                                                   prune:
+                                                    type: boolean
+                                                  rollbackAware:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
@@ -16910,6 +16944,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -17819,6 +17855,8 @@ spec:
                                                   enabled:
                                                     type: boolean
                                                   prune:
+                                                    type: boolean
+                                                  rollbackAware:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
@@ -18954,6 +18992,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -20085,6 +20125,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -21004,6 +21046,8 @@ spec:
                                         enabled:
                                           type: boolean
                                         prune:
+                                          type: boolean
+                                        rollbackAware:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
@@ -21925,6 +21969,8 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        rollbackAware:
+                                          type: boolean
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -22834,6 +22880,8 @@ spec:
                                         enabled:
                                           type: boolean
                                         prune:
+                                          type: boolean
+                                        rollbackAware:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
@@ -23969,6 +24017,8 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        rollbackAware:
+                                          type: boolean
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -25100,6 +25150,8 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        rollbackAware:
+                                          type: boolean
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -26092,6 +26144,8 @@ spec:
                               enabled:
                                 type: boolean
                               prune:
+                                type: boolean
+                              rollbackAware:
                                 type: boolean
                               selfHeal:
                                 type: boolean
