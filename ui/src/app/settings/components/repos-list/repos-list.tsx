@@ -1216,7 +1216,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                         <FormField formApi={formApi} label='Enable OCI' field='enableOCI' component={CheckboxField} />
                                                     </div>
                                                 )}
-                                                {formApi.getFormState().values.type === 'oci' && (
+                                                {(formApi.getFormState().values.type === 'oci' ||
+                                                    (formApi.getFormState().values.type === 'helm' && formApi.getFormState().values.enableOCI)) && (
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Insecure HTTP Only' field='insecureOCIForceHttp' component={CheckboxField} />
                                                     </div>
