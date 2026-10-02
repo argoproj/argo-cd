@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -107,10 +108,8 @@ func injectSSLCertDir(env []string) []string {
 			continue
 		}
 		existing := strings.TrimPrefix(e, key+"=")
-		for _, d := range filepath.SplitList(existing) {
-			if d == dir {
-				return env
-			}
+		if slices.Contains(filepath.SplitList(existing), dir) {
+			return env
 		}
 		env[i] = key + "=" + dir + ":" + existing
 		return env
