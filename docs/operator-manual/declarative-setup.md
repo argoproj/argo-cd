@@ -474,6 +474,9 @@ data:
 > [!NOTE]
 > The `argocd-tls-certs-cm` ConfigMap will be mounted as a volume at the mount path `/app/config/tls` in the pods of `argocd-server` and `argocd-repo-server`. It will create files for each data key in the mount path directory, so above example would leave the file `/app/config/tls/server.example.com`, which contains the certificate data. It might take a while for changes in the ConfigMap to be reflected in your pods, depending on your Kubernetes configuration.
 
+> [!NOTE]
+> Certificates stored in `argocd-tls-certs-cm` are trusted not only for repository connection checks but also during `helm dependency build`, which runs as a subprocess in the repo-server. The repo-server injects the mount path into `SSL_CERT_DIR` so that the helm CLI subprocess picks up the same custom CAs.
+
 ### SSH known host public keys
 
 If you are configuring repositories to use SSH, Argo CD will need to know their SSH public keys. In order for Argo CD to connect via SSH the public key(s) for each repository server must be pre-configured in Argo CD (unlike TLS configuration), otherwise the connections to the repository will fail.
