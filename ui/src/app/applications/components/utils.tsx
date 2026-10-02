@@ -4,7 +4,6 @@ import classNames from 'classnames';
 import * as React from 'react';
 import {ReactForm, FormApi, Text} from 'argo-ui';
 import * as moment from 'moment';
-import Moment from 'react-moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
@@ -1698,11 +1697,11 @@ export function toggleFavorite(favorites: string[], app: appModels.AbstractAppli
 
 export function formatCreationTimestamp(creationTimestamp: string) {
     const createdAt = moment.utc(creationTimestamp).local().format('MM/DD/YYYY HH:mm:ss');
-    // Moment self-ticks so memoized tiles keep relative times fresh without parent re-renders.
+    const fromNow = moment.utc(creationTimestamp).local().fromNow();
     return (
         <span>
             {createdAt}
-            <i style={{padding: '2px'}} /> (<Moment fromNow={true}>{creationTimestamp}</Moment>)
+            <i style={{padding: '2px'}} /> ({fromNow})
         </span>
     );
 }

@@ -7,7 +7,7 @@ import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 import {ClusterCtx, DataLoader, EmptyState, Page, Paginate, SearchBar, Spinner} from '../../../shared/components';
 import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
-import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
+import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewKey, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
@@ -356,48 +356,21 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
     const loaderRef = React.useRef<DataLoader | null>(null);
     const {List, Summary, Tiles} = AppsListViewKey;
-    const ctx = React.useContext(Context);
-    const ctxRef = React.useRef(ctx);
-    React.useEffect(() => {
-        ctxRef.current = ctx;
-    }, [ctx]);
     const authSettings = React.useContext(AuthSettingsCtx);
 
-    const refreshApp = React.useCallback((appName: string, appNamespace: string) => {
+    function refreshApp(appName: string, appNamespace: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
         // add refreshing annotation in the UI to improve user experience
         if (loaderRef.current) {
             const applications = loaderRef.current.getData() as models.Application[];
-            // New app + array refs so React.memo tiles/rows re-render the refresh spinner.
-            const nextApplications = applications.map(item => {
-                if (item.metadata.name !== appName || item.metadata.namespace !== appNamespace) {
-                    return item;
-                }
-                const nextApp: models.Application = {
-                    ...item,
-                    metadata: {
-                        ...item.metadata,
-                        annotations: {...(item.metadata.annotations || {})}
-                    }
-                };
-                AppUtils.setAppRefreshing(nextApp);
-                return nextApp;
-            });
-            loaderRef.current.setData(nextApplications);
+            const app = applications.find(item => item.metadata.name === appName && item.metadata.namespace === appNamespace);
+            if (app) {
+                AppUtils.setAppRefreshing(app);
+                loaderRef.current.setData(applications);
+            }
         }
         services.applications.get(appName, appNamespace, 'application', 'normal');
-    }, []);
-
-    const syncApplication = React.useCallback(
-        (appName: string, appNamespace: string) => {
-            ctx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true});
-        },
-        [ctx.navigation]
-    );
-
-    const deleteApplication = React.useCallback((appName: string, appNamespace: string) => {
-        AppUtils.deleteApplication(appName, appNamespace, ctxRef.current);
-    }, []);
+    }
 
     function onAppFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
         services.viewPreferences.updatePreferences({appList: newPref});
@@ -597,18 +570,26 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                             (pref.view === 'tiles' && (
                                                                                 <ApplicationTiles
                                                                                     applications={data}
-                                                                                    syncApplication={syncApplication}
+                                                                                    syncApplication={(appName, appNamespace) =>
+                                                                                        ctx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true})
+                                                                                    }
                                                                                     refreshApplication={refreshApp}
-                                                                                    deleteApplication={deleteApplication}
+                                                                                    deleteApplication={(appName, appNamespace) =>
+                                                                                        AppUtils.deleteApplication(appName, appNamespace, ctx)
+                                                                                    }
                                                                                     useVirtualScrolling={useVirtualScrolling}
                                                                                     statusBarVisible={healthBarPrefs.showHealthStatusBar}
                                                                                 />
                                                                             )) || (
                                                                                 <ApplicationsTable
                                                                                     applications={data}
-                                                                                    syncApplication={syncApplication}
+                                                                                    syncApplication={(appName, appNamespace) =>
+                                                                                        ctx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true})
+                                                                                    }
                                                                                     refreshApplication={refreshApp}
-                                                                                    deleteApplication={deleteApplication}
+                                                                                    deleteApplication={(appName, appNamespace) =>
+                                                                                        AppUtils.deleteApplication(appName, appNamespace, ctx)
+                                                                                    }
                                                                                     useVirtualScrolling={useVirtualScrolling}
                                                                                     statusBarVisible={healthBarPrefs.showHealthStatusBar}
                                                                                 />

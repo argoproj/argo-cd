@@ -22,7 +22,7 @@ export interface ApplicationTileProps {
     deleteApplication: (appName: string, appNamespace: string) => void;
 }
 
-export const ApplicationTile = React.memo(({app, selected, pref, ctx, tileRef, syncApplication, refreshApplication, deleteApplication}: ApplicationTileProps) => {
+export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplication, refreshApplication, deleteApplication}: ApplicationTileProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
     const isFav = AppUtils.isFavorite(favList, app);
@@ -255,5 +255,4 @@ export const ApplicationTile = React.memo(({app, selected, pref, ctx, tileRef, s
             </div>
         </div>
     );
-});
-ApplicationTile.displayName = 'ApplicationTile';
+};

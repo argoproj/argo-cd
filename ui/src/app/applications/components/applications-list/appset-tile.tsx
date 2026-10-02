@@ -15,7 +15,7 @@ export interface AppSetTileProps {
     tileRef?: React.RefObject<HTMLDivElement>;
 }
 
-export const AppSetTile = React.memo(({appSet, selected, pref, ctx, tileRef}: AppSetTileProps) => {
+export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTileProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
     const isFav = AppUtils.isFavorite(favList, appSet);
@@ -127,5 +127,4 @@ export const AppSetTile = React.memo(({appSet, selected, pref, ctx, tileRef}: Ap
             </div>
         </div>
     );
-});
-AppSetTile.displayName = 'AppSetTile';
+};

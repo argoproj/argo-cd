@@ -16,7 +16,7 @@ export interface AppSetTableRowProps {
     ctx: ContextApis;
 }
 
-export const AppSetTableRow = React.memo(({appSet, selected, pref, ctx}: AppSetTableRowProps) => {
+export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
     const isFav = AppUtils.isFavorite(favList, appSet);
@@ -98,5 +98,4 @@ export const AppSetTableRow = React.memo(({appSet, selected, pref, ctx}: AppSetT
             </div>
         </div>
     );
-});
-AppSetTableRow.displayName = 'AppSetTableRow';
+};
