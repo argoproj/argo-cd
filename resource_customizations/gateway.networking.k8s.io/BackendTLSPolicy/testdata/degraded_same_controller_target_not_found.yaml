@@ -1,0 +1,46 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: example-backendtlspolicy
+  namespace: default
+  generation: 1
+spec:
+  targetRefs:
+  - group: ''
+    kind: Service
+    name: example-backend
+  validation:
+    hostname: example.com
+    wellKnownCACertificates: System
+status:
+  ancestors:
+  # The responsible controller accepted the policy for one target under its own
+  # controllerName.
+  - ancestorRef:
+      group: ''
+      kind: Service
+      name: example-backend
+    conditions:
+    - lastTransitionTime: '2026-04-16T12:20:11Z'
+      message: BackendTLSPolicy is accepted
+      observedGeneration: 1
+      reason: Accepted
+      status: 'True'
+      type: Accepted
+    controllerName: example.com/gatewayclass-controller
+  # The SAME controller genuinely could not resolve a second target. Because the
+  # rejection comes from the same controllerName that also accepted, it is not
+  # another implementation's noise but a real per-controller failure and must
+  # degrade the resource.
+  - ancestorRef:
+      group: ''
+      kind: Service
+      name: missing-service
+    conditions:
+    - lastTransitionTime: '2026-04-16T12:20:11Z'
+      message: 'Service "missing-service" not found'
+      observedGeneration: 1
+      reason: TargetNotFound
+      status: 'False'
+      type: Accepted
+    controllerName: example.com/gatewayclass-controller

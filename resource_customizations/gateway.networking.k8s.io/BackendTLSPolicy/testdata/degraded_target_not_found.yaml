@@ -1,0 +1,37 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: example-backendtlspolicy
+  namespace: default
+  generation: 1
+spec:
+  targetRefs:
+  - group: ''
+    kind: Service
+    name: missing-service
+    namespace: default
+  validation:
+    caCertificateRefs:
+    - group: ''
+      kind: ConfigMap
+      name: example-ca
+    hostname: www.example.com
+status:
+  ancestors:
+  # The policy genuinely points at a target that does not exist and no
+  # controller in the cluster accepted it. Because no ancestor reports
+  # Accepted: True, this TargetNotFound rejection is a real failure and must
+  # degrade the resource rather than being skipped as another implementation's
+  # entry.
+  - ancestorRef:
+      group: gateway.networking.k8s.io
+      kind: Gateway
+      name: example-gateway
+    conditions:
+    - lastTransitionTime: '2026-04-16T12:20:11Z'
+      message: 'Service "missing-service" not found'
+      observedGeneration: 1
+      reason: TargetNotFound
+      status: 'False'
+      type: Accepted
+    controllerName: example.com/gatewayclass-controller
