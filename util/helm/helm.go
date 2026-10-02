@@ -29,6 +29,7 @@ type HelmRepository struct {
 	Repo                 string
 	EnableOci            bool
 	InsecureOCIForceHttp bool
+	Insecure             bool
 }
 
 // Helm provides wrapper functionality around the `helm` command.
@@ -115,14 +116,17 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 	// Please note that the fact we logged in earlier to each dependent repo with it's own InsecureOCIForceHttp either enabled or disabled
 	// is unrelated to how we perform helm dependency build, which does not have an option to set --plain-http per repo
 	plainHTTP := false
+	insecure := h.insecure
 	for i := range h.repos {
 		if h.repos[i].InsecureOCIForceHttp {
 			plainHTTP = true
-			break
+		}
+		if h.repos[i].Insecure {
+			insecure = true
 		}
 	}
 	h.repos = nil
-	_, err := h.cmd.dependencyBuild(h.insecure, plainHTTP)
+	_, err := h.cmd.dependencyBuild(insecure, plainHTTP)
 	if err != nil {
 		return fmt.Errorf("failed to build helm dependencies: %w", err)
 	}

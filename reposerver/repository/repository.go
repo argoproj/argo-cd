@@ -1180,12 +1180,13 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 						repo.UseAzureWorkloadIdentity = cred.UseAzureWorkloadIdentity
 						repo.EnableOCI = true
 						repo.InsecureOCIForceHttp = cred.InsecureOCIForceHttp
+						repo.Insecure = cred.Insecure
 						break
 					}
 				}
 			}
 		}
-		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds(), EnableOci: repo.EnableOCI || repo.Type == "oci", InsecureOCIForceHttp: repo.InsecureOCIForceHttp})
+		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds(), EnableOci: repo.EnableOCI || repo.Type == "oci", InsecureOCIForceHttp: repo.InsecureOCIForceHttp, Insecure: repo.Insecure})
 	}
 	return repos, nil
 }
