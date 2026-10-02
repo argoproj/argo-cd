@@ -1204,11 +1204,10 @@ describe('favorites', () => {
 });
 
 describe('formatCreationTimestamp', () => {
-    it('renders the absolute timestamp and a self-updating relative time element', () => {
+    it('renders the absolute timestamp and a relative fromNow string', () => {
         const html = renderMarkup(formatCreationTimestamp('2020-06-15T12:00:00Z') as React.ReactElement);
         expect(html).toMatch(/2020/);
-        expect(html).toContain('<time');
-        expect(html).toMatch(/dateTime=/i);
         expect(html).toMatch(/ago/i);
+        expect(html).not.toContain('<time');
     });
 });
