@@ -23,7 +23,9 @@ import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {ViewTypeSwitcher} from './view-type-switcher';
 import {
     appsLayoutKey,
+    bidirectionalOverscanIndicesGetter,
     computeColumnsPerRow,
+    computeOverscanRowCount,
     getTableRowHeight,
     shouldUseVirtualScroll,
     TABLE_OVERSCAN_ROW_COUNT,
@@ -506,8 +508,8 @@ export const ApplicationSetTable = ({
                                                         rowCount={appSets.length}
                                                         rowHeight={getRowHeight}
                                                         rowRenderer={rowRenderer}
-                                                        overscanRowCount={TABLE_OVERSCAN_ROW_COUNT}
-                                                        scrollingResetTimeInterval={150}
+                                                        overscanRowCount={computeOverscanRowCount(height, TABLE_ROW_HEIGHT, TABLE_OVERSCAN_ROW_COUNT)}
+                                                        overscanIndicesGetter={bidirectionalOverscanIndicesGetter}
                                                     />
                                                 )}
                                             </AutoSizer>

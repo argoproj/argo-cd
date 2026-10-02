@@ -447,6 +447,68 @@ func TestWebhookHandlerRejectsRequests(t *testing.T) {
 	}
 }
 
+// TestParserOptionsParity makes sure every webhook event the Argo CD API server
+// handles is also handled by the ApplicationSet webhook, so a provider added to one
+// handler is not silently missing from the other.
+func TestParserOptionsParity(t *testing.T) {
+	// Providers the Argo CD webhook handles that the ApplicationSet webhook does not
+	// yet. Delete an entry when adding that provider to appSetParserOptions.
+	knownGaps := map[string]bool{
+		"bitbucket":       true,
+		"bitbucketserver": true,
+		"gogs":            true,
+		"harbor":          true,
+		"dockerhub":       true,
+	}
+
+	argocdEvents := parserEvents(webhook.ArgoCDParserOptions())
+	appSetEvents := parserEvents(appSetParserOptions())
+	for event := range argocdEvents {
+		provider, _, _ := strings.Cut(event, ":")
+		if knownGaps[provider] {
+			assert.NotContains(t, appSetEvents, event, "the ApplicationSet webhook handles %s now, remove %q from knownGaps", event, provider)
+			continue
+		}
+		assert.Contains(t, appSetEvents, event, "the Argo CD webhook handles %s but the ApplicationSet webhook does not", event)
+	}
+}
+
+// parserEvents flattens opts into "provider:event" keys, e.g. "github:push".
+func parserEvents(opts webhook.ParserOptions) map[string]bool {
+	events := map[string]bool{}
+	add := func(provider string, event any) {
+		events[fmt.Sprintf("%s:%v", provider, event)] = true
+	}
+	for _, e := range opts.AzureDevOpsEvents {
+		add("azuredevops", e)
+	}
+	for _, e := range opts.GogsEvents {
+		add("gogs", e)
+	}
+	for _, e := range opts.GitHubEvents {
+		add("github", e)
+	}
+	for _, e := range opts.GitLabEvents {
+		add("gitlab", e)
+	}
+	for _, e := range opts.BitbucketEvents {
+		add("bitbucket", e)
+	}
+	for _, e := range opts.BitbucketServerEvents {
+		add("bitbucketserver", e)
+	}
+	if opts.Harbor {
+		add("harbor", "registry")
+	}
+	if opts.GHCR {
+		add("ghcr", "registry")
+	}
+	if opts.DockerHub {
+		add("dockerhub", "registry")
+	}
+	return events
+}
+
 func TestGenRevisionHasChanged(t *testing.T) {
 	t.Parallel()
 	type args struct {
