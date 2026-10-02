@@ -1,0 +1,59 @@
+.pod-debug-viewer {
+    height: 780px;
+
+    .xterm {
+        padding: 10px 20px;
+    }
+}
+
+.pod-debug-viewer__controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 1rem;
+    background: rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    flex-wrap: wrap;
+
+    label {
+        font-size: 12px;
+        font-weight: 600;
+        margin-right: 0.25rem;
+    }
+
+    select {
+        font-size: 13px;
+        padding: 0.25rem 0.5rem;
+        border-radius: 3px;
+        border: 1px solid rgba(0, 0, 0, 0.2);
+    }
+
+    button {
+        font-size: 12px;
+        padding: 0.25rem 0.75rem;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+}
+
+.pod-debug-viewer__tab {
+    cursor: pointer;
+    border-radius: 3px;
+    display: flex;
+    padding: 0.25rem 1rem !important;
+    align-items: center;
+
+    &:hover {
+        background-color: rgba(0, 0, 0, 0.1);
+    }
+}
+
+.theme-light {
+    .pod-debug-viewer__container {
+        .tooltip {
+            background-color: #fff;
+            border-color: #fff;
+            color: #191826;
+        }
+    }
+}

@@ -37,6 +37,10 @@ const PodTerminalViewer = lazyWithBoundary(
     React.lazy(() => import(/* webpackChunkName: "pod-terminal" */ '../pod-terminal-viewer/pod-terminal-viewer').then(m => ({default: m.PodTerminalViewer}))),
     'Failed to load terminal. Please reload and try again.'
 );
+const PodDebugViewer = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "pod-debug" */ '../pod-debug-viewer/pod-debug-viewer').then(m => ({default: m.PodDebugViewer}))),
+    'Failed to load debug terminal. Please reload and try again.'
+);
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -97,7 +101,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         execEnabled: boolean,
         execAllowed: boolean,
         logsAllowed: boolean,
-        controlledState: {summary: models.ResourceStatus; state: models.ResourceDiff} | null
+        controlledState: {summary: models.ResourceStatus; state: models.ResourceDiff} | null,
+        debugEnabled?: boolean,
+        debugAllowed?: boolean,
+        debugImages?: string[]
     ) => {
         if (!node || node === undefined) {
             return [];
@@ -178,6 +185,25 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 selectedNode={selectedNode}
                                 containerName={AppUtils.getContainerName(podState, activeContainer)}
                                 onClickContainer={onClickContainer}
+                            />
+                        )
+                    }
+                ]);
+            }
+            if (selectedNode?.kind === 'Pod' && debugEnabled && debugAllowed) {
+                tabs = tabs.concat([
+                    {
+                        key: 'debug',
+                        icon: 'fa fa-bug',
+                        title: 'Debug',
+                        content: (
+                            <PodDebugViewer
+                                applicationName={application.metadata.name}
+                                applicationNamespace={application.metadata.namespace}
+                                projectName={application.spec.project}
+                                podState={podState}
+                                selectedNode={selectedNode}
+                                debugImages={debugImages || []}
                             />
                         )
                     }
@@ -333,6 +359,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 execEnabled: false,
                                 execAllowed: false,
                                 logsAllowed: false,
+                                debugEnabled: false,
+                                debugAllowed: false,
+                                debugImages: [] as string[],
                                 links: null as models.LinksResponse,
                                 childResources: [] as models.ResourceNode[],
                                 resourceActionsMenuItems: [],
@@ -377,8 +406,16 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 
                         const settings = await services.authService.settings();
                         const execEnabled = settings.execEnabled;
-                        const logsAllowed = await services.accounts.canI('logs', 'get', AppUtils.appRBACName(application));
-                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', AppUtils.appRBACName(application)));
+                        const debugEnabled = settings.debugEnabled;
+                        const appRBACName = application.spec.project + '/' + application.metadata.name;
+                        const logsAllowed = await services.accounts.canI('logs', 'get', appRBACName);
+                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', appRBACName));
+                        // Dropdown = allowlist ∩ RBAC, computed server-side. Per-image canI can't work
+                        // here: the CanI REST path splits the '/' in a debug/<image> action.
+                        const debugImages: string[] = debugEnabled
+                            ? await services.applications.getDebugImages(application.spec.project, application.metadata.name, application.metadata.namespace)
+                            : [];
+                        const debugAllowed = debugEnabled && debugImages.length > 0;
                         const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch((): null => null);
                         const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);
                         return {
@@ -389,6 +426,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             execEnabled,
                             execAllowed,
                             logsAllowed,
+                            debugEnabled,
+                            debugAllowed,
+                            debugImages,
                             links,
                             childResources,
                             resourceActionsMenuItems,
@@ -536,7 +576,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                         data.execEnabled,
                                         data.execAllowed,
                                         data.logsAllowed,
-                                        data.controlledState
+                                        data.controlledState,
+                                        data.debugEnabled,
+                                        data.debugAllowed,
+                                        data.debugImages
                                     )}
                                     selectedTabKey={tab}
                                     onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
