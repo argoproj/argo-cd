@@ -626,11 +626,21 @@ When JWT authentication is configured, Argo CD will:
 
 The claims named above are mapped onto the claims Argo CD uses internally:
 
-| Config          | Mapped to | Used for                                                     |
-| --------------- | --------- | ------------------------------------------------------------ |
-| `usernameClaim` | `sub`     | The RBAC subject, and the username shown by `argocd account get-user-info` |
-| `emailClaim`    | `email`   | The username displayed in the UI and the audit log            |
-| `groupsClaim`   | `groups`  | Group membership, matched against the RBAC `scopes` setting   |
+| Config          | Mapped to | Used for                                                    |
+| --------------- | --------- | ----------------------------------------------------------- |
+| `usernameClaim` | `sub`     | The RBAC subject that `policy.csv` rules match against       |
+| `emailClaim`    | `email`   | The username displayed in the UI and the audit log           |
+| `groupsClaim`   | `groups`  | Group membership, matched against the RBAC `scopes` setting  |
+
+> [!NOTE]
+> The **Username** field in the UI and in `argocd account get-user-info` does not show
+> `usernameClaim`. For any issuer other than Argo CD's own, Argo CD displays the `email` claim
+> when one is present, and only falls back to `sub` when there is no email. So configuring
+> `usernameClaim` and then checking that field will show your email address, which looks like the
+> setting was ignored — it was not. `usernameClaim` sets the RBAC subject, which is what
+> `policy.csv` matches on; verify it there, or in the API server log line that begins
+> `External JWT claim mapping:`. If you want the mapped username displayed instead, leave
+> `emailClaim` unset.
 
 Claims that these settings do not name are passed through as the issuer sent them. In particular,
 leaving `groupsClaim` unset does not disable group membership: a token carrying a `groups` claim
