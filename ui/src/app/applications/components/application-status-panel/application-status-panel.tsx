@@ -379,8 +379,8 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                             <div className='application-status-panel__item-name'>
                                 {visibleApplication.status?.sourceHydrator?.currentOperation?.drySHA && (
                                     <RevisionMetadataPanel
-                                        appName={application.metadata.name}
-                                        appNamespace={application.metadata.namespace}
+                                        appName={visibleApplication.metadata.name}
+                                        appNamespace={visibleApplication.metadata.namespace}
                                         type={''}
                                         revision={visibleApplication.status.sourceHydrator.currentOperation.drySHA}
                                         versionId={visibleVersionId}
@@ -395,7 +395,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                                 title: 'SYNC STATUS',
                                 helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
                             },
-                            () => showMetadataInfo(application.status.sync ? 'SYNC_STATUS_REVISION' : null)
+                            () => showMetadataInfo && showMetadataInfo(application.status.sync ? 'SYNC_STATUS_REVISION' : null)
                         )}
                         <div
                             className={`application-status-panel__item-value${appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''}`}>
@@ -425,8 +425,8 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                                 : visibleApplication.status.sync.revision && !visibleApplication.spec?.source?.chart) && (
                                 <div className='application-status-panel__item-name'>
                                     <RevisionMetadataPanel
-                                        appName={application.metadata.name}
-                                        appNamespace={application.metadata.namespace}
+                                        appName={visibleApplication.metadata.name}
+                                        appNamespace={visibleApplication.metadata.namespace}
                                         type={revisionType}
                                         revision={visibleRevision}
                                         versionId={visibleVersionId}
@@ -447,6 +447,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                                                 ' days since last sync. Click for the status of that sync.'
                                         },
                                         () =>
+                                            showMetadataInfo &&
                                             showMetadataInfo(
                                                 appOperationState.syncResult && (appOperationState.syncResult.revisions || appOperationState.syncResult.revision)
                                                     ? 'OPERATION_STATE_REVISION'
@@ -477,8 +478,8 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                             )}
                             {(visibleAppOperationState.syncResult && visibleOperationStateRevision && (
                                 <RevisionMetadataPanel
-                                    appName={application.metadata.name}
-                                    appNamespace={application.metadata.namespace}
+                                    appName={visibleApplication.metadata.name}
+                                    appNamespace={visibleApplication.metadata.namespace}
                                     type={revisionType}
                                     revision={visibleOperationStateRevision}
                                     versionId={visibleVersionId}
@@ -511,6 +512,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                     )}
                     <DataLoader
                         key={`${visibleApplication.metadata.namespace}/${visibleApplication.metadata.name}/${visibleApplication.spec.project}`}
+                        loadingRenderer={() => null}
                         noLoaderOnInputChange={true}
                         input={{application: visibleApplication, expandCount}}
                         load={async input => {
@@ -538,7 +540,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                     </DataLoader>
                     {showProgressiveSync && <ProgressiveSyncStatus application={visibleApplication} />}
                     {statusExtensions &&
-                        statusExtensions.map(ext => <ext.component key={ext.title} application={application} openFlyout={() => showExtension && showExtension(ext.id)} />)}
+                        statusExtensions.map(ext => <ext.component key={ext.title} application={visibleApplication} openFlyout={() => showExtension && showExtension(ext.id)} />)}
                 </div>
             )}
         </React.Fragment>

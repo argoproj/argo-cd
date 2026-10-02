@@ -152,6 +152,25 @@ describe('ApplicationStatusPanel', () => {
         expect(services.applications.revisionMetadata).toHaveBeenCalledTimes(2);
     });
 
+    it('passes the frozen application to status panel extensions while collapsed', () => {
+        const seen: string[] = [];
+        const Extension = ({application: app}: {application: models.Application}) => {
+            seen.push(app.status.health.status);
+            return null;
+        };
+        (services.extensions.getStatusPanelExtensions as jest.Mock).mockReturnValue([{title: 'ext', id: 'ext', component: Extension}]);
+        const degraded = {...application, status: {...application.status, health: {status: 'Degraded'}}} as unknown as models.Application;
+
+        const {rerender} = render(<ApplicationStatusPanel application={application} collapsed={false} />);
+        rerender(<ApplicationStatusPanel application={application} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={degraded} collapsed={true} />);
+        expect(seen).not.toContain('Degraded');
+
+        rerender(<ApplicationStatusPanel application={degraded} collapsed={false} />);
+        expect(seen).toContain('Degraded');
+        (services.extensions.getStatusPanelExtensions as jest.Mock).mockReturnValue([]);
+    });
+
     it('does not retain the previous sync window state when switching to another application', async () => {
         const syncWindowMock = services.applications.getApplicationSyncWindowState as jest.Mock;
         syncWindowMock.mockClear();
