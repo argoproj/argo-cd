@@ -427,19 +427,15 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         return url.replace('https://', '').replace('oci://', '');
     };
 
-    // Credential templates are always updatable; repos are updatable when they are HTTP/HTTPS (or OCI) git/helm connections not using GitHub App or Azure Service Principal
+    // only connections of git type which are not via GitHub App or Azure Service Principal are updatable
     const isRepoUpdatable = (item: UnifiedRepo) => {
-        if (isTemplate(item)) {
-            return true;
-        }
+        // Only readRepo or writeRepo can be updated (not templates)
         const repo = item.readRepo || item.writeRepo;
-        if (!repo) {
+        if (!repo || isTemplate(item)) {
             return false;
         }
-        if (repo.enableOCI) {
-            return !repo.githubAppID && !repo.azureServicePrincipalClientId;
-        }
-        return isHTTPOrHTTPSUrl(repo.repo) && (getRepoType(item) === 'git' || getRepoType(item) === 'helm') && !repo.githubAppID && !repo.azureServicePrincipalClientId;
+        // Check if it's an updatable repository (HTTP/HTTPS git repo without GitHub App or Azure SP)
+        return isHTTPOrHTTPSUrl(repo.repo) && getRepoType(item) === 'git' && !repo.githubAppID && !repo.azureServicePrincipalClientId;
     };
 
     // Forces a reload of configured repositories, circumventing the cache
@@ -530,33 +526,15 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         }
     };
 
-    // Update an existing repository, or credentials template, for HTTPS connections
+    // Update an existing repository for HTTPS repositories
     const updateHTTPSRepo = async (params: NewHTTPSRepoParams) => {
         try {
-            if (currentRepo && isTemplate(currentRepo)) {
-                const creds = {
-                    url: params.url,
-                    username: params.username,
-                    password: params.password,
-                    bearerToken: params.bearerToken,
-                    tlsClientCertData: params.tlsClientCertData,
-                    tlsClientCertKey: params.tlsClientCertKey,
-                    type: params.type,
-                    proxy: params.proxy,
-                    noProxy: params.noProxy,
-                    enableOCI: params.enableOCI,
-                    insecureOCIForceHttp: params.insecureOCIForceHttp
-                };
-                if (params.write) {
-                    await services.repocreds.updateHTTPSWrite(creds);
-                } else {
-                    await services.repocreds.updateHTTPS(creds);
-                }
-            } else if (params.write) {
+            if (params.write) {
                 await services.repos.updateHTTPSWrite(params);
             } else {
                 await services.repos.updateHTTPS(params);
             }
+            repoLoader.current.reload();
             setDisplayEditPanel(false);
             refreshRepoList(params.url);
         } catch (e) {
