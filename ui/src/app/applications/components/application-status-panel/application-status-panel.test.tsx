@@ -150,6 +150,74 @@ describe('ApplicationStatusPanel', () => {
         await waitFor(() => expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'argocd', 'def456abc789', 0, null));
         expect(services.applications.revisionMetadata).toHaveBeenCalledTimes(2);
     });
+
+    it('does not remount the progressive sync loader on live ownership transitions while collapsed', async () => {
+        (services.applications.listApplicationSets as jest.Mock).mockClear();
+        const withOwner = {
+            ...application,
+            metadata: {...application.metadata, ownerReferences: [{kind: 'ApplicationSet', name: 'demo-appset'}]}
+        } as unknown as models.Application;
+
+        const {rerender} = render(<ApplicationStatusPanel application={withOwner} collapsed={false} />);
+        await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(1));
+
+        rerender(<ApplicationStatusPanel application={withOwner} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={application} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={withOwner} collapsed={true} />);
+        expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not remount the hydrator metadata loader on live hydrator transitions while collapsed', async () => {
+        (services.applications.revisionMetadata as jest.Mock).mockClear();
+        const hydratorApp = {
+            ...application,
+            spec: {...application.spec, sourceHydrator: {drySource: {}, syncSource: {}}},
+            status: {
+                ...application.status,
+                sourceHydrator: {
+                    currentOperation: {
+                        phase: 'Hydrated',
+                        startedAt: '2026-01-01T00:00:00Z',
+                        drySHA: 'dry123',
+                        sourceHydrator: {
+                            drySource: {repoURL: 'https://github.com/org/repo.git', targetRevision: 'main', path: '.'},
+                            syncSource: {targetBranch: 'env/test', path: '.'}
+                        }
+                    }
+                }
+            }
+        } as unknown as models.Application;
+        const withoutOperation = {...hydratorApp, status: {...hydratorApp.status, sourceHydrator: {}}} as unknown as models.Application;
+        const dryCalls = () => (services.applications.revisionMetadata as jest.Mock).mock.calls.filter(call => call[2] === 'dry123').length;
+
+        const {rerender} = render(<ApplicationStatusPanel application={hydratorApp} collapsed={false} />);
+        await waitFor(() => expect(dryCalls()).toBe(1));
+
+        rerender(<ApplicationStatusPanel application={hydratorApp} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={withoutOperation} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={hydratorApp} collapsed={true} />);
+        expect(dryCalls()).toBe(1);
+    });
+
+    it('does not remount the last-sync metadata loader on live operation transitions while collapsed', async () => {
+        (services.applications.revisionMetadata as jest.Mock).mockClear();
+        const opApp = {
+            ...application,
+            status: {
+                ...application.status,
+                operationState: {phase: 'Succeeded', startedAt: '2026-01-01T00:00:00Z', finishedAt: '2026-01-01T00:01:00Z', syncResult: {revision: 'op12345'}}
+            }
+        } as unknown as models.Application;
+        const opCalls = () => (services.applications.revisionMetadata as jest.Mock).mock.calls.filter(call => call[2] === 'op12345').length;
+
+        const {rerender} = render(<ApplicationStatusPanel application={opApp} collapsed={false} />);
+        await waitFor(() => expect(opCalls()).toBe(1));
+
+        rerender(<ApplicationStatusPanel application={opApp} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={application} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={opApp} collapsed={true} />);
+        expect(opCalls()).toBe(1);
+    });
 });
 
 describe('ApplicationSetStatusPanel', () => {
