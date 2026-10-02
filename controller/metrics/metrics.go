@@ -608,7 +608,7 @@ func (s *syncWindowScrape) windows(app *argoappv1.Application) (projectWindows, 
 func (s *syncWindowScrape) buildWindows(app *argoappv1.Application) (projectWindows, error) {
 	proj, err := s.getAppProject(app)
 	if err != nil {
-		return projectWindows{lookupFailed: true}, fmt.Errorf("failed to resolve AppProject %s for applications in namespace %s", proj, app.Namespace)
+		return projectWindows{lookupFailed: true}, fmt.Errorf("failed to resolve AppProject %s for applications in namespace %s: %w", app.Spec.GetProject(), app.Namespace, err)
 	}
 	if proj == nil {
 		// Indistinguishable from a project that configures no windows.
