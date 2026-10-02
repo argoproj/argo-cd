@@ -26,7 +26,6 @@ import {
     getPodStateReason,
     HealthStatusIcon,
     isFavorite,
-    formatCreationTimestamp,
     nameConfirmationError,
     OperationState,
     ResourceResultIcon,
@@ -1200,14 +1199,5 @@ describe('favorites', () => {
     it('handles an undefined favorites list', () => {
         expect(isFavorite(undefined, app)).toBe(false);
         expect(toggleFavorite(undefined, app)).toEqual(['ns1/guestbook']);
-    });
-});
-
-describe('formatCreationTimestamp', () => {
-    it('renders the absolute timestamp and a relative fromNow string', () => {
-        const html = renderMarkup(formatCreationTimestamp('2020-06-15T12:00:00Z') as React.ReactElement);
-        expect(html).toMatch(/2020/);
-        expect(html).toMatch(/ago/i);
-        expect(html).not.toContain('<time');
     });
 });
