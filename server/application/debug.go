@@ -355,13 +355,11 @@ func startDebugProcess(ctx context.Context, k8sClient kubernetes.Interface, name
 	debugContainerName := common.DebugContainerNamePrefix + suffix
 
 	ephemeralContainer := corev1.EphemeralContainer{
-		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
-			Name:                     debugContainerName,
-			Image:                    image,
-			Stdin:                    true,
-			TTY:                      true,
-			TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
-		},
+		Name:                     debugContainerName,
+		Image:                    image,
+		Stdin:                    true,
+		TTY:                      true,
+		TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 	}
 	if targetContainer != "" {
 		ephemeralContainer.TargetContainerName = targetContainer
