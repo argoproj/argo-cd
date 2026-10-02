@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {fireEvent, render, screen, waitFor} from '@testing-library/react';
 import * as models from '../../../shared/models';
+import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
 import {ApplicationStatusPanel} from './application-status-panel';
 import {ApplicationSetStatusPanel} from './appset-status-panel';
@@ -149,6 +150,30 @@ describe('ApplicationStatusPanel', () => {
         rerender(<ApplicationStatusPanel application={appV2} collapsed={false} />);
         await waitFor(() => expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'argocd', 'def456abc789', 0, null));
         expect(services.applications.revisionMetadata).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not retain the previous sync window state when switching to another application', async () => {
+        const syncWindowMock = services.applications.getApplicationSyncWindowState as jest.Mock;
+        syncWindowMock.mockClear();
+        syncWindowMock
+            .mockImplementationOnce(() => Promise.resolve({assignedWindows: [{kind: 'allow', schedule: '* * * * *', duration: '1h'}]}))
+            .mockImplementationOnce(() => new Promise(() => null));
+
+        const withContext = (app: models.Application) => (
+            <Context.Provider value={{baseHref: '/'} as any}>
+                <ApplicationStatusPanel application={app} collapsed={false} />
+            </Context.Provider>
+        );
+        const {rerender} = render(withContext(application));
+        await waitFor(() => expect(screen.getByText('SYNC WINDOWS')).toBeInTheDocument());
+
+        const otherApp = {
+            ...application,
+            metadata: {...application.metadata, name: 'other-app'},
+            spec: {...application.spec, project: 'other-project'}
+        } as unknown as models.Application;
+        rerender(withContext(otherApp));
+        await waitFor(() => expect(screen.queryByText('SYNC WINDOWS')).toBeNull());
     });
 
     it('does not remount the progressive sync loader on live ownership transitions while collapsed', async () => {

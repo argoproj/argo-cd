@@ -36,9 +36,11 @@ $header: 120px;
         position: relative;
     }
 
+    // Anchored at the bottom right: the top of the rightmost section holds its
+    // label, while the bottom of the panel is virtually always empty.
     &__status-panel-toggle {
         position: absolute;
-        top: 6px;
+        bottom: 8px;
         right: 8px;
         z-index: 2;
         width: 24px;
@@ -55,6 +57,11 @@ $header: 120px;
             @include themify($themes) {
                 background-color: themed('background-1');
             }
+        }
+
+        // center within the 34px collapsed bar
+        &--collapsed {
+            bottom: 5px;
         }
     }
 

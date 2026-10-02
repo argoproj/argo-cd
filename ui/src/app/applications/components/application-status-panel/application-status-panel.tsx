@@ -510,6 +510,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                         </div>
                     )}
                     <DataLoader
+                        key={`${visibleApplication.metadata.namespace}/${visibleApplication.metadata.name}/${visibleApplication.spec.project}`}
                         noLoaderOnInputChange={true}
                         input={{application: visibleApplication, expandCount}}
                         load={async input => {

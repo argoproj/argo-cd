@@ -10,7 +10,7 @@ export const RevisionMetadataPanel = (props: {appName: string; appNamespace: str
     if (props.type === 'oci') {
         return (
             <DataLoader
-                key={`${props.revision}/${props.versionId}`}
+                key={`${props.appNamespace}/${props.appName}/${props.revision}/${props.versionId}`}
                 load={() => services.applications.ociMetadata(props.appName, props.appNamespace, props.revision, 0, props.versionId)}
                 errorRenderer={() => <div />}>
                 {m => (
@@ -55,7 +55,7 @@ export const RevisionMetadataPanel = (props: {appName: string; appNamespace: str
     }
     return (
         <DataLoader
-            key={`${props.revision}/${props.versionId}`}
+            key={`${props.appNamespace}/${props.appName}/${props.revision}/${props.versionId}`}
             load={() => services.applications.revisionMetadata(props.appName, props.appNamespace, props.revision, 0, props.versionId)}
             errorRenderer={() => <div />}>
             {m => (
