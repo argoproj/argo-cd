@@ -244,14 +244,19 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
 
     const statusExtensions = services.extensions.getStatusPanelExtensions();
 
-    const revision = getAppDefaultSyncRevision(application);
     const operationStateRevision = getAppDefaultOperationSyncRevision(application);
     const infos = cntByCategory.get('info');
     const warnings = cntByCategory.get('warning');
     const errors = cntByCategory.get('error');
     const source = getAppDefaultSource(application);
-    const hasMultipleSources = application.spec.sources?.length > 0;
-    const revisionType = source?.repoURL?.startsWith('oci://') ? 'oci' : source?.chart ? 'helm' : 'git';
+    // Metadata loader inputs come from the frozen snapshot so hidden loaders do not
+    // remount while collapsed; visible revision text stays live.
+    const visibleSource = getAppDefaultSource(visibleApplication);
+    const visibleRevision = getAppDefaultSyncRevision(visibleApplication);
+    const visibleOperationStateRevision = getAppDefaultOperationSyncRevision(visibleApplication);
+    const visibleVersionId = utils.getAppCurrentVersion(visibleApplication);
+    const visibleHasMultipleSources = visibleApplication.spec.sources?.length > 0;
+    const revisionType = visibleSource?.repoURL?.startsWith('oci://') ? 'oci' : visibleSource?.chart ? 'helm' : 'git';
 
     const conditionSummary = (infos || warnings || errors) && (
         <div className='application-status-panel__collapsed-item application-status-panel__conditions' onClick={() => showConditions && showConditions()}>
@@ -365,13 +370,13 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                                 <div className='application-status-panel__item-name'>{application.status.sourceHydrator.currentOperation.message}</div>
                             )}
                             <div className='application-status-panel__item-name'>
-                                {application.status.sourceHydrator.currentOperation.drySHA && (
+                                {visibleApplication.status?.sourceHydrator?.currentOperation?.drySHA && (
                                     <RevisionMetadataPanel
                                         appName={application.metadata.name}
                                         appNamespace={application.metadata.namespace}
                                         type={''}
-                                        revision={application.status.sourceHydrator.currentOperation.drySHA}
-                                        versionId={utils.getAppCurrentVersion(application)}
+                                        revision={visibleApplication.status.sourceHydrator.currentOperation.drySHA}
+                                        versionId={visibleVersionId}
                                     />
                                 )}
                             </div>
@@ -403,18 +408,21 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                                 ? 'Auto sync is enabled.'
                                 : 'Auto sync is not enabled.'}
                         </div>
-                        {application.status &&
-                            application.status.sync &&
-                            (hasMultipleSources
-                                ? application.status.sync.revisions && application.status.sync.revisions[0] && application.spec.sources && !application.spec.sources[0].chart
-                                : application.status.sync.revision && !application.spec?.source?.chart) && (
+                        {visibleApplication.status &&
+                            visibleApplication.status.sync &&
+                            (visibleHasMultipleSources
+                                ? visibleApplication.status.sync.revisions &&
+                                  visibleApplication.status.sync.revisions[0] &&
+                                  visibleApplication.spec.sources &&
+                                  !visibleApplication.spec.sources[0].chart
+                                : visibleApplication.status.sync.revision && !visibleApplication.spec?.source?.chart) && (
                                 <div className='application-status-panel__item-name'>
                                     <RevisionMetadataPanel
                                         appName={application.metadata.name}
                                         appNamespace={application.metadata.namespace}
                                         type={revisionType}
-                                        revision={revision}
-                                        versionId={utils.getAppCurrentVersion(application)}
+                                        revision={visibleRevision}
+                                        versionId={visibleVersionId}
                                     />
                                 </div>
                             )}
@@ -456,13 +464,13 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                             <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                                 {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
                             </div>
-                            {(appOperationState.syncResult && operationStateRevision && (
+                            {(appOperationState.syncResult && visibleOperationStateRevision && (
                                 <RevisionMetadataPanel
                                     appName={application.metadata.name}
                                     appNamespace={application.metadata.namespace}
                                     type={revisionType}
-                                    revision={operationStateRevision}
-                                    versionId={utils.getAppCurrentVersion(application)}
+                                    revision={visibleOperationStateRevision}
+                                    versionId={visibleVersionId}
                                 />
                             )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
                         </div>

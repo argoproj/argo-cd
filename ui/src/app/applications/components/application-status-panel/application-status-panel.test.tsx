@@ -134,6 +134,22 @@ describe('ApplicationStatusPanel', () => {
         // the revision metadata loaders stay mounted and do not reload
         expect(services.applications.revisionMetadata).toHaveBeenCalledTimes(1);
     });
+
+    it('does not reload revision metadata while collapsed when the revision changes', async () => {
+        (services.applications.revisionMetadata as jest.Mock).mockClear();
+        const appV2 = {...application, status: {...application.status, sync: {status: 'Synced', revision: 'def456abc789'}}} as unknown as models.Application;
+
+        const {rerender} = render(<ApplicationStatusPanel application={application} collapsed={false} />);
+        await waitFor(() => expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'argocd', 'abc123def456', 0, null));
+
+        rerender(<ApplicationStatusPanel application={application} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={appV2} collapsed={true} />);
+        expect(services.applications.revisionMetadata).toHaveBeenCalledTimes(1);
+
+        rerender(<ApplicationStatusPanel application={appV2} collapsed={false} />);
+        await waitFor(() => expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'argocd', 'def456abc789', 0, null));
+        expect(services.applications.revisionMetadata).toHaveBeenCalledTimes(2);
+    });
 });
 
 describe('ApplicationSetStatusPanel', () => {
