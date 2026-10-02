@@ -61,6 +61,7 @@ type Server struct {
 	client                   client.Client
 	repoClientSet            repoapiclient.Clientset
 	appclientset             appclientset.Interface
+	appLister                applisters.ApplicationLister
 	appsetInformer           cache.SharedIndexInformer
 	appsetLister             applisters.ApplicationSetLister
 	appSetBroadcaster        broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent]
@@ -176,6 +177,7 @@ func NewServer(
 	enf *rbac.Enforcer,
 	repoClientSet repoapiclient.Clientset,
 	appclientset appclientset.Interface,
+	appLister applisters.ApplicationLister,
 	appsetInformer cache.SharedIndexInformer,
 	appsetLister applisters.ApplicationSetLister,
 	appSetBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent],
@@ -214,6 +216,7 @@ func NewServer(
 		k8sClient:                kubeclientset,
 		repoClientSet:            repoClientSet,
 		appclientset:             appclientset,
+		appLister:                appLister,
 		appsetInformer:           appsetInformer,
 		appsetLister:             appsetLister,
 		appSetBroadcaster:        appSetBroadcaster,
@@ -510,6 +513,19 @@ func (s *Server) buildApplicationSetTree(a *v1alpha1.ApplicationSet) (*v1alpha1.
 
 	apps := a.Status.Resources
 	for _, app := range apps {
+		// The generated Application may not be in the informer cache yet (e.g. it was just created); in that case createdAt stays unset.
+		var createdAt *metav1.Time
+		namespace := app.Namespace
+		if namespace == "" {
+			namespace = a.Namespace
+		}
+		generatedApp, err := s.appLister.Applications(namespace).Get(app.Name)
+		switch {
+		case err == nil:
+			createdAt = generatedApp.CreationTimestamp.DeepCopy()
+		case !apierrors.IsNotFound(err):
+			log.WithField("applicationset", a.Name).Warnf("failed to get generated Application %s/%s: %v", namespace, app.Name, err)
+		}
 		tree.Nodes = append(tree.Nodes, v1alpha1.ResourceNode{
 			Health:     app.Health,
 			Name:       app.Name,
@@ -518,6 +534,7 @@ func (s *Server) buildApplicationSetTree(a *v1alpha1.ApplicationSet) (*v1alpha1.
 			Kind:       app.Kind,
 			Namespace:  a.Namespace,
 			ParentRefs: parentRefs,
+			CreatedAt:  createdAt,
 		})
 	}
 	tree.Normalize()

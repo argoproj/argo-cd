@@ -33,6 +33,7 @@ let ssoRedirectInProgress = false;
 type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
 
 const applications = React.lazy(() => import(/* webpackChunkName: "applications", webpackPrefetch: true */ './applications').then(m => ({default: m.default.component})));
+const applicationSets = React.lazy(() => import(/* webpackChunkName: "applicationsets", webpackPrefetch: true */ './applicationsets').then(m => ({default: m.default.component})));
 const help = React.lazy(() => import(/* webpackChunkName: "help" */ './help').then(m => ({default: m.default.component})));
 const login = React.lazy(() => import(/* webpackChunkName: "login", webpackPrefetch: true */ './login').then(m => ({default: m.default.component})));
 const resources = React.lazy(() => import(/* webpackChunkName: "resources" */ './resources').then(m => ({default: m.default.component})));
@@ -42,7 +43,7 @@ const userInfo = React.lazy(() => import(/* webpackChunkName: "user-info" */ './
 const routes: Routes = {
     '/login': {component: login as any, noLayout: true},
     '/applications': {component: applications},
-    '/applicationsets': {component: applications},
+    '/applicationsets': {component: applicationSets},
     '/resources': {component: resources},
     '/settings': {component: settings},
     '/user-info': {component: userInfo},

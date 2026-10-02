@@ -35,6 +35,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilglob "github.com/argoproj/argo-cd/v3/util/glob"
+	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/kube"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 	"github.com/argoproj/argo-cd/v3/util/tls"
@@ -94,6 +95,9 @@ func NewCommand() *cobra.Command {
 		hydratorEnabled          bool
 		syncWithReplaceAllowed   bool
 		disableSwaggerUI         bool
+		enableSourceIPLogging    bool
+		trustedProxies           []string
+		clientIPHeader           string
 
 		// ApplicationSet
 		enableNewGitFileGlobbing bool
@@ -226,6 +230,9 @@ func NewCommand() *cobra.Command {
 				contentTypesList = strings.Split(contentTypes, ";")
 			}
 
+			trustedProxyPrefixes, err := grpc_util.ParseTrustedProxies(trustedProxies)
+			errors.CheckError(err)
+
 			argoCDOpts := server.ArgoCDServerOpts{
 				Insecure:                insecure,
 				ListenPort:              listenPort,
@@ -260,6 +267,9 @@ func NewCommand() *cobra.Command {
 				HydratorEnabled:         hydratorEnabled,
 				SyncWithReplaceAllowed:  syncWithReplaceAllowed,
 				DisableSwaggerUI:        disableSwaggerUI,
+				EnableSourceIPLogging:   enableSourceIPLogging,
+				TrustedProxies:          trustedProxyPrefixes,
+				ClientIPHeader:          clientIPHeader,
 			}
 
 			appsetOpts := server.ApplicationSetOpts{
@@ -320,6 +330,9 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&contentTypes, "api-content-types", env.StringFromEnv("ARGOCD_API_CONTENT_TYPES", "application/json", env.StringFromEnvOpts{AllowEmpty: true}), "Semicolon separated list of allowed content types for non GET api requests. Any content type is allowed if empty.")
 	command.Flags().BoolVar(&enableGZip, "enable-gzip", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_GZIP", true), "Enable GZIP compression")
 	command.Flags().BoolVar(&disableSwaggerUI, "disable-swagger-ui", env.ParseBoolFromEnv("ARGOCD_SERVER_DISABLE_SWAGGER_UI", false), "Disable the Swagger UI (/swagger-ui) endpoint")
+	command.Flags().BoolVar(&enableSourceIPLogging, "enable-source-ip-logging", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_SOURCE_IP_LOGGING", false), "Include the source IP address of the client in API request logs")
+	command.Flags().StringSliceVar(&trustedProxies, "trusted-proxies", env.StringsFromEnv("ARGOCD_SERVER_TRUSTED_PROXIES", []string{}, ","), "CIDRs or addresses of proxies whose X-Forwarded-For entries and --client-ip-header are honoured when logging the source IP")
+	command.Flags().StringVar(&clientIPHeader, "client-ip-header", env.StringFromEnv("ARGOCD_SERVER_CLIENT_IP_HEADER", ""), "Header a trusted proxy sets to the client IP, e.g. CF-Connecting-IP, True-Client-IP or X-Real-IP")
 	command.AddCommand(cli.NewVersionCmd(common.CommandServer))
 	command.Flags().StringVar(&listenHost, "address", env.StringFromEnv("ARGOCD_SERVER_LISTEN_ADDRESS", common.DefaultAddressAPIServer), "Listen on given address")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortAPIServer, "Listen on given port")

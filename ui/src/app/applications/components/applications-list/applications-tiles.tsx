@@ -15,14 +15,17 @@ import {ApplicationTile} from './application-tile';
 import {AppSetTile} from './appset-tile';
 import {
     appsLayoutKey,
+    bidirectionalOverscanIndicesGetter,
     computeColumnWidth,
     computeColumnWidthForIndex,
     computeColumnsPerRow,
+    computeOverscanRowCount,
     shouldUseVirtualScroll,
     TILE_GAP,
     TILE_HEIGHT,
     TILE_MIN_WIDTH,
     TILE_OVERSCAN_ROW_COUNT,
+    TILE_ROW_STRIDE,
     useWindowScrollerPosition
 } from './virtual-scroll';
 
@@ -65,7 +68,7 @@ const useItemsPerContainer = (itemRef: React.RefObject<HTMLDivElement | null>, c
     return itemsPer || 1;
 };
 
-const VirtualizedTilesGrid = ({
+export const VirtualizedTilesGrid = ({
     applications,
     cellCache,
     getRowHeight,
@@ -105,7 +108,9 @@ const VirtualizedTilesGrid = ({
                         return (
                             <CellMeasurer cache={cellCache} columnIndex={columnIndex} key={key} parent={parent} rowIndex={rowIndex}>
                                 <div style={cellStyle} className='applications-tiles__virtual-cell'>
-                                    {renderTile(app, index)}
+                                    <div className='applications-tiles__virtual-content' style={{height: rowIndex < rowCount - 1 ? `calc(100% - ${TILE_GAP}px)` : '100%'}}>
+                                        {renderTile(app, index)}
+                                    </div>
                                 </div>
                             </CellMeasurer>
                         );
@@ -127,8 +132,8 @@ const VirtualizedTilesGrid = ({
                                 rowCount={rowCount}
                                 rowHeight={getRowHeight}
                                 cellRenderer={cellRenderer}
-                                overscanRowCount={TILE_OVERSCAN_ROW_COUNT}
-                                scrollingResetTimeInterval={150}
+                                overscanRowCount={computeOverscanRowCount(height, TILE_ROW_STRIDE, TILE_OVERSCAN_ROW_COUNT)}
+                                overscanIndicesGetter={bidirectionalOverscanIndicesGetter}
                             />
                         </div>
                     );

@@ -710,11 +710,11 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	settings := operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, noRevisionCache: q.NoRevisionCache, allowConcurrent: q.ApplicationSource.AllowsConcurrentProcessing()}
 	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.SourceIntegrity, cacheFn, operation, settings, q.HasMultipleSources, q.RefSources)
 
-	// if the tarDoneCh message is sent it means that the manifest
-	// generation is being managed by the cmp-server. In this case
-	// we have to wait for the responseCh to send the manifest
-	// response.
-	if tarConcluded && res == nil {
+	// If tarDoneCh fired, the cmp-server is generating the manifests and
+	// runManifestGenAsync will send exactly one more message, on responseCh
+	// or errCh. Always receive it, even if res is already set: cacheFn may
+	// have stored a stale cached response in res.
+	if tarConcluded {
 		select {
 		case resp := <-promise.responseCh:
 			res = resp
@@ -3576,13 +3576,18 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 	// No changes detected, update the cache using resolved revisions
 	err := s.updateCachedRevision(logCtx, sRevision, rRevision, request, oldRepoRefs, newRepoRefs)
 	if err != nil {
-		if !errors.Is(err, cache.ErrCacheMiss) {
-			// Only warn with the error, no need to block anything if there is a caching error.
+		// Path filtering already established that no relevant files changed. A cache
+		// rename failure (miss, Redis unreachable, etc.) must not flip Changes to true,
+		// or automated sync will treat the revision advance as an application change
+		// and sync unrelated sibling apps in a mono-repo (issue #29430).
+		if errors.Is(err, cache.ErrCacheMiss) {
+			logCtx.Info("manifest cache miss while moving manifests cache to the new revision")
+		} else {
 			logCtx.Warnf("error updating cached revision for source %s with revision %s: %v", request.ApplicationSource.RepoURL, rRevision, err)
 		}
 		return &apiclient.UpdateRevisionForPathsResponse{
 			Revision: rRevision,
-			Changes:  true,
+			Changes:  false,
 		}, nil
 	}
 
@@ -3608,7 +3613,6 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 	err := s.cache.SetNewRevisionManifests(oldKey, newKey)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
-			logCtx.Info("manifest cache miss while moving manifests cache to the new revision")
 			return fmt.Errorf("manifest cache miss during comparison for application %s in repo %s from revision %s: %w", request.AppName, request.GetRepo().Repo, oldRev, cache.ErrCacheMiss)
 		}
 		return fmt.Errorf("manifest cache move error for %s: %w", request.AppName, err)
