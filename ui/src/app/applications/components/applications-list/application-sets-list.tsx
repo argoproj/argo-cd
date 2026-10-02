@@ -492,7 +492,7 @@ export const ApplicationSetTable = ({
                             };
 
                             return (
-                                <div className='applications-table argo-table-list argo-table-list--clickable' role='list'>
+                                <div className='applications-table argo-table-list argo-table-list--clickable'>
                                     <WindowScroller ref={windowScrollerRef} updateScrollTopOnUpdatePosition={true}>
                                         {({height, isScrolling, onChildScroll, scrollTop}) => (
                                             <AutoSizer disableHeight={true}>
