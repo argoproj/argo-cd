@@ -147,7 +147,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 						if len(clusterOpts.Namespaces) > 0 {
 							accessLevel = "namespace"
 						}
-						message := fmt.Sprintf("WARNING: This will create a service account `argocd-manager` on the cluster referenced by context `%s` with full %s level privileges. Do you want to continue [y/N]? ", contextName, accessLevel)
+						message := fmt.Sprintf("WARNING: This will create a service account `argocd-manager` on the cluster referenced by context `%q` with full %s level privileges. Do you want to continue [y/N]? ", contextName, accessLevel)
 						if !cli.AskToProceed(message) {
 							os.Exit(1)
 						}
