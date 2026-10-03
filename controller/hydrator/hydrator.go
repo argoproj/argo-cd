@@ -16,11 +16,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	corev1 "k8s.io/api/core/v1"
+
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
+	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/hydrator"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -67,6 +70,9 @@ type Dependencies interface {
 
 	// PersistHydrationStatus persists the application status for the source hydrator.
 	PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
+
+	// LogHydrationPhaseEvent logs a Kubernetes event for the current hydration phase.
+	LogHydrationPhaseEvent(ctx context.Context, app *appv1.Application, eventInfo argo.EventInfo, message string)
 
 	// RemoveHydrationAnnotations removes the hydrate and hydrate-timestamp annotations.
 	RemoveHydrationAnnotations(orig *appv1.Application)
@@ -293,6 +299,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 			HydratedSHA:    hydratedSHA,
 			SourceHydrator: app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
 		}
+		h.dependencies.LogHydrationPhaseEvent(ctx, app, argo.EventInfo{Reason: argo.EventReasonHydrationCompleted, Type: corev1.EventTypeNormal}, "Hydration completed")
 		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 		h.dependencies.RemoveHydrationAnnotations(origApp)
 
@@ -329,6 +336,7 @@ func (h *Hydrator) markAppsHydrating(apps []*appv1.Application) {
 			Phase:          appv1.HydrateOperationPhaseHydrating,
 			SourceHydrator: *app.Spec.SourceHydrator,
 		}
+		h.dependencies.LogHydrationPhaseEvent(context.Background(), app, argo.EventInfo{Reason: argo.EventReasonHydrationStarted, Type: corev1.EventTypeNormal}, "Hydration started")
 		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 	}
 }
@@ -342,6 +350,7 @@ func (h *Hydrator) setAppHydratorError(app *appv1.Application, err error) {
 	failedAt := metav1.Now()
 	app.Status.SourceHydrator.CurrentOperation.FinishedAt = &failedAt
 	app.Status.SourceHydrator.CurrentOperation.Message = fmt.Sprintf("Failed to hydrate: %v", err.Error())
+	h.dependencies.LogHydrationPhaseEvent(context.Background(), app, argo.EventInfo{Reason: argo.EventReasonHydrationFailed, Type: corev1.EventTypeWarning}, app.Status.SourceHydrator.CurrentOperation.Message)
 	h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 }
 
