@@ -1,12 +1,21 @@
 package db
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
+	"math/big"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -374,6 +383,109 @@ func TestListCertificateSSHUnparseableKey(t *testing.T) {
 	require.Len(t, certList.Items, 1)
 	assert.Equal(t, "foo.example.com", certList.Items[0].ServerName)
 	assert.Empty(t, certList.Items[0].CertInfo)
+}
+
+func TestGetRepoCertificates(t *testing.T) {
+	t.Parallel()
+	clientset := getCertClientset()
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+
+	tests := []struct {
+		name          string
+		serverName    string
+		certType      string
+		certSubType   string
+		expectedCount int
+	}{
+		{name: "all types of a server", serverName: "gitlab.com", expectedCount: 4},
+		{name: "SSH entries only", serverName: "gitlab.com", certType: "ssh", expectedCount: 3},
+		{name: "SSH entries of a sub type", serverName: "gitlab.com", certType: "ssh", certSubType: "ssh-ed25519", expectedCount: 1},
+		{name: "TLS bundle with multiple certificates", serverName: "test.example.com", certType: "https", expectedCount: 2},
+		// The server name is matched exactly, so glob characters must not match anything.
+		{name: "glob pattern is not expanded", serverName: "*", expectedCount: 0},
+		{name: "unknown server", serverName: "unknown.example.com", expectedCount: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			certList, err := db.GetRepoCertificates(t.Context(), tt.serverName, tt.certType, tt.certSubType)
+			require.NoError(t, err)
+			require.Len(t, certList.Items, tt.expectedCount)
+			for _, entry := range certList.Items {
+				assert.Equal(t, tt.serverName, entry.ServerName)
+				assert.NotEmpty(t, entry.CertData, "missing data for %s entry of %s", entry.CertType, entry.ServerName)
+				assert.NotEmpty(t, entry.CertInfo, "missing info for %s entry of %s", entry.CertType, entry.ServerName)
+			}
+		})
+	}
+}
+
+// newECDSACertPEM returns a self-signed ECDSA certificate for commonName in PEM format.
+func newECDSACertPEM(t *testing.T, commonName string) string {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: commonName},
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().Add(time.Hour),
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	require.NoError(t, err)
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}))
+}
+
+// The sub type of a TLS certificate is its public key algorithm, which can
+// differ between the certificates of a single bundle.
+func TestGetRepoCertificatesTLSSubType(t *testing.T) {
+	t.Parallel()
+	clientset := getCertClientset()
+	tlsCM, err := clientset.CoreV1().ConfigMaps(testNamespace).Get(t.Context(), "argocd-tls-certs-cm", metav1.GetOptions{})
+	require.NoError(t, err)
+	tlsCM.Data["mixed.example.com"] = TestTLSValidSingleCert + newECDSACertPEM(t, "mixed.example.com")
+	_, err = clientset.CoreV1().ConfigMaps(testNamespace).Update(t.Context(), tlsCM, metav1.UpdateOptions{})
+	require.NoError(t, err)
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+
+	tests := []struct {
+		certSubType      string
+		expectedSubTypes []string
+	}{
+		{certSubType: "", expectedSubTypes: []string{"rsa", "ecdsa"}},
+		{certSubType: "*", expectedSubTypes: []string{"rsa", "ecdsa"}},
+		{certSubType: "rsa", expectedSubTypes: []string{"rsa"}},
+		{certSubType: "ecdsa", expectedSubTypes: []string{"ecdsa"}},
+		{certSubType: "ed25519", expectedSubTypes: []string{}},
+	}
+	for _, tt := range tests {
+		t.Run("sub type "+tt.certSubType, func(t *testing.T) {
+			t.Parallel()
+			certList, err := db.GetRepoCertificates(t.Context(), "mixed.example.com", "https", tt.certSubType)
+			require.NoError(t, err)
+			subTypes := make([]string, 0, len(certList.Items))
+			for _, entry := range certList.Items {
+				subTypes = append(subTypes, entry.CertSubType)
+			}
+			assert.ElementsMatch(t, tt.expectedSubTypes, subTypes)
+		})
+	}
+}
+
+// The list result is meant to be lightweight, so it must keep leaving out the
+// certificate data that GetRepoCertificates returns.
+func TestListCertificateOmitsCertData(t *testing.T) {
+	t.Parallel()
+	clientset := getCertClientset()
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+
+	certList, err := db.ListRepoCertificates(t.Context(), nil)
+	require.NoError(t, err)
+	require.NotEmpty(t, certList.Items)
+	for _, entry := range certList.Items {
+		assert.Empty(t, entry.CertData, "unexpected data for %s entry of %s", entry.CertType, entry.ServerName)
+	}
 }
 
 // CreateRepoCertificate reports the fingerprint of the entries it created, and

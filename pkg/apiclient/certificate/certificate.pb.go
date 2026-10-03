@@ -158,6 +158,73 @@ func (m *RepositoryCertificateCreateRequest) GetUpsert() bool {
 	return false
 }
 
+// Message to get the configured repository certificates of a single server
+type RepositoryCertificateGetRequest struct {
+	// The exact name of the server (not a pattern) the certificates are configured for
+	ServerName string `protobuf:"bytes,1,opt,name=serverName,proto3" json:"serverName,omitempty"`
+	// The type of the certificates to get (ssh or https)
+	CertType string `protobuf:"bytes,2,opt,name=certType,proto3" json:"certType,omitempty"`
+	// The sub type of the certificates to get (protocol dependent, usually only used for ssh certs)
+	CertSubType          string   `protobuf:"bytes,3,opt,name=certSubType,proto3" json:"certSubType,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *RepositoryCertificateGetRequest) Reset()         { *m = RepositoryCertificateGetRequest{} }
+func (m *RepositoryCertificateGetRequest) String() string { return proto.CompactTextString(m) }
+func (*RepositoryCertificateGetRequest) ProtoMessage()    {}
+func (*RepositoryCertificateGetRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_387c41efc0710f00, []int{2}
+}
+func (m *RepositoryCertificateGetRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *RepositoryCertificateGetRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_RepositoryCertificateGetRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *RepositoryCertificateGetRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_RepositoryCertificateGetRequest.Merge(m, src)
+}
+func (m *RepositoryCertificateGetRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *RepositoryCertificateGetRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_RepositoryCertificateGetRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_RepositoryCertificateGetRequest proto.InternalMessageInfo
+
+func (m *RepositoryCertificateGetRequest) GetServerName() string {
+	if m != nil {
+		return m.ServerName
+	}
+	return ""
+}
+
+func (m *RepositoryCertificateGetRequest) GetCertType() string {
+	if m != nil {
+		return m.CertType
+	}
+	return ""
+}
+
+func (m *RepositoryCertificateGetRequest) GetCertSubType() string {
+	if m != nil {
+		return m.CertSubType
+	}
+	return ""
+}
+
 type RepositoryCertificateResponse struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -168,7 +235,7 @@ func (m *RepositoryCertificateResponse) Reset()         { *m = RepositoryCertifi
 func (m *RepositoryCertificateResponse) String() string { return proto.CompactTextString(m) }
 func (*RepositoryCertificateResponse) ProtoMessage()    {}
 func (*RepositoryCertificateResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_387c41efc0710f00, []int{2}
+	return fileDescriptor_387c41efc0710f00, []int{3}
 }
 func (m *RepositoryCertificateResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -200,6 +267,7 @@ var xxx_messageInfo_RepositoryCertificateResponse proto.InternalMessageInfo
 func init() {
 	proto.RegisterType((*RepositoryCertificateQuery)(nil), "certificate.RepositoryCertificateQuery")
 	proto.RegisterType((*RepositoryCertificateCreateRequest)(nil), "certificate.RepositoryCertificateCreateRequest")
+	proto.RegisterType((*RepositoryCertificateGetRequest)(nil), "certificate.RepositoryCertificateGetRequest")
 	proto.RegisterType((*RepositoryCertificateResponse)(nil), "certificate.RepositoryCertificateResponse")
 }
 
@@ -208,35 +276,39 @@ func init() {
 }
 
 var fileDescriptor_387c41efc0710f00 = []byte{
-	// 445 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x54, 0xcf, 0x6a, 0x14, 0x31,
-	0x18, 0x27, 0x55, 0x4a, 0x4d, 0x05, 0x6d, 0x90, 0x52, 0x86, 0xba, 0x96, 0xa1, 0x60, 0x29, 0x98,
-	0xb0, 0xdd, 0x8b, 0x78, 0x74, 0xc5, 0x53, 0x11, 0x9d, 0x0a, 0x82, 0x17, 0xc9, 0xce, 0x7e, 0xce,
-	0xc6, 0xce, 0x26, 0x31, 0xf9, 0x66, 0x60, 0xf1, 0x26, 0xbe, 0x81, 0x6f, 0xa2, 0x27, 0xdf, 0x40,
-	0xf1, 0x22, 0xf8, 0x02, 0xb2, 0xf8, 0x20, 0x32, 0x59, 0xd7, 0xcd, 0xc8, 0x88, 0x5e, 0x16, 0xbc,
-	0x7d, 0xf9, 0x92, 0x7c, 0xbf, 0x7f, 0x21, 0xf4, 0xd0, 0x83, 0xab, 0xc1, 0x89, 0x1c, 0x1c, 0xaa,
-	0xe7, 0x2a, 0x97, 0x08, 0x71, 0xcd, 0xad, 0x33, 0x68, 0xd8, 0x76, 0xd4, 0x4a, 0xf6, 0x0b, 0x63,
-	0x8a, 0x12, 0x84, 0xb4, 0x4a, 0x48, 0xad, 0x0d, 0x4a, 0x54, 0x46, 0xfb, 0xc5, 0xd1, 0xe4, 0xb4,
-	0x50, 0x38, 0xa9, 0x46, 0x3c, 0x37, 0x53, 0x21, 0x5d, 0x61, 0xac, 0x33, 0x2f, 0x42, 0x71, 0x2b,
-	0x1f, 0x8b, 0x7a, 0x20, 0xec, 0x79, 0xd1, 0xdc, 0xf4, 0x42, 0x5a, 0x5b, 0x36, 0x03, 0x95, 0xd1,
-	0xa2, 0xee, 0xcb, 0xd2, 0x4e, 0x64, 0x5f, 0x14, 0xa0, 0xc1, 0x49, 0x84, 0xf1, 0x62, 0x5a, 0xfa,
-	0x86, 0xd0, 0x24, 0x03, 0x6b, 0xbc, 0x42, 0xe3, 0x66, 0xc3, 0x15, 0x8b, 0x47, 0x15, 0xb8, 0x19,
-	0x3b, 0xa2, 0x57, 0x26, 0xc6, 0xe3, 0x03, 0x39, 0x85, 0x87, 0x12, 0x11, 0x9c, 0xde, 0x23, 0x07,
-	0xe4, 0xe8, 0x52, 0xf6, 0x7b, 0x9b, 0x25, 0x74, 0xab, 0xd1, 0xf0, 0x78, 0x66, 0x61, 0x6f, 0x23,
-	0x1c, 0xf9, 0xb5, 0x66, 0x07, 0x34, 0xe8, 0x3b, 0xab, 0x46, 0x61, 0xfb, 0x42, 0xd8, 0x8e, 0x5b,
-	0xe9, 0x07, 0x42, 0xd3, 0x4e, 0x1a, 0x43, 0x07, 0x12, 0x21, 0x83, 0x97, 0x15, 0x78, 0x64, 0xaf,
-	0xe8, 0xe5, 0xc8, 0x28, 0x1f, 0xb8, 0x6c, 0x9f, 0x3c, 0xe1, 0x2b, 0x4b, 0xf8, 0xd2, 0x92, 0x50,
-	0x3c, 0xcb, 0xc7, 0xbc, 0x1e, 0x70, 0x7b, 0x5e, 0xf0, 0xc6, 0x12, 0x1e, 0x59, 0xc2, 0x97, 0x96,
-	0xf0, 0x4e, 0xdc, 0x53, 0xe5, 0x31, 0x6b, 0x81, 0xb1, 0x5d, 0xba, 0x59, 0x59, 0x0f, 0x0e, 0x83,
-	0xbe, 0xad, 0xec, 0xe7, 0x2a, 0xbd, 0x41, 0xaf, 0x77, 0x8e, 0xc8, 0xc0, 0x5b, 0xa3, 0x3d, 0x9c,
-	0x7c, 0xbe, 0x48, 0x59, 0xd4, 0x3f, 0x03, 0x57, 0xab, 0x1c, 0xd8, 0x3b, 0x42, 0xaf, 0x36, 0x30,
-	0xc3, 0x18, 0xe4, 0x26, 0x8f, 0x1f, 0xc7, 0x9f, 0x93, 0x49, 0xd6, 0x25, 0x3a, 0xdd, 0x7f, 0xfd,
-	0xf5, 0xfb, 0xdb, 0x8d, 0x5d, 0x76, 0x2d, 0xbc, 0xbf, 0xba, 0x2f, 0x5a, 0x26, 0x7c, 0x22, 0x74,
-	0x67, 0x91, 0x49, 0x74, 0x8f, 0x89, 0xbf, 0xb3, 0x6e, 0x05, 0xb9, 0x3e, 0xf6, 0xc7, 0x81, 0xfd,
-	0x61, 0xda, 0xc9, 0xfe, 0x4e, 0x3b, 0xd0, 0xf7, 0x84, 0xee, 0xdc, 0x83, 0x12, 0xda, 0x5a, 0xfe,
-	0x9b, 0x04, 0x8e, 0x3b, 0x35, 0xdc, 0xbd, 0xff, 0x71, 0xde, 0x23, 0x5f, 0xe6, 0x3d, 0xf2, 0x6d,
-	0xde, 0x23, 0x4f, 0x6f, 0xff, 0xdb, 0x6f, 0x90, 0x97, 0x0a, 0x34, 0xc6, 0x83, 0x46, 0x9b, 0xe1,
-	0x03, 0x18, 0xfc, 0x18, 0x00, 0xaf, 0x4d, 0x4a, 0x41, 0xa1, 0x04, 0x00, 0x00,
+	// 510 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x94, 0xd1, 0x6a, 0x14, 0x3d,
+	0x14, 0xc7, 0x49, 0x3f, 0x58, 0xfa, 0xa5, 0xa2, 0x36, 0x48, 0x29, 0x4b, 0xdd, 0x96, 0xa1, 0x60,
+	0xad, 0x9a, 0xb0, 0xdd, 0x1b, 0xf1, 0xd2, 0x15, 0x7b, 0x53, 0x44, 0xa7, 0x82, 0xe0, 0x8d, 0x64,
+	0x67, 0x8f, 0xb3, 0xb1, 0xd3, 0x49, 0x4c, 0xce, 0x0c, 0x2c, 0x45, 0x04, 0xf1, 0x0d, 0xbc, 0xf1,
+	0x39, 0xf4, 0xca, 0x37, 0x50, 0xaf, 0x04, 0x5f, 0x40, 0x16, 0x1f, 0x44, 0x26, 0xdb, 0x75, 0x33,
+	0x32, 0x52, 0x41, 0x16, 0xbc, 0xcb, 0x9c, 0x64, 0x4e, 0xfe, 0xbf, 0xff, 0x39, 0x27, 0x74, 0xdb,
+	0x81, 0x2d, 0xc1, 0x8a, 0x04, 0x2c, 0xaa, 0xa7, 0x2a, 0x91, 0x08, 0xe1, 0x9a, 0x1b, 0xab, 0x51,
+	0xb3, 0x95, 0x20, 0xd4, 0xde, 0x48, 0xb5, 0x4e, 0x33, 0x10, 0xd2, 0x28, 0x21, 0xf3, 0x5c, 0xa3,
+	0x44, 0xa5, 0x73, 0x37, 0x3d, 0xda, 0x3e, 0x48, 0x15, 0x8e, 0x8a, 0x01, 0x4f, 0xf4, 0xb1, 0x90,
+	0x36, 0xd5, 0xc6, 0xea, 0x67, 0x7e, 0x71, 0x23, 0x19, 0x8a, 0xb2, 0x27, 0xcc, 0x51, 0x5a, 0xfd,
+	0xe9, 0x84, 0x34, 0x26, 0xab, 0x12, 0x2a, 0x9d, 0x8b, 0xb2, 0x2b, 0x33, 0x33, 0x92, 0x5d, 0x91,
+	0x42, 0x0e, 0x56, 0x22, 0x0c, 0xa7, 0xd9, 0xa2, 0xd7, 0x84, 0xb6, 0x63, 0x30, 0xda, 0x29, 0xd4,
+	0x76, 0xdc, 0x9f, 0xab, 0x78, 0x50, 0x80, 0x1d, 0xb3, 0x1d, 0x7a, 0x61, 0xa4, 0x1d, 0xde, 0x93,
+	0xc7, 0x70, 0x5f, 0x22, 0x82, 0xcd, 0xd7, 0xc9, 0x16, 0xd9, 0xf9, 0x3f, 0xfe, 0x35, 0xcc, 0xda,
+	0x74, 0xb9, 0x62, 0x78, 0x38, 0x36, 0xb0, 0xbe, 0xe4, 0x8f, 0xfc, 0xfc, 0x66, 0x5b, 0xd4, 0xf3,
+	0x1d, 0x16, 0x03, 0xbf, 0xfd, 0x9f, 0xdf, 0x0e, 0x43, 0xd1, 0x07, 0x42, 0xa3, 0x46, 0x19, 0x7d,
+	0x0b, 0x12, 0x21, 0x86, 0xe7, 0x05, 0x38, 0x64, 0x27, 0xf4, 0x5c, 0x60, 0x94, 0xf3, 0x5a, 0x56,
+	0xf6, 0x1e, 0xf1, 0xb9, 0x25, 0x7c, 0x66, 0x89, 0x5f, 0x3c, 0x49, 0x86, 0xbc, 0xec, 0x71, 0x73,
+	0x94, 0xf2, 0xca, 0x12, 0x1e, 0x58, 0xc2, 0x67, 0x96, 0xf0, 0xc6, 0x7b, 0x0f, 0x94, 0xc3, 0xb8,
+	0x76, 0x19, 0x5b, 0xa3, 0xad, 0xc2, 0x38, 0xb0, 0xe8, 0xf9, 0x96, 0xe3, 0xd3, 0xaf, 0xe8, 0x25,
+	0xdd, 0x6c, 0x4c, 0xb1, 0x0f, 0x38, 0xd3, 0xdd, 0xa1, 0x74, 0xda, 0x06, 0x95, 0x63, 0xa7, 0x0e,
+	0x06, 0x91, 0xbf, 0x34, 0x6f, 0x93, 0x5e, 0x6e, 0x14, 0x10, 0x83, 0x33, 0x3a, 0x77, 0xb0, 0xf7,
+	0xb6, 0x45, 0x59, 0x10, 0x3f, 0x04, 0x5b, 0xaa, 0x04, 0xd8, 0x3b, 0x42, 0x2f, 0x56, 0x9c, 0xfd,
+	0x90, 0xf2, 0x0a, 0x0f, 0xbb, 0xf3, 0xf7, 0xad, 0xd1, 0x5e, 0x94, 0xeb, 0xd1, 0xc6, 0xab, 0xaf,
+	0xdf, 0xdf, 0x2c, 0xad, 0xb1, 0x4b, 0x7e, 0x00, 0xca, 0xae, 0xa8, 0x55, 0xe1, 0x33, 0xa1, 0xe7,
+	0xf7, 0x21, 0xd4, 0xcc, 0xae, 0x9f, 0x2d, 0x79, 0x5e, 0x8b, 0xc5, 0xe9, 0xee, 0x7a, 0xdd, 0xd7,
+	0xd8, 0xd5, 0x26, 0xdd, 0xe2, 0x64, 0x5e, 0xee, 0x17, 0x62, 0x08, 0x28, 0x55, 0xe6, 0xd8, 0x27,
+	0x42, 0x57, 0xa7, 0x1d, 0x1e, 0xf2, 0x88, 0xb3, 0x79, 0x6a, 0x63, 0xb1, 0x38, 0xa4, 0x5d, 0x8f,
+	0xb4, 0x1d, 0x35, 0x96, 0xe2, 0x56, 0x7d, 0x3c, 0xde, 0x13, 0xba, 0x7a, 0x07, 0x32, 0xa8, 0xb3,
+	0xfc, 0x33, 0xed, 0xb4, 0xdb, 0xc8, 0x70, 0xfb, 0xee, 0xc7, 0x49, 0x87, 0x7c, 0x99, 0x74, 0xc8,
+	0xb7, 0x49, 0x87, 0x3c, 0xbe, 0xf9, 0x67, 0x6f, 0x6b, 0x92, 0x29, 0xc8, 0x31, 0x4c, 0x34, 0x68,
+	0xf9, 0xe7, 0xb4, 0xf7, 0x63, 0x00, 0xdc, 0x45, 0x19, 0x29, 0xef, 0x05, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -253,6 +325,8 @@ const _ = grpc.SupportPackageIsVersion4
 type CertificateServiceClient interface {
 	// List all available repository certificates
 	ListCertificates(ctx context.Context, in *RepositoryCertificateQuery, opts ...grpc.CallOption) (*v1alpha1.RepositoryCertificateList, error)
+	// Get the repository certificates of a single server, including the certificate data
+	GetCertificate(ctx context.Context, in *RepositoryCertificateGetRequest, opts ...grpc.CallOption) (*v1alpha1.RepositoryCertificateList, error)
 	// Creates repository certificates on the server
 	CreateCertificate(ctx context.Context, in *RepositoryCertificateCreateRequest, opts ...grpc.CallOption) (*v1alpha1.RepositoryCertificateList, error)
 	// Delete the certificates that match the RepositoryCertificateQuery
@@ -270,6 +344,15 @@ func NewCertificateServiceClient(cc *grpc.ClientConn) CertificateServiceClient {
 func (c *certificateServiceClient) ListCertificates(ctx context.Context, in *RepositoryCertificateQuery, opts ...grpc.CallOption) (*v1alpha1.RepositoryCertificateList, error) {
 	out := new(v1alpha1.RepositoryCertificateList)
 	err := c.cc.Invoke(ctx, "/certificate.CertificateService/ListCertificates", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *certificateServiceClient) GetCertificate(ctx context.Context, in *RepositoryCertificateGetRequest, opts ...grpc.CallOption) (*v1alpha1.RepositoryCertificateList, error) {
+	out := new(v1alpha1.RepositoryCertificateList)
+	err := c.cc.Invoke(ctx, "/certificate.CertificateService/GetCertificate", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -298,6 +381,8 @@ func (c *certificateServiceClient) DeleteCertificate(ctx context.Context, in *Re
 type CertificateServiceServer interface {
 	// List all available repository certificates
 	ListCertificates(context.Context, *RepositoryCertificateQuery) (*v1alpha1.RepositoryCertificateList, error)
+	// Get the repository certificates of a single server, including the certificate data
+	GetCertificate(context.Context, *RepositoryCertificateGetRequest) (*v1alpha1.RepositoryCertificateList, error)
 	// Creates repository certificates on the server
 	CreateCertificate(context.Context, *RepositoryCertificateCreateRequest) (*v1alpha1.RepositoryCertificateList, error)
 	// Delete the certificates that match the RepositoryCertificateQuery
@@ -310,6 +395,9 @@ type UnimplementedCertificateServiceServer struct {
 
 func (*UnimplementedCertificateServiceServer) ListCertificates(ctx context.Context, req *RepositoryCertificateQuery) (*v1alpha1.RepositoryCertificateList, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListCertificates not implemented")
+}
+func (*UnimplementedCertificateServiceServer) GetCertificate(ctx context.Context, req *RepositoryCertificateGetRequest) (*v1alpha1.RepositoryCertificateList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCertificate not implemented")
 }
 func (*UnimplementedCertificateServiceServer) CreateCertificate(ctx context.Context, req *RepositoryCertificateCreateRequest) (*v1alpha1.RepositoryCertificateList, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateCertificate not implemented")
@@ -336,6 +424,24 @@ func _CertificateService_ListCertificates_Handler(srv interface{}, ctx context.C
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(CertificateServiceServer).ListCertificates(ctx, req.(*RepositoryCertificateQuery))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CertificateService_GetCertificate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RepositoryCertificateGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CertificateServiceServer).GetCertificate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/certificate.CertificateService/GetCertificate",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CertificateServiceServer).GetCertificate(ctx, req.(*RepositoryCertificateGetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -383,6 +489,10 @@ var _CertificateService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListCertificates",
 			Handler:    _CertificateService_ListCertificates_Handler,
+		},
+		{
+			MethodName: "GetCertificate",
+			Handler:    _CertificateService_GetCertificate_Handler,
 		},
 		{
 			MethodName: "CreateCertificate",
@@ -494,6 +604,54 @@ func (m *RepositoryCertificateCreateRequest) MarshalToSizedBuffer(dAtA []byte) (
 	return len(dAtA) - i, nil
 }
 
+func (m *RepositoryCertificateGetRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *RepositoryCertificateGetRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *RepositoryCertificateGetRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.CertSubType) > 0 {
+		i -= len(m.CertSubType)
+		copy(dAtA[i:], m.CertSubType)
+		i = encodeVarintCertificate(dAtA, i, uint64(len(m.CertSubType)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.CertType) > 0 {
+		i -= len(m.CertType)
+		copy(dAtA[i:], m.CertType)
+		i = encodeVarintCertificate(dAtA, i, uint64(len(m.CertType)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.ServerName) > 0 {
+		i -= len(m.ServerName)
+		copy(dAtA[i:], m.ServerName)
+		i = encodeVarintCertificate(dAtA, i, uint64(len(m.ServerName)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *RepositoryCertificateResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -568,6 +726,30 @@ func (m *RepositoryCertificateCreateRequest) Size() (n int) {
 	}
 	if m.Upsert {
 		n += 2
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *RepositoryCertificateGetRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ServerName)
+	if l > 0 {
+		n += 1 + l + sovCertificate(uint64(l))
+	}
+	l = len(m.CertType)
+	if l > 0 {
+		n += 1 + l + sovCertificate(uint64(l))
+	}
+	l = len(m.CertSubType)
+	if l > 0 {
+		n += 1 + l + sovCertificate(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -825,6 +1007,153 @@ func (m *RepositoryCertificateCreateRequest) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.Upsert = bool(v != 0)
+		default:
+			iNdEx = preIndex
+			skippy, err := skipCertificate(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthCertificate
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RepositoryCertificateGetRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowCertificate
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RepositoryCertificateGetRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RepositoryCertificateGetRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ServerName", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCertificate
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthCertificate
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCertificate
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ServerName = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CertType", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCertificate
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthCertificate
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCertificate
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.CertType = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CertSubType", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowCertificate
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthCertificate
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCertificate
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.CertSubType = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipCertificate(dAtA[iNdEx:])
