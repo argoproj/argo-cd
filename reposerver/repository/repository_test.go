@@ -564,9 +564,18 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 	require.NoError(t, err)
 	_, err = service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
+	// The 5 Gets are:
+	//   1. resolve the revision of the main source
+	//   2. resolve the revision of the $ref source, for the cache key
+	//   3. look up the manifests in the cache
+	//   4. look up the manifests again (double-checked locking)
+	//   5. resolve the revision of the $ref source again, when runManifestGenAsync checks it out
+	// All of them read from the cache. The OnLsRemote handler above checks that git ls-remote is
+	// never called. Before, call 5 did not happen because the cache key code changed the shared
+	// RefTarget.TargetRevision to the resolved SHA. That mutation is fixed now.
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 2,
-		ExternalGets: 4,
+		ExternalGets: 5,
 	})
 }
 
