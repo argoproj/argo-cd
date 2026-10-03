@@ -645,7 +645,8 @@ func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObje
 //  3. Add — a non-ignored live-only key leaked into the patched target.
 //
 // A field is considered "not ignored" when normalizedTarget == originalTarget
-// for that field (the normalizer left it alone). For live-only keys (pass 2),
+// for that field and normalizedLive matches the value copied from live (the
+// normalizer left it alone on both sides). For live-only keys (pass 2),
 // a key is non-ignored if it exists in normalizedLive (the normalizer did not
 // strip it from live).
 func restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive map[string]any) {
@@ -670,7 +671,11 @@ func restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive
 		// Leaf, type-changed, or missing field.
 		// If normalized == original, the normalizer did not touch this field,
 		// so it is not ignored and should keep the original (target) value.
-		if inNormalized && reflect.DeepEqual(normalizedVal, originalVal) && (!inPatched || !reflect.DeepEqual(patchedVal, originalVal)) {
+		// The normalizer must also have left the live value alone: ignored
+		// items can exist only in live (e.g. list items injected by another
+		// controller), and an atomic list copied from live carries them.
+		liveUntouched := !inPatched || reflect.DeepEqual(normalizedLive[key], patchedVal)
+		if inNormalized && reflect.DeepEqual(normalizedVal, originalVal) && liveUntouched && (!inPatched || !reflect.DeepEqual(patchedVal, originalVal)) {
 			patched[key] = originalVal
 		}
 	}
