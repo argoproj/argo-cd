@@ -169,6 +169,26 @@ func TestParseKustomizeBuildHelmOptions(t *testing.T) {
 	}, built)
 }
 
+func TestGetKustomizeBuildOptions(t *testing.T) {
+	kustomizeOptions := &v1alpha1.KustomizeOptions{
+		BuildOptions: "--global",
+		Versions: []v1alpha1.KustomizeVersion{
+			{
+				Name:         "v1.2.3",
+				BuildOptions: "--version-specific",
+			},
+			{
+				Name: "v2.3.4",
+			},
+		},
+	}
+
+	assert.Equal(t, "--version-specific", getKustomizeBuildOptions(&v1alpha1.ApplicationSourceKustomize{Version: "v1.2.3"}, kustomizeOptions))
+	assert.Equal(t, "--global", getKustomizeBuildOptions(&v1alpha1.ApplicationSourceKustomize{Version: "v2.3.4"}, kustomizeOptions))
+	assert.Equal(t, "--global", getKustomizeBuildOptions(&v1alpha1.ApplicationSourceKustomize{Version: "v9.9.9"}, kustomizeOptions))
+	assert.Empty(t, getKustomizeBuildOptions(&v1alpha1.ApplicationSourceKustomize{Version: "v1.2.3"}, nil))
+}
+
 func TestVersion(t *testing.T) {
 	ver, err := Version()
 	require.NoError(t, err)
