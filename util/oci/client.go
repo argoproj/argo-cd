@@ -82,13 +82,14 @@ type Client interface {
 }
 
 type Creds struct {
-	Username           string
-	Password           string
-	CAPath             string
-	CertData           []byte
-	KeyData            []byte
-	InsecureSkipVerify bool
-	InsecureHTTPOnly   bool
+	Username             string
+	Password             string
+	GCPServiceAccountKey string
+	CAPath               string
+	CertData             []byte
+	KeyData              []byte
+	InsecureSkipVerify   bool
+	InsecureHTTPOnly     bool
 }
 
 type ClientOpts func(c *nativeOCIClient)
@@ -152,12 +153,9 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 		*/
 	}
 	repo.Client = &auth.Client{
-		Client: client,
-		Cache:  nil,
-		Credential: auth.StaticCredential(repo.Reference.Registry, auth.Credential{
-			Username: creds.Username,
-			Password: creds.Password,
-		}),
+		Client:     client,
+		Cache:      nil,
+		Credential: NewCredentialFunc(repo.Reference.Registry, creds),
 	}
 
 	parsed, err := url.Parse(repoURL)
