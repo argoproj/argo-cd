@@ -124,6 +124,9 @@ const ProgressiveSyncStatus = ({application, collapsed}: {application: models.Ap
 
     return (
         <DataLoader
+            // the key unmounts the loader when the owner changes, so a pending request
+            // for the previous owner cannot overwrite the new owner's data
+            key={appSetRef.name}
             // load() only depends on the owner ref name; while collapsed that stable input
             // keeps application watch events from re-firing the cluster-wide list call
             input={collapsed ? appSetRef.name : application}

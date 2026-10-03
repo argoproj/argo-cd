@@ -282,6 +282,26 @@ describe('ApplicationStatusPanel', () => {
 
         afterEach(() => (services.applications.listApplicationSets as jest.Mock).mockResolvedValue({items: []}));
 
+        it('ignores a stale pending load after the ApplicationSet owner changes', async () => {
+            const resolvers: Array<(value: object) => void> = [];
+            (services.applications.listApplicationSets as jest.Mock).mockImplementation(() => new Promise(resolve => resolvers.push(resolve)));
+            const ownedBy = (name: string) =>
+                ({...application, metadata: {...application.metadata, ownerReferences: [{kind: 'ApplicationSet', name}]}} as unknown as models.Application);
+            const itemsFor = (name: string, status: string) => ({
+                items: [{metadata: {name}, spec: {strategy: {type: 'RollingSync'}}, status: {applicationStatus: [{application: 'test-app', status}]}}]
+            });
+
+            const {rerender} = render(<ApplicationStatusPanel application={ownedBy('appset-a')} collapsed={true} />);
+            rerender(<ApplicationStatusPanel application={ownedBy('appset-b')} collapsed={true} />);
+            await waitFor(() => expect(resolvers.length).toBe(2));
+
+            // the new owner's request resolves first; the stale one afterwards
+            await act(async () => resolvers[1](itemsFor('appset-b', 'Progressing')));
+            await waitFor(() => expect(screen.getByTitle('Progressive Sync')).toHaveTextContent('Progressing'));
+            await act(async () => resolvers[0](itemsFor('appset-a', 'Healthy')));
+            expect(screen.getByTitle('Progressive Sync')).toHaveTextContent('Progressing');
+        });
+
         it('shows the progressive sync status while collapsed', async () => {
             (services.applications.listApplicationSets as jest.Mock).mockResolvedValue(
                 appSetWith({status: {applicationStatus: [{application: 'test-app', status: 'Progressing', step: 1}]}})
