@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	hydratortypes "github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/db"
 )
@@ -22,39 +23,49 @@ type ClusterShardingCache interface {
 	UpdateApp(a *v1alpha1.Application)
 	IsManagedCluster(c *v1alpha1.Cluster) bool
 	IsManagedClusterByServer(server string) (managed bool, known bool)
+	IsManagedHydrationKey(key hydratortypes.HydrationQueueKey) bool
 	GetDistribution() map[string]int
 	GetAppDistribution() map[string]int
 	UpdateShard(shard int) bool
+	UpdateShardAndReplicas(shard int, replicas int) bool
 }
 
 type ClusterSharding struct {
-	Shard           int
-	Replicas        int
-	Shards          map[string]int
-	Clusters        map[string]*v1alpha1.Cluster
-	Apps            map[string]*v1alpha1.Application
-	lock            sync.RWMutex
-	getClusterShard DistributionFunction
+	Shard             int
+	Replicas          int
+	Shards            map[string]int
+	Clusters          map[string]*v1alpha1.Cluster
+	Apps              map[string]*v1alpha1.Application
+	lock              sync.RWMutex
+	getClusterShard   DistributionFunction
+	shardingAlgorithm string
 }
 
 func NewClusterSharding(_ db.ArgoDB, shard, replicas int, shardingAlgorithm string) ClusterShardingCache {
 	log.Debugf("Processing clusters from shard %d: Using filter function:  %s", shard, shardingAlgorithm)
 	clusterSharding := &ClusterSharding{
-		Shard:    shard,
-		Replicas: replicas,
-		Shards:   make(map[string]int),
-		Clusters: make(map[string]*v1alpha1.Cluster),
-		Apps:     make(map[string]*v1alpha1.Application),
+		Shard:             shard,
+		Replicas:          replicas,
+		Shards:            make(map[string]int),
+		Clusters:          make(map[string]*v1alpha1.Cluster),
+		Apps:              make(map[string]*v1alpha1.Application),
+		shardingAlgorithm: shardingAlgorithm,
 	}
-	distributionFunction := NoShardingDistributionFunction()
-	if replicas > 1 {
-		log.Debugf("Processing clusters from shard %d: Using filter function:  %s", shard, shardingAlgorithm)
-		distributionFunction = GetDistributionFunction(clusterSharding.getClusterAccessor(), clusterSharding.getAppAccessor(), shardingAlgorithm, replicas)
+	clusterSharding.updateDistributionFunction()
+	return clusterSharding
+}
+
+// updateDistributionFunction rebuilds the cluster distribution function after
+// a controller replica-count change. The caller must hold sharding.lock when
+// invoking it after construction.
+func (sharding *ClusterSharding) updateDistributionFunction() {
+	sharding.getClusterShard = NoShardingDistributionFunction()
+	if sharding.Replicas > 1 {
+		log.Debugf("Processing clusters from shard %d: Using filter function:  %s", sharding.Shard, sharding.shardingAlgorithm)
+		sharding.getClusterShard = GetDistributionFunction(sharding.getClusterAccessor(), sharding.getAppAccessor(), sharding.shardingAlgorithm, sharding.Replicas)
 	} else {
 		log.Info("Processing all cluster shards")
 	}
-	clusterSharding.getClusterShard = distributionFunction
-	return clusterSharding
 }
 
 // IsManagedCluster returns whether or not the cluster should be processed by a given shard.
@@ -77,6 +88,16 @@ func (sharding *ClusterSharding) IsManagedClusterByServer(server string) (bool, 
 		return true, false
 	}
 	return sharding.isManagedShard(server, c.Annotations), true
+}
+
+// IsManagedHydrationKey reports whether this controller owns the hydration
+// group. Every controller computes the same owner from the group key, which
+// prevents per-process workqueue deduplication from scheduling the group on
+// multiple shards.
+func (sharding *ClusterSharding) IsManagedHydrationKey(key hydratortypes.HydrationQueueKey) bool {
+	sharding.lock.RLock()
+	defer sharding.lock.RUnlock()
+	return key.Shard(sharding.Replicas) == sharding.Shard
 }
 
 // isManagedShard reports whether the cluster identified by the given server URL and annotations
@@ -290,13 +311,33 @@ func (sharding *ClusterSharding) GetAppDistribution() map[string]int {
 	return appDistribution
 }
 
-// UpdateShard will update the shard of ClusterSharding when the shard has changed.
+// UpdateShard updates the controller's shard identity.
 func (sharding *ClusterSharding) UpdateShard(shard int) bool {
+	return sharding.updateShardAndReplicas(shard, nil)
+}
+
+// UpdateShardAndReplicas updates both the controller's shard identity and the
+// current controller replica count. Dynamic distribution can change the
+// Deployment size without restarting existing pods, so hydration ownership
+// must use the newly observed replica count on every pod.
+func (sharding *ClusterSharding) UpdateShardAndReplicas(shard int, replicas int) bool {
+	return sharding.updateShardAndReplicas(shard, &replicas)
+}
+
+func (sharding *ClusterSharding) updateShardAndReplicas(shard int, replicas *int) bool {
+	sharding.lock.Lock()
+	defer sharding.lock.Unlock()
+
+	changed := false
 	if shard != sharding.Shard {
-		sharding.lock.RLock()
 		sharding.Shard = shard
-		sharding.lock.RUnlock()
-		return true
+		changed = true
 	}
-	return false
+	if replicas != nil && *replicas != sharding.Replicas {
+		sharding.Replicas = *replicas
+		sharding.updateDistributionFunction()
+		sharding.updateDistribution()
+		changed = true
+	}
+	return changed
 }

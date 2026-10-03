@@ -46,7 +46,8 @@ type Dependencies interface {
 	// permitted by the project.
 	GetProcessableAppProj(app *appv1.Application) (*appv1.AppProject, error)
 
-	// GetProcessableApps returns a list of applications that are processable by the controller.
+	// GetProcessableApps returns all namespace-allowed applications. Hydration
+	// group membership must not be filtered by destination-cluster shard.
 	GetProcessableApps() (*appv1.ApplicationList, error)
 
 	// EvaluateAppRevisionsChanges checks if any source revisions have changes without generating manifests.
@@ -119,11 +120,10 @@ func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, 
 //
 // The per-app status update that marks the application as Hydrating is deliberately NOT done here.
 // It is performed by ProcessHydrationQueueItem, which gathers every application sharing the
-// hydration key and updates them together. Because the hydration workqueue dedups by key and never
-// hands the same key to two workers concurrently, ProcessHydrationQueueItem holds exclusive
-// ownership of the entire app group when it runs — there is no possibility of a worker observing a
-// partial view of the group, so the status update is safe under parallel hydration workers
-// (https://github.com/argoproj/argo-cd/issues/27926).
+// hydration key and updates them together. The application controller routes the key to one shard,
+// and that shard's hydration workqueue never hands the same key to two workers concurrently.
+// ProcessHydrationQueueItem therefore holds exclusive ownership of the entire app group while it
+// performs the batch status update (https://github.com/argoproj/argo-cd/issues/27926).
 //
 // It's likely that multiple applications will trigger hydration at the same time. The hydration
 // queue key is meant to dedupe these requests.
@@ -157,7 +157,7 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.StartedAt.Time) > h.statusRefreshTimeout
 	if needsHydration || needsRefresh {
 		logCtx.WithField("reason", reason).Info("Hydrating app")
-		h.dependencies.AddHydrationQueueItem(getHydrationQueueKey(app))
+		h.dependencies.AddHydrationQueueItem(GetHydrationQueueKey(app))
 	} else {
 		logCtx.WithField("reason", reason).Debug("Skipping hydration")
 		// Consume the hydrate annotation when hydration is not needed.
@@ -170,7 +170,9 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	logCtx.Debug("Successfully processed app hydrate queue item")
 }
 
-func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
+// GetHydrationQueueKey returns the normalized key shared by all Applications
+// that must be hydrated atomically.
+func GetHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
 	hydrateToSource := app.Spec.GetHydrateToSource()
 	key := types.HydrationQueueKey{
 		SourceRepoURL:        git.NormalizeGitURLAllowInvalid(app.Spec.SourceHydrator.DrySource.RepoURL),
@@ -187,12 +189,11 @@ func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
 // it updates the operation to indicate that hydration was successful and requests a refresh of the applications to pick
 // up the new hydrated commit.
 //
-// The hydration workqueue is a rate-limiting queue keyed by hydration key, which guarantees the same key is never
-// handed to two workers at once. So at the start of this function we hold exclusive ownership over the entire app
-// group sharing this key. That ownership is what makes the per-app status updates safe even when multiple hydration
-// workers are running in parallel (https://github.com/argoproj/argo-cd/issues/27926): there is no possibility of a
-// worker observing a partial view of the group, so we can mark every app Hydrating up front and keep their statuses in
-// lockstep with the single commit produced by hydrate().
+// The application controller routes each hydration key to one controller
+// shard. Within that process, the rate-limiting workqueue guarantees the same
+// key is never handed to two workers at once. Together those guarantees give
+// this function exclusive ownership of the complete application group while
+// it updates status and produces the group's commit.
 func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKey) {
 	logCtx := log.WithFields(log.Fields{
 		"sourceRepoURL":        hydrationKey.SourceRepoURL,
@@ -358,7 +359,7 @@ func (h *Hydrator) getAppsForHydrationKey(hydrationKey types.HydrationQueueKey) 
 		if app.Spec.SourceHydrator == nil {
 			continue
 		}
-		appKey := getHydrationQueueKey(&app)
+		appKey := GetHydrationQueueKey(&app)
 		if appKey != hydrationKey {
 			continue
 		}
