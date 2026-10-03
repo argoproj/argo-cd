@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -18,6 +19,24 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/oci"
 	ocimocks "github.com/argoproj/argo-cd/v3/util/oci/mocks"
 )
+
+// assertNoCredentialsLogged installs a global log hook and, on cleanup, asserts that none of the given
+// secrets were written to any log entry. The out-of-bounds symlink warnings log the referenced
+// repository, which must be the URL only and never the full Repository (credentials included).
+func assertNoCredentialsLogged(t *testing.T, secrets ...string) {
+	t.Helper()
+	hook := logtest.NewGlobal()
+	t.Cleanup(func() {
+		defer hook.Reset()
+		for _, entry := range hook.AllEntries() {
+			msg, err := entry.String()
+			require.NoError(t, err)
+			for _, secret := range secrets {
+				assert.NotContains(t, msg, secret, "log entry leaked a repository credential")
+			}
+		}
+	})
+}
 
 func ociRefRequest(t *testing.T, repo string) refSourceResolveRequest {
 	t.Helper()
@@ -82,6 +101,8 @@ func TestResolveOCIRefSource(t *testing.T) {
 		}, ".")
 
 		req := ociRefRequest(t, repo)
+		req.refSourceMapping.Repo.Password = "oci-s3cret-password"
+		assertNoCredentialsLogged(t, "oci-s3cret-password")
 		_, _, err := service.resolveOCIRefSource(t.Context(), req)
 		require.ErrorContains(t, err, "oci image contains out-of-bounds symlinks")
 		// The extracted path must not be registered when the symlink check fails.
@@ -167,6 +188,9 @@ func TestResolveGitRefSource(t *testing.T) {
 
 		req := gitRefRequest()
 		req.noCache = true // bypass the symlink-check cache so this test is self-contained
+		req.refSourceMapping.Repo.Password = "git-s3cret-password"
+		req.refSourceMapping.Repo.SSHPrivateKey = "git-s3cret-private-key"
+		assertNoCredentialsLogged(t, "git-s3cret-password", "git-s3cret-private-key")
 		_, _, err := service.resolveGitRefSource(t.Context(), req)
 		require.ErrorContains(t, err, "repository contains out-of-bounds symlinks")
 	})

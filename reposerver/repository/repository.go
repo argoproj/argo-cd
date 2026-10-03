@@ -985,7 +985,7 @@ func (s *Service) resolveOCIRefSource(ctx context.Context, req refSourceResolveR
 			if errors.As(err, &oobError) {
 				log.WithFields(log.Fields{
 					common.SecurityField: common.SecurityHigh,
-					"repo":               refSourceMapping.Repo,
+					"repo":               refSourceMapping.Repo.Repo,
 					"revision":           refSourceMapping.TargetRevision,
 					"file":               oobError.File,
 				}).Warn("oci image contains out-of-bounds symlink")
@@ -1037,7 +1037,7 @@ func (s *Service) resolveGitRefSource(ctx context.Context, req refSourceResolveR
 			if errors.As(err, &oobError) {
 				log.WithFields(log.Fields{
 					common.SecurityField: common.SecurityHigh,
-					"repo":               refSourceMapping.Repo,
+					"repo":               refSourceMapping.Repo.Repo,
 					"revision":           refSourceMapping.TargetRevision,
 					"file":               oobError.File,
 				}).Warn("repository contains out-of-bounds symlink")
