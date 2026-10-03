@@ -1094,16 +1094,20 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const {podGroupCount, userMsgs, updateUsrHelpTipMsgs, setShowCompactNodes} = props;
     const podCount = nodes.filter(node => node.kind === 'Pod').length;
     const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
-
-    React.useEffect(() => {
-        if (podCount > podGroupCount) {
-            const userMsg = getUsrMsgKeyToDisplay(appNode.name, 'groupNodes', userMsgs);
+    const appName = appNode.name;
+    const maybeEnableCompactNodes = React.useEffectEvent((count: number, groupCount: number, name: string) => {
+        if (count > groupCount) {
+            const userMsg = getUsrMsgKeyToDisplay(name, 'groupNodes', userMsgs);
             updateUsrHelpTipMsgs(userMsg);
             if (!userMsg.display) {
                 setShowCompactNodes(true);
             }
         }
-    }, [podCount]);
+    });
+
+    React.useEffect(() => {
+        maybeEnableCompactNodes(podCount, podGroupCount, appName);
+    }, [podCount, podGroupCount, appName]);
 
     function filterGraph(
         app: models.AbstractApplication,
