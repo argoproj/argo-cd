@@ -18,6 +18,7 @@ export interface AppSetTableRowProps {
 
 export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
+    const appSetDisplayName = AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
     const favList = pref.appList.favoritesAppList || [];
     const isFav = AppUtils.isFavorite(favList, appSet);
     const healthStatus = getAppSetHealthStatus(appSet);
@@ -70,7 +71,7 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                                     <Tooltip
                                         content={
                                             <>
-                                                {appSet.metadata.name}
+                                                {appSetDisplayName}
                                                 <br />
                                                 <Moment fromNow={true} ago={true}>
                                                     {appSet.metadata.creationTimestamp}
@@ -78,7 +79,7 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                                             </>
                                         }>
                                         <a className='applications-list__table-row-name' href={appSetLink.href} onClick={appSetLink.onClick} tabIndex={-1}>
-                                            {appSet.metadata.name}
+                                            {appSetDisplayName}
                                         </a>
                                     </Tooltip>
                                 </div>
