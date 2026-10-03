@@ -29,6 +29,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/format/pktline"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
@@ -892,7 +893,22 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 		}
 		return res, nil
 	}
-	return res, err
+	return res, annotateInvalidPktLen(err)
+}
+
+// invalidPktLenAuthHint is appended when go-git's pkt-line scanner rejects a
+// ref advertisement. Hosts such as Azure DevOps answer an unauthenticated
+// ls-remote with an HTML login page and HTTP 200, and go-git reports that only
+// as ErrInvalidPktLen (see dagger/dagger#11112).
+const invalidPktLenAuthHint = "check repository authentication"
+
+// annotateInvalidPktLen keeps go-git's original error and adds a short hint
+// when that error is the invalid pkt-len sentinel. Other errors are unchanged.
+func annotateInvalidPktLen(err error) error {
+	if err == nil || !errors.Is(err, pktline.ErrInvalidPktLen) {
+		return err
+	}
+	return fmt.Errorf("%w: %s", err, invalidPktLenAuthHint)
 }
 
 func (m *nativeGitClient) LsRefs() (*Refs, error) {
