@@ -382,6 +382,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.EXPECT().CheckoutOrNew(mock.Anything, "main", "env/test", false).Return("", nil).Once()
 		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything, mock.Anything).Return(strnote, nil).Once()
 		mockGitClient.EXPECT().CommitSHA(mock.Anything).Return("dupe-test-sha", nil).Once()
+		mockGitClient.EXPECT().HasFileChanged(mock.Anything, "manifest.yaml").Return(false, nil).Once()
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		request := &apiclient.CommitHydratedManifestsRequest{
@@ -408,6 +409,62 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, "dupe-test-sha", resp.HydratedSha, "Should return existing hydrated SHA when already hydrated")
+	})
+
+	t.Run("already hydrated but new path added - should proceed with full hydration", func(t *testing.T) {
+		t.Parallel()
+
+		strnote := "{\"drySha\":\"abc123\"}"
+		service, mockRepoClientFactory := newServiceWithMocks(t)
+		mockGitClient := gitmocks.NewClient(t)
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().SetAuthor(mock.Anything, "Argo CD", "argo-cd@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan(mock.Anything, "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew(mock.Anything, "main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything, mock.Anything).Return(strnote, nil).Once()
+		mockGitClient.EXPECT().CommitSHA(mock.Anything).Return("hydrated-sha-before-new-path", nil).Once()
+		// app1 is an existing, unchanged path; app2 is the new path added to this batch.
+		mockGitClient.EXPECT().HasFileChanged(mock.Anything, "app1/manifest.yaml").Return(false, nil).Once()
+		mockGitClient.EXPECT().HasFileChanged(mock.Anything, "app2/manifest.yaml").Return(true, nil).Once()
+		mockGitClient.EXPECT().Commit("test commit message", "").Return("", nil).Once()
+		mockGitClient.EXPECT().Push("main").Return("", nil).Once()
+		mockGitClient.EXPECT().CommitSHA(mock.Anything).Return("new-hydrated-sha", nil).Once()
+		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+
+		request := &apiclient.CommitHydratedManifestsRequest{
+			Repo: &v1alpha1.Repository{
+				Repo: "https://github.com/argoproj/argocd-example-apps.git",
+			},
+			TargetBranch:  "main",
+			SyncBranch:    "env/test",
+			DrySha:        "abc123",
+			CommitMessage: "test commit message",
+			Paths: []*apiclient.PathDetails{
+				{
+					Path: "app1",
+					Manifests: []*apiclient.HydratedManifestDetails{
+						{
+							ManifestJSON: `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"app1"}}`,
+						},
+					},
+				},
+				{
+					Path: "app2",
+					Manifests: []*apiclient.HydratedManifestDetails{
+						{
+							ManifestJSON: `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"app2"}}`,
+						},
+					},
+				},
+			},
+		}
+
+		resp, err := service.CommitHydratedManifests(t.Context(), request)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, "new-hydrated-sha", resp.HydratedSha, "Should create new commit when new path is added")
 	})
 
 	t.Run("root path with dot - no changes to manifest - should commit note only", func(t *testing.T) {

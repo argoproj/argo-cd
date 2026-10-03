@@ -10968,6 +10968,13 @@
           "type": "string",
           "title": "DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
         },
+        "hydratedGroupApps": {
+          "type": "array",
+          "title": "HydratedGroupApps holds the qualified names of every app committed together as of this operation, so a\nmembership change (an app added to or removed from the group) can be detected",
+          "items": {
+            "type": "string"
+          }
+        },
         "hydratedSHA": {
           "type": "string",
           "title": "HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation"
