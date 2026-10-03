@@ -95,6 +95,26 @@ func hasGitOpsEngineSyncPhaseHook(obj *unstructured.Unstructured) bool {
 	return false
 }
 
+// isOwnedByApp reports whether the resource already present on the cluster under
+// obj's name carries app's tracking identity. It is used to tell a hook created
+// by an earlier finalization pass, which the cluster cache has not observed yet,
+// apart from an unrelated resource that merely occupies the same name.
+func (ctrl *ApplicationController) isOwnedByApp(ctx context.Context, config *rest.Config, obj *unstructured.Unstructured, app *appv1.Application, appLabelKey string, trackingMethod appv1.TrackingMethod, installationID string, resourceTracking argoutil.ResourceTracking) (bool, error) {
+	live, err := ctrl.kubectl.GetResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace())
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			// It was deleted between the create attempt and this lookup, so there
+			// is nothing to wait for.
+			return false, nil
+		}
+		return false, err
+	}
+	if live == nil {
+		return false, nil
+	}
+	return resourceTracking.GetAppName(live, appLabelKey, trackingMethod, installationID) == app.InstanceName(ctrl.namespace), nil
+}
+
 // executeHooks is a generic function to execute hooks of a specified type
 func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType HookType, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (completed bool, retErr error) {
 	ctx, span := tracer.Start(ctx, "controller.executeHooks")
@@ -148,8 +168,13 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 		}
 	}
 
-	// Create hooks that don't exist yet
-	createdCnt := 0
+	// Create hooks that don't exist yet.
+	// pendingCnt counts hooks that are known to exist on the cluster but are not
+	// in runningHooks yet, either because this pass created them or because a
+	// previous pass did and the cluster cache has not caught up. Their health is
+	// unknown, so the phase must not be reported as complete while any are
+	// pending.
+	pendingCnt := 0
 	for key, obj := range expectedHook {
 		// Apply app instance tracking metadata so the hook can be tracked and cleaned up.
 		// Use the same code path as regular sync resources so the configured
@@ -165,16 +190,35 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 		_, err = ctrl.kubectl.CreateResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), obj, metav1.CreateOptions{})
 		if err != nil {
 			if apierrors.IsAlreadyExists(err) {
-				logCtx.Warnf("Hook resource %s already exists, skipping", key)
+				// Something already occupies the hook's name. If it is this
+				// application's hook, it was created by an earlier pass that the
+				// cluster cache has not observed yet: it has to be waited for
+				// rather than skipped, because reporting the phase as complete
+				// here lets the caller remove the deletion finalizer and
+				// cascade-delete the hook before it ever runs.
+				//
+				// If it belongs to another application or is untracked, this
+				// application will never see it in the cluster cache, so waiting
+				// would block deletion forever. Skip it, as before.
+				owned, ownErr := ctrl.isOwnedByApp(ctx, config, obj, app, appLabelKey, trackingMethod, installationID, resourceTracking)
+				if ownErr != nil {
+					return false, fmt.Errorf("failed to check ownership of existing %s hook %s: %w", hookType, key, ownErr)
+				}
+				if !owned {
+					logCtx.Warnf("Hook resource %s already exists but is not owned by this application, skipping", key)
+					continue
+				}
+				logCtx.Infof("Hook resource %s already exists, waiting for it to complete", key)
+				pendingCnt++
 				continue
 			}
 			return false, err
 		}
-		createdCnt++
+		pendingCnt++
 	}
 
-	if createdCnt > 0 {
-		logCtx.Infof("Created %d %s hooks", createdCnt, hookType)
+	if pendingCnt > 0 {
+		logCtx.Infof("Waiting for %d %s hooks to be observed", pendingCnt, hookType)
 		return false, nil
 	}
 
