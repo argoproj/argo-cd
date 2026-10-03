@@ -124,7 +124,8 @@ func appSourceKey(appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisi
 	return hash.FNVa(appSourceKeyJSON(appSrc, srcRefs, refSourceCommitSHAs))
 }
 
-// ResolvedRevisions is a map of "normalized git URL" -> "git commit SHA". When one source references another source,
+// ResolvedRevisions is a map of "normalized repository URL" -> "resolved revision" (a Git commit SHA, or an OCI
+// digest for OCI referenced sources; see Repository.NormalizeRepoURL). When one source references another source,
 // the referenced source revision may change, for example, when someone pushes a commit to the referenced branch. This
 // map lets us keep track of the current revision for each referenced source.
 type ResolvedRevisions map[string]string

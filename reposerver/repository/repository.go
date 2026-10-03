@@ -913,7 +913,8 @@ type repoRef struct {
 }
 
 // closeAndLog closes a resource closer and logs a warning if closing fails. It is used to release
-// the repo/OCI locks acquired while resolving referenced sources.
+// the resources acquired while resolving referenced sources: the repo lock for a Git ref, and the
+// extracted directory for an OCI ref.
 func closeAndLog(closer goio.Closer, what string) {
 	if err := closer.Close(); err != nil {
 		log.Errorf("Failed to release %s: %v", what, err)
@@ -947,8 +948,9 @@ type refSourceResolveRequest struct {
 // resolveOCIRefSource resolves and extracts an OCI $ref source for the current request (manifest
 // generation or app details). It registers the extracted directory in req.ociRefPaths (keyed by
 // req.normalizedRepoURL) so value files can be resolved against it, and returns a repoRef
-// describing the resolution along with a closer that releases the OCI lock. The caller must hold
-// the returned closer until the referenced value files have been read. Errors returned for
+// describing the resolution along with a closer that removes the extracted directory. The OCI
+// client's per-image lock is released inside Extract; the closer only owns the extracted copy, so
+// the caller must hold it until the referenced value files have been read. Errors returned for
 // external causes are redacted for surfacing to the client; the detailed cause is logged here.
 //
 // Unlike resolveGitRefSource, there is deliberately no "same repository, different revision" guard.
@@ -980,7 +982,7 @@ func (s *Service) resolveOCIRefSource(ctx context.Context, req refSourceResolveR
 	// Check for out-of-bounds symlinks
 	if !s.initConstants.AllowOutOfBoundsSymlinks {
 		if err := apppathutil.CheckOutOfBoundsSymlinks(ociPath); err != nil {
-			closeAndLog(closer, "OCI lock")
+			closeAndLog(closer, "extracted OCI directory")
 			oobError := &apppathutil.OutOfBoundsSymlinkError{}
 			if errors.As(err, &oobError) {
 				log.WithFields(log.Fields{
@@ -1162,7 +1164,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							ch.errCh <- err
 							return
 						}
-						defer closeAndLog(closer, "referenced source lock")
+						defer closeAndLog(closer, "referenced source")
 						repoRefs[normalizedRepoURL] = ref
 					}
 				}
