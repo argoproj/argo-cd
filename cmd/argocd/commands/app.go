@@ -894,16 +894,23 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				sourcePosition = int(pos)
 			}
 
-			if app.Spec.HasMultipleSources() {
-				if sourcePosition <= 0 {
-					errors.Fatal(errors.ErrorGeneric, "Source position should be specified and must be greater than 0 for applications with multiple sources")
-				}
-				if len(app.Spec.GetSources()) < sourcePosition {
-					errors.Fatal(errors.ErrorGeneric, "Source position should be less than the number of sources in the application")
-				}
+			hasSourceFlags := cmdutil.HasSourceScopedFlags(c.Flags())
+			sourcePositionGiven := c.Flags().Changed("source-position")
+			if app.Spec.HasMultipleSources() && sourcePosition <= 0 && (hasSourceFlags || sourcePositionGiven) {
+				errors.Fatal(errors.ErrorGeneric, "Source position should be specified and must be greater than 0 for applications with multiple sources")
+			}
+			if app.Spec.HasMultipleSources() && sourcePosition > 0 && len(app.Spec.GetSources()) < sourcePosition {
+				errors.Fatal(errors.ErrorGeneric, "Source position should be less than the number of sources in the application")
 			}
 
-			visited := cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts, sourcePosition)
+			// Nothing to update on a specific source, so pin the position to 0 rather than passing
+			// -1 through, which would make SetAppSpecOptions duplicate the first source.
+			updateSourcePosition := sourcePosition
+			if app.Spec.HasMultipleSources() && sourcePosition <= 0 && !hasSourceFlags && !sourcePositionGiven {
+				updateSourcePosition = 0
+			}
+
+			visited := cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts, updateSourcePosition)
 			if visited == 0 {
 				log.Error("Please set at least one option to update")
 				c.HelpFunc()(c, args)

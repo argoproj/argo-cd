@@ -442,6 +442,54 @@ func Test_setAppSpecOptionsMultiSourceApp(t *testing.T) {
 	})
 }
 
+func TestHasSourceScopedFlags(t *testing.T) {
+	t.Run("AppLevelFlagOnly", func(t *testing.T) {
+		f := newMultiSourceAppOptionsFixture()
+		require.NoError(t, f.command.Flags().Set("sync-policy", "automated"))
+		assert.False(t, HasSourceScopedFlags(f.command.Flags()))
+	})
+	t.Run("SourceFlag", func(t *testing.T) {
+		f := newMultiSourceAppOptionsFixture()
+		require.NoError(t, f.command.Flags().Set("helm-version", "v2"))
+		assert.True(t, HasSourceScopedFlags(f.command.Flags()))
+	})
+	t.Run("EmptySourceFlagValue", func(t *testing.T) {
+		// --path "" is still a source-scoped edit (it clears the path), even though the
+		// resulting value is the zero value.
+		f := newMultiSourceAppOptionsFixture()
+		require.NoError(t, f.command.Flags().Set("path", ""))
+		assert.True(t, HasSourceScopedFlags(f.command.Flags()))
+	})
+	t.Run("Parameter", func(t *testing.T) {
+		f := newMultiSourceAppOptionsFixture()
+		require.NoError(t, f.command.Flags().Set("parameter", "key=value"))
+		assert.True(t, HasSourceScopedFlags(f.command.Flags()))
+	})
+	t.Run("HydratorFlag", func(t *testing.T) {
+		f := newMultiSourceAppOptionsFixture()
+		require.NoError(t, f.command.Flags().Set("dry-source-repo", "https://example.com/repo.git"))
+		assert.True(t, HasSourceScopedFlags(f.command.Flags()))
+	})
+	t.Run("NoFlagsSet", func(t *testing.T) {
+		f := newMultiSourceAppOptionsFixture()
+		assert.False(t, HasSourceScopedFlags(f.command.Flags()))
+	})
+}
+
+// An app-level flag on a multi-source app must not touch the sources list at all.
+func Test_setAppSpecOptionsMultiSourceApp_AppLevelFlagOnly(t *testing.T) {
+	f := newMultiSourceAppOptionsFixture()
+	f.spec.Sources[0].RepoURL = "https://example.com/repo-one.git"
+	f.spec.Sources[1].RepoURL = "https://example.com/repo-two.git"
+
+	require.NoError(t, f.SetFlagWithSourcePosition("sync-policy", "automated", 0))
+
+	require.Len(t, f.spec.Sources, 2, "app-level flag must not add or remove sources")
+	assert.Equal(t, "https://example.com/repo-one.git", f.spec.Sources[0].RepoURL)
+	assert.Equal(t, "https://example.com/repo-two.git", f.spec.Sources[1].RepoURL)
+	assert.NotNil(t, f.spec.SyncPolicy.Automated)
+}
+
 func Test_setAnnotations(t *testing.T) {
 	t.Run("Annotations", func(t *testing.T) {
 		app := v1alpha1.Application{}
