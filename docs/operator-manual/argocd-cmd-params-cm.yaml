@@ -29,6 +29,10 @@ data:
   # Open-Telemetry collector insecure: (e.g. "true")
   otlp.insecure: "true"
   # Open-Telemetry collector headers: (e.g. "key1=value1,key2=value2")
+  # When set, these replace OTEL_EXPORTER_OTLP_HEADERS. With otlp.insecure "false", the collector
+  # certificate is verified against the CA configured for its host in argocd-tls-certs-cm, or the
+  # system roots. A CA in the standard OTEL_EXPORTER_OTLP_CERTIFICATE env var takes precedence, and
+  # OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE and OTEL_EXPORTER_OTLP_CLIENT_KEY set a client cert for mTLS.
   otlp.headers: ""
   # Open-Telemetry collector attrs: (e.g. "key1:value1,key2:value2")
   otlp.attrs: ""

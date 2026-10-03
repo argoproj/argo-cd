@@ -2,7 +2,11 @@ package trace
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -16,7 +20,74 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.6.1"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/argoproj/argo-cd/v3/util/cert"
 )
+
+// collectorTLSCredentials builds the TLS credentials for a secure collector
+// connection from the standard OTEL_EXPORTER_OTLP_[<signal>_]CERTIFICATE,
+// CLIENT_CERTIFICATE and CLIENT_KEY env vars, where signal is "TRACES" or
+// "METRICS" and the signal-specific vars win, as in the SDK. Without a CA
+// there, the CA for the collector host in argocd-tls-certs-cm is used, else the
+// system roots.
+//
+// The exporter could read these vars itself, but it silently skips an
+// unreadable CA or an incomplete client cert/key pair, and without credentials
+// it honors OTEL_EXPORTER_OTLP_INSECURE or an http:// endpoint. Building them
+// here keeps otlp.insecure=false on TLS and turns bad TLS config into an error.
+func collectorTLSCredentials(otlpAddress, signal string) (credentials.TransportCredentials, error) {
+	env := func(name string) string {
+		return strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_" + name))
+	}
+	cfg := &tls.Config{}
+
+	caPath := env(signal + "_CERTIFICATE")
+	if caPath == "" {
+		caPath = env("CERTIFICATE")
+	}
+	if caPath != "" {
+		data, err := os.ReadFile(caPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read OTLP collector CA: %w", err)
+		}
+		cfg.RootCAs = x509.NewCertPool()
+		if !cfg.RootCAs.AppendCertsFromPEM(data) {
+			return nil, fmt.Errorf("no certificates found in OTLP collector CA %s", caPath)
+		}
+	} else {
+		certs, err := cert.GetCertificateForConnect(otlpAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load TLS certificates for OTLP collector %s: %w", otlpAddress, err)
+		}
+		if len(certs) > 0 {
+			cfg.RootCAs = cert.GetCertPoolFromPEMData(certs)
+		}
+	}
+
+	// Like the SDK, the cert and key are read as a pair: the signal-specific
+	// pair if both are set, else the generic one. Unlike the SDK, a lone half is
+	// an error rather than silently dropping the client cert.
+	var certPath, keyPath string
+	sc, sk := env(signal+"_CLIENT_CERTIFICATE"), env(signal+"_CLIENT_KEY")
+	gc, gk := env("CLIENT_CERTIFICATE"), env("CLIENT_KEY")
+	switch {
+	case sc != "" && sk != "":
+		certPath, keyPath = sc, sk
+	case gc != "" && gk != "":
+		certPath, keyPath = gc, gk
+	case sc != "" || sk != "" || gc != "" || gk != "":
+		return nil, errors.New("OTLP client certificate and key must both be set")
+	}
+	if certPath != "" {
+		pair, err := tls.LoadX509KeyPair(certPath, keyPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load OTLP client certificate: %w", err)
+		}
+		cfg.Certificates = []tls.Certificate{pair}
+	}
+	return credentials.NewTLS(cfg), nil
+}
 
 // InitTracer initializes the trace provider and the otel grpc exporter.
 //
@@ -54,20 +125,26 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	// set up grpc options based on secure/insecure connection
-	var secureOption otlptracegrpc.Option
+	// Explicit options override the standard OTEL_EXPORTER_OTLP_* env vars, so
+	// headers are only set when configured; see collectorTLSCredentials for TLS.
+	opts := []otlptracegrpc.Option{otlptracegrpc.WithEndpoint(otlpAddress)}
 	if otlpInsecure {
-		secureOption = otlptracegrpc.WithInsecure()
+		// Credentials, not WithInsecure: the exporter prefers TLS built from the
+		// OTEL_EXPORTER_OTLP_*CERTIFICATE env vars over its insecure flag.
+		opts = append(opts, otlptracegrpc.WithTLSCredentials(insecure.NewCredentials()))
 	} else {
-		secureOption = otlptracegrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, ""))
+		creds, err := collectorTLSCredentials(otlpAddress, "TRACES")
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, otlptracegrpc.WithTLSCredentials(creds))
+	}
+	if len(otlpHeaders) > 0 {
+		opts = append(opts, otlptracegrpc.WithHeaders(otlpHeaders))
 	}
 
 	// set up a trace exporter
-	exporter, err := otlptracegrpc.New(ctx,
-		secureOption,
-		otlptracegrpc.WithEndpoint(otlpAddress),
-		otlptracegrpc.WithHeaders(otlpHeaders),
-	)
+	exporter, err := otlptracegrpc.New(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
 	}
