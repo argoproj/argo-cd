@@ -146,8 +146,14 @@ func (sharding *ClusterSharding) Update(oldCluster *v1alpha1.Cluster, newCluster
 		delete(sharding.Clusters, oldCluster.Server)
 		delete(sharding.Shards, oldCluster.Server)
 	}
+	// Compare against the cached entry rather than the event's oldCluster, so a
+	// cluster that is not part of the distribution yet, or whose cached copy is
+	// stale (a missed event followed by a resync), triggers a recomputation:
+	// adding it to the cluster set changes the shard of every other cluster for
+	// index based algorithms such as round-robin. This is the same guard Add uses.
+	old, known := sharding.Clusters[newCluster.Server]
 	sharding.Clusters[newCluster.Server] = newCluster
-	if hasShardingUpdates(oldCluster, newCluster) {
+	if !known || hasShardingUpdates(old, newCluster) {
 		sharding.updateDistribution()
 	} else {
 		log.Debugf("Skipping sharding distribution update. No relevant changes")
