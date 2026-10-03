@@ -29,8 +29,12 @@ GOPATH_PROJECT_ROOT="${GOPATH}/src/github.com/argoproj/argo-cd"
 
 TARGET_SCRIPT=kube_codegen.sh
 
+# Read kube_codegen.sh from the module cache rather than vendor/, so this script does not require a
+# vendored tree. -mod=mod is needed because `go list -m` reports no directory in vendor mode.
+CODEGEN_PKG="$(go list -mod=mod -m -f '{{.Dir}}' k8s.io/code-generator)"
+
 # codegen utilities are installed outside kube_codegen.sh so remove the `go install` step in the script.
-sed -e '/go install/d' "${PROJECT_ROOT}/vendor/k8s.io/code-generator/kube_codegen.sh" > ${TARGET_SCRIPT}
+sed -e '/go install/d' "${CODEGEN_PKG}/kube_codegen.sh" > ${TARGET_SCRIPT}
 
 # generate-groups.sh assumes codegen utilities are installed to GOBIN, but we just ensure the CLIs
 # are in the path and invoke them without assumption of their location

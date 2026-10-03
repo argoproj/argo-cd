@@ -366,3 +366,21 @@ replace (
 )
 
 replace github.com/argoproj/argo-cd/gitops-engine/v3 => ./gitops-engine
+
+tool (
+	github.com/gogo/protobuf/protoc-gen-gogofast
+	github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+	github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+	golang.org/x/tools/cmd/goimports
+	k8s.io/code-generator/cmd/applyconfiguration-gen
+	k8s.io/code-generator/cmd/client-gen
+	k8s.io/code-generator/cmd/conversion-gen
+	k8s.io/code-generator/cmd/deepcopy-gen
+	k8s.io/code-generator/cmd/defaulter-gen
+	k8s.io/code-generator/cmd/go-to-protobuf
+	k8s.io/code-generator/cmd/go-to-protobuf/protoc-gen-gogo
+	k8s.io/code-generator/cmd/informer-gen
+	k8s.io/code-generator/cmd/lister-gen
+	k8s.io/code-generator/cmd/validation-gen
+	k8s.io/kube-openapi/cmd/openapi-gen
+)
