@@ -415,6 +415,11 @@ data:
             "short": true
           },
           {
+            "title": "Revision",
+            "value": "{{.app.status.sync.revision}}",
+            "short": true
+          },
+          {
             "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
             "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
             "short": true
