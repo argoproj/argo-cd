@@ -5,7 +5,7 @@ import * as ReactDOM from 'react-dom';
 import * as models from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
-import {filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
+import {filter, map, mergeMap} from 'rxjs/operators';
 
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, Context, ContextApis} from '../../../shared/context';
@@ -1533,29 +1533,20 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 from([app]),
                                 appChanged.pipe(filter(item => !!item)),
                                 AppUtils.handlePageVisibility(() =>
-                                    services.applications
-                                        .watch(objectListKind, {name, appNamespace})
-                                        .pipe(
-                                            map(watchEvent => {
-                                                if (watchEvent.type === 'DELETED') {
-                                                    onAppDeleted();
-                                                }
-                                                return watchEvent.application;
-                                            })
-                                        )
-                                        .pipe(repeat())
-                                        .pipe(retry({delay: 500}))
+                                    services.applications.watch(objectListKind, {name, appNamespace}).pipe(
+                                        map(watchEvent => {
+                                            if (watchEvent.type === 'DELETED') {
+                                                onAppDeleted();
+                                            }
+                                            return watchEvent.application;
+                                        })
+                                    )
                                 )
                             ),
                             merge(
                                 from([fallbackTree]),
                                 services.applications.resourceTree(name, appNamespace, objectListKind).catch(() => fallbackTree),
-                                AppUtils.handlePageVisibility(() =>
-                                    services.applications
-                                        .watchResourceTree(name, appNamespace, objectListKind)
-                                        .pipe(repeat())
-                                        .pipe(retry({delay: 500}))
-                                )
+                                AppUtils.handlePageVisibility(() => services.applications.watchResourceTree(name, appNamespace, objectListKind))
                             )
                         );
                     })
