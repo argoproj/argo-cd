@@ -20,7 +20,7 @@
     "argo-ui": "git+https://github.com/argoproj/argo-ui.git#f941b0a3ca094066dd9d5e002f48acdc5fda45a0",
     "buffer": "^6.0.3",
     "classnames": "^2.2.5",
-    "color": "^3.2.1",
+    "color": "^5.0.3",
     "dagre": "^0.8.5",
     "date-fns": "^2.30.0",
     "deepmerge": "^4.3.1",
