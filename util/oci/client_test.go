@@ -874,6 +874,28 @@ func TestTrimOCIScheme(t *testing.T) {
 	}
 }
 
+func TestNewClientAcceptsNonCanonicalRepoURL(t *testing.T) {
+	// Regression: IsOCIURL/NormalizeOCIURL/trimOCIScheme accept a case-insensitive scheme and
+	// surrounding whitespace, but NewClientWithLock re-parsed the raw URL to find the registry host,
+	// which failed for whitespace-padded URLs ("first path segment in URL cannot contain colon").
+	t.Parallel()
+	for _, repoURL := range []string{
+		"oci://registry.example.com/charts",
+		"OCI://registry.example.com/charts",
+		"  oci://registry.example.com/charts  ",
+		// Mixed-case host with a port. The repository path stays lowercase: the OCI distribution
+		// spec only allows lowercase repository names, which ORAS enforces.
+		" Oci://Registry.Example.com:5000/myorg/mychart ",
+	} {
+		t.Run(repoURL, func(t *testing.T) {
+			t.Parallel()
+			client, err := NewClient(repoURL, Creds{}, "", "", nil)
+			require.NoError(t, err)
+			require.NotNil(t, client)
+		})
+	}
+}
+
 func fakeEventHandlers(t *testing.T, repoURL string) EventHandlers {
 	t.Helper()
 	return EventHandlers{

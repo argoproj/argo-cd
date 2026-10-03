@@ -11,7 +11,6 @@ import (
 	"io/fs"
 	"math"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -174,12 +173,10 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 		}),
 	}
 
-	parsed, err := url.Parse(repoURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse oci repo url: %w", err)
-	}
-
-	reg, err := remote.NewRegistry(parsed.Host)
+	// Use the registry host ORAS already parsed from the scheme-trimmed reference instead of
+	// re-parsing the raw URL: surrounding whitespace, which trimOCIScheme and IsOCIURL accept,
+	// makes url.Parse fail, and two parsers could otherwise disagree about the host.
+	reg, err := remote.NewRegistry(repo.Reference.Registry)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup registry config: %w", err)
 	}
