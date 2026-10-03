@@ -919,6 +919,63 @@ func TestResolveReferencedSources_AllowsOCIRefWithoutChart(t *testing.T) {
 	assert.Equal(t, "sha256:deadbeef", repoRefs[v1alpha1.NormalizeOCIURL("oci://registry.example.com/charts")])
 }
 
+// TestResolveReferencedSources_RejectsConflictingRevisionsForSameRepo is a regression test: two
+// $refs pointing at one repository at different revisions must be rejected before the cache lookup.
+// repoRefs is keyed by repository URL only, so the second ref used to be silently deduplicated onto
+// the first ref's resolved revision, hiding the conflict from the cache key and from the later check
+// in runManifestGenAsync.
+func TestResolveReferencedSources_RejectsConflictingRevisionsForSameRepo(t *testing.T) {
+	helmSource := &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$a/values.yaml", "$b/values.yaml"}}
+
+	tests := []struct {
+		name string
+		repo v1alpha1.Repository
+	}{
+		{name: "git", repo: v1alpha1.Repository{Repo: "https://git.example.com/org/repo.git"}},
+		// Differ only in scheme/host case: NormalizeRepoURL must still treat them as one repository.
+		{name: "oci", repo: v1alpha1.Repository{Repo: "oci://Registry.Example.com/values"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resolveCalls := 0
+			resolver := refSourceResolver{
+				newClientResolveRevision: func(_ *v1alpha1.Repository, revision string, _ ...git.ClientOpts) (git.Client, string, error) {
+					resolveCalls++
+					return nil, "sha-for-" + revision, nil
+				},
+				newOCIClientResolveRevision: func(_ context.Context, _ *v1alpha1.Repository, revision string, _ bool) (oci.Client, string, error) {
+					resolveCalls++
+					return nil, "sha256:" + revision, nil
+				},
+			}
+
+			t.Run("different revisions are rejected", func(t *testing.T) {
+				resolveCalls = 0
+				refSources := map[string]*v1alpha1.RefTarget{
+					"$a": {Repo: tt.repo, TargetRevision: "v1.0.0"},
+					"$b": {Repo: v1alpha1.Repository{Repo: strings.ToLower(tt.repo.Repo)}, TargetRevision: "v2.0.0"},
+				}
+				_, err := resolveReferencedSources(t.Context(), true, helmSource, refSources, resolver)
+				require.ErrorContains(t, err, "cannot reference multiple revisions for the same repository")
+				assert.Contains(t, err.Error(), `$b references "v2.0.0" while $a references "v1.0.0"`)
+				assert.Equal(t, 1, resolveCalls, "the conflict must be detected before resolving the second ref")
+			})
+
+			t.Run("same revision is resolved once", func(t *testing.T) {
+				resolveCalls = 0
+				refSources := map[string]*v1alpha1.RefTarget{
+					"$a": {Repo: tt.repo, TargetRevision: "v1.0.0"},
+					"$b": {Repo: v1alpha1.Repository{Repo: strings.ToLower(tt.repo.Repo)}, TargetRevision: "v1.0.0"},
+				}
+				repoRefs, err := resolveReferencedSources(t.Context(), true, helmSource, refSources, resolver)
+				require.NoError(t, err)
+				assert.Len(t, repoRefs, 1)
+				assert.Equal(t, 1, resolveCalls)
+			})
+		})
+	}
+}
+
 // TestGenerateManifest_RejectsChartOnRefSource is the end-to-end regression: a multi-source
 // Helm app whose ref source carries a 'chart' field must fail manifest generation rather than
 // silently ignore the chart. GenerateManifest rejects at the resolveReferencedSources guard,

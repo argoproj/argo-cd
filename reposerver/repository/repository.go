@@ -603,6 +603,17 @@ func resolveReferencedSources(ctx context.Context, hasMultipleSources bool, sour
 		return repoRefs, nil
 	}
 
+	// referencedRevisions remembers which target revision (and which $ref) first claimed a
+	// repository, so that a second $ref to the same repository at a different revision is
+	// rejected here, before the cache lookup. repoRefs is keyed by repository URL only, so
+	// without this guard both refs would share the first ref's resolved revision in the cache
+	// key and the later conflict check in runManifestGenAsync could be bypassed by a cache hit.
+	type referencedRevision struct {
+		revision string
+		refVar   string
+	}
+	referencedRevisions := make(map[string]referencedRevision)
+
 	refFileParams := make([]string, 0)
 	for _, fileParam := range source.FileParameters {
 		refFileParams = append(refFileParams, fileParam.Path)
@@ -638,27 +649,32 @@ func resolveReferencedSources(ctx context.Context, hasMultipleSources bool, sour
 		// both feed the manifest cache key.
 		normalizedRepoURL := refSourceMapping.Repo.NormalizeRepoURL()
 
-		_, ok = repoRefs[normalizedRepoURL]
-		if !ok {
-			var referencedCommitSHA string
-			var err error
-
-			if refSourceMapping.Repo.IsOCI() {
-				_, referencedCommitSHA, err = resolver.newOCIClientResolveRevision(ctx, &refSourceMapping.Repo, refSourceMapping.TargetRevision, resolver.ociNoRevisionCache)
-				if err != nil {
-					log.Errorf("Failed to get OCI client for repo %s: %v", refSourceMapping.Repo.Repo, err)
-					return nil, fmt.Errorf("failed to get OCI client for repo %s", refSourceMapping.Repo.Repo)
-				}
-			} else {
-				_, referencedCommitSHA, err = resolver.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, resolver.gitClientOpts)
-				if err != nil {
-					log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
-					return nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
-				}
+		if prev, ok := referencedRevisions[normalizedRepoURL]; ok {
+			if prev.revision != refSourceMapping.TargetRevision {
+				return nil, fmt.Errorf("cannot reference multiple revisions for the same repository (%s references %q while %s references %q)", refVar, refSourceMapping.TargetRevision, prev.refVar, prev.revision)
 			}
-
-			repoRefs[normalizedRepoURL] = referencedCommitSHA
+			continue
 		}
+
+		var referencedCommitSHA string
+		var err error
+
+		if refSourceMapping.Repo.IsOCI() {
+			_, referencedCommitSHA, err = resolver.newOCIClientResolveRevision(ctx, &refSourceMapping.Repo, refSourceMapping.TargetRevision, resolver.ociNoRevisionCache)
+			if err != nil {
+				log.Errorf("Failed to get OCI client for repo %s: %v", refSourceMapping.Repo.Repo, err)
+				return nil, fmt.Errorf("failed to get OCI client for repo %s", refSourceMapping.Repo.Repo)
+			}
+		} else {
+			_, referencedCommitSHA, err = resolver.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, resolver.gitClientOpts)
+			if err != nil {
+				log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
+				return nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
+			}
+		}
+
+		repoRefs[normalizedRepoURL] = referencedCommitSHA
+		referencedRevisions[normalizedRepoURL] = referencedRevision{revision: refSourceMapping.TargetRevision, refVar: refVar}
 	}
 	return repoRefs, nil
 }
