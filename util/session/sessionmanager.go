@@ -436,6 +436,19 @@ func (mgr *SessionManager) exceededFailedLoginAttempts(attempt LoginAttempts) bo
 	return false
 }
 
+// buildPasswordMigrationMutator returns an UpdateAccount mutator that replaces the
+// account's password hash only if it still matches originalHash, so a password
+// changed concurrently between verification and migration is never overwritten.
+func buildPasswordMigrationMutator(originalHash, newHash string) func(*settings.Account) error {
+	return func(acc *settings.Account) error {
+		if acc.PasswordHash != originalHash {
+			return nil
+		}
+		acc.PasswordHash = newHash
+		return nil
+	}
+}
+
 // VerifyUsernamePassword verifies if a username/password combo is correct
 func (mgr *SessionManager) VerifyUsernamePassword(username string, password string) error {
 	if password == "" {
@@ -479,7 +492,8 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 		return err
 	}
 
-	valid, _ := passwordutil.VerifyPassword(password, account.PasswordHash)
+	originalPasswordHash := account.PasswordHash
+	valid, stale := passwordutil.VerifyPassword(password, originalPasswordHash)
 	if !valid {
 		mgr.updateFailureCount(username, true)
 		return InvalidLoginErr
@@ -492,6 +506,22 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 	if !account.HasCapability(settings.AccountCapabilityLogin) {
 		return status.Errorf(codes.Unauthenticated, userDoesNotHaveCapability, username, settings.AccountCapabilityLogin)
 	}
+
+	if stale {
+		hashedPassword, err := passwordutil.HashPassword(password)
+		if err != nil {
+			log.Warnf("failed to rehash password for user %s: %v", username, err)
+		} else {
+			err = mgr.settingsMgr.UpdateAccount(
+				username,
+				buildPasswordMigrationMutator(originalPasswordHash, hashedPassword),
+			)
+			if err != nil {
+				log.Warnf("failed to migrate password hash for user %s: %v", username, err)
+			}
+		}
+	}
+
 	mgr.updateFailureCount(username, false)
 	return nil
 }

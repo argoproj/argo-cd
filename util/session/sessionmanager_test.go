@@ -571,6 +571,51 @@ func TestVerifyUsernamePassword(t *testing.T) {
 	}
 }
 
+func TestBuildPasswordMigrationMutatorSkipsConcurrentChange(t *testing.T) {
+	mutator := buildPasswordMigrationMutator("original-hash", "new-hash")
+	acc := &settings.Account{PasswordHash: "changed-concurrently"}
+
+	require.NoError(t, mutator(acc))
+	assert.Equal(t, "changed-concurrently", acc.PasswordHash)
+}
+
+func TestBuildPasswordMigrationMutatorAppliesWhenUnchanged(t *testing.T) {
+	mutator := buildPasswordMigrationMutator("original-hash", "new-hash")
+	acc := &settings.Account{PasswordHash: "original-hash"}
+
+	require.NoError(t, mutator(acc))
+	assert.Equal(t, "new-hash", acc.PasswordHash)
+}
+
+func TestVerifyUsernamePasswordMigratesBcryptPassword(t *testing.T) {
+	const pass = "password"
+
+	bcryptHash, err := (password.BcryptPasswordHasher{}).HashPassword(pass)
+	require.NoError(t, err)
+
+	clientset := getKubeClientWithConfig(
+		map[string]string{},
+		map[string][]byte{
+			"admin.password": []byte(bcryptHash),
+		},
+	)
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), clientset, "argocd")
+	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
+
+	err = mgr.VerifyUsernamePassword(common.ArgoCDAdminUsername, pass)
+	require.NoError(t, err)
+
+	account, err := settingsMgr.GetAccount(common.ArgoCDAdminUsername)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, bcryptHash, account.PasswordHash)
+
+	valid, stale := password.VerifyPassword(pass, account.PasswordHash)
+	assert.True(t, valid)
+	assert.False(t, stale)
+}
+
 func TestCacheValueGetters(t *testing.T) {
 	t.Run("Default values", func(t *testing.T) {
 		mlf := getMaxLoginFailures()
