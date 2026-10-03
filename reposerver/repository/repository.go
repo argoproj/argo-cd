@@ -350,7 +350,7 @@ func (s *Service) runRepoOperation(
 	source *v1alpha1.ApplicationSource,
 	sourceIntegrity *v1alpha1.SourceIntegrity,
 	cacheFn func(revision string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error),
-	operation func(repoRoot, commitSHA, revision string, ctxSrc operationContextSrc) error,
+	operation func(repoRoot, commitSHA, revision string, ctxSrc operationContextSrc, refSourceCommitSHAs cache.ResolvedRevisions) error,
 	settings operationSettings,
 	hasMultipleSources bool,
 	refSources map[string]*v1alpha1.RefTarget,
@@ -450,7 +450,7 @@ func (s *Service) runRepoOperation(
 
 		return operation(ociPath, revision, revision, func() (*operationContext, error) {
 			return &operationContext{appPath, "", nil}, nil
-		})
+		}, repoRefs)
 	} else if source.IsHelm() {
 		if settings.noCache {
 			err = helmClient.CleanChartCache(source.Chart, revision)
@@ -485,7 +485,7 @@ func (s *Service) runRepoOperation(
 		}
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
 			return &operationContext{chartPath, "", nil}, nil
-		})
+		}, repoRefs)
 	}
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func(clean bool) (goio.Closer, error) {
 		return s.checkoutRevision(ctx, gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth, clean)
@@ -564,7 +564,7 @@ func (s *Service) runRepoOperation(
 		}
 
 		return &operationContext{appPath, verificationResult, sourceIntegrityResult}, nil
-	})
+	}, repoRefs)
 }
 
 func getRepoSanitizerRegex(rootDir string) *regexp.Regexp {
@@ -728,7 +728,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	tarConcluded := false
 	var promise *ManifestResponsePromise
 
-	operation := func(repoRoot, commitSHA, revision string, ctxSrc operationContextSrc) error {
+	operation := func(repoRoot, commitSHA, revision string, ctxSrc operationContextSrc, _ cache.ResolvedRevisions) error {
 		// do not generate manifests if Path and Chart fields are not set for a source in Multiple Sources
 		if q.HasMultipleSources && q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" {
 			log.WithFields(map[string]any{
@@ -2567,7 +2567,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	res := &apiclient.RepoAppDetailsResponse{}
 
 	cacheFn := s.createGetAppDetailsCacheHandler(res, q)
-	operation := func(repoRoot, commitSHA, revision string, ctxSrc operationContextSrc) error {
+	operation := func(repoRoot, commitSHA, revision string, ctxSrc operationContextSrc, refSourceCommitSHAs cache.ResolvedRevisions) error {
 		opContext, err := ctxSrc()
 		if err != nil {
 			return err
@@ -2596,7 +2596,9 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				return fmt.Errorf("failed to populate plugin app details: %w", err)
 			}
 		}
-		_ = s.cache.SetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod), nil)
+		// Key the entry by the resolved ref revisions (as the manifest cache does) so that moving a
+		// referenced tag or changing a ref revision cannot return stale parameters from the cache.
+		_ = s.cache.SetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod), refSourceCommitSHAs)
 		return nil
 	}
 
@@ -2623,9 +2625,9 @@ func toUserInputStatusError(err error) error {
 	return err
 }
 
-func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery) func(revision string, _ cache.ResolvedRevisions, _ bool) (bool, error) {
-	return func(revision string, _ cache.ResolvedRevisions, _ bool) (bool, error) {
-		err := s.cache.GetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod), nil)
+func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery) func(revision string, refSourceCommitSHAs cache.ResolvedRevisions, _ bool) (bool, error) {
+	return func(revision string, refSourceCommitSHAs cache.ResolvedRevisions, _ bool) (bool, error) {
+		err := s.cache.GetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod), refSourceCommitSHAs)
 		if err == nil {
 			log.Infof("app details cache hit: %s/%s", revision, q.Source.Path)
 			return true, nil

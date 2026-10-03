@@ -4443,6 +4443,65 @@ func TestGetAppDetails_OCIRefResolvedAtConfiguredRevision(t *testing.T) {
 	assert.Equal(t, "v1.0.0", refSources["$values"].TargetRevision, "the request's RefTarget must not be mutated")
 }
 
+// TestGetAppDetails_OCIRefMovedTagInvalidatesCache is a regression test: the app-details cache key
+// used to ignore the resolved ref revisions, so once a response was cached, moving the referenced
+// OCI tag to a new digest kept returning the stale Helm parameters.
+func TestGetAppDetails_OCIRefMovedTagInvalidatesCache(t *testing.T) {
+	root, err := filepath.Abs("./testdata/my-chart")
+	require.NoError(t, err)
+	ociDirV1 := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(ociDirV1, "values.yaml"), []byte("from: first\n"), 0o644))
+	ociDirV2 := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(ociDirV2, "values.yaml"), []byte("from: second\n"), 0o644))
+
+	const digestV1 = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+	const digestV2 = "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+	primarySHA := "632039659e542ed7de0c170a4fcc1c571b288fc0"
+	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		gitClient.EXPECT().LsRemote(mock.Anything).Return(primarySHA, nil)
+		gitClient.EXPECT().CommitSHA(mock.Anything).Return(primarySHA, nil)
+		gitClient.EXPECT().Root().Return(root)
+		gitClient.EXPECT().RepoURL().Return("https://github.com/foo/bar")
+		gitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
+
+		// Each GetAppDetails call resolves the ref twice (once for the cache key, once when
+		// extracting). The tag points at digestV1 for the first call and digestV2 for the second.
+		ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return(digestV1, nil).Times(2)
+		ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return(digestV2, nil).Times(2)
+		ociClient.EXPECT().Extract(mock.Anything, digestV1).Return(ociDirV1, utilio.NopCloser, nil).Once()
+		ociClient.EXPECT().Extract(mock.Anything, digestV2).Return(ociDirV2, utilio.NopCloser, nil).Once()
+
+		paths.EXPECT().Add(mock.Anything, mock.Anything).Return()
+		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
+		paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": root})
+	}, root)
+
+	newQuery := func() *apiclient.RepoServerAppDetailsQuery {
+		return &apiclient.RepoServerAppDetailsQuery{
+			Repo:   &v1alpha1.Repository{Type: "git", Repo: "https://github.com/foo/bar"},
+			Source: &v1alpha1.ApplicationSource{Path: ".", TargetRevision: "main", Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/values.yaml"}}},
+			RefSources: map[string]*v1alpha1.RefTarget{
+				"$values": {Repo: v1alpha1.Repository{Type: "oci", Repo: "oci://foocr.io/values"}, TargetRevision: "v1.0.0"},
+			},
+		}
+	}
+
+	res, err := service.GetAppDetails(t.Context(), newQuery())
+	require.NoError(t, err)
+	assert.Equal(t, []*v1alpha1.HelmParameter{{Name: "from", Value: "first"}}, res.Helm.Parameters)
+
+	// The tag now resolves to a different digest: the cached entry must not be served.
+	res, err = service.GetAppDetails(t.Context(), newQuery())
+	require.NoError(t, err)
+	assert.Equal(t, []*v1alpha1.HelmParameter{{Name: "from", Value: "second"}}, res.Helm.Parameters)
+}
+
 func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	service := newService(t, ".")
 	sha := "632039659e542ed7de0c170a4fcc1c571b288fc0"

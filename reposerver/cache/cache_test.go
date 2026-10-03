@@ -902,6 +902,23 @@ func TestGetRefTargetRevisionMappingForCacheKey_OCINormalization(t *testing.T) {
 	assert.Equal(t, "sha256:digest", res["$values"].TargetRevision)
 }
 
+func TestAppDetailsCacheKey_IncludesResolvedRefRevisions(t *testing.T) {
+	// Regression: GetAppDetails used to pass nil resolved revisions, so moving a referenced tag (or
+	// changing a ref revision) produced the same key and returned stale Helm parameters from cache.
+	appSrc := &v1alpha1.ApplicationSource{Path: ".", Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/values.yaml"}}}
+	repoURL := "oci://example.com/org/values"
+	srcRefs := v1alpha1.RefTargetRevisionMapping{
+		"$values": {Repo: v1alpha1.Repository{Repo: repoURL}, TargetRevision: "1.0.0"},
+	}
+
+	keyA := appDetailsCacheKey("rev", appSrc, srcRefs, v1alpha1.TrackingMethodLabel, ResolvedRevisions{v1alpha1.NormalizeOCIURL(repoURL): "sha256:aaa"})
+	keyB := appDetailsCacheKey("rev", appSrc, srcRefs, v1alpha1.TrackingMethodLabel, ResolvedRevisions{v1alpha1.NormalizeOCIURL(repoURL): "sha256:bbb"})
+	keyNil := appDetailsCacheKey("rev", appSrc, srcRefs, v1alpha1.TrackingMethodLabel, nil)
+
+	assert.NotEqual(t, keyA, keyB, "different resolved ref digests must produce different app-details cache keys")
+	assert.NotEqual(t, keyA, keyNil)
+}
+
 func TestGetRefTargetRevisionMappingForCacheKey_DoesNotMutateInput(t *testing.T) {
 	// Regression: the mapping holds *RefTarget pointers shared with the caller's request. Overwriting
 	// TargetRevision in place blanked it whenever no resolved revisions were supplied (GetAppDetails),
