@@ -4394,6 +4394,55 @@ func Test_populateHelmAppDetailsWithOCIRef(t *testing.T) {
 	})
 }
 
+// TestGetAppDetails_OCIRefResolvedAtConfiguredRevision is a regression test for the full GetAppDetails
+// path with the cache enabled, which is how the repository API calls it. The app-details cache key
+// builder used to overwrite the shared RefTarget.TargetRevision in place (with "" because GetAppDetails
+// passes no resolved revisions), so the OCI $ref was then re-resolved at an empty revision instead of
+// the configured one. populateHelmAppDetails-level tests bypass the cache and cannot catch this.
+func TestGetAppDetails_OCIRefResolvedAtConfiguredRevision(t *testing.T) {
+	root, err := filepath.Abs("./testdata/my-chart")
+	require.NoError(t, err)
+	ociDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(ociDir, "values.yaml"), []byte("from: oci\n"), 0o644))
+
+	const digest = "sha256:5f2f0e9f7f9b6ee0f0b0a0e0d0c0b0a0900000000000000000000000000000000"
+	primarySHA := "632039659e542ed7de0c170a4fcc1c571b288fc0"
+	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		gitClient.EXPECT().LsRemote(mock.Anything).Return(primarySHA, nil)
+		gitClient.EXPECT().CommitSHA(mock.Anything).Return(primarySHA, nil)
+		gitClient.EXPECT().Root().Return(root)
+		gitClient.EXPECT().RepoURL().Return("https://github.com/foo/bar")
+		gitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
+
+		// Only the configured revision may be resolved. Resolving "" (or anything else) fails the test.
+		ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return(digest, nil)
+		ociClient.EXPECT().Extract(mock.Anything, digest).Return(ociDir, utilio.NopCloser, nil)
+
+		paths.EXPECT().Add(mock.Anything, mock.Anything).Return()
+		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
+		paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": root})
+	}, root)
+
+	refSources := map[string]*v1alpha1.RefTarget{
+		"$values": {Repo: v1alpha1.Repository{Type: "oci", Repo: "oci://foocr.io/values"}, TargetRevision: "v1.0.0"},
+	}
+	res, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
+		Repo:       &v1alpha1.Repository{Type: "git", Repo: "https://github.com/foo/bar"},
+		Source:     &v1alpha1.ApplicationSource{Path: ".", TargetRevision: "main", Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/values.yaml"}}},
+		RefSources: refSources,
+		// NoCache is deliberately false: this is how server/repository calls GetAppDetails.
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []*v1alpha1.HelmParameter{{Name: "from", Value: "oci"}}, res.Helm.Parameters)
+	assert.Equal(t, "v1.0.0", refSources["$values"].TargetRevision, "the request's RefTarget must not be mutated")
+}
+
 func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	service := newService(t, ".")
 	sha := "632039659e542ed7de0c170a4fcc1c571b288fc0"

@@ -902,6 +902,23 @@ func TestGetRefTargetRevisionMappingForCacheKey_OCINormalization(t *testing.T) {
 	assert.Equal(t, "sha256:digest", res["$values"].TargetRevision)
 }
 
+func TestGetRefTargetRevisionMappingForCacheKey_DoesNotMutateInput(t *testing.T) {
+	// Regression: the mapping holds *RefTarget pointers shared with the caller's request. Overwriting
+	// TargetRevision in place blanked it whenever no resolved revisions were supplied (GetAppDetails),
+	// so referenced sources were later resolved at "" instead of the configured revision.
+	mapping := v1alpha1.RefTargetRevisionMapping{
+		"$values": {Repo: v1alpha1.Repository{Repo: "https://github.com/org/repo.git"}, TargetRevision: "main"},
+	}
+
+	withResolved := getRefTargetRevisionMappingForCacheKey(mapping, ResolvedRevisions{"https://github.com/org/repo": "abc123"})
+	assert.Equal(t, "abc123", withResolved["$values"].TargetRevision)
+	assert.Equal(t, "main", mapping["$values"].TargetRevision, "input RefTarget must not be mutated")
+
+	withoutResolved := getRefTargetRevisionMappingForCacheKey(mapping, nil)
+	assert.Empty(t, withoutResolved["$values"].TargetRevision)
+	assert.Equal(t, "main", mapping["$values"].TargetRevision, "input RefTarget must not be mutated")
+}
+
 func TestGetOciDirectories(t *testing.T) {
 	t.Run("GetOciDirectories cache miss", func(t *testing.T) {
 		fixtures := newFixtures()

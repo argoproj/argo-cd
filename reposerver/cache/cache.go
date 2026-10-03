@@ -107,10 +107,15 @@ func getRefTargetRevisionMappingForCacheKey(refTargetRevisionMapping appv1.RefTa
 	res := make(refTargetRevisionMappingForCacheKey)
 
 	for k, v := range refTargetRevisionMapping {
-		// forcefully update TargetRevision based on refSourceCommitSHAs so that the resolved revision is always stored in the cache
-		// NormalizeRepoURL (OCI-aware) must match how refSourceCommitSHAs is keyed when populated.
-		v.TargetRevision = refSourceCommitSHAs[v.Repo.NormalizeRepoURL()]
-		res[k] = refTargetForCacheKeyFromRefTarget(v)
+		// Use the resolved revision from refSourceCommitSHAs so that the resolved revision is always stored in the
+		// cache key. NormalizeRepoURL (OCI-aware) must match how refSourceCommitSHAs is keyed when populated.
+		//
+		// Work on a copy: the mapping holds pointers shared with the caller's request, and overwriting
+		// TargetRevision in place would make later ref resolution (e.g. GetAppDetails, which passes no resolved
+		// revisions) operate on a blank or already-resolved revision instead of the one the user configured.
+		target := *v
+		target.TargetRevision = refSourceCommitSHAs[v.Repo.NormalizeRepoURL()]
+		res[k] = refTargetForCacheKeyFromRefTarget(&target)
 	}
 	return res
 }
