@@ -114,7 +114,9 @@ const renderSyncStatusRevision = (application: models.Application) => {
     );
 };
 
-const ProgressiveSyncStatus = ({application}: {application: models.Application}) => {
+const NullLoadingRenderer: React.FC = () => null;
+
+const ProgressiveSyncStatus = ({application, collapsed}: {application: models.Application; collapsed?: boolean}) => {
     const appSetRef = getApplicationSetOwnerRef(application);
     if (!appSetRef) {
         return null;
@@ -122,8 +124,15 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
 
     return (
         <DataLoader
-            input={application}
+            // load() only depends on the owner ref name; while collapsed that stable input
+            // keeps application watch events from re-firing the cluster-wide list call
+            input={collapsed ? appSetRef.name : application}
+            noLoaderOnInputChange={true}
+            loadingRenderer={collapsed ? NullLoadingRenderer : undefined}
             errorRenderer={() => {
+                if (collapsed) {
+                    return null;
+                }
                 // For any errors, show a minimal error state
                 return (
                     <div className='application-status-panel__item'>
@@ -153,6 +162,17 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
 
                 // Get the current application's status from the ApplicationSet applicationStatus
                 const appResource = appSet.status?.applicationStatus?.find(status => status.application === application.metadata.name);
+
+                if (collapsed) {
+                    const status = appResource?.status ?? 'Waiting';
+                    return (
+                        <div className='application-status-panel__collapsed-item' title='Progressive Sync' style={{color: getProgressiveSyncStatusColor(status)}}>
+                            {getProgressiveSyncStatusIcon({status})}
+                            &nbsp;
+                            {status}
+                        </div>
+                    );
+                }
 
                 // If no application status is found, show a default status
                 if (!appResource) {
@@ -330,6 +350,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                 </div>
             )}
             {conditionSummary}
+            <ProgressiveSyncStatus application={application} collapsed={true} />
         </div>
     );
 
