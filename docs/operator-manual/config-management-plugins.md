@@ -138,6 +138,11 @@ If `discover.fileName` is not provided, the `discover.find.command` is executed 
 application repository is supported by the plugin or not. The `find` command should return a non-error exit code
 and produce output to stdout when the application source type is supported.
 
+If a discovery check cannot be completed - the plugin sidecar is unavailable, or the check is cancelled or outlives
+the repo-server timeout - manifest generation for the Application fails with an error instead of falling back to the
+Helm, Kustomize or directory generators, so a repository that is meant to be processed by a plugin is never rendered
+without it.
+
 #### Place the plugin configuration file in the sidecar
 
 Argo CD expects the plugin configuration file to be located at `/home/argocd/cmp-server/config/plugin.yaml` in the sidecar.
