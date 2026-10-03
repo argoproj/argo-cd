@@ -12,7 +12,7 @@ import {VersionPanel} from './shared/components/version-info/version-info-panel'
 import {AuthSettingsCtx, Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
-import {hashCode, isSSOConfigured} from './shared/utils';
+import {hashCode, isSSOConfigured, syncAnimationPreference} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
 import {AuthSettings, UserInfo} from './shared/models';
 import {SystemLevelExtension} from './shared/services/extensions-service';
@@ -150,6 +150,7 @@ export class App extends React.Component<
     private routes: Routes;
     private popupPropsSubscription: Subscription;
     private unauthorizedSubscription: Subscription;
+    private animationPreferenceSubscription: Subscription;
 
     constructor(props: {}) {
         super(props);
@@ -173,6 +174,7 @@ export class App extends React.Component<
     }
 
     public componentDidMount() {
+        this.animationPreferenceSubscription = syncAnimationPreference(services.viewPreferences.getPreferences());
         this.popupPropsSubscription = this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps}));
         this.subscribeUnauthorized().then(subscription => {
             this.unauthorizedSubscription = subscription;
@@ -245,6 +247,9 @@ export class App extends React.Component<
         }
         if (this.unauthorizedSubscription) {
             this.unauthorizedSubscription.unsubscribe();
+        }
+        if (this.animationPreferenceSubscription) {
+            this.animationPreferenceSubscription.unsubscribe();
         }
     }
 

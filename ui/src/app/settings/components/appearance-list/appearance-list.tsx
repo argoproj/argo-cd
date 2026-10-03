@@ -28,6 +28,16 @@ export const AppearanceList = () => {
                                             {value: 'dark', title: 'Dark'}
                                         ]}></Select>
                                 </div>
+                                <div className='row'>
+                                    <span>Animations</span>
+                                    <Select
+                                        value={pref.disableAnimations ? 'disabled' : 'enabled'}
+                                        onChange={(value: SelectOption) => services.viewPreferences.updatePreferences({disableAnimations: value.value === 'disabled'})}
+                                        options={[
+                                            {value: 'enabled', title: 'Enabled'},
+                                            {value: 'disabled', title: 'Disabled'}
+                                        ]}></Select>
+                                </div>
                             </div>
                         </div>
                     </div>
