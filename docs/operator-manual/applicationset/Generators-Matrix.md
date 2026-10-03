@@ -376,6 +376,10 @@ Then, given the following file structure/content:
 
 1. Combination-type generators (matrix or merge) can only be nested once. For example, this will not work:
 
+    A third combination level returns `combination-type generators can only be nested once`.
+    The error identifies the generator type and its index in the nested generator's `generators` list.
+    Replace that child with a non-combination generator, such as List or Git.
+
         - matrix:
             generators:
               - matrix:
