@@ -222,6 +222,11 @@ stringData:
 * `resource.manifest.compression` - `argocd-cm` setting controlling the compression algorithm for cached resource
   manifests when manifest compression is enabled. Valid values: `gzip-bestspeed` (default), `gzip-default`, `s2-encode`,
   `s2-encodebetter`, `zlib`, `none`.
+* `ARGOCD_CLUSTER_CACHE_WATCH_RETRY_USE_BACKOFF` - environment variable controlling whether to use exponential backoff
+  and jitter when retrying failed Kubernetes resource watches on authentication, rate limit, or server errors (401, 403,
+  429, 500, 503, 504). By default, this is `false`, preserving the existing 1-second retry behavior. When set to `true`,
+  retries back off exponentially (starting at 1s, doubling with factor 2.0 up to a cap of 30s) with 10% random jitter,
+  preventing retry storms on destination clusters.
 
 * `ARGOCD_APPLICATION_TREE_SHARD_SIZE` - environment variable controlling the max number of resources stored in one
   Redis
