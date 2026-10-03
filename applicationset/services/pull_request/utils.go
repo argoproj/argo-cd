@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -34,6 +35,16 @@ func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]
 		outFilters = append(outFilters, outFilter)
 	}
 	return outFilters, nil
+}
+
+// containsAnyExcludedLabels returns true if gotLabels contains any of the excludedLabels
+func containsAnyExcludedLabels(excludedLabels []string, gotLabels []string) bool {
+	for _, excluded := range excludedLabels {
+		if slices.Contains(gotLabels, excluded) {
+			return true
+		}
+	}
+	return false
 }
 
 func matchFilter(pullRequest *PullRequest, filter *Filter) bool {
