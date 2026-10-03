@@ -1994,6 +1994,62 @@ func TestOrphanedChildrenIndex_OwnerRefLifecycle(t *testing.T) {
 	cluster.lock.RUnlock()
 }
 
+// Test_resyncTimeoutWithJitter validates the resync timeout selection used by watchEvents:
+// jitter disabled must preserve the exact pre-jitter timeout, an initial start must spread
+// uniformly across the whole period, and subsequent restarts must stay within the documented
+// wait.Jitter bounds while still producing varying values.
+func Test_resyncTimeoutWithJitter(t *testing.T) {
+	t.Parallel()
+
+	t.Run("disabled resync (timeout=0) always returns 0 regardless of jitter factor", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, time.Duration(0), resyncTimeoutWithJitter(0, 0.5, true))
+		assert.Equal(t, time.Duration(0), resyncTimeoutWithJitter(0, 0.5, false))
+	})
+
+	t.Run("jitter factor <= 0 returns exactly the input timeout", func(t *testing.T) {
+		t.Parallel()
+		timeout := 10 * time.Minute
+
+		for range 20 {
+			assert.Equal(t, timeout, resyncTimeoutWithJitter(timeout, 0, true))
+			assert.Equal(t, timeout, resyncTimeoutWithJitter(timeout, 0, false))
+		}
+	})
+
+	t.Run("initial start spreads uniformly across [0, timeout) and varies", func(t *testing.T) {
+		t.Parallel()
+		timeout := 10 * time.Minute
+
+		seen := make(map[time.Duration]bool)
+		for range 50 {
+			got := resyncTimeoutWithJitter(timeout, 0.1, true)
+			assert.GreaterOrEqual(t, got, time.Duration(0))
+			assert.Less(t, got, timeout)
+			seen[got] = true
+		}
+		assert.Greater(t, len(seen), 1, "expected initial-start timeouts to vary across calls")
+	})
+
+	t.Run("restart stays within [timeout, timeout*(1+factor)) and varies", func(t *testing.T) {
+		t.Parallel()
+		timeout := 10 * time.Minute
+		jitterFactor := 0.1
+		maxTimeout := time.Duration(float64(timeout) * (1 + jitterFactor))
+
+		seen := make(map[time.Duration]bool)
+		for range 50 {
+			got := resyncTimeoutWithJitter(timeout, jitterFactor, false)
+			assert.GreaterOrEqual(t, got, timeout)
+			assert.Less(t, got, maxTimeout)
+			seen[got] = true
+		}
+		// With 50 uniformly random samples in a continuous range, getting the same value twice
+		// is virtually impossible unless jitter is not actually being applied.
+		assert.Greater(t, len(seen), 1, "expected jittered timeouts to vary across calls")
+	})
+}
+
 // Test_watchEvents_Deadlock validates that starting watches will not create a deadlock
 // caused by using improper locking in various callback methods when there is a high load on the
 // system.
