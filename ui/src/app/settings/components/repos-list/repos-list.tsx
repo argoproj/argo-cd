@@ -47,6 +47,31 @@ const repoToUnified = (repo: models.Repository, isWriteFlag: boolean): UnifiedRe
 
 const credToUnified = (cred: models.RepoCreds, isWriteFlag: boolean): UnifiedRepo => (isWriteFlag ? {writeCred: cred} : {readCred: cred});
 
+// A credential template has no connection state at all - it's not a repo that
+// can be reachable or not, so showing the bare '-' used for a real repo's
+// not-yet-checked status reads as broken/missing information instead.
+export const CredentialTemplateStatus = () => (
+    <span>
+        <i className='fa fa-key' /> Credential template
+    </span>
+);
+
+// Extracted so a test can exercise the exact branch the table row renders,
+// rather than a copy of it: a repo with a connection state shows it, a
+// credential template with none shows CredentialTemplateStatus instead of
+// manufacturing a state it doesn't have, and any other repo keeps the
+// existing "not checked yet" dash.
+export const ConnectionStatusCell = ({connectionState, repo}: {connectionState: models.ConnectionState | undefined; repo: UnifiedRepo}) =>
+    connectionState ? (
+        <>
+            <ConnectionStateIcon state={connectionState} /> {connectionState.status}
+        </>
+    ) : isTemplate(repo) ? (
+        <CredentialTemplateStatus />
+    ) : (
+        <span>-</span>
+    );
+
 interface NewSSHRepoParams {
     type: string;
     name: string;
@@ -943,13 +968,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                                             <span>{isWrite(repo) ? 'Write' : 'Read'}</span>
                                                                         </div>
                                                                         <div className='columns small-2'>
-                                                                            {connectionState ? (
-                                                                                <>
-                                                                                    <ConnectionStateIcon state={connectionState} /> {connectionState.status}
-                                                                                </>
-                                                                            ) : (
-                                                                                <span>-</span>
-                                                                            )}
+                                                                            <ConnectionStatusCell connectionState={connectionState} repo={repo} />
                                                                             {!isTemplate(repo) && (
                                                                                 <ActionMenu
                                                                                     items={[
