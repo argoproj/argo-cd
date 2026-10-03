@@ -180,16 +180,32 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 		values = append(values, string(fileValues))
 	}
 
-	output := map[string]string{}
+	mergedValues := map[string]any{}
 	for _, file := range values {
 		values := map[string]any{}
 		if err := yaml.Unmarshal([]byte(file), &values); err != nil {
 			return nil, fmt.Errorf("failed to parse values: %w", err)
 		}
-		flatVals(values, output)
+		mergeValues(mergedValues, values)
 	}
 
+	output := map[string]string{}
+	flatVals(mergedValues, output)
 	return output, nil
+}
+
+// mergeValues merges maps recursively while replacing arrays and scalar values,
+// matching Helm's value-file precedence before parameter names are flattened.
+func mergeValues(dst, src map[string]any) {
+	for key, value := range src {
+		if incoming, ok := value.(map[string]any); ok {
+			if existing, ok := dst[key].(map[string]any); ok {
+				mergeValues(existing, incoming)
+				continue
+			}
+		}
+		dst[key] = value
+	}
 }
 
 func flatVals(input any, output map[string]string, prefixes ...string) {
