@@ -10,7 +10,8 @@ export const ImageTagFieldEditor = ReactFormField((props: {metadata: {value: str
     } = props;
     const origImage = parse(props.metadata.value);
     const val = getValue();
-    const image = val ? parse(val) : {name: origImage.name};
+    // keep the original rename target, otherwise a tag-only override would drop newName from the kustomize images entry
+    const image = val ? parse(val) : {name: origImage.name, newName: origImage.newName};
     const mustBeDigest = (image.digest || '').indexOf(':') > -1;
     return (
         <div>
