@@ -1322,12 +1322,24 @@ func (sc *syncContext) shouldUseServerSideApply(targetObj *unstructured.Unstruct
 	return sc.serverSideApply || resourceutil.HasAnnotationOption(targetObj, common.AnnotationSyncOptions, common.SyncOptionServerSideApply)
 }
 
-// needsClientSideApplyMigration checks if a resource has fields managed by the specified manager
-// with operation "Update" (client-side apply) that need to be migrated to server-side apply.
+// parseFieldManagers splits a comma-separated list of field manager names, ignoring blanks.
+func parseFieldManagers(value string) sets.Set[string] {
+	managers := sets.New[string]()
+	for _, manager := range strings.Split(value, ",") {
+		if manager = strings.TrimSpace(manager); manager != "" {
+			managers.Insert(manager)
+		}
+	}
+	return managers
+}
+
+// needsClientSideApplyMigration checks if a resource has fields managed by any of the specified managers
+// (a comma-separated list) with operation "Update" (client-side apply) that need to be migrated to server-side apply.
 // Client-side apply uses operation "Update", while server-side apply uses operation "Apply".
 // We only migrate managers with "Update" operation to avoid re-migrating already-migrated managers.
-func (sc *syncContext) needsClientSideApplyMigration(liveObj *unstructured.Unstructured, fieldManager string) bool {
-	if liveObj == nil || fieldManager == "" {
+func (sc *syncContext) needsClientSideApplyMigration(liveObj *unstructured.Unstructured, fieldManagers string) bool {
+	managers := parseFieldManagers(fieldManagers)
+	if liveObj == nil || managers.Len() == 0 {
 		return false
 	}
 
@@ -1339,7 +1351,7 @@ func (sc *syncContext) needsClientSideApplyMigration(liveObj *unstructured.Unstr
 	for _, field := range managedFields {
 		// Only consider managers with operation "Update" (client-side apply).
 		// Managers with operation "Apply" are already using server-side apply.
-		if field.Manager == fieldManager && field.Operation == metav1.ManagedFieldsOperationUpdate {
+		if managers.Has(field.Manager) && field.Operation == metav1.ManagedFieldsOperationUpdate {
 			return true
 		}
 	}
@@ -1348,7 +1360,8 @@ func (sc *syncContext) needsClientSideApplyMigration(liveObj *unstructured.Unstr
 }
 
 // performCSAUpgradeMigration uses the csaupgrade package to migrate managed fields
-// from a client-side apply manager (operation: Update) to the server-side apply manager.
+// from client-side apply managers (operation: Update; csaFieldManager may be a comma-separated list)
+// to the server-side apply manager.
 // This directly patches the managedFields to transfer field ownership, avoiding the need
 // to write the last-applied-configuration annotation (which has a 262KB size limit).
 // This is the primary method for CSA to SSA migration in ArgoCD.
@@ -1385,7 +1398,7 @@ func (sc *syncContext) performCSAUpgradeMigration(ctx context.Context, liveObj *
 		// This unions the CSA manager's fields into the SSA manager and removes the CSA manager entry
 		patchData, patchErr := csaupgrade.UpgradeManagedFieldsPatch(
 			freshObj,
-			sets.New(csaFieldManager),
+			parseFieldManagers(csaFieldManager),
 			sc.serverSideApplyManager,
 		)
 		if patchErr != nil {

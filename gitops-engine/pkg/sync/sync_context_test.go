@@ -2899,6 +2899,78 @@ func TestNeedsClientSideApplyMigration(t *testing.T) {
 	}
 }
 
+func TestNeedsClientSideApplyMigration_ManagerList(t *testing.T) {
+	syncCtx := newTestSyncCtx(nil)
+	obj := testingutils.NewPod()
+	obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+		{
+			Manager:   "aptakube",
+			Operation: metav1.ManagedFieldsOperationUpdate,
+			FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:metadata":{"f:labels":{}}}`)},
+		},
+	})
+
+	tests := []struct {
+		name     string
+		managers string
+		expected bool
+	}{
+		{name: "single matching manager", managers: "aptakube", expected: true},
+		{name: "matching manager in list", managers: "kubectl-client-side-apply, aptakube", expected: true},
+		{name: "list without matching manager", managers: "kubectl-client-side-apply,kubectl-edit", expected: false},
+		{name: "only separators and blanks", managers: " , ", expected: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, syncCtx.needsClientSideApplyMigration(obj, tt.managers))
+		})
+	}
+}
+
+func TestPerformCSAUpgradeMigration_MultipleManagers(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	// Two client-side managers own different fields, e.g. `kubectl edit` and a desktop client.
+	obj := testingutils.NewPod()
+	obj.SetNamespace(testingutils.FakeArgoCDNamespace)
+	obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+		{
+			Manager:   "kubectl-edit",
+			Operation: metav1.ManagedFieldsOperationUpdate,
+			FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:metadata":{"f:labels":{"f:app":{}}}}`)},
+		},
+		{
+			Manager:   "aptakube",
+			Operation: metav1.ManagedFieldsOperationUpdate,
+			FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:metadata":{"f:annotations":{"f:note":{}}}}`)},
+		},
+	})
+
+	dynamicClient := fake.NewSimpleDynamicClient(scheme, obj)
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.serverSideApplyManager = "argocd-controller"
+	syncCtx.dynamicIf = dynamicClient
+	syncCtx.disco = &fakedisco.FakeDiscovery{
+		Fake: &testcore.Fake{Resources: testingutils.StaticAPIResources},
+	}
+
+	err := syncCtx.performCSAUpgradeMigration(context.Background(), obj, "kubectl-edit, aptakube")
+	require.NoError(t, err)
+
+	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}
+	updatedObj, err := dynamicClient.Resource(gvr).Namespace(obj.GetNamespace()).Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+	require.NoError(t, err)
+
+	managers := map[string]bool{}
+	for _, mf := range updatedObj.GetManagedFields() {
+		managers[mf.Manager] = true
+	}
+	assert.False(t, managers["kubectl-edit"], "kubectl-edit should have been migrated")
+	assert.False(t, managers["aptakube"], "aptakube should have been migrated")
+	assert.True(t, managers["argocd-controller"], "argocd-controller should own the migrated fields")
+}
+
 func TestPerformCSAUpgradeMigration_NoMigrationNeeded(t *testing.T) {
 	// Create a fake dynamic client with a Pod scheme
 	scheme := runtime.NewScheme()
