@@ -51,3 +51,14 @@ func Types(obj *unstructured.Unstructured) []common.HookType {
 	}
 	return types
 }
+
+// HasArgoHookTypes reports whether the object defines at least one valid
+// Argo CD hook type. Defining any Argo CD hook causes all Helm hooks to be ignored.
+func HasArgoHookTypes(obj *unstructured.Unstructured) bool {
+	for _, text := range resourceutil.GetAnnotationCSVs(obj, common.AnnotationKeyHook) {
+		if _, ok := common.NewHookType(text); ok {
+			return true
+		}
+	}
+	return false
+}
