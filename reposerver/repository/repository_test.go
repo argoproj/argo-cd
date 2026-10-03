@@ -421,6 +421,80 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 	assert.Greater(t, len(res.Manifests), 1)
 }
 
+func TestGenerateManifests_IgnoresCacheEntryFromDifferentGenerationPolicy(t *testing.T) {
+	service := newService(t, "../../manifests/base")
+
+	src := v1alpha1.ApplicationSource{Path: "."}
+	q := apiclient.ManifestRequest{
+		Repo:               &v1alpha1.Repository{},
+		ApplicationSource:  &src,
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+
+	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}, Revision: mock.Anything}
+
+	key := cache.NewManifestKey(mock.Anything, &src, q.GetRefSources(), q.GetNamespace(), q.GetTrackingMethod(),
+		q.GetAppLabelKey(), q.GetAppName(), q.GetInstallationID(), q.GetSourceIntegrity(), &q, nil,
+	)
+	err := service.cache.SetManifests(key, &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
+	require.NoError(t, err)
+
+	// With the same generation policy on both sides, the cached entry is still valid.
+	res, err := service.GenerateManifest(t.Context(), &q)
+	require.NoError(t, err)
+	assert.Equal(t, cachedFakeResponse, res)
+
+	// A permissive Kustomize build option changes what GenerateManifests is allowed
+	// to read, so the entry generated without it must not be served anymore.
+	q.KustomizeOptions = &v1alpha1.KustomizeOptions{BuildOptions: "--load-restrictor LoadRestrictionsNone"}
+	res, err = service.GenerateManifest(t.Context(), &q)
+	require.NoError(t, err)
+	assert.NotEqual(t, cachedFakeResponse, res)
+}
+
+func TestManifestGenErrorCacheAccumulatesUnderGenerationPolicy(t *testing.T) {
+	service := newService(t, ".")
+
+	service.initConstants = RepoServerInitConstants{
+		ParallelismLimit: 1,
+		PauseGenerationAfterFailedGenerationAttempts: 2,
+		PauseGenerationOnFailureForMinutes:           0,
+		PauseGenerationOnFailureForRequests:          2,
+	}
+
+	manifestRequest := &apiclient.ManifestRequest{
+		Repo:    &v1alpha1.Repository{},
+		AppName: "test",
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path: "./testdata/invalid-helm",
+		},
+	}
+	// A request with generation-policy values must still reach the pause threshold:
+	// a failure entry stored without the policy hash is discarded on every attempt,
+	// so the consecutive-failure counter would reset forever and never pause.
+	manifestRequest.KustomizeOptions = &v1alpha1.KustomizeOptions{BuildOptions: "--load-restrictor LoadRestrictionsNone"}
+
+	for range 2 {
+		_, err := service.GenerateManifest(t.Context(), manifestRequest)
+		require.Error(t, err)
+	}
+
+	key := cache.NewManifestKey(mock.Anything, manifestRequest.ApplicationSource, manifestRequest.GetRefSources(), manifestRequest.GetNamespace(), manifestRequest.GetTrackingMethod(),
+		manifestRequest.GetAppLabelKey(), manifestRequest.GetAppName(), manifestRequest.GetInstallationID(), manifestRequest.GetSourceIntegrity(), manifestRequest, nil,
+	)
+	cachedManifestResponse := &cache.CachedManifestResponse{}
+	err := service.cache.GetManifests(key, cachedManifestResponse)
+	require.NoError(t, err)
+	assert.Equal(t, 2, cachedManifestResponse.NumberOfConsecutiveFailures)
+
+	// The threshold is met, so the next request is served the cached failure
+	// instead of regenerating.
+	_, err = service.GenerateManifest(t.Context(), manifestRequest)
+	require.Error(t, err)
+	assert.True(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix), err)
+}
+
 func TestGenerateManifests_EmptyCache(t *testing.T) {
 	service, gitMocks, mockCache := newServiceWithMocks(t, "../../manifests/base")
 
