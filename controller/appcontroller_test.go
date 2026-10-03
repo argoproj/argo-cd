@@ -249,6 +249,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		[]string{},
 		[]string{},
 		[]string{},
+		[]string{},
 		0,
 		persistResourceHealth,
 		nil,
@@ -2785,7 +2786,7 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
 		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
 		common.DefaultPortArgoCDMetrics, 0,
-		[]string{}, []string{}, []string{},
+		[]string{}, []string{}, []string{}, []string{},
 		0, true, nil, nil, nil, false, false,
 		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
 	)
@@ -2848,7 +2849,7 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
 		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
 		common.DefaultPortArgoCDMetrics, 0,
-		[]string{}, []string{}, []string{},
+		[]string{}, []string{}, []string{}, []string{},
 		0, true, nil, nil, nil, false, false,
 		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
 	)
