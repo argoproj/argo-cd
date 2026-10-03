@@ -1,6 +1,8 @@
 import * as React from 'react';
-import {fireEvent, render, screen} from '@testing-library/react';
+import {fireEvent, render, screen, waitFor} from '@testing-library/react';
 import * as models from '../../../shared/models';
+import {Context} from '../../../shared/context';
+import {services} from '../../../shared/services';
 import {ApplicationStatusPanel} from './application-status-panel';
 import {ApplicationSetStatusPanel} from './appset-status-panel';
 
@@ -14,7 +16,8 @@ jest.mock('../../../shared/services', () => ({
                     date: '2026-01-01T00:00:00Z',
                     message: 'Test commit message'
                 })
-            )
+            ),
+            listApplicationSets: jest.fn(() => Promise.resolve({items: []}))
         },
         extensions: {
             getStatusPanelExtensions: jest.fn(() => [])
@@ -91,6 +94,173 @@ describe('ApplicationStatusPanel', () => {
     it('does not show a source hydrator entry while collapsed when the app has none', () => {
         render(<ApplicationStatusPanel application={application} collapsed={true} />);
         expect(screen.queryByTitle('Source Hydrator')).toBeNull();
+    });
+
+    it('does not run the full panel loaders while it has never been expanded', () => {
+        (services.applications.revisionMetadata as jest.Mock).mockClear();
+        render(<ApplicationStatusPanel application={application} collapsed={true} />);
+        expect(services.applications.revisionMetadata).not.toHaveBeenCalled();
+    });
+
+    it('does not refresh hidden loaders on application updates while collapsed', async () => {
+        (services.applications.listApplicationSets as jest.Mock).mockClear();
+        const withOwner = (app: models.Application) =>
+            ({...app, metadata: {...app.metadata, ownerReferences: [{kind: 'ApplicationSet', name: 'demo-appset'}]}} as unknown as models.Application);
+        const appV1 = withOwner(application);
+        const appV2 = withOwner({...application, status: {...application.status, health: {status: 'Degraded'}}} as unknown as models.Application);
+
+        const {rerender} = render(<ApplicationStatusPanel application={appV1} collapsed={false} />);
+        await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(1));
+
+        rerender(<ApplicationStatusPanel application={appV1} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={appV2} collapsed={true} />);
+        await waitFor(() => expect(screen.getAllByText('Degraded').length).toBeGreaterThan(0));
+        expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(1);
+
+        rerender(<ApplicationStatusPanel application={appV2} collapsed={false} />);
+        await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(2));
+    });
+
+    it('refreshes the sync window state on re-expand even when the application is unchanged', async () => {
+        (services.applications.getApplicationSyncWindowState as jest.Mock).mockClear();
+        (services.applications.revisionMetadata as jest.Mock).mockClear();
+
+        const {rerender} = render(<ApplicationStatusPanel application={application} collapsed={false} />);
+        await waitFor(() => expect(services.applications.getApplicationSyncWindowState).toHaveBeenCalledTimes(1));
+
+        rerender(<ApplicationStatusPanel application={application} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={application} collapsed={false} />);
+        await waitFor(() => expect(services.applications.getApplicationSyncWindowState).toHaveBeenCalledTimes(2));
+
+        // the revision metadata loaders stay mounted and do not reload
+        expect(services.applications.revisionMetadata).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not reload revision metadata while collapsed when the revision changes', async () => {
+        (services.applications.revisionMetadata as jest.Mock).mockClear();
+        const appV2 = {...application, status: {...application.status, sync: {status: 'Synced', revision: 'def456abc789'}}} as unknown as models.Application;
+
+        const {rerender} = render(<ApplicationStatusPanel application={application} collapsed={false} />);
+        await waitFor(() => expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'argocd', 'abc123def456', 0, null));
+
+        rerender(<ApplicationStatusPanel application={application} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={appV2} collapsed={true} />);
+        expect(services.applications.revisionMetadata).toHaveBeenCalledTimes(1);
+
+        rerender(<ApplicationStatusPanel application={appV2} collapsed={false} />);
+        await waitFor(() => expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'argocd', 'def456abc789', 0, null));
+        expect(services.applications.revisionMetadata).toHaveBeenCalledTimes(2);
+    });
+
+    it('passes the frozen application to status panel extensions while collapsed', () => {
+        const seen: string[] = [];
+        const Extension = ({application: app}: {application: models.Application}) => {
+            seen.push(app.status.health.status);
+            return null;
+        };
+        (services.extensions.getStatusPanelExtensions as jest.Mock).mockReturnValue([{title: 'ext', id: 'ext', component: Extension}]);
+        const degraded = {...application, status: {...application.status, health: {status: 'Degraded'}}} as unknown as models.Application;
+
+        const {rerender} = render(<ApplicationStatusPanel application={application} collapsed={false} />);
+        rerender(<ApplicationStatusPanel application={application} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={degraded} collapsed={true} />);
+        expect(seen).not.toContain('Degraded');
+
+        rerender(<ApplicationStatusPanel application={degraded} collapsed={false} />);
+        expect(seen).toContain('Degraded');
+        (services.extensions.getStatusPanelExtensions as jest.Mock).mockReturnValue([]);
+    });
+
+    it('does not retain the previous sync window state when switching to another application', async () => {
+        const syncWindowMock = services.applications.getApplicationSyncWindowState as jest.Mock;
+        syncWindowMock.mockClear();
+        syncWindowMock
+            .mockImplementationOnce(() => Promise.resolve({assignedWindows: [{kind: 'allow', schedule: '* * * * *', duration: '1h'}]}))
+            .mockImplementationOnce(() => new Promise(() => null));
+
+        const withContext = (app: models.Application) => (
+            <Context.Provider value={{baseHref: '/'} as any}>
+                <ApplicationStatusPanel application={app} collapsed={false} />
+            </Context.Provider>
+        );
+        const {rerender} = render(withContext(application));
+        await waitFor(() => expect(screen.getByText('SYNC WINDOWS')).toBeInTheDocument());
+
+        const otherApp = {
+            ...application,
+            metadata: {...application.metadata, name: 'other-app'},
+            spec: {...application.spec, project: 'other-project'}
+        } as unknown as models.Application;
+        rerender(withContext(otherApp));
+        await waitFor(() => expect(screen.queryByText('SYNC WINDOWS')).toBeNull());
+    });
+
+    it('does not remount the progressive sync loader on live ownership transitions while collapsed', async () => {
+        (services.applications.listApplicationSets as jest.Mock).mockClear();
+        const withOwner = {
+            ...application,
+            metadata: {...application.metadata, ownerReferences: [{kind: 'ApplicationSet', name: 'demo-appset'}]}
+        } as unknown as models.Application;
+
+        const {rerender} = render(<ApplicationStatusPanel application={withOwner} collapsed={false} />);
+        await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(1));
+
+        rerender(<ApplicationStatusPanel application={withOwner} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={application} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={withOwner} collapsed={true} />);
+        expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not remount the hydrator metadata loader on live hydrator transitions while collapsed', async () => {
+        (services.applications.revisionMetadata as jest.Mock).mockClear();
+        const hydratorApp = {
+            ...application,
+            spec: {...application.spec, sourceHydrator: {drySource: {}, syncSource: {}}},
+            status: {
+                ...application.status,
+                sourceHydrator: {
+                    currentOperation: {
+                        phase: 'Hydrated',
+                        startedAt: '2026-01-01T00:00:00Z',
+                        drySHA: 'dry123',
+                        sourceHydrator: {
+                            drySource: {repoURL: 'https://github.com/org/repo.git', targetRevision: 'main', path: '.'},
+                            syncSource: {targetBranch: 'env/test', path: '.'}
+                        }
+                    }
+                }
+            }
+        } as unknown as models.Application;
+        const withoutOperation = {...hydratorApp, status: {...hydratorApp.status, sourceHydrator: {}}} as unknown as models.Application;
+        const dryCalls = () => (services.applications.revisionMetadata as jest.Mock).mock.calls.filter(call => call[2] === 'dry123').length;
+
+        const {rerender} = render(<ApplicationStatusPanel application={hydratorApp} collapsed={false} />);
+        await waitFor(() => expect(dryCalls()).toBe(1));
+
+        rerender(<ApplicationStatusPanel application={hydratorApp} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={withoutOperation} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={hydratorApp} collapsed={true} />);
+        expect(dryCalls()).toBe(1);
+    });
+
+    it('does not remount the last-sync metadata loader on live operation transitions while collapsed', async () => {
+        (services.applications.revisionMetadata as jest.Mock).mockClear();
+        const opApp = {
+            ...application,
+            status: {
+                ...application.status,
+                operationState: {phase: 'Succeeded', startedAt: '2026-01-01T00:00:00Z', finishedAt: '2026-01-01T00:01:00Z', syncResult: {revision: 'op12345'}}
+            }
+        } as unknown as models.Application;
+        const opCalls = () => (services.applications.revisionMetadata as jest.Mock).mock.calls.filter(call => call[2] === 'op12345').length;
+
+        const {rerender} = render(<ApplicationStatusPanel application={opApp} collapsed={false} />);
+        await waitFor(() => expect(opCalls()).toBe(1));
+
+        rerender(<ApplicationStatusPanel application={opApp} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={application} collapsed={true} />);
+        rerender(<ApplicationStatusPanel application={opApp} collapsed={true} />);
+        expect(opCalls()).toBe(1);
     });
 });
 
