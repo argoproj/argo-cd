@@ -877,6 +877,10 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 		initImage := dig(initContainer, "image").(string)
 		assert.Equal(t, "init-container:v1", initImage)
 
+		// Non-ignored sibling field: target bumped it to 15, live still has 10.
+		initDelay := dig(initContainer, "livenessProbe", "initialDelaySeconds")
+		assert.EqualValues(t, 15, initDelay, "non-ignored sibling field in the same list element was clobbered by live value")
+
 		// Assert main container fields as expected
 		mainName := dig(mainContainer, "name").(string)
 		assert.Equal(t, "main", mainName)
@@ -1103,6 +1107,137 @@ func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
 		// When the entire selector is ignored, both labels should come from live.
 		assert.Equal(t, "myapp", matchLabels["app"])
 		assert.Equal(t, "v1", matchLabels["version"])
+	})
+}
+
+// TestRestoreNonIgnoredFieldsListElements covers the CRD list case from
+// https://github.com/argoproj/argo-cd/issues/23283 (restoreNonIgnoredFields recurses into maps, not lists).
+func TestRestoreNonIgnoredFieldsListElements(t *testing.T) {
+	t.Run("ignoring image should not drop a non-ignored resources bump in a list element", func(t *testing.T) {
+		// original is the target as rendered from git, with a bumped resources.requests.
+		original := map[string]any{
+			"containers": []any{
+				map[string]any{
+					"name":  "nginx",
+					"image": "nginx:target",
+					"resources": map[string]any{
+						"requests": map[string]any{"cpu": "28m", "memory": "80Mi"},
+					},
+				},
+			},
+		}
+		normalizedTarget := map[string]any{
+			"containers": []any{
+				map[string]any{
+					"name": "nginx",
+					"resources": map[string]any{
+						"requests": map[string]any{"cpu": "28m", "memory": "80Mi"},
+					},
+				},
+			},
+		}
+		normalizedLive := map[string]any{
+			"containers": []any{
+				map[string]any{
+					"name": "nginx",
+					"resources": map[string]any{
+						"requests": map[string]any{"cpu": "25m", "memory": "70Mi"},
+					},
+				},
+			},
+		}
+		// patched is what the strategic merge patch produced for a CRD without a patch-merge-key on containers.
+		patched := map[string]any{
+			"containers": []any{
+				map[string]any{
+					"name":  "nginx",
+					"image": "nginx:live",
+					"resources": map[string]any{
+						"requests": map[string]any{"cpu": "25m", "memory": "70Mi"},
+					},
+				},
+			},
+		}
+
+		restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive)
+
+		containers := patched["containers"].([]any)
+		require.Len(t, containers, 1)
+		container := containers[0].(map[string]any)
+
+		assert.Equal(t, "nginx:live", container["image"], "ignored field 'image' should keep the live value")
+
+		resources := container["resources"].(map[string]any)
+		requests := resources["requests"].(map[string]any)
+		assert.Equal(t, "28m", requests["cpu"], "non-ignored 'resources.requests.cpu' was clobbered by live value")
+		assert.Equal(t, "80Mi", requests["memory"], "non-ignored 'resources.requests.memory' was clobbered by live value")
+	})
+
+	t.Run("a target-only element dropped by atomic replace is restored", func(t *testing.T) {
+		nginx := map[string]any{"name": "nginx", "image": "nginx:live"}
+		sidecar := map[string]any{"name": "sidecar", "image": "sidecar:target"}
+		original := map[string]any{"containers": []any{nginx, sidecar}}
+		normalizedTarget := map[string]any{"containers": []any{nginx, sidecar}}
+		normalizedLive := map[string]any{"containers": []any{nginx}}
+		patched := map[string]any{"containers": []any{nginx}}
+
+		restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive)
+
+		var names []string
+		for _, c := range patched["containers"].([]any) {
+			names = append(names, c.(map[string]any)["name"].(string))
+		}
+		assert.Contains(t, names, "sidecar", "target-only container was dropped by replace-strategy collateral")
+	})
+
+	t.Run("a non-ignored live-only element is dropped, an ignored one is kept", func(t *testing.T) {
+		nginx := map[string]any{"name": "nginx", "image": "nginx:target"}
+		liveExtra := map[string]any{"name": "live-extra", "image": "extra:live"}
+		ignoredExtra := map[string]any{"name": "ignored-extra"}
+		original := map[string]any{"containers": []any{nginx}}
+		normalizedTarget := map[string]any{"containers": []any{nginx}}
+		// live-extra is present (non-ignored, real live data); ignored-extra is
+		// absent (stripped by an ignore rule matching it wholesale).
+		normalizedLive := map[string]any{"containers": []any{nginx, liveExtra}}
+		patched := map[string]any{"containers": []any{nginx, liveExtra, ignoredExtra}}
+
+		restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive)
+
+		var names []string
+		for _, c := range patched["containers"].([]any) {
+			names = append(names, c.(map[string]any)["name"].(string))
+		}
+		assert.NotContains(t, names, "live-extra", "non-ignored live-only container should be dropped")
+		assert.Contains(t, names, "ignored-extra", "wholesale-ignored live-only container should be kept")
+	})
+
+	t.Run("falls back to positional alignment when names aren't usable", func(t *testing.T) {
+		original := map[string]any{
+			"containers": []any{
+				map[string]any{"image": "target:1", "resources": map[string]any{"cpu": "2"}},
+			},
+		}
+		normalizedTarget := map[string]any{
+			"containers": []any{
+				map[string]any{"resources": map[string]any{"cpu": "2"}},
+			},
+		}
+		normalizedLive := map[string]any{
+			"containers": []any{
+				map[string]any{"resources": map[string]any{"cpu": "1"}},
+			},
+		}
+		patched := map[string]any{
+			"containers": []any{
+				map[string]any{"image": "live:1", "resources": map[string]any{"cpu": "1"}},
+			},
+		}
+
+		restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive)
+
+		container := patched["containers"].([]any)[0].(map[string]any)
+		assert.Equal(t, "live:1", container["image"], "ignored field should keep the live value")
+		assert.Equal(t, "2", container["resources"].(map[string]any)["cpu"], "non-ignored field was clobbered by live value")
 	})
 }
 
