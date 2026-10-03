@@ -35,6 +35,8 @@
     flex-shrink: 1;
     overflow-x: auto;
     padding-bottom: 0.5em;
+    // keep the rightmost section clear of the collapse toggle
+    padding-right: 36px;
 
     $row-width: 250px;
 
