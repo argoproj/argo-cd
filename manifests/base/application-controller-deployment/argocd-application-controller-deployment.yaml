@@ -286,6 +286,18 @@ spec:
               name: argocd-cmd-params-cm
               key: otlp.sample.ratio
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_METRICS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: otlp.metrics.enabled
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_METRICS_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: otlp.metrics.interval
+              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
