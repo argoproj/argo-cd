@@ -5,7 +5,7 @@ import {Key, KeybindingContext, KeybindingProvider, NumKey, NumKeyToNumber, NumP
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
-import {DataLoader, EmptyState, Page, Paginate, SearchBar} from '../../../shared/components';
+import {DataLoader, EmptyState, FlexTopBar, Page, Paginate, SearchBar} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewKey, AppsListViewType, AppSetsListPreferences, HealthStatusBarPreferences, services, ViewPreferences} from '../../../shared/services';
@@ -18,9 +18,30 @@ import {createMatcher} from './applications-list-search';
 import {AppSetsStatusBar} from './applications-status-bar';
 import {AppSetTile} from './appset-tile';
 import {AppSetTableRow} from './appset-table-row';
-import {FlexTopBar} from '../../../shared/components';
+import {VirtualizedTilesGrid} from './applications-tiles';
 import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {ViewTypeSwitcher} from './view-type-switcher';
+import {
+    appsLayoutKey,
+    bidirectionalOverscanIndicesGetter,
+    computeColumnsPerRow,
+    computeOverscanRowCount,
+    getTableRowHeight,
+    shouldUseVirtualScroll,
+    TABLE_OVERSCAN_ROW_COUNT,
+    TABLE_ROW_HEIGHT,
+    TILE_GAP,
+    TILE_HEIGHT,
+    TILE_MIN_WIDTH,
+    useItemsPerContainer,
+    useWindowScrollerPosition
+} from './virtual-scroll';
+import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
+import {CellMeasurerCache} from 'react-virtualized/dist/commonjs/CellMeasurer';
+import Grid from 'react-virtualized/dist/commonjs/Grid';
+import List from 'react-virtualized/dist/commonjs/List';
+import WindowScroller from 'react-virtualized/dist/commonjs/WindowScroller';
+import type {ListRowProps} from 'react-virtualized';
 
 import './applications-list.scss';
 import './applications-table.scss';
@@ -231,45 +252,46 @@ const ApplicationSetsToolbar = (props: {
     );
 };
 
-const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
-    const [itemsPer, setItemsPer] = React.useState(0);
-
-    React.useEffect(() => {
-        const handleResize = () => {
-            let timeoutId: any;
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(() => {
-                timeoutId = null;
-                const itemWidth = itemRef.current ? itemRef.current.offsetWidth : -1;
-                const containerWidth = containerRef.current ? containerRef.current.offsetWidth : -1;
-                const curItemsPer = containerWidth > 0 && itemWidth > 0 ? Math.floor(containerWidth / itemWidth) : 1;
-                if (curItemsPer !== itemsPer) {
-                    setItemsPer(curItemsPer);
-                }
-            }, 1000);
-        };
-        window.addEventListener('resize', handleResize);
-        handleResize();
-        return () => {
-            window.removeEventListener('resize', handleResize);
-        };
-    }, []);
-
-    return itemsPer || 1;
-};
-
-const ApplicationSetTiles = ({appSets}: {appSets: models.ApplicationSet[]}) => {
+export const ApplicationSetTiles = ({
+    appSets,
+    useVirtualScrolling,
+    statusBarVisible
+}: {
+    appSets: models.ApplicationSet[];
+    useVirtualScrolling?: boolean;
+    statusBarVisible?: boolean;
+}) => {
     const [selectedAppSet, navAppSet, reset] = useNav(appSets.length);
     const ctxh = React.useContext(Context);
     const firstTileRef = React.useRef<HTMLDivElement>(null);
-    const appSetContainerRef = React.useRef(null);
-    const appSetsPerRow = useItemsPerContainer(firstTileRef, appSetContainerRef);
+    const appSetContainerRef = React.useRef<HTMLDivElement>(null);
+    const gridRef = React.useRef<Grid>(null);
+    const windowScrollerRef = React.useRef<WindowScroller>(null);
+    const [layoutWidth, setLayoutWidth] = React.useState(0);
+
+    const shouldVirtualize = shouldUseVirtualScroll(useVirtualScrolling, appSets.length);
+    const appSetsPerRow = useItemsPerContainer(firstTileRef, appSetContainerRef, !shouldVirtualize);
+    const columnsPerRow = layoutWidth > 0 ? computeColumnsPerRow(layoutWidth) : 1;
+    const layoutKey = React.useMemo(() => (shouldVirtualize ? appsLayoutKey(appSets) : ''), [shouldVirtualize, appSets]);
+    useWindowScrollerPosition(windowScrollerRef, shouldVirtualize, `${layoutKey}:${!!statusBarVisible}`);
+
+    const [cellCache] = React.useState(
+        () =>
+            new CellMeasurerCache({
+                defaultHeight: TILE_HEIGHT,
+                defaultWidth: TILE_MIN_WIDTH,
+                fixedWidth: true,
+                minHeight: 1
+            })
+    );
+
     const {registerKeybinding} = React.useContext(KeybindingContext);
+    const verticalNavStep = shouldVirtualize ? columnsPerRow : appSetsPerRow;
 
     registerKeybinding({keys: Key.RIGHT, action: () => navAppSet(1)});
     registerKeybinding({keys: Key.LEFT, action: () => navAppSet(-1)});
-    registerKeybinding({keys: Key.DOWN, action: () => navAppSet(appSetsPerRow)});
-    registerKeybinding({keys: Key.UP, action: () => navAppSet(-1 * appSetsPerRow)});
+    registerKeybinding({keys: Key.DOWN, action: () => navAppSet(verticalNavStep)});
+    registerKeybinding({keys: Key.UP, action: () => navAppSet(-1 * verticalNavStep)});
     registerKeybinding({
         keys: Key.ENTER,
         action: () => {
@@ -305,33 +327,97 @@ const ApplicationSetTiles = ({appSets}: {appSets: models.ApplicationSet[]}) => {
         }
     });
 
+    React.useEffect(() => {
+        if (selectedAppSet >= appSets.length) {
+            reset();
+        }
+    }, [selectedAppSet, appSets.length, reset]);
+
+    React.useEffect(() => {
+        if (selectedAppSet < 0 || !shouldVirtualize || !gridRef.current) {
+            return;
+        }
+        gridRef.current.scrollToCell({
+            columnIndex: selectedAppSet % columnsPerRow,
+            rowIndex: Math.floor(selectedAppSet / columnsPerRow)
+        });
+    }, [selectedAppSet, shouldVirtualize, columnsPerRow]);
+
+    React.useEffect(() => {
+        if (!shouldVirtualize) {
+            return;
+        }
+        cellCache.clearAll();
+        gridRef.current?.recomputeGridSize();
+    }, [shouldVirtualize, cellCache, layoutKey, layoutWidth]);
+
+    const getRowHeight = React.useCallback(
+        ({index}: {index: number}) => {
+            const height = cellCache.rowHeight({index});
+            const lastRow = Math.max(0, Math.ceil(appSets.length / columnsPerRow) - 1);
+            return index >= lastRow ? height : height + TILE_GAP;
+        },
+        [cellCache, appSets.length, columnsPerRow]
+    );
+
     return (
         <Consumer>
             {ctx => (
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                    {(pref: ViewPreferences) => (
-                        <div className='applications-tiles argo-table-list argo-table-list--clickable' ref={appSetContainerRef}>
-                            {appSets.map((appSet, i) => (
-                                <AppSetTile
-                                    key={AppUtils.appInstanceName(appSet)}
-                                    appSet={appSet}
-                                    selected={selectedAppSet === i}
-                                    pref={pref}
-                                    ctx={ctx}
-                                    tileRef={i === 0 ? firstTileRef : undefined}
-                                />
-                            ))}
-                        </div>
-                    )}
+                    {(pref: ViewPreferences) => {
+                        const renderTile = (appSet: models.AbstractApplication, i: number, tileRef?: React.RefObject<HTMLDivElement>) => (
+                            <AppSetTile
+                                key={AppUtils.appInstanceName(appSet)}
+                                appSet={appSet as models.ApplicationSet}
+                                selected={selectedAppSet === i}
+                                pref={pref}
+                                ctx={ctx}
+                                tileRef={tileRef}
+                            />
+                        );
+
+                        if (shouldVirtualize) {
+                            return (
+                                <div className='applications-tiles applications-tiles--virtualized argo-table-list argo-table-list--clickable'>
+                                    <VirtualizedTilesGrid
+                                        applications={appSets}
+                                        cellCache={cellCache}
+                                        getRowHeight={getRowHeight}
+                                        gridRef={gridRef}
+                                        windowScrollerRef={windowScrollerRef}
+                                        onLayoutWidth={width => setLayoutWidth(prev => (prev !== width ? width : prev))}
+                                        renderTile={renderTile}
+                                    />
+                                </div>
+                            );
+                        }
+
+                        return (
+                            <div className='applications-tiles argo-table-list argo-table-list--clickable' ref={appSetContainerRef}>
+                                {appSets.map((appSet, i) => renderTile(appSet, i, i === 0 ? firstTileRef : undefined))}
+                            </div>
+                        );
+                    }}
                 </DataLoader>
             )}
         </Consumer>
     );
 };
 
-const ApplicationSetTable = ({appSets}: {appSets: models.ApplicationSet[]}) => {
+export const ApplicationSetTable = ({
+    appSets,
+    useVirtualScrolling,
+    statusBarVisible
+}: {
+    appSets: models.ApplicationSet[];
+    useVirtualScrolling?: boolean;
+    statusBarVisible?: boolean;
+}) => {
     const [selectedAppSet, navAppSet, reset] = useNav(appSets.length);
     const ctxh = React.useContext(Context);
+    const listRef = React.useRef<List>(null);
+    const windowScrollerRef = React.useRef<WindowScroller>(null);
+    const shouldVirtualize = shouldUseVirtualScroll(useVirtualScrolling, appSets.length);
     const {registerKeybinding} = React.useContext(KeybindingContext);
 
     registerKeybinding({keys: Key.DOWN, action: () => navAppSet(1)});
@@ -354,17 +440,87 @@ const ApplicationSetTable = ({appSets}: {appSets: models.ApplicationSet[]}) => {
         }
     });
 
+    React.useEffect(() => {
+        if (selectedAppSet >= appSets.length) {
+            reset();
+        }
+    }, [selectedAppSet, appSets.length, reset]);
+
+    React.useEffect(() => {
+        if (selectedAppSet >= 0 && shouldVirtualize && listRef.current) {
+            listRef.current.scrollToRow(selectedAppSet);
+        }
+    }, [selectedAppSet, shouldVirtualize]);
+
+    const getRowHeight = React.useCallback(
+        ({index}: {index: number}) => {
+            const appSet = appSets[index];
+            return appSet ? getTableRowHeight(appSet) : TABLE_ROW_HEIGHT;
+        },
+        [appSets]
+    );
+
+    const layoutKey = React.useMemo(() => (shouldVirtualize ? appsLayoutKey(appSets) : ''), [shouldVirtualize, appSets]);
+    useWindowScrollerPosition(windowScrollerRef, shouldVirtualize, `${layoutKey}:${!!statusBarVisible}`);
+
+    React.useEffect(() => {
+        if (shouldVirtualize && listRef.current) {
+            listRef.current.recomputeRowHeights();
+        }
+    }, [shouldVirtualize, layoutKey]);
+
     return (
         <Consumer>
             {ctx => (
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                    {(pref: ViewPreferences) => (
-                        <div className='applications-table argo-table-list argo-table-list--clickable'>
-                            {appSets.map((appSet, i) => (
-                                <AppSetTableRow key={AppUtils.appInstanceName(appSet)} appSet={appSet} selected={selectedAppSet === i} pref={pref} ctx={ctx} />
-                            ))}
-                        </div>
-                    )}
+                    {(pref: ViewPreferences) => {
+                        const renderRow = (appSet: models.ApplicationSet, i: number) => (
+                            <AppSetTableRow key={AppUtils.appInstanceName(appSet)} appSet={appSet} selected={selectedAppSet === i} pref={pref} ctx={ctx} />
+                        );
+
+                        if (shouldVirtualize) {
+                            const rowRenderer = ({index, key, style}: ListRowProps) => {
+                                const appSet = appSets[index];
+                                if (!appSet) {
+                                    return null;
+                                }
+                                return (
+                                    <div key={key} style={style} className='applications-table__virtual-row'>
+                                        {renderRow(appSet, index)}
+                                    </div>
+                                );
+                            };
+
+                            return (
+                                <div className='applications-table argo-table-list argo-table-list--clickable'>
+                                    <WindowScroller ref={windowScrollerRef} updateScrollTopOnUpdatePosition={true}>
+                                        {({height, isScrolling, onChildScroll, scrollTop}) => (
+                                            <AutoSizer disableHeight={true}>
+                                                {({width}) => (
+                                                    <List
+                                                        ref={listRef}
+                                                        autoHeight={true}
+                                                        height={height}
+                                                        width={width}
+                                                        isScrolling={isScrolling}
+                                                        onScroll={onChildScroll}
+                                                        scrollTop={scrollTop}
+                                                        rowCount={appSets.length}
+                                                        rowHeight={getRowHeight}
+                                                        rowRenderer={rowRenderer}
+                                                        overscanRowCount={computeOverscanRowCount(height, TABLE_ROW_HEIGHT, TABLE_OVERSCAN_ROW_COUNT)}
+                                                        overscanIndicesGetter={bidirectionalOverscanIndicesGetter}
+                                                    />
+                                                )}
+                                            </AutoSizer>
+                                        )}
+                                    </WindowScroller>
+                                </div>
+                            );
+                        }
+
+                        return <div className='applications-table argo-table-list argo-table-list--clickable'>{appSets.map((appSet, i) => renderRow(appSet, i))}</div>;
+                    }}
                 </DataLoader>
             )}
         </Consumer>
@@ -498,8 +654,20 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                                                                     ]}
                                                                     data={filteredApps}
                                                                     onPageChange={page => ctx.navigation.goto('.', {page})}>
-                                                                    {data =>
-                                                                        (pref.view === Tiles && <ApplicationSetTiles appSets={data} />) || <ApplicationSetTable appSets={data} />
+                                                                    {(data, useVirtualScrolling) =>
+                                                                        (pref.view === Tiles && (
+                                                                            <ApplicationSetTiles
+                                                                                appSets={data}
+                                                                                useVirtualScrolling={useVirtualScrolling}
+                                                                                statusBarVisible={healthBarPrefs.showHealthStatusBar}
+                                                                            />
+                                                                        )) || (
+                                                                            <ApplicationSetTable
+                                                                                appSets={data}
+                                                                                useVirtualScrolling={useVirtualScrolling}
+                                                                                statusBarVisible={healthBarPrefs.showHealthStatusBar}
+                                                                            />
+                                                                        )
                                                                     }
                                                                 </Paginate>
                                                             )}
