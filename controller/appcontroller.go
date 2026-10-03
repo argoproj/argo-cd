@@ -29,6 +29,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -72,7 +73,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
+	"github.com/argoproj/argo-cd/v3/util/security"
 	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/syncwindow"
 	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 )
 
@@ -157,6 +160,9 @@ type ApplicationController struct {
 	// dynamicClusterDistributionEnabled if disabled deploymentInformer is never initialized
 	dynamicClusterDistributionEnabled bool
 	deploymentInformer                informerv1.DeploymentInformer
+
+	syncWindowInformer cache.SharedIndexInformer
+	syncWindowLister   applisters.SyncWindowLister
 
 	hydrator *hydrator.Hydrator
 }
@@ -314,7 +320,41 @@ func NewApplicationController(
 		}
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
+
+	// SyncWindow objects referenced by an Application are resolved from the app's own namespace
+	// (self-service). To support the "apps in any namespace" feature we must therefore watch
+	// SyncWindows cluster-wide and filter down to the enabled namespaces, mirroring the
+	// Application informer above. Without any additional namespaces configured, this stays
+	// scoped to the control-plane namespace.
+	syncWindowWatchNamespace := namespace
+	if len(ctrl.applicationNamespaces) > 0 {
+		syncWindowWatchNamespace = ""
+	}
+	syncWindowInformer := v1alpha1.NewSyncWindowInformer(applicationClientset, syncWindowWatchNamespace, appResyncPeriod, indexers)
+	if len(ctrl.applicationNamespaces) > 0 {
+		err = syncWindowInformer.SetTransform(func(obj any) (any, error) {
+			accessor, err := meta.Accessor(obj)
+			if err != nil {
+				return obj, nil
+			}
+			if !security.IsNamespaceEnabled(accessor.GetNamespace(), namespace, ctrl.applicationNamespaces) {
+				return nil, nil
+			}
+			return obj, nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	syncWindowLister := applisters.NewSyncWindowLister(syncWindowInformer.GetIndexer())
+	ctrl.syncWindowInformer = syncWindowInformer
+	ctrl.syncWindowLister = syncWindowLister
+	_, err = syncWindowInformer.AddEventHandler(ctrl.syncWindowEventHandlerFuncs())
+	if err != nil {
+		return nil, err
+	}
+
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts, syncWindowLister)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -968,10 +1008,13 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.projInformer.Run(ctx.Done())
+	go ctrl.syncWindowInformer.Run(ctx.Done())
 
 	errors.CheckError(ctrl.stateCache.Init())
 
-	if !cache.WaitForCacheSync(ctx.Done(), ctrl.appInformer.HasSynced, ctrl.projInformer.HasSynced) {
+	cacheSyncs := []cache.InformerSynced{ctrl.appInformer.HasSynced, ctrl.projInformer.HasSynced, ctrl.syncWindowInformer.HasSynced}
+
+	if !cache.WaitForCacheSync(ctx.Done(), cacheSyncs...) {
 		log.Error("Timed out waiting for caches to sync")
 		return
 	}
@@ -2100,8 +2143,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Summary = tree.GetSummary(app)
 	}
 
-	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false, nil)
-	if canSync {
+	isSyncBlocked, _ := ctrl.syncWindowPreventsAutoSync(app, project)
+	if !isSyncBlocked {
 		syncErrCond, opDuration := ctrl.autoSync(ctx, app, compareResult.syncStatus, compareResult.resources, compareResult.revisionsMayHaveChanges)
 		setOpDuration = opDuration
 		if syncErrCond != nil {
@@ -2625,6 +2668,30 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	return patchDuration
 }
 
+// syncWindowPreventsAutoSync checks if sync windows (both inline and CRD-based) prevent auto-sync.
+func (ctrl *ApplicationController) syncWindowPreventsAutoSync(app *appv1.Application, project *appv1.AppProject) (bool, error) {
+	var projCRDWindows, appWindows appv1.SyncWindows
+	resolver := syncwindow.NewResolver(ctrl.syncWindowLister, ctrl.namespace)
+	if len(project.Spec.SyncWindowRefs) > 0 {
+		windows, err := resolver.ResolveProjectRefs(project.Spec.SyncWindowRefs)
+		if err != nil {
+			log.WithError(err).Warn("Failed to resolve some project sync window refs")
+		}
+		projCRDWindows = append(projCRDWindows, windows...)
+	}
+	if len(app.Spec.SyncWindowRefs) > 0 {
+		windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs, app.Namespace)
+		if err != nil {
+			log.WithError(err).Warn("Failed to resolve some app sync window refs")
+		}
+		appWindows = append(appWindows, windows...)
+	}
+	// Auto-sync decision path: no operation has started yet, so pass isManual=false
+	// and operationStartTime=nil. status.OperationState here reflects a *previous*
+	// operation and must not influence whether the next auto-sync attempt is allowed.
+	return syncWindowPreventsSync(app, project, projCRDWindows, appWindows, false, nil)
+}
+
 // autoSync will initiate a sync operation for an application configured with automated sync
 func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus, shouldCompareRevisions bool) (*appv1.ApplicationCondition, time.Duration) {
 	_, span := tracer.Start(ctx, "controller.autoSync")
@@ -3019,6 +3086,102 @@ func (ctrl *ApplicationController) appProjectEventHandlerFuncs() cache.ResourceE
 			}
 		},
 	}
+}
+
+// syncWindowEventHandlerFuncs returns the informer event handlers for SyncWindow objects.
+// On Add/Update/Delete of a SyncWindow, apps whose Application.spec.syncWindowRefs or
+// whose project's spec.syncWindowRefs match the CR (by name or label selector) have a
+// refresh requested, provided this controller can process them.
+func (ctrl *ApplicationController) syncWindowEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
+	requeue := func(obj any) {
+		sw, ok := obj.(metav1.Object)
+		if !ok {
+			return
+		}
+		swName := sw.GetName()
+		swLabels := labels.Set(sw.GetLabels())
+		apps, err := ctrl.appLister.List(labels.Everything())
+		if err != nil {
+			log.WithError(err).Error("Failed to list applications for sync window event")
+			return
+		}
+		for _, app := range apps {
+			if !ctrl.appReferencesSyncWindow(app, swName, swLabels) {
+				continue
+			}
+			if !ctrl.canProcessApp(app) {
+				continue
+			}
+			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithRecent.Pointer(), nil)
+		}
+	}
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) { requeue(obj) },
+		UpdateFunc: func(old, new any) {
+			requeue(old)
+			requeue(new)
+		},
+		DeleteFunc: func(obj any) {
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+			requeue(obj)
+		},
+	}
+}
+
+// syncWindowRefMatches reports whether a SyncWindowRef targets the given
+// SyncWindow Matches by exact name OR by label selector; if
+// both are set on the ref the resolver already treats it as invalid, so name takes
+// precedence here for the purpose of best-effort event routing.
+func syncWindowRefMatches(ref appv1.SyncWindowRef, swName string, swLabels labels.Set) bool {
+	if ref.Name != "" {
+		return ref.Name == swName
+	}
+	if ref.Selector != nil {
+		selector, err := metav1.LabelSelectorAsSelector(ref.Selector)
+		if err != nil {
+			return false
+		}
+		return selector.Matches(swLabels)
+	}
+	return false
+}
+
+// appReferencesSyncWindow reports whether the given application should be refreshed
+// in response to a change of the SyncWindow with the given name and labels. An app
+// is affected if it or its project references the sync window directly (by name) or
+// via a matching label selector.
+func (ctrl *ApplicationController) appReferencesSyncWindow(app *appv1.Application, swName string, swLabels labels.Set) bool {
+	for _, ref := range app.Spec.SyncWindowRefs {
+		if syncWindowRefMatches(ref, swName, swLabels) {
+			return true
+		}
+	}
+	obj, exists, err := ctrl.projInformer.GetIndexer().GetByKey(ctrl.namespace + "/" + app.Spec.GetProject())
+	if err != nil || !exists {
+		return false
+	}
+	proj, ok := obj.(*appv1.AppProject)
+	if !ok {
+		return false
+	}
+	for _, pref := range proj.Spec.SyncWindowRefs {
+		if syncWindowRefMatches(pref.Ref, swName, swLabels) {
+			return true
+		}
+	}
+	// Also check global projects that apply to this app's project, since their
+	// SyncWindowRefs are merged into the effective project at evaluation time.
+	projLister := applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer())
+	for _, gp := range argo.GetGlobalProjects(proj, projLister, ctrl.settingsMgr) {
+		for _, pref := range gp.Spec.SyncWindowRefs {
+			if syncWindowRefMatches(pref.Ref, swName, swLabels) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // applicationEventHandlerFuncs returns the informer event handlers for Application
