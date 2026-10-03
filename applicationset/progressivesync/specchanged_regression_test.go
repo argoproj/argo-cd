@@ -76,8 +76,6 @@ func regressionApp(rev string, automatedEnabled *bool) argov1alpha1.Application 
 	return app
 }
 
-// these tests assert on the statuses returned by UpdateApplicationSetApplicationStatus, not on their persistence.
-
 func regressionManager(t *testing.T, appSet *argov1alpha1.ApplicationSet) *Manager {
 	t.Helper()
 	scheme := runtime.NewScheme()
