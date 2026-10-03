@@ -92,7 +92,7 @@ func TestPluginExecution(t *testing.T) {
 			if tt.expectedPluginErr == "" {
 				require.NoError(t, pluginErr)
 			} else {
-				assert.Equal(t, errMsg, fmt.Sprintf("Error: %s\nRun 'argocd --help' for usage.\n", tt.expectedPluginErr))
+				assert.Equal(t, errMsg, fmt.Sprintf("Error: %s\nRun 'argocd --help' for usage.", tt.expectedPluginErr))
 				require.EqualError(t, pluginErr, tt.expectedPluginErr)
 			}
 		})
@@ -115,7 +115,7 @@ func TestNormalCommandError(t *testing.T) {
 
 	errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
 	require.Error(t, pluginErr)
-	assert.Equal(t, "Error: unknown flag: --non-existent-flag\n", errMsg)
+	assert.Equal(t, "Error: unknown flag: --non-existent-flag", errMsg)
 	require.EqualError(t, pluginErr, "unknown flag: --non-existent-flag")
 }
 
@@ -134,7 +134,7 @@ func TestUnknownCommandNoPlugin(t *testing.T) {
 
 	errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
 	require.Error(t, pluginErr)
-	assert.Equal(t, "Error: unknown command \"non-existent\" for \"argocd\"\nRun 'argocd --help' for usage.\n", errMsg)
+	assert.Equal(t, "Error: unknown command \"non-existent\" for \"argocd\"\nRun 'argocd --help' for usage.", errMsg)
 	require.EqualError(t, pluginErr, "unknown command \"non-existent\" for \"argocd\"")
 }
 
@@ -154,7 +154,7 @@ func TestPluginNoExecutePermission(t *testing.T) {
 
 	errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
 	require.Error(t, pluginErr)
-	assert.Equal(t, "Error: unknown command \"no-permission\" for \"argocd\"\nRun 'argocd --help' for usage.\n", errMsg)
+	assert.Equal(t, "Error: unknown command \"no-permission\" for \"argocd\"\nRun 'argocd --help' for usage.", errMsg)
 	require.EqualError(t, pluginErr, "unknown command \"no-permission\" for \"argocd\"")
 }
 
@@ -174,7 +174,7 @@ func TestPluginExecutionError(t *testing.T) {
 
 	errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
 	require.Error(t, pluginErr)
-	assert.Equal(t, "Error: exit status 1\n", errMsg)
+	assert.Equal(t, "Error: exit status 1", errMsg)
 	require.EqualError(t, pluginErr, "exit status 1")
 }
 
@@ -206,7 +206,7 @@ func TestPluginInRelativePathIgnored(t *testing.T) {
 
 	errMsg, pluginErr := pluginHandler.HandleCommandExecutionError(err, true, args)
 	require.Error(t, pluginErr)
-	assert.Equal(t, "Error: unknown command \"ignore-plugin\" for \"argocd\"\nRun 'argocd --help' for usage.\n", errMsg)
+	assert.Equal(t, "Error: unknown command \"ignore-plugin\" for \"argocd\"\nRun 'argocd --help' for usage.", errMsg)
 	require.EqualError(t, pluginErr, "unknown command \"ignore-plugin\" for \"argocd\"")
 }
 
@@ -252,7 +252,7 @@ func TestPluginFlagParsing(t *testing.T) {
 			if tt.shouldFail {
 				require.Error(t, pluginErr)
 				assert.Equal(t, tt.expectedErrMsg, pluginErr.Error(), "Unexpected error message")
-				assert.Equal(t, errMsg, fmt.Sprintf("Error: %s\n", tt.expectedErrMsg))
+				assert.Equal(t, errMsg, "Error: "+tt.expectedErrMsg)
 			} else {
 				assert.Empty(t, errMsg)
 				require.NoError(t, pluginErr, "Expected no error for valid flags")
@@ -315,7 +315,7 @@ func TestPluginStatusCode(t *testing.T) {
 				} else {
 					t.Fatalf("expected an exit error, got: %v", pluginErr)
 				}
-				assert.Equal(t, errMsg, fmt.Sprintf("Error: exit status %d\n", tt.wantStatus))
+				assert.Equal(t, errMsg, fmt.Sprintf("Error: exit status %d", tt.wantStatus))
 			}
 		})
 	}
