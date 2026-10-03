@@ -257,8 +257,91 @@ Argo CD logs payloads of most API requests except request that are considered se
 `/cluster.ClusterService/Create`, `/session.SessionService/Create` etc. The full list of method
 can be found in [server/server.go](https://github.com/argoproj/argo-cd/blob/abba8dddce8cd897ba23320e3715690f465b4a95/server/server.go#L516).
 
-Argo CD does not log IP addresses of clients requesting API endpoints, since the API server is typically behind a proxy. Instead, it is recommended
-to configure IP addresses logging in the proxy server that sits in front of the API server.
+### Source IP logging
+
+Every API call line already carries the address of the gRPC peer as `peer.address`, whatever this setting is. For
+`argocd` CLI traffic that connects directly, that is the client's own address, but for the UI and the REST API it is
+only grpc-gateway's connection to the API server's listener, so the client's address appears nowhere. Enabling source
+IP logging records the client's address for all traffic, and repeats it on the line that carries the authenticated
+user's claims. Behind a proxy, that address is the proxy's unless you configure [trusted proxies](#trusted-proxies).
+
+It is off by default, on the grounds that the API server is typically behind a proxy that can log the same thing.
+To turn it on, set the `server.enable.source.ip.logging` config option in `argocd-cmd-params-cm`:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  server.enable.source.ip.logging: "true"
+```
+
+This can also be set via the `--enable-source-ip-logging` flag or the `ARGOCD_SERVER_ENABLE_SOURCE_IP_LOGGING`
+environment variable. Once enabled, the `started call` and `finished call` log lines, and the payload log lines that
+carry `grpc.request.claims`, gain up to two extra fields:
+
+* *source.ip*: the address of the client, as far as the API server can establish it. Without trusted proxies
+  (see below) this is the address the request arrived from, which clients cannot choose.
+* *forwarded.for*: the `X-Forwarded-For` chain the request arrived with, if any. Behind a proxy that sets the
+  header, the leftmost entry is the original client.
+
+UI and REST requests are relayed to the gRPC services by grpc-gateway, which dials the API server's own listener on
+`localhost`, so for those the gRPC peer address is never the client's. The gateway identifies itself to the
+interceptors with a secret generated at startup and passes on the address it resolved at the HTTP layer. Requests that
+do not carry that secret are attributed to their socket peer, whatever metadata they supply, unless that peer is a
+trusted proxy.
+
+#### Trusted proxies
+
+If Argo CD sits behind an ingress controller, a load balancer or a service mesh sidecar, the address a request
+arrives from is that proxy's. To log the client instead, list the proxies in `server.trusted.proxies`:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  server.enable.source.ip.logging: "true"
+  # The addresses of your ingress controller or load balancer, not the whole pod network.
+  server.trusted.proxies: "10.0.12.34,10.0.12.35"
+  # Only if every trusted proxy sets or overwrites this header.
+  server.client.ip.header: "CF-Connecting-IP"
+```
+
+The same settings are available as the `--trusted-proxies` and `--client-ip-header` flags, or the
+`ARGOCD_SERVER_TRUSTED_PROXIES` and `ARGOCD_SERVER_CLIENT_IP_HEADER` environment variables. When a request arrives
+from a trusted proxy, `source.ip` is the value of the client IP header if the request carries a valid address in it.
+Otherwise it is the rightmost `X-Forwarded-For` entry that is not a trusted proxy: every entry to the right of it was
+added by a proxy you trust, so the client cannot have chosen it. Requests from any other address are attributed to
+that address, so clients that bypass your proxies cannot use either header to pick their own `source.ip`.
+
+> [!WARNING]
+> Only name a client IP header that every trusted proxy sets or overwrites. A proxy that passes it through from
+> the client lets the client choose `source.ip`. The same applies to a trusted proxy that forwards `X-Forwarded-For`
+> without appending the address it saw, such as an Istio sidecar receiving traffic from inside the mesh.
+
+> [!WARNING]
+> Every address you trust can choose the `source.ip` of the requests it sends. Trusting a broad range such as the
+> pod network (often `10.0.0.0/8`) lets any pod that calls `argocd-server` directly set its own `source.ip` through
+> `X-Forwarded-For` or the client IP header.
+
+> [!NOTE]
+> Trusting `127.0.0.0/8` is how you cover a proxy sidecar in the `argocd-server` pod (Istio delivers inbound traffic
+> from `127.0.0.6`), but it also trusts every other container in the pod and `kubectl port-forward` sessions.
+
+`forwarded.for` is logged as received either way and is not validated against the trusted proxy list. For UI and
+REST requests, grpc-gateway forwards only the first `X-Forwarded-For` header line, so if a request carries several
+lines, `forwarded.for` can omit entries that `source.ip` was resolved from. Proxies that merge the lines into one,
+such as Traefik, are not affected.
+
+The endpoints that are not served through grpc-gateway (`/api/webhook`, `/api/badge`, `/auth/callback`,
+`/terminal`) do not carry these fields.
+
+> [!NOTE]
+> IP addresses are personal data under several privacy regimes, which is why this is opt-in. Check your retention
+> obligations before enabling it, bearing in mind that `peer.address` is logged either way.
 
 ### Standard Application log fields
 

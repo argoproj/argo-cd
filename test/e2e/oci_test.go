@@ -93,7 +93,7 @@ func TestOCIImageWithOutOfBoundsSymlink(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		Then().
-		Expect(Error("", "could not decompress layer: illegal filepath in symlink"))
+		Expect(ErrorRegex("", "could not decompress layer: error checking symlink .* target: .* path escapes from parent"))
 }
 
 func TestMultiSourceAppWithOCIRefValues(t *testing.T) {

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {COLORS} from './colors';
-import {SpinningIcon} from '../../applications/components/utils';
+import {SpinningIcon} from './app-utils';
 
 export const Spinner = ({show, style = {}}: {show: boolean; style?: React.CSSProperties}) =>
     show ? (

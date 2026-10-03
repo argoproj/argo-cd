@@ -4,63 +4,555 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"net/http"
 	"os"
 	"path"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
-	argocdcommon "github.com/argoproj/argo-cd/v3/common"
-
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/rest"
+
+	argocdcommon "github.com/argoproj/argo-cd/v3/common"
+	utilhttp "github.com/argoproj/argo-cd/v3/util/http"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
 	testData := []struct {
+		name        string
 		projSources []string
 		appSource   string
 		isPermitted bool
-	}{{
-		projSources: []string{"*"}, appSource: "https://github.com/argoproj/test.git", isPermitted: true,
-	}, {
-		projSources: []string{"https://github.com/argoproj/test.git"}, appSource: "https://github.com/argoproj/test.git", isPermitted: true,
-	}, {
-		projSources: []string{"ssh://git@GITHUB.com:argoproj/test"}, appSource: "ssh://git@github.com:argoproj/test", isPermitted: true,
-	}, {
-		projSources: []string{"https://github.com/argoproj/*"}, appSource: "https://github.com/argoproj/argoproj.git", isPermitted: true,
-	}, {
-		projSources: []string{"https://github.com/test1/test.git", "https://github.com/test2/test.git"}, appSource: "https://github.com/test2/test.git", isPermitted: true,
-	}, {
-		projSources: []string{"https://github.com/argoproj/test1.git"}, appSource: "https://github.com/argoproj/test2.git", isPermitted: false,
-	}, {
-		projSources: []string{"https://github.com/argoproj/*.git"}, appSource: "https://github.com/argoproj1/test2.git", isPermitted: false,
-	}, {
-		projSources: []string{"https://github.com/argoproj/foo"}, appSource: "https://github.com/argoproj/foo1", isPermitted: false,
-	}, {
-		projSources: []string{"https://gitlab.com/group/*"}, appSource: "https://gitlab.com/group/repo/owner", isPermitted: false,
-	}, {
-		projSources: []string{"https://gitlab.com/group/*/*"}, appSource: "https://gitlab.com/group/repo/owner", isPermitted: true,
-	}, {
-		projSources: []string{"https://gitlab.com/group/*/*/*"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: true,
-	}, {
-		projSources: []string{"https://gitlab.com/group/**"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: true,
-	}}
+	}{
+		{
+			name:        "wildcard permits any repository",
+			projSources: []string{"*"},
+			appSource:   "https://github.com/argoproj/test.git",
+			isPermitted: true,
+		},
+		{
+			name:        "exact repository URL",
+			projSources: []string{"https://github.com/argoproj/test.git"},
+			appSource:   "https://github.com/argoproj/test.git",
+			isPermitted: true,
+		},
+		{
+			name:        "SSH URL match ignores host case",
+			projSources: []string{"ssh://git@GITHUB.com:argoproj/test"},
+			appSource:   "ssh://git@github.com:argoproj/test",
+			isPermitted: true,
+		},
+		{
+			name:        "one path segment under the organization",
+			projSources: []string{"https://github.com/argoproj/*"},
+			appSource:   "https://github.com/argoproj/argoproj.git",
+			isPermitted: true,
+		},
+		{
+			name:        "second listed repository is permitted",
+			projSources: []string{"https://github.com/test1/test.git", "https://github.com/test2/test.git"},
+			appSource:   "https://github.com/test2/test.git",
+			isPermitted: true,
+		},
+		{
+			name:        "a different repository is not permitted",
+			projSources: []string{"https://github.com/argoproj/test1.git"},
+			appSource:   "https://github.com/argoproj/test2.git",
+			isPermitted: false,
+		},
+		{
+			name:        "one-segment glob does not match a different organization",
+			projSources: []string{"https://github.com/argoproj/*.git"},
+			appSource:   "https://github.com/argoproj1/test2.git",
+			isPermitted: false,
+		},
+		{
+			name:        "exact repository does not match a longer name",
+			projSources: []string{"https://github.com/argoproj/foo"},
+			appSource:   "https://github.com/argoproj/foo1",
+			isPermitted: false,
+		},
+		{
+			name:        "one star does not match two path segments",
+			projSources: []string{"https://gitlab.com/group/*"},
+			appSource:   "https://gitlab.com/group/repo/owner",
+			isPermitted: false,
+		},
+		{
+			name:        "exactly two path segments",
+			projSources: []string{"https://gitlab.com/group/*/*"},
+			appSource:   "https://gitlab.com/group/repo/owner",
+			isPermitted: true,
+		},
+		{
+			name:        "exactly three path segments",
+			projSources: []string{"https://gitlab.com/group/*/*/*"},
+			appSource:   "https://gitlab.com/group/sub-group/repo/owner",
+			isPermitted: true,
+		},
+		{
+			name:        "double star matches any depth under the group",
+			projSources: []string{"https://gitlab.com/group/**"},
+			appSource:   "https://gitlab.com/group/sub-group/repo/owner",
+			isPermitted: true,
+		},
+		{
+			name:        "double star matches a repository on github.com",
+			projSources: []string{"https://github.com/**"},
+			appSource:   "https://github.com/argoproj/argocd-example-apps.git",
+			isPermitted: true,
+		},
+		{
+			name:        "double star matches a nested path on github.com",
+			projSources: []string{"https://github.com/**"},
+			appSource:   "https://github.com/some-org/some-repo.git",
+			isPermitted: true,
+		},
+		{
+			name:        "double star does not match another host",
+			projSources: []string{"https://github.com/**"},
+			appSource:   "https://gitlab.com/group/repo.git",
+			isPermitted: false,
+		},
+		{
+			name:        "one star after the host does not match org/repo",
+			projSources: []string{"https://github.com/*"},
+			appSource:   "https://github.com/argoproj/test.git",
+			isPermitted: false,
+		},
+		// Cases below were added to the original table.
+		{
+			name:        "wildcard permits an SSH URL",
+			projSources: []string{"*"},
+			appSource:   "git@github.com:argoproj/argo-cd.git",
+			isPermitted: true,
+		},
+		{
+			name:        "bare double star permits any repository",
+			projSources: []string{"**"},
+			appSource:   "https://gitlab.com/group/sub/repo",
+			isPermitted: true,
+		},
+		{
+			name:        "github.com double star does not match a longer host",
+			projSources: []string{"https://github.com/**"},
+			appSource:   "https://github.com.evil.com/org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "double star ignores hostname case",
+			projSources: []string{"https://GitHub.com/**"},
+			appSource:   "https://github.com/argoproj/argo-cd",
+			isPermitted: true,
+		},
+		{
+			name:        "one path segment does not include a nested path",
+			projSources: []string{"https://github.com/argoproj/*"},
+			appSource:   "https://github.com/argoproj/nested/repo",
+			isPermitted: false,
+		},
+		// https://github.com/argoproj/argo-cd/issues/29584
+		// * stays inside one path segment, so a wildcard on the organization name
+		// admits a longer organization, and a wildcard on the repository name
+		// admits a longer repository name.
+		{
+			name:        "one path segment does not include a longer organization name",
+			projSources: []string{"https://github.com/acme/*"},
+			appSource:   "https://github.com/acme-evil/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "a wildcard on the organization name includes a longer organization",
+			projSources: []string{"https://github.com/acme*/*"},
+			appSource:   "https://github.com/acme-evil/repo",
+			isPermitted: true,
+		},
+		{
+			name:        "a wildcard on the repository name includes a longer repository name",
+			projSources: []string{"https://github.com/acme/pay*"},
+			appSource:   "https://github.com/acme/payroll-evil",
+			isPermitted: true,
+		},
+		{
+			name:        "one star after the host matches a single path segment",
+			projSources: []string{"https://github.com/*"},
+			appSource:   "https://github.com/argoproj",
+			isPermitted: true,
+		},
+		{
+			name:        "organizations starting with my-",
+			projSources: []string{"https://github.com/my-*/*"},
+			appSource:   "https://github.com/my-org/app",
+			isPermitted: true,
+		},
+		{
+			name:        "organizations starting with my- do not include a nested path",
+			projSources: []string{"https://github.com/my-*/*"},
+			appSource:   "https://github.com/my-org/nested/app",
+			isPermitted: false,
+		},
+		{
+			name:        "organizations starting with my- do not include an org named other",
+			projSources: []string{"https://github.com/my-*/*"},
+			appSource:   "https://github.com/other/app",
+			isPermitted: false,
+		},
+		{
+			name:        "my-org@evil.com is one path segment on github.com",
+			projSources: []string{"https://github.com/my-*/*"},
+			appSource:   "https://github.com/my-org@evil.com/app",
+			isPermitted: true,
+		},
+		{
+			name:        "an @ in the authority is a different host",
+			projSources: []string{"https://github.com/my-*/*"},
+			appSource:   "https://my-org@evil.com/app",
+			isPermitted: false,
+		},
+		{
+			name:        "exactly two path segments does not include one",
+			projSources: []string{"https://gitlab.com/group/*/*"},
+			appSource:   "https://gitlab.com/group/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "exactly two path segments does not include three",
+			projSources: []string{"https://gitlab.com/group/*/*"},
+			appSource:   "https://gitlab.com/group/a/b/c",
+			isPermitted: false,
+		},
+		{
+			name:        "repository named my-app at any depth",
+			projSources: []string{"https://github.com/**/my-app"},
+			appSource:   "https://github.com/org/my-app",
+			isPermitted: true,
+		},
+		{
+			name:        "repository named my-app does not include my-app-extra",
+			projSources: []string{"https://github.com/**/my-app"},
+			appSource:   "https://github.com/org/my-app-extra",
+			isPermitted: false,
+		},
+		{
+			name:        "repository named my-app on any host",
+			projSources: []string{"**/my-app"},
+			appSource:   "https://gitlab.com/group/sub/my-app",
+			isPermitted: true,
+		},
+		{
+			name:        "repository named my-app on any host, including SSH",
+			projSources: []string{"**/my-app"},
+			appSource:   "git@gitlab.example.com:group/sub/my-app.git",
+			isPermitted: true,
+		},
+		{
+			name:        "any-host my-app does not include a longer name",
+			projSources: []string{"**/my-app"},
+			appSource:   "https://github.com/org/my-app-extra",
+			isPermitted: false,
+		},
+		{
+			name:        "question mark matches one character",
+			projSources: []string{"https://github.com/org/repo-v?"},
+			appSource:   "https://github.com/org/repo-v1",
+			isPermitted: true,
+		},
+		{
+			name:        "question mark matches a different single character",
+			projSources: []string{"https://github.com/org/repo-v?"},
+			appSource:   "https://github.com/org/repo-v2",
+			isPermitted: true,
+		},
+		{
+			name:        "question mark does not match two characters",
+			projSources: []string{"https://github.com/org/repo-v?"},
+			appSource:   "https://github.com/org/repo-v10",
+			isPermitted: false,
+		},
+		{
+			name:        "question mark does not match an empty suffix",
+			projSources: []string{"https://github.com/org/repo-v?"},
+			appSource:   "https://github.com/org/repo-v",
+			isPermitted: false,
+		},
+		{
+			name:        "question mark is not the start of a query string",
+			projSources: []string{"https://github.com/org/repo-v?"},
+			appSource:   "https://github.com/org/repo-v1?ref=main",
+			isPermitted: false,
+		},
+		{
+			name:        "character class matches service-a",
+			projSources: []string{"https://github.com/org/service-[abc]/*"},
+			appSource:   "https://github.com/org/service-a/app",
+			isPermitted: true,
+		},
+		{
+			name:        "character class matches service-b",
+			projSources: []string{"https://github.com/org/service-[abc]/*"},
+			appSource:   "https://github.com/org/service-b/app",
+			isPermitted: true,
+		},
+		{
+			name:        "character class does not match service-d",
+			projSources: []string{"https://github.com/org/service-[abc]/*"},
+			appSource:   "https://github.com/org/service-d/app",
+			isPermitted: false,
+		},
+		{
+			name:        "character class is one character",
+			projSources: []string{"https://github.com/org/service-[abc]/*"},
+			appSource:   "https://github.com/org/service-ab/app",
+			isPermitted: false,
+		},
+		{
+			name:        "brace list does not include an unrelated org",
+			projSources: []string{"https://github.com/{argoproj,argoproj-labs}/*"},
+			appSource:   "https://github.com/other/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "brace host list does not include bitbucket",
+			projSources: []string{"https://{github,gitlab}.com/myorg/*"},
+			appSource:   "https://bitbucket.org/myorg/app",
+			isPermitted: false,
+		},
+		// Braces and character classes in the host are parsed as part of the URL,
+		// so the pattern does not permit the hosts it appears to name. A ? in
+		// the host still matches one character.
+		{
+			name:        "a brace list in the host does not permit github.com",
+			projSources: []string{"https://{github,gitlab}.com/myorg/*"},
+			appSource:   "https://github.com/myorg/app",
+			isPermitted: false,
+		},
+		{
+			name:        "a brace list in the host does not permit gitlab.com",
+			projSources: []string{"https://{github,gitlab}.com/myorg/*"},
+			appSource:   "https://gitlab.com/myorg/app",
+			isPermitted: false,
+		},
+		{
+			name:        "a character class in the host does not permit git-a",
+			projSources: []string{"https://git-[abc].example.com/**"},
+			appSource:   "https://git-a.example.com/org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "a brace list in an SSH host does not permit the named host",
+			projSources: []string{"git@{git,lab}.example.com:org/repo"},
+			appSource:   "git@git.example.com:org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "a character class in an SSH host does not permit git-a",
+			projSources: []string{"git@git-[ab].example.com:org/repo"},
+			appSource:   "git@git-a.example.com:org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "a question mark in the host matches one character",
+			projSources: []string{"https://git-?.example.com/**"},
+			appSource:   "https://git-a.example.com/org/repo",
+			isPermitted: true,
+		},
+		{
+			name:        "a question mark in the host does not match two characters",
+			projSources: []string{"https://git-?.example.com/**"},
+			appSource:   "https://git-ab.example.com/org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "any subdomain of example.com",
+			projSources: []string{"https://*.example.com/**"},
+			appSource:   "https://git.example.com/org/repo",
+			isPermitted: true,
+		},
+		{
+			name:        "the apex example.com has no label for the star",
+			projSources: []string{"https://*.example.com/**"},
+			appSource:   "https://example.com/org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "a different registrable domain does not match",
+			projSources: []string{"https://*.example.com/**"},
+			appSource:   "https://example.com.evil.com/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "userinfo does not change the host git.example.com",
+			projSources: []string{"https://*.example.com/**"},
+			appSource:   "https://evil.com@git.example.com/org/repo",
+			isPermitted: true,
+		},
+		{
+			name:        "a subdomain pattern does not match host evil.com",
+			projSources: []string{"https://*.example.com/**"},
+			appSource:   "https://git.example.com@evil.com/org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "organization names starting with argoproj",
+			projSources: []string{"https://github.com/argoproj*/**"},
+			appSource:   "https://github.com/argoproj/argo-cd",
+			isPermitted: true,
+		},
+		{
+			name:        "organization names starting with argoproj include argoproj-labs",
+			projSources: []string{"https://github.com/argoproj*/**"},
+			appSource:   "https://github.com/argoproj-labs/foo",
+			isPermitted: true,
+		},
+		{
+			name:        "organization names starting with argoproj stay on github.com",
+			projSources: []string{"https://github.com/argoproj*/**"},
+			appSource:   "https://argoproj@evil.com/foo",
+			isPermitted: false,
+		},
+		{
+			name:        "SSH organization pattern matches the scp URL",
+			projSources: []string{"git@github.com:argoproj/*"},
+			appSource:   "git@github.com:argoproj/argo-cd.git",
+			isPermitted: true,
+		},
+		{
+			name:        "SSH organization pattern matches the ssh form",
+			projSources: []string{"git@github.com:argoproj/*"},
+			appSource:   "ssh://git@github.com/argoproj/argo-cd",
+			isPermitted: true,
+		},
+		{
+			name:        "SSH organization pattern does not match the HTTPS URL",
+			projSources: []string{"git@github.com:argoproj/*"},
+			appSource:   "https://github.com/argoproj/argo-cd",
+			isPermitted: false,
+		},
+		{
+			name:        "SSH organization pattern does not include argoproj-labs",
+			projSources: []string{"git@github.com:argoproj/*"},
+			appSource:   "git@github.com:argoproj-labs/foo",
+			isPermitted: false,
+		},
+		{
+			name:        "ssh form of an organization pattern covers the scp URL",
+			projSources: []string{"ssh://git@github.com/argoproj/*"},
+			appSource:   "git@github.com:argoproj/argo-cd.git",
+			isPermitted: true,
+		},
+		{
+			name:        "git at double star matches an SSH URL",
+			projSources: []string{"git@**"},
+			appSource:   "git@github.com:org/repo.git",
+			isPermitted: true,
+		},
+		{
+			name:        "git at double star does not match HTTPS",
+			projSources: []string{"git@**"},
+			appSource:   "https://github.com/org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "SSH repos on a subdomain of example.com",
+			projSources: []string{"git@*.example.com:org/*"},
+			appSource:   "git@git.example.com:org/repo.git",
+			isPermitted: true,
+		},
+		{
+			name:        "SSH host pattern does not match the HTTPS URL",
+			projSources: []string{"git@*.example.com:org/*"},
+			appSource:   "https://git.example.com/org/repo",
+			isPermitted: false,
+		},
+		// Application repository URLs should never include passwords, but these
+		// cases test that anyway for completeness.
+		{
+			name:        "pattern userinfo is required",
+			projSources: []string{"https://user:pass@github.com/org/*"},
+			appSource:   "https://user:pass@github.com/org/app",
+			isPermitted: true,
+		},
+		{
+			name:        "pattern userinfo is not matched by a URL without it",
+			projSources: []string{"https://user:pass@github.com/org/*"},
+			appSource:   "https://github.com/org/app",
+			isPermitted: false,
+		},
+		{
+			name:        "pattern userinfo does not match a different user",
+			projSources: []string{"https://user:pass@github.com/org/*"},
+			appSource:   "https://other:secret@github.com/org/app",
+			isPermitted: false,
+		},
+		{
+			name:        "local repositories under /var/git",
+			projSources: []string{"file:///var/git/**"},
+			appSource:   "file:///var/git/team/app",
+			isPermitted: true,
+		},
+		{
+			name:        "local repositories under /var/git do not include /etc/passwd",
+			projSources: []string{"file:///var/git/**"},
+			appSource:   "file:///etc/passwd",
+			isPermitted: false,
+		},
+		{
+			name:        "one path segment under /var/git does not include a nested directory",
+			projSources: []string{"file:///var/git/*"},
+			appSource:   "file:///var/git/team/app",
+			isPermitted: false,
+		},
+		{
+			name:        "host character class does not include git-d",
+			projSources: []string{"https://git-[abc].example.com/**"},
+			appSource:   "https://git-d.example.com/org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "trailing slash matches that exact URL",
+			projSources: []string{"https://github.com/argoproj/"},
+			appSource:   "https://github.com/argoproj/",
+			isPermitted: true,
+		},
+		{
+			name:        "trailing slash does not match a child repository",
+			projSources: []string{"https://github.com/argoproj/"},
+			appSource:   "https://github.com/argoproj/argo-cd",
+			isPermitted: false,
+		},
+		{
+			name:        "matching SSH repos match",
+			projSources: []string{"ssh://git@github.com:trusted/allowed-repo"},
+			appSource:   "ssh://git@github.com:trusted/allowed-repo",
+			isPermitted: true,
+		},
+		{
+			name:        "an unparseable SSH entry does not permit a normal HTTPS repository",
+			projSources: []string{"ssh://git@github.com:argoproj/argo-cd"},
+			appSource:   "https://github.com/argoproj/argo-cd",
+			isPermitted: false,
+		},
+		{
+			name:        "an invalid percent-encoded entry does not permit a normal repository",
+			projSources: []string{"https://github.com/%zz/org/repo"},
+			appSource:   "https://github.com/argoproj/argo-cd",
+			isPermitted: false,
+		},
+	}
 
 	for _, data := range testData {
-		proj := AppProject{
-			Spec: AppProjectSpec{
-				SourceRepos: data.projSources,
-			},
-		}
-		assert.Equal(t, proj.IsSourcePermitted(ApplicationSource{
-			RepoURL: data.appSource,
-		}), data.isPermitted)
+		t.Run(data.name, func(t *testing.T) {
+			proj := AppProject{Spec: AppProjectSpec{SourceRepos: data.projSources}}
+			assert.Equal(t, data.isPermitted, proj.IsSourcePermitted(ApplicationSource{RepoURL: data.appSource}),
+				"sources: %#v\nrepoURL: %q", data.projSources, data.appSource)
+		})
 	}
 }
 
@@ -85,6 +577,15 @@ func TestAppProject_IsNegatedSourcePermitted(t *testing.T) {
 		projSources: []string{"!https://gitlab.com/group/*/*/*"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: false,
 	}, {
 		projSources: []string{"!https://gitlab.com/group/**"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: false,
+	}, {
+		// Negated domain-level wildcard: deny all GitHub repos
+		projSources: []string{"!https://github.com/**"}, appSource: "https://github.com/argoproj/test.git", isPermitted: false,
+	}, {
+		// Combined patterns: allow all except GitHub
+		projSources: []string{"*", "!https://github.com/**"}, appSource: "https://github.com/argoproj/test.git", isPermitted: false,
+	}, {
+		// Combined patterns: allow all except GitHub, but GitLab should work
+		projSources: []string{"*", "!https://github.com/**"}, appSource: "https://gitlab.com/group/repo.git", isPermitted: true,
 	}, {
 		projSources: []string{"*"}, appSource: "https://github.com/argoproj/test.git", isPermitted: true,
 	}, {
@@ -395,6 +896,24 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 		}},
 		appDest:     ApplicationDestination{Server: "https://other-test-server", Namespace: "other"},
 		isPermitted: true,
+	}, {
+		// Name deny pattern should NOT apply when namespace doesn't match (regression test for operator precedence fix)
+		projDest: []ApplicationDestination{{
+			Name: "*", Namespace: "*",
+		}, {
+			Name: "!bad", Namespace: "other",
+		}},
+		appDest:     ApplicationDestination{Name: "bad", Namespace: "test"},
+		isPermitted: true,
+	}, {
+		// Name deny pattern should apply when namespace matches
+		projDest: []ApplicationDestination{{
+			Name: "*", Namespace: "*",
+		}, {
+			Name: "!bad", Namespace: "test",
+		}},
+		appDest:     ApplicationDestination{Name: "bad", Namespace: "test"},
+		isPermitted: false,
 	}}
 
 	for _, data := range testData {
@@ -699,8 +1218,8 @@ func TestAppProject_RemoveGroupFromRole(t *testing.T) {
 
 func newTestProject() *AppProject {
 	p := AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "my-proj"},
-		Spec:       AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}, Destinations: []ApplicationDestination{{}}},
+		Name: "my-proj",
+		Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}, Destinations: []ApplicationDestination{{}}},
 	}
 	return &p
 }
@@ -2026,8 +2545,8 @@ func TestSyncWindows_Active(t *testing.T) {
 		assert.Len(t, *activeWindows, 1)
 	})
 
-	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
-		return &SyncWindow{
+	syncWindow := func(kind string, schedule string, duration string, timeZone string) *InlineSyncWindow {
+		return &InlineSyncWindow{
 			Kind:         kind,
 			Schedule:     schedule,
 			Duration:     duration,
@@ -2209,8 +2728,8 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		assert.Len(t, *inactiveAllowWindows, 1)
 	})
 
-	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
-		return &SyncWindow{
+	syncWindow := func(kind string, schedule string, duration string, timeZone string) *InlineSyncWindow {
+		return &InlineSyncWindow{
 			Kind:         kind,
 			Schedule:     schedule,
 			Duration:     duration,
@@ -2491,7 +3010,7 @@ func TestAppProject_EffectiveSourceIntegrity(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			appProj := &AppProject{Spec: tt.spec, ObjectMeta: metav1.ObjectMeta{Name: "sut"}}
+			appProj := &AppProject{Spec: tt.spec, Name: "sut"}
 			assert.Equal(t, tt.expected, appProj.EffectiveSourceIntegrity())
 		})
 	}
@@ -2510,7 +3029,7 @@ func TestAppProjectSpecWindowWithDescription(t *testing.T) {
 
 func TestAppProjectSpec_DeleteWindow(t *testing.T) {
 	proj := newTestProjectWithSyncWindows()
-	window2 := &SyncWindow{Schedule: "1 * * * *", Duration: "2h"}
+	window2 := &InlineSyncWindow{Schedule: "1 * * * *", Duration: "2h"}
 	proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, window2)
 	t.Run("CannotFind", func(t *testing.T) {
 		err := proj.Spec.DeleteWindow(3)
@@ -3073,7 +3592,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		// given
 		proj := newTestProject()
 		// Add an inactive allow window with invalid cron schedule
-		invalidWindow := &SyncWindow{
+		invalidWindow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     "invalid-cron-schedule",
 			Duration:     "1h",
@@ -3096,7 +3615,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		// given
 		proj := newTestProject()
 		// Add an inactive allow window with invalid duration
-		invalidWindow := &SyncWindow{
+		invalidWindow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     inactiveCronSchedule(),
 			Duration:     "invalid-duration",
@@ -3120,7 +3639,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 func TestSyncWindows_hasDeny(t *testing.T) {
 	t.Run("True", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
-		deny := &SyncWindow{Kind: "deny"}
+		deny := &InlineSyncWindow{Kind: "deny"}
 		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
 		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
 		assert.True(t, hasDeny)
@@ -3128,7 +3647,7 @@ func TestSyncWindows_hasDeny(t *testing.T) {
 	})
 	t.Run("TrueManualEnabled", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
-		deny := &SyncWindow{Kind: "deny", ManualSync: true}
+		deny := &InlineSyncWindow{Kind: "deny", ManualSync: true}
 		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
 		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
 		assert.True(t, hasDeny)
@@ -3160,15 +3679,15 @@ func TestSyncWindows_hasAllow(t *testing.T) {
 }
 
 func TestSyncWindow_Active(t *testing.T) {
-	window := &SyncWindow{Schedule: "* * * * *", Duration: "1h"}
+	window := &InlineSyncWindow{Schedule: "* * * * *", Duration: "1h"}
 	t.Run("ActiveWindow", func(t *testing.T) {
 		isActive, err := window.Active()
 		require.NoError(t, err)
 		assert.True(t, isActive)
 	})
 
-	syncWindow := func(kind string, schedule string, duration string) SyncWindow {
-		return SyncWindow{
+	syncWindow := func(kind string, schedule string, duration string) InlineSyncWindow {
+		return InlineSyncWindow{
 			Kind:         kind,
 			Schedule:     schedule,
 			Duration:     duration,
@@ -3186,7 +3705,7 @@ func TestSyncWindow_Active(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		syncWindow     SyncWindow
+		syncWindow     InlineSyncWindow
 		currentTime    time.Time
 		expectedResult bool
 		isErr          bool
@@ -3283,7 +3802,7 @@ func TestSyncWindow_Active(t *testing.T) {
 }
 
 func TestSyncWindow_Update(t *testing.T) {
-	e := SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h", Applications: []string{"app1"}}
+	e := InlineSyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h", Applications: []string{"app1"}}
 	t.Run("AddApplication", func(t *testing.T) {
 		err := e.Update("", "", []string{"app1", "app2"}, []string{}, []string{}, "", "")
 		require.NoError(t, err)
@@ -3321,7 +3840,7 @@ func TestSyncWindow_Update(t *testing.T) {
 }
 
 func TestSyncWindow_Validate(t *testing.T) {
-	window := &SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
+	window := &InlineSyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
 	t.Run("Validates", func(t *testing.T) {
 		require.NoError(t, window.Validate())
 	})
@@ -3415,8 +3934,8 @@ func inactiveCronSchedule() string {
 	return fmt.Sprintf("0 %d * * *", hourPlus10)
 }
 
-func newSyncWindow(kind, schedule string, allowManual bool, andOperator bool) *SyncWindow {
-	return &SyncWindow{
+func newSyncWindow(kind, schedule string, allowManual bool, andOperator bool) *InlineSyncWindow {
+	return &InlineSyncWindow{
 		Kind:           kind,
 		Schedule:       schedule,
 		Duration:       "1h",
@@ -3437,7 +3956,7 @@ func newTestProjectWithSyncWindowsAndOperator() *AppProject {
 
 func newTestApp() *Application {
 	a := &Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-app"},
+		Name: "test-app",
 		Spec: ApplicationSpec{
 			Destination: ApplicationDestination{
 				Namespace: "default",
@@ -3840,15 +4359,13 @@ func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
 
 func TestUnSetCascadedDeletion(t *testing.T) {
 	a := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test",
-			Finalizers: []string{
-				"alpha",
-				ForegroundPropagationPolicyFinalizer,
-				"beta",
-				BackgroundPropagationPolicyFinalizer,
-				"gamma",
-			},
+		Name: "test",
+		Finalizers: []string{
+			"alpha",
+			ForegroundPropagationPolicyFinalizer,
+			"beta",
+			BackgroundPropagationPolicyFinalizer,
+			"gamma",
 		},
 	}
 	a.UnSetCascadedDeletion()
@@ -4129,60 +4646,44 @@ func TestGetCAPath(t *testing.T) {
 
 func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 	app1 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app1",
-			Namespace: "argocd",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app1",
+		Namespace: "argocd",
+		Spec:      ApplicationSpec{},
 	}
 	app2 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "some-ns",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "some-ns",
+		Spec:      ApplicationSpec{},
 	}
 	app3 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "",
+		Spec:      ApplicationSpec{},
 	}
 	app4 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "other-ns",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "other-ns",
+		Spec:      ApplicationSpec{},
 	}
 	app5 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "some-ns1",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "some-ns1",
+		Spec:      ApplicationSpec{},
 	}
 	app6 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "some-ns2",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "some-ns2",
+		Spec:      ApplicationSpec{},
 	}
 	app7 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "someotherns",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "someotherns",
+		Spec:      ApplicationSpec{},
 	}
 	t.Run("App in same namespace as controller", func(t *testing.T) {
 		proj := &AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
+			Name:      "default",
+			Namespace: "argocd",
 			Spec: AppProjectSpec{
 				SourceNamespaces: []string{"other-ns"},
 			},
@@ -4196,10 +4697,8 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 	})
 	t.Run("App not permitted when sourceNamespaces is empty", func(t *testing.T) {
 		proj := &AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
+			Name:      "default",
+			Namespace: "argocd",
 			Spec: AppProjectSpec{
 				SourceNamespaces: []string{},
 			},
@@ -4212,10 +4711,8 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 
 	t.Run("App permitted when sourceNamespaces has app namespace", func(t *testing.T) {
 		proj := &AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
+			Name:      "default",
+			Namespace: "argocd",
 			Spec: AppProjectSpec{
 				SourceNamespaces: []string{"some-ns"},
 			},
@@ -4228,10 +4725,8 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 
 	t.Run("App permitted by glob pattern", func(t *testing.T) {
 		proj := &AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
+			Name:      "default",
+			Namespace: "argocd",
 			Spec: AppProjectSpec{
 				SourceNamespaces: []string{"some-*"},
 			},
@@ -4248,10 +4743,8 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 func Test_RBACName(t *testing.T) {
 	testApp := func(namespace, project string) *Application {
 		return &Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-app",
-				Namespace: namespace,
-			},
+			Name:      "test-app",
+			Namespace: namespace,
 			Spec: ApplicationSpec{
 				Project: project,
 			},
@@ -4304,7 +4797,7 @@ func TestGetAppOfAppSummary(t *testing.T) {
 	app := newTestApp()
 	standardTree := &ApplicationTree{
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "any-service", Kind: "Service"}},
+			{Name: "any-service", Kind: "Service"},
 		},
 	}
 
@@ -4315,8 +4808,8 @@ func TestGetAppOfAppSummary(t *testing.T) {
 
 	appOfAppsTree := &ApplicationTree{
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "children-app", Kind: "Application", Group: "argoproj.io"}},
-			{ResourceRef: ResourceRef{Name: "any-service", Kind: "Service", Group: ""}},
+			{Name: "children-app", Kind: "Application", Group: "argoproj.io"},
+			{Name: "any-service", Kind: "Service", Group: ""},
 		},
 	}
 	summary = appOfAppsTree.GetSummary(app)
@@ -4687,10 +5180,10 @@ func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
 func TestApplicationTree_GetShards(t *testing.T) {
 	tree := &ApplicationTree{
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
+			{Name: "node 1"}, {Name: "node 2"}, {Name: "node 3"},
 		},
 		OrphanedNodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
+			{Name: "orph-node 1"}, {Name: "orph-node 2"}, {Name: "orph-node 3"},
 		},
 		Hosts: []HostInfo{
 			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
@@ -4702,15 +5195,15 @@ func TestApplicationTree_GetShards(t *testing.T) {
 	require.Equal(t, &ApplicationTree{
 		ShardsCount: 5,
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
+			{Name: "node 1"}, {Name: "node 2"},
 		},
 	}, shards[0])
 	require.Equal(t, &ApplicationTree{
-		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
+		Nodes:         []ResourceNode{{Name: "node 3"}},
+		OrphanedNodes: []ResourceNode{{Name: "orph-node 1"}},
 	}, shards[1])
 	require.Equal(t, &ApplicationTree{
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
+		OrphanedNodes: []ResourceNode{{Name: "orph-node 2"}, {Name: "orph-node 3"}},
 	}, shards[2])
 	require.Equal(t, &ApplicationTree{
 		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
@@ -4725,15 +5218,15 @@ func TestApplicationTree_Merge(t *testing.T) {
 	tree.Merge(&ApplicationTree{
 		ShardsCount: 5,
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
+			{Name: "node 1"}, {Name: "node 2"},
 		},
 	})
 	tree.Merge(&ApplicationTree{
-		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
+		Nodes:         []ResourceNode{{Name: "node 3"}},
+		OrphanedNodes: []ResourceNode{{Name: "orph-node 1"}},
 	})
 	tree.Merge(&ApplicationTree{
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
+		OrphanedNodes: []ResourceNode{{Name: "orph-node 2"}, {Name: "orph-node 3"}},
 	})
 	tree.Merge(&ApplicationTree{
 		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
@@ -4743,10 +5236,10 @@ func TestApplicationTree_Merge(t *testing.T) {
 	})
 	require.Equal(t, &ApplicationTree{
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
+			{Name: "node 1"}, {Name: "node 2"}, {Name: "node 3"},
 		},
 		OrphanedNodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
+			{Name: "orph-node 1"}, {Name: "orph-node 2"}, {Name: "orph-node 3"},
 		},
 		Hosts: []HostInfo{
 			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
@@ -4944,13 +5437,13 @@ func TestCluster_ParseProxyUrl(t *testing.T) {
 func TestSyncWindow_Hash(t *testing.T) {
 	tests := []struct {
 		name        string
-		window      *SyncWindow
+		window      *InlineSyncWindow
 		expectError bool
 		errorMsg    string
 	}{
 		{
 			name: "valid sync window should hash successfully",
-			window: &SyncWindow{
+			window: &InlineSyncWindow{
 				Kind:           "allow",
 				Schedule:       "0 0 * * *",
 				Duration:       "1h",
@@ -4966,7 +5459,7 @@ func TestSyncWindow_Hash(t *testing.T) {
 		},
 		{
 			name: "empty sync window should hash successfully",
-			window: &SyncWindow{
+			window: &InlineSyncWindow{
 				Kind:     "deny",
 				Schedule: "0 0 * * *",
 				Duration: "30m",
@@ -4975,7 +5468,7 @@ func TestSyncWindow_Hash(t *testing.T) {
 		},
 		{
 			name: "sync window with nil should hash successfully",
-			window: &SyncWindow{
+			window: &InlineSyncWindow{
 				Kind:     "allow",
 				Schedule: "0 0 * * *",
 				Duration: "1h",
@@ -5002,17 +5495,17 @@ func TestSyncWindow_Hash(t *testing.T) {
 
 	// Test that different sync windows produce different hashes
 	t.Run("different sync windows should have different hashes", func(t *testing.T) {
-		window1 := &SyncWindow{
+		window1 := &InlineSyncWindow{
 			Kind:     "allow",
 			Schedule: "0 0 * * *",
 			Duration: "1h",
 		}
-		window2 := &SyncWindow{
+		window2 := &InlineSyncWindow{
 			Kind:     "deny",
 			Schedule: "0 0 * * *",
 			Duration: "1h",
 		}
-		window3 := &SyncWindow{
+		window3 := &InlineSyncWindow{
 			Kind:     "allow",
 			Schedule: "0 1 * * *",
 			Duration: "1h",
@@ -5033,13 +5526,13 @@ func TestSyncWindow_Hash(t *testing.T) {
 
 	// Test that identical sync windows produce the same hash
 	t.Run("identical sync windows should have same hash", func(t *testing.T) {
-		window1 := &SyncWindow{
+		window1 := &InlineSyncWindow{
 			Kind:     "allow",
 			Schedule: "0 0 * * *",
 			Duration: "1h",
 			TimeZone: "UTC",
 		}
-		window2 := &SyncWindow{
+		window2 := &InlineSyncWindow{
 			Kind:     "allow",
 			Schedule: "0 0 * * *",
 			Duration: "1h",
@@ -5056,14 +5549,14 @@ func TestSyncWindow_Hash(t *testing.T) {
 
 	// Test that windows with different ManualSync or Description but same core identity produce same hash
 	t.Run("windows with different metadata should have same identity hash", func(t *testing.T) {
-		window1 := &SyncWindow{
+		window1 := &InlineSyncWindow{
 			Kind:        "allow",
 			Schedule:    "0 0 * * *",
 			Duration:    "1h",
 			ManualSync:  false,
 			Description: "first window",
 		}
-		window2 := &SyncWindow{
+		window2 := &InlineSyncWindow{
 			Kind:        "allow",
 			Schedule:    "0 0 * * *",
 			Duration:    "1h",
@@ -5150,6 +5643,165 @@ func TestSanitized(t *testing.T) {
 			},
 		},
 	}, cluster.Sanitized())
+}
+
+func TestCluster_HashIdentity(t *testing.T) {
+	t.Run("valid cluster produces non-zero hash", func(t *testing.T) {
+		cluster := &Cluster{
+			ID:     "cluster-123",
+			Server: "https://example.com:6443",
+			Name:   "production-cluster",
+			Config: ClusterConfig{
+				TLSClientConfig: TLSClientConfig{
+					Insecure: true,
+				},
+			},
+		}
+		hash := cluster.HashIdentity(0)
+		require.NotZero(t, hash, "hash should not be zero")
+	})
+
+	t.Run("minimal cluster produces hash", func(t *testing.T) {
+		cluster := &Cluster{
+			Server: "https://minimal.example.com",
+		}
+		hash := cluster.HashIdentity(0)
+		require.NotZero(t, hash)
+	})
+
+	t.Run("empty cluster produces hash", func(t *testing.T) {
+		cluster := &Cluster{}
+		hash := cluster.HashIdentity(0)
+		require.NotZero(t, hash)
+	})
+
+	t.Run("deterministic - same cluster produces same hash", func(t *testing.T) {
+		cluster := &Cluster{
+			ID:     "test-id",
+			Server: "https://test.example.com",
+			Name:   "test-cluster",
+			Config: ClusterConfig{
+				BearerToken: "token123",
+			},
+		}
+		hash1 := cluster.HashIdentity(0)
+		hash2 := cluster.HashIdentity(0)
+		assert.Equal(t, hash1, hash2, "identical clusters should produce identical hashes")
+	})
+
+	t.Run("different ID produces same hash", func(t *testing.T) {
+		// ID has json:"-" tag so it's excluded from JSON marshaling,
+		// therefore it doesn't affect the hash identity
+		base := &Cluster{
+			ID:     "same-id",
+			Server: "https://same.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		different := &Cluster{
+			ID:     "different-id",
+			Server: "https://same.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
+		assert.Equal(t, hash1, hash2, "ID should not affect hash since it has json:\"-\" tag")
+	})
+
+	t.Run("different Server produces different hash", func(t *testing.T) {
+		base := &Cluster{
+			ID:     "same-id",
+			Server: "https://same.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		different := &Cluster{
+			ID:     "same-id",
+			Server: "https://different.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
+		assert.NotEqual(t, hash1, hash2)
+	})
+
+	t.Run("different Name produces different hash", func(t *testing.T) {
+		base := &Cluster{
+			ID:     "same-id",
+			Server: "https://same.example.com",
+			Name:   "same-name",
+			Config: ClusterConfig{},
+		}
+		different := &Cluster{
+			ID:     "same-id",
+			Server: "https://same.example.com",
+			Name:   "different-name",
+			Config: ClusterConfig{},
+		}
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
+		assert.NotEqual(t, hash1, hash2)
+	})
+
+	t.Run("non-identity fields do not affect hash", func(t *testing.T) {
+		cluster1 := &Cluster{
+			ID:         "test-id",
+			Server:     "https://test.example.com",
+			Name:       "test-cluster",
+			Namespaces: []string{"ns1", "ns2"},
+			Project:    "project1",
+			Labels:     map[string]string{"env": "prod"},
+			Info: ClusterInfo{
+				ServerVersion:     "v1.28.0",
+				ApplicationsCount: 5,
+			},
+			Config: ClusterConfig{
+				BearerToken: "token123",
+			},
+		}
+		cluster2 := &Cluster{
+			ID:         "test-id",
+			Server:     "https://test.example.com",
+			Name:       "test-cluster",
+			Namespaces: []string{"ns3"},
+			Project:    "project2",
+			Labels:     map[string]string{"env": "dev"},
+			Info: ClusterInfo{
+				ServerVersion:     "v1.30.0",
+				ApplicationsCount: 10,
+			},
+			Config: ClusterConfig{
+				BearerToken: "token123",
+			},
+		}
+		hash1 := cluster1.HashIdentity(0)
+		hash2 := cluster2.HashIdentity(0)
+		assert.Equal(t, hash1, hash2, "clusters with same identity fields but different non-identity fields should have same hash")
+	})
+
+	t.Run("different Config produces different hash", func(t *testing.T) {
+		base := &Cluster{
+			ID:     "test-id",
+			Server: "https://test.example.com",
+			Name:   "test-cluster",
+			Config: ClusterConfig{
+				BearerToken: "token1",
+			},
+		}
+		different := &Cluster{
+			ID:     "test-id",
+			Server: "https://test.example.com",
+			Name:   "test-cluster",
+			Config: ClusterConfig{
+				BearerToken: "token2",
+			},
+		}
+		hash1 := base.HashIdentity(0)
+		hash2 := different.HashIdentity(0)
+		assert.NotEqual(t, hash1, hash2)
+	})
 }
 
 func TestSourceHydrator_Equals(t *testing.T) {
@@ -5366,7 +6018,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 	t.Run("DenyWindowWithoutOverrunBlocksContinuingSync", func(t *testing.T) {
 		// given - a deny window without allowSyncOverrun
 		proj := newTestProjectWithSyncWindows()
-		deny := &SyncWindow{
+		deny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     "* * * * *",
 			Duration:     "1h",
@@ -5388,7 +6040,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 	t.Run("DenyWindowWithOverrunBlocksNewSync", func(t *testing.T) {
 		// given - a deny window with allowSyncOverrun enabled
 		proj := newTestProjectWithSyncWindows()
-		deny := &SyncWindow{
+		deny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     "* * * * *",
 			Duration:     "1h",
@@ -5408,7 +6060,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 	t.Run("DenyWindowWithOverrunBlocksSyncThatStartedDuringDeny", func(t *testing.T) {
 		// given - a deny window with allowSyncOverrun enabled
 		proj := newTestProjectWithSyncWindows()
-		deny := &SyncWindow{
+		deny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     "* * * * *", // Always active
 			Duration:     "1h",
@@ -5431,8 +6083,8 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 	t.Run("AllowsOverrunWhenAllDenyWindowsHaveIt", func(t *testing.T) {
 		// given - all deny windows have syncOverrun enabled
 		windows := SyncWindows{
-			&SyncWindow{Kind: "deny", SyncOverrun: true},
-			&SyncWindow{Kind: "deny", SyncOverrun: true},
+			&InlineSyncWindow{Kind: "deny", SyncOverrun: true},
+			&InlineSyncWindow{Kind: "deny", SyncOverrun: true},
 		}
 
 		// when - checking if overrun is allowed
@@ -5445,8 +6097,8 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 	t.Run("DisallowsOverrunWhenOneDenyWindowDoesntHaveIt", func(t *testing.T) {
 		// given - mixed deny windows, one without syncOverrun
 		windows := SyncWindows{
-			&SyncWindow{Kind: "deny", SyncOverrun: false},
-			&SyncWindow{Kind: "deny", SyncOverrun: true},
+			&InlineSyncWindow{Kind: "deny", SyncOverrun: false},
+			&InlineSyncWindow{Kind: "deny", SyncOverrun: true},
 		}
 
 		// when - checking if overrun is allowed
@@ -5459,7 +6111,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 	t.Run("DisallowsOverrunWhenNoDenyWindowsHaveIt", func(t *testing.T) {
 		// given - deny windows without syncOverrun
 		windows := SyncWindows{
-			&SyncWindow{Kind: "deny", SyncOverrun: false},
+			&InlineSyncWindow{Kind: "deny", SyncOverrun: false},
 		}
 
 		// when - checking if overrun is allowed
@@ -5472,8 +6124,8 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 	t.Run("AllowsOverrunIgnoresAllowWindows", func(t *testing.T) {
 		// given - deny window with syncOverrun and allow windows
 		windows := SyncWindows{
-			&SyncWindow{Kind: "allow", SyncOverrun: false},
-			&SyncWindow{Kind: "deny", SyncOverrun: true},
+			&InlineSyncWindow{Kind: "allow", SyncOverrun: false},
+			&InlineSyncWindow{Kind: "deny", SyncOverrun: true},
 		}
 
 		// when - checking if overrun is allowed
@@ -5492,7 +6144,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 		now := time.Now().In(time.UTC)
 		// Duration of 15 minutes means it will be active for 15 minutes starting from this minute
 		schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny := &SyncWindow{
+		deny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     schedule,
 			Duration:     "15m",
@@ -5521,7 +6173,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 		// This creates a scenario where at operation start time (1 hour ago),
 		// there were no active windows but inactive allows were present
 		inactiveAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-3*time.Hour).Hour())
-		inactiveAllow := &SyncWindow{
+		inactiveAllow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     inactiveAllowSchedule,
 			Duration:     "30m", // Was active 3 hours ago for 30 minutes
@@ -5531,7 +6183,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create a deny window that's currently active (just started)
 		activeDenySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		activeDeny := &SyncWindow{
+		activeDeny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     activeDenySchedule,
 			Duration:     "1h",
@@ -5561,7 +6213,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create an allow window with manual sync enabled that's was ACTIVE 1h ago
 		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
+		allow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allowSchedule,
 			Duration:     "30m",
@@ -5589,7 +6241,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create an allow window with manual sync enabled that's was ACTIVE 1h ago
 		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
+		allow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allowSchedule,
 			Duration:     "30m",
@@ -5618,7 +6270,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create an allow window that WAS active 1 hour ago for 30 minutes, with overrun
 		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
+		allow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allowSchedule,
 			Duration:     "30m",
@@ -5628,7 +6280,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create a deny window that's currently ACTIVE (without overrun)
 		denySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny := &SyncWindow{
+		deny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     denySchedule,
 			Duration:     "1h",
@@ -5658,7 +6310,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create an allow window that WAS active 1 hour ago for 30 minutes (no overrun)
 		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
+		allow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allowSchedule,
 			Duration:     "30m",
@@ -5667,7 +6319,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create a deny window that's currently ACTIVE (with overrun)
 		denySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny := &SyncWindow{
+		deny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     denySchedule,
 			Duration:     "1h",
@@ -5697,7 +6349,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create an allow window that WAS active 1 hour ago for 30 minutes (with overrun)
 		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
+		allow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allowSchedule,
 			Duration:     "30m",
@@ -5707,7 +6359,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create a deny window that's currently ACTIVE (with overrun)
 		denySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny := &SyncWindow{
+		deny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     denySchedule,
 			Duration:     "1h",
@@ -5737,7 +6389,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create an allow window that WAS active 1 hour ago for 30 minutes (no overrun)
 		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
+		allow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allowSchedule,
 			Duration:     "30m",
@@ -5746,7 +6398,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create a deny window that's currently ACTIVE (without overrun)
 		denySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny := &SyncWindow{
+		deny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     denySchedule,
 			Duration:     "1h",
@@ -5775,7 +6427,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create an allow window that WAS active 1 hour ago
 		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
+		allow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allowSchedule,
 			Duration:     "30m",
@@ -5785,7 +6437,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create first deny window that's currently ACTIVE with overrun
 		deny1Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny1 := &SyncWindow{
+		deny1 := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     deny1Schedule,
 			Duration:     "1h",
@@ -5795,7 +6447,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create second deny window that's also currently ACTIVE with overrun
 		deny2Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny2 := &SyncWindow{
+		deny2 := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     deny2Schedule,
 			Duration:     "2h",
@@ -5825,7 +6477,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create an allow window that WAS active 1 hour ago
 		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
+		allow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allowSchedule,
 			Duration:     "30m",
@@ -5835,7 +6487,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create first deny window that's currently ACTIVE with overrun
 		deny1Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny1 := &SyncWindow{
+		deny1 := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     deny1Schedule,
 			Duration:     "1h",
@@ -5845,7 +6497,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create second deny window that's also currently ACTIVE WITHOUT overrun
 		deny2Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny2 := &SyncWindow{
+		deny2 := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     deny2Schedule,
 			Duration:     "2h",
@@ -5874,7 +6526,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create first allow window that WAS active 1 hour ago WITH overrun
 		allow1Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow1 := &SyncWindow{
+		allow1 := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allow1Schedule,
 			Duration:     "30m",
@@ -5884,7 +6536,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create second allow window that WAS active 1 hour ago WITHOUT overrun
 		allow2Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow2 := &SyncWindow{
+		allow2 := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allow2Schedule,
 			Duration:     "30m",
@@ -5913,7 +6565,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create first allow window that WAS active 1 hour ago WITH overrun
 		allow1Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow1 := &SyncWindow{
+		allow1 := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allow1Schedule,
 			Duration:     "30m",
@@ -5923,7 +6575,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create second allow window that WAS active 1 hour ago WITH overrun
 		allow2Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow2 := &SyncWindow{
+		allow2 := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allow2Schedule,
 			Duration:     "30m",
@@ -5953,7 +6605,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create first allow window that WAS active 1 hour ago and ended (WITHOUT overrun)
 		allow1Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow1 := &SyncWindow{
+		allow1 := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allow1Schedule,
 			Duration:     "30m", // Ended 30 minutes ago
@@ -5963,7 +6615,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create second allow window that's still ACTIVE (WITH overrun)
 		allow2Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow2 := &SyncWindow{
+		allow2 := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allow2Schedule,
 			Duration:     "90m", // Still active for another 30 minutes
@@ -5993,7 +6645,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Sync started 2 hours ago during this allow window (which has since ended)
 		pastAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-2*time.Hour).Hour())
-		pastAllow := &SyncWindow{
+		pastAllow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     pastAllowSchedule,
 			Duration:     "30m",
@@ -6003,7 +6655,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Currently active allow window (WITH overrun)
 		activeAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		activeAllow := &SyncWindow{
+		activeAllow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     activeAllowSchedule,
 			Duration:     "2h",
@@ -6013,7 +6665,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Currently active deny window (WITHOUT overrun)
 		activeDenySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		activeDeny := &SyncWindow{
+		activeDeny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     activeDenySchedule,
 			Duration:     "1h",
@@ -6043,7 +6695,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Sync started 2 hours ago during this allow window (which has since ended)
 		pastAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-2*time.Hour).Hour())
-		pastAllow := &SyncWindow{
+		pastAllow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     pastAllowSchedule,
 			Duration:     "30m",
@@ -6053,7 +6705,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Currently active allow window (WITH overrun)
 		activeAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		activeAllow := &SyncWindow{
+		activeAllow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     activeAllowSchedule,
 			Duration:     "2h",
@@ -6063,7 +6715,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Currently active deny window (WITH overrun)
 		activeDenySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		activeDeny := &SyncWindow{
+		activeDeny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     activeDenySchedule,
 			Duration:     "1h",
@@ -6229,4 +6881,255 @@ func TestGetDrySource_PreservesAllFields(t *testing.T) {
 			}
 		})
 	}
+}
+
+type roundTripperFunc func(req *http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func TestClusterRESTConfigsApplyK8sRequestTimeoutWithTransportWrapper(t *testing.T) {
+	originalTimeout := K8sServerSideTimeout
+	K8sServerSideTimeout = time.Minute
+	t.Cleanup(func() {
+		K8sServerSideTimeout = originalTimeout
+	})
+
+	cluster := &Cluster{Server: "https://kubernetes.example"}
+
+	rawConfig, err := cluster.RawRestConfig()
+	require.NoError(t, err)
+	assert.Zero(t, rawConfig.Timeout)
+	assert.NotNil(t, rawConfig.WrapTransport)
+
+	config, err := cluster.RESTConfig()
+	require.NoError(t, err)
+	assert.Zero(t, config.Timeout)
+	assert.NotNil(t, config.WrapTransport)
+}
+
+func TestSetK8SConfigDefaultsDoesNotApplyExistingTransportWrapperTwice(t *testing.T) {
+	originalTimeout := K8sServerSideTimeout
+	K8sServerSideTimeout = time.Minute
+	t.Cleanup(func() {
+		K8sServerSideTimeout = originalTimeout
+	})
+
+	wrapCount := 0
+	config := &rest.Config{
+		Host: "https://kubernetes.example",
+		WrapTransport: func(rt http.RoundTripper) http.RoundTripper {
+			wrapCount++
+			return rt
+		},
+	}
+
+	require.NoError(t, SetK8SConfigDefaults(config))
+	assert.Equal(t, 1, wrapCount)
+	require.NotNil(t, config.WrapTransport)
+
+	config.WrapTransport(config.Transport)
+	assert.Equal(t, 1, wrapCount)
+}
+
+func TestSetK8SConfigDefaultsAddsServerSideTimeoutQuery(t *testing.T) {
+	originalTimeout := K8sServerSideTimeout
+	K8sServerSideTimeout = time.Minute
+	t.Cleanup(func() {
+		K8sServerSideTimeout = originalTimeout
+	})
+
+	config := &rest.Config{Host: "https://kubernetes.example/services/gateway/proxy/urn:cluster/"}
+	require.NoError(t, SetK8SConfigDefaults(config))
+	require.NotNil(t, config.WrapTransport)
+
+	var receivedRequest *http.Request
+	wrapped := config.WrapTransport(roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		receivedRequest = req
+		return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+	}))
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, config.Host+"api/v1/pods", http.NoBody)
+	require.NoError(t, err)
+	resp, err := wrapped.RoundTrip(req)
+	require.NoError(t, err)
+	require.NotNil(t, receivedRequest)
+	assert.Equal(t, "1m0s", receivedRequest.URL.Query().Get("timeout"))
+	_, hasDeadline := receivedRequest.Context().Deadline()
+	assert.False(t, hasDeadline)
+	require.NoError(t, resp.Body.Close())
+}
+
+func TestSetK8SConfigDefaultsAddsServerSideTimeoutToEveryRetryAttempt(t *testing.T) {
+	originalTimeout := K8sServerSideTimeout
+	K8sServerSideTimeout = 10 * time.Millisecond
+	t.Cleanup(func() {
+		K8sServerSideTimeout = originalTimeout
+	})
+	t.Setenv(utilhttp.EnvRetryMax, "1")
+	t.Setenv(utilhttp.EnvRetryBaseBackoff, "1")
+
+	config := &rest.Config{Host: "https://kubernetes.example"}
+	require.NoError(t, SetK8SConfigDefaults(config))
+	require.NotNil(t, config.WrapTransport)
+
+	var receivedTimeouts []string
+	wrapped := config.WrapTransport(roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		receivedTimeouts = append(receivedTimeouts, req.URL.Query().Get("timeout"))
+		if len(receivedTimeouts) == 1 {
+			return &http.Response{StatusCode: http.StatusInternalServerError, Body: http.NoBody}, nil
+		}
+		return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+	}))
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://kubernetes.example/api/v1/pods", http.NoBody)
+	require.NoError(t, err)
+	resp, err := wrapped.RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, []string{"10ms", "10ms"}, receivedTimeouts)
+	assert.NoError(t, req.Context().Err())
+}
+
+func TestCluster_RESTConfig_QPSAndBurst(t *testing.T) {
+	tests := []struct {
+		name          string
+		config        ClusterConfig
+		expectedQPS   float32
+		expectedBurst int
+	}{
+		{
+			name:          "defaults to global settings when unset",
+			config:        ClusterConfig{},
+			expectedQPS:   K8sClientConfigQPS,
+			expectedBurst: K8sClientConfigBurst,
+		},
+		{
+			name: "custom QPS and Burst",
+			config: ClusterConfig{
+				QPS:   12.5,
+				Burst: 25,
+			},
+			expectedQPS:   12.5,
+			expectedBurst: 25,
+		},
+		{
+			name: "custom QPS only defaults Burst to 2x QPS",
+			config: ClusterConfig{
+				QPS: 15,
+			},
+			expectedQPS:   15,
+			expectedBurst: 30,
+		},
+		{
+			name: "custom QPS with low fractional value ensures minimum Burst of 1",
+			config: ClusterConfig{
+				QPS: 0.2,
+			},
+			expectedQPS:   0.2,
+			expectedBurst: 1,
+		},
+		{
+			name: "custom Burst only falls back QPS to global default",
+			config: ClusterConfig{
+				Burst: 42,
+			},
+			expectedQPS:   K8sClientConfigQPS,
+			expectedBurst: 42,
+		},
+		{
+			name: "negative values fall back to defaults",
+			config: ClusterConfig{
+				QPS:   -5,
+				Burst: -10,
+			},
+			expectedQPS:   K8sClientConfigQPS,
+			expectedBurst: K8sClientConfigBurst,
+		},
+		{
+			name: "explicit Burst exceeding MaxInt32 clamped to MaxInt32",
+			config: ClusterConfig{
+				Burst: math.MaxInt64,
+			},
+			expectedQPS:   K8sClientConfigQPS,
+			expectedBurst: math.MaxInt32,
+		},
+		{
+			name: "derived Burst from very large QPS clamped to MaxInt32",
+			config: ClusterConfig{
+				QPS: math.MaxFloat32,
+			},
+			expectedQPS:   math.MaxFloat32,
+			expectedBurst: math.MaxInt32,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := &Cluster{
+				Server: "https://kubernetes.example",
+				Config: tt.config,
+			}
+
+			rawConfig, err := cluster.RawRestConfig()
+			require.NoError(t, err)
+			assert.InDelta(t, tt.expectedQPS, rawConfig.QPS, 0.0001)
+			assert.Equal(t, tt.expectedBurst, rawConfig.Burst)
+
+			restConfig, err := cluster.RESTConfig()
+			require.NoError(t, err)
+			assert.InDelta(t, tt.expectedQPS, restConfig.QPS, 0.0001)
+			assert.Equal(t, tt.expectedBurst, restConfig.Burst)
+		})
+	}
+}
+
+func TestCluster_Sanitized_PreservesQPSAndBurst(t *testing.T) {
+	cluster := &Cluster{
+		Server: "https://kubernetes.example",
+		Config: ClusterConfig{
+			Username:    "sensitive-user",
+			Password:    "sensitive-pass",
+			BearerToken: "sensitive-token",
+			QPS:         30.5,
+			Burst:       61,
+		},
+	}
+
+	sanitized := cluster.Sanitized()
+	assert.InDelta(t, 30.5, sanitized.Config.QPS, 0.0001)
+	assert.Equal(t, int64(61), sanitized.Config.Burst)
+	assert.Empty(t, sanitized.Config.Username)
+	assert.Empty(t, sanitized.Config.Password)
+	assert.Empty(t, sanitized.Config.BearerToken)
+}
+
+func TestCluster_HashIdentity_IncludesQPSAndBurst(t *testing.T) {
+	base := &Cluster{
+		Server: "https://kubernetes.example",
+		Name:   "example",
+		Config: ClusterConfig{
+			QPS:   10,
+			Burst: 20,
+		},
+	}
+	withDiffQPS := &Cluster{
+		Server: "https://kubernetes.example",
+		Name:   "example",
+		Config: ClusterConfig{
+			QPS:   25,
+			Burst: 20,
+		},
+	}
+	withDiffBurst := &Cluster{
+		Server: "https://kubernetes.example",
+		Name:   "example",
+		Config: ClusterConfig{
+			QPS:   10,
+			Burst: 50,
+		},
+	}
+
+	assert.NotEqual(t, base.HashIdentity(0), withDiffQPS.HashIdentity(0))
+	assert.NotEqual(t, base.HashIdentity(0), withDiffBurst.HashIdentity(0))
 }

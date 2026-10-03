@@ -15,7 +15,20 @@ export default [
             '@typescript-eslint/no-explicit-any': 'off',
             // `ban-types` and `no-var-requires` were renamed/split in typescript-eslint v8.
             '@typescript-eslint/no-empty-object-type': 'off',
-            '@typescript-eslint/no-require-imports': 'off'
+            '@typescript-eslint/no-require-imports': 'off',
+            '@typescript-eslint/no-restricted-imports': [
+                'error',
+                {
+                    paths: [
+                        {
+                            name: 'monaco-editor',
+                            message:
+                                'A value import of monaco-editor pulls the ~19MB editor into the entry chunk. Use `import type` or render the MonacoEditor component, which loads it lazily.',
+                            allowTypeImports: true
+                        }
+                    ]
+                }
+            ]
         }
     },
     {

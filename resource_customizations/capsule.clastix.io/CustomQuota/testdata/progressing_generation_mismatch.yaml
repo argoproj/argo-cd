@@ -1,0 +1,15 @@
+apiVersion: capsule.clastix.io/v1beta2
+kind: CustomQuota
+metadata:
+  name: solar-custom-quota
+  namespace: solar-production
+  generation: 2
+spec: {}
+status:
+  observedGeneration: 1
+  conditions:
+    - type: Ready
+      status: "True"
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: Usage has been successfully calculated for the namespace
+      reason: Ready

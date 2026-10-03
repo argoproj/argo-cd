@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "Schedule is enabled"
+    inputPath: testdata/enabled.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Schedule failed validation"
+    inputPath: testdata/failedvalidation.yaml
+  - healthStatus:
+      status: Progressing
+      message: "New"
+    inputPath: testdata/new.yaml

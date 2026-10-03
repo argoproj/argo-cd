@@ -731,8 +731,8 @@ func domainFromBaseURL(baseURL string) (string, error) {
 	// --- 1. SSH-style Git URL: git@github.com:org/repo.git ---
 	if strings.Contains(baseURL, "@") && strings.Contains(baseURL, ":") && !strings.Contains(baseURL, "://") {
 		parts := strings.SplitN(baseURL, "@", 2)
-		right := parts[len(parts)-1]             // github.com:org/repo
-		host := strings.SplitN(right, ":", 2)[0] // github.com
+		right := parts[len(parts)-1]          // github.com:org/repo
+		host, _, _ := strings.Cut(right, ":") // github.com
 		if host != "" {
 			return host, nil
 		}
@@ -1085,7 +1085,7 @@ func (a AzureServicePrincipalCreds) getAccessToken() (string, error) {
 	// Generate cache key for creds
 	key, err := argoutils.GenerateCacheKey("%s %s %s %s", a.tenantID, a.clientID, a.clientSecret, activeDirectoryEndpoint)
 	if err != nil {
-		return "", fmt.Errorf("failed to get get SHA256 hash for Azure Service Principal credentials: %w", err)
+		return "", fmt.Errorf("failed to get SHA256 hash for Azure Service Principal credentials: %w", err)
 	}
 
 	t, found := azureServicePrincipalTokenCache.Get(key)

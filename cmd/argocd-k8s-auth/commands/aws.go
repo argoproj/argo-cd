@@ -130,10 +130,8 @@ func getSignedRequestWithConfig(ctx context.Context, clusterName, roleARN string
 func formatJSON(token string, expiration time.Time) string {
 	expirationTimestamp := metav1.NewTime(expiration)
 	execInput := &clientauthv1beta1.ExecCredential{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "client.authentication.k8s.io/v1beta1",
-			Kind:       "ExecCredential",
-		},
+		APIVersion: "client.authentication.k8s.io/v1beta1",
+		Kind:       "ExecCredential",
 		Status: &clientauthv1beta1.ExecCredentialStatus{
 			ExpirationTimestamp: &expirationTimestamp,
 			Token:               token,

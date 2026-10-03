@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "Successfully synced Bundle to all namespaces"
+    inputPath: testdata/synced.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Bundle source was not found: configmap \"missing-cm\" not found"
+    inputPath: testdata/notsynced.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for Bundle to be synced"
+    inputPath: testdata/progressing.yaml

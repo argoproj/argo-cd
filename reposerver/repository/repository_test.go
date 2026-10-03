@@ -23,6 +23,7 @@ import (
 
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -267,7 +268,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 50
+	const countOfManifests = 51
 
 	res1, err := service.GenerateManifest(t.Context(), &q)
 
@@ -2963,7 +2964,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, filePath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "", "", false)
 			assert.Nil(t, realFileInfo)
 			assert.Empty(t, ignoreMessage)
 			require.NoError(t, err)
@@ -2981,7 +2982,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, aPath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(aPath, info, appDir, appDir, "", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(aPath, info, appDir, appDir, "", "", false)
 			assert.Nil(t, realFileInfo)
 			assert.Empty(t, ignoreMessage)
 			assert.ErrorContains(t, err, "too many links")
@@ -2997,7 +2998,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, aPath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(aPath, info, appDir, appDir, "", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(aPath, info, appDir, appDir, "", "", false)
 			assert.Nil(t, realFileInfo)
 			assert.NotEmpty(t, ignoreMessage)
 			require.NoError(t, err)
@@ -3012,7 +3013,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, linkPath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "", false)
 			assert.Nil(t, realFileInfo)
 			assert.Empty(t, ignoreMessage)
 			assert.ErrorContains(t, err, "illegal filepath in symlink")
@@ -3030,7 +3031,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, linkPath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "", false)
 			assert.Nil(t, realFileInfo)
 			assert.Contains(t, ignoreMessage, "non-regular file")
 			require.NoError(t, err)
@@ -3047,7 +3048,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, filePath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "*.json", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "*.json", "", false)
 			assert.Nil(t, realFileInfo)
 			assert.Empty(t, ignoreMessage)
 			require.NoError(t, err)
@@ -3064,7 +3065,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, filePath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "", "excluded.*")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "", "excluded.*", false)
 			assert.Nil(t, realFileInfo)
 			assert.Empty(t, ignoreMessage)
 			require.NoError(t, err)
@@ -3085,7 +3086,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, linkPath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "", false)
 			assert.NotNil(t, realFileInfo)
 			assert.Empty(t, ignoreMessage)
 			require.NoError(t, err)
@@ -3102,7 +3103,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, filePath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "", "", false)
 			assert.NotNil(t, realFileInfo)
 			assert.Empty(t, ignoreMessage)
 			require.NoError(t, err)
@@ -3123,7 +3124,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, linkPath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "", false)
 			assert.NotNil(t, realFileInfo)
 			assert.Equal(t, filepath.Base(filePath), realFileInfo.Name())
 			assert.Empty(t, ignoreMessage)
@@ -3146,7 +3147,7 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 		err = os.Chmod(appDir, 0o000)
 		require.NoError(t, err)
 
-		manifests, err := getPotentiallyValidManifests(logCtx, appDir, appDir, false, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logCtx, appDir, appDir, false, false, "", "", resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.Error(t, err)
 
@@ -3158,19 +3159,19 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 	})
 
 	t.Run("no recursion when recursion is disabled", func(t *testing.T) {
-		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/recurse", "./testdata/recurse", false, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/recurse", "./testdata/recurse", false, false, "", "", resource.MustParse("0"))
 		assert.Len(t, manifests, 1)
 		require.NoError(t, err)
 	})
 
 	t.Run("recursion when recursion is enabled", func(t *testing.T) {
-		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/recurse", "./testdata/recurse", true, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/recurse", "./testdata/recurse", true, false, "", "", resource.MustParse("0"))
 		assert.Len(t, manifests, 2)
 		require.NoError(t, err)
 	})
 
 	t.Run("non-JSON/YAML is skipped", func(t *testing.T) {
-		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/non-manifest-file", "./testdata/non-manifest-file", false, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/non-manifest-file", "./testdata/non-manifest-file", false, false, "", "", resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.NoError(t, err)
 	})
@@ -3185,14 +3186,14 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 		t.Chdir(testDir)
 		require.NoError(t, fileutil.CreateSymlink(t, "a.json", "b.json"))
 		require.NoError(t, fileutil.CreateSymlink(t, "b.json", "a.json"))
-		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", false, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", false, false, "", "", resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.Error(t, err)
 	})
 
 	t.Run("out-of-bounds symlink should throw an error", func(t *testing.T) {
 		require.DirExists(t, "./testdata/out-of-bounds-link")
-		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/out-of-bounds-link", "./testdata/out-of-bounds-link", false, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/out-of-bounds-link", "./testdata/out-of-bounds-link", false, false, "", "", resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.Error(t, err)
 	})
@@ -3202,13 +3203,13 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 		require.NoError(t, err)
 		appPath, err := filepath.Abs("./testdata/in-bounds-link/app")
 		require.NoError(t, err)
-		manifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, false, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, false, false, "", "", resource.MustParse("0"))
 		assert.Len(t, manifests, 1)
 		require.NoError(t, err)
 	})
 
 	t.Run("symlink to nowhere should be ignored", func(t *testing.T) {
-		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/link-to-nowhere", "./testdata/link-to-nowhere", false, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/link-to-nowhere", "./testdata/link-to-nowhere", false, false, "", "", resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.NoError(t, err)
 	})
@@ -3219,20 +3220,190 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 		appPath, err := filepath.Abs("./testdata/in-bounds-link/app")
 		require.NoError(t, err)
 		// The file is 35 bytes.
-		manifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, false, "", "", resource.MustParse("34"))
+		manifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, false, false, "", "", resource.MustParse("34"))
 		assert.Empty(t, manifests)
 		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
 	})
 
 	t.Run("group of files should be limited at precisely the sum of their size", func(t *testing.T) {
 		// There is a total of 10 files, ech file being 10 bytes.
-		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/several-files", "./testdata/several-files", false, "", "", resource.MustParse("365"))
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/several-files", "./testdata/several-files", false, false, "", "", resource.MustParse("365"))
 		assert.Len(t, manifests, 10)
 		require.NoError(t, err)
 
-		manifests, err = getPotentiallyValidManifests(logCtx, "./testdata/several-files", "./testdata/several-files", false, "", "", resource.MustParse("100"))
+		manifests, err = getPotentiallyValidManifests(logCtx, "./testdata/several-files", "./testdata/several-files", false, false, "", "", resource.MustParse("100"))
 		assert.Empty(t, manifests)
 		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
+	})
+}
+
+// Test_getPotentiallyValidManifestFile_disableExtensionFilter verifies how the file-level
+// extension gate behaves as disableExtensionFilter is toggled. When false (the default), only
+// standard manifest extensions are considered (unchanged behavior). When true, the built-in
+// extension check is bypassed and include/exclude become the only filters.
+func Test_getPotentiallyValidManifestFile_disableExtensionFilter(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		fileName               string
+		include                string
+		exclude                string
+		disableExtensionFilter bool
+		expectValid            bool
+	}{
+		{
+			name:        "filter on: custom extension is skipped (default behavior)",
+			fileName:    "secret.yaml.sealed",
+			expectValid: false,
+		},
+		{
+			name:        "filter on: standard extension is still valid",
+			fileName:    "deployment.yaml",
+			expectValid: true,
+		},
+		{
+			name:                   "filter off: custom extension matched by include is valid",
+			fileName:               "secret.yaml.sealed",
+			include:                "{*.yaml.sealed,*.yaml}",
+			disableExtensionFilter: true,
+			expectValid:            true,
+		},
+		{
+			name:                   "filter off: custom extension not matched by include is skipped",
+			fileName:               "secret.yaml.sealed",
+			include:                "*.yaml",
+			disableExtensionFilter: true,
+			expectValid:            false,
+		},
+		{
+			name:                   "filter off: file not matched by include is skipped",
+			fileName:               "README.md",
+			include:                "{*.yaml.sealed,*.yaml}",
+			disableExtensionFilter: true,
+			expectValid:            false,
+		},
+		{
+			name:                   "filter off: exclude still filters when include is empty",
+			fileName:               "secret.yaml.sealed",
+			exclude:                "*.sealed",
+			disableExtensionFilter: true,
+			expectValid:            false,
+		},
+		{
+			name:                   "filter off: empty include and exclude considers any file",
+			fileName:               "config.txt",
+			disableExtensionFilter: true,
+			expectValid:            true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			appDir := tempDir(t)
+			filePath := filepath.Join(appDir, tc.fileName)
+			file, err := os.OpenFile(filePath, os.O_RDONLY|os.O_CREATE, 0o644)
+			require.NoError(t, err)
+			require.NoError(t, file.Close())
+
+			walkFor(t, appDir, filePath, func(info fs.FileInfo) {
+				realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, tc.include, tc.exclude, tc.disableExtensionFilter)
+				require.NoError(t, err)
+				assert.Empty(t, ignoreMessage)
+				if tc.expectValid {
+					assert.NotNil(t, realFileInfo)
+				} else {
+					assert.Nil(t, realFileInfo)
+				}
+			})
+		})
+	}
+}
+
+// Test_getPotentiallyValidManifests_disableExtensionFilter verifies directory-level behavior:
+// the safe default when the filter is on, the "consider everything" behavior (plus warning) when
+// the filter is disabled with no include/exclude, and that exclude alone still narrows the set.
+func Test_getPotentiallyValidManifests_disableExtensionFilter(t *testing.T) {
+	manifestBody := []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: x\n")
+	writeFiles := func(t *testing.T, names ...string) string {
+		t.Helper()
+		appDir := t.TempDir()
+		for _, name := range names {
+			require.NoError(t, os.WriteFile(filepath.Join(appDir, name), manifestBody, 0o644))
+		}
+		return appDir
+	}
+
+	t.Run("filter on: custom extensions are excluded, standard ones kept", func(t *testing.T) {
+		appDir := writeFiles(t, "secret.yaml.sealed", "deployment.yaml")
+		manifests, err := getPotentiallyValidManifests(log.WithField("test", "test"), appDir, appDir, false, false, "", "", resource.MustParse("0"))
+		require.NoError(t, err)
+		assert.Len(t, manifests, 1) // only deployment.yaml; the .sealed file is filtered by the extension regex
+	})
+
+	t.Run("filter off with include picks up custom extensions", func(t *testing.T) {
+		appDir := writeFiles(t, "secret.yaml.sealed", "deployment.yaml", "README.md")
+		manifests, err := getPotentiallyValidManifests(log.WithField("test", "test"), appDir, appDir, false, true, "{*.yaml.sealed,*.yaml}", "", resource.MustParse("0"))
+		require.NoError(t, err)
+		assert.Len(t, manifests, 2) // secret.yaml.sealed + deployment.yaml; README.md is not in include
+	})
+
+	t.Run("filter off with exclude only still narrows the set", func(t *testing.T) {
+		appDir := writeFiles(t, "secret.yaml.sealed", "notes.md")
+		manifests, err := getPotentiallyValidManifests(log.WithField("test", "test"), appDir, appDir, false, true, "", "*.md", resource.MustParse("0"))
+		require.NoError(t, err)
+		assert.Len(t, manifests, 1) // notes.md excluded, secret.yaml.sealed kept
+	})
+
+	t.Run("filter off with both include and exclude: exclude subtracts from include", func(t *testing.T) {
+		appDir := writeFiles(t, "secret.yaml.sealed", "config.yaml.sealed", "app.yaml", "README.md")
+		// include matches both *.yaml.sealed and *.yaml; exclude then removes anything matching secret.*
+		manifests, err := getPotentiallyValidManifests(log.WithField("test", "test"), appDir, appDir, false, true, "{*.yaml.sealed,*.yaml}", "secret.*", resource.MustParse("0"))
+		require.NoError(t, err)
+		// kept: config.yaml.sealed, app.yaml. dropped: secret.yaml.sealed (excluded), README.md (not in include)
+		assert.Len(t, manifests, 2)
+	})
+
+	t.Run("filter off with empty include and exclude considers every file and warns", func(t *testing.T) {
+		logger, hook := logtest.NewNullLogger()
+		appDir := writeFiles(t, "secret.yaml.sealed", "notes.txt", "deployment.yaml")
+
+		manifests, err := getPotentiallyValidManifests(logger.WithField("test", "test"), appDir, appDir, false, true, "", "", resource.MustParse("0"))
+		require.NoError(t, err)
+		assert.Len(t, manifests, 3) // every file is a candidate
+
+		require.Len(t, hook.Entries, 1)
+		assert.Equal(t, log.WarnLevel, hook.LastEntry().Level)
+		assert.Contains(t, hook.LastEntry().Message, "all files in the directory will be read")
+	})
+}
+
+// Test_findManifests_disableExtensionFilter is an end-to-end check that a file with a custom
+// extension is not just selected as a candidate but actually parsed into a manifest object.
+func Test_findManifests_disableExtensionFilter(t *testing.T) {
+	sealedSecret := []byte("apiVersion: bitnami.com/v1alpha1\nkind: SealedSecret\nmetadata:\n  name: my-secret\n")
+
+	t.Run("custom extension is rendered when the extension filter is disabled and include matches", func(t *testing.T) {
+		appDir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(appDir, "my-secret.yaml.sealed"), sealedSecret, 0o644))
+
+		objs, err := findManifests(log.WithField("test", "test"), appDir, appDir, nil, v1alpha1.ApplicationSourceDirectory{
+			DisableExtensionFilter: true,
+			Include:                "{*.yaml.sealed,*.yaml}",
+		}, map[string]bool{}, resource.MustParse("0"))
+		require.NoError(t, err)
+		require.Len(t, objs, 1)
+		assert.Equal(t, "SealedSecret", objs[0].GetKind())
+		assert.Equal(t, "my-secret", objs[0].GetName())
+	})
+
+	t.Run("custom extension is ignored when the extension filter is on (default)", func(t *testing.T) {
+		appDir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(appDir, "my-secret.yaml.sealed"), sealedSecret, 0o644))
+
+		objs, err := findManifests(log.WithField("test", "test"), appDir, appDir, nil, v1alpha1.ApplicationSourceDirectory{
+			Include: "{*.yaml.sealed,*.yaml}",
+		}, map[string]bool{}, resource.MustParse("0"))
+		require.NoError(t, err)
+		assert.Empty(t, objs) // extension regex filters it out before include is consulted
 	})
 }
 
@@ -5532,8 +5703,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				KubeVersion:       "v1.16.0",
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
-
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: false,
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
@@ -5579,7 +5749,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: false,
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
@@ -5636,7 +5806,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "0.0.1", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+			Revision: "0.0.1", Changes: false,
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "0.0.1",
 			revision:         "0.0.1",
@@ -5691,7 +5861,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "0.0.1", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+			Revision: "0.0.1", Changes: false,
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "0.0.1",
 			revision:         "0.0.1",
@@ -5797,7 +5967,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: false,
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
 			revision:         "1e67a504d03def3a6a1125d934cb511680f72555",
@@ -6041,10 +6211,11 @@ func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) 
 	assert.Equal(t, resolvedRevision, resp1.Revision)
 
 	// Second call with the OLD SyncedRevision: cache miss because the entry
-	// was already renamed. Returns Changes=true as a safe fallback.
+	// was already renamed. No path changes were detected, so this is not treated
+	// as a manifest change that should trigger automated sync.
 	resp2, err := s.UpdateRevisionForPaths(t.Context(), request)
 	require.NoError(t, err)
-	assert.True(t, resp2.Changes, "Repeating with old SyncedRevision returns Changes=true (cache was renamed)")
+	assert.False(t, resp2.Changes, "Repeating with old SyncedRevision after cache rename must not report changes")
 
 	// Third call with the RESOLVED revision as SyncedRevision: the caller
 	// persisted the resolved revision from the first call. The cache entry
@@ -6055,6 +6226,54 @@ func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) 
 	require.NoError(t, err)
 	assert.False(t, resp3.Changes, "Using the resolved revision as SyncedRevision should detect no changes")
 	assert.Equal(t, resolvedRevision, resp3.Revision)
+}
+
+func TestUpdateRevisionForPaths_SiblingPathChangesCacheMiss(t *testing.T) {
+	// Regression for issue #29430: when a mono-repo commit only touches a sibling
+	// application path, UpdateRevisionForPaths must not report Changes=true just
+	// because the manifest cache entry could not be renamed.
+	resolvedRevision := "632039659e542ed7de0c170a4fcc1c571b288fc0"
+	syncedRevision := "1e67a504d03def3a6a1125d934cb511680f72555"
+
+	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		gitClient.EXPECT().LsRemote("HEAD").Return(resolvedRevision, nil)
+		gitClient.EXPECT().LsRemote(syncedRevision).Return(syncedRevision, nil)
+		gitClient.EXPECT().Root().Return("")
+		gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything, mock.Anything).Return([]string{"app/testargo2/values.yaml"}, nil)
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+	}, ".")
+
+	request := &apiclient.UpdateRevisionForPathsRequest{
+		Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+		Revision:          "HEAD",
+		SyncedRevision:    syncedRevision,
+		Paths:             []string{"app/testargo1"},
+		AppLabelKey:       "app.kubernetes.io/name",
+		AppName:           "testargo1",
+		Namespace:         "default",
+		TrackingMethod:    "annotation+label",
+		ApplicationSource: &v1alpha1.ApplicationSource{Path: "app/testargo1", Helm: &v1alpha1.ApplicationSourceHelm{ReleaseName: "testargo1"}},
+	}
+
+	key := cache.NewManifestKey(syncedRevision, request.ApplicationSource, request.GetRefSources(), request.GetNamespace(), request.GetTrackingMethod(),
+		request.GetAppLabelKey(), request.GetAppName(), request.GetInstallationID(), request.GetSourceIntegrity(), request, nil,
+	)
+	err := cacheMocks.cache.SetManifests(
+		key, &cache.CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{Revision: syncedRevision}},
+	)
+	require.NoError(t, err)
+
+	cacheMocks.mockCache.On("Rename", syncedRevision, resolvedRevision, mock.Anything).Return(cache.ErrCacheMiss)
+
+	resp, err := s.UpdateRevisionForPaths(t.Context(), request)
+	require.NoError(t, err)
+	assert.False(t, resp.Changes, "sibling path changes must not be reported as application changes on cache miss")
+	assert.Equal(t, resolvedRevision, resp.Revision)
 }
 
 func TestConsistentManifestCacheKey(t *testing.T) {
@@ -6627,4 +6846,305 @@ func TestGetHelmRepos_InsecureOCIForceHttpPropagatedFromRepoCreds(t *testing.T) 
 
 	require.Len(t, helmRepos, 1)
 	assert.True(t, helmRepos[0].InsecureOCIForceHttp)
+}
+
+func TestErrorGetOciDirectories(t *testing.T) {
+	type fields struct {
+		service *Service
+	}
+	type args struct {
+		ctx     context.Context
+		request *apiclient.OciDirectoriesRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *apiclient.OciDirectoriesResponse
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:   "InvalidRepo",
+			fields: fields{service: newService(t, ".")},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciDirectoriesRequest{
+					Repo:     nil,
+					Revision: "v1.0.0",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+		{
+			name: "ErrorResolveRevision",
+			fields: fields{service: func() *Service {
+				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+					ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("unable to resolve revision"))
+					paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+					paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				}, ".")
+				return s
+			}()},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciDirectoriesRequest{
+					Repo:     &v1alpha1.Repository{Repo: "ghcr.io/example/invalid"},
+					Revision: "invalid-tag",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+		{
+			name: "ErrorExtractingArtifact",
+			fields: fields{service: func() *Service {
+				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+					ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("sha256:abc123", nil)
+					ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return("", nil, errors.New("extraction failed"))
+					paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+					paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				}, ".")
+				return s
+			}()},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciDirectoriesRequest{
+					Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
+					Revision: "v1.0.0",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := tt.fields.service
+			got, err := s.GetOciDirectories(tt.args.ctx, tt.args.request)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetOciDirectories(%v, %v)", tt.args.ctx, tt.args.request)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetOciDirectories(%v, %v)", tt.args.ctx, tt.args.request)
+		})
+	}
+}
+
+func TestGetOciDirectories(t *testing.T) {
+	tmpDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "apps", "prod"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "apps", "staging"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "config"), 0o755))
+
+	s, _, cacheMocks := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+		ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("sha256:abc123", nil)
+		ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return(tmpDir, utilio.NopCloser, nil)
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+	}, ".")
+
+	dirRequest := &apiclient.OciDirectoriesRequest{
+		Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
+		Revision: "v1.0.0",
+	}
+
+	dirResponse, err := s.GetOciDirectories(t.Context(), dirRequest)
+	require.NoError(t, err)
+	assert.NotNil(t, dirResponse)
+
+	paths := dirResponse.GetPaths()
+	assert.Contains(t, paths, "apps")
+	assert.Contains(t, paths, "apps/prod")
+	assert.Contains(t, paths, "apps/staging")
+	assert.Contains(t, paths, "config")
+
+	dirResponse2, err := s.GetOciDirectories(t.Context(), dirRequest)
+	require.NoError(t, err)
+	assert.Equal(t, paths, dirResponse2.GetPaths())
+
+	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+		ExternalSets: 1,
+		ExternalGets: 2,
+	})
+}
+
+func TestErrorGetOciFiles(t *testing.T) {
+	type fields struct {
+		service *Service
+	}
+	type args struct {
+		ctx     context.Context
+		request *apiclient.OciFilesRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *apiclient.OciFilesResponse
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:   "InvalidRepo",
+			fields: fields{service: newService(t, ".")},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciFilesRequest{
+					Repo:     nil,
+					Revision: "v1.0.0",
+					Glob:     "*.json",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+		{
+			name: "ErrorResolveRevision",
+			fields: fields{service: func() *Service {
+				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+					ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("unable to resolve revision"))
+					paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+					paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				}, ".")
+				return s
+			}()},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciFilesRequest{
+					Repo:     &v1alpha1.Repository{Repo: "ghcr.io/example/invalid"},
+					Revision: "invalid-tag",
+					Glob:     "*.json",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+		{
+			name: "ErrorExtractingArtifact",
+			fields: fields{service: func() *Service {
+				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+					ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("sha256:abc123", nil)
+					ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return("", nil, errors.New("extraction failed"))
+					paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+					paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				}, ".")
+				return s
+			}()},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciFilesRequest{
+					Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
+					Revision: "v1.0.0",
+					Glob:     "*.json",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := tt.fields.service
+			got, err := s.GetOciFiles(tt.args.ctx, tt.args.request)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetOciFiles(%v, %v)", tt.args.ctx, tt.args.request)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetOciFiles(%v, %v)", tt.args.ctx, tt.args.request)
+		})
+	}
+}
+
+func TestGetOciFiles(t *testing.T) {
+	t.Run("subdirectory pattern", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		// Create test files
+		prodConfig := []byte(`{"cluster": "production", "replicas": 3}`)
+		stagingConfig := []byte(`{"cluster": "staging", "replicas": 1}`)
+
+		require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "config"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "config", "prod.json"), prodConfig, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "config", "staging.json"), stagingConfig, 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "config", "values.yaml"), []byte("foo: bar"), 0o644))
+
+		s, _, cacheMocks := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+			ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("sha256:abc123", nil)
+			ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return(tmpDir, utilio.NopCloser, nil)
+			paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+			paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+		}, ".")
+
+		filesRequest := &apiclient.OciFilesRequest{
+			Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
+			Revision: "v1.0.0",
+			Glob:     "config/*.json",
+		}
+
+		fileResponse, err := s.GetOciFiles(t.Context(), filesRequest)
+		require.NoError(t, err)
+		assert.NotNil(t, fileResponse)
+
+		files := fileResponse.GetFiles()
+		assert.Len(t, files, 2)
+		assert.Equal(t, prodConfig, files["config/prod.json"])
+		assert.Equal(t, stagingConfig, files["config/staging.json"])
+		assert.NotContains(t, files, "config/values.yaml")
+
+		fileResponse2, err := s.GetOciFiles(t.Context(), filesRequest)
+		require.NoError(t, err)
+		assert.Equal(t, files, fileResponse2.GetFiles())
+
+		cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+			ExternalSets: 1,
+			ExternalGets: 2,
+		})
+	})
+
+	t.Run("dot glob returns all regular files", func(t *testing.T) {
+		cases := []struct {
+			name string
+			glob string
+		}{
+			{name: "empty string defaults to dot", glob: ""},
+			{name: "explicit dot", glob: "."},
+		}
+
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				tmpDir := t.TempDir()
+				rootYaml := []byte("root: true")
+				appsYaml := []byte("apps: true")
+				require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "apps", "prod"), 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "root.yaml"), rootYaml, 0o644))
+				require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "apps", "prod.yaml"), appsYaml, 0o644))
+				require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "apps", "prod", "nested.yaml"), []byte("nested: true"), 0o644))
+
+				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+					ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("sha256:abc123", nil)
+					ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return(tmpDir, utilio.NopCloser, nil)
+					paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+					paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				}, ".")
+
+				req := &apiclient.OciFilesRequest{
+					Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
+					Revision: "v1.0.0",
+					Glob:     tc.glob,
+				}
+
+				resp, err := s.GetOciFiles(t.Context(), req)
+				require.NoError(t, err)
+				require.NotNil(t, resp)
+
+				files := resp.GetFiles()
+
+				assert.Len(t, files, 3)
+				assert.YAMLEq(t, string(rootYaml), string(files["root.yaml"]))
+				assert.YAMLEq(t, string(appsYaml), string(files["apps/prod.yaml"]))
+				assert.Equal(t, []byte("nested: true"), files["apps/prod/nested.yaml"])
+				for key := range files {
+					assert.False(t, strings.HasPrefix(key, "/"), "key %q should be a relative path", key)
+					assert.False(t, strings.HasPrefix(key, "./"), "key %q should not start with ./", key)
+				}
+			})
+		}
+	})
 }
