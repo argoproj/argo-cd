@@ -580,6 +580,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 	}
 	ts.AddCheckpoint("get_orphaned_resources_ms")
 	managedResourcesKeys := make([]kube.ResourceKey, 0)
+	managedResourceLiveStates := make(map[kube.ResourceKey]string)
 	for i := range managedResources {
 		managedResource := managedResources[i]
 		delete(orphanedNodesMap, kube.NewResourceKey(managedResource.Group, managedResource.Kind, managedResource.Namespace, managedResource.Name))
@@ -604,7 +605,9 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 				},
 			})
 		} else {
-			managedResourcesKeys = append(managedResourcesKeys, kubemeta.GetResourceKey(live))
+			key := kubemeta.GetResourceKey(live)
+			managedResourcesKeys = append(managedResourcesKeys, key)
+			managedResourceLiveStates[key] = managedResource.LiveState
 		}
 	}
 	// Process managed resources and their children, including cross-namespace relationships
@@ -625,6 +628,16 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to iterate resource hierarchy v2: %w", err)
+	}
+	if !resourceNodesHaveImages(nodes) {
+		for i := range nodes {
+			key := kube.NewResourceKey(nodes[i].Group, nodes[i].Kind, nodes[i].Namespace, nodes[i].Name)
+			liveState, ok := managedResourceLiveStates[key]
+			if !ok {
+				continue
+			}
+			nodes[i].Images = getResourceImagesFromLiveState(liveState)
+		}
 	}
 	ts.AddCheckpoint("process_managed_resources_ms")
 	orphanedNodes := make([]appv1.ResourceNode, 0)
@@ -682,6 +695,23 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 	}
 	ts.AddCheckpoint("get_app_hosts_ms")
 	return &appv1.ApplicationTree{Nodes: nodes, OrphanedNodes: orphanedNodes, Hosts: hosts}, nil
+}
+
+func getResourceImagesFromLiveState(liveState string) []string {
+	live := &unstructured.Unstructured{}
+	if err := json.Unmarshal([]byte(liveState), live); err != nil {
+		return nil
+	}
+	return kube.GetResourceImages(live)
+}
+
+func resourceNodesHaveImages(nodes []appv1.ResourceNode) bool {
+	for _, node := range nodes {
+		if len(node.Images) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *appv1.Application, appNodes []appv1.ResourceNode) ([]appv1.HostInfo, error) {
