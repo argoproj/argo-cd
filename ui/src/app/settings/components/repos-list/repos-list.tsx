@@ -427,15 +427,22 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         return url.replace('https://', '').replace('oci://', '');
     };
 
-    // only connections of git type which are not via GitHub App or Azure Service Principal are updatable
+    // only git/helm/oci connections which are not via SSH, GitHub App or Azure Service Principal are updatable
     const isRepoUpdatable = (item: UnifiedRepo) => {
         // Only readRepo or writeRepo can be updated (not templates)
         const repo = item.readRepo || item.writeRepo;
-        if (!repo || isTemplate(item)) {
+        if (!repo || isTemplate(item) || repo.githubAppID || repo.azureServicePrincipalClientId) {
             return false;
         }
-        // Check if it's an updatable repository (HTTP/HTTPS git repo without GitHub App or Azure SP)
-        return isHTTPOrHTTPSUrl(repo.repo) && getRepoType(item) === 'git' && !repo.githubAppID && !repo.azureServicePrincipalClientId;
+        const type = repo.type || 'git';
+        if (type === 'oci') {
+            return true;
+        }
+        // Helm OCI URLs are often stored without a scheme
+        if (repo.enableOCI) {
+            return type === 'helm';
+        }
+        return isHTTPOrHTTPSUrl(repo.repo) && (type === 'git' || type === 'helm');
     };
 
     // Forces a reload of configured repositories, circumventing the cache
