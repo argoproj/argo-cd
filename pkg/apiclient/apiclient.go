@@ -309,6 +309,9 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 		}
 		c.httpClient.Transport = &http.Transport{
 			TLSClientConfig: tlsConfig,
+			// Honor HTTP_PROXY/HTTPS_PROXY/NO_PROXY, like http.DefaultTransport
+			// (which is used in the --plaintext case) and HTTPClient() already do.
+			Proxy: http.ProxyFromEnvironment,
 		}
 	}
 	if !c.GRPCWeb {
