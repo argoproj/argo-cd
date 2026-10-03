@@ -1302,7 +1302,7 @@ data:
     port 6379
     rename-command FLUSHDB ""
     rename-command FLUSHALL ""
-    bind 0.0.0.0
+    bind * -::*
     maxmemory 0
     maxmemory-policy volatile-lru
     min-replicas-max-lag 5
@@ -1316,7 +1316,7 @@ data:
   sentinel.conf: |
     dir "/data"
     port 26379
-    bind 0.0.0.0
+    bind * -::*
     sentinel down-after-milliseconds argocd 10000
     sentinel failover-timeout argocd 180000
     maxclients 10000
@@ -2486,9 +2486,19 @@ spec:
           seccompProfile:
             type: RuntimeDefault
       - args:
-        - /readonly/haproxy_init.sh
+        - |
+          sh /readonly/haproxy_init.sh || exit 1
+          case "${POD_IP}" in
+            *:*) sed -i -E 's/^([[:space:]]*bind[[:space:]]+):([0-9]+)/\1[::]:\2 v4v6/' /data/haproxy.cfg ;;
+          esac
         command:
         - sh
+        - -c
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
         image: public.ecr.aws/docker/library/haproxy:3.0.8-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
@@ -4020,7 +4030,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: cb9ebad11d288a7327d836f5f0fa63a61806e11078082ffaf78cd15e5b6f04fa
+        checksum/init-config: fed034483d6573eb1458fa0bb13e1d6273387f876fcd7a7ddd9e76238b90ba31
       labels:
         app.kubernetes.io/name: argocd-redis-ha
     spec:
