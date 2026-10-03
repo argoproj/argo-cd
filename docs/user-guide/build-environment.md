@@ -13,6 +13,7 @@
 | `ARGOCD_APP_SOURCE_PATH`            | The path of the app within the source repo.                             |
 | `ARGOCD_APP_SOURCE_REPO_URL`        | The source repo URL.                                                    |
 | `ARGOCD_APP_SOURCE_TARGET_REVISION` | The target revision from the spec, e.g. `master`.                       |
+| `ARGOCD_APP_TARBALL_REL_PATH`       | The path of the app relative to the root of the tarball sent to a CMP. When the `manifest-generate-paths` annotation narrows the transmitted tree, this differs from `ARGOCD_APP_SOURCE_PATH`. |
 | `KUBE_VERSION`                      | The semantic version of Kubernetes without trailing metadata.           |
 | `KUBE_API_VERSIONS`                 | The version of the Kubernetes API.                                      |
 
