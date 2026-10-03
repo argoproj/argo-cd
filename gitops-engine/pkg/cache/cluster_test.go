@@ -2989,3 +2989,41 @@ func TestAPIResourceLabelSelectorIsAppliedToList(t *testing.T) {
 	assert.Len(t, resources, 1)
 	assert.Contains(t, resources, kube.NewResourceKey("", "Pod", "default", "matching"))
 }
+
+func Test_stopWatching_NamespaceIsolation(t *testing.T) {
+	pod1 := testPod1()
+	pod1.Namespace = "ns1"
+	pod1.Name = "pod-ns1"
+	pod1.UID = "pod-1"
+
+	pod2 := testPod1()
+	pod2.Namespace = "ns2"
+	pod2.Name = "pod-ns2"
+	pod2.UID = "pod-2"
+
+	cluster := newClusterWithOptions(t, []UpdateSettingsFunc{
+		SetNamespaces([]string{"ns1", "ns2"}),
+	}, pod1, pod2)
+	defer cluster.Invalidate()
+
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	podGK := schema.GroupKind{Group: "", Kind: "Pod"}
+
+	cluster.lock.RLock()
+	assert.Contains(t, cluster.apisMeta, podGK)
+	assert.NotNil(t, cluster.resources[kube.NewResourceKey("", "Pod", "ns1", "pod-ns1")])
+	assert.NotNil(t, cluster.resources[kube.NewResourceKey("", "Pod", "ns2", "pod-ns2")])
+	cluster.lock.RUnlock()
+
+	cluster.stopWatching(podGK, "ns1")
+
+	cluster.lock.RLock()
+	defer cluster.lock.RUnlock()
+
+	assert.Nil(t, cluster.resources[kube.NewResourceKey("", "Pod", "ns1", "pod-ns1")], "ns1 pod should be removed from cache")
+
+	assert.NotNil(t, cluster.resources[kube.NewResourceKey("", "Pod", "ns2", "pod-ns2")], "ns2 pod should still be in cache")
+	assert.Contains(t, cluster.apisMeta, podGK, "apisMeta should not be deleted while ns2 is still being watched")
+}
