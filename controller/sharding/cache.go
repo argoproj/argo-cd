@@ -35,6 +35,10 @@ type ClusterSharding struct {
 	Apps            map[string]*v1alpha1.Application
 	lock            sync.RWMutex
 	getClusterShard DistributionFunction
+	// generation is bumped once per updateDistribution so the distribution
+	// function computes the full cluster->shard mapping once per redistribution
+	// instead of once per cluster. Guarded by lock.
+	generation uint64
 }
 
 func NewClusterSharding(_ db.ArgoDB, shard, replicas int, shardingAlgorithm string) ClusterShardingCache {
@@ -49,7 +53,7 @@ func NewClusterSharding(_ db.ArgoDB, shard, replicas int, shardingAlgorithm stri
 	distributionFunction := NoShardingDistributionFunction()
 	if replicas > 1 {
 		log.Debugf("Processing clusters from shard %d: Using filter function:  %s", shard, shardingAlgorithm)
-		distributionFunction = GetDistributionFunction(clusterSharding.getClusterAccessor(), clusterSharding.getAppAccessor(), shardingAlgorithm, replicas)
+		distributionFunction = GetDistributionFunction(clusterSharding.getClusterAccessor(), clusterSharding.getAppAccessor(), shardingAlgorithm, replicas, clusterSharding.getGenerationAccessor())
 	} else {
 		log.Info("Processing all cluster shards")
 	}
@@ -109,7 +113,7 @@ func (sharding *ClusterSharding) Init(clusters *v1alpha1.ClusterList, apps *v1al
 	newApps := make(map[string]*v1alpha1.Application, len(apps.Items))
 	for i := range apps.Items {
 		app := apps.Items[i]
-		newApps[app.Name] = &app
+		newApps[app.QualifiedName()] = &app
 	}
 	sharding.Apps = newApps
 	sharding.updateDistribution()
@@ -165,6 +169,9 @@ func (sharding *ClusterSharding) GetDistribution() map[string]int {
 }
 
 func (sharding *ClusterSharding) updateDistribution() {
+	// One generation per redistribution: every getClusterShard call below sees
+	// the same value, so the mapping is computed once for all clusters.
+	sharding.generation++
 	for k, c := range sharding.Clusters {
 		shard := 0
 		if c.Shard != nil {
@@ -225,6 +232,13 @@ func (sharding *ClusterSharding) getClusterAccessor() clusterAccessor {
 	}
 }
 
+// A read lock should be acquired before calling getGenerationAccessor.
+func (sharding *ClusterSharding) getGenerationAccessor() generationAccessor {
+	return func() uint64 {
+		return sharding.generation
+	}
+}
+
 // A read lock should be acquired before calling getAppAccessor.
 func (sharding *ClusterSharding) getAppAccessor() appAccessor {
 	return func() []*v1alpha1.Application {
@@ -236,39 +250,45 @@ func (sharding *ClusterSharding) getAppAccessor() appAccessor {
 	}
 }
 
+// AddApp records a in the sharding cache. It has the same contract as
+// UpdateApp: the informer can deliver an Add for an app already recorded by
+// Init or by the shard-resync loop, possibly with a changed destination.
 func (sharding *ClusterSharding) AddApp(a *v1alpha1.Application) {
-	sharding.lock.Lock()
-	defer sharding.lock.Unlock()
-
-	_, ok := sharding.Apps[a.Name]
-	sharding.Apps[a.Name] = a
-	if !ok {
-		sharding.updateDistribution()
-	} else {
-		log.Debugf("Skipping sharding distribution update. App already added")
-	}
+	sharding.upsertApp(a)
 }
 
 func (sharding *ClusterSharding) DeleteApp(a *v1alpha1.Application) {
 	sharding.lock.Lock()
 	defer sharding.lock.Unlock()
-	if _, ok := sharding.Apps[a.Name]; ok {
-		delete(sharding.Apps, a.Name)
+	if _, ok := sharding.Apps[a.QualifiedName()]; ok {
+		delete(sharding.Apps, a.QualifiedName())
 		sharding.updateDistribution()
 	}
 }
 
+// UpdateApp records a in the sharding cache. See upsertApp.
 func (sharding *ClusterSharding) UpdateApp(a *v1alpha1.Application) {
+	sharding.upsertApp(a)
+}
+
+// upsertApp stores a and recomputes the distribution when the app is new or
+// its destination cluster changed: the consistent-hashing-with-bounded-loads
+// algorithm weights each cluster by its app count (keyed on
+// Destination.Server), so a destination change shifts load between clusters.
+// Apps are keyed by QualifiedName (namespace/name) so that same-named apps in
+// different namespaces (apps-in-any-namespace) do not collide and undercount.
+func (sharding *ClusterSharding) upsertApp(a *v1alpha1.Application) {
 	sharding.lock.Lock()
 	defer sharding.lock.Unlock()
 
-	_, ok := sharding.Apps[a.Name]
-	sharding.Apps[a.Name] = a
-	if !ok {
+	key := a.QualifiedName()
+	old, ok := sharding.Apps[key]
+	sharding.Apps[key] = a
+	if !ok || old.Spec.Destination.Server != a.Spec.Destination.Server {
 		sharding.updateDistribution()
-	} else {
-		log.Debugf("Skipping sharding distribution update. No relevant changes")
+		return
 	}
+	log.Debugf("Skipping sharding distribution update for %s. No relevant changes", key)
 }
 
 // GetAppDistribution should be not be called from a DistributionFunction because
@@ -291,11 +311,14 @@ func (sharding *ClusterSharding) GetAppDistribution() map[string]int {
 }
 
 // UpdateShard will update the shard of ClusterSharding when the shard has changed.
+// The comparison and the write happen under the write lock so that concurrent
+// callers (overlapping readiness probes) cannot both observe a change and
+// trigger duplicate resyncs.
 func (sharding *ClusterSharding) UpdateShard(shard int) bool {
+	sharding.lock.Lock()
+	defer sharding.lock.Unlock()
 	if shard != sharding.Shard {
-		sharding.lock.RLock()
 		sharding.Shard = shard
-		sharding.lock.RUnlock()
 		return true
 	}
 	return false
