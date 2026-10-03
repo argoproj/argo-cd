@@ -668,8 +668,15 @@ func (c *clusterCache) stopWatching(gk schema.GroupKind, ns string) {
 	if info, ok := c.apisMeta[gk]; ok {
 		info.watchCancel()
 		delete(c.apisMeta, gk)
-		c.replaceResourceCache(gk, nil, ns)
-		c.log.Info(fmt.Sprintf("Stop watching: %s not found", gk))
+		// The cancelled watch context is shared by every namespace being watched for
+		// this GroupKind (see startMissingWatches, which creates one context per gk
+		// and passes it to watchEvents for every namespace in c.namespaces), so this
+		// stops watching gk in all of them, not just ns. Clear the cache for the
+		// whole GroupKind to match - otherwise every namespace other than ns is left
+		// with cached resources that look live but no longer have a watch keeping
+		// them in sync, until the next full cluster resync.
+		c.replaceResourceCache(gk, nil, "")
+		c.log.Info(fmt.Sprintf("Stop watching: %s not found in %s", gk, ns))
 	}
 }
 
