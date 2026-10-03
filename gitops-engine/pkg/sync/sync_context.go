@@ -334,7 +334,11 @@ func groupDiffResults(diffResultList *diff.DiffResultList) map[kubeutil.Resource
 	return modifiedResources
 }
 
-func objRequiresPruneConfirmation(obj *unstructured.Unstructured, defaultPruneOption *string) bool {
+// ObjRequiresPruneConfirmation reports whether obj's effective Prune sync-option
+// (its own annotation, falling back to defaultPruneOption) is "confirm". Exported
+// so callers outside this package (e.g. argo-cd's application controller) can
+// reuse the same single source of truth instead of re-implementing it.
+func ObjRequiresPruneConfirmation(obj *unstructured.Unstructured, defaultPruneOption *string) bool {
 	var pruneOptionValue *string
 	if obj != nil {
 		pruneOptionValue = resourceutil.GetAnnotationOptionValue(obj, common.AnnotationSyncOptions, common.SyncOptionPrune)
@@ -345,7 +349,10 @@ func objRequiresPruneConfirmation(obj *unstructured.Unstructured, defaultPruneOp
 	return pruneOptionValue != nil && *pruneOptionValue == common.SyncValueConfirm
 }
 
-func isPruningDisabled(obj *unstructured.Unstructured, defaultPruneOption *string) bool {
+// IsPruningDisabled reports whether obj's effective Prune sync-option (its own
+// annotation, falling back to defaultPruneOption) is "false". Exported for the
+// same reason as ObjRequiresPruneConfirmation above.
+func IsPruningDisabled(obj *unstructured.Unstructured, defaultPruneOption *string) bool {
 	var pruneOptionValue *string
 	if obj != nil {
 		pruneOptionValue = resourceutil.GetAnnotationOptionValue(obj, common.AnnotationSyncOptions, common.SyncOptionPrune)
@@ -472,7 +479,7 @@ func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) 
 
 	if !sc.pruneConfirmed {
 		tasksToPrune := tasks.Filter(func(task *syncTask) bool {
-			return task.isPrune() && objRequiresPruneConfirmation(task.liveObj, sc.defaultPruneOption)
+			return task.isPrune() && ObjRequiresPruneConfirmation(task.liveObj, sc.defaultPruneOption)
 		})
 
 		if len(tasksToPrune) > 0 {
@@ -1496,7 +1503,7 @@ func (sc *syncContext) pruneObject(ctx context.Context, t *syncTask, prune, dryR
 	liveObj := t.liveObj
 	if !prune {
 		return common.ResultCodePruneSkipped, "ignored (requires pruning)"
-	} else if isPruningDisabled(liveObj, sc.defaultPruneOption) {
+	} else if IsPruningDisabled(liveObj, sc.defaultPruneOption) {
 		return common.ResultCodePruneSkipped, "ignored (no prune)"
 	}
 	if dryRun {
@@ -1668,7 +1675,7 @@ func (sc *syncContext) runTasks(ctx context.Context, tasks syncTasks, dryRun boo
 	{
 		if !sc.pruneConfirmed {
 			for _, task := range pruneTasks {
-				if objRequiresPruneConfirmation(task.liveObj, sc.defaultPruneOption) {
+				if ObjRequiresPruneConfirmation(task.liveObj, sc.defaultPruneOption) {
 					sc.log.WithValues("task", task).Info("Prune requires confirmation")
 					return pending
 				}
