@@ -277,7 +277,7 @@ describe('ApplicationStatusPanel', () => {
             metadata: {...application.metadata, ownerReferences: [{kind: 'ApplicationSet', name: 'demo-appset'}]}
         } as unknown as models.Application;
         const appSetWith = (overrides: object) => ({
-            items: [{metadata: {name: 'demo-appset'}, spec: {strategy: {type: 'RollingSync'}}, status: {applicationStatus: []}, ...overrides}]
+            items: [{metadata: {name: 'demo-appset', namespace: 'argocd'}, spec: {strategy: {type: 'RollingSync'}}, status: {applicationStatus: []}, ...overrides}]
         });
 
         afterEach(() => (services.applications.listApplicationSets as jest.Mock).mockResolvedValue({items: []}));
@@ -288,7 +288,7 @@ describe('ApplicationStatusPanel', () => {
             const ownedBy = (name: string) =>
                 ({...application, metadata: {...application.metadata, ownerReferences: [{kind: 'ApplicationSet', name}]}} as unknown as models.Application);
             const itemsFor = (name: string, status: string) => ({
-                items: [{metadata: {name}, spec: {strategy: {type: 'RollingSync'}}, status: {applicationStatus: [{application: 'test-app', status}]}}]
+                items: [{metadata: {name, namespace: 'argocd'}, spec: {strategy: {type: 'RollingSync'}}, status: {applicationStatus: [{application: 'test-app', status}]}}]
             });
 
             const {rerender} = render(<ApplicationStatusPanel application={ownedBy('appset-a')} collapsed={true} />);
@@ -316,6 +316,22 @@ describe('ApplicationStatusPanel', () => {
             );
             render(<ApplicationStatusPanel application={withOwner} collapsed={true} />);
             await waitFor(() => expect(screen.getByTitle('Progressive Sync')).toHaveTextContent('Waiting'));
+        });
+
+        it('ignores a same-named ApplicationSet in another namespace', async () => {
+            (services.applications.listApplicationSets as jest.Mock).mockResolvedValue({
+                items: [
+                    {
+                        metadata: {name: 'demo-appset', namespace: 'other-namespace'},
+                        spec: {strategy: {type: 'RollingSync'}},
+                        status: {applicationStatus: [{application: 'test-app', status: 'Healthy'}]}
+                    }
+                ]
+            });
+            render(<ApplicationStatusPanel application={withOwner} collapsed={true} />);
+            await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalled());
+            await act(async () => undefined);
+            expect(screen.queryByTitle('Progressive Sync')).toBeNull();
         });
 
         it('shows no entry while collapsed when the strategy is not RollingSync', async () => {
