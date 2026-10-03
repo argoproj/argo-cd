@@ -25,11 +25,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
+	"k8s.io/kubectl/pkg/util/openapi"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
@@ -1992,6 +1994,143 @@ func TestOrphanedChildrenIndex_OwnerRefLifecycle(t *testing.T) {
 		assert.Empty(t, children, "parent's children list should be empty or cleaned up")
 	}
 	cluster.lock.RUnlock()
+}
+
+// Test_resyncTimeoutWithJitter validates the resync timeout selection used by EnsureSynced for
+// the full cluster cache resync: jitter disabled must preserve the exact pre-jitter timeout, an
+// initial start must spread uniformly across the whole period, and subsequent resyncs must stay
+// within the documented wait.Jitter bounds while still producing varying values.
+func Test_resyncTimeoutWithJitter(t *testing.T) {
+	t.Parallel()
+
+	t.Run("disabled resync (timeout=0) always returns 0 regardless of jitter factor", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t, time.Duration(0), resyncTimeoutWithJitter(0, 0.5, true))
+		assert.Equal(t, time.Duration(0), resyncTimeoutWithJitter(0, 0.5, false))
+	})
+
+	t.Run("jitter factor <= 0 returns exactly the input timeout", func(t *testing.T) {
+		t.Parallel()
+		timeout := 12 * time.Hour
+
+		for range 20 {
+			assert.Equal(t, timeout, resyncTimeoutWithJitter(timeout, 0, true))
+			assert.Equal(t, timeout, resyncTimeoutWithJitter(timeout, 0, false))
+		}
+	})
+
+	t.Run("initial start spreads uniformly across [0, timeout) and varies", func(t *testing.T) {
+		t.Parallel()
+		timeout := 12 * time.Hour
+
+		seen := make(map[time.Duration]bool)
+		for range 50 {
+			got := resyncTimeoutWithJitter(timeout, 0.1, true)
+			assert.GreaterOrEqual(t, got, time.Duration(0))
+			assert.Less(t, got, timeout)
+			seen[got] = true
+		}
+		assert.Greater(t, len(seen), 1, "expected initial-start timeouts to vary across calls")
+	})
+
+	t.Run("subsequent resync stays within [timeout, timeout*(1+factor)) and varies", func(t *testing.T) {
+		t.Parallel()
+		timeout := 12 * time.Hour
+		jitterFactor := 0.1
+		maxTimeout := time.Duration(float64(timeout) * (1 + jitterFactor))
+
+		seen := make(map[time.Duration]bool)
+		for range 50 {
+			got := resyncTimeoutWithJitter(timeout, jitterFactor, false)
+			assert.GreaterOrEqual(t, got, timeout)
+			assert.Less(t, got, maxTimeout)
+			seen[got] = true
+		}
+		// With 50 uniformly random samples in a continuous range, getting the same value twice
+		// is virtually impossible unless jitter is not actually being applied.
+		assert.Greater(t, len(seen), 1, "expected jittered timeouts to vary across calls")
+	})
+}
+
+// Test_EnsureSynced_ResyncJitter validates that EnsureSynced computes effectiveResyncTimeout via
+// resyncTimeoutWithJitter after each sync, and that synced() honors it.
+func Test_EnsureSynced_ResyncJitter(t *testing.T) {
+	t.Parallel()
+
+	t.Run("initial sync spreads across [0, timeout), later resync uses narrow jitter", func(t *testing.T) {
+		t.Parallel()
+		cluster := newCluster(t)
+		cluster.syncStatus.resyncTimeout = 1 * time.Hour
+		cluster.syncStatus.resyncTimeoutJitterFactor = 0.1
+
+		require.NoError(t, cluster.EnsureSynced())
+
+		cluster.syncStatus.lock.Lock()
+		effective := cluster.syncStatus.effectiveResyncTimeout
+		cluster.syncStatus.lock.Unlock()
+
+		// First sync (initialStart=true): effectiveResyncTimeout must be in [0, resyncTimeout).
+		assert.GreaterOrEqual(t, effective, time.Duration(0))
+		assert.Less(t, effective, cluster.syncStatus.resyncTimeout)
+
+		// Force the current cycle to be considered expired *without* calling Invalidate (which
+		// would reset hasSyncedOnce and incorrectly re-trigger the initial-start branch here).
+		// This is the only way to exercise the non-initial branch of resyncTimeoutWithJitter.
+		cluster.syncStatus.lock.Lock()
+		past := time.Now().Add(-2 * cluster.syncStatus.resyncTimeout)
+		cluster.syncStatus.syncTime = &past
+		cluster.syncStatus.lock.Unlock()
+
+		require.NoError(t, cluster.EnsureSynced())
+
+		cluster.syncStatus.lock.Lock()
+		effective = cluster.syncStatus.effectiveResyncTimeout
+		cluster.syncStatus.lock.Unlock()
+		maxTimeout := time.Duration(float64(cluster.syncStatus.resyncTimeout) * (1 + cluster.syncStatus.resyncTimeoutJitterFactor))
+		assert.GreaterOrEqual(t, effective, cluster.syncStatus.resyncTimeout)
+		assert.Less(t, effective, maxTimeout)
+	})
+
+	t.Run("a failed initial sync does not consume the initial spread on the next successful retry", func(t *testing.T) {
+		t.Parallel()
+		cluster := newCluster(t)
+		cluster.syncStatus.resyncTimeout = 1 * time.Hour
+		cluster.syncStatus.resyncTimeoutJitterFactor = 0.1
+
+		failNext := true
+		cluster.kubectl.(*kubetest.MockKubectlCmd).WithLoadOpenAPISchemaFunc(func(_ *rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
+			if failNext {
+				failNext = false
+				return nil, nil, errors.New("injected failure")
+			}
+			return nil, nil, nil
+		})
+
+		// First attempt fails: sync() itself errors out, but EnsureSynced still records syncTime
+		// (needed for the clusterSyncRetryTimeout backoff), which must not be mistaken for a
+		// completed sync.
+		require.Error(t, cluster.EnsureSynced())
+		cluster.syncStatus.lock.Lock()
+		assert.False(t, cluster.syncStatus.hasSyncedOnce, "a failed sync must not count as a completed sync")
+		// Push syncTime far enough into the past to bypass the clusterSyncRetryTimeout backoff on
+		// the next EnsureSynced call, without touching hasSyncedOnce.
+		past := time.Now().Add(-2 * cluster.clusterSyncRetryTimeout)
+		cluster.syncStatus.syncTime = &past
+		cluster.syncStatus.lock.Unlock()
+
+		// Second attempt succeeds; despite the earlier failed attempt already having set
+		// syncTime, this must still be treated as the cluster's first *successful* sync and use
+		// the full [0, resyncTimeout) spread, not the narrow post-first-sync jitter range.
+		require.NoError(t, cluster.EnsureSynced())
+
+		cluster.syncStatus.lock.Lock()
+		effective := cluster.syncStatus.effectiveResyncTimeout
+		hasSyncedOnce := cluster.syncStatus.hasSyncedOnce
+		cluster.syncStatus.lock.Unlock()
+		assert.True(t, hasSyncedOnce)
+		assert.GreaterOrEqual(t, effective, time.Duration(0))
+		assert.Less(t, effective, cluster.syncStatus.resyncTimeout)
+	})
 }
 
 // Test_watchEvents_Deadlock validates that starting watches will not create a deadlock
