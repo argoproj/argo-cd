@@ -20,8 +20,10 @@ type repositoryLock struct {
 // Lock acquires lock unless lock is already acquired with the same commit and allowConcurrent is set to true
 // The init callback receives `clean` parameter which indicates if repo state must be cleaned after running non-concurrent operation.
 // The first init always runs with `clean` set to true because we cannot be sure about initial repo state.
-// clean is also set to true when revision being checked out differs from the last completed revision so that
-// untracked files left by the previous run are removed before the new revision is processed.
+// When the revision being checked out differs from the last completed revision, the Helm dependency build
+// marker files left by the previous revision are removed (see helmDepMarkers), so that `helm dependency build`
+// is re-run for the new revision. A full clean is not performed in that case because it is too expensive for
+// large repositories, see https://github.com/argoproj/argo-cd/issues/29856.
 func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool, init func(clean bool) (io.Closer, error)) (io.Closer, error) {
 	r.lock.Lock()
 	state, ok := r.stateByKey[path]
@@ -57,13 +59,13 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 		state.cond.L.Lock()
 		if state.revision == "" {
 			// no in progress operation for that repo. Go ahead.
-			// clean is required when:
-			//   - the previous operation was non-concurrent (it may have left exclusive state), OR
-			//   - the revision has changed since the last operation (untracked files from the previous
-			//     revision, e.g. vendored Helm charts and the .argocd-helm-dep-up marker, must be removed).
-			revisionChanged := state.lastRevision != revision
-			needsClean := !state.allowConcurrent || revisionChanged
-			initCloser, err := init(needsClean)
+			// Untracked files left by the previous revision (e.g. the Helm
+			// dependency build marker files) must be removed so that they do
+			// not affect the processing of the new revision.
+			if state.lastRevision != revision {
+				helmDepMarkers.removeAll(path)
+			}
+			initCloser, err := init(!state.allowConcurrent)
 			if err != nil {
 				state.cond.L.Unlock()
 				return nil, fmt.Errorf("failed to initialize repository resources: %w", err)
