@@ -539,3 +539,34 @@ func Test_sourceIPFields_trustedProxies(t *testing.T) {
 		assert.Equal(t, "203.0.113.9", forwardedFor)
 	})
 }
+
+func Test_HTTPSourceIPFields(t *testing.T) {
+	trusted := []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")}
+
+	t.Run("direct request", func(t *testing.T) {
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/terminal", http.NoBody)
+		r.RemoteAddr = "203.0.113.7:4711"
+		assert.Equal(t, logrus.Fields{"source.ip": "203.0.113.7"}, HTTPSourceIPFields(r, nil, ""))
+	})
+
+	t.Run("forwarded chain is reported but not trusted without trusted proxies", func(t *testing.T) {
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/terminal", http.NoBody)
+		r.RemoteAddr = "10.1.2.3:4711"
+		r.Header.Add("X-Forwarded-For", "198.51.100.9, 203.0.113.7")
+		assert.Equal(t, logrus.Fields{"source.ip": "10.1.2.3", "forwarded.for": "198.51.100.9, 203.0.113.7"}, HTTPSourceIPFields(r, nil, ""))
+	})
+
+	t.Run("resolved through a trusted proxy", func(t *testing.T) {
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/terminal", http.NoBody)
+		r.RemoteAddr = "10.1.2.3:4711"
+		r.Header.Add("X-Forwarded-For", "198.51.100.9, 203.0.113.7")
+		assert.Equal(t, logrus.Fields{"source.ip": "203.0.113.7", "forwarded.for": "198.51.100.9, 203.0.113.7"}, HTTPSourceIPFields(r, trusted, ""))
+	})
+
+	t.Run("client IP header from a trusted proxy", func(t *testing.T) {
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/terminal", http.NoBody)
+		r.RemoteAddr = "10.1.2.3:4711"
+		r.Header.Set("CF-Connecting-IP", "198.51.100.9")
+		assert.Equal(t, logrus.Fields{"source.ip": "198.51.100.9"}, HTTPSourceIPFields(r, trusted, "CF-Connecting-IP"))
+	})
+}
