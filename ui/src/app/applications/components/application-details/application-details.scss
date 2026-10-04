@@ -36,34 +36,35 @@ $header: 120px;
         position: relative;
     }
 
-    // Anchored at the bottom right: the top of the rightmost section holds its
-    // label, while the bottom of the panel is virtually always empty.
+    // A tab hanging below the bottom-right edge of the panel, so it never
+    // overlaps the panel content, expanded or collapsed.
     &__status-panel-toggle {
         position: absolute;
-        bottom: 8px;
-        right: 8px;
+        top: 100%;
+        right: 16px;
         z-index: 2;
-        width: 24px;
-        height: 24px;
+        width: 40px;
+        height: 22px;
         padding: 0;
-        border-radius: 50%;
-        border: 1px solid $argo-color-gray-5;
-        background-color: transparent;
+        border: none;
+        border-radius: 0 0 6px 6px;
+        @include themify($themes) {
+            background-color: themed('background-2');
+        }
+        box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
         color: $argo-color-gray-6;
         font-size: 12px;
+        line-height: 22px;
         cursor: pointer;
+        transition:
+            color 0.2s,
+            background-color 0.2s;
 
         &:hover {
             @include themify($themes) {
-                background-color: themed('background-1');
+                background-color: themed('light-argo-gray-2');
             }
-        }
-
-        // center within the collapsed bar, whatever its height
-        &--collapsed {
-            top: 50%;
-            bottom: auto;
-            transform: translateY(-50%);
+            color: $argo-success-color;
         }
     }
 
