@@ -2299,7 +2299,11 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	}
 	rollbackAwareDefault, err := s.settingsMgr.GetRollbackAwareAutoSyncEnabled()
 	if err != nil {
-		return nil, fmt.Errorf("error getting application.rollbackAwareAutoSyncEnabled config: %w", err)
+		automatedSyncEnabled := a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled()
+		if automatedSyncEnabled && !a.Spec.SyncPolicy.HasExplicitRollbackAware() {
+			return nil, fmt.Errorf("error getting application.rollbackAwareAutoSyncEnabled config: %w", err)
+		}
+		rollbackAwareDefault = false
 	}
 	rollbackAware := a.Spec.SyncPolicy.IsRollbackAwareAutoSync(rollbackAwareDefault)
 	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !rollbackAware {

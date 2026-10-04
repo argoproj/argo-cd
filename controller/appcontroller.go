@@ -2787,17 +2787,13 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 // desired revision cannot be established at all. Once a successful comparison reports a different desired
 // revision the record is stale: it is cleared in place (persisted with the rest of the status by the caller) and
 // automated sync proceeds. Applications without the feature enabled never consult the record.
-func hasExplicitRollbackAware(app *appv1.Application) bool {
-	return app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil && app.Spec.SyncPolicy.Automated.RollbackAware != nil
-}
-
 func (ctrl *ApplicationController) skipRolledBackRevision(app *appv1.Application, syncStatus *appv1.SyncStatus, logCtx *log.Entry) (bool, *appv1.ApplicationCondition) {
 	if app.Status.RolledBackRevision == "" && len(app.Status.RolledBackRevisions) == 0 {
 		return false, nil
 	}
 	rollbackAwareDefault, err := ctrl.settingsMgr.GetRollbackAwareAutoSyncEnabled()
 	if err != nil {
-		if !hasExplicitRollbackAware(app) {
+		if !app.Spec.SyncPolicy.HasExplicitRollbackAware() {
 			logCtx.WithError(err).Warn("Skipping auto-sync: cannot tell whether rollback-aware automated sync is enabled, and a rolled back revision is recorded")
 			return true, nil
 		}

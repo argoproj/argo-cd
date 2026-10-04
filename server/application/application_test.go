@@ -3022,6 +3022,15 @@ func TestRollbackApp_RollbackAwareAutoSync(t *testing.T) {
 		}
 		return newTestAppServerWithEnforcerConfigure(t, f, config, app)
 	}
+	newServerWithRawSetting := func(t *testing.T, app *v1alpha1.Application, value string) *Server {
+		t.Helper()
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+		config := map[string]string{"application.rollbackAwareAutoSyncEnabled": value}
+		return newTestAppServerWithEnforcerConfigure(t, f, config, app)
+	}
 	rollbackTo := func(t *testing.T, s *Server, app *v1alpha1.Application, id int64) (*v1alpha1.Application, error) {
 		t.Helper()
 		return s.Rollback(t.Context(), &application.ApplicationRollbackRequest{Name: &app.Name, Id: &id})
@@ -3063,6 +3072,38 @@ func TestRollbackApp_RollbackAwareAutoSync(t *testing.T) {
 		_, err := rollback(t, newServer(t, app, true), app)
 		require.Error(t, err)
 		assert.Equal(t, codes.FailedPrecondition, status.Code(err))
+	})
+
+	t.Run("a malformed instance-wide setting does not block an application without auto-sync", func(t *testing.T) {
+		app := newAppWithHistory()
+		app.Spec.SyncPolicy.Automated = nil
+		updated, err := rollback(t, newServerWithRawSetting(t, app, "not-a-bool"), app)
+		require.NoError(t, err)
+		assert.Equal(t, targetRevision, updated.Operation.Sync.Revision)
+	})
+
+	t.Run("a malformed instance-wide setting honours an explicit per-application opt-in", func(t *testing.T) {
+		app := newAppWithHistory()
+		app.Spec.SyncPolicy.Automated.RollbackAware = new(true)
+		updated, err := rollback(t, newServerWithRawSetting(t, app, "not-a-bool"), app)
+		require.NoError(t, err)
+		assert.Equal(t, deployedRevision, updated.Operation.Sync.RolledBackFromRevision)
+	})
+
+	t.Run("a malformed instance-wide setting rejects an explicit per-application opt-out as before", func(t *testing.T) {
+		app := newAppWithHistory()
+		app.Spec.SyncPolicy.Automated.RollbackAware = new(false)
+		_, err := rollback(t, newServerWithRawSetting(t, app, "not-a-bool"), app)
+		require.Error(t, err)
+		assert.Equal(t, codes.FailedPrecondition, status.Code(err))
+		assert.Contains(t, err.Error(), "rollback cannot be initiated when auto-sync is enabled")
+	})
+
+	t.Run("a malformed instance-wide setting fails closed when nothing is explicit", func(t *testing.T) {
+		app := newAppWithHistory()
+		_, err := rollback(t, newServerWithRawSetting(t, app, "not-a-bool"), app)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "application.rollbackAwareAutoSyncEnabled")
 	})
 
 	t.Run("records the deployed revision, not a newer one that was never deployed", func(t *testing.T) {

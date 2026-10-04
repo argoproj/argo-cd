@@ -1570,6 +1570,12 @@ func (p *SyncPolicy) IsRollbackAwareAutoSync(defaultValue bool) bool {
 	return defaultValue
 }
 
+// HasExplicitRollbackAware returns whether this policy sets rollback-aware automated sync explicitly, rather than
+// leaving it to the instance-wide default.
+func (p *SyncPolicy) HasExplicitRollbackAware() bool {
+	return p != nil && p.Automated != nil && p.Automated.RollbackAware != nil
+}
+
 // IsZero returns true if the sync policy is empty
 func (p *SyncPolicy) IsZero() bool {
 	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)

@@ -7105,6 +7105,25 @@ func TestSyncPolicy_IsRollbackAwareAutoSync(t *testing.T) {
 	}
 }
 
+func TestSyncPolicy_HasExplicitRollbackAware(t *testing.T) {
+	tests := []struct {
+		name     string
+		policy   *SyncPolicy
+		expected bool
+	}{
+		{name: "nil policy", policy: nil, expected: false},
+		{name: "no automated policy", policy: &SyncPolicy{}, expected: false},
+		{name: "automated without rollbackAware", policy: &SyncPolicy{Automated: &SyncPolicyAutomated{}}, expected: false},
+		{name: "explicit true", policy: &SyncPolicy{Automated: &SyncPolicyAutomated{RollbackAware: new(true)}}, expected: true},
+		{name: "explicit false", policy: &SyncPolicy{Automated: &SyncPolicyAutomated{RollbackAware: new(false)}}, expected: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.policy.HasExplicitRollbackAware())
+		})
+	}
+}
+
 func TestCluster_Sanitized_PreservesQPSAndBurst(t *testing.T) {
 	cluster := &Cluster{
 		Server: "https://kubernetes.example",
