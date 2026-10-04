@@ -1,4 +1,7 @@
-import {compareNodes, describeNode, ResourceTreeNode} from './application-resource-tree';
+import * as React from 'react';
+import {fireEvent, render, screen} from '@testing-library/react';
+
+import {ApplicationResourceTree, compareNodes, describeNode, ResourceTreeNode} from './application-resource-tree';
 
 test('describeNode.NoImages', () => {
     expect(
@@ -106,4 +109,71 @@ test('compareNodes', () => {
     expect(compareNodes(nodes[4], nodes[5])).toBe(-1);
     expect(compareNodes(nodes[0], nodes[4])).toBe(-1);
     expect(compareNodes(nodes[4], nodes[0])).toBe(1);
+});
+
+test('grouped Application node invokes callback when clicking the node container', () => {
+    const onGroupdNodeClick = jest.fn();
+
+    const nodes = [
+        {
+            uid: 'argoproj.io/Application/argocd/docs-demo-one',
+            group: 'argoproj.io',
+            version: 'v1alpha1',
+            kind: 'Application',
+            namespace: 'argocd',
+            name: 'docs-demo-one',
+            parentRefs: [],
+            info: [],
+            resourceVersion: '1'
+        },
+        {
+            uid: 'argoproj.io/Application/argocd/docs-demo-two',
+            group: 'argoproj.io',
+            version: 'v1alpha1',
+            kind: 'Application',
+            namespace: 'argocd',
+            name: 'docs-demo-two',
+            parentRefs: [],
+            info: [],
+            resourceVersion: '1'
+        }
+    ];
+
+    const app = {
+        metadata: {
+            name: 'docs-demo',
+            namespace: 'argocd'
+        },
+        kind: 'ApplicationSet',
+        apiVersion: 'argoproj.io/v1alpha1'
+    } as any;
+
+    const tree = {
+        nodes
+    } as any;
+
+    render(
+        <ApplicationResourceTree
+            app={app}
+            tree={tree}
+            useNetworkingHierarchy={false}
+            showCompactNodes={true}
+            zoom={1}
+            getNodeExpansion={() => true}
+            onGroupdNodeClick={onGroupdNodeClick}
+        />
+    );
+
+    const groupedTitle = screen.getByText('2 Applications');
+    const groupedNode = groupedTitle.closest('.application-resource-tree__node');
+
+    expect(groupedNode).not.toBeNull();
+
+    fireEvent.click(groupedNode!);
+
+    expect(onGroupdNodeClick).toHaveBeenCalledTimes(1);
+    expect(onGroupdNodeClick).toHaveBeenCalledWith([
+        'argoproj.io/Application/argocd/docs-demo-one',
+        'argoproj.io/Application/argocd/docs-demo-two'
+    ]);
 });

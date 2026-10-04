@@ -309,7 +309,10 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
     const isActive = groupedNodeIdsContainKey(node.groupedNodeIds, props.selectedNodeFullName || '', allNodes);
     return (
         <React.Fragment>
-            <div className={classNames('application-resource-tree__node', {active: isActive})} style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
+            <div
+                className={classNames('application-resource-tree__node', {active: isActive})}
+                onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}
+                style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
                 <div className='application-resource-tree__node-kind-icon'>
                     <ResourceIcon group={node.group} kind={node.kind} />
                     <br />
@@ -317,7 +320,6 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
                 </div>
                 <div
                     className='application-resource-tree__node-title application-resource-tree__direction-center-left'
-                    onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}
                     title={`Click to see details of ${node.count} collapsed ${node.kind} and doesn't contains any active pods`}>
                     {node.count} {node.kind.endsWith('s') ? node.kind : `${node.kind}s`}
                     <span style={{paddingLeft: '.5em', fontSize: 'small'}}>
