@@ -4,6 +4,7 @@
 @import '../../../shared/config.scss';
 
 $header: 120px;
+$status-panel-toggle-height: 22px;
 
 .application-details {
     height: 100vh;
@@ -34,6 +35,11 @@ $header: 120px;
 
     &__status-panel {
         position: relative;
+
+        // keep the notice banner clear of the toggle hanging below the panel
+        + .application-notice {
+            margin-top: $status-panel-toggle-height;
+        }
     }
 
     // A tab hanging below the bottom-right edge of the panel, so it never
@@ -44,7 +50,7 @@ $header: 120px;
         right: 16px;
         z-index: 2;
         width: 40px;
-        height: 22px;
+        height: $status-panel-toggle-height;
         padding: 0;
         border-radius: 0 0 6px 6px;
         @include themify($themes) {
