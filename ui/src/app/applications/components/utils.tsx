@@ -774,7 +774,7 @@ export function renderResourceMenu(
 ): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
 
-    if (isAppNode(resource) && resource.name === application.metadata.name) {
+    if (isAppNode(resource) && resource.name === application.metadata.name && resource.namespace === application.metadata.namespace) {
         menuItems = from([getApplicationActionMenu()]);
     } else {
         menuItems = getActionItems(resource, application, tree, apis, appChanged, false);
