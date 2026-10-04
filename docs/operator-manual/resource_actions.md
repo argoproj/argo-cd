@@ -13,6 +13,12 @@ The following are actions that are built-in to Argo CD. Each action name links t
 
 See the [RBAC documentation](rbac.md#the-action-action) for information on how to control access to these actions.
 
+For an aborted Argo Rollout, `retry` clears the abort flag and the current analysis
+references for Blue/Green pre- and post-promotion analysis and Canary step and
+background analysis. The Rollouts controller can then start fresh analysis attempts.
+The action preserves the abort timestamp, pause state, and rollout progress, and
+leaves a rollout that is no longer aborted unchanged.
+
 ## Custom Resource Actions
 
 Argo CD supports custom resource actions written in [Lua](https://www.lua.org/). This is useful if you:
