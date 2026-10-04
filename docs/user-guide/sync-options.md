@@ -393,6 +393,8 @@ The annotation also accepts a comma-separated list, for example when resources a
 Setting the annotation replaces the default, so include `kubectl-client-side-apply` if you still want it migrated:
 
 ```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
 metadata:
   annotations:
     argocd.argoproj.io/client-side-apply-migration-manager: 'kubectl-client-side-apply,kubectl-edit'
