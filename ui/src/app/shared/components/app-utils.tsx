@@ -1,6 +1,6 @@
 import {Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {ARGO_GRAY6_COLOR, COLORS} from './colors';
+import {COLORS} from './colors';
 import * as appModels from '../models';
 
 require('../../applications/components/utils.scss');
@@ -178,8 +178,7 @@ export const getHealthStatusColor = (status: appModels.HealthStatusCode): string
         case appModels.HealthStatuses.Missing:
             return COLORS.health.missing;
         default:
-            // the pale palette gray is too low-contrast for text; use the label gray
-            return ARGO_GRAY6_COLOR;
+            return COLORS.health.unknown;
     }
 };
 

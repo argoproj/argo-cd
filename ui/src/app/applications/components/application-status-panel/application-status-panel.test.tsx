@@ -1,7 +1,6 @@
 import * as React from 'react';
 import {fireEvent, render, screen, waitFor} from '@testing-library/react';
 import * as models from '../../../shared/models';
-import {ARGO_GRAY6_COLOR} from '../../../shared/components';
 import {COLORS} from '../../../shared/components/colors';
 import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
@@ -62,10 +61,10 @@ describe('ApplicationStatusPanel', () => {
         expect(screen.getByTitle('App Health')).toHaveStyle({color: COLORS.health.degraded});
     });
 
-    it('uses the label gray for an Unknown health status', () => {
+    it('keeps the themed text color for an Unknown health status', () => {
         const unknown = {...application, status: {...application.status, health: {status: 'Unknown'}}} as unknown as models.Application;
         render(<ApplicationStatusPanel application={unknown} collapsed={true} />);
-        expect(screen.getByTitle('App Health')).toHaveStyle({color: ARGO_GRAY6_COLOR});
+        expect(screen.getByTitle('App Health')).not.toHaveStyle({color: COLORS.health.unknown});
     });
 
     it('spaces the expanded condition counters with sync-condition-details', () => {
@@ -299,10 +298,10 @@ describe('ApplicationSetStatusPanel', () => {
         expect(screen.getByTitle('AppSet Health')).toHaveStyle({color: COLORS.health.healthy});
     });
 
-    it('uses the label gray for an Unknown appset health status', () => {
+    it('keeps the themed text color for an Unknown appset health status', () => {
         const unknownAppSet = {...appSet, status: {conditions: []}} as unknown as models.ApplicationSet;
         render(<ApplicationSetStatusPanel appSet={unknownAppSet} collapsed={true} />);
-        expect(screen.getByTitle('AppSet Health')).toHaveStyle({color: ARGO_GRAY6_COLOR});
+        expect(screen.getByTitle('AppSet Health')).not.toHaveStyle({color: COLORS.health.unknown});
     });
 
     it('renders the full panel by default', () => {

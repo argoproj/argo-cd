@@ -46,7 +46,8 @@ export const ApplicationSetStatusPanel = ({appSet, collapsed, showConditions}: P
     const conditions = appSet.status?.conditions || [];
     const conditionCounts = getConditionCounts(conditions);
     const latestCondition = conditions.length > 0 ? conditions[conditions.length - 1] : null;
-    const healthTextColor = getHealthStatusColor(healthStatus);
+    // Unknown's palette color is too low-contrast for text; inherit the themed color there
+    const healthTextColor = healthStatus === 'Unknown' ? undefined : getHealthStatusColor(healthStatus);
 
     if (collapsed) {
         return (

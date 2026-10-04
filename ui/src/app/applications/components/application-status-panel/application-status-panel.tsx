@@ -244,7 +244,8 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
     );
     const appOperationState = getAppOperationState(application);
 
-    const healthTextColor = getHealthStatusColor(application.status.health.status);
+    // Unknown's palette color is too low-contrast for text; inherit the themed color there
+    const healthTextColor = application.status.health.status === models.HealthStatuses.Unknown ? undefined : getHealthStatusColor(application.status.health.status);
 
     const statusExtensions = services.extensions.getStatusPanelExtensions();
 
