@@ -1861,18 +1861,21 @@ func TestSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
 			HookPhase:   synccommon.OperationRunning,
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhasePreSync,
+			HookType:    synccommon.HookTypePreSync,
 			Order:       0,
 		}, {
 			ResourceKey: kube.GetResourceKey(hook2),
 			HookPhase:   synccommon.OperationRunning,
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhasePreSync,
+			HookType:    synccommon.HookTypePreSync,
 			Order:       1,
 		}, {
 			ResourceKey: kube.GetResourceKey(hook3),
 			HookPhase:   synccommon.OperationRunning,
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhasePreSync,
+			HookType:    synccommon.HookTypePreSync,
 			Order:       2,
 		}},
 			metav1.Now(),
@@ -1921,18 +1924,21 @@ func TestSync_HooksDeletedAfterSyncSucceeded(t *testing.T) {
 			HookPhase:   synccommon.OperationRunning,
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhasePreSync,
+			HookType:    synccommon.HookTypePreSync,
 			Order:       0,
 		}, {
 			ResourceKey: kube.GetResourceKey(hook2),
 			HookPhase:   synccommon.OperationRunning,
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhasePreSync,
+			HookType:    synccommon.HookTypePreSync,
 			Order:       1,
 		}, {
 			ResourceKey: kube.GetResourceKey(hook3),
 			HookPhase:   synccommon.OperationRunning,
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhasePreSync,
+			HookType:    synccommon.HookTypePreSync,
 			Order:       2,
 		}},
 			metav1.Now(),
@@ -1985,18 +1991,21 @@ func TestSync_HooksDeletedAfterSyncFailed(t *testing.T) {
 			HookPhase:   synccommon.OperationRunning,
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhasePreSync,
+			HookType:    synccommon.HookTypePreSync,
 			Order:       0,
 		}, {
 			ResourceKey: kube.GetResourceKey(hook2),
 			HookPhase:   synccommon.OperationRunning,
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhasePreSync,
+			HookType:    synccommon.HookTypePreSync,
 			Order:       1,
 		}, {
 			ResourceKey: kube.GetResourceKey(hook3),
 			HookPhase:   synccommon.OperationRunning,
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhasePreSync,
+			HookType:    synccommon.HookTypePreSync,
 			Order:       2,
 		}},
 			metav1.Now(),
@@ -2228,7 +2237,7 @@ func TestSync_SyncWaveHook(t *testing.T) {
 	_, _, results := syncCtx.GetState()
 	pod1Res := results[0]
 	pod1Res.HookPhase = synccommon.OperationSucceeded
-	syncCtx.syncRes[resourceResultKey(pod1Res.ResourceKey, synccommon.SyncPhaseSync)] = pod1Res
+	syncCtx.syncRes[resourceResultKey(pod1Res.ResourceKey, synccommon.SyncPhaseSync, pod1Res.HookType)] = pod1Res
 	called = false
 	syncCtx.syncWaveHook = func(phase synccommon.SyncPhase, wave int, final bool) error {
 		called = true
@@ -2244,7 +2253,7 @@ func TestSync_SyncWaveHook(t *testing.T) {
 	_, _, results = syncCtx.GetState()
 	pod2Res := results[1]
 	pod2Res.HookPhase = synccommon.OperationSucceeded
-	syncCtx.syncRes[resourceResultKey(pod2Res.ResourceKey, synccommon.SyncPhaseSync)] = pod2Res
+	syncCtx.syncRes[resourceResultKey(pod2Res.ResourceKey, synccommon.SyncPhaseSync, pod2Res.HookType)] = pod2Res
 	called = false
 	syncCtx.syncWaveHook = func(phase synccommon.SyncPhase, wave int, final bool) error {
 		called = true
@@ -3090,18 +3099,21 @@ func TestTerminate_Hooks_Running(t *testing.T) {
 			HookPhase:   synccommon.OperationRunning,
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhaseSync,
+			HookType:    synccommon.HookTypeSync,
 			Order:       0,
 		}, {
 			ResourceKey: kube.GetResourceKey(hook2),
 			HookPhase:   synccommon.OperationRunning,
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhaseSync,
+			HookType:    synccommon.HookTypeSync,
 			Order:       1,
 		}, {
 			ResourceKey: kube.GetResourceKey(hook3),
 			HookPhase:   synccommon.OperationRunning,
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhaseSync,
+			HookType:    synccommon.HookTypeSync,
 			Order:       2,
 		}, {
 			ResourceKey: kube.GetResourceKey(obj),
@@ -3168,18 +3180,21 @@ func TestTerminate_Hooks_Running_Healthy(t *testing.T) {
 			HookPhase:   synccommon.OperationRunning,
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhaseSync,
+			HookType:    synccommon.HookTypeSync,
 			Order:       0,
 		}, {
 			ResourceKey: kube.GetResourceKey(hook2),
 			HookPhase:   synccommon.OperationRunning,
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhaseSync,
+			HookType:    synccommon.HookTypeSync,
 			Order:       1,
 		}, {
 			ResourceKey: kube.GetResourceKey(hook3),
 			HookPhase:   synccommon.OperationRunning,
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhaseSync,
+			HookType:    synccommon.HookTypeSync,
 			Order:       2,
 		}, {
 			ResourceKey: kube.GetResourceKey(obj),
@@ -3251,6 +3266,7 @@ func TestTerminate_Hooks_Completed(t *testing.T) {
 			Message:     "hook1 completed",
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhaseSync,
+			HookType:    synccommon.HookTypeSync,
 			Order:       0,
 		}, {
 			ResourceKey: kube.GetResourceKey(hook2),
@@ -3258,6 +3274,7 @@ func TestTerminate_Hooks_Completed(t *testing.T) {
 			Message:     "hook2 failed",
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhaseSync,
+			HookType:    synccommon.HookTypeSync,
 			Order:       1,
 		}, {
 			ResourceKey: kube.GetResourceKey(hook3),
@@ -3265,6 +3282,7 @@ func TestTerminate_Hooks_Completed(t *testing.T) {
 			Message:     "hook3 error",
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhaseSync,
+			HookType:    synccommon.HookTypeSync,
 			Order:       2,
 		}, {
 			ResourceKey: kube.GetResourceKey(obj),
@@ -3327,6 +3345,7 @@ func TestTerminate_Hooks_Error(t *testing.T) {
 			HookPhase:   synccommon.OperationRunning,
 			Status:      synccommon.ResultCodeSynced,
 			SyncPhase:   synccommon.SyncPhaseSync,
+			HookType:    synccommon.HookTypeSync,
 			Order:       0,
 		}, {
 			ResourceKey: kube.GetResourceKey(obj),

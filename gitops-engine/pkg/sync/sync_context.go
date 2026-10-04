@@ -106,7 +106,7 @@ func WithInitialState(phase common.OperationPhase, message string, results []com
 		ctx.syncRes = map[string]common.ResourceSyncResult{}
 		ctx.startedAt = startedAt.Time
 		for i := range results {
-			ctx.syncRes[resourceResultKey(results[i].ResourceKey, results[i].SyncPhase)] = results[i]
+			ctx.syncRes[resourceResultKey(results[i].ResourceKey, results[i].SyncPhase, results[i].HookType)] = results[i]
 		}
 	}
 }
@@ -1175,6 +1175,16 @@ func (sc *syncContext) getSyncTasks(ctx context.Context) (_ syncTasks, successfu
 	// finally enrich tasks with the result
 	for _, task := range tasks {
 		result, ok := sc.syncRes[task.resultKey()]
+		if !ok && task.isHook() && task.phase == common.SyncPhaseSync {
+			// Older engines could overwrite a prune result with an applied hook's
+			// state, leaving HookType empty. Recover it only without a regular apply
+			// task, and never from a Pruned or PruneSkipped result.
+			legacyKey := resourceResultKey(kubeutil.GetResourceKey(task.obj()), task.phase, "")
+			result, ok = sc.syncRes[legacyKey]
+			ok = ok && result.Status == common.ResultCodeSynced && !resourceTasks.Any(func(resourceTask *syncTask) bool {
+				return !resourceTask.isPrune() && resourceTask.resultKey() == legacyKey
+			})
+		}
 		if ok {
 			task.syncStatus = result.Status
 			task.operationState = result.HookPhase
@@ -1827,8 +1837,9 @@ func (sc *syncContext) setResourceResult(task *syncTask, syncStatus common.Resul
 	}
 }
 
-func resourceResultKey(key kubeutil.ResourceKey, phase common.SyncPhase) string {
-	return fmt.Sprintf("%s:%s", key.String(), phase)
+func resourceResultKey(key kubeutil.ResourceKey, phase common.SyncPhase, hookType common.HookType) string {
+	// A tracked resource and its replacement hook can share a resource key and phase.
+	return fmt.Sprintf("%s:%s:%s", key.String(), phase, hookType)
 }
 
 type stateSync struct {
