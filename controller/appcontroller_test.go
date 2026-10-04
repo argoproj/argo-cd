@@ -1102,6 +1102,34 @@ func TestAutoSyncRollbackAware(t *testing.T) {
 		assert.Nil(t, getApp(t, ctrl).Operation)
 	})
 
+	t.Run("keeps the record when the instance-wide setting cannot be read", func(t *testing.T) {
+		app := newFakeApp()
+		app.Status.RolledBackRevision = badRevision
+		broken := map[string]string{"application.rollbackAwareAutoSyncEnabled": "not-a-bool"}
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}, configMapData: broken}, nil)
+		syncStatus := v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync, Revision: badRevision}
+
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, outOfSyncResources, true)
+
+		assert.Nil(t, cond)
+		assert.Equal(t, badRevision, app.Status.RolledBackRevision)
+		assert.Nil(t, getApp(t, ctrl).Operation)
+	})
+
+	t.Run("an explicit per-app opt-out still wins when the setting cannot be read", func(t *testing.T) {
+		app := newFakeApp()
+		app.Status.RolledBackRevision = badRevision
+		app.Spec.SyncPolicy.Automated.RollbackAware = new(false)
+		broken := map[string]string{"application.rollbackAwareAutoSyncEnabled": "not-a-bool"}
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}, configMapData: broken}, nil)
+		syncStatus := v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync, Revision: badRevision}
+
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, outOfSyncResources, true)
+
+		assert.Nil(t, cond)
+		assert.NotNil(t, getApp(t, ctrl).Operation)
+	})
+
 	t.Run("does not sync an OutOfSync application with an unknown desired revision", func(t *testing.T) {
 		app := newFakeApp()
 		app.Status.RolledBackRevision = badRevision
