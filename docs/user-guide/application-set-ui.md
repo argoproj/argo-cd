@@ -63,6 +63,16 @@ Things to know:
 - Clicking a child Application navigates to that Application's own
   details page.
 
+## Navigate to a parent
+
+On an ApplicationSet's details page, **Parent** opens the Application that
+manages the ApplicationSet. The link comes from the ApplicationSet's
+configured [resource tracking annotation or label](resource_tracking.md).
+
+The button is disabled when the ApplicationSet's metadata does not identify
+a parent. The link includes the parent's namespace and assumes the referenced
+parent still exists.
+
 ## Status bar: health, conditions, age
 
 The top of the ApplicationSet details page shows a status bar summarizing
