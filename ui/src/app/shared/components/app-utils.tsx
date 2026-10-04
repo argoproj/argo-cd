@@ -1,6 +1,6 @@
 import {Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {COLORS} from './colors';
+import {ARGO_GRAY6_COLOR, COLORS} from './colors';
 import * as appModels from '../models';
 
 require('../../applications/components/utils.scss');
@@ -165,29 +165,42 @@ export const ComparisonStatusIcon = ({
     );
 };
 
+export const getHealthStatusColor = (status: appModels.HealthStatusCode): string => {
+    switch (status) {
+        case appModels.HealthStatuses.Healthy:
+            return COLORS.health.healthy;
+        case appModels.HealthStatuses.Suspended:
+            return COLORS.health.suspended;
+        case appModels.HealthStatuses.Degraded:
+            return COLORS.health.degraded;
+        case appModels.HealthStatuses.Progressing:
+            return COLORS.health.progressing;
+        case appModels.HealthStatuses.Missing:
+            return COLORS.health.missing;
+        default:
+            // the pale palette gray is too low-contrast for text; use the label gray
+            return ARGO_GRAY6_COLOR;
+    }
+};
+
 export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus; noSpin?: boolean}) => {
-    let color = COLORS.health.unknown;
+    const color = getHealthStatusColor(state.status);
     let icon = 'fa-question-circle';
 
     switch (state.status) {
         case appModels.HealthStatuses.Healthy:
-            color = COLORS.health.healthy;
             icon = 'fa-heart';
             break;
         case appModels.HealthStatuses.Suspended:
-            color = COLORS.health.suspended;
             icon = 'fa-pause-circle';
             break;
         case appModels.HealthStatuses.Degraded:
-            color = COLORS.health.degraded;
             icon = 'fa-heart-broken';
             break;
         case appModels.HealthStatuses.Progressing:
-            color = COLORS.health.progressing;
             icon = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}`;
             break;
         case appModels.HealthStatuses.Missing:
-            color = COLORS.health.missing;
             icon = 'fa-ghost';
             break;
     }
