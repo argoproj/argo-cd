@@ -227,17 +227,17 @@ argocd app set guestbook-default --project myproject
 
 ### Group Applications By Project In The UI
 
-The Applications page can show applications under a collpasible per project instead of one flat list. Grouping is off by default. Applies to the Tiles and List views only.
+The Applications page can show applications under a collapsible heading per project instead of one flat list. Grouping is off by default. It applies to the Tiles and List views only.
 
 To turn it on, either:
 
 * click the **Group by project** icon next to the view/display mode switcher on the Applications page, or
-* navigate to **Setting** then, **Appearance** and set **Group by projects** to **Yes**.
+* navigate to **Settings**, then **Appearance**, and set **Group by projects** to **Yes**.
 
-Group shows the project name and the number of included applications. Click a heading to collapse/expand targeted project. Filters, search, sorting and pagination keep working: **applications are ordered by project first**, then by the selected sort.
+Each group heading shows the project name and the number of included applications. Click a heading to collapse/expand targeted project. Filters, search, sorting and pagination keep working: **applications are ordered by project first**, then by the selected sort.
 
 > [!NOTE]
-> The setting persist in your browser. It is not shared between browsers or users.
+> The setting persists in your browser. It is not shared between browsers or users.
 
 ## Project Roles
 
