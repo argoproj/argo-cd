@@ -2069,6 +2069,17 @@ func Test_watchEvents_Deadlock(t *testing.T) {
 	}
 }
 
+// Regression: startMissingWatches panicked on the nil apisMeta left by Invalidate.
+func TestStartMissingWatches_LazyInitsApisMetaAfterInvalidate(t *testing.T) {
+	cluster := newCluster(t)
+	cluster.lock.Lock()
+	defer cluster.lock.Unlock()
+	cluster.apisMeta = nil
+
+	require.NotPanics(t, func() { require.NoError(t, cluster.startMissingWatches()) })
+	assert.NotEmpty(t, cluster.apisMeta)
+}
+
 func buildTestResourceMap() map[kube.ResourceKey]*Resource {
 	ns := make(map[kube.ResourceKey]*Resource)
 	for i := range 100000 {

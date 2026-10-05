@@ -687,6 +687,11 @@ func (c *clusterCache) startMissingWatches() error {
 	if err != nil {
 		return fmt.Errorf("failed to create clientset: %w", err)
 	}
+	// apisMeta is nil between Invalidate and the next sync, and a CRD or
+	// APIService event from a watch started before Invalidate can still get here.
+	if c.apisMeta == nil {
+		c.apisMeta = make(map[schema.GroupKind]*apiMeta)
+	}
 	namespacedResources := make(map[schema.GroupKind]bool)
 	for i := range apis {
 		api := apis[i]
