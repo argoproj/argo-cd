@@ -59,6 +59,31 @@ Some effort has been made to balance test isolation with speed. Tests are isolat
 - A namespace `argocd-e2e-ns-${id}`.
 - A primary name for the app `argocd-e2e-${id}`.
 
+## Tests that need multiple controller shards
+
+The local stack normally runs a single application controller. A test that needs
+to exercise sharded behaviour can replace it with one controller process per
+shard:
+
+```go
+// Restarts the controller as 2 single-shard processes and waits for both to
+// become ready. The single controller is restored when the test finishes.
+fixture.StartControllerShards(t, 2)
+```
+
+Point each Application at a cluster assigned to the shard that should own it.
+`createClusterSecretWithShard` in `sharding_test.go` creates such a cluster.
+
+Shard processes share a terminal, so each one's output goes to its own file at
+`/tmp/argocd-e2e-controller-shard-${shard}.log`
+(`fixture.ControllerShardLogPath`). Shard 0 serves metrics on
+`fixture.ControllerShardMetricsPortBase`, and each subsequent shard listens one
+port higher.
+
+> [!NOTE]
+> These tests restart a shared process, so they cannot run in parallel with
+> other tests and are skipped when the suite runs against a remote cluster.
+
 ## Run only a subset of tests
 
 Running all tests locally is a time-consuming process. To run only a subset of tests, you can set the `TEST_MODULE` environment variable.

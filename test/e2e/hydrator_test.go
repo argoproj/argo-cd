@@ -1,14 +1,23 @@
 package e2e
 
 import (
+	"context"
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
 
 	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 )
@@ -123,6 +132,213 @@ func TestAddingApp(t *testing.T) {
 		Delete(true).
 		Then().
 		Expect(DoesNotExist())
+}
+
+func TestHydratorSharedKeyAcrossControllerShards(t *testing.T) {
+	if fixture.IsRemote() {
+		t.Skip("this test requires control of the local application-controller processes")
+	}
+
+	const (
+		app1Name = "hydrator-cross-shard-1"
+		app2Name = "hydrator-cross-shard-2"
+		branch   = "env/test"
+		// Each round is an independent chance for the shards to interleave
+		// badly, and hydration is only requested mid-flight within a round.
+		hydrationRounds    = 5
+		dryCommitsPerRound = 3
+	)
+
+	ctx := Given(t)
+	shard0ClusterName := createClusterSecretWithShard(ctx, 0, ctx.DeploymentNamespace())
+	shard1ClusterName := createClusterSecretWithShard(ctx, 1, ctx.DeploymentNamespace())
+
+	require.NoError(t, fixture.StopProcess(fixture.ApplicationControllerProcName))
+
+	app1 := ctx.
+		Name(app1Name).
+		Timeout(60).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook-1").
+		SyncSourceBranch(branch).
+		DestName(shard0ClusterName)
+	app1.When().CreateApp()
+	t.Cleanup(func() {
+		_, _ = fixture.RunCli("app", "delete", app1.AppName(), "--cascade", "--yes")
+	})
+
+	app2 := GivenWithSameState(ctx).
+		Name(app2Name).
+		Timeout(60).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook-2").
+		SyncSourceBranch(branch).
+		DestName(shard1ClusterName)
+	app2.When().CreateApp()
+	t.Cleanup(func() {
+		_, _ = fixture.RunCli("app", "delete", app2.AppName(), "--cascade", "--yes")
+	})
+
+	fixture.StartControllerShards(t, 2)
+
+	// Both apps already exist when the two controllers start, so the group is
+	// live on both shards before the first hydration request.
+	app1.When().Refresh(RefreshTypeNormal)
+	app2.When().Refresh(RefreshTypeNormal)
+	app1.When().Wait("--hydrated")
+	app2.When().Wait("--hydrated")
+
+	// Whether two shards collide on a shared hydration group depends on how
+	// their hydrate requests interleave, so make several dry commits and give
+	// each one a fresh chance to race.
+	group := []*Context{app1, app2}
+	for round := range hydrationRounds {
+		// Request hydration of a new dry commit while the previous one is
+		// still being hydrated, so the shards are working from different dry
+		// commits when they push.
+		var drySHA string
+		var revisionHistoryLimit int
+		for burst := range dryCommitsPerRound {
+			if burst > 0 {
+				time.Sleep(2 * time.Second)
+			}
+			revisionHistoryLimit = round*dryCommitsPerRound + burst + 4
+			drySHA = commitDryChange(t, revisionHistoryLimit)
+			requestHydration(t, group...)
+		}
+
+		hydratedSHA := requireGroupHydrated(t, drySHA, group...)
+		requireHydratedManifests(t, hydratedSHA, revisionHistoryLimit, "guestbook-1", "guestbook-2")
+
+		// The commit the group reports must be the one the branch actually
+		// holds. A late push from a second hydration of the group leaves the
+		// branch somewhere the apps never agreed on.
+		tip, err := fixture.Run(fixture.LocalRepoRoot(), "git", "rev-parse", branch)
+		require.NoError(t, err)
+		require.Equal(t, hydratedSHA, strings.TrimSpace(tip),
+			"%s points at a commit the group did not hydrate", branch)
+
+		requireHydratedBranchNeverRegressed(t, branch)
+	}
+}
+
+// requireHydratedBranchNeverRegressed checks that the hydrated branch only ever
+// moved forward. Every dry commit raises revisionHistoryLimit, so a hydrated
+// commit that lowers it is a hydration of an older dry commit landing on top of
+// a newer one, which reverts the manifests apps are syncing.
+func requireHydratedBranchNeverRegressed(t *testing.T, branch string) {
+	t.Helper()
+	commits, err := fixture.Run(fixture.LocalRepoRoot(), "git", "rev-list", "--reverse", branch)
+	require.NoError(t, err)
+
+	highest := 0
+	for commit := range strings.FieldsSeq(commits) {
+		manifest, err := fixture.Run(fixture.LocalRepoRoot(), "git", "show", commit+":guestbook-1/manifest.yaml")
+		if err != nil {
+			// Commits made before the app was first hydrated.
+			continue
+		}
+		limit := revisionHistoryLimitIn(t, manifest)
+		require.GreaterOrEqual(t, limit, highest,
+			"hydrated commit %s reverted %s from dry change %d back to %d", commit, branch, highest, limit)
+		highest = limit
+	}
+	require.Positive(t, highest, "%s carries no hydrated manifests", branch)
+}
+
+var revisionHistoryLimitPattern = regexp.MustCompile(`revisionHistoryLimit:\s*(\d+)`)
+
+func revisionHistoryLimitIn(t *testing.T, manifest string) int {
+	t.Helper()
+	match := revisionHistoryLimitPattern.FindStringSubmatch(manifest)
+	require.Len(t, match, 2, "manifest has no revisionHistoryLimit")
+	limit, err := strconv.Atoi(match[1])
+	require.NoError(t, err)
+	return limit
+}
+
+// commitDryChange makes a new dry commit that every app in the group hydrates
+// from, and returns the commit it created.
+func commitDryChange(t *testing.T, revisionHistoryLimit int) string {
+	t.Helper()
+	fixture.Patch(t, "guestbook/guestbook-ui-deployment.yaml",
+		fmt.Sprintf(`[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": %d}]`, revisionHistoryLimit))
+	sha, err := fixture.Run(fixture.LocalRepoRoot(), "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	return strings.TrimSpace(sha)
+}
+
+// requestHydration asks every app to hydrate at once, so each shard gets the
+// request before any of them has recorded that it started work.
+func requestHydration(t *testing.T, apps ...*Context) {
+	t.Helper()
+	hydrateType := HydrateTypeNormal
+	errs := make([]error, len(apps))
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i, app := range apps {
+		wg.Go(func() {
+			appIf := fixture.AppClientset.ArgoprojV1alpha1().Applications(app.AppNamespace())
+			<-start
+			_, errs[i] = argoutil.RefreshApp(appIf, app.AppName(), RefreshTypeNormal, &hydrateType)
+		})
+	}
+	close(start)
+	wg.Wait()
+	for i, err := range errs {
+		require.NoError(t, err, "failed to request hydration of %s", apps[i].AppName())
+	}
+}
+
+// requireGroupHydrated waits for every app sharing a hydration group to report
+// a successful hydration of drySHA, and returns the hydrated commit they agree
+// on. Hydration that stalls, fails to push, or produces a separate commit per
+// shard never satisfies this.
+func requireGroupHydrated(t *testing.T, drySHA string, apps ...*Context) string {
+	t.Helper()
+	var hydratedSHA string
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		hydratedSHA = ""
+		for _, app := range apps {
+			got, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(app.AppNamespace()).
+				Get(context.Background(), app.AppName(), metav1.GetOptions{})
+			if !assert.NoError(c, err) {
+				return
+			}
+			status := got.Status.SourceHydrator
+			if current := status.CurrentOperation; current != nil {
+				assert.NotEqual(c, HydrateOperationPhaseFailed, current.Phase,
+					"%s failed to hydrate %s: %s", app.AppName(), drySHA, current.Message)
+			}
+			if !assert.NotNil(c, status.LastSuccessfulOperation, "%s has never hydrated", app.AppName()) {
+				return
+			}
+			assert.Equal(c, drySHA, status.LastSuccessfulOperation.DrySHA,
+				"%s has not hydrated dry commit %s", app.AppName(), drySHA)
+			if hydratedSHA == "" {
+				hydratedSHA = status.LastSuccessfulOperation.HydratedSHA
+			}
+			assert.Equal(c, hydratedSHA, status.LastSuccessfulOperation.HydratedSHA,
+				"%s hydrated a different commit than the rest of its group", app.AppName())
+		}
+	}, 2*time.Minute, time.Second)
+	require.NotEmpty(t, hydratedSHA)
+	return hydratedSHA
+}
+
+// requireHydratedManifests checks that the commit the group agreed on carries
+// the latest dry change for every app, so a push that drops or reverts a group
+// member's manifests is caught even when both apps report success.
+func requireHydratedManifests(t *testing.T, hydratedSHA string, revisionHistoryLimit int, syncSourcePaths ...string) {
+	t.Helper()
+	for _, syncSourcePath := range syncSourcePaths {
+		manifest, err := fixture.Run(fixture.LocalRepoRoot(), "git", "show", hydratedSHA+":"+syncSourcePath+"/manifest.yaml")
+		require.NoError(t, err, "hydrated commit %s has no manifests for %s", hydratedSHA, syncSourcePath)
+		require.Contains(t, manifest, fmt.Sprintf("revisionHistoryLimit: %d", revisionHistoryLimit),
+			"%s in hydrated commit %s is missing the latest dry change", syncSourcePath, hydratedSHA)
+	}
 }
 
 func TestHydratorNormalRefreshRecoversFailedHydration(t *testing.T) {

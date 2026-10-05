@@ -640,6 +640,21 @@ This applies to both webhook-driven and periodically-reconciled refreshes:
 The annotation's path filtering applies to the dry source. The sync source is always watched at its configured
 `syncSource.path`; the annotation value is not applied to the sync source.
 
+## High Availability and Sharded Controllers
+
+Applications with the same dry source repository and revision that hydrate to the same destination repository and
+branch form one hydration group. The group is rendered and committed atomically even when its Applications deploy to
+clusters managed by different application-controller shards.
+
+Argo CD assigns each hydration group to one controller shard by hashing the group's source and destination Git
+coordinates. All controller shards observe the Applications, but only the assigned shard queues and processes the
+group. If dynamic cluster distribution changes the controller replica count, hydration ownership is recalculated and
+the newly assigned groups are queued on their new owners.
+
+> [!NOTE]
+> Hydration ownership is automatic and requires no additional configuration. It is separate from destination-cluster
+> ownership because one hydration group can contain Applications for several destination clusters.
+
 ## Limitations
 
 ### Repository support
