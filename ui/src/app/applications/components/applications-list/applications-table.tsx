@@ -12,11 +12,14 @@ import {isApp} from '../utils';
 import {services} from '../../../shared/services';
 import {ApplicationTableRow} from './application-table-row';
 import {AppSetTableRow} from './appset-table-row';
+import {ProjectGroupHeading} from './project-group-heading';
+import {buildProjectRows, ProjectGrouping, ProjectRow, visibleApps} from './project-groups';
 import {
     appsLayoutKey,
     bidirectionalOverscanIndicesGetter,
     computeOverscanRowCount,
     getTableRowHeight,
+    PROJECT_HEADING_ROW_HEIGHT,
     shouldUseVirtualScroll,
     TABLE_OVERSCAN_ROW_COUNT,
     TABLE_ROW_HEIGHT,
@@ -32,8 +35,11 @@ export const ApplicationsTable = (props: {
     deleteApplication: (appName: string, appNamespace: string) => any;
     useVirtualScrolling?: boolean;
     statusBarVisible?: boolean;
+    grouping?: ProjectGrouping;
 }) => {
-    const [selectedApp, navApp, reset] = useNav(props.applications.length);
+    const rows = React.useMemo(() => buildProjectRows(props.applications, props.grouping), [props.applications, props.grouping]);
+    const apps = React.useMemo(() => visibleApps(rows), [rows]);
+    const [selectedApp, navApp, reset] = useNav(apps.length);
     const ctxh = React.useContext(Context);
     const listRef = React.useRef<List>(null);
     const windowScrollerRef = React.useRef<WindowScroller>(null);
@@ -54,7 +60,7 @@ export const ApplicationsTable = (props: {
         keys: Key.ENTER,
         action: () => {
             if (selectedApp > -1) {
-                ctxh.navigation.goto(`/${AppUtils.getAppUrl(props.applications[selectedApp])}`);
+                ctxh.navigation.goto(`/${AppUtils.getAppUrl(apps[selectedApp])}`);
                 return true;
             }
             return false;
@@ -62,26 +68,34 @@ export const ApplicationsTable = (props: {
     });
 
     React.useEffect(() => {
-        if (selectedApp >= props.applications.length) {
+        if (selectedApp >= apps.length) {
             reset();
         }
-    }, [selectedApp, props.applications.length, reset]);
+    }, [selectedApp, apps.length, reset]);
+
+    const rowsRef = React.useRef(rows);
+    React.useEffect(() => {
+        rowsRef.current = rows;
+    });
 
     React.useEffect(() => {
         if (selectedApp >= 0 && shouldVirtualize && listRef.current) {
-            listRef.current.scrollToRow(selectedApp);
+            listRef.current.scrollToRow(rowsRef.current.findIndex(row => row.kind === 'app' && row.index === selectedApp));
         }
     }, [selectedApp, shouldVirtualize]);
 
     const getRowHeight = React.useCallback(
         ({index}: {index: number}) => {
-            const app = props.applications[index];
-            return app ? getTableRowHeight(app) : TABLE_ROW_HEIGHT;
+            const row = rows[index];
+            if (!row) {
+                return TABLE_ROW_HEIGHT;
+            }
+            return row.kind === 'heading' ? PROJECT_HEADING_ROW_HEIGHT : getTableRowHeight(row.app);
         },
-        [props.applications]
+        [rows]
     );
 
-    const layoutKey = React.useMemo(() => (shouldVirtualize ? appsLayoutKey(props.applications) : ''), [shouldVirtualize, props.applications]);
+    const layoutKey = React.useMemo(() => (shouldVirtualize ? `${appsLayoutKey(apps)}:${rows.length}` : ''), [shouldVirtualize, apps, rows.length]);
     useWindowScrollerPosition(windowScrollerRef, shouldVirtualize, `${layoutKey}:${!!props.statusBarVisible}`);
 
     // Recalculate row heights after sort/reorder or when a hydrator status line appears/disappears.
@@ -96,7 +110,7 @@ export const ApplicationsTable = (props: {
             {ctx => (
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
                     {pref => {
-                        const renderRow = (app: models.AbstractApplication, i: number) =>
+                        const renderApp = (app: models.AbstractApplication, i: number) =>
                             isApp(app) ? (
                                 <ApplicationTableRow
                                     key={AppUtils.appInstanceName(app)}
@@ -112,15 +126,28 @@ export const ApplicationsTable = (props: {
                                 <AppSetTableRow key={AppUtils.appInstanceName(app)} appSet={app as models.ApplicationSet} selected={selectedApp === i} pref={pref} ctx={ctx} />
                             );
 
+                        const renderRow = (row: ProjectRow) =>
+                            row.kind === 'heading' ? (
+                                <ProjectGroupHeading
+                                    key={`project-${row.project}`}
+                                    project={row.project}
+                                    count={row.count}
+                                    collapsed={row.collapsed}
+                                    onToggle={() => props.grouping.onToggle(row.project)}
+                                />
+                            ) : (
+                                renderApp(row.app, row.index)
+                            );
+
                         if (shouldVirtualize) {
                             const rowRenderer = ({index, key, style}: ListRowProps) => {
-                                const app = props.applications[index];
-                                if (!app) {
+                                const row = rows[index];
+                                if (!row) {
                                     return null;
                                 }
                                 return (
                                     <div key={key} style={style} className='applications-table__virtual-row'>
-                                        {renderRow(app, index)}
+                                        {renderRow(row)}
                                     </div>
                                 );
                             };
@@ -139,7 +166,7 @@ export const ApplicationsTable = (props: {
                                                         isScrolling={isScrolling}
                                                         onScroll={onChildScroll}
                                                         scrollTop={scrollTop}
-                                                        rowCount={props.applications.length}
+                                                        rowCount={rows.length}
                                                         rowHeight={getRowHeight}
                                                         rowRenderer={rowRenderer}
                                                         overscanRowCount={computeOverscanRowCount(height, TABLE_ROW_HEIGHT, TABLE_OVERSCAN_ROW_COUNT)}
@@ -153,7 +180,7 @@ export const ApplicationsTable = (props: {
                             );
                         }
 
-                        return <div className='applications-table argo-table-list argo-table-list--clickable'>{props.applications.map((app, i) => renderRow(app, i))}</div>;
+                        return <div className='applications-table argo-table-list argo-table-list--clickable'>{rows.map(renderRow)}</div>;
                     }}
                 </DataLoader>
             )}
