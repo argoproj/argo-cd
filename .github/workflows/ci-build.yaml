@@ -184,6 +184,35 @@ jobs:
       - name: Run actionlint
         run: make actionlint-local
 
+  lint-manifests:
+    permissions:
+      contents: read # for actions/checkout to fetch code
+    name: Validate install manifests
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-24.04
+    needs:
+      - changes
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Golang
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Install kubeconform
+        run: |
+          ./hack/install.sh kubeconform
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Run kubeconform
+        run: make kubeconform-local
+
   test-go:
     name: Run unit tests for Go packages
     if: ${{ needs.changes.outputs.backend == 'true' }}

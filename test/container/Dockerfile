@@ -74,6 +74,7 @@ RUN ./install.sh helm && \
     ./install.sh codegen-go-tools && \
     ./install.sh lint-tools && \
     ./install.sh actionlint && \
+    ./install.sh kubeconform && \
     ./install.sh gotestsum && \
     ./install.sh git-lfs && \
     ./install.sh oras && \

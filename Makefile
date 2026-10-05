@@ -409,7 +409,7 @@ lint: test-tools-image
 
 # Run linter on the code (local version)
 .PHONY: lint-local
-lint-local: actionlint-local
+lint-local: actionlint-local kubeconform-local
 	golangci-lint --version
 	golangci-lint run --fix --verbose
 
@@ -418,6 +418,19 @@ lint-local: actionlint-local
 actionlint-local:
 	actionlint --version
 	actionlint
+
+# Kubernetes version whose schemas the generated install manifests are validated against.
+# Keep in sync with the k8s.io/api minor version in go.mod.
+KUBECONFORM_KUBERNETES_VERSION ?= 1.37.0
+
+# Validate the generated install manifests against the Kubernetes schemas (local version).
+# CustomResourceDefinitions are skipped because kubeconform has no schema for them.
+.PHONY: kubeconform-local
+kubeconform-local:
+	kubeconform -v
+	kubeconform -strict -summary -skip CustomResourceDefinition \
+		-kubernetes-version $(KUBECONFORM_KUBERNETES_VERSION) \
+		manifests/*.yaml manifests/ha/*.yaml
 
 .PHONY: lint-ui
 lint-ui: test-tools-image
@@ -664,6 +677,7 @@ install-go-tools-local:
 	./hack/install.sh codegen-go-tools
 	./hack/install.sh lint-tools
 	./hack/install.sh actionlint
+	./hack/install.sh kubeconform
 
 .PHONY: dep-ui
 dep-ui: test-tools-image
