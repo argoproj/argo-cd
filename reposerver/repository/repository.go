@@ -710,11 +710,11 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	settings := operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, noRevisionCache: q.NoRevisionCache, allowConcurrent: q.ApplicationSource.AllowsConcurrentProcessing()}
 	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.SourceIntegrity, cacheFn, operation, settings, q.HasMultipleSources, q.RefSources)
 
-	// if the tarDoneCh message is sent it means that the manifest
-	// generation is being managed by the cmp-server. In this case
-	// we have to wait for the responseCh to send the manifest
-	// response.
-	if tarConcluded && res == nil {
+	// If tarDoneCh fired, the cmp-server is generating the manifests and
+	// runManifestGenAsync will send exactly one more message, on responseCh
+	// or errCh. Always receive it, even if res is already set: cacheFn may
+	// have stored a stale cached response in res.
+	if tarConcluded {
 		select {
 		case resp := <-promise.responseCh:
 			res = resp
