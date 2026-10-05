@@ -10,8 +10,10 @@ import (
 	"github.com/argoproj/argo-cd/v3/cmd/util"
 )
 
-// Helper function to run a cobra command and capture its outputs and returned error.
-// Mimics the main.go error handling of errors returned by RunE (appends the cli error message to the stderr buffer).
+// runCmd executes cmd with args and returns cobra stdout, stderr plus the RunE error.
+// Cobra's automatic error and usage printing is silenced as in the CLI.
+// ExitError is returned as-is (main.go uses errors.Fatal and os.Exit) - tests should assert on the error value.
+// Other errors are formatted like main.go (plugin handler) and appended to stderr buffer.
 func runCmd(t *testing.T, cmd *cobra.Command, args ...string) (stdout string, stderr string, e error) {
 	t.Helper()
 	cmd.SilenceErrors = true
@@ -25,14 +27,10 @@ func runCmd(t *testing.T, cmd *cobra.Command, args ...string) (stdout string, st
 	cmd.SetErr(&errbuf)
 
 	err := cmd.ExecuteContext(t.Context())
-	// Make sure the messare from the error reported by Command.RunE() is appended to the errbuf for verification (similar to main.go)
 	if err != nil {
-		if e, ok := errors.AsType[*util.ExitError](err); ok {
-			if util.CLIMessageForError(e) != "" {
-				errbuf.WriteString(util.CLIMessageForError(e))
-				errbuf.WriteString("\n")
-			}
-
+		if _, ok := errors.AsType[*util.ExitError](err); ok {
+			// main.go uses errors.Fatal and os.Exit - do not os.Exit here
+			// return the error as is, tests should assert on the error value
 			return outbuf.String(), errbuf.String(), err
 		}
 

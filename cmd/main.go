@@ -22,6 +22,7 @@ import (
 	cli "github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/common"
+	argoerrors "github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/log"
 )
 
@@ -88,11 +89,11 @@ func main() {
 	// unknown command error or any other.
 	if err != nil {
 		if e, ok := errors.AsType[*util.ExitError](err); ok {
-			if util.CLIMessageForError(e) != "" {
-				os.Stdout.WriteString(util.CLIMessageForError(e) + "\n")
+			if e.Message() != "" {
+				argoerrors.Fatal(e.ExitCode(), e.Message())
 			}
 
-			os.Exit(util.ExitCodeForError(e))
+			os.Exit(e.ExitCode())
 		}
 
 		errMsg, pluginErr := cli.NewDefaultPluginHandler().HandleCommandExecutionError(err, isArgocdCLI, os.Args)

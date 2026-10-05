@@ -17,50 +17,59 @@ import (
 	"github.com/argoproj/argo-cd/v3/cmd/util"
 )
 
+const emptyRegex = "^$"
+
 func TestExitErrorHandling(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name             string
-		cmdError         error
-		expectedExitCode int
-		expectedOutput   string
+		name                string
+		cmdError            error
+		expectedExitCode    int
+		expectedOutput      string
+		expectedStderrRegex string
 	}{
 		{
-			name:             "no error",
-			cmdError:         nil,
-			expectedExitCode: 0,
-			expectedOutput:   "",
+			name:                "no error",
+			cmdError:            nil,
+			expectedExitCode:    0,
+			expectedOutput:      "",
+			expectedStderrRegex: emptyRegex,
 		},
 		{
-			name:             "generic error",
-			cmdError:         errors.New("test error"),
-			expectedExitCode: 1,
-			expectedOutput:   "Error: test error\n",
+			name:                "generic error",
+			cmdError:            errors.New("test error"),
+			expectedExitCode:    1,
+			expectedOutput:      "Error: test error\n",
+			expectedStderrRegex: emptyRegex,
 		},
 		{
-			name:             "exit error 1 without message",
-			cmdError:         util.NewExitError(1, nil),
-			expectedExitCode: 1,
-			expectedOutput:   "",
+			name:                "exit error 1 without message",
+			cmdError:            util.NewExitError(1, ""),
+			expectedExitCode:    1,
+			expectedOutput:      "",
+			expectedStderrRegex: emptyRegex,
 		},
 		{
-			name:             "exit error 1 with message",
-			cmdError:         util.NewExitError(1, errors.New("test error")),
-			expectedExitCode: 1,
-			expectedOutput:   "Error: test error\n",
+			name:                "exit error 1 with message",
+			cmdError:            util.NewExitError(1, "test error"),
+			expectedExitCode:    1,
+			expectedOutput:      "",
+			expectedStderrRegex: ".*fatal.*test error.*",
 		},
 		{
-			name:             "exit error 42 without message",
-			cmdError:         util.NewExitError(42, nil),
-			expectedExitCode: 42,
-			expectedOutput:   "",
+			name:                "exit error 42 without message",
+			cmdError:            util.NewExitError(42, ""),
+			expectedExitCode:    42,
+			expectedOutput:      "",
+			expectedStderrRegex: emptyRegex,
 		},
 		{
-			name:             "exit error 42 with message",
-			cmdError:         util.NewExitError(42, errors.New("test error")),
-			expectedExitCode: 42,
-			expectedOutput:   "Error: test error\n",
+			name:                "exit error 42 with message",
+			cmdError:            util.NewExitError(42, "test error"),
+			expectedExitCode:    42,
+			expectedOutput:      "",
+			expectedStderrRegex: ".*fatal.*test error.*",
 		},
 	}
 
@@ -77,10 +86,13 @@ func TestExitErrorHandling(t *testing.T) {
 			cmd.Env = append(os.Environ(), "BE_CRASHER=1")
 			var stdout bytes.Buffer
 			cmd.Stdout = &stdout
+			var stderr bytes.Buffer
+			cmd.Stderr = &stderr
 			execExitError := cmd.Run()
 
 			assertExitCode(t, test.expectedExitCode, execExitError)
 			assert.Equal(t, test.expectedOutput, stdout.String())
+			assert.Regexp(t, test.expectedStderrRegex, stderr.String(), "stderr expected to match regex: '%s' on stderr: '%s'", test.expectedStderrRegex, stderr.String())
 		})
 	}
 }
@@ -157,47 +169,53 @@ func TestExitErrorHandlingNotIsArgocdCLI(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name             string
-		args             []string
-		cmdError         error
-		expectedExitCode int
-		expectedOutput   string
+		name                string
+		cmdError            error
+		expectedExitCode    int
+		expectedOutput      string
+		expectedStderrRegex string
 	}{
 		{
-			name:             "no error",
-			cmdError:         nil,
-			expectedExitCode: 0,
-			expectedOutput:   "",
+			name:                "no error",
+			cmdError:            nil,
+			expectedExitCode:    0,
+			expectedOutput:      "",
+			expectedStderrRegex: emptyRegex,
 		},
 		{
-			name:             "generic error",
-			cmdError:         errors.New("test error"),
-			expectedExitCode: 1,
-			expectedOutput:   "Error: test error\n",
+			name:                "generic error",
+			cmdError:            errors.New("test error"),
+			expectedExitCode:    1,
+			expectedOutput:      "Error: test error\n",
+			expectedStderrRegex: emptyRegex,
 		},
 		{
-			name:             "exit error 1 without message",
-			cmdError:         util.NewExitError(1, nil),
-			expectedExitCode: 1,
-			expectedOutput:   "",
+			name:                "exit error 1 without message",
+			cmdError:            util.NewExitError(1, ""),
+			expectedExitCode:    1,
+			expectedOutput:      "",
+			expectedStderrRegex: emptyRegex,
 		},
 		{
-			name:             "exit error 1 with message",
-			cmdError:         util.NewExitError(1, errors.New("test error")),
-			expectedExitCode: 1,
-			expectedOutput:   "Error: test error\n",
+			name:                "exit error 1 with message",
+			cmdError:            util.NewExitError(1, "test error"),
+			expectedExitCode:    1,
+			expectedOutput:      "",
+			expectedStderrRegex: ".*fatal.*test error.*",
 		},
 		{
-			name:             "exit error 42 without message",
-			cmdError:         util.NewExitError(42, nil),
-			expectedExitCode: 42,
-			expectedOutput:   "",
+			name:                "exit error 42 without message",
+			cmdError:            util.NewExitError(42, ""),
+			expectedExitCode:    42,
+			expectedOutput:      "",
+			expectedStderrRegex: emptyRegex,
 		},
 		{
-			name:             "exit error 42 with message",
-			cmdError:         util.NewExitError(42, errors.New("test error")),
-			expectedExitCode: 42,
-			expectedOutput:   "Error: test error\n",
+			name:                "exit error 42 with message",
+			cmdError:            util.NewExitError(42, "test error"),
+			expectedExitCode:    42,
+			expectedOutput:      "",
+			expectedStderrRegex: ".*fatal.*test error.*",
 		},
 	}
 
@@ -214,10 +232,14 @@ func TestExitErrorHandlingNotIsArgocdCLI(t *testing.T) {
 			cmd.Env = append(os.Environ(), "BE_CRASHER_NOT_IS_ARG_CLI=1")
 			var stdout bytes.Buffer
 			cmd.Stdout = &stdout
+			var stderr bytes.Buffer
+			cmd.Stderr = &stderr
 			execExitError := cmd.Run()
 
 			assertExitCode(t, test.expectedExitCode, execExitError)
 			assert.Equal(t, test.expectedOutput, stdout.String())
+			assert.Regexp(t, test.expectedStderrRegex, stderr.String(), "stderr expected to match regex: '%s' on stderr: '%s'", test.expectedStderrRegex, stderr.String())
+
 		})
 	}
 }

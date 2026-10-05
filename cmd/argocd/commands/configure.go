@@ -28,19 +28,19 @@ argocd configure --prompts-enabled=false`,
 		RunE: func(c *cobra.Command, _ []string) error {
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			if err != nil {
-				return util.NewExitError(errors.ErrorGeneric, err)
+				return util.NewExitError(errors.ErrorGeneric, err.Error())
 			}
 
 			if localCfg == nil {
 				fmt.Fprintln(c.OutOrStdout(), "No local configuration found")
-				return util.NewExitError(1, nil)
+				return util.NewExitError(1, "")
 			}
 
 			localCfg.PromptsEnabled = promptsEnabled
 
 			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
 			if err != nil {
-				return util.NewExitError(errors.ErrorGeneric, err)
+				return util.NewExitError(errors.ErrorGeneric, err.Error())
 			}
 
 			fmt.Fprintln(c.OutOrStdout(), "Successfully updated the following configuration settings:")

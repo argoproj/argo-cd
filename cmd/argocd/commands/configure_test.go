@@ -105,78 +105,78 @@ func TestNewConfigureCommand_Outputs(t *testing.T) {
 	emptyRegex := "^$"
 
 	tests := []struct {
-		name                         string
-		args                         []string
-		createConfigFile             bool
-		readOnlyConfigFile           bool
-		corruptConfigFile            bool
-		expectedPromptsEnabled       bool
-		expectedStdout               string
-		expectedStderrRegex          string
-		expectedExitCode             int
-		expectedCLIErrorMessageRegex string
+		name                          string
+		args                          []string
+		createConfigFile              bool
+		readOnlyConfigFile            bool
+		corruptConfigFile             bool
+		expectedPromptsEnabled        bool
+		expectedStdout                string
+		expectedStderrRegex           string
+		expectedExitCode              int
+		expectedExitErrorMessageRegex string
 	}{
 		{
-			name:                         "no args",
-			args:                         []string{},
-			createConfigFile:             true,
-			readOnlyConfigFile:           false,
-			expectedPromptsEnabled:       false,
-			expectedStdout:               "Successfully updated the following configuration settings:\nprompts-enabled: false\n",
-			expectedStderrRegex:          emptyRegex,
-			expectedExitCode:             0,
-			expectedCLIErrorMessageRegex: emptyRegex,
+			name:                          "no args",
+			args:                          []string{},
+			createConfigFile:              true,
+			readOnlyConfigFile:            false,
+			expectedPromptsEnabled:        false,
+			expectedStdout:                "Successfully updated the following configuration settings:\nprompts-enabled: false\n",
+			expectedStderrRegex:           emptyRegex,
+			expectedExitCode:              0,
+			expectedExitErrorMessageRegex: emptyRegex,
 		},
 		{
-			name:                         "prompts-enabled=true",
-			args:                         []string{"--prompts-enabled=true"},
-			createConfigFile:             true,
-			readOnlyConfigFile:           false,
-			expectedPromptsEnabled:       true,
-			expectedStdout:               "Successfully updated the following configuration settings:\nprompts-enabled: true\n",
-			expectedStderrRegex:          emptyRegex,
-			expectedExitCode:             0,
-			expectedCLIErrorMessageRegex: emptyRegex,
+			name:                          "prompts-enabled=true",
+			args:                          []string{"--prompts-enabled=true"},
+			createConfigFile:              true,
+			readOnlyConfigFile:            false,
+			expectedPromptsEnabled:        true,
+			expectedStdout:                "Successfully updated the following configuration settings:\nprompts-enabled: true\n",
+			expectedStderrRegex:           emptyRegex,
+			expectedExitCode:              0,
+			expectedExitErrorMessageRegex: emptyRegex,
 		},
 		{
-			name:                         "prompts-enabled=false",
-			args:                         []string{"--prompts-enabled=false"},
-			createConfigFile:             true,
-			readOnlyConfigFile:           false,
-			expectedPromptsEnabled:       false,
-			expectedStdout:               "Successfully updated the following configuration settings:\nprompts-enabled: false\n",
-			expectedStderrRegex:          emptyRegex,
-			expectedExitCode:             0,
-			expectedCLIErrorMessageRegex: emptyRegex,
+			name:                          "prompts-enabled=false",
+			args:                          []string{"--prompts-enabled=false"},
+			createConfigFile:              true,
+			readOnlyConfigFile:            false,
+			expectedPromptsEnabled:        false,
+			expectedStdout:                "Successfully updated the following configuration settings:\nprompts-enabled: false\n",
+			expectedStderrRegex:           emptyRegex,
+			expectedExitCode:              0,
+			expectedExitErrorMessageRegex: emptyRegex,
 		},
 		{
-			name:                         "non-existent config file",
-			args:                         []string{"--prompts-enabled=true"},
-			createConfigFile:             false,
-			expectedStdout:               "No local configuration found\n",
-			expectedStderrRegex:          emptyRegex,
-			expectedExitCode:             1,
-			expectedCLIErrorMessageRegex: emptyRegex,
+			name:                          "non-existent config file",
+			args:                          []string{"--prompts-enabled=true"},
+			createConfigFile:              false,
+			expectedStdout:                "No local configuration found\n",
+			expectedStderrRegex:           emptyRegex,
+			expectedExitCode:              1,
+			expectedExitErrorMessageRegex: emptyRegex,
 		},
 		{
-			name:                         "read-only config file",
-			args:                         []string{"--prompts-enabled=true"},
-			createConfigFile:             true,
-			readOnlyConfigFile:           true,
-			expectedStdout:               "",
-			expectedStderrRegex:          "Error:.* permission denied",
-			expectedExitCode:             errors.ErrorGeneric,
-			expectedCLIErrorMessageRegex: "Error:.* permission denied",
+			name:                          "read-only config file",
+			args:                          []string{"--prompts-enabled=true"},
+			createConfigFile:              true,
+			readOnlyConfigFile:            true,
+			expectedStdout:                "",
+			expectedStderrRegex:           emptyRegex,
+			expectedExitCode:              errors.ErrorGeneric,
+			expectedExitErrorMessageRegex: ".* permission denied",
 		},
 		{
-			name:                         "corrupt config file",
-			args:                         []string{"--prompts-enabled=true"},
-			createConfigFile:             true,
-			corruptConfigFile:            true,
-			expectedStdout:               "",
-			expectedStderrRegex:          "Error:.*failed to parse config file",
-			expectedExitCode:             errors.ErrorGeneric,
-			expectedCLIErrorMessageRegex: "Error:.*failed to parse config file",
+			name:                          "corrupt config file",
+			args:                          []string{"--prompts-enabled=true"},
+			createConfigFile:              true,
+			corruptConfigFile:             true,
+			expectedStdout:                "",
+			expectedStderrRegex:           emptyRegex,
+			expectedExitCode:              errors.ErrorGeneric,
+			expectedExitErrorMessageRegex: ".*failed to parse config file",
 		},
 	}
 
@@ -203,12 +203,13 @@ func TestNewConfigureCommand_Outputs(t *testing.T) {
 
 				localConfig, err := localconfig.ReadLocalConfig(cfgFilePath)
 				require.NoError(t, err)
-				assert.Equal(t, test.expectedPromptsEnabled, localConfig.PromptsEnabled, "prompts enabled mismatch")
+				assert.Equal(t, test.expectedPromptsEnabled, localConfig.PromptsEnabled, "prompts enabled mismatch expected: %t, got: %t", test.expectedPromptsEnabled, localConfig.PromptsEnabled)
 			} else {
-				require.Error(t, err)
+				var e *util.ExitError
+				require.ErrorAs(t, err, &e, "expected to get an ExitError")
 
-				assert.Equal(t, test.expectedExitCode, util.ExitCodeForError(err), "exit code mismatch")
-				assert.Regexp(t, test.expectedCLIErrorMessageRegex, util.CLIMessageForError(err), "CLI message mismatch")
+				assert.Equal(t, test.expectedExitCode, e.ExitCode(), "exit code mismatch expected: %d, got: %d", test.expectedExitCode, e.ExitCode())
+				assert.Regexp(t, test.expectedExitErrorMessageRegex, e.Message(), "ExitError message mismatch expected to match regex: %s on message: %s", test.expectedExitErrorMessageRegex, e.Message())
 			}
 
 			assert.Equal(t, test.expectedStdout, stdout, "stdout mismatch")
