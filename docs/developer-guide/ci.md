@@ -47,7 +47,7 @@ Your code failed to lint correctly, or modifications were performed by the `gola
 
 * `make lint` and `make lint-local` also run `actionlint` on `.github/workflows`, which checks workflow syntax, expressions and `run:` scripts (via `shellcheck`). Run `make actionlint-local` to run only that check; it needs `actionlint` and `shellcheck` on your `PATH` (`./hack/install.sh actionlint`).
 
-* `make lint` and `make lint-local` also run `kubeconform` on the generated install manifests in `manifests/` and `manifests/ha/`, validating them against the Kubernetes schemas (this needs network access to download the schemas). Run `make kubeconform-local` to run only that check; it needs `kubeconform` on your `PATH` (`./hack/install.sh kubeconform`). If it reports an error, fix the source manifests and regenerate with `make manifests-local`.
+* `make kubeconform-local` validates the generated install manifests in `manifests/` and `manifests/ha/` with `kubeconform` against the Kubernetes schemas for the `k8s.io/api` version in `go.mod` and the three minor versions before it. It needs network access to download the schemas and `kubeconform` on your `PATH` (`./hack/install.sh kubeconform`). If it reports an error, fix the source manifests and regenerate with `make manifests-local`.
 
 ### Why does the test or e2e steps fail?
 

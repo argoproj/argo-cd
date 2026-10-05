@@ -409,7 +409,7 @@ lint: test-tools-image
 
 # Run linter on the code (local version)
 .PHONY: lint-local
-lint-local: actionlint-local kubeconform-local
+lint-local: actionlint-local
 	golangci-lint --version
 	golangci-lint run --fix --verbose
 
@@ -419,18 +419,21 @@ actionlint-local:
 	actionlint --version
 	actionlint
 
-# Kubernetes version whose schemas the generated install manifests are validated against.
-# Keep in sync with the k8s.io/api minor version in go.mod.
-KUBECONFORM_KUBERNETES_VERSION ?= 1.37.0
+# Kubernetes versions whose schemas the generated install manifests are validated against: the minor version of
+# k8s.io/api in go.mod and the three before it, which matches the versions used for e2e tests in CI.
+KUBECONFORM_KUBERNETES_MINOR ?= $(shell go list -m -f '{{.Version}}' k8s.io/api | cut -d. -f2)
+KUBECONFORM_KUBERNETES_VERSIONS ?= $(foreach offset,0 1 2 3,1.$(shell echo $$(($(KUBECONFORM_KUBERNETES_MINOR) - $(offset)))).0)
 
 # Validate the generated install manifests against the Kubernetes schemas (local version).
 # CustomResourceDefinitions are skipped because kubeconform has no schema for them.
 .PHONY: kubeconform-local
 kubeconform-local:
 	kubeconform -v
-	kubeconform -strict -summary -skip CustomResourceDefinition \
-		-kubernetes-version $(KUBECONFORM_KUBERNETES_VERSION) \
-		manifests/*.yaml manifests/ha/*.yaml
+	@for version in $(KUBECONFORM_KUBERNETES_VERSIONS); do \
+		echo "Validating against Kubernetes $$version"; \
+		kubeconform -strict -summary -skip CustomResourceDefinition -kubernetes-version $$version \
+			manifests/*.yaml manifests/ha/*.yaml || exit 1; \
+	done
 
 .PHONY: lint-ui
 lint-ui: test-tools-image
