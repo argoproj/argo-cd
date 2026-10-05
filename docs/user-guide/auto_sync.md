@@ -241,10 +241,14 @@ condition as a Prometheus metric. See
   back from, so changes made directly in the cluster are not reverted while automated sync is paused. Self-heal
   starts working again once the application source points to a new revision.
 * If the rollback operation fails, nothing is recorded and automated sync continues as before.
-* Rolling back to the revision that is currently deployed is not a rollback away from anything, so nothing is
-  recorded. The revision that gets recorded is always the deployed one, which is not necessarily the revision the
+* Rolling back to the revision that is currently deployed is not a rollback away from anything, so there is nothing
+  new to record. An existing record is kept rather than cleared, so repeating a rollback does not give up the pause.
+  The revision that gets recorded is always the deployed one, which is not necessarily the revision the
   application source resolves to: if the source has already moved to a newer revision that has never been deployed,
   automated sync stays free to deploy it.
+* Only the revision is remembered, not the rest of the application source. If a rollback targets a history entry with
+  the same revision but different source settings, such as different Helm values, nothing is recorded and the next
+  automated sync will re-apply the current settings. Disable automated sync for that rollback instead.
 * Automated sync also stays paused while Argo CD cannot resolve the application source at all, for example during a
   repository outage. The record is kept until a successful comparison shows which revision the source points at.
 * The record is written whenever rollback-aware automated sync is enabled for the application, even if automated sync
