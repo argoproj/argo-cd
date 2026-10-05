@@ -225,6 +225,20 @@ The application project can be changed using `app set` command. In order to chan
 argocd app set guestbook-default --project myproject
 ```
 
+### Group Applications By Project In The UI
+
+The Applications page can show applications under a collpasible per project instead of one flat list. Grouping is off by default. Applies to the Tiles and List views only.
+
+To turn it on, either:
+
+* click the **Group by project** icon next to the view/display mode switcher on the Applications page, or
+* navigate to **Setting** then, **Appearance** and set **Group by projects** to **Yes**.
+
+Group shows the project name and the number of included applications. Click a heading to collapse/expand targeted project. Filters, search, sorting and pagination keep working: **applications are ordered by project first**, then by the selected sort.
+
+> [!NOTE]
+> The setting persist in your browser. It is not shared between browsers or users.
+
 ## Project Roles
 
 Projects include a feature called roles that can be used to determine who and what can be done to the applications associated with the project. As an example, it can be used to give a CI pipeline a restricted set of permissions allowing sync operations on a single app (but not change its source or destination).
