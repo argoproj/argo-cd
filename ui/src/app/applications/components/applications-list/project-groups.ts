@@ -1,4 +1,6 @@
+import * as React from 'react';
 import * as models from '../../../shared/models';
+import {appInstanceName} from '../utils';
 
 export interface ProjectGrouping {
     collapsed: string[];
@@ -68,6 +70,26 @@ export function buildProjectRows(apps: models.AbstractApplication[], grouping?: 
 
 export function visibleApps(rows: ProjectRow[]): models.AbstractApplication[] {
     return rows.filter((row): row is ProjectAppRow => row.kind === 'app').map(row => row.app);
+}
+
+/**
+ * Selection is stored as an index into the visible apps. When the visible apps change (for example a project
+ * collapses) and the same index now points at a different application, clear the selection so Enter cannot
+ * open an application the user never selected.
+ */
+export function useResetSelectionOnIdentityChange(apps: models.AbstractApplication[], selectedApp: number, reset: () => void) {
+    const previous = React.useRef({apps, selectedApp});
+    React.useEffect(() => {
+        const prev = previous.current;
+        if (prev.apps !== apps && prev.selectedApp >= 0 && prev.selectedApp === selectedApp) {
+            const before = prev.apps[selectedApp];
+            const after = apps[selectedApp];
+            if (!before || !after || appInstanceName(before) !== appInstanceName(after)) {
+                reset();
+            }
+        }
+        previous.current = {apps, selectedApp};
+    }, [apps, selectedApp, reset]);
 }
 
 export function buildTileRows(rows: ProjectRow[], columnsPerRow: number): ProjectTileRow[] {

@@ -13,7 +13,7 @@ import {services} from '../../../shared/services';
 import {ApplicationTableRow} from './application-table-row';
 import {AppSetTableRow} from './appset-table-row';
 import {ProjectGroupHeading} from './project-group-heading';
-import {buildProjectRows, ProjectGrouping, ProjectRow, visibleApps} from './project-groups';
+import {buildProjectRows, ProjectGrouping, ProjectRow, useResetSelectionOnIdentityChange, visibleApps} from './project-groups';
 import {
     appsLayoutKey,
     bidirectionalOverscanIndicesGetter,
@@ -40,6 +40,7 @@ export const ApplicationsTable = (props: {
     const rows = React.useMemo(() => buildProjectRows(props.applications, props.grouping), [props.applications, props.grouping]);
     const apps = React.useMemo(() => visibleApps(rows), [rows]);
     const [selectedApp, navApp, reset] = useNav(apps.length);
+    useResetSelectionOnIdentityChange(apps, selectedApp, reset);
     const ctxh = React.useContext(Context);
     const listRef = React.useRef<List>(null);
     const windowScrollerRef = React.useRef<WindowScroller>(null);

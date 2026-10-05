@@ -39,13 +39,15 @@ export const ViewTypeSwitcher: React.FC<ViewTypeSwitcherProps> = ({pref, ctx, gr
                 }}
             />
             {groupByProject && pref.view !== Summary && (
-                <i
-                    className={classNames('fa fa-layer-group', {selected: groupByProject.enabled}, 'applications-list__group-toggle', 'menu_icon')}
+                <button
+                    type='button'
+                    className={classNames({selected: groupByProject.enabled}, 'applications-list__group-toggle')}
                     title='Group by project'
-                    role='button'
+                    aria-label='Group by project'
                     aria-pressed={groupByProject.enabled}
-                    onClick={groupByProject.onToggle}
-                />
+                    onClick={groupByProject.onToggle}>
+                    <i className='fa fa-layer-group menu_icon' />
+                </button>
             )}
         </div>
     );

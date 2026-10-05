@@ -27,4 +27,12 @@ describe('ViewTypeSwitcher group toggle', () => {
         fireEvent.click(toggle);
         expect(onToggle).toHaveBeenCalledTimes(1);
     });
+
+    it('is a native button so it is keyboard operable', () => {
+        render(<ViewTypeSwitcher pref={pref('tiles')} ctx={ctx} groupByProject={{enabled: false, onToggle: jest.fn()}} />);
+        const toggle = screen.getByTitle('Group by project');
+        expect(toggle.tagName).toBe('BUTTON');
+        expect(toggle.getAttribute('type')).toBe('button');
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    });
 });

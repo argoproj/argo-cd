@@ -15,7 +15,7 @@ import {ApplicationTile} from './application-tile';
 import {AppSetTile} from './appset-tile';
 import {VirtualizedGroupedTiles} from './applications-tiles-grouped';
 import {ProjectGroupHeading} from './project-group-heading';
-import {buildProjectRows, ProjectGrouping, visibleApps} from './project-groups';
+import {buildProjectRows, ProjectGrouping, useResetSelectionOnIdentityChange, visibleApps} from './project-groups';
 import {
     appsLayoutKey,
     bidirectionalOverscanIndicesGetter,
@@ -159,6 +159,7 @@ export const ApplicationTiles = ({
     const rows = React.useMemo(() => buildProjectRows(applications, grouping), [applications, grouping]);
     const apps = React.useMemo(() => visibleApps(rows), [rows]);
     const [selectedApp, navApp, reset] = useNav(apps.length);
+    useResetSelectionOnIdentityChange(apps, selectedApp, reset);
 
     const ctxh = React.useContext(Context);
     const firstTileRef = React.useRef<HTMLDivElement>(null);

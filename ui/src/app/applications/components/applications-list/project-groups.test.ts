@@ -1,8 +1,8 @@
+import {renderHook} from '@testing-library/react';
 import {Application} from '../../../shared/models';
-import {appProject, buildProjectRows, buildTileRows, countByProject, visibleApps} from './project-groups';
+import {appProject, buildProjectRows, buildTileRows, countByProject, useResetSelectionOnIdentityChange, visibleApps} from './project-groups';
 
-const app = (name: string, project?: string): Application =>
-    ({kind: 'Application', metadata: {name, namespace: 'argocd', uid: `uid-${name}`}, spec: {project}}) as Application;
+const app = (name: string, project?: string): Application => ({kind: 'Application', metadata: {name, namespace: 'argocd', uid: `uid-${name}`}, spec: {project}}) as Application;
 
 const describeRows = (rows: ReturnType<typeof buildProjectRows>) =>
     rows.map(row => (row.kind === 'heading' ? `#${row.project}(${row.count})${row.collapsed ? '-' : '+'}` : `${row.app.metadata.name}@${row.index}`));
@@ -45,12 +45,38 @@ describe('project-groups', () => {
     it('chunks tiles per project and never mixes projects in one row', () => {
         const many = [app('a', 'apps'), app('b', 'apps'), app('c', 'apps'), app('d', 'infra')];
         const tileRows = buildTileRows(buildProjectRows(many, {collapsed: [], counts: countByProject(many)}), 2);
-        expect(tileRows.map(row => (row.kind === 'heading' ? `#${row.project}` : row.items.map(i => i.app.metadata.name).join(',')))).toEqual([
-            '#apps',
-            'a,b',
-            'c',
-            '#infra',
-            'd'
-        ]);
+        expect(tileRows.map(row => (row.kind === 'heading' ? `#${row.project}` : row.items.map(i => i.app.metadata.name).join(',')))).toEqual(['#apps', 'a,b', 'c', '#infra', 'd']);
+    });
+});
+
+describe('useResetSelectionOnIdentityChange', () => {
+    const run = (initial: Application[], selected: number) => {
+        const reset = jest.fn();
+        const hook = renderHook(({apps, sel}) => useResetSelectionOnIdentityChange(apps, sel, reset), {initialProps: {apps: initial, sel: selected}});
+        return {reset, hook};
+    };
+
+    it('clears the selection when the same index now holds a different app', () => {
+        const {reset, hook} = run([app('a'), app('b'), app('c')], 1);
+        hook.rerender({apps: [app('c'), app('d'), app('e')], sel: 1});
+        expect(reset).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the selection when the app at the index is unchanged', () => {
+        const {reset, hook} = run([app('a'), app('b')], 1);
+        hook.rerender({apps: [app('a'), app('b')], sel: 1});
+        expect(reset).not.toHaveBeenCalled();
+    });
+
+    it('does not reset when only the selection moved', () => {
+        const {reset, hook} = run([app('a'), app('b')], 0);
+        hook.rerender({apps: [app('a'), app('b')], sel: 1});
+        expect(reset).not.toHaveBeenCalled();
+    });
+
+    it('ignores the no-selection state', () => {
+        const {reset, hook} = run([app('a')], -1);
+        hook.rerender({apps: [app('b')], sel: -1});
+        expect(reset).not.toHaveBeenCalled();
     });
 });
