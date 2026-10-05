@@ -10,6 +10,7 @@ import (
 
 	"code.gitea.io/sdk/gitea"
 
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
@@ -47,7 +48,9 @@ func NewGiteaProvider(owner, token, url string, allBranches, insecure, excludeAr
 	}, nil
 }
 
-func (g *GiteaProvider) GetBranches(_ context.Context, repo *Repository) ([]*Repository, error) {
+func (g *GiteaProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
+	g.client.SetContext(ctx)
+
 	if !g.allBranches {
 		branch, status, err := g.client.GetRepoBranch(g.owner, repo.Repository, repo.Branch)
 		if status.StatusCode == http.StatusNotFound {
@@ -69,67 +72,135 @@ func (g *GiteaProvider) GetBranches(_ context.Context, repo *Repository) ([]*Rep
 		}, nil
 	}
 	repos := []*Repository{}
-	opts := gitea.ListRepoBranchesOptions{}
-	branches, _, err := g.client.ListRepoBranches(g.owner, repo.Repository, opts)
-	if err != nil {
-		return nil, err
-	}
-	for _, branch := range branches {
-		repos = append(repos, &Repository{
-			Organization: repo.Organization,
-			Repository:   repo.Repository,
-			Branch:       branch.Name,
-			URL:          repo.URL,
-			SHA:          branch.Commit.ID,
-			Labels:       repo.Labels,
-			RepositoryId: repo.RepositoryId,
-		})
-	}
-	return repos, nil
-}
-
-func (g *GiteaProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
-	repos := []*Repository{}
-	repoOpts := gitea.ListOrgReposOptions{}
-	giteaRepos, _, err := g.client.ListOrgRepos(g.owner, repoOpts)
-	if err != nil {
-		return nil, err
-	}
-	for _, repo := range giteaRepos {
-		var url string
-		switch cloneProtocol {
-		// Default to SSH if unspecified (i.e. if "").
-		case "", "ssh":
-			url = repo.SSHURL
-		case "https":
-			url = repo.HTMLURL
-		default:
-			return nil, fmt.Errorf("unknown clone protocol for GitHub %v", cloneProtocol)
+	firstOfPreviousPage := ""
+	for page := 1; ; page++ {
+		opts := gitea.ListRepoBranchesOptions{
+			Page:     page,
+			PageSize: services.GiteaPageSize,
 		}
-		labelOpts := gitea.ListLabelsOptions{}
-		giteaLabels, _, err := g.client.ListRepoLabels(g.owner, repo.Name, labelOpts)
+		branches, resp, err := g.client.ListRepoBranches(g.owner, repo.Repository, opts)
 		if err != nil {
 			return nil, err
 		}
-		labels := []string{}
+		if len(branches) == 0 {
+			return repos, nil
+		}
+		if page > services.GiteaMaxPages {
+			return nil, fmt.Errorf("gitea returned more than %d pages of branches for repo %q", services.GiteaMaxPages, repo.Repository)
+		}
+		if page > 1 && branches[0].Name == firstOfPreviousPage {
+			return nil, fmt.Errorf("gitea returned the same branches on pages %d and %d for repo %q, the server is not honouring the page parameter", page-1, page, repo.Repository)
+		}
+		firstOfPreviousPage = branches[0].Name
+		for _, branch := range branches {
+			repos = append(repos, &Repository{
+				Organization: repo.Organization,
+				Repository:   repo.Repository,
+				Branch:       branch.Name,
+				URL:          repo.URL,
+				SHA:          branch.Commit.ID,
+				Labels:       repo.Labels,
+				RepositoryId: repo.RepositoryId,
+			})
+		}
+		if services.GiteaAllCollected(resp, len(repos)) {
+			return repos, nil
+		}
+	}
+}
+
+func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
+	g.client.SetContext(ctx)
+
+	repos := []*Repository{}
+	fetched := 0
+	firstOfPreviousPage := int64(0)
+	for page := 1; ; page++ {
+		repoOpts := gitea.ListOrgReposOptions{
+			Page:     page,
+			PageSize: services.GiteaPageSize,
+		}
+		giteaRepos, resp, err := g.client.ListOrgRepos(g.owner, repoOpts)
+		if err != nil {
+			return nil, err
+		}
+		if len(giteaRepos) == 0 {
+			return repos, nil
+		}
+		if page > services.GiteaMaxPages {
+			return nil, fmt.Errorf("gitea returned more than %d pages of repositories for org %q", services.GiteaMaxPages, g.owner)
+		}
+		if page > 1 && giteaRepos[0].ID == firstOfPreviousPage {
+			return nil, fmt.Errorf("gitea returned the same repositories on pages %d and %d for org %q, the server is not honouring the page parameter", page-1, page, g.owner)
+		}
+		firstOfPreviousPage = giteaRepos[0].ID
+		fetched += len(giteaRepos)
+		for _, repo := range giteaRepos {
+			if g.excludeArchivedRepos && repo.Archived {
+				continue
+			}
+
+			var url string
+			switch cloneProtocol {
+			// Default to SSH if unspecified (i.e. if "").
+			case "", "ssh":
+				url = repo.SSHURL
+			case "https":
+				url = repo.HTMLURL
+			default:
+				return nil, fmt.Errorf("unknown clone protocol for GitHub %v", cloneProtocol)
+			}
+			labels, err := g.listRepoLabels(repo.Name)
+			if err != nil {
+				return nil, fmt.Errorf("error listing labels for repo %q: %w", repo.Name, err)
+			}
+
+			repos = append(repos, &Repository{
+				Organization: g.owner,
+				Repository:   repo.Name,
+				Branch:       repo.DefaultBranch,
+				URL:          url,
+				Labels:       labels,
+				RepositoryId: int(repo.ID),
+			})
+		}
+		if services.GiteaAllCollected(resp, fetched) {
+			return repos, nil
+		}
+	}
+}
+
+// listRepoLabels returns every label defined on the given repository. The
+// caller is responsible for setting the client context.
+func (g *GiteaProvider) listRepoLabels(repo string) ([]string, error) {
+	labels := []string{}
+	firstOfPreviousPage := int64(0)
+	for page := 1; ; page++ {
+		labelOpts := gitea.ListLabelsOptions{
+			Page:     page,
+			PageSize: services.GiteaPageSize,
+		}
+		giteaLabels, resp, err := g.client.ListRepoLabels(g.owner, repo, labelOpts)
+		if err != nil {
+			return nil, err
+		}
+		if len(giteaLabels) == 0 {
+			return labels, nil
+		}
+		if page > services.GiteaMaxPages {
+			return nil, fmt.Errorf("gitea returned more than %d pages of labels for repo %q", services.GiteaMaxPages, repo)
+		}
+		if page > 1 && giteaLabels[0].ID == firstOfPreviousPage {
+			return nil, fmt.Errorf("gitea returned the same labels on pages %d and %d for repo %q, the server is not honouring the page parameter", page-1, page, repo)
+		}
+		firstOfPreviousPage = giteaLabels[0].ID
 		for _, label := range giteaLabels {
 			labels = append(labels, label.Name)
 		}
-
-		if g.excludeArchivedRepos && repo.Archived {
-			continue
+		if services.GiteaAllCollected(resp, len(labels)) {
+			return labels, nil
 		}
-
-		repos = append(repos, &Repository{
-			Organization: g.owner,
-			Repository:   repo.Name,
-			Branch:       repo.DefaultBranch,
-			URL:          url,
-			Labels:       labels,
-			RepositoryId: int(repo.ID),
-		})
 	}
-	return repos, nil
 }
 
 func (g *GiteaProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
