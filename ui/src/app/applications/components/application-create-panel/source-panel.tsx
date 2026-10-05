@@ -67,7 +67,8 @@ export const SourcePanel = (props: SourcePanelProps) => {
                         componentProps={{
                             items: props.repos.map((r): AutocompleteOption => ({
                                 value: r.repo,
-                                label: r.name ? `${r.repo} -- ${r.name}` : r.repo
+                                label: r.repo,
+                                description: r.name
                             })),
                             filterSuggestions: true
                         }}
