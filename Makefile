@@ -375,7 +375,7 @@ image: build-ui
 	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else
 image:
-	DOCKER_BUILDKIT=1 $(DOCKER) build -t quay.io/nittalaakhil/openshift-gitops-operator:v0.0.202 --platform=linux/amd64 .
+	DOCKER_BUILDKIT=1 $(DOCKER) build -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) --platform=$(TARGET_ARCH) .
 endif
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then $(DOCKER) push $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) ; fi
 
