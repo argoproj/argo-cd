@@ -41,9 +41,10 @@
         font-weight: normal;
         line-height: 20px;
         text-align: center;
+        // Translucent so the pill stands out on both the light and dark page backgrounds.
+        background-color: rgba(128, 128, 128, 0.28);
         @include themify($themes) {
             color: themed('text-1');
-            background-color: themed('background-1');
         }
     }
 }
