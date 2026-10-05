@@ -1,7 +1,4 @@
 paths:
-  .github/workflows/issue-triage.lock.yml:
-    ignore:
-      - '.*'
   '.github/workflows/**/*.{yml,yaml}':
     ignore:
       - 'shellcheck reported issue in this script: SC(2086|2129|2006|2015):.+'
