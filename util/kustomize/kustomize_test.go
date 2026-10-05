@@ -490,18 +490,55 @@ func TestKustomizeBuildComponents(t *testing.T) {
 	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
 
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Components:              []string{"./components"},
+		IgnoreMissingComponents: false,
+	}
+	objs, _, _, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.NoError(t, err)
+	obj := objs[0]
+	assert.Equal(t, "nginx-deployment", obj.GetName())
+	assert.Equal(t, map[string]string{
+		"app": "nginx",
+	}, obj.GetLabels())
+	replicas, ok, err := unstructured.NestedInt64(obj.Object, "spec", "replicas")
+	require.NoError(t, err)
+	require.True(t, ok)
+	assert.Equal(t, int64(3), replicas)
+}
+
+func TestKustomizeBuildComponentsFailMissing(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization6)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
 		Components:              []string{"./components", "./missing-components"},
 		IgnoreMissingComponents: false,
 	}
 	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
 	require.Error(t, err)
-
 	kustomizeSource = v1alpha1.ApplicationSourceKustomize{
-		Components:              []string{"./components", "./missing-components"},
+		Components:              []string{"./components", "./components_no_kustomization"},
+		IgnoreMissingComponents: false,
+	}
+	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.Error(t, err)
+}
+
+func TestKustomizeBuildComponentsIgnoreMissing(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization6)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Components:              []string{"./components", "./missing-components", "./components_no_kustomization"},
 		IgnoreMissingComponents: true,
 	}
 	objs, _, _, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
 	require.NoError(t, err)
+	for _, o := range objs {
+		assert.NotEqual(t, "notproduced", o.GetName())
+	}
 	obj := objs[0]
 	assert.Equal(t, "nginx-deployment", obj.GetName())
 	assert.Equal(t, map[string]string{
@@ -615,7 +652,7 @@ func TestKustomizeBuildComponentsNoFoundComponents(t *testing.T) {
 	// Test with non-existent components and IgnoreMissingComponents = true
 	// This should result in foundComponents being empty, so no "edit add component" command should be executed
 	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
-		Components:              []string{"./non-existent-component1", "./non-existent-component2"},
+		Components:              []string{"./non-existent-component1", "./non-existent-component2", "./components_no_kustomization"},
 		IgnoreMissingComponents: true,
 	}
 	_, _, commands, err := kustomize.Build(&kustomizeSource, nil, nil, nil)

@@ -35,8 +35,43 @@
     flex-shrink: 1;
     overflow-x: auto;
     padding-bottom: 0.5em;
+    // keep the rightmost section clear of the collapse toggle
+    padding-right: 36px;
 
     $row-width: 250px;
+
+    &--collapsed {
+        align-items: center;
+        padding: 6px 44px 6px 20px;
+        gap: 2em;
+        min-height: 34px;
+    }
+
+    &__collapsed-item {
+        display: flex;
+        align-items: baseline;
+        white-space: nowrap;
+        flex-shrink: 0;
+        font-weight: 500;
+        @include themify($themes) {
+            color: themed('text-1');
+        }
+
+        a.error {
+            color: $argo-failed-color-dark;
+        }
+        a.warning {
+            color: $argo-status-warning-color;
+        }
+        a.info {
+            color: $argo-success-color;
+        }
+
+        &.application-status-panel__conditions {
+            flex-wrap: nowrap;
+            max-width: none;
+        }
+    }
 
      &__conditions {
             display: flex;
