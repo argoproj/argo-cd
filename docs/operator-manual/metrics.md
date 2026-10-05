@@ -160,7 +160,7 @@ comma-separated `controller.metrics.sync.window.projects` key in the `argocd-cmd
 controller.metrics.sync.window.projects: "production-*,staging"
 ```
 
-Use `"*"` to report them for every project. Alternatively, pass `--metrics-sync-window-projects` to the application controller.
+Use `"*"` to report them for every project. Alternatively, pass `--metrics-sync-window-projects` to the application controller. A pattern that is not a valid glob stops the application controller from starting.
 
 Applications in a matching project emit the metrics even when the project configures no sync windows. The zeros are
 deliberate: `argocd_app_sync_blocked` reporting 0 distinguishes "no windows configured" from "blocked because a

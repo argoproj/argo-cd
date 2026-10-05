@@ -201,6 +201,14 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		return nil, err
 	}
 
+	// An uncompilable pattern is never cached, so it would otherwise log once
+	// per application per scrape and silently match nothing.
+	for _, pattern := range syncWindowProjects {
+		if _, err := glob.MatchWithError(pattern, ""); err != nil {
+			return nil, fmt.Errorf("invalid sync window project pattern %q: %w", pattern, err)
+		}
+	}
+
 	if len(appLabels) > 0 {
 		normalizedLabels := metricsutil.NormalizeLabels("label", appLabels)
 		descAppLabels = prometheus.NewDesc(

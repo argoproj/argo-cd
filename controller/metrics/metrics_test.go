@@ -982,6 +982,13 @@ func TestSyncWindowMetricProjectFailureIsResolvedOncePerScrape(t *testing.T) {
 
 // Sync window metrics add four series per application, so they are emitted
 // only for projects matching --metrics-sync-window-projects.
+func TestSyncWindowMetricProjectFilterRejectsInvalidPattern(t *testing.T) {
+	cancel, appLister := newFakeLister(t.Context())
+	defer cancel()
+	_, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{}, nil, []string{"prod-*", "["})
+	require.ErrorContains(t, err, `invalid sync window project pattern "["`)
+}
+
 func TestSyncWindowMetricProjectFilter(t *testing.T) {
 	otherProjectApp := strings.Replace(fakeApp2, "project: important-project", "project: other-project", 1)
 
