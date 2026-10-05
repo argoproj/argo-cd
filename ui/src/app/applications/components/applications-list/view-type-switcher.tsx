@@ -6,9 +6,10 @@ import {AppsListPreferences, AppsListViewKey, services} from '../../../shared/se
 interface ViewTypeSwitcherProps {
     pref: AppsListPreferences & {page: number; search: string};
     ctx: ContextApis;
+    groupByProject?: {enabled: boolean; onToggle: () => void};
 }
 
-export const ViewTypeSwitcher: React.FC<ViewTypeSwitcherProps> = ({pref, ctx}) => {
+export const ViewTypeSwitcher: React.FC<ViewTypeSwitcherProps> = ({pref, ctx, groupByProject}) => {
     const {List, Summary, Tiles} = AppsListViewKey;
 
     return (
@@ -37,6 +38,15 @@ export const ViewTypeSwitcher: React.FC<ViewTypeSwitcherProps> = ({pref, ctx}) =
                     services.viewPreferences.updatePreferences({appList: {...pref, view: Summary}});
                 }}
             />
+            {groupByProject && pref.view !== Summary && (
+                <i
+                    className={classNames('fa fa-layer-group', {selected: groupByProject.enabled}, 'applications-list__group-toggle', 'menu_icon')}
+                    title='Group by project'
+                    role='button'
+                    aria-pressed={groupByProject.enabled}
+                    onClick={groupByProject.onToggle}
+                />
+            )}
         </div>
     );
 };

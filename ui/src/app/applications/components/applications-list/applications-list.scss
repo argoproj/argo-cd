@@ -120,6 +120,11 @@
             cursor: default;
             color: $argo-color-teal-5;
         }
+        i.applications-list__group-toggle {
+            cursor: pointer;
+            padding-left: 1em;
+            border-left: 1px solid $argo-color-gray-4;
+        }
     }
 
     &__table-icon {
