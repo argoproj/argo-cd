@@ -238,6 +238,8 @@ func (s *Server) deleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	tokenID := q.Id
 	if token, _, err := prj.GetJWTToken(q.Role, q.Iat, q.Id); err == nil {
 		tokenID = token.ID
+	} else if token, _, err := prj.GetJWTTokenFromSpec(q.Role, q.Iat, q.Id); err == nil {
+		tokenID = token.ID
 	}
 
 	err = prj.RemoveJWTToken(roleIndex, q.Iat, q.Id)

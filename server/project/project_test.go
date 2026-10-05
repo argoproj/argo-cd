@@ -457,6 +457,26 @@ func TestProjectServer(t *testing.T) {
 		}, messages)
 	})
 
+	t.Run("TestDeleteSpecOnlyTokenEventNamesToken", func(t *testing.T) {
+		// A token that is only in the spec, e.g. after the AppProject was edited directly.
+		projectWithRole := existingProj.DeepCopy()
+		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 100, ID: id}}}}
+		clientset := apps.NewSimpleClientset(projectWithRole)
+		kubeClient := fake.NewSimpleClientset()
+
+		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjListerFromInterface(clientset.ArgoprojV1alpha1().AppProjects("default")), "", nil, session.NewUserStateStorage(nil))
+		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
+		projectServer := NewServer("default", kubeClient, clientset, enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB, testEnableEventList)
+
+		_, err := projectServer.DeleteToken(t.Context(), &project.ProjectTokenDeleteRequest{Project: projectWithRole.Name, Role: tokenName, Iat: 100})
+		require.NoError(t, err)
+
+		events, err := kubeClient.CoreV1().Events(projectWithRole.Namespace).List(t.Context(), metav1.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, events.Items, 1)
+		assert.Equal(t, "Unknown user deleted token 'testId' for role 'testToken'", events.Items[0].Message)
+	})
+
 	t.Run("TestCreateTokenWithSameIdDeny", func(t *testing.T) {
 		projectWithRole := existingProj.DeepCopy()
 		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
