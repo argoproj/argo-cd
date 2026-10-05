@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {fireEvent, render, screen, waitFor} from '@testing-library/react';
 import * as models from '../../../shared/models';
-import {Context} from '../../../shared/context';
+import {AuthSettingsCtx, Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
 import {ApplicationStatusPanel} from './application-status-panel';
 import {ApplicationSetStatusPanel} from './appset-status-panel';
@@ -264,12 +264,14 @@ describe('ApplicationStatusPanel', () => {
     });
 });
 
-const withRolledBack = (status: Partial<models.ApplicationStatus>) =>
+const withRolledBack = (status: Partial<models.ApplicationStatus>, automated: Record<string, unknown> = {}) =>
     ({
         ...application,
-        spec: {...application.spec, syncPolicy: {automated: {prune: false, selfHeal: false, enabled: true}}},
+        spec: {...application.spec, syncPolicy: {automated: {prune: false, selfHeal: false, enabled: true, rollbackAware: true, ...automated}}},
         status: {...application.status, ...status}
     }) as unknown as models.Application;
+
+const rolledBackSha = '9639592aa0f1e2d3c4b5a6978899aabbccddeeff';
 
 const pauseLine = (container: HTMLElement) => {
     const icon = container.querySelector('.fa-pause-circle');
@@ -325,6 +327,46 @@ describe('ApplicationStatusPanel rolled back revision', () => {
     it('leaves the collapsed panel unchanged', () => {
         const {container} = render(<ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: ['9639592aa0f1e2d3c4b5a6978899aabbccddeeff']})} collapsed={true} />);
         expect(pauseLine(container)).toBeNull();
+    });
+
+    it('stays silent when rollback-aware automated sync does not apply', () => {
+        const {container} = render(<ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: [rolledBackSha]}, {rollbackAware: undefined})} />);
+        expect(pauseLine(container)).toBeNull();
+    });
+
+    it('speaks up when the instance-wide default enables the feature', () => {
+        const {container} = render(
+            <AuthSettingsCtx.Provider value={{rollbackAwareAutoSyncEnabled: true} as models.AuthSettings}>
+                <ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: [rolledBackSha]}, {rollbackAware: undefined})} />
+            </AuthSettingsCtx.Provider>
+        );
+        expect(pauseLine(container)).toContain('Auto sync skips rolled back revision');
+    });
+
+    it('lets an explicit opt-out beat the instance-wide default', () => {
+        const {container} = render(
+            <AuthSettingsCtx.Provider value={{rollbackAwareAutoSyncEnabled: true} as models.AuthSettings}>
+                <ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: [rolledBackSha]}, {rollbackAware: false})} />
+            </AuthSettingsCtx.Provider>
+        );
+        expect(pauseLine(container)).toBeNull();
+    });
+
+    it('stays silent while automated sync itself is turned off', () => {
+        const {container} = render(<ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: [rolledBackSha]}, {enabled: false})} />);
+        expect(pauseLine(container)).toBeNull();
+    });
+
+    it('stays silent once the application is Synced again', () => {
+        const app = withRolledBack({rolledBackRevisions: [rolledBackSha], sync: {status: 'Synced', revision: 'abc123def456'}} as Partial<models.ApplicationStatus>);
+        const {container} = render(<ApplicationStatusPanel application={app} />);
+        expect(pauseLine(container)).toBeNull();
+    });
+
+    it('speaks up when the desired revision cannot be established', () => {
+        const app = withRolledBack({rolledBackRevisions: [rolledBackSha], sync: {status: 'Unknown', revision: ''}} as Partial<models.ApplicationStatus>);
+        const {container} = render(<ApplicationStatusPanel application={app} />);
+        expect(pauseLine(container)).toContain('Auto sync skips rolled back revision');
     });
 });
 

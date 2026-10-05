@@ -1,4 +1,5 @@
 import * as models from '../../../shared/models';
+import {isAutomatedSyncEnabled, isRollbackAwareAutoSync} from '../utils';
 
 export interface RollbackConfirmation {
     /** Whether rolling back has to turn automated sync off before it can proceed. */
@@ -17,9 +18,8 @@ export interface RollbackConfirmation {
  * settings API.
  */
 export function getRollbackConfirmation(application: models.Application, appName: string, rollbackAwareDefault?: boolean): RollbackConfirmation {
-    const automated = application.spec.syncPolicy?.automated;
-    const autoSyncEnabled = !!automated && automated.enabled !== false;
-    const rollbackAware = automated?.rollbackAware ?? rollbackAwareDefault ?? false;
+    const autoSyncEnabled = isAutomatedSyncEnabled(application);
+    const rollbackAware = isRollbackAwareAutoSync(application, rollbackAwareDefault);
     const needDisableRollback = autoSyncEnabled && !rollbackAware;
 
     if (needDisableRollback) {
