@@ -1,5 +1,7 @@
 import {HelpIcon} from 'argo-ui';
 import * as React from 'react';
+import {from, merge, Observable} from 'rxjs';
+import {filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 import {ARGO_GRAY6_COLOR, DataLoader} from '../../../shared/components';
 import {Revision} from '../../../shared/components/revision';
 import {revisionUrl} from '../../../shared/components/urls';
@@ -70,6 +72,48 @@ const getApplicationSetOwnerRef = (application: models.Application) => {
     return application.metadata.ownerReferences?.find(ref => ref.kind === 'ApplicationSet');
 };
 
+const APPSET_WATCH_RETRY_TIMEOUT = 500;
+// Only the fields the Progressive Sync panel reads, so the watch stream stays small.
+const PROGRESSIVE_SYNC_APPSET_WATCH_FIELDS = [
+    'result.type',
+    'result.applicationSet.metadata.name',
+    'result.applicationSet.metadata.namespace',
+    'result.applicationSet.spec.strategy',
+    'result.applicationSet.status.applicationStatus'
+];
+
+// Progressive Sync data is sourced from the owning ApplicationSet, which can change
+// independently of the Application (e.g. a RollingSync step is inserted that matches no
+// applications). Watch the ApplicationSet so the panel reflects those changes without a
+// page reload, instead of only reloading when the Application itself changes.
+const watchApplicationSet = (appSetName: string, appSetNamespace: string): Observable<{appSet?: models.ApplicationSet}> =>
+    from(services.applications.listApplicationSets()).pipe(
+        mergeMap(appSetList => {
+            // an owner reference always points into the application's own namespace
+            let appSet = appSetList.items?.find(item => item.metadata.name === appSetName && item.metadata.namespace === appSetNamespace);
+            const matches = (candidate: models.ApplicationSet) => candidate?.metadata?.name === appSetName && candidate?.metadata?.namespace === appSetNamespace;
+            return merge(
+                from([{appSet}]),
+                services.applications
+                    .watch(
+                        'applicationset',
+                        {name: appSetName, appNamespace: appSetNamespace, resourceVersion: appSetList.metadata?.resourceVersion},
+                        {fields: PROGRESSIVE_SYNC_APPSET_WATCH_FIELDS}
+                    )
+                    .pipe(repeat())
+                    .pipe(retry({delay: APPSET_WATCH_RETRY_TIMEOUT}))
+                    .pipe(
+                        filter(appChange => matches(appChange.application as unknown as models.ApplicationSet)),
+                        map(appChange => {
+                            const changedAppSet = appChange.application as unknown as models.ApplicationSet;
+                            appSet = appChange.type === 'DELETED' ? undefined : changedAppSet;
+                            return {appSet};
+                        })
+                    )
+            );
+        })
+    );
+
 const renderSyncStatusRevision = (application: models.Application) => {
     const source = getAppDefaultSource(application);
     if (!source) {
@@ -126,12 +170,13 @@ const ProgressiveSyncStatus = ({application, collapsed}: {application: models.Ap
 
     return (
         <DataLoader
-            // the key unmounts the loader when the owner changes, so a pending request
+            // the key unmounts the loader when the owner changes, so a stale watch stream
             // for the previous owner cannot overwrite the new owner's data
             key={appSetIdentity}
-            // load() only depends on the owner identity; while collapsed that stable input
-            // keeps application watch events from re-firing the cluster-wide list call
-            input={collapsed ? appSetIdentity : application}
+            // load() sets up a live ApplicationSet watch keyed on the stable owner identity,
+            // so the panel reflects ApplicationSet changes without re-firing on every
+            // application update (collapsed or expanded)
+            input={appSetIdentity}
             noLoaderOnInputChange={true}
             loadingRenderer={collapsed ? NullLoadingRenderer : undefined}
             errorRenderer={() => {
@@ -152,13 +197,7 @@ const ProgressiveSyncStatus = ({application, collapsed}: {application: models.Ap
                     </div>
                 );
             }}
-            load={async () => {
-                // Find ApplicationSet by searching all namespaces dynamically
-                const appSetList = await services.applications.listApplicationSets();
-                const appSet = appSetList.items?.find(item => item.metadata.name === appSetRef.name && item.metadata.namespace === application.metadata.namespace);
-
-                return {appSet};
-            }}>
+            load={() => watchApplicationSet(appSetRef.name, application.metadata.namespace)}>
             {({appSet}: {appSet: models.ApplicationSet}) => {
                 // Hide panel if: Progressive Sync disabled, no permission, or not RollingSync strategy
                 if (!appSet || !appSet.status?.applicationStatus || appSet?.spec?.strategy?.type !== 'RollingSync') {
