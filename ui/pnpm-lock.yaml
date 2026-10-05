@@ -8,7 +8,7 @@ overrides:
   '@types/react': ^19.0.0
   '@types/react-dom': ^19.0.0
   rxjs: 7.8.2
-  dompurify: 3.4.7
+  dompurify: 3.4.13
 
 importers:
 
