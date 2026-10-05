@@ -79,11 +79,12 @@ export function visibleApps(rows: ProjectRow[]): models.AbstractApplication[] {
  */
 export function useResetSelectionOnIdentityChange(apps: models.AbstractApplication[], selectedApp: number, reset: () => void) {
     const previous = React.useRef({apps, selectedApp});
-    React.useEffect(() => {
+    // Layout effect: reset before paint so a key press cannot act on the stale index.
+    React.useLayoutEffect(() => {
         const prev = previous.current;
-        if (prev.apps !== apps && prev.selectedApp >= 0 && prev.selectedApp === selectedApp) {
-            const before = prev.apps[selectedApp];
-            const after = apps[selectedApp];
+        if (prev.apps !== apps && prev.selectedApp >= 0) {
+            const before = prev.apps[prev.selectedApp];
+            const after = apps[prev.selectedApp];
             if (!before || !after || appInstanceName(before) !== appInstanceName(after)) {
                 reset();
             }

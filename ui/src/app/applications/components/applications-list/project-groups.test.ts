@@ -74,6 +74,12 @@ describe('useResetSelectionOnIdentityChange', () => {
         expect(reset).not.toHaveBeenCalled();
     });
 
+    it('clears the selection when apps change in the same render as the selection', () => {
+        const {reset, hook} = run([app('a'), app('b'), app('c')], 1);
+        hook.rerender({apps: [app('a'), app('c')], sel: 2});
+        expect(reset).toHaveBeenCalledTimes(1);
+    });
+
     it('ignores the no-selection state', () => {
         const {reset, hook} = run([app('a')], -1);
         hook.rerender({apps: [app('b')], sel: -1});
