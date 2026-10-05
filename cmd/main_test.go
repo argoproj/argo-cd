@@ -105,39 +105,44 @@ func TestExitErrorHandlingWithPlugin(t *testing.T) {
 	pluginPath := getTestPluginsPath(t)
 
 	tests := []struct {
-		name             string
-		args             []string
-		cmdError         error
-		expectedExitCode int
-		expectedOutput   string
+		name                string
+		args                []string
+		cmdError            error
+		expectedExitCode    int
+		expectedOutput      string
+		expectedStderrRegex string
 	}{
 		{
-			name:             "plugin no error",
-			args:             []string{"argocd", "status-code-plugin", "--flag1", "value1"},
-			cmdError:         statusCodePluginCmdErr,
-			expectedExitCode: 0,
-			expectedOutput:   "Flag1 detected: value1\n",
+			name:                "plugin no error",
+			args:                []string{"argocd", "status-code-plugin", "--flag1", "value1"},
+			cmdError:            statusCodePluginCmdErr,
+			expectedExitCode:    0,
+			expectedOutput:      "Flag1 detected: value1\n",
+			expectedStderrRegex: emptyRegex,
 		},
 		{
-			name:             "plugin exit 1",
-			args:             []string{"argocd", "status-code-plugin", "--flag3", "value3"},
-			cmdError:         statusCodePluginCmdErr,
-			expectedExitCode: 1,
-			expectedOutput:   "Error: exit status 1\n",
+			name:                "plugin exit 1",
+			args:                []string{"argocd", "status-code-plugin", "--flag3", "value3"},
+			cmdError:            statusCodePluginCmdErr,
+			expectedExitCode:    1,
+			expectedOutput:      "Error: exit status 1\n",
+			expectedStderrRegex: "Unknown argument: --flag3\n",
 		},
 		{
-			name:             "plugin exit 127",
-			args:             []string{"argocd", "status-code-plugin", "invalid"},
-			cmdError:         statusCodePluginCmdErr,
-			expectedExitCode: 127,
-			expectedOutput:   "Error: exit status 127\n",
+			name:                "plugin exit 127",
+			args:                []string{"argocd", "status-code-plugin", "invalid"},
+			cmdError:            statusCodePluginCmdErr,
+			expectedExitCode:    127,
+			expectedOutput:      "Error: exit status 127\n",
+			expectedStderrRegex: "Plugin not found or invalid command\n",
 		},
 		{
-			name:             "plugin not found",
-			args:             []string{"argocd", "non-existent"},
-			cmdError:         unknownNoPluginErr,
-			expectedExitCode: 1,
-			expectedOutput:   fmt.Sprintf("Error: %v\nRun 'argocd --help' for usage.\n", unknownNoPluginErr),
+			name:                "plugin not found",
+			args:                []string{"argocd", "non-existent"},
+			cmdError:            unknownNoPluginErr,
+			expectedExitCode:    1,
+			expectedOutput:      fmt.Sprintf("Error: %v\nRun 'argocd --help' for usage.\n", unknownNoPluginErr),
+			expectedStderrRegex: ".*error looking for plugin 'argocd-non-existent'.*file not found.*",
 		},
 	}
 
@@ -157,10 +162,13 @@ func TestExitErrorHandlingWithPlugin(t *testing.T) {
 			cmd.Env = append(cmd.Env, "BE_CRASHER_PLUGIN=1")
 			var stdout bytes.Buffer
 			cmd.Stdout = &stdout
+			var stderr bytes.Buffer
+			cmd.Stderr = &stderr
 			execExitError := cmd.Run()
 
 			assertExitCode(t, test.expectedExitCode, execExitError)
 			assert.Equal(t, test.expectedOutput, stdout.String())
+			assert.Regexp(t, test.expectedStderrRegex, stderr.String(), "stderr expected to match regex: '%s' on stderr: '%s'", test.expectedStderrRegex, stderr.String())
 		})
 	}
 }
