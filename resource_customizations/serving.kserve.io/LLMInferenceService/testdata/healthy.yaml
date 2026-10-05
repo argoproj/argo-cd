@@ -1,0 +1,29 @@
+apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  name: llama-3-8b
+  namespace: kserve-test
+  generation: 1
+spec:
+  model:
+    uri: hf://meta-llama/Meta-Llama-3-8B-Instruct
+status:
+  observedGeneration: 1
+  url: http://llama-3-8b.kserve-test.example.com
+  conditions:
+  - type: MainWorkloadReady
+    status: "True"
+    lastTransitionTime: "2026-09-07T10:15:00Z"
+    severity: Info
+  - type: PresetsCombined
+    status: "True"
+    lastTransitionTime: "2026-09-07T10:14:30Z"
+  - type: Ready
+    status: "True"
+    lastTransitionTime: "2026-09-07T10:15:10Z"
+  - type: RouterReady
+    status: "True"
+    lastTransitionTime: "2026-09-07T10:15:05Z"
+  - type: WorkloadsReady
+    status: "True"
+    lastTransitionTime: "2026-09-07T10:15:00Z"
