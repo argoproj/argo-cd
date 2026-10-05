@@ -12,7 +12,7 @@ import (
 
 // runCmd executes cmd with args and returns cobra stdout, stderr plus the RunE error.
 // Cobra's automatic error and usage printing is silenced as in the CLI.
-// ExitError is returned as-is (main.go uses errors.Fatal and os.Exit) - tests should assert on the error value.
+// ExitError is returned as-is (main.go uses errors.Fatal and os.Exit to handle the message and exit code) - tests should assert on the error value.
 // Other errors are formatted like main.go (plugin handler) and appended to stderr buffer.
 func runCmd(t *testing.T, cmd *cobra.Command, args ...string) (stdout string, stderr string, e error) {
 	t.Helper()

@@ -6,7 +6,7 @@ import (
 
 // ExitError represents an error for the CLI, so it can exit with a specific exit code.
 // It contains an exit code and an optional error message.
-// The non-empty error message logged using errors.Fatal(exitCode, msg) in main.go
+// A non-empty error message is logged using errors.Fatal(exitCode, msg) in main.go
 type ExitError struct {
 	exitCode int
 	msg      string // optional

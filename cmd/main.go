@@ -92,7 +92,6 @@ func main() {
 			if e.Message() != "" {
 				argoerrors.Fatal(e.ExitCode(), e.Message())
 			}
-
 			os.Exit(e.ExitCode())
 		}
 
