@@ -1276,7 +1276,13 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	}
 	mux.Handle("/api/", handler)
 
-	terminalOpts := application.TerminalOptions{DisableAuth: server.DisableAuth, Enf: server.enf}
+	terminalOpts := application.TerminalOptions{
+		DisableAuth:           server.DisableAuth,
+		Enf:                   server.enf,
+		EnableSourceIPLogging: server.EnableSourceIPLogging,
+		TrustedProxies:        server.TrustedProxies,
+		ClientIPHeader:        server.ClientIPHeader,
+	}
 
 	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
 		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
