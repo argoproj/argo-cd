@@ -47,7 +47,12 @@ export const ApplicationSyncPanelBody = ({
                         resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
                         syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : [],
                         message: '',
-                        syncFlags: {Prune: application.spec.syncPolicy?.prune ?? true} as SyncFlags
+                        syncFlags: {
+                            Prune: application.spec.syncPolicy?.manualDefaults?.prune ?? true,
+                            DryRun: !!application.spec.syncPolicy?.manualDefaults?.dryRun,
+                            ApplyOnly: !!application.spec.syncPolicy?.manualDefaults?.applyOnly,
+                            Force: !!application.spec.syncPolicy?.manualDefaults?.force
+                        } as SyncFlags
                     }}
                     validateError={values => ({
                         resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource'

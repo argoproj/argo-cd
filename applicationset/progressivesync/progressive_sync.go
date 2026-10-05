@@ -1004,21 +1004,12 @@ func disableAutomatedSync(app *argov1alpha1.Application) {
 func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, desiredApplications []argov1alpha1.Application) []argov1alpha1.Application {
 	rolloutApps := []argov1alpha1.Application{}
 	for i := range desiredApplications {
-		// Manual/controller-driven syncs prune by default.
-		// syncPolicy.prune: false explicitly disables pruning.
+		// Progressive sync triggers controller-driven (non-automated) syncs, so prune follows
+		// syncPolicy.manualDefaults.prune only. automated.prune is independent and only applies to
+		// the application controller's automated sync path.
 		pruneEnabled := desiredApplications[i].Spec.SyncPolicy.GetPrune()
 
 		// ensure that Applications generated with RollingSync do not have an automated sync policy, since the AppSet controller will handle triggering the sync operation instead
-		if sp := desiredApplications[i].Spec.SyncPolicy; sp != nil {
-			// Preserve automated.prune intent for progressive syncs that disable auto-sync,
-			// and honor syncPolicy.prune for apps that want prune on manual/controller-driven syncs.
-			if sp.Automated != nil {
-				pruneEnabled = sp.Automated.GetPrune()
-			}
-			if sp.GetPrune() {
-				pruneEnabled = true
-			}
-		}
 		disableAutomatedSync(&desiredApplications[i])
 
 		appSetStatusPending := false

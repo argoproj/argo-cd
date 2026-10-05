@@ -2169,14 +2169,19 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		source = new(a.Spec.GetSource())
 	}
 
-	// Explicit prune in the sync request always wins. When omitted, fall back to
-	// syncPolicy.prune so manual syncs can prune by default without automated sync.
+	// Explicit values in the sync request always win. When omitted, fall back to
+	// syncPolicy.manualDefaults defaults for manual syncs.
 	prune := syncReq.GetPrune()
 	if syncReq.Prune == nil {
-		prune = true
-		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Prune != nil {
-			prune = *a.Spec.SyncPolicy.Prune
-		}
+		prune = a.Spec.SyncPolicy.GetPrune()
+	}
+	dryRun := syncReq.GetDryRun()
+	if syncReq.DryRun == nil {
+		dryRun = a.Spec.SyncPolicy.GetDryRun()
+	}
+	strategy := syncReq.Strategy
+	if strategy == nil {
+		strategy = a.Spec.SyncPolicy.GetSyncStrategy()
 	}
 
 	op := v1alpha1.Operation{
@@ -2184,9 +2189,9 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 			Source:       source,
 			Revision:     revision,
 			Prune:        prune,
-			DryRun:       syncReq.GetDryRun(),
+			DryRun:       dryRun,
 			SyncOptions:  syncOptions,
-			SyncStrategy: syncReq.Strategy,
+			SyncStrategy: strategy,
 			Resources:    resources,
 			Manifests:    syncReq.Manifests,
 			Sources:      a.Spec.Sources,

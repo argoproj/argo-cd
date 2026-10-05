@@ -4201,15 +4201,63 @@ func TestSyncPolicy_IsZero(t *testing.T) {
 	assert.False(t, (&SyncPolicy{Automated: &SyncPolicyAutomated{}}).IsZero())
 	assert.False(t, (&SyncPolicy{SyncOptions: SyncOptions{""}}).IsZero())
 	assert.False(t, (&SyncPolicy{Retry: &RetryStrategy{}}).IsZero())
-	assert.False(t, (&SyncPolicy{Prune: new(true)}).IsZero())
+	assert.False(t, (&SyncPolicy{ManualDefaults: &SyncPolicyManualDefaults{Prune: new(true)}}).IsZero())
 }
 
 func TestSyncPolicy_GetPrune(t *testing.T) {
 	var nilPolicy *SyncPolicy
-	assert.False(t, nilPolicy.GetPrune())
-	assert.False(t, (&SyncPolicy{}).GetPrune())
-	assert.False(t, (&SyncPolicy{Prune: new(false)}).GetPrune())
-	assert.True(t, (&SyncPolicy{Prune: new(true)}).GetPrune())
+	assert.True(t, nilPolicy.GetPrune())
+	assert.True(t, (&SyncPolicy{}).GetPrune())
+	assert.True(t, (&SyncPolicy{ManualDefaults: &SyncPolicyManualDefaults{}}).GetPrune())
+	assert.False(t, (&SyncPolicy{ManualDefaults: &SyncPolicyManualDefaults{Prune: new(false)}}).GetPrune())
+	assert.True(t, (&SyncPolicy{ManualDefaults: &SyncPolicyManualDefaults{Prune: new(true)}}).GetPrune())
+
+	// manualDefaults.prune is independent of automated.prune
+	assert.True(t, (&SyncPolicy{
+		Automated: &SyncPolicyAutomated{Prune: new(true)},
+	}).GetPrune())
+	assert.True(t, (&SyncPolicy{
+		Automated: &SyncPolicyAutomated{Prune: new(false)},
+		ManualDefaults: &SyncPolicyManualDefaults{Prune: new(true)},
+	}).GetPrune())
+	assert.False(t, (&SyncPolicy{
+		Automated: &SyncPolicyAutomated{Prune: new(true)},
+		ManualDefaults: &SyncPolicyManualDefaults{Prune: new(false)},
+	}).GetPrune())
+}
+
+func TestSyncPolicyManual_Defaults(t *testing.T) {
+	var nilManual *SyncPolicyManualDefaults
+	assert.True(t, nilManual.GetPrune())
+	assert.False(t, nilManual.GetDryRun())
+	assert.False(t, nilManual.GetApplyOnly())
+	assert.False(t, nilManual.GetForce())
+
+	m := &SyncPolicyManualDefaults{}
+	assert.True(t, m.GetPrune())
+	assert.False(t, m.GetDryRun())
+	assert.False(t, m.GetApplyOnly())
+	assert.False(t, m.GetForce())
+
+	strategy := m.SyncStrategy()
+	require.NotNil(t, strategy.Hook)
+	assert.Nil(t, strategy.Apply)
+	assert.False(t, strategy.Force())
+
+	m = &SyncPolicyManualDefaults{
+		Prune:     new(false),
+		DryRun:    new(true),
+		ApplyOnly: new(true),
+		Force:     new(true),
+	}
+	assert.False(t, m.GetPrune())
+	assert.True(t, m.GetDryRun())
+	assert.True(t, m.GetApplyOnly())
+	assert.True(t, m.GetForce())
+	strategy = m.SyncStrategy()
+	require.NotNil(t, strategy.Apply)
+	assert.Nil(t, strategy.Hook)
+	assert.True(t, strategy.Force())
 }
 
 func TestSyncOptions_HasOption(t *testing.T) {

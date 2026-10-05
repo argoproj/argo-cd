@@ -4830,6 +4830,34 @@ func (m *SyncPolicy) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SyncPolicy proto.InternalMessageInfo
 
+func (m *SyncPolicyManualDefaults) Reset()      { *m = SyncPolicyManualDefaults{} }
+func (*SyncPolicyManualDefaults) ProtoMessage() {}
+func (*SyncPolicyManualDefaults) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c078c3c476799f44, []int{171}
+}
+func (m *SyncPolicyManualDefaults) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *SyncPolicyManualDefaults) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	b = b[:cap(b)]
+	n, err := m.MarshalToSizedBuffer(b)
+	if err != nil {
+		return nil, err
+	}
+	return b[:n], nil
+}
+func (m *SyncPolicyManualDefaults) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SyncPolicyManualDefaults.Merge(m, src)
+}
+func (m *SyncPolicyManualDefaults) XXX_Size() int {
+	return m.Size()
+}
+func (m *SyncPolicyManualDefaults) XXX_DiscardUnknown() {
+	xxx_messageInfo_SyncPolicyManualDefaults.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SyncPolicyManualDefaults proto.InternalMessageInfo
+
 func (m *SyncPolicyAutomated) Reset()      { *m = SyncPolicyAutomated{} }
 func (*SyncPolicyAutomated) ProtoMessage() {}
 func (*SyncPolicyAutomated) Descriptor() ([]byte, []int) {
@@ -16890,15 +16918,17 @@ func (m *SyncPolicy) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if m.Prune != nil {
-		i--
-		if *m.Prune {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
+	if m.ManualDefaults != nil {
+		{
+			size, err := m.ManualDefaults.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintGenerated(dAtA, i, uint64(size))
 		}
 		i--
-		dAtA[i] = 0x28
+		dAtA[i] = 0x2a
 	}
 	if m.ManagedNamespaceMetadata != nil {
 		{
@@ -16944,6 +16974,69 @@ func (m *SyncPolicy) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		}
 		i--
 		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *SyncPolicyManualDefaults) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *SyncPolicyManualDefaults) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *SyncPolicyManualDefaults) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Force != nil {
+		i--
+		if *m.Force {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.ApplyOnly != nil {
+		i--
+		if *m.ApplyOnly {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.DryRun != nil {
+		i--
+		if *m.DryRun {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.Prune != nil {
+		i--
+		if *m.Prune {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x8
 	}
 	return len(dAtA) - i, nil
 }
@@ -21318,7 +21411,29 @@ func (m *SyncPolicy) Size() (n int) {
 		l = m.ManagedNamespaceMetadata.Size()
 		n += 1 + l + sovGenerated(uint64(l))
 	}
+	if m.ManualDefaults != nil {
+		l = m.ManualDefaults.Size()
+		n += 1 + l + sovGenerated(uint64(l))
+	}
+	return n
+}
+
+func (m *SyncPolicyManualDefaults) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
 	if m.Prune != nil {
+		n += 2
+	}
+	if m.DryRun != nil {
+		n += 2
+	}
+	if m.ApplyOnly != nil {
+		n += 2
+	}
+	if m.Force != nil {
 		n += 2
 	}
 	return n
@@ -24378,9 +24493,22 @@ func (this *SyncPolicy) String() string {
 	s := strings.Join([]string{`&SyncPolicy{`,
 		`Automated:` + strings.Replace(this.Automated.String(), "SyncPolicyAutomated", "SyncPolicyAutomated", 1) + `,`,
 		`SyncOptions:` + fmt.Sprintf("%v", this.SyncOptions) + `,`,
-		`Prune:` + valueToStringGenerated(this.Prune) + `,`,
 		`Retry:` + strings.Replace(this.Retry.String(), "RetryStrategy", "RetryStrategy", 1) + `,`,
 		`ManagedNamespaceMetadata:` + strings.Replace(this.ManagedNamespaceMetadata.String(), "ManagedNamespaceMetadata", "ManagedNamespaceMetadata", 1) + `,`,
+		`ManualDefaults:` + strings.Replace(this.ManualDefaults.String(), "SyncPolicyManualDefaults", "SyncPolicyManualDefaults", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *SyncPolicyManualDefaults) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&SyncPolicyManualDefaults{`,
+		`Prune:` + valueToStringGenerated(this.Prune) + `,`,
+		`DryRun:` + valueToStringGenerated(this.DryRun) + `,`,
+		`ApplyOnly:` + valueToStringGenerated(this.ApplyOnly) + `,`,
+		`Force:` + valueToStringGenerated(this.Force) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -60115,6 +60243,92 @@ func (m *SyncPolicy) Unmarshal(dAtA []byte) error {
 			}
 			iNdEx = postIndex
 		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ManualDefaults", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.ManualDefaults == nil {
+				m.ManualDefaults = &SyncPolicyManualDefaults{}
+			}
+			if err := m.ManualDefaults.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipGenerated(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *SyncPolicyManualDefaults) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowGenerated
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: SyncPolicyManualDefaults: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: SyncPolicyManualDefaults: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Prune", wireType)
 			}
@@ -60135,6 +60349,69 @@ func (m *SyncPolicy) Unmarshal(dAtA []byte) error {
 			}
 			b := bool(v != 0)
 			m.Prune = &b
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DryRun", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.DryRun = &b
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ApplyOnly", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.ApplyOnly = &b
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Force", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			b := bool(v != 0)
+			m.Force = &b
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])

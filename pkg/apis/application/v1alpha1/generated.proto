@@ -2895,8 +2895,23 @@ message SyncPolicy {
   // ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
   optional ManagedNamespaceMetadata managedNamespaceMetadata = 4;
 
-  // Prune specifies whether manual syncs should prune resources by default.
-  optional bool prune = 5;
+  // ManualDefaults controls the default behavior of a manual sync
+  optional SyncPolicyManualDefaults manualDefaults = 5;
+}
+
+// SyncPolicyManualDefaults controls the behavior of a manual sync
+message SyncPolicyManualDefaults {
+  // Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of manual sync (default: true)
+  optional bool prune = 1;
+
+  // DryRun specifies whether manual syncs should be performed as a dry run by default (default: false)
+  optional bool dryRun = 2;
+
+  // ApplyOnly specifies whether manual syncs should use apply-only strategy by default (default: false)
+  optional bool applyOnly = 3;
+
+  // Force specifies whether manual syncs should supply --force to kubectl by default (default: false)
+  optional bool force = 4;
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync

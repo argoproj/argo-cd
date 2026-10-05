@@ -630,13 +630,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         }
     }
 
-    async function setManualSyncPrune(ctx: ContextApis, prune: boolean) {
-        const confirmed = await ctx.popup.confirm(
-            prune ? 'Enable Prune on Manual Sync?' : 'Disable Prune on Manual Sync?',
-            prune
-                ? 'Are you sure you want manual syncs to prune resources by default?'
-                : 'Are you sure you want to disable pruning by default on manual syncs?'
-        );
+    async function setManualSyncDefaults(ctx: ContextApis, patch: Partial<models.ManualDefaults>, title: string, text: string) {
+        const confirmed = await ctx.popup.confirm(title, text);
         if (confirmed) {
             try {
                 setChangeSync(true);
@@ -644,11 +639,14 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 if (!updatedApp.spec.syncPolicy) {
                     updatedApp.spec.syncPolicy = {};
                 }
-                updatedApp.spec.syncPolicy.prune = prune || null;
+                updatedApp.spec.syncPolicy.manualDefaults = {
+                    ...(updatedApp.spec.syncPolicy.manualDefaults || {}),
+                    ...patch
+                };
                 await updateApp(updatedApp, {validate: false});
             } catch (e) {
                 ctx.notifications.show({
-                    content: <ErrorNotification title='Unable to update prune on manual sync' e={e} />,
+                    content: <ErrorNotification title='Unable to update manual sync defaults' e={e} />,
                     type: NotificationType.Error
                 });
             } finally {
@@ -786,14 +784,87 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                 <div className='columns small-12'>
                                     <div className='checkbox-container'>
                                         <Checkbox
-    onChange={async (prune: boolean) => {
-        await setManualSyncPrune(ctx, prune);
-    }}
-    checked={app.spec.syncPolicy?.prune ?? true}
-    id='prune-on-manual-sync'
-/>
+                                            onChange={async (prune: boolean) => {
+                                                await setManualSyncDefaults(
+                                                    ctx,
+                                                    {prune},
+                                                    prune ? 'Enable Prune on Manual Sync?' : 'Disable Prune on Manual Sync?',
+                                                    prune
+                                                        ? 'Are you sure you want manual syncs to prune resources by default?'
+                                                        : 'Are you sure you want to disable pruning by default on manual syncs?'
+                                                );
+                                            }}
+                                            checked={app.spec.syncPolicy?.manualDefaults?.prune ?? true}
+                                            id='prune-on-manual-sync'
+                                        />
                                         <label htmlFor='prune-on-manual-sync'>PRUNE ON MANUAL SYNC</label>
-                                        <HelpIcon title='If checked, manual syncs prune resources by default without requiring the Prune option each time' />
+                                        <HelpIcon title='Default prune for manual syncs (default: true). Independent of automated prune.' />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-12'>
+                                    <div className='checkbox-container'>
+                                        <Checkbox
+                                            onChange={async (dryRun: boolean) => {
+                                                await setManualSyncDefaults(
+                                                    ctx,
+                                                    {dryRun},
+                                                    dryRun ? 'Enable Dry Run on Manual Sync?' : 'Disable Dry Run on Manual Sync?',
+                                                    dryRun
+                                                        ? 'Are you sure you want manual syncs to dry-run by default?'
+                                                        : 'Are you sure you want to disable dry-run by default on manual syncs?'
+                                                );
+                                            }}
+                                            checked={!!app.spec.syncPolicy?.manualDefaults?.dryRun}
+                                            id='dry-run-on-manual-sync'
+                                        />
+                                        <label htmlFor='dry-run-on-manual-sync'>DRY RUN ON MANUAL SYNC</label>
+                                        <HelpIcon title='Default dry-run for manual syncs (default: false)' />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-12'>
+                                    <div className='checkbox-container'>
+                                        <Checkbox
+                                            onChange={async (applyOnly: boolean) => {
+                                                await setManualSyncDefaults(
+                                                    ctx,
+                                                    {applyOnly},
+                                                    applyOnly ? 'Enable Apply Only on Manual Sync?' : 'Disable Apply Only on Manual Sync?',
+                                                    applyOnly
+                                                        ? 'Are you sure you want manual syncs to use apply-only by default?'
+                                                        : 'Are you sure you want to disable apply-only by default on manual syncs?'
+                                                );
+                                            }}
+                                            checked={!!app.spec.syncPolicy?.manualDefaults?.applyOnly}
+                                            id='apply-only-on-manual-sync'
+                                        />
+                                        <label htmlFor='apply-only-on-manual-sync'>APPLY ONLY ON MANUAL SYNC</label>
+                                        <HelpIcon title='Default apply-only strategy for manual syncs (default: false)' />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-12'>
+                                    <div className='checkbox-container'>
+                                        <Checkbox
+                                            onChange={async (force: boolean) => {
+                                                await setManualSyncDefaults(
+                                                    ctx,
+                                                    {force},
+                                                    force ? 'Enable Force on Manual Sync?' : 'Disable Force on Manual Sync?',
+                                                    force
+                                                        ? 'Are you sure you want manual syncs to force by default?'
+                                                        : 'Are you sure you want to disable force by default on manual syncs?'
+                                                );
+                                            }}
+                                            checked={!!app.spec.syncPolicy?.manualDefaults?.force}
+                                            id='force-on-manual-sync'
+                                        />
+                                        <label htmlFor='force-on-manual-sync'>FORCE ON MANUAL SYNC</label>
+                                        <HelpIcon title='Default force for manual syncs (default: false)' />
                                     </div>
                                 </div>
                             </div>
