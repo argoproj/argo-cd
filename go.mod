@@ -44,7 +44,7 @@ require (
 	// go-git/go-git#1551 (SSH "knownhosts: key mismatch" regression from PR
 	// #1515) is mitigated in util/git by populating HostKeyAlgorithms via
 	// skeema/knownhosts. Keep that fix in place when bumping further.
-	github.com/go-git/go-git/v5 v5.19.1
+	github.com/go-git/go-git/v5 v5.19.2
 	github.com/go-jose/go-jose/v4 v4.1.5
 	github.com/go-logr/logr v1.4.4
 	github.com/go-openapi/loads v0.25.3
