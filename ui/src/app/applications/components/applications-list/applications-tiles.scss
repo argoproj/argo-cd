@@ -56,7 +56,12 @@
 
     > .project-group-heading {
         grid-column: 1 / -1;
-        margin-bottom: -12px;
+
+        // Tighten the gap to the tiles below, but not when the heading ends the list (collapsed last
+        // project), where the negative margin would pull the paginator over it.
+        &:not(:last-child) {
+            margin-bottom: -12px;
+        }
     }
 
     &__wrapper {

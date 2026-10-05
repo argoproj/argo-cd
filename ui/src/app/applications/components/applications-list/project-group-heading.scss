@@ -33,9 +33,17 @@
     }
 
     &__count {
+        flex-shrink: 0;
+        min-width: 1.75em;
+        padding: 0 8px;
+        border-radius: 10px;
+        font-size: 12px;
         font-weight: normal;
+        line-height: 20px;
+        text-align: center;
         @include themify($themes) {
-            color: themed('text-2');
+            color: themed('text-1');
+            background-color: themed('background-1');
         }
     }
 }
