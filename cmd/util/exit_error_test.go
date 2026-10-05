@@ -40,28 +40,28 @@ func TestExitError(t *testing.T) {
 			err:              util.NewExitError(1, "test error"),
 			expectedExitCode: 1,
 			expectedMessage:  "test error",
-			expectedError:    "exit error with code 1: test error",
+			expectedError:    "exit error with code 1 and message 'test error'",
 		},
 		{
 			name:             "code 1 with empty message",
 			err:              util.NewExitError(1, ""),
 			expectedExitCode: 1,
 			expectedMessage:  "",
-			expectedError:    "exit error with code 1: ",
+			expectedError:    "exit error with code 1 and message ''",
 		},
 		{
 			name:             "code 20 with empty message",
 			err:              util.NewExitError(20, ""),
 			expectedExitCode: 20,
 			expectedMessage:  "",
-			expectedError:    "exit error with code 20: ",
+			expectedError:    "exit error with code 20 and message ''",
 		},
 		{
 			name:             "code 20 with message",
 			err:              util.NewExitError(20, "test error"),
 			expectedExitCode: 20,
 			expectedMessage:  "test error",
-			expectedError:    "exit error with code 20: test error",
+			expectedError:    "exit error with code 20 and message 'test error'",
 		},
 	}
 

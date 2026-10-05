@@ -203,28 +203,28 @@ func TestExitErrorHandlingNotIsArgocdCLI(t *testing.T) {
 			cmdError:            util.NewExitError(1, ""),
 			expectedExitCode:    1,
 			expectedOutput:      "",
-			expectedStderrRegex: `(?s)Error: exit error with code 1: \nUsage:`,
+			expectedStderrRegex: `(?s)Error: exit error with code 1 and message ''\nUsage:`,
 		},
 		{
 			name:                "exit error 1 with message",
 			cmdError:            util.NewExitError(1, "test error"),
 			expectedExitCode:    1,
 			expectedOutput:      "",
-			expectedStderrRegex: `(?s)Error: exit error with code 1: test error\nUsage:.*fatal.*test error.*`,
+			expectedStderrRegex: `(?s)Error: exit error with code 1 and message 'test error'\nUsage:.*fatal.*test error.*`,
 		},
 		{
 			name:                "exit error 42 without message",
 			cmdError:            util.NewExitError(42, ""),
 			expectedExitCode:    42,
 			expectedOutput:      "",
-			expectedStderrRegex: `(?s)Error: exit error with code 42: \nUsage:`,
+			expectedStderrRegex: `(?s)Error: exit error with code 42 and message ''\nUsage:`,
 		},
 		{
 			name:                "exit error 42 with message",
 			cmdError:            util.NewExitError(42, "test error"),
 			expectedExitCode:    42,
 			expectedOutput:      "",
-			expectedStderrRegex: `(?s)Error: exit error with code 42: test error\nUsage:.*fatal.*test error.*`,
+			expectedStderrRegex: `(?s)Error: exit error with code 42 and message 'test error'\nUsage:.*fatal.*test error.*`,
 		},
 	}
 

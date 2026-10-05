@@ -30,7 +30,7 @@ func (e *ExitError) Error() string {
 	if e == nil {
 		return ""
 	}
-	return fmt.Sprintf("exit error with code %d: %v", e.exitCode, e.msg)
+	return fmt.Sprintf("exit error with code %d and message '%v'", e.exitCode, e.msg)
 }
 
 // NewExitError creates a new ExitError with the given exit code and optional message.
