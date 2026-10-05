@@ -28,6 +28,16 @@ export const AppearanceList = () => {
                                             {value: 'dark', title: 'Dark'}
                                         ]}></Select>
                                 </div>
+                                <div className='row'>
+                                    <span>Group by projects</span>
+                                    <Select
+                                        value={pref.groupAppsByProject ? 'yes' : 'no'}
+                                        onChange={(value: SelectOption) => services.viewPreferences.updatePreferences({groupAppsByProject: value.value === 'yes'})}
+                                        options={[
+                                            {value: 'yes', title: 'Yes'},
+                                            {value: 'no', title: 'No'}
+                                        ]}></Select>
+                                </div>
                             </div>
                         </div>
                     </div>
