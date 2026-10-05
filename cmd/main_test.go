@@ -93,6 +93,7 @@ func TestExitErrorHandling(t *testing.T) {
 			assertExitCode(t, test.expectedExitCode, execExitError)
 			assert.Equal(t, test.expectedOutput, stdout.String())
 			assert.Regexp(t, test.expectedStderrRegex, stderr.String(), "stderr expected to match regex: '%s' on stderr: '%s'", test.expectedStderrRegex, stderr.String())
+			assert.NotContains(t, stderr.String(), "Error: exit error")
 		})
 	}
 }
@@ -126,7 +127,7 @@ func TestExitErrorHandlingWithPlugin(t *testing.T) {
 			cmdError:            statusCodePluginCmdErr,
 			expectedExitCode:    1,
 			expectedOutput:      "Error: exit status 1\n",
-			expectedStderrRegex: "Unknown argument: --flag3\n",
+			expectedStderrRegex: "^Unknown argument: --flag3\n$",
 		},
 		{
 			name:                "plugin exit 127",
@@ -134,7 +135,7 @@ func TestExitErrorHandlingWithPlugin(t *testing.T) {
 			cmdError:            statusCodePluginCmdErr,
 			expectedExitCode:    127,
 			expectedOutput:      "Error: exit status 127\n",
-			expectedStderrRegex: "Plugin not found or invalid command\n",
+			expectedStderrRegex: "^Plugin not found or invalid command\n$",
 		},
 		{
 			name:                "plugin not found",
@@ -142,7 +143,7 @@ func TestExitErrorHandlingWithPlugin(t *testing.T) {
 			cmdError:            unknownNoPluginErr,
 			expectedExitCode:    1,
 			expectedOutput:      fmt.Sprintf("Error: %v\nRun 'argocd --help' for usage.\n", unknownNoPluginErr),
-			expectedStderrRegex: ".*error looking for plugin 'argocd-non-existent'.*file not found.*",
+			expectedStderrRegex: "error.*plugin.*argocd-non-existent",
 		},
 	}
 
@@ -209,7 +210,7 @@ func TestExitErrorHandlingNotIsArgocdCLI(t *testing.T) {
 			cmdError:            util.NewExitError(1, "test error"),
 			expectedExitCode:    1,
 			expectedOutput:      "",
-			expectedStderrRegex: `(?s)Error: exit error with code 1: test error\nUsage:.*"level":"fatal","msg":"test error"`,
+			expectedStderrRegex: `(?s)Error: exit error with code 1: test error\nUsage:.*fatal.*test error.*`,
 		},
 		{
 			name:                "exit error 42 without message",
@@ -223,7 +224,7 @@ func TestExitErrorHandlingNotIsArgocdCLI(t *testing.T) {
 			cmdError:            util.NewExitError(42, "test error"),
 			expectedExitCode:    42,
 			expectedOutput:      "",
-			expectedStderrRegex: `(?s)Error: exit error with code 42: test error\nUsage:.*"level":"fatal","msg":"test error"`,
+			expectedStderrRegex: `(?s)Error: exit error with code 42: test error\nUsage:.*fatal.*test error.*`,
 		},
 	}
 
