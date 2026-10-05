@@ -14,6 +14,11 @@ import (
 
 // DoHttpRequest executes a http request against the Argo CD API server
 func DoHttpRequest(method string, path string, host string, data ...byte) (*http.Response, error) { //nolint:revive //FIXME(var-naming)
+	return DoHttpRequestWithHeaders(method, path, host, nil, data...)
+}
+
+// DoHttpRequestWithHeaders executes an HTTP request against the Argo CD API server with additional headers.
+func DoHttpRequestWithHeaders(method string, path string, host string, headers map[string]string, data ...byte) (*http.Response, error) { //nolint:revive //FIXME(var-naming)
 	reqURL, err := url.Parse(path)
 	if err != nil {
 		return nil, err
@@ -34,6 +39,9 @@ func DoHttpRequest(method string, path string, host string, data ...byte) (*http
 	}
 	req.AddCookie(&http.Cookie{Name: common.AuthCookieName, Value: token})
 	req.Header.Set("Content-Type", "application/json")
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
 
 	httpClient := &http.Client{
 		Transport: &http.Transport{
