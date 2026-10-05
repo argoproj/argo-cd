@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -85,12 +87,23 @@ func main() {
 	// such as if the error is from the execution of a normal argocd command,
 	// unknown command error or any other.
 	if err != nil {
-		errMsg, err := cli.NewDefaultPluginHandler().HandleCommandExecutionError(err, isArgocdCLI, os.Args)
-		if err != nil {
-			if errMsg != "" {
-				os.Stdout.WriteString(errMsg + "\n")
+		if e, ok := errors.AsType[*util.ExitError](err); ok {
+			if util.CLIMessageForError(e) != "" {
+				os.Stdout.WriteString(util.CLIMessageForError(e) + "\n")
 			}
-			os.Exit(util.ExitCodeForError(err))
+
+			os.Exit(util.ExitCodeForError(e))
+		}
+
+		errMsg, pluginErr := cli.NewDefaultPluginHandler().HandleCommandExecutionError(err, isArgocdCLI, os.Args)
+		if pluginErr != nil {
+			os.Stdout.WriteString(errMsg)
+			if exitErr, ok := errors.AsType[*exec.ExitError](pluginErr); ok {
+				// Return the actual plugin exit code
+				os.Exit(exitErr.ExitCode())
+			}
+			// Fallback to exit code 1 if the error isn't an exec.ExitError
+			os.Exit(1)
 		}
 	}
 }
