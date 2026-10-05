@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -284,6 +285,18 @@ func loginAs(username, password string) error {
 			return err
 		case <-time.After(500 * time.Millisecond):
 		}
+	}
+}
+
+func removeAllRetrying(path string) error {
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		err := os.RemoveAll(path)
+		if !stderrors.Is(err, syscall.ENOTEMPTY) || time.Now().After(deadline) {
+			return err
+		}
+		log.Warnf("%s is still being written to, retrying removal: %v", path, err)
+		time.Sleep(200 * time.Millisecond)
 	}
 }
 
@@ -933,7 +946,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 				return err
 			}
 			for _, entry := range entries {
-				err := os.RemoveAll(filepath.Join(tmpDir, entry.Name()))
+				err := removeAllRetrying(filepath.Join(tmpDir, entry.Name()))
 				if err != nil {
 					return err
 				}
