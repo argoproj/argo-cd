@@ -590,6 +590,9 @@ func oauth2LoginNoBrowser(
 	if tokenURL == "" {
 		tokenURL = oidcSettings.GetTokenURL()
 	}
+	if deviceURL == "" || tokenURL == "" {
+		log.Fatal("OIDC provider does not advertise a device authorization or token endpoint; configure deviceURL/tokenURL in oidc.config")
+	}
 
 	deviceResp, err := requestDeviceCode(ctx, httpClient, deviceURL, oauth2conf.ClientID, strings.Join(oauth2conf.Scopes, " "))
 	if err != nil {

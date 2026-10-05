@@ -66,9 +66,9 @@ browser, approve the request, and the CLI stores the token automatically.
 
 **Dex configuration (`util/dex/config.go`)**
 
-The `argo-cd-cli` static client in Dex is updated to include:
-- `grantTypes: [authorization_code, urn:ietf:params:oauth:grant-type:device_code]`
-- `/device/callback` added to `redirectURIs` (required by Dex internally during the device flow).
+The Dex configuration is updated as follows:
+- The `argo-cd-cli` static client's `redirectURIs` now includes `/device/callback` (required by Dex internally during the device flow).
+- If the operator has explicitly configured `oauth2.grantTypes`, the device code grant (`urn:ietf:params:oauth:grant-type:device_code`) is appended to ensure Dex accepts device code requests.
 
 ### Security Considerations
 
