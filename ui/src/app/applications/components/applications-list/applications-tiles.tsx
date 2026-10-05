@@ -13,6 +13,9 @@ import {isApp} from '../utils';
 import {services} from '../../../shared/services';
 import {ApplicationTile} from './application-tile';
 import {AppSetTile} from './appset-tile';
+import {VirtualizedGroupedTiles} from './applications-tiles-grouped';
+import {ProjectGroupHeading} from './project-group-heading';
+import {buildProjectRows, ProjectGrouping, visibleApps} from './project-groups';
 import {
     appsLayoutKey,
     bidirectionalOverscanIndicesGetter,
@@ -38,6 +41,7 @@ export interface ApplicationTilesProps {
     deleteApplication: (appName: string, appNamespace: string) => any;
     useVirtualScrolling?: boolean;
     statusBarVisible?: boolean;
+    grouping?: ProjectGrouping;
 }
 
 const useItemsPerContainer = (itemRef: React.RefObject<HTMLDivElement | null>, containerRef: React.RefObject<HTMLElement | null>, enabled: boolean = true): number => {
@@ -143,8 +147,18 @@ export const VirtualizedTilesGrid = ({
     </WindowScroller>
 );
 
-export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication, useVirtualScrolling, statusBarVisible}: ApplicationTilesProps) => {
-    const [selectedApp, navApp, reset] = useNav(applications.length);
+export const ApplicationTiles = ({
+    applications,
+    syncApplication,
+    refreshApplication,
+    deleteApplication,
+    useVirtualScrolling,
+    statusBarVisible,
+    grouping
+}: ApplicationTilesProps) => {
+    const rows = React.useMemo(() => buildProjectRows(applications, grouping), [applications, grouping]);
+    const apps = React.useMemo(() => visibleApps(rows), [rows]);
+    const [selectedApp, navApp, reset] = useNav(apps.length);
 
     const ctxh = React.useContext(Context);
     const firstTileRef = React.useRef<HTMLDivElement>(null);
@@ -187,7 +201,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         keys: Key.ENTER,
         action: () => {
             if (selectedApp > -1) {
-                ctxh.navigation.goto(`/${AppUtils.getAppUrl(applications[selectedApp])}`);
+                ctxh.navigation.goto(`/${AppUtils.getAppUrl(apps[selectedApp])}`);
                 return true;
             }
             return false;
@@ -221,10 +235,10 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
     });
 
     React.useEffect(() => {
-        if (selectedApp >= applications.length) {
+        if (selectedApp >= apps.length) {
             reset();
         }
-    }, [selectedApp, applications.length, reset]);
+    }, [selectedApp, apps.length, reset]);
 
     React.useEffect(() => {
         if (selectedApp < 0 || !shouldVirtualize || !gridRef.current) {
@@ -283,6 +297,20 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                 />
                             );
 
+                        if (shouldVirtualize && grouping) {
+                            return (
+                                <div className='applications-tiles applications-tiles--virtualized argo-table-list argo-table-list--clickable'>
+                                    <VirtualizedGroupedTiles
+                                        rows={rows}
+                                        selectedApp={selectedApp}
+                                        layoutKey={`${layoutKey}:${rows.length}:${!!statusBarVisible}`}
+                                        renderTile={renderTile}
+                                        onToggle={grouping.onToggle}
+                                    />
+                                </div>
+                            );
+                        }
+
                         if (shouldVirtualize) {
                             return (
                                 <div className='applications-tiles applications-tiles--virtualized argo-table-list argo-table-list--clickable'>
@@ -301,7 +329,19 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
 
                         return (
                             <div className='applications-tiles argo-table-list argo-table-list--clickable' ref={appContainerRef}>
-                                {applications.map((app, i) => renderTile(app, i, i === 0 ? firstTileRef : undefined))}
+                                {rows.map(row =>
+                                    row.kind === 'heading' ? (
+                                        <ProjectGroupHeading
+                                            key={`project-${row.project}`}
+                                            project={row.project}
+                                            count={row.count}
+                                            collapsed={row.collapsed}
+                                            onToggle={() => grouping.onToggle(row.project)}
+                                        />
+                                    ) : (
+                                        renderTile(row.app, row.index, row.index === 0 ? firstTileRef : undefined)
+                                    )
+                                )}
                             </div>
                         );
                     }}
