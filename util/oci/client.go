@@ -349,6 +349,10 @@ func (c *nativeOCIClient) CleanCache(revision string) error {
 	if err != nil {
 		return fmt.Errorf("error cleaning oci path for revision %s: %w", revision, err)
 	}
+	// ORAS reopens this archive for each blob during extraction.
+	c.repoLock.Lock(cachePath)
+	defer c.repoLock.Unlock(cachePath)
+
 	return os.RemoveAll(cachePath)
 }
 
