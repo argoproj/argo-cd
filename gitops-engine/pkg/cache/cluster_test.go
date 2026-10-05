@@ -19,6 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -2078,6 +2079,21 @@ func TestStartMissingWatches_LazyInitsApisMetaAfterInvalidate(t *testing.T) {
 
 	require.NotPanics(t, func() { require.NoError(t, cluster.startMissingWatches()) })
 	assert.NotEmpty(t, cluster.apisMeta)
+}
+
+// Regression: stopWatching left the GroupKind in namespacedResources.
+func TestStopWatching_RemovesNamespacedResourcesEntry(t *testing.T) {
+	pod := testPod1()
+	gk := pod.GroupVersionKind().GroupKind()
+	cluster := newCluster(t, pod)
+	require.NoError(t, cluster.EnsureSynced())
+	_, err := cluster.IsNamespaced(gk)
+	require.NoError(t, err)
+
+	cluster.stopWatching(gk, pod.Namespace)
+
+	_, err = cluster.IsNamespaced(gk)
+	assert.True(t, apierrors.IsNotFound(err), "got %v", err)
 }
 
 func buildTestResourceMap() map[kube.ResourceKey]*Resource {
