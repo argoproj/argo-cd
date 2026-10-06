@@ -99,5 +99,5 @@ extensions:
 		assert.Equal(c, http.StatusOK, resp.StatusCode)
 	}, 30*time.Second, time.Second)
 
-	assert.Greater(t, backendHits.Load(), int32(0), "backend should be reached once namespaced Application get is granted")
+	assert.Positive(t, backendHits.Load(), "backend should be reached once namespaced Application get is granted")
 }
