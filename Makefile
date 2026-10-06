@@ -409,9 +409,15 @@ lint: test-tools-image
 
 # Run linter on the code (local version)
 .PHONY: lint-local
-lint-local:
+lint-local: actionlint-local
 	golangci-lint --version
 	golangci-lint run --fix --verbose
+
+# Run actionlint on the GitHub Actions workflows (local version)
+.PHONY: actionlint-local
+actionlint-local:
+	actionlint --version
+	actionlint
 
 .PHONY: lint-ui
 lint-ui: test-tools-image
@@ -657,6 +663,7 @@ install-codegen-tools-local:
 install-go-tools-local:
 	./hack/install.sh codegen-go-tools
 	./hack/install.sh lint-tools
+	./hack/install.sh actionlint
 
 .PHONY: dep-ui
 dep-ui: test-tools-image
