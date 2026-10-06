@@ -3,6 +3,7 @@ package sync
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -1177,13 +1178,21 @@ func (sc *syncContext) getSyncTasks(ctx context.Context) (_ syncTasks, successfu
 		result, ok := sc.syncRes[task.resultKey()]
 		if !ok && task.isHook() && task.phase == common.SyncPhaseSync {
 			// Older engines could overwrite a prune result with an applied hook's
-			// state, leaving HookType empty. Recover it only without a regular apply
-			// task, and never from a Pruned or PruneSkipped result.
+			// state, leaving HookType empty. Require a live Sync hook as evidence;
+			// a saved ordinary apply alone must not suppress hook creation.
 			legacyKey := resourceResultKey(kubeutil.GetResourceKey(task.obj()), task.phase, "")
 			result, ok = sc.syncRes[legacyKey]
-			ok = ok && result.Status == common.ResultCodeSynced && !resourceTasks.Any(func(resourceTask *syncTask) bool {
-				return !resourceTask.isPrune() && resourceTask.resultKey() == legacyKey
-			})
+			ok = ok && result.Status == common.ResultCodeSynced &&
+				task.liveObj != nil && slices.Contains(hook.Types(task.liveObj), common.HookTypeSync) &&
+				!resourceTasks.Any(func(resourceTask *syncTask) bool {
+					return !resourceTask.isPrune() && resourceTask.resultKey() == legacyKey
+				})
+			if ok {
+				// Move the result so health updates cannot leave a stale legacy entry.
+				result.HookType = task.hookType()
+				delete(sc.syncRes, legacyKey)
+				sc.syncRes[task.resultKey()] = result
+			}
 		}
 		if ok {
 			task.syncStatus = result.Status

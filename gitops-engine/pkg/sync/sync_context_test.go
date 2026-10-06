@@ -3376,3 +3376,363 @@ func TestTerminate_Hooks_Error(t *testing.T) {
 	assert.Equal(t, synccommon.OperationError, results[0].HookPhase)
 	assert.Contains(t, results[0].Message, "update failed")
 }
+
+func TestSync_TrackedResourceConvertedToSameNameHook(t *testing.T) {
+	for _, hookType := range []synccommon.HookType{synccommon.HookTypeSync, synccommon.HookTypePostSync} {
+		for _, resume := range []bool{false, true} {
+			name := string(hookType)
+			if resume {
+				name += "/resumed"
+			}
+			t.Run(name, func(t *testing.T) {
+				live := testingutils.NewPod()
+				live.SetNamespace(testingutils.FakeArgoCDNamespace)
+				hookObj := newHook(live.GetName(), hookType, synccommon.HookDeletePolicyBeforeHookCreation)
+				require.NoError(t, unstructured.SetNestedField(hookObj.Object, "Never", "spec", "restartPolicy"))
+				client := fake.NewSimpleDynamicClient(runtime.NewScheme(), live)
+				syncCtx := newTestSyncCtx(nil, WithPrune(true))
+				syncCtx.resources = groupResources(ReconciliationResult{
+					Live:   []*unstructured.Unstructured{live},
+					Target: []*unstructured.Unstructured{nil},
+				})
+				syncCtx.hooks = []*unstructured.Unstructured{hookObj}
+				syncCtx.dynamicIf = client
+
+				// Prune the tracked object and delete it before creating the hook.
+				syncCtx.Sync(t.Context())
+				phase, message, results := syncCtx.GetState()
+				require.Equal(t, synccommon.OperationRunning, phase, message)
+				require.Len(t, results, 1)
+				assert.Equal(t, synccommon.ResultCodePruned, results[0].Status)
+				assert.Empty(t, results[0].HookType)
+				if resume {
+					syncCtx = newTestSyncCtx(nil, WithPrune(true), WithInitialState(phase, message, results, metav1.NewTime(syncCtx.startedAt)))
+					syncCtx.hooks = []*unstructured.Unstructured{hookObj}
+					syncCtx.dynamicIf = client
+				}
+
+				// The next reconciliation no longer sees the old resource.
+				syncCtx.resources = map[kube.ResourceKey]reconciledResource{}
+				syncCtx.Sync(t.Context())
+				resourceOps := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+				require.Equal(t, "apply", resourceOps.GetLastResourceCommand(kube.GetResourceKey(hookObj)), "the hook must be applied in the same operation")
+				phase, message, results = syncCtx.GetState()
+				require.Equal(t, synccommon.OperationRunning, phase, message)
+				require.Len(t, results, 2)
+				assert.Equal(t, synccommon.ResultCodePruned, results[0].Status)
+				assert.Empty(t, results[0].HookType)
+				assert.Equal(t, synccommon.ResultCodeSynced, results[1].Status)
+				assert.Equal(t, hookType, results[1].HookType)
+				assert.Equal(t, synccommon.OperationRunning, results[1].HookPhase)
+
+				// Restore both saved results while the newly created hook is running.
+				if resume {
+					syncCtx = newTestSyncCtx(nil, WithPrune(true), WithInitialState(phase, message, results, metav1.NewTime(syncCtx.startedAt)))
+					syncCtx.hooks = []*unstructured.Unstructured{hookObj}
+					syncCtx.dynamicIf = client
+				}
+				liveHook := hookObj.DeepCopy()
+				require.NoError(t, unstructured.SetNestedField(liveHook.Object, "Running", "status", "phase"))
+				syncCtx.resources = groupResources(ReconciliationResult{
+					Live:   []*unstructured.Unstructured{liveHook},
+					Target: []*unstructured.Unstructured{nil},
+				})
+				syncCtx.dynamicIf = fake.NewSimpleDynamicClient(runtime.NewScheme(), liveHook)
+				syncCtx.Sync(t.Context())
+				phase, message, _ = syncCtx.GetState()
+				assert.Equal(t, synccommon.OperationRunning, phase, message)
+				if resume {
+					resourceOps = syncCtx.resourceOps.(*kubetest.MockResourceOps)
+					assert.Empty(t, resourceOps.GetLastResourceCommand(kube.GetResourceKey(hookObj)), "a restored running hook must not be applied again")
+				}
+
+				require.NoError(t, unstructured.SetNestedField(liveHook.Object, "Succeeded", "status", "phase"))
+				syncCtx.Sync(t.Context())
+				phase, message, results = syncCtx.GetState()
+				assert.Equal(t, synccommon.OperationSucceeded, phase, message)
+				require.Len(t, results, 2)
+				assert.Equal(t, synccommon.ResultCodePruned, results[0].Status)
+				assert.Empty(t, results[0].HookType)
+				assert.Equal(t, hookType, results[1].HookType)
+				assert.Equal(t, synccommon.OperationSucceeded, results[1].HookPhase)
+			})
+		}
+	}
+}
+
+func TestSync_ResumesConvertedHookFromLegacyResult(t *testing.T) {
+	for _, phase := range []synccommon.OperationPhase{
+		synccommon.OperationRunning, synccommon.OperationSucceeded, synccommon.OperationFailed,
+	} {
+		t.Run(string(phase), func(t *testing.T) {
+			hookObj := newHook("init-job", synccommon.HookTypeSync, synccommon.HookDeletePolicyBeforeHookCreation)
+			require.NoError(t, unstructured.SetNestedField(hookObj.Object, "Never", "spec", "restartPolicy"))
+			liveHook := hookObj.DeepCopy()
+			require.NoError(t, unstructured.SetNestedField(liveHook.Object, string(phase), "status", "phase"))
+			// Before hook types were part of the key, applying a hook after an
+			// immediate prune updated the prune result but kept its empty HookType.
+			legacyResult := synccommon.ResourceSyncResult{
+				ResourceKey: kube.GetResourceKey(hookObj),
+				Status:      synccommon.ResultCodeSynced,
+				HookPhase:   phase,
+				SyncPhase:   synccommon.SyncPhaseSync,
+				Order:       7,
+				Version:     "v1",
+				Images:      []string{"nginx:1.7.9"},
+				Message:     "hook applied",
+			}
+			syncCtx := newTestSyncCtx(nil, WithPrune(true), WithInitialState(synccommon.OperationRunning, "", []synccommon.ResourceSyncResult{legacyResult}, metav1.Now()))
+			syncCtx.hooks = []*unstructured.Unstructured{hookObj}
+			syncCtx.resources = groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{liveHook},
+				Target: []*unstructured.Unstructured{nil},
+			})
+			client := fake.NewSimpleDynamicClient(runtime.NewScheme(), liveHook)
+			syncCtx.dynamicIf = client
+			// Recover the result before any health update can replace its message.
+			tasks, valid := syncCtx.getSyncTasks(t.Context())
+			require.True(t, valid)
+			require.Len(t, tasks, 1)
+			_, _, results := syncCtx.GetState()
+			expected := legacyResult
+			expected.HookType = synccommon.HookTypeSync
+			require.Equal(t, []synccommon.ResourceSyncResult{expected}, results)
+
+			syncCtx.Sync(t.Context())
+			actualPhase, message, results := syncCtx.GetState()
+			assert.Equal(t, phase, actualPhase, message)
+			require.Len(t, results, 1)
+			assert.Equal(t, synccommon.HookTypeSync, results[0].HookType)
+			assert.Equal(t, phase, results[0].HookPhase)
+			assert.Equal(t, legacyResult.Order, results[0].Order)
+			assert.Empty(t, syncCtx.resourceOps.(*kubetest.MockResourceOps).GetLastResourceCommand(kube.GetResourceKey(hookObj)))
+			for _, action := range client.Actions() {
+				assert.NotEqual(t, "delete", action.GetVerb(), "resuming a previously applied hook must not delete it")
+			}
+
+			if phase == synccommon.OperationRunning {
+				// Persist the migrated result, restart, and complete the hook. There
+				// must be no stale Running entry under the old resource key.
+				syncCtx = newTestSyncCtx(nil, WithPrune(true), WithInitialState(actualPhase, message, results, metav1.NewTime(syncCtx.startedAt)))
+				syncCtx.hooks = []*unstructured.Unstructured{hookObj}
+				require.NoError(t, unstructured.SetNestedField(liveHook.Object, "Succeeded", "status", "phase"))
+				syncCtx.resources = groupResources(ReconciliationResult{
+					Live:   []*unstructured.Unstructured{liveHook},
+					Target: []*unstructured.Unstructured{nil},
+				})
+				syncCtx.dynamicIf = client
+				syncCtx.Sync(t.Context())
+				actualPhase, message, results = syncCtx.GetState()
+				assert.Equal(t, synccommon.OperationSucceeded, actualPhase, message)
+				require.Len(t, results, 1)
+				assert.Equal(t, synccommon.HookTypeSync, results[0].HookType)
+				assert.Equal(t, synccommon.OperationSucceeded, results[0].HookPhase)
+				assert.Equal(t, legacyResult.Order, results[0].Order)
+				assert.Empty(t, syncCtx.resourceOps.(*kubetest.MockResourceOps).GetLastResourceCommand(kube.GetResourceKey(hookObj)))
+			}
+		})
+	}
+}
+
+func TestSync_ResourceApplyResultDoesNotCompleteHook(t *testing.T) {
+	for _, resource := range []*unstructured.Unstructured{testingutils.NewPod(), testingutils.NewClusterRole()} {
+		t.Run(resource.GetKind(), func(t *testing.T) {
+			if resource.GetKind() == "Pod" {
+				resource.SetNamespace(testingutils.FakeArgoCDNamespace)
+			}
+			hookObj := resource.DeepCopy()
+			testingutils.Annotate(hookObj, synccommon.AnnotationKeyHook, string(synccommon.HookTypeSync))
+			// getSyncTasks fills in the target namespace even for cluster resources.
+			key := kube.GetResourceKey(resource)
+			key.Namespace = testingutils.FakeArgoCDNamespace
+			result := synccommon.ResourceSyncResult{
+				ResourceKey: key,
+				Status:      synccommon.ResultCodeSynced,
+				HookPhase:   synccommon.OperationSucceeded,
+				SyncPhase:   synccommon.SyncPhaseSync,
+			}
+			syncCtx := newTestSyncCtx(nil, WithInitialState(synccommon.OperationRunning, "", []synccommon.ResourceSyncResult{result}, metav1.Now()))
+			// Live hook metadata cannot override a saved result that still has
+			// a matching ordinary apply task.
+			syncCtx.resources = groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{hookObj},
+				Target: []*unstructured.Unstructured{resource},
+			})
+			syncCtx.hooks = []*unstructured.Unstructured{hookObj}
+			tasks, valid := syncCtx.getSyncTasks(t.Context())
+			require.True(t, valid)
+			require.Len(t, tasks, 2)
+			for _, task := range tasks {
+				if task.isHook() {
+					assert.True(t, task.pending(), "a regular resource's apply result must not complete the hook")
+				} else {
+					assert.True(t, task.completed())
+				}
+			}
+		})
+	}
+}
+
+func TestSync_TrackedJobConvertedToHookAfterPrune(t *testing.T) {
+	for _, tc := range []struct {
+		condition string
+		phase     synccommon.OperationPhase
+	}{
+		{condition: "Complete", phase: synccommon.OperationSucceeded},
+		{condition: "Failed", phase: synccommon.OperationFailed},
+	} {
+		t.Run(tc.condition, func(t *testing.T) {
+			live := testingutils.Unstructured(`
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: init-job
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: init
+        image: busybox
+        command: ["true"]
+`)
+			live.SetNamespace(testingutils.FakeArgoCDNamespace)
+			hookObj := live.DeepCopy()
+			testingutils.Annotate(hookObj, synccommon.AnnotationKeyHook, string(synccommon.HookTypeSync))
+			testingutils.Annotate(hookObj, synccommon.AnnotationKeyHookDeletePolicy, string(synccommon.HookDeletePolicyBeforeHookCreation))
+			syncCtx := newTestSyncCtx(nil, WithPrune(true))
+			syncCtx.resources = groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{live},
+				Target: []*unstructured.Unstructured{nil},
+			})
+			syncCtx.hooks = []*unstructured.Unstructured{hookObj}
+			// The cache still has the old Job, but it is gone by the time the
+			// hook's BeforeHookCreation deletion reaches the API server.
+			syncCtx.dynamicIf = fake.NewSimpleDynamicClient(runtime.NewScheme())
+			syncCtx.Sync(t.Context())
+			resourceOps := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+			require.Equal(t, "apply", resourceOps.GetLastResourceCommand(kube.GetResourceKey(hookObj)))
+			phase, message, results := syncCtx.GetState()
+			require.Equal(t, synccommon.OperationRunning, phase, message)
+			require.Len(t, results, 2)
+			assert.Equal(t, synccommon.ResultCodePruned, results[0].Status)
+			assert.Empty(t, results[0].HookType)
+			assert.Equal(t, synccommon.ResultCodeSynced, results[1].Status)
+			assert.Equal(t, synccommon.HookTypeSync, results[1].HookType)
+
+			syncCtx = newTestSyncCtx(nil, WithPrune(true), WithInitialState(phase, message, results, metav1.NewTime(syncCtx.startedAt)))
+			syncCtx.hooks = []*unstructured.Unstructured{hookObj}
+			liveHook := hookObj.DeepCopy()
+			require.NoError(t, unstructured.SetNestedSlice(liveHook.Object, []any{
+				map[string]any{"type": tc.condition, "status": "True"},
+			}, "status", "conditions"))
+			syncCtx.resources = groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{liveHook},
+				Target: []*unstructured.Unstructured{nil},
+			})
+			syncCtx.dynamicIf = fake.NewSimpleDynamicClient(runtime.NewScheme(), liveHook)
+			syncCtx.Sync(t.Context())
+			phase, message, results = syncCtx.GetState()
+			assert.Equal(t, tc.phase, phase, message)
+			require.Len(t, results, 2)
+			assert.Equal(t, synccommon.OperationSucceeded, results[0].HookPhase)
+			assert.Equal(t, synccommon.ResultCodePruned, results[0].Status)
+			assert.Empty(t, results[0].HookType)
+			assert.Equal(t, tc.phase, results[1].HookPhase)
+			assert.Equal(t, synccommon.HookTypeSync, results[1].HookType)
+			resourceOps = syncCtx.resourceOps.(*kubetest.MockResourceOps)
+			assert.Empty(t, resourceOps.GetLastResourceCommand(kube.GetResourceKey(hookObj)))
+		})
+	}
+}
+
+func TestSync_LegacyResultRequiresLiveSyncHook(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		live       bool
+		annotation string
+		status     synccommon.ResultCode
+	}{
+		{name: "no live resource", status: synccommon.ResultCodeSynced},
+		{name: "ordinary live resource", live: true, status: synccommon.ResultCodeSynced},
+		{name: "different hook phase", live: true, annotation: "PreSync", status: synccommon.ResultCodeSynced},
+		{name: "skipped hook", live: true, annotation: "Skip", status: synccommon.ResultCodeSynced},
+		{name: "pruned", live: true, annotation: "Sync", status: synccommon.ResultCodePruned},
+		{name: "prune skipped", live: true, annotation: "Sync", status: synccommon.ResultCodePruneSkipped},
+	} {
+		for _, phase := range []synccommon.OperationPhase{
+			synccommon.OperationRunning, synccommon.OperationSucceeded, synccommon.OperationFailed,
+		} {
+			t.Run(tc.name+"/"+string(phase), func(t *testing.T) {
+				hookObj := newHook("init-job", synccommon.HookTypeSync, synccommon.HookDeletePolicyBeforeHookCreation)
+				result := synccommon.ResourceSyncResult{
+					ResourceKey: kube.GetResourceKey(hookObj),
+					Status:      tc.status,
+					HookPhase:   phase,
+					SyncPhase:   synccommon.SyncPhaseSync,
+					Order:       1,
+				}
+				syncCtx := newTestSyncCtx(nil, WithPrune(true), WithInitialState(synccommon.OperationRunning, "", []synccommon.ResourceSyncResult{result}, metav1.Now()))
+				syncCtx.hooks = []*unstructured.Unstructured{hookObj}
+				syncCtx.dynamicIf = fake.NewSimpleDynamicClient(runtime.NewScheme())
+				if tc.live {
+					live := hookObj.DeepCopy()
+					live.SetAnnotations(nil)
+					if tc.annotation != "" {
+						testingutils.Annotate(live, synccommon.AnnotationKeyHook, tc.annotation)
+					}
+					syncCtx.resources = groupResources(ReconciliationResult{
+						Live:   []*unstructured.Unstructured{live},
+						Target: []*unstructured.Unstructured{nil},
+					})
+				}
+				tasks, valid := syncCtx.getSyncTasks(t.Context())
+				require.True(t, valid)
+				hookTask := tasks.Find(func(task *syncTask) bool { return task.isHook() })
+				require.NotNil(t, hookTask)
+				require.True(t, hookTask.pending(), "an ambiguous saved result must not suppress the hook")
+				_, _, results := syncCtx.GetState()
+				assert.Equal(t, []synccommon.ResourceSyncResult{result}, results, "unrelated results must remain unchanged")
+				if !tc.live {
+					// A saved ordinary apply with no current resource task must not
+					// send the hook down the running/missing-resource error path.
+					syncCtx.Sync(t.Context())
+					assert.Equal(t, "apply", syncCtx.resourceOps.(*kubetest.MockResourceOps).GetLastResourceCommand(kube.GetResourceKey(hookObj)))
+					actualPhase, message, results := syncCtx.GetState()
+					assert.Equal(t, synccommon.OperationRunning, actualPhase, message)
+					require.Len(t, results, 2)
+					assert.Equal(t, result, results[0])
+					assert.Equal(t, synccommon.HookTypeSync, results[1].HookType)
+				}
+			})
+		}
+	}
+}
+
+func TestSync_TypedHookResultTakesPrecedenceOverLegacyResult(t *testing.T) {
+	hookObj := newHook("init-job", synccommon.HookTypeSync, synccommon.HookDeletePolicyBeforeHookCreation)
+	legacy := synccommon.ResourceSyncResult{
+		ResourceKey: kube.GetResourceKey(hookObj),
+		Status:      synccommon.ResultCodeSynced,
+		HookPhase:   synccommon.OperationFailed,
+		SyncPhase:   synccommon.SyncPhaseSync,
+		Order:       1,
+	}
+	typed := legacy
+	typed.HookType = synccommon.HookTypeSync
+	typed.HookPhase = synccommon.OperationRunning
+	typed.Order = 2
+	results := []synccommon.ResourceSyncResult{legacy, typed}
+	syncCtx := newTestSyncCtx(nil, WithInitialState(synccommon.OperationRunning, "", results, metav1.Now()))
+	syncCtx.hooks = []*unstructured.Unstructured{hookObj}
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{hookObj},
+		Target: []*unstructured.Unstructured{nil},
+	})
+	tasks, valid := syncCtx.getSyncTasks(t.Context())
+	require.True(t, valid)
+	require.Len(t, tasks, 1)
+	assert.True(t, tasks[0].running())
+	_, _, actual := syncCtx.GetState()
+	assert.Equal(t, results, actual, "an existing typed result must not consume a separate ordinary result")
+}
