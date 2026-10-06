@@ -852,6 +852,14 @@ type ApplicationSetStatus struct {
 	ResourcesCount int64 `json:"resourcesCount,omitempty" protobuf:"varint,4,opt,name=resourcesCount"`
 	// Health contains information about the applicationset's current health status based on the applicationset conditions
 	Health HealthStatus `json:"health,omitempty" protobuf:"bytes,5,opt,name=health"`
+	// RolloutStartedAt records when the current progressive sync rollout was initiated.
+	RolloutStartedAt *metav1.Time `json:"rolloutStartedAt,omitempty" protobuf:"bytes,6,opt,name=rolloutStartedAt"`
+	// RolloutFinishedAt records when the current progressive sync rollout completed.
+	RolloutFinishedAt *metav1.Time `json:"rolloutFinishedAt,omitempty" protobuf:"bytes,7,opt,name=rolloutFinishedAt"`
+	// StepStartedAt maps step identifiers to when each step was initiated in the current progressive sync rollout.
+	StepStartedAt map[string]metav1.Time `json:"stepStartedAt,omitempty" protobuf:"bytes,8,rep,name=stepStartedAt"`
+	// StepFinishedAt maps step identifiers to when each step completed in the current progressive sync rollout.
+	StepFinishedAt map[string]metav1.Time `json:"stepFinishedAt,omitempty" protobuf:"bytes,9,rep,name=stepFinishedAt"`
 }
 
 // ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning

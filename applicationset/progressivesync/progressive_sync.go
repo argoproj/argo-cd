@@ -2,7 +2,6 @@ package progressivesync
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -35,9 +34,6 @@ const (
 	revisionAndSpecChangedMsg = "Application has pending changes (revision and spec differ), setting status to Waiting"
 	revisionChangedMsg        = "Application has pending changes, setting status to Waiting"
 	specChangedMsg            = "Application has pending changes (spec differs), setting status to Waiting"
-
-	AnnotationKeyRolloutStartTime = "argocd.argoproj.io/progressive-sync-rollout-start"
-	AnnotationKeyStepStartTimes   = "argocd.argoproj.io/progressive-sync-step-starts"
 )
 
 type deleteInOrder struct {
@@ -472,7 +468,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 				Status:             argov1alpha1.ProgressiveSyncWaiting,
 				Step:               strconv.Itoa(getAppStep(app.Name, appStepMap)),
 			}
-			// New app in Waiting status should trigger rollout start time annotation
+			// New app in Waiting status should record rollout start time in status
 			hasNewWaiting = true
 		} else {
 			// we have an existing AppStatus
@@ -599,10 +595,10 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 	}
 
 	if hasNewWaiting {
-		_, alreadySet := applicationSet.Annotations[AnnotationKeyRolloutStartTime]
-		if !alreadySet {
-			if setErr := m.setRolloutStartAnnotation(ctx, applicationSet, now.Time); setErr != nil {
-				logCtx.WithError(setErr).Warn("Failed to set rollout start time annotation")
+		// Reset on every new rollout (not just the first) so subsequent rollouts are measured.
+		if applicationSet.Status.RolloutStartedAt == nil || (applicationSet.Status.RolloutFinishedAt != nil && now.After(applicationSet.Status.RolloutFinishedAt.Time)) {
+			if setErr := m.setRolloutStartedAt(ctx, applicationSet, now.Time); setErr != nil {
+				logCtx.WithError(setErr).Warn("Failed to set rollout startedAt in status")
 			}
 		}
 	}
@@ -930,24 +926,17 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 		}
 
 		if len(newPendingSteps) > 0 {
-			stepStarts, parseErr := getStepStartTimesFromAnnotation(applicationSet)
-			if parseErr != nil {
-				logCtx.WithError(parseErr).Warn("Failed to parse step start times annotation, resetting with current pending steps only (step completion metrics will be lost for in-progress steps)")
-				// Reset to empty map - this discards any corrupted timing data but allows
-				// the controller to recover and track new steps going forward. Step completion
-				// metrics will be incorrect for any steps that were already in progress.
-				stepStarts = make(map[string]time.Time)
-			}
+			stepStarts := getStepStartTimesFromStatus(applicationSet)
 			needsUpdate := false
 			for step := range newPendingSteps {
-				if _, exists := stepStarts[step]; !exists {
-					stepStarts[step] = now.Time
+				if existingTime, exists := stepStarts[step]; !exists || now.After(existingTime.Time) {
+					stepStarts[step] = now
 					needsUpdate = true
 				}
 			}
 			if needsUpdate {
-				if setErr := m.setStepStartTimes(ctx, applicationSet, stepStarts); setErr != nil {
-					logCtx.WithError(setErr).Warn("Failed to set step start times annotation")
+				if setErr := m.setStepStartTimesInStatus(ctx, applicationSet, stepStarts); setErr != nil {
+					logCtx.WithError(setErr).Warn("Failed to set step start times in status")
 				}
 			}
 		}
@@ -973,83 +962,66 @@ func allAppStatusesHealthy(appset *argov1alpha1.ApplicationSet) bool {
 	return true
 }
 
-func (m *Manager) setRolloutStartAnnotation(ctx context.Context, appset *argov1alpha1.ApplicationSet, startTime time.Time) error {
+func (m *Manager) setRolloutStartedAt(ctx context.Context, appset *argov1alpha1.ApplicationSet, startTime time.Time) error {
 	patch := appset.DeepCopy()
-	if patch.Annotations == nil {
-		patch.Annotations = make(map[string]string)
-	}
-	patch.Annotations[AnnotationKeyRolloutStartTime] = startTime.UTC().Format(time.RFC3339)
-	return m.Client.Patch(ctx, patch, client.MergeFrom(appset))
+	t := metav1.NewTime(startTime.UTC())
+	patch.Status.RolloutStartedAt = &t
+	return m.Client.Status().Patch(ctx, patch, client.MergeFrom(appset))
 }
 
-func (m *Manager) removeRolloutStartAnnotation(ctx context.Context, appset *argov1alpha1.ApplicationSet) error {
-	if _, ok := appset.Annotations[AnnotationKeyRolloutStartTime]; !ok {
-		return nil
-	}
+func (m *Manager) setRolloutFinishedAt(ctx context.Context, appset *argov1alpha1.ApplicationSet, finishedAt time.Time) error {
 	patch := appset.DeepCopy()
-	delete(patch.Annotations, AnnotationKeyRolloutStartTime)
-	return m.Client.Patch(ctx, patch, client.MergeFrom(appset))
+	t := metav1.NewTime(finishedAt.UTC())
+	patch.Status.RolloutFinishedAt = &t
+	return m.Client.Status().Patch(ctx, patch, client.MergeFrom(appset))
 }
 
 func (m *Manager) observeRolloutCompletion(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet) {
-	startStr, ok := appset.Annotations[AnnotationKeyRolloutStartTime]
-	if !ok {
+	now := time.Now()
+	if appset.Status.RolloutStartedAt == nil || (appset.Status.RolloutFinishedAt != nil &&
+		appset.Status.RolloutFinishedAt.After(appset.Status.RolloutStartedAt.Time)) {
 		return
 	}
-	startTime, err := time.Parse(time.RFC3339, startStr)
-	if err != nil {
-		logCtx.WithError(err).Warn("Failed to parse rollout start time from annotation")
-		return
-	}
-	m.dependencies.ObserveRolloutDuration(appset, time.Since(startTime))
-	if err := m.removeRolloutStartAnnotation(ctx, appset); err != nil {
-		logCtx.WithError(err).Warn("Failed to remove rollout start time annotation")
+
+	m.dependencies.ObserveRolloutDuration(appset, now.Sub(appset.Status.RolloutStartedAt.Time))
+	if err := m.setRolloutFinishedAt(ctx, appset, now); err != nil {
+		logCtx.WithError(err).Warn("Failed to set rollout finished at in status")
 	}
 }
 
 func (m *Manager) observeStepCompletions(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet) {
-	stepStartTimes, err := getStepStartTimesFromAnnotation(appset)
-	if err != nil {
-		logCtx.WithError(err).Warn("Failed to parse step start times annotation")
-		return
-	}
+	stepStartTimes := getStepStartTimesFromStatus(appset)
 	if len(stepStartTimes) == 0 {
 		return
 	}
 	completedSteps := getCompletedSteps(appset)
-	before := len(stepStartTimes)
+	newFinishedTimes := map[string]time.Time{}
 	for step, startTime := range stepStartTimes {
-		if completedSteps[step] {
-			m.dependencies.ObserveStepCompletionDuration(appset, step, time.Since(startTime))
-			delete(stepStartTimes, step)
+		finishedAt, ok := appset.Status.StepFinishedAt[step]
+		alreadyRecorded := ok && !finishedAt.IsZero() && !finishedAt.Before(&startTime)
+		if completedSteps[step] && !alreadyRecorded {
+			now := time.Now()
+			m.dependencies.ObserveStepCompletionDuration(appset, step, now.Sub(startTime.Time))
+			newFinishedTimes[step] = now
 		}
 	}
-	if len(stepStartTimes) == before { // no step was completed
+	if len(newFinishedTimes) == 0 {
 		return
 	}
-	if err := m.setStepStartTimes(ctx, appset, stepStartTimes); err != nil {
-		logCtx.WithError(err).Warn("Failed to update remove completed step's start time in annotation")
+	if err := m.setStepFinishedAtInStatus(ctx, appset, newFinishedTimes); err != nil {
+		logCtx.WithError(err).Warn("Failed to set step finished at in status")
 	}
 }
 
-func getStepStartTimesFromAnnotation(appset *argov1alpha1.ApplicationSet) (map[string]time.Time, error) {
-	raw, ok := appset.Annotations[AnnotationKeyStepStartTimes]
-	if !ok {
-		return map[string]time.Time{}, nil
+func getStepStartTimesFromStatus(appset *argov1alpha1.ApplicationSet) map[string]metav1.Time {
+	if appset.Status.StepStartedAt == nil {
+		return map[string]metav1.Time{}
 	}
-	var parsed map[string]string
-	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
-		return nil, err
+	result := make(map[string]metav1.Time, len(appset.Status.StepStartedAt))
+	for k, v := range appset.Status.StepStartedAt {
+		result[k] = v
 	}
-	result := make(map[string]time.Time, len(parsed))
-	for step, ts := range parsed {
-		t, err := time.Parse(time.RFC3339, ts)
-		if err != nil {
-			return nil, fmt.Errorf("step %s: %w", step, err)
-		}
-		result[step] = t
-	}
-	return result, nil
+	return result
 }
 
 func getCompletedSteps(appset *argov1alpha1.ApplicationSet) map[string]bool {
@@ -1064,25 +1036,26 @@ func getCompletedSteps(appset *argov1alpha1.ApplicationSet) map[string]bool {
 	return stepHealthy
 }
 
-func (m *Manager) setStepStartTimes(ctx context.Context, appset *argov1alpha1.ApplicationSet, times map[string]time.Time) error {
+func (m *Manager) setStepStartTimesInStatus(ctx context.Context, appset *argov1alpha1.ApplicationSet, times map[string]metav1.Time) error {
 	patch := appset.DeepCopy()
-	if patch.Annotations == nil {
-		patch.Annotations = make(map[string]string)
-	}
-	if len(times) == 0 {
-		delete(patch.Annotations, AnnotationKeyStepStartTimes)
-	} else {
-		raw := make(map[string]string, len(times))
+	if len(times) > 0 {
+		patch.Status.StepStartedAt = make(map[string]metav1.Time, len(times))
 		for step, t := range times {
-			raw[step] = t.UTC().Format(time.RFC3339)
+			patch.Status.StepStartedAt[step] = metav1.NewTime(t.UTC())
 		}
-		data, err := json.Marshal(raw)
-		if err != nil {
-			return err
-		}
-		patch.Annotations[AnnotationKeyStepStartTimes] = string(data)
 	}
-	return m.Client.Patch(ctx, patch, client.MergeFrom(appset))
+	return m.Client.Status().Patch(ctx, patch, client.MergeFrom(appset))
+}
+
+func (m *Manager) setStepFinishedAtInStatus(ctx context.Context, appset *argov1alpha1.ApplicationSet, times map[string]time.Time) error {
+	patch := appset.DeepCopy()
+	if patch.Status.StepFinishedAt == nil {
+		patch.Status.StepFinishedAt = make(map[string]metav1.Time, len(times))
+	}
+	for step, t := range times {
+		patch.Status.StepFinishedAt[step] = metav1.NewTime(t.UTC())
+	}
+	return m.Client.Status().Patch(ctx, patch, client.MergeFrom(appset))
 }
 
 func (m *Manager) getProgressingCondition(applicationSet *argov1alpha1.ApplicationSet) *argov1alpha1.ApplicationSetCondition {

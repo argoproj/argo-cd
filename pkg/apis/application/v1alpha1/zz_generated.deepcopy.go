@@ -850,6 +850,28 @@ func (in *ApplicationSetStatus) DeepCopyInto(out *ApplicationSetStatus) {
 		}
 	}
 	in.Health.DeepCopyInto(&out.Health)
+	if in.RolloutStartedAt != nil {
+		in, out := &in.RolloutStartedAt, &out.RolloutStartedAt
+		*out = (*in).DeepCopy()
+	}
+	if in.RolloutFinishedAt != nil {
+		in, out := &in.RolloutFinishedAt, &out.RolloutFinishedAt
+		*out = (*in).DeepCopy()
+	}
+	if in.StepStartedAt != nil {
+		in, out := &in.StepStartedAt, &out.StepStartedAt
+		*out = make(map[string]v1.Time, len(*in))
+		for key, val := range *in {
+			(*out)[key] = *val.DeepCopy()
+		}
+	}
+	if in.StepFinishedAt != nil {
+		in, out := &in.StepFinishedAt, &out.StepFinishedAt
+		*out = make(map[string]v1.Time, len(*in))
+		for key, val := range *in {
+			(*out)[key] = *val.DeepCopy()
+		}
+	}
 	return
 }
 

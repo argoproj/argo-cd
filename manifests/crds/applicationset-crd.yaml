@@ -26242,6 +26242,22 @@ spec:
               resourcesCount:
                 format: int64
                 type: integer
+              rolloutFinishedAt:
+                format: date-time
+                type: string
+              rolloutStartedAt:
+                format: date-time
+                type: string
+              stepFinishedAt:
+                additionalProperties:
+                  format: date-time
+                  type: string
+                type: object
+              stepStartedAt:
+                additionalProperties:
+                  format: date-time
+                  type: string
+                type: object
             type: object
         required:
         - metadata
