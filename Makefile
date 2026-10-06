@@ -413,6 +413,11 @@ lint-local: actionlint-local
 	golangci-lint --version
 	golangci-lint run --fix --verbose
 
+# Run actionlint on the GitHub Actions workflows
+.PHONY: actionlint
+actionlint: test-tools-image
+	$(call run-in-test-client,make actionlint-local)
+
 # Run actionlint on the GitHub Actions workflows (local version)
 .PHONY: actionlint-local
 actionlint-local:
