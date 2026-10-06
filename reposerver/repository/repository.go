@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -2070,14 +2071,14 @@ func getPotentiallyValidManifestFile(path string, f os.FileInfo, appPath, repoRo
 	realFileInfo = f
 
 	if files.IsSymlink(f) {
-		realPath, err := filepath.EvalSymlinks(path)
+		realPath, ok, err := files.ResolveInbound(path, repoRoot)
 		if err != nil {
 			if os.IsNotExist(err) {
 				return nil, fmt.Sprintf("destination of symlink %q is missing", relPath), nil
 			}
 			return nil, "", fmt.Errorf("failed to evaluate symlink at %q: %w", relPath, err)
 		}
-		if !files.Inbound(realPath, repoRoot) {
+		if !ok {
 			return nil, "", fmt.Errorf("illegal filepath in symlink at %q", relPath)
 		}
 		realFileInfo, err = os.Stat(realPath)
@@ -2209,11 +2210,88 @@ func makeJsonnetVM(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 		jpaths = append(jpaths, string(jpath))
 	}
 
-	vm.Importer(&jsonnet.FileImporter{
-		JPaths: jpaths,
+	vm.Importer(&confinedImporter{
+		FileImporter: &jsonnet.FileImporter{JPaths: jpaths},
+		repoRoot:     repoRoot,
 	})
 
 	return vm, nil
+}
+
+// confinedImporter wraps a jsonnet.FileImporter and rejects any import whose
+// resolved path (after symlink resolution) falls outside repoRoot, or that
+// isn't a regular file, preventing import/importstr from reading files
+// outside the checked-out repository (e.g. absolute paths like
+// /proc/self/environ, or relative traversal).
+//
+// The candidate path is located and validated with stat calls only, before
+// FileImporter.Import is ever invoked: FileImporter reads the full file
+// unconditionally via os.ReadFile, so validating after that call would let
+// an import of a non-terminating virtual file (e.g. /dev/zero) exhaust
+// repo-server memory before the rejection ever runs.
+type confinedImporter struct {
+	*jsonnet.FileImporter
+	repoRoot string
+}
+
+func (i *confinedImporter) Import(importedFrom, importedPath string) (jsonnet.Contents, string, error) {
+	dir, _ := filepath.Split(importedFrom)
+	foundAt, err := i.locate(dir, importedPath)
+	if err != nil {
+		return jsonnet.Contents{}, "", err
+	}
+	if err := i.validate(foundAt, importedPath); err != nil {
+		return jsonnet.Contents{}, "", err
+	}
+	return i.FileImporter.Import(importedFrom, importedPath)
+}
+
+// locate mirrors the candidate search order of go-jsonnet's own
+// FileImporter.Import/tryPath (importedFrom's directory, then JPaths in
+// reverse order), but only stats each candidate instead of reading it.
+func (i *confinedImporter) locate(dir, importedPath string) (string, error) {
+	if filepath.IsAbs(importedPath) {
+		if _, err := os.Lstat(importedPath); err != nil {
+			if os.IsNotExist(err) {
+				return "", fmt.Errorf("couldn't open import %q: no match locally or in the Jsonnet library paths", importedPath)
+			}
+			return "", err
+		}
+		return importedPath, nil
+	}
+
+	bases := make([]string, 0, len(i.JPaths)+1)
+	bases = append(bases, dir)
+	for _, jpath := range slices.Backward(i.JPaths) {
+		bases = append(bases, jpath)
+	}
+	for _, base := range bases {
+		absPath := filepath.Join(base, importedPath)
+		if _, err := os.Lstat(absPath); err == nil {
+			return absPath, nil
+		} else if !os.IsNotExist(err) {
+			return "", err
+		}
+	}
+	return "", fmt.Errorf("couldn't open import %q: no match locally or in the Jsonnet library paths", importedPath)
+}
+
+func (i *confinedImporter) validate(foundAt, importedPath string) error {
+	resolved, ok, err := files.ResolveInbound(foundAt, i.repoRoot)
+	if err != nil {
+		return fmt.Errorf("failed to resolve jsonnet import %q: %w", importedPath, err)
+	}
+	if !ok {
+		return fmt.Errorf("jsonnet import %q resolves outside repository root", importedPath)
+	}
+	info, err := os.Stat(resolved)
+	if err != nil {
+		return fmt.Errorf("failed to stat jsonnet import %q: %w", importedPath, err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("jsonnet import %q is not a regular file", importedPath)
+	}
+	return nil
 }
 
 func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, error) {
