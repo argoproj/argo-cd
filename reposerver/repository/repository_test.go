@@ -926,6 +926,69 @@ func TestGenerateJsonnetLibOutside(t *testing.T) {
 	require.ErrorContains(t, err, "file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
 }
 
+func TestGenerateJsonnetImportAbsoluteOutsideRepoRoot(t *testing.T) {
+	service := newService(t, ".")
+
+	q := apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:      "./testdata/jsonnet-import-abs-outside",
+			Directory: &v1alpha1.ApplicationSourceDirectory{},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	_, err := service.GenerateManifest(t.Context(), &q)
+	require.ErrorContains(t, err, "resolves outside repository root")
+}
+
+func TestGenerateJsonnetImportTraversalOutsideRepoRoot(t *testing.T) {
+	service := newService(t, ".")
+
+	q := apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:      "./testdata/jsonnet-import-traversal-outside",
+			Directory: &v1alpha1.ApplicationSourceDirectory{},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	_, err := service.GenerateManifest(t.Context(), &q)
+	require.ErrorContains(t, err, "resolves outside repository root")
+}
+
+// A non-terminating virtual file like /dev/zero must be rejected before it
+// is read: go-jsonnet's FileImporter reads the whole file into memory
+// unconditionally, so validating only after that read would let an import
+// of /dev/zero hang and exhaust repo-server memory rather than error out.
+func TestGenerateJsonnetImportDeviceFileOutsideRepoRoot(t *testing.T) {
+	service := newService(t, ".")
+
+	q := apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:      "./testdata/jsonnet-import-device-outside",
+			Directory: &v1alpha1.ApplicationSourceDirectory{},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := service.GenerateManifest(t.Context(), &q)
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		require.ErrorContains(t, err, "resolves outside repository root")
+	case <-time.After(10 * time.Second):
+		t.Fatal("GenerateManifest did not return: import of /dev/zero must be rejected before it is read")
+	}
+}
+
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 	// Returns the state of the manifest generation cache, by querying the cache for the previously set result
 	getRecentCachedEntry := func(service *Service, manifestRequest *apiclient.ManifestRequest) *cache.CachedManifestResponse {
@@ -3054,12 +3117,16 @@ func Test_findManifests(t *testing.T) {
 	})
 
 	t.Run("jsonnet isn't counted against size limit", func(t *testing.T) {
+		// repoRoot must be absolute: the jsonnet importer confines resolved imports to repoRoot.
+		repoRoot, err := filepath.Abs("./testdata/jsonnet-and-json")
+		require.NoError(t, err)
+
 		// Each file is 36 bytes. Only the 36-byte json file should be counted against the limit.
-		manifests, err := findManifests(logCtx, "./testdata/jsonnet-and-json", "./testdata/jsonnet-and-json", nil, noRecurse, nil, resource.MustParse("36"))
+		manifests, err := findManifests(logCtx, repoRoot, repoRoot, nil, noRecurse, nil, resource.MustParse("36"))
 		assert.Len(t, manifests, 2)
 		require.NoError(t, err)
 
-		manifests, err = findManifests(logCtx, "./testdata/jsonnet-and-json", "./testdata/jsonnet-and-json", nil, noRecurse, nil, resource.MustParse("35"))
+		manifests, err = findManifests(logCtx, repoRoot, repoRoot, nil, noRecurse, nil, resource.MustParse("35"))
 		assert.Empty(t, manifests)
 		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
 	})
