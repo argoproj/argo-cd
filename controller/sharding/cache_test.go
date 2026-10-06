@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -260,57 +261,108 @@ func TestClusterSharding_UpdateServerName(t *testing.T) {
 	assert.True(t, ok) // the new server name should be present
 }
 
-// TestClusterSharding_UpdateRedistributesUnshardedCluster verifies that a cluster
-// which reaches the sharding cache through an update event, e.g. the periodic
-// resync of the cluster secret informer, is added to the distribution. Otherwise
-// the cluster stays in Clusters without a Shards entry, IsManagedCluster silently
-// falls back to shard 0 for it, and every other cluster keeps the shard it was
-// assigned while that cluster was still unknown.
-func TestClusterSharding_UpdateRedistributesUnshardedCluster(t *testing.T) {
+// requireMatchesFreshReplica asserts that, after a sequence of cluster events,
+// the distribution of sharding is the one a replica would compute if it started
+// now from the surviving clusters. Every replica must arrive at the same
+// distribution, whatever event history it observed: a replica that diverges
+// from a freshly started one owns clusters nobody else thinks it owns, or
+// drops clusters every other replica thinks it has.
+func requireMatchesFreshReplica(t *testing.T, sharding *ClusterSharding, algorithm string, surviving ...v1alpha1.Cluster) {
+	t.Helper()
+	fresh := NewClusterSharding(&dbmocks.ArgoDB{}, sharding.Shard, sharding.Replicas, algorithm).(*ClusterSharding)
+	fresh.Init(&v1alpha1.ClusterList{Items: surviving}, &v1alpha1.ApplicationList{})
+	require.Equal(t, fresh.GetDistribution(), sharding.GetDistribution())
+}
+
+var updateScenarioAlgorithms = []string{
+	common.LegacyShardingAlgorithm,
+	common.RoundRobinShardingAlgorithm,
+	common.ConsistentHashingWithBoundedLoadsAlgorithm,
+}
+
+// TestClusterSharding_UpdateAfterDuplicateSecretDelete covers a cluster that
+// reaches Update without being in the cache. Two cluster secrets with the same
+// server URL share one cache entry, because the cache is keyed by server.
+// Deleting one of them removes that entry (Delete is keyed by server too), and
+// the informer's next resync of the surviving secret is an Update for a server
+// the cache no longer knows, with no sharding-relevant change between old and
+// new.
+func TestClusterSharding_UpdateAfterDuplicateSecretDelete(t *testing.T) {
 	t.Parallel()
-	replicas := 2
+	for _, algorithm := range updateScenarioAlgorithms {
+		t.Run(algorithm, func(t *testing.T) {
+			t.Parallel()
+			other := v1alpha1.Cluster{ID: "1", Server: "https://other"}
+			third := v1alpha1.Cluster{ID: "4", Server: "https://third"}
+			first := v1alpha1.Cluster{ID: "2", Server: "https://shared"}
+			second := v1alpha1.Cluster{ID: "3", Server: "https://shared"}
 
-	clusterA := v1alpha1.Cluster{ID: "1", Server: "https://127.0.0.1:6443"}
-	clusterB := v1alpha1.Cluster{ID: "3", Server: "https://kubernetes.default.svc"}
-	clusterC := v1alpha1.Cluster{ID: "2", Server: "https://1.1.1.1"}
+			sharding := NewClusterSharding(&dbmocks.ArgoDB{}, 0, 2, algorithm).(*ClusterSharding)
+			sharding.Init(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{other, third}}, &v1alpha1.ApplicationList{})
+			sharding.Add(&first)
+			sharding.Add(&second)
+			sharding.Delete(first.Server)
+			sharding.Update(&second, &second)
 
-	newSharding := func(shard int) *ClusterSharding {
-		sharding := NewClusterSharding(&dbmocks.ArgoDB{}, shard, replicas, "round-robin").(*ClusterSharding)
-		sharding.Init(
-			&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{clusterA, clusterB}},
-			&v1alpha1.ApplicationList{},
-		)
-		return sharding
+			_, assigned := sharding.GetDistribution()[second.Server]
+			require.True(t, assigned, "the surviving cluster must have a shard")
+			requireMatchesFreshReplica(t, sharding, algorithm, other, second, third)
+		})
 	}
+}
 
-	// Shard 0 observes the add event of clusterC, shard 1 only observes an update
-	// event for it.
-	shard0 := newSharding(0)
-	shard0.Add(&clusterC)
+// TestClusterSharding_UpdateDuplicateSecretResync covers the cached entry and
+// the event disagreeing on the cluster ID. With two secrets for the same server,
+// the cache holds whichever was stored last, so a resync Update of the other
+// one carries no change between its own old and new copies but does change the
+// cluster ID the distribution is computed from.
+func TestClusterSharding_UpdateDuplicateSecretResync(t *testing.T) {
+	t.Parallel()
+	for _, algorithm := range updateScenarioAlgorithms {
+		t.Run(algorithm, func(t *testing.T) {
+			t.Parallel()
+			other := v1alpha1.Cluster{ID: "2", Server: "https://other"}
+			third := v1alpha1.Cluster{ID: "4", Server: "https://third"}
+			first := v1alpha1.Cluster{ID: "1", Server: "https://shared"}
+			second := v1alpha1.Cluster{ID: "3", Server: "https://shared"}
 
-	shard1 := newSharding(1)
-	shard1.Update(&clusterC, &clusterC)
+			sharding := NewClusterSharding(&dbmocks.ArgoDB{}, 0, 2, algorithm).(*ClusterSharding)
+			sharding.Init(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{other, third}}, &v1alpha1.ApplicationList{})
+			sharding.Add(&first)
+			sharding.Add(&second)
+			sharding.Update(&first, &first)
 
-	// Clusters are indexed by ID, so clusterC ("2") moves clusterB ("3") from
-	// shard 1 to shard 0. Both shards must agree on that distribution.
-	expected := map[string]int{
-		clusterA.Server: 0,
-		clusterC.Server: 1,
-		clusterB.Server: 0,
+			requireMatchesFreshReplica(t, sharding, algorithm, other, first, third)
+		})
 	}
-	assert.Equal(t, expected, shard0.GetDistribution())
-	assert.Equal(t, expected, shard1.GetDistribution())
+}
 
-	// Each cluster is processed by exactly one shard: none is orphaned and none
-	// is processed twice.
-	for _, cluster := range []*v1alpha1.Cluster{&clusterA, &clusterB, &clusterC} {
-		owners := 0
-		for _, sharding := range []*ClusterSharding{shard0, shard1} {
-			if sharding.IsManagedCluster(cluster) {
-				owners++
-			}
-		}
-		assert.Equal(t, 1, owners, "cluster %s should be processed by exactly one shard", cluster.Server)
+// TestClusterSharding_UpdateRenameOntoCachedServer covers a server URL change
+// whose destination is already in the cache with the same cluster, which
+// happens when the Init snapshot and the informer's initial list straddle a
+// rename: Init caches the cluster at its new server, the informer then adds it
+// at the old one, and the rename event follows. Removing the old server shrinks
+// the cluster set, so the distribution must be recomputed even though the
+// destination entry itself is unchanged.
+func TestClusterSharding_UpdateRenameOntoCachedServer(t *testing.T) {
+	t.Parallel()
+	for _, algorithm := range updateScenarioAlgorithms {
+		t.Run(algorithm, func(t *testing.T) {
+			t.Parallel()
+			first := v1alpha1.Cluster{ID: "1", Server: "https://first"}
+			third := v1alpha1.Cluster{ID: "3", Server: "https://third"}
+			before := v1alpha1.Cluster{ID: "2", Server: "https://before"}
+			after := v1alpha1.Cluster{ID: "2", Server: "https://after"}
+
+			sharding := NewClusterSharding(&dbmocks.ArgoDB{}, 0, 2, algorithm).(*ClusterSharding)
+			sharding.Init(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{first, after, third}}, &v1alpha1.ApplicationList{})
+			sharding.Add(&before)
+			sharding.Update(&before, &after)
+
+			_, stale := sharding.GetDistribution()[before.Server]
+			require.False(t, stale, "the old server must be removed")
+			requireMatchesFreshReplica(t, sharding, algorithm, first, after, third)
+		})
 	}
 }
 
@@ -332,27 +384,6 @@ func TestClusterSharding_UpdateUnchangedClusterSkipsRedistribution(t *testing.T)
 	sharding.Update(&cluster, &cluster)
 
 	assert.Equal(t, 42, sharding.Shards[cluster.Server], "resync of an unchanged cluster must not recompute the distribution")
-}
-
-// TestClusterSharding_UpdateStaleCachedClusterRedistributes verifies that Update
-// compares against the cached cluster, not the event's oldCluster: a replica that
-// missed the event changing the cluster ID receives the new ID in both halves of
-// the resync update, so comparing old against new alone would skip the
-// recomputation and leave the cluster on its stale shard.
-func TestClusterSharding_UpdateStaleCachedClusterRedistributes(t *testing.T) {
-	t.Parallel()
-	sharding := setupTestSharding(1, 2)
-	server := "https://kubernetes.default.svc"
-	sharding.Init(
-		&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{{ID: "1", Server: server}}},
-		&v1alpha1.ApplicationList{},
-	)
-	assert.Equal(t, 0, sharding.GetDistribution()[server])
-
-	updated := v1alpha1.Cluster{ID: "4", Server: server}
-	sharding.Update(&updated, &updated)
-
-	assert.Equal(t, 1, sharding.GetDistribution()[server], "stale cached cluster must be redistributed on resync")
 }
 
 func TestClusterSharding_IsManagedCluster(t *testing.T) {

@@ -119,13 +119,7 @@ func (sharding *ClusterSharding) Add(c *v1alpha1.Cluster) {
 	sharding.lock.Lock()
 	defer sharding.lock.Unlock()
 
-	old, ok := sharding.Clusters[c.Server]
-	sharding.Clusters[c.Server] = c
-	if !ok || hasShardingUpdates(old, c) {
-		sharding.updateDistribution()
-	} else {
-		log.Debugf("Skipping sharding distribution update. Cluster already added")
-	}
+	sharding.upsertCluster(c, false)
 }
 
 func (sharding *ClusterSharding) Delete(clusterServer string) {
@@ -142,22 +136,34 @@ func (sharding *ClusterSharding) Update(oldCluster *v1alpha1.Cluster, newCluster
 	sharding.lock.Lock()
 	defer sharding.lock.Unlock()
 
+	removed := false
 	if _, ok := sharding.Clusters[oldCluster.Server]; ok && oldCluster.Server != newCluster.Server {
 		delete(sharding.Clusters, oldCluster.Server)
 		delete(sharding.Shards, oldCluster.Server)
+		removed = true
 	}
-	// Compare against the cached entry rather than the event's oldCluster, so a
-	// cluster that is not part of the distribution yet, or whose cached copy is
-	// stale (a missed event followed by a resync), triggers a recomputation:
-	// adding it to the cluster set changes the shard of every other cluster for
-	// index based algorithms such as round-robin. This is the same guard Add uses.
-	old, known := sharding.Clusters[newCluster.Server]
-	sharding.Clusters[newCluster.Server] = newCluster
-	if !known || hasShardingUpdates(old, newCluster) {
+	sharding.upsertCluster(newCluster, removed)
+}
+
+// upsertCluster stores c and recomputes the distribution when the cluster set
+// changed or c differs from the cached entry in a field the distribution
+// depends on. The comparison is against the cached entry rather than an event's
+// old object, because the cache is keyed by server: a cluster can reach Update
+// without being cached (for example after another secret for the same server
+// was deleted), and the cached entry can belong to a different secret for the
+// same server. Adding a cluster changes the shard of other clusters for index
+// based algorithms such as round-robin. membershipChanged reports that the
+// caller already removed another entry from the cluster set.
+//
+// The write lock must be held.
+func (sharding *ClusterSharding) upsertCluster(c *v1alpha1.Cluster, membershipChanged bool) {
+	old, known := sharding.Clusters[c.Server]
+	sharding.Clusters[c.Server] = c
+	if membershipChanged || !known || hasShardingUpdates(old, c) {
 		sharding.updateDistribution()
-	} else {
-		log.Debugf("Skipping sharding distribution update. No relevant changes")
+		return
 	}
+	log.Debugf("Skipping sharding distribution update for cluster %s. No relevant changes", c.Server)
 }
 
 func (sharding *ClusterSharding) GetDistribution() map[string]int {
