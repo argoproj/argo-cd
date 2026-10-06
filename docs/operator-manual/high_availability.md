@@ -66,8 +66,8 @@ the appropriate tool.
   > resolve from snapshots captured at different times.
 
   > [!NOTE]
-  > The heads/tags query and targeted `HEAD` query each receive the configured Git request timeout. A cache refresh can
-  > therefore take up to twice that timeout before any default-resolver fallback.
+  > The heads/tags query and targeted `HEAD` query run concurrently, and each receives the configured Git request timeout.
+  > The optimized cache refresh can therefore wait up to one Git request timeout before falling back to the default resolver.
 
 * `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default
   that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With
