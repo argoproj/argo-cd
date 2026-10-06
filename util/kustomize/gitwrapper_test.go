@@ -35,10 +35,10 @@ func newFakeGitWrapper(t *testing.T) string {
 // runWrapper runs the wrapper with the given args and returns the args the fake git observed.
 func runWrapper(t *testing.T, wrapper string, args ...string) []string {
 	t.Helper()
-	out, err := exec.Command(wrapper, args...).CombinedOutput()
+	out, err := exec.CommandContext(t.Context(), wrapper, args...).CombinedOutput()
 	require.NoError(t, err, "wrapper output: %s", string(out))
 	var observed []string
-	for _, line := range strings.Split(strings.TrimRight(string(out), "\n"), "\n") {
+	for line := range strings.SplitSeq(strings.TrimRight(string(out), "\n"), "\n") {
 		if line == "" {
 			continue
 		}
@@ -111,7 +111,7 @@ func TestGitWrapper_RefusesUnrecognizedFetchShape(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := exec.Command(wrapper, tc.args...)
+			cmd := exec.CommandContext(t.Context(), wrapper, tc.args...)
 			out, err := cmd.CombinedOutput()
 			require.Error(t, err, "unrecognized fetch shape must be refused, not passed through; output: %s", string(out))
 			assert.Contains(t, string(out), "unrecognized")
