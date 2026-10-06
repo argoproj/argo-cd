@@ -2091,11 +2091,13 @@ func TestStopWatching_RemovesNamespacedResourcesEntry(t *testing.T) {
 	require.NoError(t, cluster.EnsureSynced())
 	_, err := cluster.IsNamespaced(gk)
 	require.NoError(t, err)
+	before := cluster.namespacedResources // as a concurrent IsNamespaced might hold it
 
 	cluster.stopWatching(gk, pod.Namespace)
 
 	_, err = cluster.IsNamespaced(gk)
 	assert.True(t, apierrors.IsNotFound(err), "got %v", err)
+	assert.Contains(t, before, gk, "the published map must be replaced, not edited in place")
 }
 
 func TestCRDVersionsToAPIResources(t *testing.T) {
