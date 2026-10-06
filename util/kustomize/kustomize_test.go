@@ -656,7 +656,7 @@ func TestKustomizeBuildGitRefArgumentInjection(t *testing.T) {
 
 	// Base64-wrap the payload so its shell metacharacters and spaces survive being embedded in a
 	// URL query parameter and re-parsed by git, mirroring the technique used in the public PoC.
-	script := fmt.Sprintf("touch %s", marker)
+	script := "touch " + marker
 	encoded := base64.StdEncoding.EncodeToString([]byte(script))
 	runner := url.QueryEscape(fmt.Sprintf(`sh -c "echo %s|base64 -d|sh"`, encoded))
 	kustomization := fmt.Sprintf(`apiVersion: kustomize.config.k8s.io/v1beta1

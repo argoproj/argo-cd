@@ -346,6 +346,7 @@ func (ctrl *ApplicationController) cleanupPreDeleteHooks(liveObjs map[kube.Resou
 func (ctrl *ApplicationController) executePostDeleteHooks(app *appv1.Application, proj *appv1.AppProject, destCluster *appv1.Cluster, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
 	return ctrl.executeHooks(PostDeleteHookType, app, proj, destCluster, liveObjs, config, logCtx)
 }
+
 func (ctrl *ApplicationController) cleanupPostDeleteHooks(liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
 	return ctrl.cleanupHooks(PostDeleteHookType, liveObjs, config, logCtx)
 }
