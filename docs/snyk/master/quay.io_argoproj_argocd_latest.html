@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="68 known vulnerabilities found in 115 vulnerable dependency paths.">
+  <meta name="description" content="46 known vulnerabilities found in 111 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">September 6th 2026, 12:35:17 am (UTC+00:00)</p>
+                <p class="timestamp">September 27th 2026, 12:36:39 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -507,9 +507,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>68</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>115 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2523</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>46</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>111 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2556</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -517,158 +517,6 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--high">
-                        <span class="label__text">high severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            golang.org/x/crypto/ssh
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v3@* and golang.org/x/crypto/ssh@v0.55.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@v0.55.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
-        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling in its connection multiplexing, reached through <code>Dial</code>, <code>NewClientConn</code>, <code>NewControlClientConn</code>, and <code>NewServerConn</code>, which buffers unhandled messages that fall outside the RFC 4254 channel and global-request handling instead of treating them as protocol errors. A malicious peer can deadlock the entire SSH connection by sending unexpected messages once a channel has been established. This requires a completed handshake and an open SSH channel with the attacker as the peer.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.56.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://pkg.go.dev/vuln/GO-2026-6355">Go Advisory</a></li>
-        <li><a href="https://go.dev/cl/826524">Go Commit</a></li>
-        <li><a href="https://go.dev/issue/81317">Go Issue</a></li>
-        <li><a href="https://groups.google.com/g/golang-announce/c/1y3fb2np35U">Google Groups Forum</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-19504090">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--high">
-                        <span class="label__text">high severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            golang.org/x/crypto/ssh
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v3@* and golang.org/x/crypto/ssh@v0.55.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@v0.55.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
-        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling in the connection multiplexer&#39;s channel handling (the <code>mux</code> <code>chanList</code>), reached through <code>Dial</code>, <code>NewClientConn</code>, <code>NewControlClientConn</code>, and <code>NewServerConn</code>, where a channel that is registered but not yet established has its <code>incomingRequests</code> queue flooded without bound. A malicious peer can deadlock the entire SSH connection by flooding channel request packets for a channel before it becomes established. This requires the attacker to participate in an SSH connection with the victim over the library.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.56.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://pkg.go.dev/vuln/GO-2026-6354">Go Advisory</a></li>
-        <li><a href="https://go.dev/cl/826504">Go Commit</a></li>
-        <li><a href="https://go.dev/issue/81316">Go Issue</a></li>
-        <li><a href="https://groups.google.com/g/golang-announce/c/1y3fb2np35U">Google Groups Forum</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-19512464">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Directory Traversal</h2>
             <div class="card__section">
@@ -1042,6 +890,240 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Out-of-bounds Write</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:26.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            zlib/zlib1g
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@latest and zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        dpkg@1.23.7ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.53.0-1ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpg@2.4.8-4ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:10.2p1-2ubuntu3.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@3.2.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt/libapt-pkg7.0@3.2.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@3.2.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gnupg2/gpgv@2.4.8-4ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.53.0-1ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.7
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:10.2p1-2ubuntu3.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libfido2/libfido2-1@1.16.0-2build1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@3.2.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt/libapt-pkg7.0@3.2.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.5.5-1ubuntu3.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.53.0-1ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.7
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libssh2/libssh2-1t64@1.11.1-1ubuntu0.26.04.4
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.53.0-1ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.7
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        rtmpdump/librtmp1@2.4+20151223.gitfa8646d.1-3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.53.0-1ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        perl@5.40.1-7ubuntu0.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        perl/libperl5.40@5.40.1-7ubuntu0.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>zlib</code> package and not the <code>zlib</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
+        <p>zlib versions 1.3.1.2 through 1.3.2 contain a heap buffer overflow vulnerability in the gz_vacate() function when processing non-blocking gzwrite() operations with stale external buffer pointers. Attackers can trigger the overflow by calling gzprintf() or gzvprintf() after a write stall, causing an unchecked memmove() to write beyond the internal input buffer boundary.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>zlib</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-85091">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-85091</a></li>
+        <li><a href="https://gist.github.com/thesmartshadow/e0b9481792afb7c31e86fee1ff084490">https://gist.github.com/thesmartshadow/e0b9481792afb7c31e86fee1ff084490</a></li>
+        <li><a href="https://github.com/madler/zlib">https://github.com/madler/zlib</a></li>
+        <li><a href="https://github.com/madler/zlib/blob/v1.3.2/gzwrite.c#L393">https://github.com/madler/zlib/blob/v1.3.2/gzwrite.c#L393</a></li>
+        <li><a href="https://www.vulncheck.com/advisories/zlib-1.3.1.2-through-1.3.2-heap-buffer-overflow-via-gz-vacate">https://www.vulncheck.com/advisories/zlib-1.3.1.2-through-1.3.2-heap-buffer-overflow-via-gz-vacate</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-ZLIB-19530306">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Link Following</h2>
             <div class="card__section">
         
@@ -1123,6 +1205,8 @@
         <li><a href="https://access.redhat.com/errata/RHSA-2026:61581">https://access.redhat.com/errata/RHSA-2026:61581</a></li>
         <li><a href="https://access.redhat.com/errata/RHSA-2026:61783">https://access.redhat.com/errata/RHSA-2026:61783</a></li>
         <li><a href="https://access.redhat.com/errata/RHSA-2026:61586">https://access.redhat.com/errata/RHSA-2026:61586</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:66018">https://access.redhat.com/errata/RHSA-2026:66018</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:70390">https://access.redhat.com/errata/RHSA-2026:70390</a></li>
         </ul>
         
               <hr/>
@@ -1214,93 +1298,14 @@
         <li><a href="https://access.redhat.com/errata/RHSA-2026:61581">https://access.redhat.com/errata/RHSA-2026:61581</a></li>
         <li><a href="https://access.redhat.com/errata/RHSA-2026:61783">https://access.redhat.com/errata/RHSA-2026:61783</a></li>
         <li><a href="https://access.redhat.com/errata/RHSA-2026:61586">https://access.redhat.com/errata/RHSA-2026:61586</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:66018">https://access.redhat.com/errata/RHSA-2026:66018</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:70390">https://access.redhat.com/errata/RHSA-2026:70390</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-TAR-18519313">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2026-39113</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            sqlite3/libsqlite3-0
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, gnupg2/gpg@2.4.8-4ubuntu3.1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        gnupg2/gpg@2.4.8-4ubuntu3.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        sqlite3/libsqlite3-0@3.46.1-9ubuntu0.2
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>sqlite3</code> package and not the <code>sqlite3</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>Buffer Overflow vulnerability in SQLite affected version source snapshots/builds containing Fossil check-in 8bdc0d485e3ad0c7a1e818da66f106951d496b05cbe61d12c2c448f2f24b6d5d (Git mirror 169f68ed88b34cb68f720191c64c058f2ccec508, 2026-03-11) and later snapshots/builds allows an attacker to cause a denial of service via the ext/misc/sqlar.c, sqlarUncompressFunc(), sqlar_uncompress(), sqlite3_value_int64(), sqlite3_malloc(int), uncompress() components</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>sqlite3</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-39113">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-39113</a></li>
-        <li><a href="https://github.com/20000419/CVE-2026-39113">https://github.com/20000419/CVE-2026-39113</a></li>
-        <li><a href="https://github.com/sqlite/sqlite/blob/169f68ed88b34cb68f720191c64c058f2ccec508/ext/misc/sqlar.c">https://github.com/sqlite/sqlite/blob/169f68ed88b34cb68f720191c64c058f2ccec508/ext/misc/sqlar.c</a></li>
-        <li><a href="https://github.com/sqlite/sqlite/commit/169f68ed88b34cb68f720191c64c058f2ccec508">https://github.com/sqlite/sqlite/commit/169f68ed88b34cb68f720191c64c058f2ccec508</a></li>
-        <li><a href="https://www.sqlite.org/">https://www.sqlite.org/</a></li>
-        <li><a href="https://www.sqlite.org/sqlar.html">https://www.sqlite.org/sqlar.html</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-SQLITE3-19383588">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1334,7 +1339,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -1349,7 +1354,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -1362,7 +1367,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -1422,7 +1427,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -1437,7 +1442,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -1450,7 +1455,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -1510,7 +1515,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -1525,7 +1530,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -1538,7 +1543,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -1598,7 +1603,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -1613,7 +1618,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -1626,7 +1631,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -1686,7 +1691,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -1701,7 +1706,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -1714,7 +1719,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -1774,7 +1779,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -1789,7 +1794,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -1802,7 +1807,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -1862,7 +1867,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -1877,7 +1882,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -1890,7 +1895,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -1950,7 +1955,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -1965,7 +1970,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -1978,7 +1983,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2038,7 +2043,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -2053,7 +2058,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2066,7 +2071,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2126,7 +2131,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -2141,7 +2146,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2154,7 +2159,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2214,7 +2219,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -2229,7 +2234,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2242,7 +2247,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2302,7 +2307,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -2317,7 +2322,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2330,7 +2335,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2390,7 +2395,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -2405,7 +2410,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2418,7 +2423,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2478,7 +2483,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -2493,7 +2498,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2506,7 +2511,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2566,7 +2571,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -2581,7 +2586,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2594,7 +2599,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2654,7 +2659,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -2669,7 +2674,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2682,7 +2687,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2742,7 +2747,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -2757,7 +2762,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2770,7 +2775,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2830,7 +2835,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -2845,7 +2850,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2858,7 +2863,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2921,7 +2926,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -2936,7 +2941,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -2949,7 +2954,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -3009,7 +3014,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.8.0-0ubuntu3
+                                docker-image|quay.io/argoproj/argocd@latest and rust-coreutils@0.10.0-1ubuntu2~26.04.1
         
                     </li>
                 </ul>
@@ -3024,7 +3029,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -3037,7 +3042,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
-                                        rust-coreutils@0.8.0-0ubuntu3
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                         
                                 </span>
         
@@ -3064,6 +3069,119 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-RUSTCOREUTILS-16239388">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Free of Memory not on the Heap</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:26.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            pcre2/libpcre2-8-0
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@latest and pcre2/libpcre2-8-0@10.46-1build1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pcre2/libpcre2-8-0@10.46-1build1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.53.0-1ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pcre2/libpcre2-8-0@10.46-1build1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        grep@3.12-1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pcre2/libpcre2-8-0@10.46-1build1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@3.2.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        base-passwd@3.6.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libselinux/libselinux1@3.9-4build1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pcre2/libpcre2-8-0@10.46-1build1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pcre2</code> package and not the <code>pcre2</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
+        <p>In PCRE2 before 10.48, pcre2_jit_match mishandles a previously copied subject being passed in as a context. An incorrect free operation can occur.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>pcre2</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-89161">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-89161</a></li>
+        <li><a href="https://github.com/PCRE2Project/pcre2/pull/937">https://github.com/PCRE2Project/pcre2/pull/937</a></li>
+        <li><a href="https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48">https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-PCRE2-19785458">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -3114,7 +3232,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.53.0-1ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.4
+                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.7
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnutls28/libgnutls30t64@3.8.12-2ubuntu1.1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3159,88 +3277,6 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Improper Restriction of Communication Channel to Intended Endpoints</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            openssh/openssh-client
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and openssh/openssh-client@1:10.2p1-2ubuntu3.6
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssh/openssh-client@1:10.2p1-2ubuntu3.6
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssh</code> package and not the <code>openssh</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>A flaw was found in OpenSSH. A local unprivileged attacker on a Linux client host can hijack client-side X11 forwarding connections. This is possible by pre-binding the preferred abstract X socket name when X11 forwarding is enabled and a local UNIX-domain X socket is used. A successful attack can compromise the confidentiality of forwarded X11 traffic, including sensitive window contents and input, and may allow some manipulation of the forwarded session.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>openssh</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-55655">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-55655</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:36759">https://access.redhat.com/errata/RHSA-2026:36759</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:47755">https://access.redhat.com/errata/RHSA-2026:47755</a></li>
-        <li><a href="https://access.redhat.com/security/cve/CVE-2026-55655">https://access.redhat.com/security/cve/CVE-2026-55655</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2462250">https://bugzilla.redhat.com/show_bug.cgi?id=2462250</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:47756">https://access.redhat.com/errata/RHSA-2026:47756</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:47757">https://access.redhat.com/errata/RHSA-2026:47757</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:54387">https://access.redhat.com/errata/RHSA-2026:54387</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:58981">https://access.redhat.com/errata/RHSA-2026:58981</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-OPENSSH-17427926">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">CVE-2026-18374</h2>
             <div class="card__section">
         
@@ -3270,7 +3306,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and glibc/libc-bin@2.43-2ubuntu2.3
+                                docker-image|quay.io/argoproj/argocd@latest and glibc/libc-bin@2.43-2ubuntu2.4
         
                     </li>
                 </ul>
@@ -3285,7 +3321,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc-bin@2.43-2ubuntu2.3
+                                        glibc/libc-bin@2.43-2ubuntu2.4
                                         
                                 </span>
         
@@ -3294,7 +3330,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc-gconv-modules-extra@2.43-2ubuntu2.3
+                                        glibc/libc-gconv-modules-extra@2.43-2ubuntu2.4
                                         
                                 </span>
         
@@ -3303,7 +3339,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc6@2.43-2ubuntu2.3
+                                        glibc/libc6@2.43-2ubuntu2.4
                                         
                                 </span>
         
@@ -3333,6 +3369,118 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-GLIBC-19437586">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2026-89092</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:26.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            glibc/libc-bin
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@latest and glibc/libc-bin@2.43-2ubuntu2.4
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc-bin@2.43-2ubuntu2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc-gconv-modules-extra@2.43-2ubuntu2.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc6@2.43-2ubuntu2.4
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>glibc</code> package and not the <code>glibc</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
+        <p>The nscd service in the GNU C Library 2.3.4 onwards may crash due to a 
+        stack overflow when a malicious DNS server returns too large a response 
+        for a DNS query, resulting in degraded DNS resolution for the system.</p>
+        <p>Exploitation of this bug needs a system that has nscd enabled and using 
+        an untrusted DNS server for name resolution, with the compromised DNS 
+        server being capable of processing records large enough to result in a 
+        stack overflow in an nscd thread stack.  During experimentation, bind 9 
+        was unable to handle large records, but that could change in future or 
+        with a different name server.  In typical installations, nscd is 
+        executed in an isolated context as its own user without a shell, due to 
+        which any compromise of that service is isolated.</p>
+        <p>There is a remote possibility of nscd cache corruption if an attacker 
+        manages to get the stack pointer into a desired point in the heap, 
+        potentially resulting in other caches in nscd being overwritten with 
+        corrupt data through the stack overflow, until the buggy code path 
+        eventually results in a crash.</p>
+        <p>Finally, a crash in nscd may result in performance degradation when 
+        resolving names, but it does not result in a denial of service.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>glibc</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-89092">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-89092</a></li>
+        <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=34624">https://sourceware.org/bugzilla/show_bug.cgi?id=34624</a></li>
+        <li><a href="https://sourceware.org/git/?p=glibc.git;a=blob_plain;f=advisories/GLIBC-SA-2026-0016">https://sourceware.org/git/?p=glibc.git;a=blob_plain;f=advisories/GLIBC-SA-2026-0016</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/09/11/2">http://www.openwall.com/lists/oss-security/2026/09/11/2</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-GLIBC-19785396">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -4067,7 +4215,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.53.0-1ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
+                                        expat/libexpat1@2.7.4-1ubuntu0.2
                                         
                                 </span>
         
@@ -4101,7 +4249,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">NULL Pointer Dereference</h2>
+            <h2 class="card__title">CVE-2026-19931</h2>
             <div class="card__section">
         
                 <div class="card__labels">
@@ -4125,7 +4273,7 @@
                     <li class="card__meta__item">
                             Vulnerable module:
         
-                            expat/libexpat1
+                            curl/libcurl3t64-gnutls
                     </li>
         
                     <li class="card__meta__item">Introduced through:
@@ -4147,7 +4295,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.53.0-1ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
+                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.7
                                         
                                 </span>
         
@@ -4159,1665 +4307,26 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>curl</code> package and not the <code>curl</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>libexpat before 2.7.5 allows a NULL pointer dereference with empty external parameter entity content.</p>
+        <p>A flaw in libcurl makes it wrongly reuse an HTTP connection setup for a given
+        hostname using Negotiate authentication, when the initial request is done
+        using empty credentials. This can make user B&#39;s request get sent over user A&#39;s
+        previously authenticated connection.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
+        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>curl</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-32776">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-32776</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1158">https://github.com/libexpat/libexpat/pull/1158</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1159">https://github.com/libexpat/libexpat/pull/1159</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-19931">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-19931</a></li>
+        <li><a href="https://curl.se/docs/CVE-2026-19931.html">https://curl.se/docs/CVE-2026-19931.html</a></li>
+        <li><a href="https://curl.se/docs/CVE-2026-19931.json">https://curl.se/docs/CVE-2026-19931.json</a></li>
+        <li><a href="https://hackerone.com/reports/3923520">https://hackerone.com/reports/3923520</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-16234250">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Loop with Unreachable Exit Condition (&#x27;Infinite Loop&#x27;)</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>libexpat before 2.7.5 allows an infinite loop while parsing DTD content.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-32777">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-32777</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/issues/1161">https://github.com/libexpat/libexpat/issues/1161</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1159">https://github.com/libexpat/libexpat/pull/1159</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1162">https://github.com/libexpat/libexpat/pull/1162</a></li>
-        <li><a href="https://issues.oss-fuzz.com/issues/486993411">https://issues.oss-fuzz.com/issues/486993411</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-16234290">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">NULL Pointer Dereference</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>libexpat before 2.7.5 allows a NULL pointer dereference in the function setContext on retry after an earlier ouf-of-memory condition.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-32778">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-32778</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1159">https://github.com/libexpat/libexpat/pull/1159</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1163">https://github.com/libexpat/libexpat/pull/1163</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-16235332">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Insufficient Entropy</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>libexpat before 2.8.0 uses insufficient entropy, and thus hash flooding can occur via a crafted XML document.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-41080">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-41080</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/issues/47">https://github.com/libexpat/libexpat/issues/47</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1183">https://github.com/libexpat/libexpat/pull/1183</a></li>
-        <li><a href="https://blog.hartwork.org/posts/expat-2-8-0-released/">https://blog.hartwork.org/posts/expat-2-8-0-released/</a></li>
-        <li><a href="https://www.openwall.com/lists/oss-security/2026/04/26/1">https://www.openwall.com/lists/oss-security/2026/04/26/1</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2026/04/26/1">http://www.openwall.com/lists/oss-security/2026/04/26/1</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-16238424">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Algorithmic Complexity</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>In libexpat before 2.8.1, the computational complexity of attribute name collision checks allows a denial of service via moderately sized crafted XML input.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-45186">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-45186</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1216">https://github.com/libexpat/libexpat/pull/1216</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2026/05/11/16">http://www.openwall.com/lists/oss-security/2026/05/11/16</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:22715">https://access.redhat.com/errata/RHSA-2026:22715</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:22721">https://access.redhat.com/errata/RHSA-2026:22721</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:23230">https://access.redhat.com/errata/RHSA-2026:23230</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:26319">https://access.redhat.com/errata/RHSA-2026:26319</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:27201">https://access.redhat.com/errata/RHSA-2026:27201</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:29197">https://access.redhat.com/errata/RHSA-2026:29197</a></li>
-        <li><a href="https://access.redhat.com/security/cve/CVE-2026-45186">https://access.redhat.com/security/cve/CVE-2026-45186</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2468575">https://bugzilla.redhat.com/show_bug.cgi?id=2468575</a></li>
-        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-082556.html">https://cert-portal.siemens.com/productcert/html/ssa-082556.html</a></li>
-        <li><a href="https://security.access.redhat.com/data/csaf/v2/vex/2026/cve-2026-45186.json">https://security.access.redhat.com/data/csaf/v2/vex/2026/cve-2026-45186.json</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:58981">https://access.redhat.com/errata/RHSA-2026:58981</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-16655701">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Use After Free</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>libexpat before 2.8.2 lacks handler call depth tracking for calls to XML_GetBuffer, XML_Parse, XML_ParseBuffer, XML_ParserFree, or XML_ParserReset from within handlers in cases of a policy violation. Thus, a use-after-free can occur,</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-50219">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-50219</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1246">https://github.com/libexpat/libexpat/pull/1246</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-17157237">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Integer Overflow or Wraparound</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>libexpat before 2.8.2 has an integer overflow in addBinding.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56404">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56404</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1249">https://github.com/libexpat/libexpat/pull/1249</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-17398905">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Integer Overflow or Wraparound</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>xmlwf in libexpat before 2.8.2 has an integer overflow in endDoctypeDecl via NOTATION declarations.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56411">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56411</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1263">https://github.com/libexpat/libexpat/pull/1263</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-17398909">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Integer Overflow or Wraparound</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>libexpat before 2.8.2 has an integer overflow in copyString.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56408">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56408</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/commit/16e2efd867ea8567ffa012210b52ef5918e20817">https://github.com/libexpat/libexpat/commit/16e2efd867ea8567ffa012210b52ef5918e20817</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-17398978">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Integer Overflow or Wraparound</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>xmlwf in libexpat before 2.8.2 has an integer overflow in resolveSystemId.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56410">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56410</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1252">https://github.com/libexpat/libexpat/pull/1252</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-17399016">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Integer Overflow or Wraparound</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>libexpat before 2.8.2 has an integer overflow in getAttributeId.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56405">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56405</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1251">https://github.com/libexpat/libexpat/pull/1251</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-17399039">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Use After Free</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>libexpat before 2.8.2 lacks handler call depth tracking for calls to XML_ResumeParser from within handlers in cases of a policy violation. Thus, a use-after-free can occur (similar to the CVE-2026-50219 situation).</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56131">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56131</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1267">https://github.com/libexpat/libexpat/pull/1267</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-17399052">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Use After Free</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>libexpat before 2.8.2 does not consider XML_TOK_DATA_CHARS in doCdataSection and thus lacks handler call depth tracking for various calls from within handlers in cases of a policy violation. Thus, a use-after-free can occur. NOTE: this issue exists because of an incomplete fix for CVE-2026-50219.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56412">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56412</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1278">https://github.com/libexpat/libexpat/pull/1278</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-17399268">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Incorrect Synchronization</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>In libexpat before 2.8.2, there is a heap-based buffer overflow in doProlog in xmlparse.c because scaffold backing array reallocation is mishandled when there is data-structure sharing across parsers.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56132">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56132</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1272">https://github.com/libexpat/libexpat/pull/1272</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-17399387">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Integer Overflow or Wraparound</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>libexpat before 2.8.2 has an integer overflow in doProlog that is related to storeEntityValue and entity textLen.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56407">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56407</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1262">https://github.com/libexpat/libexpat/pull/1262</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-17399432">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Integer Overflow or Wraparound</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>libexpat before 2.8.2 has an integer overflow in XML_ParseBuffer because it lacked a check that was present in XML_Parse.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56406">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56406</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1255">https://github.com/libexpat/libexpat/pull/1255</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-17399816">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Integer Overflow or Wraparound</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>xmlwf in libexpat before 2.8.2 has an integer overflow for the output filename when -d outputDir is used.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56409">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56409</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1259">https://github.com/libexpat/libexpat/pull/1259</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-17399863">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Integer Overflow or Wraparound</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>libexpat before 2.8.2 has an integer overflow in storeAtts.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56403">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-56403</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1232">https://github.com/libexpat/libexpat/pull/1232</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-17399915">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Out-of-bounds Read</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>libexpat before 2.8.3 has an out-of-bounds read and resultant infinite loop because low surrogates are treated the same as high surrogates during Unicode processing in the *_toUtf16 functions.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-72522">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-72522</a></li>
-        <li><a href="https://bugzilla.mozilla.org/show_bug.cgi?id=2053153">https://bugzilla.mozilla.org/show_bug.cgi?id=2053153</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1296">https://github.com/libexpat/libexpat/pull/1296</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2026/08/11/5">http://www.openwall.com/lists/oss-security/2026/08/11/5</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-18741658">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Algorithmic Complexity</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>Expat through 2.8.3 contains a denial of service vulnerability caused by quadratic algorithmic complexity in the storeAtts() function in xmlparse.c, where processing N specified attributes with non-normalized values triggers an O(N^2) linear scan of elementType-&gt;defaultAtts to determine CDATA status. A remote unauthenticated attacker can supply a single well-formed XML document of a few megabytes to an application parsing untrusted XML to cause excessive CPU consumption, resulting in denial of service without requiring authentication, external entity resolution, or non-default parser options.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-66046">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-66046</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1321">https://github.com/libexpat/libexpat/pull/1321</a></li>
-        <li><a href="https://www.vulncheck.com/advisories/expat-denial-of-service-via-storeatts-quadratic-complexity">https://www.vulncheck.com/advisories/expat-denial-of-service-via-storeatts-quadratic-complexity</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-18963851">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Use After Free</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>libexpat before 2.8.4 lacks handler call depth tracking with custom encoding callbacks. Thus, a use-after-free can occur. NOTE: this is similar to CVE-2026-50219, CVE-2026-56131 and CVE-2026-56412.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-76957">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-76957</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1322">https://github.com/libexpat/libexpat/pull/1322</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1329">https://github.com/libexpat/libexpat/pull/1329</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-19169928">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Out-of-bounds Read</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            expat/libexpat1
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        expat/libexpat1@2.7.4-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>expat</code> package and not the <code>expat</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>Expat through 2.8.3 contains an out-of-bounds read vulnerability that allows attackers to trigger memory corruption by processing XML with external entity parsers created via XML_ExternalEntityParserCreate. A struct size mismatch between ELEMENT_TYPE members causes storeAtts to read the attIndex member past allocated memory boundaries, resulting in failure to normalize whitespace in non-CDATA attributes or a wild pointer dereference causing a segfault. This vulnerability was introduced by the fix for CVE-2026-66046.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>expat</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-76641">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-76641</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/commit/98599f6dcc2b460410881fe420f5f55d6bec63bf">https://github.com/libexpat/libexpat/commit/98599f6dcc2b460410881fe420f5f55d6bec63bf</a></li>
-        <li><a href="https://github.com/libexpat/libexpat/pull/1331">https://github.com/libexpat/libexpat/pull/1331</a></li>
-        <li><a href="https://www.vulncheck.com/advisories/expat-out-of-bounds-read-via-dtdcopy">https://www.vulncheck.com/advisories/expat-out-of-bounds-read-via-dtdcopy</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-EXPAT-19170039">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-CURL-19499142">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -5948,6 +4457,21 @@
                                         coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils/gnu-coreutils@9.7-3ubuntu2.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        systemd/libsystemd0@259.5-0ubuntu3.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        coreutils-from/coreutils@9.5-1ubuntu2+0.0.0~ubuntu25
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        coreutils-from/coreutils-from-uutils@0.0.0~ubuntu25
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        rust-coreutils@0.10.0-1ubuntu2~26.04.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         systemd/libsystemd0@259.5-0ubuntu3.4
                                         
