@@ -3256,6 +3256,7 @@ func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRe
 	}
 	defer utilio.Close(closer)
 
+	// here we get resault of a revision check
 	sourceIntegrityResult, _, err := sourceintegrity.VerifyGit(ctx, request.SourceIntegrity, gitClient, revision)
 	if err != nil {
 		return nil, err

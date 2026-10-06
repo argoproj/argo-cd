@@ -1468,6 +1468,8 @@ func (s *Server) getCachedAppState(ctx context.Context, a *v1alpha1.Application,
 			AppNamespace: new(a.GetNamespace()),
 			Refresh:      new(string(v1alpha1.RefreshTypeNormal)),
 		})
+
+		// we didnt get here...
 		if err != nil {
 			return fmt.Errorf("error getting application by query: %w", err)
 		}
@@ -1478,6 +1480,7 @@ func (s *Server) getCachedAppState(ctx context.Context, a *v1alpha1.Application,
 
 func (s *Server) getAppResources(ctx context.Context, a *v1alpha1.Application) (*v1alpha1.ApplicationTree, error) {
 	var tree v1alpha1.ApplicationTree
+	// I guess it happenes here
 	err := s.getCachedAppState(ctx, a, func() error {
 		return s.cache.GetAppResourcesTree(a.InstanceName(s.ns), &tree)
 	})
@@ -1485,6 +1488,7 @@ func (s *Server) getAppResources(ctx context.Context, a *v1alpha1.Application) (
 		if errors.Is(err, ErrCacheMiss) {
 			fmt.Println("Cache Key is missing.\nEnsure that the Redis compression setting on the Application controller and CLI is same. See --redis-compress.")
 		}
+		// FOUND YA
 		return &tree, fmt.Errorf("error getting cached app resource tree: %w", err)
 	}
 	return &tree, nil

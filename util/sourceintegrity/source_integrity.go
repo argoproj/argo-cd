@@ -68,6 +68,12 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 	}
 
 	policy := policies[0]
+
+	// // DO IT HERE OR ABOVE
+	// if policy.SignedTagsOnly {
+	// 	git.Client.VerifyCommitSignature(context.Context)
+	// }
+
 	if policy.GPG != nil {
 		if policy.GPG.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeNone {
 			// Declare missing check because there is no verification performed
@@ -85,6 +91,7 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 		}
 	}
 
+
 	log.Warnf("No verification configured for SourceIntegrity policy for %+v", policy.Repos)
 	return nil
 }
@@ -93,7 +100,7 @@ func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (p
 	for _, p := range si.Policies {
 		include := false
 		for _, r := range p.Repos {
-			m := repoMatches(r.URL, repoURL)
+			m := repoIsIncluded(r.URL, repoURL)
 			if m == -1 {
 				include = false
 				break
@@ -108,7 +115,7 @@ func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (p
 	return policies
 }
 
-func repoMatches(urlGlob string, repoURL string) int {
+func repoIsIncluded(urlGlob string, repoURL string) int {
 	if strings.HasPrefix(urlGlob, "!") {
 		if glob.Match(urlGlob[1:], repoURL) {
 			return -1
