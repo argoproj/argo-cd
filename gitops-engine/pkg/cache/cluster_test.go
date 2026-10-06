@@ -2072,14 +2072,15 @@ func Test_watchEvents_Deadlock(t *testing.T) {
 }
 
 // Regression: startMissingWatches panicked on the nil apisMeta left by Invalidate.
-func TestStartMissingWatches_LazyInitsApisMetaAfterInvalidate(t *testing.T) {
+// It must also start no watches, since nothing may sync or cancel them later.
+func TestStartMissingWatches_DoesNothingAfterInvalidate(t *testing.T) {
 	cluster := newCluster(t)
 	cluster.lock.Lock()
 	defer cluster.lock.Unlock()
 	cluster.apisMeta = nil
 
 	require.NotPanics(t, func() { require.NoError(t, cluster.startMissingWatches()) })
-	assert.NotEmpty(t, cluster.apisMeta)
+	assert.Nil(t, cluster.apisMeta)
 }
 
 // Regression: stopWatching left the GroupKind in namespacedResources.

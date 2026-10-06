@@ -709,6 +709,13 @@ func (c *clusterCache) stopWatching(gk schema.GroupKind, ns string) {
 
 // startMissingWatches lists supported cluster resources and starts watching for changes unless watch is already running
 func (c *clusterCache) startMissingWatches() error {
+	// apisMeta is nil between Invalidate and the next sync, and a CRD or
+	// APIService event from a watch started before Invalidate can still get here.
+	// Start nothing: the next sync starts every watch, and if the cache was
+	// discarded, watches started now would never be cancelled.
+	if c.apisMeta == nil {
+		return nil
+	}
 	apis, err := c.kubectl.GetAPIResources(c.config, true, c.settings.ResourcesFilter)
 	if err != nil {
 		return fmt.Errorf("failed to get APIResources: %w", err)
@@ -720,11 +727,6 @@ func (c *clusterCache) startMissingWatches() error {
 	clientset, err := kubernetes.NewForConfig(c.config)
 	if err != nil {
 		return fmt.Errorf("failed to create clientset: %w", err)
-	}
-	// apisMeta is nil between Invalidate and the next sync, and a CRD or
-	// APIService event from a watch started before Invalidate can still get here.
-	if c.apisMeta == nil {
-		c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	}
 	namespacedResources := make(map[schema.GroupKind]bool)
 	for i := range apis {
