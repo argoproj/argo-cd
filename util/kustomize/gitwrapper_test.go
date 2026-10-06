@@ -143,7 +143,7 @@ func TestWithGitWrapper_PrependsPath(t *testing.T) {
 	assert.True(t, sawFoo, "unrelated env vars should be preserved")
 	require.NotEmpty(t, pathVal)
 	// The wrapper directory must come first so kustomize resolves it ahead of the real git.
-	first := strings.Split(pathVal, string(os.PathListSeparator))[0]
+	first, _, _ := strings.Cut(pathVal, string(os.PathListSeparator))
 	assert.DirExists(t, first)
 	assert.FileExists(t, filepath.Join(first, "git"))
 	assert.True(t, strings.HasSuffix(pathVal, "/usr/bin:/bin"), "original PATH must be preserved after the wrapper dir: %s", pathVal)

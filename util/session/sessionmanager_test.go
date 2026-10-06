@@ -692,15 +692,13 @@ func TestLoginFailureCountConcurrentBurst(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for range concurrentAttempts {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			start.Wait()
 			// Wrong password: a correct limiter allows at most maxFails increments;
 			// excess attempts must be rejected before password verification / increment.
 			err := mgr.VerifyUsernamePassword("admin", "wrong-password")
 			require.Error(t, err)
-		}()
+		})
 	}
 	start.Done()
 	wg.Wait()

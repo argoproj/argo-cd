@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/image-spec/specs-go"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -893,8 +892,8 @@ func Test_getOCIManifest(t *testing.T) {
 	t.Run("decodes a normal manifest", func(t *testing.T) {
 		store := memory.New()
 		digest := pushManifest(t, store, imagev1.Manifest{
-			Versioned: specs.Versioned{SchemaVersion: 2},
-			Config:    content.NewDescriptorFromBytes(imagev1.MediaTypeImageConfig, []byte("config")),
+			SchemaVersion: 2,
+			Config:        content.NewDescriptorFromBytes(imagev1.MediaTypeImageConfig, []byte("config")),
 		})
 
 		manifest, err := getOCIManifest(t.Context(), digest, store)
@@ -909,9 +908,9 @@ func Test_getOCIManifest(t *testing.T) {
 		// rather than reading the whole blob.
 		store := memory.New()
 		digest := pushManifest(t, store, imagev1.Manifest{
-			Versioned:   specs.Versioned{SchemaVersion: 2},
-			Config:      content.NewDescriptorFromBytes(imagev1.MediaTypeImageConfig, []byte("config")),
-			Annotations: map[string]string{"pad": strings.Repeat("a", maxOCIManifestSize)},
+			SchemaVersion: 2,
+			Config:        content.NewDescriptorFromBytes(imagev1.MediaTypeImageConfig, []byte("config")),
+			Annotations:   map[string]string{"pad": strings.Repeat("a", maxOCIManifestSize)},
 		})
 
 		_, err := getOCIManifest(t.Context(), digest, store)

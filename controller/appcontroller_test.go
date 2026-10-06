@@ -1717,10 +1717,8 @@ func TestFinalizeAppDeletion_DeleteHookProjectRestriction(t *testing.T) {
 	// restrictedProj permits only the app's own destination namespace.
 	newRestrictedProj := func() *v1alpha1.AppProject {
 		return &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "restricted",
-				Namespace: test.FakeArgoCDNamespace,
-			},
+			Name:      "restricted",
+			Namespace: test.FakeArgoCDNamespace,
 			Spec: v1alpha1.AppProjectSpec{
 				SourceRepos: []string{"*"},
 				Destinations: []v1alpha1.ApplicationDestination{
