@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unicode/utf8"
@@ -1008,21 +1009,34 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 			defer done()
 		}
 
-		refs, err := m.runLsRemote("ls-remote", "--heads", "--tags", m.repoURL)
-		if err != nil {
-			return nil, err
+		var refs []*plumbing.Reference
+		var refsErr error
+		var headRef *plumbing.Reference
+		var headErr error
+		// Neither remote query depends on the other, so overlap them to avoid
+		// holding the cache lock for the sum of both request durations.
+		var wg sync.WaitGroup
+		wg.Go(func() {
+			refs, refsErr = m.runLsRemote("ls-remote", "--heads", "--tags", m.repoURL)
+		})
+		wg.Go(func() {
+			headRef, headErr = m.runTargetedHeadFetch()
+		})
+		wg.Wait()
+
+		if refsErr != nil {
+			return nil, refsErr
 		}
 		if len(refs) == 0 && isCoveredFullRef {
 			return nil, ErrRevisionNotFound
 		}
-		headRef, err := m.runTargetedHeadFetch()
-		if err != nil {
+		if headErr != nil {
 			// A missing remote HEAD does not prevent branch and tag resolution. Keep
 			// the non-empty narrowed snapshot and represent HEAD by its absence.
-			if errors.Is(err, ErrRevisionNotFound) && len(refs) > 0 {
+			if errors.Is(headErr, ErrRevisionNotFound) && len(refs) > 0 {
 				return refs, nil
 			}
-			return nil, err
+			return nil, headErr
 		}
 		return append(refs, headRef), nil
 	})

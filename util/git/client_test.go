@@ -1152,13 +1152,54 @@ esac
 
 	calls, err := os.ReadFile(callsFile)
 	require.NoError(t, err)
-	assert.Equal(t, []string{
+	assert.ElementsMatch(t, []string{
 		"--git-dir=" + os.DevNull + " -c protocol.version=2 ls-remote --heads --tags " + repoURL,
 		"init --bare --quiet .",
 		"--git-dir=. -c protocol.version=2 fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0 " + repoURL + " HEAD",
 		"--git-dir=. rev-parse --verify " + commitSHA + "^{commit}",
 	}, strings.Split(strings.TrimSpace(string(calls)), "\n"))
 	assert.Equal(t, []string{"ls-remote-optimized|" + repoURL + "|HEAD,heads,tags"}, cache.setKeys)
+}
+
+func TestOptimizedLsRemoteRunsQueriesConcurrently(t *testing.T) {
+	fakeBin := t.TempDir()
+	fakeGit := filepath.Join(fakeBin, "git")
+	barrierDir := t.TempDir()
+	const commitSHA = "abcdef0123456789abcdef0123456789abcdef01"
+	require.NoError(t, os.WriteFile(fakeGit, fmt.Appendf(nil, `#!/bin/sh
+wait_for_file() {
+  attempts=0
+  while [ ! -f "$1" ]; do
+    attempts=$((attempts + 1))
+    [ "$attempts" -ge 100 ] && exit 1
+    sleep 0.01
+  done
+}
+
+case "$*" in
+  "init --bare --quiet .") exit 0 ;;
+  *"ls-remote --heads --tags"*)
+    touch "$GIT_LS_REMOTE_BARRIER/refs"
+    wait_for_file "$GIT_LS_REMOTE_BARRIER/head"
+    printf '%s\trefs/heads/main\n'
+    ;;
+  *"fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0"*)
+    touch "$GIT_LS_REMOTE_BARRIER/head"
+    wait_for_file "$GIT_LS_REMOTE_BARRIER/refs"
+    printf '* 0000000000000000000000000000000000000000 %s FETCH_HEAD\n'
+    ;;
+  *"rev-parse --verify"*) printf '%s\n' ;;
+esac
+`, commitSHA, commitSHA, commitSHA), 0o755))
+	t.Setenv("GIT_LS_REMOTE_BARRIER", barrierDir)
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	client, err := NewClientExt("https://example.com/repo.git", filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "", WithOptimizedLsRemote(true))
+	require.NoError(t, err)
+
+	sha, err := client.LsRemote("main")
+	require.NoError(t, err)
+	assert.Equal(t, commitSHA, sha)
 }
 
 func TestOptimizedLsRemote(t *testing.T) {
@@ -1208,6 +1249,7 @@ func TestOptimizedLsRemote(t *testing.T) {
 		{name: "semver constraint", revision: "v1.*", expected: v110SHA},
 		{name: "annotated tag resolves to commit", revision: "annotated", expected: v110SHA},
 		{name: "hex-looking tag", revision: "20240101", expected: v110SHA},
+		{name: "non-standard short ref falls back", revision: "pull/123/head", expected: pullSHA},
 		{name: "non-standard ref falls back", revision: "refs/pull/123/head", expected: pullSHA},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1592,7 +1634,7 @@ esac
 
 	calls, err := os.ReadFile(callsFile)
 	require.NoError(t, err)
-	assert.Equal(t, []string{
+	assert.ElementsMatch(t, []string{
 		"--git-dir=" + os.DevNull + " -c protocol.version=2 ls-remote --heads --tags " + repoURL,
 		"init --bare --quiet .",
 		"--git-dir=. -c protocol.version=2 fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0 " + repoURL + " HEAD",
