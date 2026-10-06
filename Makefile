@@ -424,6 +424,11 @@ actionlint-local:
 KUBECONFORM_KUBERNETES_MINOR ?= $(shell go list -m -f '{{.Version}}' k8s.io/api | cut -d. -f2)
 KUBECONFORM_KUBERNETES_VERSIONS ?= $(foreach offset,0 1 2 3,1.$(shell echo $$(($(KUBECONFORM_KUBERNETES_MINOR) - $(offset)))).0)
 
+# Validate the generated install manifests against the Kubernetes schemas
+.PHONY: kubeconform
+kubeconform: test-tools-image
+	$(call run-in-test-client,make kubeconform-local)
+
 # Validate the generated install manifests against the Kubernetes schemas (local version).
 # CustomResourceDefinitions are skipped because kubeconform has no schema for them.
 .PHONY: kubeconform-local
