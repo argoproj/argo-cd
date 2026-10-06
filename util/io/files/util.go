@@ -78,7 +78,7 @@ func IsSymlink(fi os.FileInfo) bool {
 // Considerations:
 // - baseDir must be absolute path. Will return false otherwise
 // - candidate can be absolute or relative path
-// - candidate should not be symlink as only syntatic validation is
+// - candidate should not be symlink as only syntactic validation is
 // applied by this function
 func Inbound(candidate, baseDir string) bool {
 	if !filepath.IsAbs(baseDir) {
