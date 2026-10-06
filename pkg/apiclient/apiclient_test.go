@@ -476,34 +476,58 @@ func TestNewClient_RetryPath_ExposesTLSTransport(t *testing.T) {
 }
 
 // TestNewClient_PersistentError_PreservesStatus ensures that when retries are
-// exhausted against a persistent 502, the returned error still carries the
-// status code. This relies on ErrorPropagatedRetryPolicy; the default policy
-// would strip it, leaving only "giving up after N attempt(s)".
+// exhausted against a persistent retryable status, the returned error still
+// carries that status code. This relies on retryWithStatusError; the default
+// policy (and ErrorPropagatedRetryPolicy for 429) would strip it, leaving only
+// "giving up after N attempt(s)".
 func TestNewClient_PersistentError_PreservesStatus(t *testing.T) {
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusBadGateway) // always 502
-	}))
-	defer server.Close()
+	for _, tc := range []struct {
+		name   string
+		status int
+		want   string
+	}{
+		{"502 Bad Gateway", http.StatusBadGateway, "502"},
+		{"429 Too Many Requests", http.StatusTooManyRequests, "429"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tc.status)
+			}))
+			defer server.Close()
 
-	ci, err := NewClient(&ClientOptions{
-		ServerAddr:   server.Listener.Addr().String(),
-		HttpRetryMax: 2,
-		Insecure:     true,
-		GRPCWeb:      true,
-	})
-	require.NoError(t, err)
-	c := ci.(*client)
+			ci, err := NewClient(&ClientOptions{
+				ServerAddr:   server.Listener.Addr().String(),
+				HttpRetryMax: 2,
+				Insecure:     true,
+				GRPCWeb:      true,
+			})
+			require.NoError(t, err)
+			c := ci.(*client)
 
-	rt, ok := c.httpClient.Transport.(*retryablehttp.RoundTripper)
-	require.True(t, ok, "expected retryablehttp.RoundTripper, got %T", c.httpClient.Transport)
-	rt.Client.RetryWaitMin = time.Millisecond
-	rt.Client.RetryWaitMax = 5 * time.Millisecond
+			rt, ok := c.httpClient.Transport.(*retryablehttp.RoundTripper)
+			require.True(t, ok, "expected retryablehttp.RoundTripper, got %T", c.httpClient.Transport)
+			rt.Client.RetryWaitMin = time.Millisecond
+			rt.Client.RetryWaitMax = 5 * time.Millisecond
 
-	ctx := t.Context()
-	md := metadata.New(map[string]string{})
-	_, err = c.executeRequest(ctx, "/test.Service/Method", []byte("test"), md)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "502", "exhausted-retry error should preserve the HTTP status")
+			ctx := t.Context()
+			md := metadata.New(map[string]string{})
+			_, err = c.executeRequest(ctx, "/test.Service/Method", []byte("test"), md)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.want, "exhausted-retry error should preserve the HTTP status")
+		})
+	}
+}
+
+// TestCappedBackoff_EnforcesCapOverRetryAfter ensures that a server-supplied
+// Retry-After header cannot exceed retryWaitMax. DefaultBackoff honors
+// Retry-After verbatim, so the wrapper must cap it.
+func TestCappedBackoff_EnforcesCapOverRetryAfter(t *testing.T) {
+	resp := &http.Response{
+		StatusCode: http.StatusTooManyRequests,
+		Header:     http.Header{"Retry-After": []string{"120"}},
+	}
+	wait := cappedBackoff(time.Millisecond, retryWaitMax, 1, resp)
+	assert.LessOrEqual(t, wait, retryWaitMax, "Retry-After must not exceed the backoff cap")
 }
 
 // TestNewClient_RetriesOn502_OverTLS is the end-to-end regression test for the

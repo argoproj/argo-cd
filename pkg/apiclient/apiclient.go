@@ -186,6 +186,34 @@ type client struct {
 	tlsTransport *http.Transport
 }
 
+// retryWaitMax bounds the per-attempt backoff for the retryable HTTP client so
+// retries cannot stack unbounded latency ahead of command-level timeouts.
+const retryWaitMax = 10 * time.Second
+
+// retryWithStatusError wraps ErrorPropagatedRetryPolicy so that an exhausted
+// retry against a persistent 429 still surfaces the status in the returned
+// error. ErrorPropagatedRetryPolicy reports 5xx with a status-bearing error but
+// reports 429 with a nil error, which would otherwise strip the status from the
+// final "giving up after N attempt(s)" message.
+func retryWithStatusError(ctx context.Context, resp *http.Response, err error) (bool, error) {
+	shouldRetry, policyErr := retryablehttp.ErrorPropagatedRetryPolicy(ctx, resp, err)
+	if shouldRetry && policyErr == nil && resp != nil && resp.StatusCode == http.StatusTooManyRequests {
+		return shouldRetry, fmt.Errorf("unexpected HTTP status %s", resp.Status)
+	}
+	return shouldRetry, policyErr
+}
+
+// cappedBackoff wraps DefaultBackoff to enforce retryWaitMax even when the
+// server supplies a Retry-After header, which DefaultBackoff would otherwise
+// honor verbatim.
+func cappedBackoff(minWait, maxWait time.Duration, attemptNum int, resp *http.Response) time.Duration {
+	wait := retryablehttp.DefaultBackoff(minWait, maxWait, attemptNum, resp)
+	if wait > maxWait {
+		return maxWait
+	}
+	return wait
+}
+
 // NewClient creates a new API client from a set of config options.
 func NewClient(opts *ClientOptions) (Client, error) {
 	return NewClientWithContext(context.Background(), opts)
@@ -321,14 +349,19 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 		// plain http.Client path below is silent, so disable the logger to keep
 		// behavior consistent and avoid per-request noise on the CLI.
 		retryClient.Logger = nil
-		// Use ErrorPropagatedRetryPolicy so that when retries are exhausted the
-		// returned error still carries the underlying cause (e.g. "unexpected
-		// HTTP status 502"). The default policy discards it, turning a persistent
-		// 502 into a bare "giving up after N attempt(s)" with the status stripped.
-		retryClient.CheckRetry = retryablehttp.ErrorPropagatedRetryPolicy
+		// Propagate the final status when retries are exhausted so the error still
+		// carries the underlying cause (e.g. "unexpected HTTP status 502"). The
+		// default policy discards it, turning a persistent 5xx into a bare
+		// "giving up after N attempt(s)". ErrorPropagatedRetryPolicy covers 5xx but
+		// not 429 (which it reports with a nil error), so wrap it to attach the
+		// status for 429 too.
+		retryClient.CheckRetry = retryWithStatusError
 		// Cap the backoff so retries can't stack unbounded latency ahead of
-		// command-level timeouts (e.g. app sync/wait).
-		retryClient.RetryWaitMax = 10 * time.Second
+		// command-level timeouts (e.g. app sync/wait). DefaultBackoff honors a
+		// server Retry-After header verbatim, bypassing RetryWaitMax, so wrap it
+		// to enforce the cap regardless of Retry-After.
+		retryClient.RetryWaitMax = retryWaitMax
+		retryClient.Backoff = cappedBackoff
 		// Apply the TLS transport to the retryable client's inner HTTP client
 		// before wrapping it. StandardClient() returns an *http.Client whose
 		// Transport is the retry RoundTripper, so overwriting Transport after
