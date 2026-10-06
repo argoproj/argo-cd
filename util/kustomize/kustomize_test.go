@@ -656,7 +656,7 @@ func TestKustomizeBuildGitRefArgumentInjection(t *testing.T) {
 
 	// Base64-wrap the payload so its shell metacharacters and spaces survive being embedded in a
 	// URL query parameter and re-parsed by git, mirroring the technique used in the public PoC.
-	script := fmt.Sprintf("touch %s", marker)
+	script := "touch " + marker
 	encoded := base64.StdEncoding.EncodeToString([]byte(script))
 	runner := url.QueryEscape(fmt.Sprintf(`sh -c "echo %s|base64 -d|sh"`, encoded))
 	kustomization := fmt.Sprintf(`apiVersion: kustomize.config.k8s.io/v1beta1
@@ -688,14 +688,14 @@ func TestKustomizeBuildHelmChartsIgnoresConfigHomePlugin(t *testing.T) {
 	marker := filepath.Join(appPath, "pwned")
 	pluginDir := filepath.Join(appPath, "helm-home", ".data", "plugins", "probe")
 	require.NoError(t, os.MkdirAll(pluginDir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(pluginDir, "run.sh"), []byte(fmt.Sprintf("#!/bin/sh\ntouch %q\n", marker)), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(pluginDir, "plugin.yaml"), []byte(fmt.Sprintf(`name: probe
+	require.NoError(t, os.WriteFile(filepath.Join(pluginDir, "run.sh"), fmt.Appendf(nil, "#!/bin/sh\ntouch %q\n", marker), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(pluginDir, "plugin.yaml"), fmt.Appendf(nil, `name: probe
 version: 1.0.0
 downloaders:
   - command: /bin/sh %s
     protocols:
       - probe
-`, filepath.Join(pluginDir, "run.sh"))), 0o644))
+`, filepath.Join(pluginDir, "run.sh")), 0o644))
 
 	require.NoError(t, os.WriteFile(filepath.Join(appPath, "kustomization.yaml"), []byte(`apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
