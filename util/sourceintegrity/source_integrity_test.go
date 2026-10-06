@@ -74,7 +74,7 @@ func TestGPGUnknownMode(t *testing.T) {
 	gitClient.EXPECT().CommitSHA(mock.Anything).Return("DEADBEEF", nil)
 
 	s := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: "foobar", Keys: []string{}}
-	result, _, err := verify(t.Context(), s, gitClient, "https://github.com/argoproj/argo-cd.git")
+	result, _, err := verifyGPG(t.Context(), s, gitClient, "https://github.com/argoproj/argo-cd.git")
 	require.ErrorContains(t, err, `unknown GPG mode "foobar" configured for GIT source integrity`)
 	assert.Nil(t, result)
 }
@@ -245,7 +245,7 @@ gpg: Good signature from "test user <testuser@example.com>" [ultimate]`, fingerp
 
 	gpgWithTag := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{fingerprint}}
 	// And verifying a given revision
-	result, legacy, err := verify(t.Context(), gpgWithTag, gitClient, "1.0")
+	result, legacy, err := verifyGPG(t.Context(), gpgWithTag, gitClient, "1.0")
 	require.NoError(t, err)
 
 	assert.True(t, result.IsValid())
@@ -301,7 +301,7 @@ gpg: Good signature from "test user <testuser@example.com>" [ultimate]`, keyId)
 				Keys: []string{keyId, "0000000000000000"},
 			}
 			// And verifying a given revision
-			result, legacy, err := verify(t.Context(), gpgWithTag, gitClient, test.revision)
+			result, legacy, err := verifyGPG(t.Context(), gpgWithTag, gitClient, test.revision)
 			require.NoError(t, err)
 			// Then it is checked and valid
 			assert.True(t, result.IsValid())
@@ -342,7 +342,7 @@ func TestGPGSubkeySignature(t *testing.T) {
 
 	t.Run("subkey accepted when its primary is allowed", func(t *testing.T) {
 		gpg := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{primaryKeyID}}
-		result, _, err := verify(t.Context(), gpg, subkeySignature(), "1.0")
+		result, _, err := verifyGPG(t.Context(), gpg, subkeySignature(), "1.0")
 		require.NoError(t, err)
 		assert.True(t, result.IsValid())
 		require.NoError(t, result.AsError())
@@ -350,7 +350,7 @@ func TestGPGSubkeySignature(t *testing.T) {
 
 	t.Run("subkey rejected when its primary is not allowed", func(t *testing.T) {
 		gpg := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{unrelatedKeyID}}
-		result, _, err := verify(t.Context(), gpg, subkeySignature(), "1.0")
+		result, _, err := verifyGPG(t.Context(), gpg, subkeySignature(), "1.0")
 		require.NoError(t, err)
 		assert.False(t, result.IsValid())
 		require.ErrorContains(t, result.AsError(), "signed with unallowed key (key_id="+subkeyID+")")
@@ -645,7 +645,7 @@ gpg: Good signature from "%s" [ultimate]`, "Wed Feb 26 23:22:34 2020 CET", ret[0
 				Keys: []string{keyOfFirst, keyOfSecond},
 			}
 			// And verifying a given revision
-			result, legacy, err := verify(t.Context(), gpgWithTag, gitClient, test.revision)
+			result, legacy, err := verifyGPG(t.Context(), gpgWithTag, gitClient, test.revision)
 			require.NoError(t, err)
 
 			// Then it is checked and valid
