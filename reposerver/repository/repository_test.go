@@ -3617,32 +3617,85 @@ func (f *fakeHelmForDepBuild) Dispose() {}
 
 func TestRunHelmBuildRecordsMarker(t *testing.T) {
 	t.Parallel()
-	repoRoot := t.TempDir()
 	appPath := t.TempDir()
 	helmClient := &fakeHelmForDepBuild{}
 
-	// The marker file is created and registered for removal when another
-	// revision is processed.
-	err := runHelmBuild(t.Context(), appPath, repoRoot, helmClient)
+	// The marker file is created holding the processed revision.
+	err := runHelmBuild(t.Context(), appPath, "rev1", helmClient)
 	require.NoError(t, err)
 
 	markerFile := filepath.Join(appPath, helmDepUpMarkerFile)
 	assert.FileExists(t, markerFile)
+	marker, err := os.ReadFile(markerFile)
+	require.NoError(t, err)
+	assert.Equal(t, "rev1", string(marker))
 
-	// The marker prevents an unnecessary second run of helm dependency build.
-	err = runHelmBuild(t.Context(), appPath, repoRoot, helmClient)
+	// The marker prevents an unnecessary second run of helm dependency build
+	// for the same revision.
+	err = runHelmBuild(t.Context(), appPath, "rev1", helmClient)
 	require.NoError(t, err)
 	assert.Equal(t, 1, helmClient.dependencyBuildCalls)
 
-	// Once the marker is removed (which happens when another revision is
-	// processed, see TestLock_RemoveHelmDepMarkersOnRevisionChange), helm
-	// dependency build runs again.
-	helmDepMarkers.removeAll(repoRoot)
-	assert.NoFileExists(t, markerFile)
-
-	err = runHelmBuild(t.Context(), appPath, repoRoot, helmClient)
+	// Another revision does not match the marker, so helm dependency build
+	// runs again and the marker is updated.
+	err = runHelmBuild(t.Context(), appPath, "rev2", helmClient)
 	require.NoError(t, err)
 	assert.Equal(t, 2, helmClient.dependencyBuildCalls)
+	marker, err = os.ReadFile(markerFile)
+	require.NoError(t, err)
+	assert.Equal(t, "rev2", string(marker))
+}
+
+func TestCleanStaleHelmDependencies(t *testing.T) {
+	t.Parallel()
+
+	// appPath is a git working copy: tracked files (e.g. a Chart.lock or
+	// vendored dependencies committed to the repository) must survive the
+	// clean, untracked output of a previous `helm dependency build` run must
+	// not.
+	appPath := t.TempDir()
+	runGit(t, appPath, "init")
+	runGit(t, appPath, "config", "user.email", "test@example.com")
+	runGit(t, appPath, "config", "user.name", "test")
+	require.NoError(t, os.WriteFile(filepath.Join(appPath, "Chart.yaml"), []byte("apiVersion: v2\nname: my-chart\nversion: 1.0.0\n"), 0o644))
+	committedChartLockFile := filepath.Join(appPath, "Chart.lock")
+	committedVendoredChartFile := filepath.Join(appPath, "charts", "subchart-1.0.0.tgz")
+	require.NoError(t, os.MkdirAll(filepath.Dir(committedVendoredChartFile), 0o755))
+	require.NoError(t, os.WriteFile(committedChartLockFile, []byte("lock"), 0o644))
+	require.NoError(t, os.WriteFile(committedVendoredChartFile, []byte("chart"), 0o644))
+	runGit(t, appPath, "add", ".")
+	runGit(t, appPath, "commit", "-m", "chart")
+
+	markerFile := filepath.Join(appPath, helmDepUpMarkerFile)
+	staleVendoredChartFile := filepath.Join(appPath, "charts", "stale-2.0.0.tgz")
+	writeStaleOutput := func() {
+		require.NoError(t, os.WriteFile(markerFile, []byte("rev1"), 0o644))
+		require.NoError(t, os.WriteFile(staleVendoredChartFile, []byte("chart"), 0o644))
+	}
+
+	// No marker: nothing was built by a previous revision, so nothing is
+	// cleaned.
+	require.NoError(t, os.WriteFile(staleVendoredChartFile, []byte("chart"), 0o644))
+	require.NoError(t, cleanStaleHelmDependencies(t.Context(), appPath, "rev2"))
+	assert.FileExists(t, staleVendoredChartFile)
+	assert.FileExists(t, committedChartLockFile)
+	assert.FileExists(t, committedVendoredChartFile)
+
+	// Marker matches the revision: nothing is cleaned.
+	writeStaleOutput()
+	require.NoError(t, cleanStaleHelmDependencies(t.Context(), appPath, "rev1"))
+	assert.FileExists(t, markerFile)
+	assert.FileExists(t, staleVendoredChartFile)
+	assert.FileExists(t, committedVendoredChartFile)
+
+	// Marker holds another revision: the untracked output of the stale build
+	// is removed, while files tracked in the requested revision are preserved.
+	require.NoError(t, os.WriteFile(markerFile, []byte("rev2-marker-is-stale"), 0o644))
+	require.NoError(t, cleanStaleHelmDependencies(t.Context(), appPath, "rev2"))
+	assert.NoFileExists(t, markerFile)
+	assert.NoFileExists(t, staleVendoredChartFile)
+	assert.FileExists(t, committedChartLockFile)
+	assert.FileExists(t, committedVendoredChartFile)
 }
 
 func TestFetch(t *testing.T) {

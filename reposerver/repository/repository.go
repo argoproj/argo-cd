@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -61,6 +62,7 @@ import (
 	apppathutil "github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/cmp"
+	argoexec "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
@@ -87,51 +89,6 @@ const (
 var ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
 
 var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/reposerver/repository")
-
-// helmDepMarkers tracks the .argocd-helm-dep-up marker files created by Helm
-// chart processing, keyed by the repository working copy root. When the
-// processed revision changes, these markers must be removed so that
-// `helm dependency build` is re-run for the new revision. Removing only the
-// recorded markers is a much cheaper alternative to a full git clean, which
-// can time out on large repositories (https://github.com/argoproj/argo-cd/issues/29856,
-// https://github.com/argoproj/argo-cd/issues/28677).
-var helmDepMarkers = newHelmDepMarkerRegistry()
-
-type helmDepMarkerRegistry struct {
-	lock    gosync.Mutex
-	markers map[string]map[string]struct{}
-}
-
-func newHelmDepMarkerRegistry() *helmDepMarkerRegistry {
-	return &helmDepMarkerRegistry{markers: map[string]map[string]struct{}{}}
-}
-
-// add records a marker file that was created in the given repository working copy.
-func (r *helmDepMarkerRegistry) add(repoRoot, markerPath string) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	markers, ok := r.markers[repoRoot]
-	if !ok {
-		markers = map[string]struct{}{}
-		r.markers[repoRoot] = markers
-	}
-	markers[markerPath] = struct{}{}
-}
-
-// removeAll removes all marker files recorded for the given repository working
-// copy and clears the records. Marker files that no longer exist (e.g. because
-// they were already removed by a full clean) are ignored.
-func (r *helmDepMarkerRegistry) removeAll(repoRoot string) {
-	r.lock.Lock()
-	markers := r.markers[repoRoot]
-	delete(r.markers, repoRoot)
-	r.lock.Unlock()
-	for markerPath := range markers {
-		if err := os.Remove(markerPath); err != nil && !os.IsNotExist(err) {
-			log.Warnf("Failed to remove Helm dependency build marker %s: %v", markerPath, err)
-		}
-	}
-}
 
 // Service implements ManifestService interface
 type Service struct {
@@ -1291,13 +1248,12 @@ func runHelmBuild(ctx context.Context, appPath string, revision string, h helm.H
 	defer manifestGenerateLock.Unlock(appPath)
 
 	// the `helm dependency build` is potentially a time-consuming 1~2 seconds,
-	// a marker file is used to check if command already run to avoid running it again unnecessarily
-	// the file is removed when repository is re-initialized (e.g. when another commit is processed)
+	// a marker file holding the revision is used to check if command already run to avoid running it again unnecessarily
 	markerFile := path.Join(appPath, helmDepUpMarkerFile)
-	_, err := os.Stat(markerFile)
-	if err == nil {
+	marker, err := os.ReadFile(markerFile)
+	if err == nil && string(marker) == revision {
 		return nil
-	} else if !os.IsNotExist(err) {
+	} else if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
@@ -1305,8 +1261,27 @@ func runHelmBuild(ctx context.Context, appPath string, revision string, h helm.H
 	if err != nil {
 		return fmt.Errorf("error building helm chart dependencies: %w", err)
 	}
-	if err := os.WriteFile(markerFile, []byte("marker"), 0o644); err != nil {
+	return os.WriteFile(markerFile, []byte(revision), 0o644)
+}
+
+// cleanStaleHelmDependencies removes the untracked output of a `helm dependency build` run for another revision
+// (charts/*.tgz, a generated Chart.lock, the marker). `helm template` only checks dependency names, so stale archives
+// would otherwise render silently (#28677), and a stale generated Chart.lock makes the rebuild fail. The clean is
+// scoped to the chart directory because a full clean is too slow on large repositories (#29856).
+func cleanStaleHelmDependencies(ctx context.Context, appPath string, revision string) error {
+	manifestGenerateLock.Lock(appPath)
+	defer manifestGenerateLock.Unlock(appPath)
+
+	marker, err := os.ReadFile(path.Join(appPath, helmDepUpMarkerFile))
+	if os.IsNotExist(err) || (err == nil && string(marker) == revision) {
+		return nil
+	} else if err != nil {
 		return err
+	}
+	cmd := exec.CommandContext(ctx, "git", "clean", "-ffdx", "--", "charts", "Chart.lock", helmDepUpMarkerFile)
+	cmd.Dir = appPath
+	if _, err := argoexec.Run(cmd); err != nil {
+		return fmt.Errorf("error removing stale helm chart dependencies: %w", err)
 	}
 	return nil
 }
@@ -1448,6 +1423,12 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, revision
 
 	defer h.Dispose()
 
+	// isLocal is a user's own checkout (argocd app diff --local), which must not be cleaned.
+	if !isLocal {
+		if err := cleanStaleHelmDependencies(ctx, appPath, revision); err != nil {
+			return nil, "", err
+		}
+	}
 	out, command, err := h.Template(templateOpts)
 	if err != nil {
 		if !helm.IsMissingDependencyErr(err) {
