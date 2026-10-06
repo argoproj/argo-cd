@@ -557,3 +557,50 @@ annotations:
   foo: bar
   something: completely-different
 ```
+
+## Run Hooks on Partial Sync
+
+By default, when performing a partial sync (syncing only specific resources using the `--resource` flag), sync hooks are excluded. This behavior exists because hooks are typically intended to run as part of a full sync operation.
+
+However, there are cases where you may want hooks to execute even during a partial sync. For example, you might want a PreSync hook to perform database migrations or a PostSync hook to send notifications even when only updating specific resources.
+
+To enable hooks during partial syncs, use the `RunHooksOnPartialSync=true` sync option:
+
+```bash
+# Sync a specific resource while also running hooks
+argocd app sync my-app --resource :Deployment:guestbook-ui --sync-option RunHooksOnPartialSync=true
+```
+
+This option can also be set at the Application level:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - RunHooksOnPartialSync=true
+```
+
+When this option is enabled:
+
+- All PreSync, Sync, PostSync, and SyncFail hooks will be included in the sync operation
+- Hooks will execute in their normal order according to sync waves
+- Hook deletion policies are respected as usual
+
+The option is supported in the following places:
+
+| Where the option is set | Supported |
+| ----------------------- | --------- |
+| `argocd app sync --sync-option RunHooksOnPartialSync=true` | Yes |
+| The **Run Hooks on Partial Sync** checkbox in the UI sync panel | Yes |
+| `spec.syncPolicy.syncOptions` of an Application | Yes, for manually triggered syncs |
+| `spec.template.spec.syncPolicy.syncOptions` of an ApplicationSet | Yes, for manually triggered syncs (it is copied to the generated Applications) |
+| The `argocd.argoproj.io/sync-options` resource annotation | No, this is an operation-level option and is ignored on individual resources |
+
+> [!NOTE]
+> This option only affects partial syncs. During full syncs (when no specific resources are selected), hooks run as usual regardless of this setting.
+> It does not override the `apply` sync strategy (`--strategy apply`), which always skips hooks.
+
+> [!WARNING]
+> The option is ignored for automated syncs. Automated sync with self-heal enabled performs a partial sync of only the out-of-sync resources, and running hooks on every self-heal could be expensive and have unintended side effects. Hooks are never run during an automated partial sync, even if `RunHooksOnPartialSync=true` is set on the Application.
