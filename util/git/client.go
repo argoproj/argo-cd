@@ -1017,7 +1017,7 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 		// holding the cache lock for the sum of both request durations.
 		var wg sync.WaitGroup
 		wg.Go(func() {
-			refs, refsErr = m.runLsRemote("ls-remote", "--heads", "--tags", m.repoURL)
+			refs, refsErr = m.runLsRemote("ls-remote", "--heads", "--tags", "--", m.repoURL)
 		})
 		wg.Go(func() {
 			headRef, headErr = m.runTargetedHeadFetch()
@@ -1104,6 +1104,7 @@ func (m *nativeGitClient) runTargetedHeadFetch() (*plumbing.Reference, error) {
 		"--no-tags",
 		"--depth=1",
 		"--filter=tree:0",
+		"--",
 		m.repoURL,
 		headRevision,
 	)
