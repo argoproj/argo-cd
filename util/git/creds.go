@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -50,6 +52,9 @@ var (
 	// installationIdCache caches installation IDs for organizations to avoid redundant API calls.
 	githubInstallationIdCache      *gocache.Cache
 	githubInstallationIdCacheMutex sync.RWMutex // For bulk API call coordination
+
+	// validProxyHostRegexp matches only safe hostname characters: alphanumeric, hyphen, dot, and brackets (for IPv6).
+	validProxyHostRegexp = regexp.MustCompile(`^[a-zA-Z0-9.\-]+$`)
 )
 
 const (
@@ -74,6 +79,57 @@ func init() {
 	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
 	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 	githubInstallationIdCache = gocache.New(60*time.Minute, 60*time.Minute)
+}
+
+func validateProxyURL(rawURL string) error {
+	return validateProxyURLWithSchemes(rawURL, "socks5", "socks5h")
+}
+
+// ValidateHTTPProxyURL validates a proxy URL for HTTP/HTTPS creds (GitHub App,
+// Azure Service Principal, HTTPS creds). It accepts http, https, socks5 and
+// socks5h schemes.
+func ValidateHTTPProxyURL(rawURL string) error {
+	return validateProxyURLWithSchemes(rawURL, "http", "https", "socks5", "socks5h")
+}
+
+func validateProxyURLWithSchemes(rawURL string, allowedSchemes ...string) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid proxy URL: %w", err)
+	}
+
+	schemeOK := slices.Contains(allowedSchemes, parsed.Scheme)
+	if !schemeOK {
+		return fmt.Errorf("invalid proxy scheme %q: only %v are supported", parsed.Scheme, allowedSchemes)
+	}
+
+	host := parsed.Hostname()
+	if host == "" {
+		return errors.New("proxy URL has empty hostname")
+	}
+	if strings.Contains(host, ":") {
+		// Treat as IPv6 — validate with net.ParseIP which understands all
+		// valid IPv6 formats and rejects anything containing shell metacharacters.
+		if net.ParseIP(host) == nil {
+			return fmt.Errorf("proxy hostname %q is not a valid IPv6 address", host)
+		}
+	} else {
+		// DNS name or IPv4 — allow only alphanumerics, hyphens, and dots.
+		if !validProxyHostRegexp.MatchString(host) {
+			return fmt.Errorf("proxy hostname %q contains unsafe characters: only alphanumerics, hyphens, and dots are allowed", host)
+		}
+	}
+
+	portStr := parsed.Port()
+	if portStr == "" {
+		return errors.New("proxy URL has no port")
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port < 1 || port > 65535 {
+		return fmt.Errorf("proxy port %q is not a valid TCP port (must be 1-65535)", portStr)
+	}
+
+	return nil
 }
 
 type NoopCredsStore struct{}
@@ -225,7 +281,7 @@ func (creds HTTPSCreds) Environ() (io.Closer, []string, error) {
 		defer keyFile.Close()
 
 		// We should have both temp files by now
-		httpCloser = authFilePaths([]string{certFile.Name(), keyFile.Name()})
+		httpCloser = []string{certFile.Name(), keyFile.Name()}
 
 		_, err = certFile.WriteString(creds.clientCertData)
 		if err != nil {
@@ -283,6 +339,15 @@ type SSHCreds struct {
 }
 
 func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, proxy string) SSHCreds {
+	if proxy != "" {
+		if err := validateProxyURL(proxy); err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityHigh,
+				common.SecurityCWEField: 78,
+			}).Warnf("NewSSHCreds: rejecting unsafe proxy URL: %v", err)
+			proxy = ""
+		}
+	}
 	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, proxy}
 }
 
@@ -353,17 +418,56 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		knownHostsFile := certutil.GetSSHKnownHostsDataPath()
 		args = append(args, "-o", "StrictHostKeyChecking=yes", "-o", "UserKnownHostsFile="+knownHostsFile)
 	}
+
 	// Handle SSH socks5 proxy settings
-	proxyEnv := []string{}
+	var proxyEnv []string
+	var proxyScriptPath string
+
 	if c.proxy != "" {
+		if err := validateProxyURL(c.proxy); err != nil {
+			sshCloser.Close()
+			return nil, nil, fmt.Errorf("unsafe proxy URL rejected: %w", err)
+		}
+
 		parsedProxyURL, err := url.Parse(c.proxy)
 		if err != nil {
 			sshCloser.Close()
 			return nil, nil, fmt.Errorf("failed to set environment variables related to socks5 proxy, could not parse proxy URL '%s': %w", c.proxy, err)
 		}
-		args = append(args, "-o", fmt.Sprintf("ProxyCommand='connect-proxy -S %s:%s -5 %%h %%p'",
+
+		// Write a temporary wrapper script instead of embedding the hostname and port directly into the
+		// shell-interpreted GIT_SSH_COMMAND string.
+		proxyScriptContent := fmt.Sprintf(
+			"#!/bin/sh\nexec connect-proxy -5 -S %s:%s \"$@\"\n",
 			parsedProxyURL.Hostname(),
-			parsedProxyURL.Port()))
+			parsedProxyURL.Port(),
+		)
+
+		proxyScript, err := os.CreateTemp(argoio.TempDir, "argocd-proxy-cmd-*")
+		if err != nil {
+			sshCloser.Close()
+			return nil, nil, fmt.Errorf("failed to create proxy command script: %w", err)
+		}
+		proxyScriptPath = proxyScript.Name()
+
+		if _, err := proxyScript.WriteString(proxyScriptContent); err != nil {
+			_ = os.Remove(proxyScriptPath)
+			sshCloser.Close()
+			return nil, nil, fmt.Errorf("failed to write proxy command script: %w", err)
+		}
+		if err := proxyScript.Close(); err != nil {
+			_ = os.Remove(proxyScriptPath)
+			sshCloser.Close()
+			return nil, nil, fmt.Errorf("failed to close proxy command script: %w", err)
+		}
+		if err := os.Chmod(proxyScriptPath, 0o700); err != nil {
+			_ = os.Remove(proxyScriptPath)
+			sshCloser.Close()
+			return nil, nil, fmt.Errorf("failed to chmod proxy command script: %w", err)
+		}
+
+		args = append(args, "-o", "ProxyCommand="+proxyScriptPath+" %h %p")
+
 		if parsedProxyURL.User != nil {
 			proxyEnv = append(proxyEnv, "SOCKS5_USER="+parsedProxyURL.User.Username())
 			if socks5Passwd, isPasswdSet := parsedProxyURL.User.Password(); isPasswdSet {
@@ -371,9 +475,28 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 			}
 		}
 	}
+
 	env = append(env, []string{"GIT_SSH_COMMAND=" + strings.Join(args, " ")}...)
 	env = append(env, proxyEnv...)
-	return sshCloser, env, nil
+
+	// We need a combined closer that removes both the SSH private key tempfile
+	// and the proxy script tempfile (if one was created).
+	combinedCloser := utilio.NewCloser(func() error {
+		keyErr := sshCloser.Close()
+		var proxyErr error
+		if proxyScriptPath != "" {
+			proxyErr = os.Remove(proxyScriptPath)
+			if os.IsNotExist(proxyErr) {
+				proxyErr = nil
+			}
+		}
+		if keyErr != nil {
+			return keyErr
+		}
+		return proxyErr
+	})
+
+	return combinedCloser, env, nil
 }
 
 // GitHubAppCreds to authenticate as GitHub application
@@ -395,6 +518,15 @@ type GitHubAppCreds struct {
 // NewGitHubAppCreds provide github app credentials
 // repoURL is required for automatic installation ID discovery when appInstallId is 0
 func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore, repoURL string) GenericHTTPSCreds {
+	if proxy != "" {
+		if err := ValidateHTTPProxyURL(proxy); err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityHigh,
+				common.SecurityCWEField: 78,
+			}).Warnf("NewGitHubAppCreds: rejecting unsafe proxy URL: %v", err)
+			proxy = ""
+		}
+	}
 	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store, repoURL: repoURL}
 }
 
@@ -437,7 +569,7 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 		defer keyFile.Close()
 
 		// We should have both temp files by now
-		httpCloser = authFilePaths([]string{certFile.Name(), keyFile.Name()})
+		httpCloser = []string{certFile.Name(), keyFile.Name()}
 
 		_, err = certFile.WriteString(g.clientCertData)
 		if err != nil {
