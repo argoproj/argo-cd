@@ -114,16 +114,30 @@ const renderSyncStatusRevision = (application: models.Application) => {
     );
 };
 
-const ProgressiveSyncStatus = ({application}: {application: models.Application}) => {
+const NullLoadingRenderer: React.FC = () => null;
+
+const ProgressiveSyncStatus = ({application, collapsed}: {application: models.Application; collapsed?: boolean}) => {
     const appSetRef = getApplicationSetOwnerRef(application);
     if (!appSetRef) {
         return null;
     }
+    // an owner reference always points into the application's own namespace
+    const appSetIdentity = `${application.metadata.namespace}/${appSetRef.name}`;
 
     return (
         <DataLoader
-            input={application}
+            // the key unmounts the loader when the owner changes, so a pending request
+            // for the previous owner cannot overwrite the new owner's data
+            key={appSetIdentity}
+            // load() only depends on the owner identity; while collapsed that stable input
+            // keeps application watch events from re-firing the cluster-wide list call
+            input={collapsed ? appSetIdentity : application}
+            noLoaderOnInputChange={true}
+            loadingRenderer={collapsed ? NullLoadingRenderer : undefined}
             errorRenderer={() => {
+                if (collapsed) {
+                    return null;
+                }
                 // For any errors, show a minimal error state
                 return (
                     <div className='application-status-panel__item'>
@@ -141,7 +155,7 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
             load={async () => {
                 // Find ApplicationSet by searching all namespaces dynamically
                 const appSetList = await services.applications.listApplicationSets();
-                const appSet = appSetList.items?.find(item => item.metadata.name === appSetRef.name);
+                const appSet = appSetList.items?.find(item => item.metadata.name === appSetRef.name && item.metadata.namespace === application.metadata.namespace);
 
                 return {appSet};
             }}>
@@ -153,6 +167,17 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
 
                 // Get the current application's status from the ApplicationSet applicationStatus
                 const appResource = appSet.status?.applicationStatus?.find(status => status.application === application.metadata.name);
+
+                if (collapsed) {
+                    const status = appResource?.status ?? 'Waiting';
+                    return (
+                        <div className='application-status-panel__collapsed-item' title='Progressive Sync' style={{color: getProgressiveSyncStatusColor(status)}}>
+                            {getProgressiveSyncStatusIcon({status})}
+                            &nbsp;
+                            {status}
+                        </div>
+                    );
+                }
 
                 // If no application status is found, show a default status
                 if (!appResource) {
@@ -330,6 +355,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                 </div>
             )}
             {conditionSummary}
+            <ProgressiveSyncStatus application={application} collapsed={true} />
         </div>
     );
 
