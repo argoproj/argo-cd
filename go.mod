@@ -14,7 +14,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v1.0.0
 	github.com/alicebob/miniredis/v2 v2.39.0
-	github.com/argoproj/argo-cd/gitops-engine/v3 v3.6.0-rc1 // Tagged as gitops-engine/vX.Y.Z at release time
+	github.com/argoproj/argo-cd/gitops-engine/v3 v3.6.0-rc2 // Tagged as gitops-engine/vX.Y.Z at release time
 	github.com/argoproj/notifications-engine v0.5.1-0.20260503100631-0cff13b8a717
 	github.com/argoproj/pkg/v2 v2.0.1
 	github.com/aws/aws-sdk-go-v2 v1.47.0
@@ -44,7 +44,7 @@ require (
 	// go-git/go-git#1551 (SSH "knownhosts: key mismatch" regression from PR
 	// #1515) is mitigated in util/git by populating HostKeyAlgorithms via
 	// skeema/knownhosts. Keep that fix in place when bumping further.
-	github.com/go-git/go-git/v5 v5.19.1
+	github.com/go-git/go-git/v5 v5.19.2
 	github.com/go-jose/go-jose/v4 v4.1.5
 	github.com/go-logr/logr v1.4.4
 	github.com/go-openapi/loads v0.25.3
