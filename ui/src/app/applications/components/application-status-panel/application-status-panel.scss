@@ -35,15 +35,52 @@
     flex-shrink: 1;
     overflow-x: auto;
     padding-bottom: 0.5em;
+    // keep the rightmost section clear of the collapse toggle
+    padding-right: 36px;
 
     $row-width: 250px;
+
+    &--collapsed {
+        align-items: center;
+        padding: 6px 44px 6px 20px;
+        gap: 2em;
+        min-height: 34px;
+    }
+
+    &__collapsed-item {
+        display: flex;
+        align-items: baseline;
+        white-space: nowrap;
+        flex-shrink: 0;
+        font-weight: 500;
+        @include themify($themes) {
+            color: themed('text-1');
+        }
+
+        a.error {
+            color: $argo-failed-color-dark;
+        }
+        a.warning {
+            color: $argo-status-warning-color;
+        }
+        a.info {
+            color: $argo-success-color;
+        }
+
+        &.application-status-panel__conditions {
+            flex-wrap: nowrap;
+            max-width: none;
+        }
+    }
 
      &__conditions {
             display: flex;
             max-width: 250px;
             flex-wrap: wrap;
             justify-content: flex-start;
-            line-height: 1.5em;
+            // row-gap spaces wrapped counter rows; an inflated line-height would
+            // push the text below the baseline of the neighboring sections
+            row-gap: 6px;
             a {
                 display: flex;
                 margin-right: 12px;
@@ -141,7 +178,8 @@
         align-items: baseline;
         margin-bottom: 0.5em;
         font-weight: 500;
-        padding: 2px 0px;
+        // the left padding keeps round glyphs clear of the overflow clip edge
+        padding: 2px 0 2px 2px;
         min-width: 0;
         .fa {
             font-size: 1em;

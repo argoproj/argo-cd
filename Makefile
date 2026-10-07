@@ -292,13 +292,6 @@ codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen m
 .PHONY: codegen-local-fast
 codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen mockgen manifests-local notification-docs notification-catalog
 
-# Recompiles the GitHub Agentics workflow lock files after editing issue-triage.md or aw.json.
-# Only needed by maintainers working on GitHub Agentics workflows; requires an installed and
-# authenticated gh CLI plus the gh-aw extension (see install-gh-aw-local).
-.PHONY: gh-aw-compile
-gh-aw-compile:
-	gh aw compile
-
 .PHONY: codegen
 codegen: test-tools-image
 	$(call run-in-test-client,make codegen-local)
@@ -416,9 +409,15 @@ lint: test-tools-image
 
 # Run linter on the code (local version)
 .PHONY: lint-local
-lint-local:
+lint-local: actionlint-local
 	golangci-lint --version
 	golangci-lint run --fix --verbose
+
+# Run actionlint on the GitHub Actions workflows (local version)
+.PHONY: actionlint-local
+actionlint-local:
+	actionlint --version
+	actionlint
 
 .PHONY: lint-ui
 lint-ui: test-tools-image
@@ -645,17 +644,6 @@ show-go-version: test-tools-image
 .PHONY: install-tools-local
 install-tools-local: install-test-tools-local install-codegen-tools-local install-go-tools-local
 
-# Installs the gh aw CLI extension for managing GitHub Agentics workflows.
-# Only needed by maintainers working on GitHub Agentics workflows; not part of install-tools-local.
-# Requires an installed and authenticated gh CLI.
-.PHONY: install-gh-aw-local
-install-gh-aw-local:
-	@if ! command -v gh >/dev/null 2>&1; then \
-		echo "gh CLI is required to install the gh-aw extension. See https://cli.github.com/ and https://argo-cd.readthedocs.io/en/latest/developer-guide/github-agentics-issue-triage/"; \
-		exit 1; \
-	fi
-	. hack/tool-versions.sh && gh extension install --pin v$${GH_AW_VERSION} --force github/gh-aw
-
 # Installs all tools required for running unit & end-to-end tests (Linux packages)
 .PHONY: install-test-tools-local
 install-test-tools-local:
@@ -675,6 +663,7 @@ install-codegen-tools-local:
 install-go-tools-local:
 	./hack/install.sh codegen-go-tools
 	./hack/install.sh lint-tools
+	./hack/install.sh actionlint
 
 .PHONY: dep-ui
 dep-ui: test-tools-image
@@ -769,7 +758,3 @@ help:
 	@echo '  codegen(-local) -- if using -local, run the following targets first'
 	@echo '  install-codegen-tools-local -- run this to install the codegen tools'
 	@echo '  install-go-tools-local -- run this to install go libraries for codegen'
-	@echo
-	@echo 'github agentics (maintainers only):'
-	@echo '  install-gh-aw-local -- install the gh aw CLI extension (requires an authenticated gh CLI)'
-	@echo '  gh-aw-compile -- recompile the agentics workflow lock files after editing issue-triage.md or aw.json'

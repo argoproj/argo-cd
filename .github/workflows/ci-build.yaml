@@ -45,7 +45,9 @@ jobs:
       - uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
         id: filter
         with:
-          # Any file which is not under docs/, ui/ or is not a markdown file is counted as a backend file.
+          # Any file which is not under docs/, ui/, manifests/, is not VERSION, or is not a markdown
+          # file is counted as a backend file.
+          # Version bumps (VERSION + manifests only) skip backend CI (tests, lint, e2e, etc.).
           # ui/embed.go and ui/dist/app placeholder files are Go embed inputs; changes must run make build-local.
           files_yaml: |
             backend:
@@ -54,6 +56,8 @@ jobs:
               - '!**.md'
               - '!**/*.md'
               - '!docs/**'
+              - '!VERSION'
+              - '!manifests/**'
               - 'ui/embed.go'
               - 'ui/dist/app/gitkeep'
               - 'ui/dist/app/assets/images/resources/.gitkeep'
@@ -155,6 +159,35 @@ jobs:
           version: v2.13.2
           args: --verbose
 
+  lint-actions:
+    permissions:
+      contents: read # for actions/checkout to fetch code
+    name: Lint GitHub Actions workflows
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-24.04
+    needs:
+      - changes
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Golang
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Install actionlint
+        run: |
+          ./hack/install.sh actionlint
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Run actionlint
+        run: make actionlint-local
+
   test-go:
     name: Run unit tests for Go packages
     if: ${{ needs.changes.outputs.backend == 'true' }}
@@ -179,7 +212,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Create symlink in GOPATH
-        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
+        run: ln -s "$(pwd)" ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -256,7 +289,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Create symlink in GOPATH
-        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
+        run: ln -s "$(pwd)" ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -362,7 +395,8 @@ jobs:
       - name: Run codegen
         run: |
           set -x
-          export GOPATH=$(go env GOPATH)
+          GOPATH=$(go env GOPATH)
+          export GOPATH
           git checkout -- go.mod go.sum
           make codegen-local
         # generalizing repo name for forks:  ${{ github.event.repository.name }}
@@ -373,36 +407,6 @@ jobs:
           git diff --exit-code -- . ':!go.sum' ':!go.mod' ':!assets/swagger.json' | tee codegen.patch
         # generalizing repo name for forks:  ${{ github.event.repository.name }}
         working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
-
-  check-agentic-workflows:
-    name: Check agentic workflow files are up-to-date
-    runs-on: ubuntu-24.04
-    needs:
-      - changes
-    steps:
-      - name: Harden the runner (Audit all outbound calls)
-        if: ${{ vars.disable_harden_runner != 'true' }}
-        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
-        with:
-          egress-policy: audit
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Install gh aw
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: make install-gh-aw-local
-      - name: Compile agentic workflows
-        run: make gh-aw-compile
-      - name: Check nothing has changed
-        run: |
-          set -xo pipefail
-          git diff --exit-code -- \
-            .github/workflows/issue-triage.lock.yml \
-            .github/workflows/agentics-maintenance.yml \
-            .github/aw/ \
-            .github/dependabot.yml
 
   build-ui:
     name: Build, test & lint UI code
@@ -437,7 +441,7 @@ jobs:
           cd ui && pnpm i --frozen-lockfile
       - name: Build UI code
         run: |
-          NODE_ENV=test pnpm test
+          NODE_ENV='test' pnpm test
           pnpm build
         env:
           NODE_ENV: production
@@ -458,6 +462,7 @@ jobs:
           persist-credentials: false
       - run: |
           sudo apt-get install shellcheck
+          # shellcheck disable=SC2046
           shellcheck -e SC2059 -e SC2154 -e SC2034 -e SC2016 -e SC1091 $(find . -type f -name '*.sh' | grep -v './ui/node_modules') | tee sc.log
           test ! -s sc.log
 
@@ -510,7 +515,7 @@ jobs:
           go tool covdata textfmt -i=e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server,e2e-code-coverage/app-controller,e2e-code-coverage/commit-server -o test-results/e2e-coverage.out
       - name: Upload unit test coverage to codecov.io
         if: github.repository == 'argoproj/argo-cd'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           version: v11.2.8 # https://github.com/getsentry/prevent-cli/releases/tag/v11.2.8
           files: test-results/unit-coverage.out
@@ -521,7 +526,7 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload e2e test coverage to codecov.io
         if: github.repository == 'argoproj/argo-cd'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           version: v11.2.8 # https://github.com/getsentry/prevent-cli/releases/tag/v11.2.8
           files: test-results/e2e-coverage.out
@@ -533,7 +538,7 @@ jobs:
       - name: Upload test results to Codecov
         # Codecov uploads test results to Codecov.io on upstream master branch.
         if: github.repository == 'argoproj/argo-cd' && github.ref == 'refs/heads/master' && github.event_name == 'push'
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           version: v11.2.8 # https://github.com/getsentry/prevent-cli/releases/tag/v11.2.8
           files: test-results/junit.xml
@@ -544,7 +549,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         if: env.sonar_secret != ''
   test-e2e:
     name: Run end-to-end tests
@@ -553,10 +558,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # latest: true means that this version mush upload the coverage report to codecov.io
+        # latest: true means that this version must upload the coverage report to codecov.io
         # We designate the latest version because we only collect code coverage for that version.
         k3s:
-          - version: v1.37.0-rc3  # FIXME: remove rc3 when k3s v1.37.0 is released
+          - version: v1.37.0
             latest: true
           - version: v1.36.4
             latest: false
@@ -583,7 +588,7 @@ jobs:
         with:
           egress-policy: audit      
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
         with:
           large-packages: false
           docker-images: false
@@ -620,9 +625,10 @@ jobs:
           set -x
           curl -sfL https://get.k3s.io | sh -
           sudo chmod -R a+rw /etc/rancher/k3s
-          sudo mkdir -p $HOME/.kube && sudo chown -R $(whoami) $HOME/.kube
+          sudo mkdir -p $HOME/.kube && sudo chown -R "$(whoami)" $HOME/.kube
+          # shellcheck disable=SC2024
           sudo k3s kubectl config view --raw > $HOME/.kube/config
-          sudo chown $(whoami) $HOME/.kube/config
+          sudo chown "$(whoami)" $HOME/.kube/config
           sudo chmod go-r $HOME/.kube/config
           kubectl version
       - name: Restore go build and module cache
@@ -662,11 +668,11 @@ jobs:
           docker pull ghcr.io/dexidp/dex:v2.45.1
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
           # renovate: datasource=docker packageName=docker.io/library/redis
-          docker pull redis:8.10.1-alpine
+          docker pull redis:8.10.2-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
-          chown $(whoami) dist
+          chown "$(whoami)" dist
       - name: Run E2E server and wait for it being available
         timeout-minutes: 30
         run: |

@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:8.10.1@sha256:691577adaf11927f4bb8871d40a5dd69a5c300d4453b742e8f6383c3e6e8d2e1 AS redis
+FROM docker.io/library/redis:8.10.2@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3 AS redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -38,6 +38,7 @@ RUN  apt-get update && apt-get install --fix-missing --no-install-recommends -y 
     wget \
     gcc \
     g++ \
+    shellcheck \
     sudo \
     tini \
     unzip \
@@ -72,6 +73,7 @@ RUN ./install.sh helm && \
     ./install.sh codegen-tools && \
     ./install.sh codegen-go-tools && \
     ./install.sh lint-tools && \
+    ./install.sh actionlint && \
     ./install.sh gotestsum && \
     ./install.sh git-lfs && \
     ./install.sh oras && \
