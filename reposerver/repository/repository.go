@@ -1256,7 +1256,9 @@ func runHelmBuild(ctx context.Context, appPath string, revision string, h helm.H
 	} else if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-
+	if err := os.WriteFile(markerFile, []byte("some-dummy-value"), 0o644); err != nil {
+		return err
+	}
 	err = h.DependencyBuild(ctx)
 	if err != nil {
 		return fmt.Errorf("error building helm chart dependencies: %w", err)
