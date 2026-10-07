@@ -546,6 +546,47 @@ func TestCallExtension(t *testing.T) {
 		assert.Equal(t, response2, actual)
 		assert.Equal(t, "Bearer another-bearer-token", resp2.Header.Get("Authorization"))
 	})
+	t.Run("will return 401 if subject lacks namespaced application permission", func(t *testing.T) {
+		// Security property (GHSA-g3ff-q88g-chrj): when the Application lives outside
+		// the control-plane namespace, authorize must evaluate RBAC against the
+		// 3-segment object project/namespace/name. Using the application namespace
+		// as RBACName's defaultNS collapses to project/name and incorrectly
+		// allows subjects who only have the control-plane-shaped permission.
+		t.Parallel()
+		f := setup()
+		extName := "some-extension"
+		appNS := "team-ns"
+		appName := "app-name"
+		twoSegmentRBACName := defaultProjectName + "/" + appName
+		threeSegmentRBACName := defaultProjectName + "/" + appNS + "/" + appName
+
+		f.rbacMock.EXPECT().EnforceErr(mock.Anything, rbac.ResourceApplications, rbac.ActionGet, threeSegmentRBACName).
+			Return(errors.New("no namespaced app permission")).Maybe()
+		f.rbacMock.EXPECT().EnforceErr(mock.Anything, rbac.ResourceApplications, rbac.ActionGet, twoSegmentRBACName).
+			Return(nil).Maybe()
+		f.rbacMock.EXPECT().EnforceErr(mock.Anything, rbac.ResourceExtensions, rbac.ActionInvoke, extName).
+			Return(nil).Maybe()
+
+		backendSrv := startBackendTestSrv("should-not-be-reached")
+		defer backendSrv.Close()
+		withExtensionConfig(getExtensionConfig(extName, backendSrv.URL), f)
+		withMetrics(f)
+		withUser(f, "some-user-id", "some-user", []string{"group1"})
+		clusterName := "cluster1"
+		f.appGetterMock.EXPECT().Get(appNS, appName).Return(getApp(clusterName, "", defaultProjectName), nil).Maybe()
+		withProject(getProjectWithDestinations(defaultProjectName, []string{clusterName}, nil), f)
+
+		ts := startTestServer(t, f)
+		defer ts.Close()
+		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
+		r.Header.Set(extension.HeaderArgoCDApplicationName, appNS+":"+appName)
+
+		resp, err := http.DefaultClient.Do(r)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	})
 	t.Run("will return 401 if sub has no access to get application", func(t *testing.T) {
 		// given
 		t.Parallel()
