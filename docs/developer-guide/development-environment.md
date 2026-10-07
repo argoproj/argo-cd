@@ -105,6 +105,9 @@ make install-go-tools-local
 make install-codegen-tools-local
 ```
 
+> [!NOTE]
+> The Go-based codegen tools (the Kubernetes generators, protobuf plugins, `controller-gen`, `swagger` and `mockery`) are rebuilt into `dist/` automatically by every codegen target, at the versions pinned in `go.mod` and `hack/tools/go.mod`. The commands above are still needed once for the non-Go tools (`protoc`, `helm`, `kustomize`) and `golangci-lint`, and again whenever their pinned versions change.
+
 ## Install Latest Argo CD on Your Local Cluster
 
 ```shell
