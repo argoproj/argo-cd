@@ -94,6 +94,89 @@ func TestK8sEventListToAPIEventList(t *testing.T) {
 		assert.Equal(t, "continue-token", result.Metadata.Continue)
 	})
 
+	t.Run("series backfills legacy count and lastTimestamp", func(t *testing.T) {
+		t.Parallel()
+		legacyTime := metav1.NewTime(time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC))
+		observedTime := metav1.NewMicroTime(time.Date(2026, 10, 2, 8, 30, 0, 0, time.UTC))
+		input := &corev1.EventList{
+			Items: []corev1.Event{
+				{
+					Name: "legacy", Namespace: "default",
+					Count:         5,
+					LastTimestamp: legacyTime,
+				},
+				{
+					Name: "series-only", Namespace: "default",
+					Series: &corev1.EventSeries{Count: 7, LastObservedTime: observedTime},
+				},
+				{
+					Name: "singleton", Namespace: "default",
+				},
+			},
+		}
+
+		result := K8sEventListToAPIEventList(input)
+		require.NotNil(t, result)
+		require.Len(t, result.Items, 3)
+
+		legacy := result.Items[0]
+		assert.Equal(t, int32(5), legacy.Count)
+		assert.Equal(t, legacyTime, legacy.LastTimestamp)
+
+		seriesOnly := result.Items[1]
+		assert.Equal(t, int32(7), seriesOnly.Count)
+		assert.Equal(t, metav1.NewTime(observedTime.Time), seriesOnly.LastTimestamp)
+		require.NotNil(t, seriesOnly.Series)
+		assert.Equal(t, int32(7), seriesOnly.Series.Count)
+
+		singleton := result.Items[2]
+		assert.Equal(t, int32(0), singleton.Count)
+		assert.True(t, singleton.LastTimestamp.IsZero())
+	})
+
+	t.Run("series wins over legacy fields, like kubectl", func(t *testing.T) {
+		t.Parallel()
+		legacyTime := metav1.NewTime(time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC))
+		observedTime := metav1.NewMicroTime(time.Date(2026, 10, 2, 8, 30, 0, 0, time.UTC))
+		input := &corev1.EventList{
+			Items: []corev1.Event{
+				{
+					Name: "mixed", Namespace: "default",
+					Count:         5,
+					LastTimestamp: legacyTime,
+					Series:        &corev1.EventSeries{Count: 9, LastObservedTime: observedTime},
+				},
+			},
+		}
+
+		result := K8sEventListToAPIEventList(input)
+		require.NotNil(t, result)
+		require.Len(t, result.Items, 1)
+		assert.Equal(t, int32(9), result.Items[0].Count)
+		assert.Equal(t, metav1.NewTime(observedTime.Time), result.Items[0].LastTimestamp)
+	})
+
+	t.Run("singleton events.k8s.io event counts once with eventTime timestamps", func(t *testing.T) {
+		t.Parallel()
+		eventTime := metav1.NewMicroTime(time.Date(2026, 10, 3, 9, 0, 0, 0, time.UTC))
+		input := &corev1.EventList{
+			Items: []corev1.Event{
+				{
+					Name: "new-api-singleton", Namespace: "default",
+					EventTime: eventTime,
+				},
+			},
+		}
+
+		result := K8sEventListToAPIEventList(input)
+		require.NotNil(t, result)
+		require.Len(t, result.Items, 1)
+		got := result.Items[0]
+		assert.Equal(t, int32(1), got.Count)
+		assert.Equal(t, metav1.NewTime(eventTime.Time), got.FirstTimestamp)
+		assert.Equal(t, metav1.NewTime(eventTime.Time), got.LastTimestamp)
+	})
+
 	t.Run("optional pointer fields are converted", func(t *testing.T) {
 		t.Parallel()
 		input := &corev1.EventList{
