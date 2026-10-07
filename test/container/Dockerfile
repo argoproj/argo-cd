@@ -38,6 +38,7 @@ RUN  apt-get update && apt-get install --fix-missing --no-install-recommends -y 
     wget \
     gcc \
     g++ \
+    shellcheck \
     sudo \
     tini \
     unzip \
@@ -72,6 +73,7 @@ RUN ./install.sh helm && \
     ./install.sh codegen-tools && \
     ./install.sh codegen-go-tools && \
     ./install.sh lint-tools && \
+    ./install.sh actionlint && \
     ./install.sh gotestsum && \
     ./install.sh git-lfs && \
     ./install.sh oras && \
