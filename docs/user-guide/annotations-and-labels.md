@@ -309,7 +309,7 @@ See [ignore differences per resource](sync-options.md#respect-ignore-differences
 | [`argocd.argoproj.io/instance`](#instance) | any | Recommended tracking label. |
 | [`argocd.argoproj.io/kubernetes-version`](#kubernetes-version) | Cluster Secret | The cluster's Kubernetes version. Set by Argo CD. |
 | [`argocd.argoproj.io/secret-type`](#secret-type) | Secret | Identifies Secrets used by Argo CD. |
-| [`argocd.argoproj.io/reconcile-by`](#reconcile-by) | Namespace | Identifies that  |
+| [`argocd.argoproj.io/reconcile-by`](#reconcile-by) | Namespace | Identifies that the namespace can be used as an application namespace for apps in any namespace |
 
 ### `argocd.argoproj.io/auto-label-cluster-info` { #auto-label-cluster-info }
 
@@ -353,6 +353,6 @@ the last one.
 - **Possible value:** Name of a namespace that an application controller is running in
 
 When using [applications in any namespace](../operator-manual/app-any-namespace.md) if this label is on a Namespace
-with the value of the controller's namespace it will be added as a source namespace to be used. For more information
+and its value matches the namespace where the application controller is running it will be considered an application namespace by Argo CD. For more information
 on configuring see the docs [section](../operator-manual/app-any-namespace.md#adding-namespaces-by-label)
 on this functionality.

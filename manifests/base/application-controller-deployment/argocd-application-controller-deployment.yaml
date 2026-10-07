@@ -346,7 +346,7 @@ spec:
               name: argocd-cmd-params-cm
               key: commit.server
               optional: true
-        - name: ARGOCD_SOURCE_NAMESPACE_DISCOVERY
+        - name: ARGOCD_APP_NAMESPACE_DISCOVERY
           valueFrom:
             configMapKeyRef:
               name: argocd-cmd-params-cm

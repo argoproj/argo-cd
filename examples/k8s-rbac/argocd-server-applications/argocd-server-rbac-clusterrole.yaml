@@ -28,3 +28,4 @@ rules:
   - "namespaces"
   verbs:
   - list
+  - watch

@@ -277,7 +277,7 @@ func TestNamespaceEventHandlerFuncs(t *testing.T) {
 	t.Run("if updated namespace does not have the label it is deleted", func(t *testing.T) {
 		ctrl := newFakeController(t.Context(), &fakeData{}, nil)
 
-		ctrl.applicationNamespaces = security.NewApplicationNamespaceSet([]string{"some-namespace"})
+		ctrl.applicationNamespaces = security.NewApplicationNamespaceSetWithNoBackup([]string{"some-namespace"})
 		h := ctrl.namespaceEventHandlerFuncs(common.LabelKeyReconcileBy)
 
 		newNS := createNamespace("some-namespace")
@@ -304,7 +304,7 @@ func TestNamespaceEventHandlerFuncs(t *testing.T) {
 
 	t.Run("delete event removes namespace", func(t *testing.T) {
 		ctrl := newFakeController(t.Context(), &fakeData{}, nil)
-		ctrl.applicationNamespaces = security.NewApplicationNamespaceSet([]string{"some-namespace", "to-remove-namespace"})
+		ctrl.applicationNamespaces = security.NewApplicationNamespaceSetWithNoBackup([]string{"some-namespace", "to-remove-namespace"})
 		h := ctrl.namespaceEventHandlerFuncs("argocd")
 
 		ns := createNamespace("to-remove-namespace")
@@ -312,6 +312,19 @@ func TestNamespaceEventHandlerFuncs(t *testing.T) {
 
 		assert.Len(t, ctrl.applicationNamespaces.List(), 1)
 		assert.NotContains(t, ctrl.applicationNamespaces.List(), "to-remove-namespace")
+		assert.Contains(t, ctrl.applicationNamespaces.List(), "some-namespace")
+	})
+
+	t.Run("namespace stays in set if it was originally provided", func(t *testing.T) {
+		ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+
+		ctrl.applicationNamespaces = security.NewApplicationNamespaceSet([]string{"some-namespace"})
+		h := ctrl.namespaceEventHandlerFuncs(common.LabelKeyReconcileBy)
+
+		newNS := createNamespace("some-namespace")
+		h.UpdateFunc(nil, newNS)
+
+		assert.NotEmpty(t, ctrl.applicationNamespaces.List())
 		assert.Contains(t, ctrl.applicationNamespaces.List(), "some-namespace")
 	})
 }

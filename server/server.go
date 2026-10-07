@@ -1945,9 +1945,19 @@ func (server *ArgoCDServer) namespaceEventHandlerFuncs(label string) cache.Resou
 			}
 		},
 		DeleteFunc: func(obj any) {
-			ns, ok := obj.(*corev1.Namespace)
+			var ns *corev1.Namespace
+			var ok bool
+			ns, ok = obj.(*corev1.Namespace)
 			if !ok {
-				return
+				tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					return
+				}
+
+				ns, ok = tombstone.Obj.(*corev1.Namespace)
+				if !ok {
+					return
+				}
 			}
 			server.ApplicationNamespaceSet.Delete(ns.Name)
 		},

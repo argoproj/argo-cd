@@ -12,11 +12,24 @@ import (
 // namespaces applications can be deployed in
 type ApplicationNamespaceSet struct {
 	namespaces []string
-	mu         sync.RWMutex
+	// originalNamespaces keeps track of the original namespaces in the list to not remove them if they
+	// were provided by flag
+	originalNamespaces []string
+	mu                 sync.RWMutex
 }
 
 // NewApplicationNamespaceSet creates an ApplicationNamespaceSet with a list of namespaces
 func NewApplicationNamespaceSet(namespaces []string) *ApplicationNamespaceSet {
+	return &ApplicationNamespaceSet{
+		namespaces:         append([]string{}, namespaces...),
+		originalNamespaces: slices.Clone(namespaces),
+		mu:                 sync.RWMutex{},
+	}
+}
+
+// NewApplicationNamespaceSetWithNoBackup creates a ApplicationNamespaceSet without backing up
+// the original namespaces
+func NewApplicationNamespaceSetWithNoBackup(namespaces []string) *ApplicationNamespaceSet {
 	return &ApplicationNamespaceSet{
 		namespaces: append([]string{}, namespaces...),
 		mu:         sync.RWMutex{},
@@ -35,13 +48,13 @@ func (a *ApplicationNamespaceSet) Add(ns string) {
 func (a *ApplicationNamespaceSet) List() []string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.namespaces
+	return slices.Clone(a.namespaces)
 }
 
 func (a *ApplicationNamespaceSet) Delete(ns string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if i := slices.Index(a.namespaces, ns); i != -1 {
+	if i := slices.Index(a.namespaces, ns); i != -1 && !slices.Contains(a.originalNamespaces, ns) {
 		a.namespaces = slices.Delete(a.namespaces, i, i+1)
 	}
 }
