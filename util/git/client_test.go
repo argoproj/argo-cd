@@ -1805,6 +1805,53 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 	})
 }
 
+func Test_isRetryableNotePushError(t *testing.T) {
+	tests := []struct {
+		name   string
+		errStr string
+		want   bool
+	}{
+		{
+			name:   "fetch first",
+			errStr: "Updates were rejected because the remote contains work that you do not have locally. fetch first",
+			want:   true,
+		},
+		{
+			name:   "reference already exists",
+			errStr: "failed to push some refs: reference already exists",
+			want:   true,
+		},
+		{
+			name:   "incorrect old value",
+			errStr: "update_ref failed for ref 'refs/notes/hydrator.metadata': cannot update the ref: incorrect old value",
+			want:   true,
+		},
+		{
+			name:   "failed to update ref",
+			errStr: "error: failed to update ref",
+			want:   true,
+		},
+		{
+			name: "cannot lock ref from concurrent shard",
+			errStr: " ! [remote rejected]     refs/notes/hydrator.metadata -> refs/notes/hydrator.metadata " +
+				"(cannot lock ref 'refs/notes/hydrator.metadata': is at 477134654bdd5531fc0f76bf026be86515e8685f " +
+				"but expected 30b2c9044a27f1b853fee454ab9bfef183fb9e0d)\n" +
+				"error: failed to push some refs to 'https://github.example.com/org/deployments.git'",
+			want: true,
+		},
+		{
+			name:   "non-retryable error",
+			errStr: "fatal: Authentication failed for 'https://github.example.com/org/deployments.git'",
+			want:   false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isRetryableNotePushError(tt.errStr))
+		})
+	}
+}
+
 func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	ctx := t.Context()
 	tempDir, err := _createEmptyGitRepo(ctx)
