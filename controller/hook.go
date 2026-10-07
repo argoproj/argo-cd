@@ -187,7 +187,16 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 		_, err = ctrl.kubectl.CreateResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), obj, metav1.CreateOptions{})
 		if err != nil {
 			if apierrors.IsAlreadyExists(err) {
-				logCtx.Warnf("Hook resource %s already exists, skipping", key)
+				// The hook is missing from liveObjs, which come from the cluster cache.
+				// The cache can lag behind a hook created by the previous reconcile,
+				// so read it from the API server and check its health below instead
+				// of treating it as finished.
+				existing, getErr := ctrl.kubectl.GetResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace())
+				if getErr != nil {
+					return false, fmt.Errorf("failed to get existing %s hook %s: %w", hookType, key, getErr)
+				}
+				logCtx.Infof("Hook resource %s already exists, checking its health", key)
+				runningHooks[key] = existing
 				continue
 			}
 			return false, err

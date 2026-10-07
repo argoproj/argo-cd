@@ -100,9 +100,14 @@ type MockKubectl struct {
 
 	DeletedResources []kube.ResourceKey
 	CreatedResources []*unstructured.Unstructured
+	// CreateErr, when set, is returned by CreateResource instead of creating the resource.
+	CreateErr error
 }
 
 func (m *MockKubectl) CreateResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, obj *unstructured.Unstructured, createOptions metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	if m.CreateErr != nil {
+		return nil, m.CreateErr
+	}
 	m.CreatedResources = append(m.CreatedResources, obj)
 	return m.Kubectl.CreateResource(ctx, config, gvk, name, namespace, obj, createOptions, subresources...)
 }
@@ -1806,6 +1811,72 @@ func TestFinalizeAppDeletion_DeleteHookProjectRestriction(t *testing.T) {
 		assert.Equal(t, "pre-delete-hook", created[0].GetName())
 		// hook is still progressing, so the finalizer must remain
 		assert.False(t, patched)
+	})
+}
+
+// A PreDelete hook created by the previous reconcile may not be in the cluster cache yet.
+// Creating it again returns AlreadyExists, and the hook must then be health-checked from
+// the API server rather than skipped, or the deletion proceeds before the hook has run.
+func TestFinalizeAppDeletion_PreDeleteHookAlreadyExistsNotInCache(t *testing.T) {
+	now := metav1.Now()
+	proj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+
+	run := func(t *testing.T, phase corev1.PodPhase) (bool, error) {
+		t.Helper()
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = test.FakeDestNamespace
+		app.DeletionTimestamp = &now
+		app.SetPreDeleteFinalizer()
+
+		ctrl := newFakeController(t.Context(), &fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{fakePreDeleteHookPermitted},
+			}},
+			apps:            []runtime.Object{app, proj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+		}, nil)
+
+		mockKubectl := ctrl.kubectl.(*MockKubectl)
+		mockKubectl.CreateErr = apierrors.NewAlreadyExists(schema.GroupResource{Resource: "pods"}, "pre-delete-hook")
+		mockKubectl.Kubectl = (&kubetest.MockKubectlCmd{}).WithGetResourceFunc(func(_ context.Context, _ *rest.Config, _ schema.GroupVersionKind, _ string, _ string) (*unstructured.Unstructured, error) {
+			hook := test.YamlToUnstructured(fakePreDeleteHookPermitted)
+			require.NoError(t, unstructured.SetNestedField(hook.Object, string(phase), "status", "phase"))
+			return hook, nil
+		})
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, &v1alpha1.Application{}, nil
+		})
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		return patched, err
+	}
+
+	t.Run("Pending", func(t *testing.T) {
+		patched, err := run(t, corev1.PodPending)
+		require.NoError(t, err)
+		assert.False(t, patched, "finalizer must not be removed while the existing hook is still running")
+	})
+
+	t.Run("Succeeded", func(t *testing.T) {
+		patched, err := run(t, corev1.PodSucceeded)
+		require.NoError(t, err)
+		assert.True(t, patched, "finalizer must be removed once the existing hook has succeeded")
 	})
 }
 
