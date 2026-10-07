@@ -92,3 +92,18 @@ func Inbound(candidate, baseDir string) bool {
 	}
 	return strings.HasPrefix(target, filepath.Clean(baseDir)+string(os.PathSeparator))
 }
+
+// ResolveInbound resolves symlinks in candidate and reports whether the
+// resolved path is inside baseDir, per Inbound's rules. err is non-nil only
+// if the symlinks in candidate could not be resolved (e.g. candidate doesn't
+// exist); ok is false if resolution succeeded but the resolved path is
+// outside baseDir. Callers are responsible for producing their own error
+// message when ok is false, so as not to leak absolute filesystem paths in
+// messages that may reach an end user.
+func ResolveInbound(candidate, baseDir string) (resolved string, ok bool, err error) {
+	resolved, err = filepath.EvalSymlinks(candidate)
+	if err != nil {
+		return "", false, err
+	}
+	return resolved, Inbound(resolved, baseDir), nil
+}
