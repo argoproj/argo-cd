@@ -43,15 +43,14 @@ func VerifyGit(ctx context.Context, si *v1alpha1.SourceIntegrity, gitClient git.
 		return nil, "", nil
 	}
 
-	check := lookupGit(ctx, si, gitClient, verifiedRevision)
+	check := lookupGit(si, gitClient.RepoURL())
 	if check != nil {
 		return check(ctx, gitClient, verifiedRevision)
 	}
 	return nil, "", nil
 }
 
-func lookupGit(ctx context.Context, si *v1alpha1.SourceIntegrity, gitClient git.Client, verifiedRevision string) gitFunc {
-	repoURL := gitClient.RepoURL()
+func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 	policies := findMatchingGitPolicies(si.Git, repoURL)
 	nPolicies := len(policies)
 	if nPolicies == 0 {
@@ -68,17 +67,9 @@ func lookupGit(ctx context.Context, si *v1alpha1.SourceIntegrity, gitClient git.
 		}
 	}
 
-	policy := policies[0]
+	var check gitFunc
 
-	if policy.SignedTagsOnly {
-		if !gitClient.IsAnnotatedTag(ctx, verifiedRevision){
-			return func(_ context.Context, _ git.Client, _ string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
-				msg := fmt.Sprintf("SignedTagsOnly is enabled, %s is not annotated. Un-annotated tags cannot be signed", verifiedRevision)
-				log.Error(msg)
-				return nil, "", errors.New(msg)
-			}
-		}
-	}
+	policy := policies[0]
 
 	if policy.GPG != nil {
 		if policy.GPG.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeNone {
@@ -92,14 +83,30 @@ func lookupGit(ctx context.Context, si *v1alpha1.SourceIntegrity, gitClient git.
 			return nil
 		}
 
-		return func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+		check = func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
 			return verifyGPG(ctx, policy.GPG, gitClient, verifiedRevision)
 		}
 	}
 
+	if check == nil {
+		log.Warnf("No verification configured for SourceIntegrity policy for %+v", policy.Repos)
+		return nil
+	}
 
-	log.Warnf("No verification configured for SourceIntegrity policy for %+v", policy.Repos)
-	return nil
+	return verifyWithSignedTags(policy, check)
+}
+
+func verifyWithSignedTags(policy *v1alpha1.SourceIntegrityGitPolicy, check gitFunc) gitFunc {
+	return func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+		if policy.SignedTagsOnly {
+			if !gitClient.IsAnnotatedTag(ctx, verifiedRevision){
+				msg := fmt.Sprintf("SignedTagsOnly is enabled, %s is not annotated. Un-annotated tags cannot be signed", verifiedRevision)
+				log.Error(msg)
+				return nil, "", errors.New(msg)
+			}
+		}
+		return check(ctx, gitClient, verifiedRevision)
+	}
 }
 
 func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (policies []*v1alpha1.SourceIntegrityGitPolicy) {
