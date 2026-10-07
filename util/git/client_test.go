@@ -52,6 +52,26 @@ func outputCmd(ctx context.Context, workingDir string, name string, args ...stri
 	return cmd.Output()
 }
 
+func TestNewGitRequestContext(t *testing.T) {
+	t.Run("zero timeout has no deadline", func(t *testing.T) {
+		ctx, cancel := newGitRequestContext(0)
+		defer cancel()
+
+		_, hasDeadline := ctx.Deadline()
+		assert.False(t, hasDeadline)
+		assert.NoError(t, ctx.Err())
+	})
+
+	t.Run("positive timeout has a deadline", func(t *testing.T) {
+		ctx, cancel := newGitRequestContext(time.Minute)
+		defer cancel()
+
+		_, hasDeadline := ctx.Deadline()
+		assert.True(t, hasDeadline)
+		assert.NoError(t, ctx.Err())
+	})
+}
+
 func _createEmptyGitRepo(ctx context.Context) (string, error) {
 	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
@@ -1291,6 +1311,69 @@ func TestOptimizedLsRemote(t *testing.T) {
 			assert.Equal(t, tc.expected, sha)
 		})
 	}
+}
+
+func TestResolveSemverRevisionForSignature(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	repoPath, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	checkedOutSHABytes, err := outputCmd(ctx, repoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	checkedOutSHA := strings.TrimSpace(string(checkedOutSHABytes))
+	require.NoError(t, runCmd(ctx, repoPath, "git", "commit", "-m", "new", "--allow-empty"))
+	newSHABytes, err := outputCmd(ctx, repoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	newSHA := strings.TrimSpace(string(newSHABytes))
+	require.NoError(t, runCmd(ctx, repoPath, "git", "checkout", "--detach", checkedOutSHA))
+
+	repoURL := "https://example.com/repo.git"
+	optimizedCacheKey := "ls-remote-optimized|" + repoURL + "|HEAD,heads,tags"
+	tagRef := func(name string, sha string) *plumbing.Reference {
+		return plumbing.NewHashReference(plumbing.ReferenceName("refs/tags/"+name), plumbing.NewHash(sha))
+	}
+
+	t.Run("optimized cache is used when enabled", func(t *testing.T) {
+		cache := &fakeGitRefCache{refsByKey: map[string][]*plumbing.Reference{
+			repoURL:           {tagRef("v1.2.0", newSHA)},
+			optimizedCacheKey: {tagRef("v1.1.0", checkedOutSHA)},
+		}}
+		client, err := NewClientExt(repoURL, repoPath, NopCreds{}, true, false, "", "",
+			WithCache(cache, true),
+			WithOptimizedLsRemote(true))
+		require.NoError(t, err)
+
+		resolvedRevision, err := client.(*nativeGitClient).resolveSemverRevisionForSignature(ctx, "v1.*")
+		require.NoError(t, err)
+		assert.Equal(t, "v1.1.0", resolvedRevision)
+	})
+
+	t.Run("optimized cache must match checked out commit", func(t *testing.T) {
+		cache := &fakeGitRefCache{refsByKey: map[string][]*plumbing.Reference{
+			optimizedCacheKey: {tagRef("v1.2.0", newSHA)},
+		}}
+		client, err := NewClientExt(repoURL, repoPath, NopCreds{}, true, false, "", "",
+			WithCache(cache, true),
+			WithOptimizedLsRemote(true))
+		require.NoError(t, err)
+
+		_, err = client.(*nativeGitClient).resolveSemverRevisionForSignature(ctx, "v1.*")
+		require.ErrorContains(t, err, "but the checked out commit is "+checkedOutSHA)
+	})
+
+	t.Run("legacy cache is used when disabled", func(t *testing.T) {
+		cache := &fakeGitRefCache{refsByKey: map[string][]*plumbing.Reference{
+			repoURL:           {tagRef("v1.1.0", checkedOutSHA)},
+			optimizedCacheKey: {tagRef("v1.2.0", newSHA)},
+		}}
+		client, err := NewClientExt(repoURL, repoPath, NopCreds{}, true, false, "", "", WithCache(cache, true))
+		require.NoError(t, err)
+
+		resolvedRevision, err := client.(*nativeGitClient).resolveSemverRevisionForSignature(ctx, "v1.*")
+		require.NoError(t, err)
+		assert.Equal(t, "v1.1.0", resolvedRevision)
+	})
 }
 
 func TestOptimizedLsRemoteTruncatedSHAUsesDefaultResolver(t *testing.T) {

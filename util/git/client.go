@@ -343,6 +343,14 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 
 var gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64)
 
+func newGitRequestContext(timeout time.Duration) (context.Context, context.CancelFunc) {
+	// Match http.Client semantics: a zero timeout means no timeout.
+	if timeout == 0 {
+		return context.WithCancel(context.Background())
+	}
+	return context.WithTimeout(context.Background(), timeout)
+}
+
 // gitCleanupGracePeriod is the minimum age a temporary pack file must reach
 // before cleanupOrphanedTempPackfiles will remove it. A fetch is killed at
 // ARGOCD_EXEC_TIMEOUT (plus the fatal-timeout grace), so twice that comfortably
@@ -982,28 +990,8 @@ func (m *nativeGitClient) optimizedLsRemoteCacheKey() string {
 	return fmt.Sprintf("ls-remote-optimized|%s|HEAD,heads,tags", m.repoURL)
 }
 
-func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, error) {
-	if !m.optimizedLsRemoteEnabled {
-		return "", false, nil
-	}
-	// The default resolver must see the complete advertisement before treating a
-	// hexadecimal name as a truncated SHA, because it may instead name a ref.
-	if IsTruncatedCommitSHA(revision) {
-		return "", false, nil
-	}
-
-	isHeadRevision := revision == "" || revision == headRevision
-	isCoveredFullRef := false
-	if strings.HasPrefix(revision, "refs/") {
-		refName := plumbing.ReferenceName(revision)
-		if !refName.IsBranch() && !refName.IsTag() {
-			return "", false, nil
-		}
-		isCoveredFullRef = true
-	}
-
-	cacheKey := m.optimizedLsRemoteCacheKey()
-	refs, err := m.getRefsFromCacheOrFetch(cacheKey, "optimized", func() ([]*plumbing.Reference, error) {
+func (m *nativeGitClient) getOptimizedLsRemoteRefs() ([]*plumbing.Reference, error) {
+	return m.getRefsFromCacheOrFetch(m.optimizedLsRemoteCacheKey(), "optimized", func() ([]*plumbing.Reference, error) {
 		if m.OnLsRemote != nil {
 			done := m.OnLsRemote(m.repoURL)
 			defer done()
@@ -1027,9 +1015,6 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 		if refsErr != nil {
 			return nil, refsErr
 		}
-		if len(refs) == 0 && isCoveredFullRef {
-			return nil, ErrRevisionNotFound
-		}
 		if headErr != nil {
 			// A missing remote HEAD does not prevent branch and tag resolution. Keep
 			// the non-empty narrowed snapshot and represent HEAD by its absence.
@@ -1040,6 +1025,29 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 		}
 		return append(refs, headRef), nil
 	})
+}
+
+func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, error) {
+	if !m.optimizedLsRemoteEnabled {
+		return "", false, nil
+	}
+	// The default resolver must see the complete advertisement before treating a
+	// hexadecimal name as a truncated SHA, because it may instead name a ref.
+	if IsTruncatedCommitSHA(revision) {
+		return "", false, nil
+	}
+
+	isHeadRevision := revision == "" || revision == headRevision
+	isCoveredFullRef := false
+	if strings.HasPrefix(revision, "refs/") {
+		refName := plumbing.ReferenceName(revision)
+		if !refName.IsBranch() && !refName.IsTag() {
+			return "", false, nil
+		}
+		isCoveredFullRef = true
+	}
+
+	refs, err := m.getOptimizedLsRemoteRefs()
 	if err != nil {
 		if errors.Is(err, ErrRevisionNotFound) && (isHeadRevision || isCoveredFullRef) {
 			if revision == "" {
@@ -1065,7 +1073,7 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 }
 
 func (m *nativeGitClient) runTargetedHeadFetch() (*plumbing.Reference, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
+	ctx, cancel := newGitRequestContext(gitClientTimeout)
 	defer cancel()
 
 	gitDir, err := os.MkdirTemp("", "argocd-ls-remote-head-")
@@ -1167,7 +1175,7 @@ func parseTargetedHeadFetchOutput(out string) (*plumbing.Reference, error) {
 }
 
 func (m *nativeGitClient) runLsRemote(args ...string) ([]*plumbing.Reference, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
+	ctx, cancel := newGitRequestContext(gitClientTimeout)
 	defer cancel()
 
 	// ls-remote does not need a local repository. Disable repository discovery so
@@ -1616,14 +1624,11 @@ func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision s
 
 	// Resolve eventual semantic tag constraint before annotated tag detection
 	if versions.IsConstraint(unresolvedRevision) {
-		refs, err := m.getRefs()
+		resolvedRevision, err := m.resolveSemverRevisionForSignature(ctx, unresolvedRevision)
 		if err != nil {
 			return nil, "", err
 		}
-		unresolvedRevision, err = versions.MaxVersion(unresolvedRevision, getGitTags(refs), m.tagPrefix)
-		if err != nil {
-			return nil, "", err
-		}
+		unresolvedRevision = resolvedRevision
 	}
 
 	legacyVerification, err := m.VerifyCommitSignature(ctx, unresolvedRevision)
@@ -1679,6 +1684,51 @@ func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision s
 	}
 
 	return signatures, legacyVerification, nil
+}
+
+func (m *nativeGitClient) resolveSemverRevisionForSignature(ctx context.Context, constraint string) (string, error) {
+	resolve := func(refs []*plumbing.Reference) (string, error) {
+		return versions.MaxVersion(constraint, getGitTags(refs), m.tagPrefix)
+	}
+	validate := func(resolvedRevision string, refs []*plumbing.Reference) (string, error) {
+		resolvedSHA, err := m.resolveRevisionWithoutTruncatedSHAFallback(resolvedRevision, refs)
+		if err != nil {
+			return "", err
+		}
+		checkedOutSHA, err := m.CommitSHA(ctx)
+		if err != nil {
+			return "", fmt.Errorf("failed to read checked out commit while verifying semantic version constraint %q: %w", constraint, err)
+		}
+		if resolvedSHA != checkedOutSHA {
+			return "", fmt.Errorf("semantic version constraint %q resolved to tag %q at %s, but the checked out commit is %s", constraint, resolvedRevision, resolvedSHA, checkedOutSHA)
+		}
+		return resolvedRevision, nil
+	}
+
+	if m.optimizedLsRemoteEnabled {
+		refs, err := m.getOptimizedLsRemoteRefs()
+		if err == nil {
+			resolvedRevision, resolveErr := resolve(refs)
+			if resolveErr == nil {
+				return validate(resolvedRevision, refs)
+			}
+			err = resolveErr
+		}
+		log.Debugf("optimized ls-remote failed to resolve semantic version constraint %q for signature verification, falling back to default resolver: %v", constraint, err)
+	}
+
+	refs, err := m.getRefs()
+	if err != nil {
+		return "", err
+	}
+	resolvedRevision, err := resolve(refs)
+	if err != nil {
+		return "", err
+	}
+	if m.optimizedLsRemoteEnabled {
+		return validate(resolvedRevision, refs)
+	}
+	return resolvedRevision, nil
 }
 
 // newRevisionSignatureInfo builds valid RevisionSignatureInfo
