@@ -1820,7 +1820,8 @@ func TestFinalizeAppDeletion_DeleteHookProjectRestriction(t *testing.T) {
 func TestFinalizeAppDeletion_PreDeleteHookAlreadyExistsNotInCache(t *testing.T) {
 	now := metav1.Now()
 	proj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Name:      "default",
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
