@@ -78,7 +78,9 @@
             max-width: 250px;
             flex-wrap: wrap;
             justify-content: flex-start;
-            line-height: 1.5em;
+            // row-gap spaces wrapped counter rows; an inflated line-height would
+            // push the text below the baseline of the neighboring sections
+            row-gap: 6px;
             a {
                 display: flex;
                 margin-right: 12px;
@@ -176,7 +178,8 @@
         align-items: baseline;
         margin-bottom: 0.5em;
         font-weight: 500;
-        padding: 2px 0px;
+        // the left padding keeps round glyphs clear of the overflow clip edge
+        padding: 2px 0 2px 2px;
         min-width: 0;
         .fa {
             font-size: 1em;

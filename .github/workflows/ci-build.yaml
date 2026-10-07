@@ -45,7 +45,9 @@ jobs:
       - uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
         id: filter
         with:
-          # Any file which is not under docs/, ui/ or is not a markdown file is counted as a backend file.
+          # Any file which is not under docs/, ui/, manifests/, is not VERSION, or is not a markdown
+          # file is counted as a backend file.
+          # Version bumps (VERSION + manifests only) skip backend CI (tests, lint, e2e, etc.).
           # ui/embed.go and ui/dist/app placeholder files are Go embed inputs; changes must run make build-local.
           files_yaml: |
             backend:
@@ -54,6 +56,8 @@ jobs:
               - '!**.md'
               - '!**/*.md'
               - '!docs/**'
+              - '!VERSION'
+              - '!manifests/**'
               - 'ui/embed.go'
               - 'ui/dist/app/gitkeep'
               - 'ui/dist/app/assets/images/resources/.gitkeep'
@@ -155,6 +159,35 @@ jobs:
           version: v2.13.2
           args: --verbose
 
+  lint-actions:
+    permissions:
+      contents: read # for actions/checkout to fetch code
+    name: Lint GitHub Actions workflows
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-24.04
+    needs:
+      - changes
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Golang
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Install actionlint
+        run: |
+          ./hack/install.sh actionlint
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Run actionlint
+        run: make actionlint-local
+
   test-go:
     name: Run unit tests for Go packages
     if: ${{ needs.changes.outputs.backend == 'true' }}
@@ -179,7 +212,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Create symlink in GOPATH
-        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
+        run: ln -s "$(pwd)" ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -256,7 +289,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Create symlink in GOPATH
-        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
+        run: ln -s "$(pwd)" ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -362,7 +395,8 @@ jobs:
       - name: Run codegen
         run: |
           set -x
-          export GOPATH=$(go env GOPATH)
+          GOPATH=$(go env GOPATH)
+          export GOPATH
           git checkout -- go.mod go.sum
           make codegen-local
         # generalizing repo name for forks:  ${{ github.event.repository.name }}
@@ -407,7 +441,7 @@ jobs:
           cd ui && pnpm i --frozen-lockfile
       - name: Build UI code
         run: |
-          NODE_ENV=test pnpm test
+          NODE_ENV='test' pnpm test
           pnpm build
         env:
           NODE_ENV: production
@@ -428,6 +462,7 @@ jobs:
           persist-credentials: false
       - run: |
           sudo apt-get install shellcheck
+          # shellcheck disable=SC2046
           shellcheck -e SC2059 -e SC2154 -e SC2034 -e SC2016 -e SC1091 $(find . -type f -name '*.sh' | grep -v './ui/node_modules') | tee sc.log
           test ! -s sc.log
 
@@ -590,9 +625,10 @@ jobs:
           set -x
           curl -sfL https://get.k3s.io | sh -
           sudo chmod -R a+rw /etc/rancher/k3s
-          sudo mkdir -p $HOME/.kube && sudo chown -R $(whoami) $HOME/.kube
+          sudo mkdir -p $HOME/.kube && sudo chown -R "$(whoami)" $HOME/.kube
+          # shellcheck disable=SC2024
           sudo k3s kubectl config view --raw > $HOME/.kube/config
-          sudo chown $(whoami) $HOME/.kube/config
+          sudo chown "$(whoami)" $HOME/.kube/config
           sudo chmod go-r $HOME/.kube/config
           kubectl version
       - name: Restore go build and module cache
@@ -636,7 +672,7 @@ jobs:
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
-          chown $(whoami) dist
+          chown "$(whoami)" dist
       - name: Run E2E server and wait for it being available
         timeout-minutes: 30
         run: |
