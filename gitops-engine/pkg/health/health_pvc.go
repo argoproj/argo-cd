@@ -26,16 +26,25 @@ func getPVCHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
 }
 
 func getCorev1PVCHealth(pvc *corev1.PersistentVolumeClaim) (*HealthStatus, error) {
-	var status HealthStatusCode
 	switch pvc.Status.Phase {
 	case corev1.ClaimLost:
-		status = HealthStatusDegraded
+		return &HealthStatus{Status: HealthStatusDegraded}, nil
 	case corev1.ClaimPending:
-		status = HealthStatusProgressing
+		// A PVC with WaitForFirstConsumer binding mode stays Pending until a pod
+		// is scheduled that consumes it. This is an expected steady state, not
+		// progress toward a goal, so report Healthy instead of Progressing.
+		for _, condition := range pvc.Status.Conditions {
+			if condition.Reason == "WaitForFirstConsumer" {
+				return &HealthStatus{
+					Status:  HealthStatusHealthy,
+					Message: "Waiting for first consumer",
+				}, nil
+			}
+		}
+		return &HealthStatus{Status: HealthStatusProgressing}, nil
 	case corev1.ClaimBound:
-		status = HealthStatusHealthy
+		return &HealthStatus{Status: HealthStatusHealthy}, nil
 	default:
-		status = HealthStatusUnknown
+		return &HealthStatus{Status: HealthStatusUnknown}, nil
 	}
-	return &HealthStatus{Status: status}, nil
 }
