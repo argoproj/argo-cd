@@ -96,7 +96,7 @@ func hasGitOpsEngineSyncPhaseHook(obj *unstructured.Unstructured) bool {
 }
 
 // executeHooks is a generic function to execute hooks of a specified type
-func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType HookType, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (completed bool, retErr error) {
+func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType HookType, app *appv1.Application, proj *appv1.AppProject, destCluster *appv1.Cluster, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (completed bool, retErr error) {
 	ctx, span := tracer.Start(ctx, "controller.executeHooks")
 	setAppTraceAttrs(span, app, attribute.String("argocd.hook.type", string(hookType)))
 	defer func() { traceutil.EndSpan(span, retErr) }()
@@ -134,18 +134,40 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 		}
 	}
 
+	getProjectClusters := func(project string) ([]*appv1.Cluster, error) {
+		return ctrl.db.GetProjectClusters(ctx, project)
+	}
+
 	// Find expected hooks that need to be created
 	expectedHook := map[kube.ResourceKey]*unstructured.Unstructured{}
 	for _, obj := range targets {
-		if obj.GetNamespace() == "" {
-			obj.SetNamespace(app.Spec.Destination.Namespace)
-		}
 		if !isHookOfType(obj, hookType) {
 			continue
 		}
-		if _, alreadyExists := runningHooks[kube.GetResourceKey(obj)]; !alreadyExists {
-			expectedHook[kube.GetResourceKey(obj)] = obj
+		// Determine namespaced/cluster-scoped from server discovery rather than
+		// inferring it from metadata.namespace. Inferring would let a
+		// cluster-scoped hook (e.g. ClusterRole) that gets a namespace stamped
+		// below bypass the cluster-resource allow/deny lists.
+		namespaced, err := ctrl.stateCache.IsNamespaced(destCluster, obj.GroupVersionKind().GroupKind())
+		if err != nil {
+			return false, fmt.Errorf("failed to determine scope of %s hook %s: %w", hookType, kube.GetResourceKey(obj), err)
 		}
+		if namespaced && obj.GetNamespace() == "" {
+			obj.SetNamespace(app.Spec.Destination.Namespace)
+		}
+		if _, alreadyExists := runningHooks[kube.GetResourceKey(obj)]; alreadyExists {
+			continue
+		}
+		// Enforce the same AppProject destination and resource restrictions that
+		// the normal sync path applies (see validateSyncPermissions in sync.go).
+		// Delete hooks are created with the destination cluster's credentials, so
+		// without this check a user with Git write access could escape their
+		// AppProject boundary by pinning a forbidden namespace or group/kind on a
+		// delete-hook manifest. Fail closed if a hook is not permitted.
+		if err := validateSyncPermissions(proj, destCluster, getProjectClusters, obj, &metav1.APIResource{Namespaced: namespaced}); err != nil {
+			return false, fmt.Errorf("%s hook %s is not permitted: %w", hookType, kube.GetResourceKey(obj), err)
+		}
+		expectedHook[kube.GetResourceKey(obj)] = obj
 	}
 
 	// Create hooks that don't exist yet
@@ -321,16 +343,16 @@ func (ctrl *ApplicationController) cleanupHooks(ctx context.Context, hookType Ho
 
 // Execute and cleanup hooks for pre-delete and post-delete operations
 
-func (ctrl *ApplicationController) executePreDeleteHooks(ctx context.Context, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
-	return ctrl.executeHooks(ctx, PreDeleteHookType, app, proj, liveObjs, config, logCtx)
+func (ctrl *ApplicationController) executePreDeleteHooks(ctx context.Context, app *appv1.Application, proj *appv1.AppProject, destCluster *appv1.Cluster, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+	return ctrl.executeHooks(ctx, PreDeleteHookType, app, proj, destCluster, liveObjs, config, logCtx)
 }
 
 func (ctrl *ApplicationController) cleanupPreDeleteHooks(ctx context.Context, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
 	return ctrl.cleanupHooks(ctx, PreDeleteHookType, liveObjs, config, logCtx)
 }
 
-func (ctrl *ApplicationController) executePostDeleteHooks(ctx context.Context, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
-	return ctrl.executeHooks(ctx, PostDeleteHookType, app, proj, liveObjs, config, logCtx)
+func (ctrl *ApplicationController) executePostDeleteHooks(ctx context.Context, app *appv1.Application, proj *appv1.AppProject, destCluster *appv1.Cluster, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
+	return ctrl.executeHooks(ctx, PostDeleteHookType, app, proj, destCluster, liveObjs, config, logCtx)
 }
 
 func (ctrl *ApplicationController) cleanupPostDeleteHooks(ctx context.Context, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
