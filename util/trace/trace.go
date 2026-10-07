@@ -25,17 +25,13 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cert"
 )
 
-// collectorTLSCredentials builds the TLS credentials for a secure collector
-// connection from the standard OTEL_EXPORTER_OTLP_[<signal>_]CERTIFICATE,
-// CLIENT_CERTIFICATE and CLIENT_KEY env vars, where signal is "TRACES" or
-// "METRICS" and the signal-specific vars win, as in the SDK. Without a CA
-// there, the CA for the collector host in argocd-tls-certs-cm is used, else the
-// system roots.
+// collectorTLSCredentials builds TLS credentials from the standard
+// OTEL_EXPORTER_OTLP_[<signal>_]CERTIFICATE, CLIENT_CERTIFICATE and CLIENT_KEY
+// env vars (signal-specific wins, as in the SDK), falling back to the CA for
+// the collector host in argocd-tls-certs-cm, else the system roots.
 //
-// The exporter could read these vars itself, but it silently skips an
-// unreadable CA or an incomplete client cert/key pair, and without credentials
-// it honors OTEL_EXPORTER_OTLP_INSECURE or an http:// endpoint. Building them
-// here keeps otlp.insecure=false on TLS and turns bad TLS config into an error.
+// Not left to the exporter: it silently skips a bad CA or an incomplete client
+// pair, and without credentials honors OTEL_EXPORTER_OTLP_INSECURE.
 func collectorTLSCredentials(otlpAddress, signal string) (credentials.TransportCredentials, error) {
 	env := func(name string) string {
 		return strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_" + name))
@@ -125,8 +121,8 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	// Explicit options override the standard OTEL_EXPORTER_OTLP_* env vars, so
-	// headers are only set when configured; see collectorTLSCredentials for TLS.
+	// Explicit options override the OTEL_EXPORTER_OTLP_* env vars, so headers
+	// are only set when configured.
 	opts := []otlptracegrpc.Option{otlptracegrpc.WithEndpoint(otlpAddress)}
 	if otlpInsecure {
 		// Credentials, not WithInsecure: the exporter prefers TLS built from the
