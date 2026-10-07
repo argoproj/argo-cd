@@ -139,3 +139,17 @@ reconciliation. In order to avoid this ambiguity, you can follow these best prac
 1. Use fully-qualified Git references in the `targetRevision` field. For example, use `refs/heads/release-1.0` for branches
    and `refs/tags/release-1.0` for tags.
 2. Avoid using the same name for branches and tags in your Git repository.
+
+#### Branches named `HEAD`
+
+`HEAD` is a special case of this ambiguity. It is not a branch: a remote advertises it as a symbolic
+reference pointing at the repository's default branch, which is what `git clone` and the Git hosting
+web UIs follow. A repository can still end up with a branch literally named `HEAD`, usually by pushing
+a fully-qualified ref such as `git push origin refs/heads/HEAD`.
+
+Argo CD follows the symbolic reference in that case, matching Git's own behaviour: `targetRevision: HEAD`
+resolves to the tip of the default branch, and the branch itself stays reachable as `refs/heads/HEAD`.
+
+> [!NOTE]
+> A branch named `HEAD` confuses most Git tooling, not only Argo CD. Deleting it with
+> `git push origin --delete refs/heads/HEAD` is usually the right fix.

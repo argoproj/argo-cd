@@ -985,6 +985,13 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	// symbolic reference (like HEAD), in which case we will resolve it from the refToHash map
 	refToResolve := ""
 
+	// A remote can carry a branch literally named "HEAD" alongside the symbolic HEAD. Git follows the
+	// symbolic ref, so "HEAD" must not resolve to refs/heads/HEAD. HEAD is the only advertised ref
+	// living outside refs/, so it is also the only revision whose short name match can be outranked by
+	// a later ref; shortMatch defers that decision. Every other revision still resolves on first match.
+	mayShadowHead := revision == "HEAD"
+	shortMatch := ""
+
 	isShortRef := IsShortRef(revision)
 	log.Debugf("Attempting to resolve revision '%s' (is short ref: %t)", revision, isShortRef)
 
@@ -997,8 +1004,15 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		// log.Debugf("%s\t%s", hash, refName)
 		if (isShortRef && ref.Name().Short() == revision) || refName == revision {
 			if ref.Type() == plumbing.HashReference {
-				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
-				return hash, nil
+				// No other ref can carry this exact name, so nothing later in the listing can outrank
+				// it - not even a symbolic reference, which would have to be this very ref.
+				if refName == revision || !mayShadowHead {
+					log.Debugf("revision '%s' resolved to '%s'", revision, hash)
+					return hash, nil
+				}
+				if shortMatch == "" {
+					shortMatch = hash
+				}
 			}
 			if ref.Type() == plumbing.SymbolicReference {
 				refToResolve = ref.Target().String()
@@ -1013,6 +1027,11 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 			log.Debugf("symbolic reference '%s' (%s) resolved to '%s'", revision, refToResolve, hash)
 			return hash, nil
 		}
+	}
+
+	if shortMatch != "" {
+		log.Debugf("revision '%s' resolved to '%s'", revision, shortMatch)
+		return shortMatch, nil
 	}
 
 	// We support the ability to use a truncated commit-SHA (e.g. first 7 characters of a SHA)
