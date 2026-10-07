@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -372,4 +373,35 @@ func TestNewClient_ClientCertData(t *testing.T) {
 		})
 		require.ErrorContains(t, err, "must always be specified together")
 	})
+}
+
+func TestNewClient_SendsHeadersWhenRefreshingExpiredToken(t *testing.T) {
+	var receivedHeader atomic.Value
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedHeader.Store(r.Header.Get("X-Proxy-Auth"))
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer server.Close()
+
+	expiredToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(-time.Hour)),
+	}).SignedString([]byte("test"))
+	require.NoError(t, err)
+
+	serverAddr := server.URL[7:] // Remove "http://"
+	configPath := filepath.Join(t.TempDir(), "config")
+	require.NoError(t, localconfig.WriteLocalConfig(localconfig.LocalConfig{
+		CurrentContext: serverAddr,
+		Contexts:       []localconfig.ContextRef{{Name: serverAddr, Server: serverAddr, User: serverAddr}},
+		Servers:        []localconfig.Server{{Server: serverAddr, PlainText: true, GRPCWeb: true}},
+		Users:          []localconfig.User{{Name: serverAddr, AuthToken: expiredToken, RefreshToken: "refresh-token"}},
+	}, configPath))
+
+	_, err = NewClient(&ClientOptions{
+		ConfigPath: configPath,
+		Headers:    []string{"X-Proxy-Auth: secret"},
+	})
+
+	require.Error(t, err)
+	assert.Equal(t, "secret", receivedHeader.Load())
 }
