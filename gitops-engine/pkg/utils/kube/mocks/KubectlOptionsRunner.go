@@ -153,8 +153,8 @@ func (_c *KubectlOptionsRunner_AuthReconcile_Call) RunAndReturn(run func(opts *a
 }
 
 // Create provides a mock function for the type KubectlOptionsRunner
-func (_mock *KubectlOptionsRunner) Create(opts *create.CreateOptions, fact util.Factory, cmd *cobra.Command) error {
-	ret := _mock.Called(opts, fact, cmd)
+func (_mock *KubectlOptionsRunner) Create(opts *create.CreateOptions, fact util.Factory, ignoredCmd *cobra.Command) error {
+	ret := _mock.Called(opts, fact, ignoredCmd)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
@@ -162,7 +162,7 @@ func (_mock *KubectlOptionsRunner) Create(opts *create.CreateOptions, fact util.
 
 	var r0 error
 	if returnFunc, ok := ret.Get(0).(func(*create.CreateOptions, util.Factory, *cobra.Command) error); ok {
-		r0 = returnFunc(opts, fact, cmd)
+		r0 = returnFunc(opts, fact, ignoredCmd)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -177,12 +177,12 @@ type KubectlOptionsRunner_Create_Call struct {
 // Create is a helper method to define mock.On call
 //   - opts *create.CreateOptions
 //   - fact util.Factory
-//   - cmd *cobra.Command
-func (_e *KubectlOptionsRunner_Expecter) Create(opts any, fact any, cmd any) *KubectlOptionsRunner_Create_Call {
-	return &KubectlOptionsRunner_Create_Call{Call: _e.mock.On("Create", opts, fact, cmd)}
+//   - ignoredCmd *cobra.Command
+func (_e *KubectlOptionsRunner_Expecter) Create(opts any, fact any, ignoredCmd any) *KubectlOptionsRunner_Create_Call {
+	return &KubectlOptionsRunner_Create_Call{Call: _e.mock.On("Create", opts, fact, ignoredCmd)}
 }
 
-func (_c *KubectlOptionsRunner_Create_Call) Run(run func(opts *create.CreateOptions, fact util.Factory, cmd *cobra.Command)) *KubectlOptionsRunner_Create_Call {
+func (_c *KubectlOptionsRunner_Create_Call) Run(run func(opts *create.CreateOptions, fact util.Factory, ignoredCmd *cobra.Command)) *KubectlOptionsRunner_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *create.CreateOptions
 		if args[0] != nil {
@@ -210,7 +210,7 @@ func (_c *KubectlOptionsRunner_Create_Call) Return(err error) *KubectlOptionsRun
 	return _c
 }
 
-func (_c *KubectlOptionsRunner_Create_Call) RunAndReturn(run func(opts *create.CreateOptions, fact util.Factory, cmd *cobra.Command) error) *KubectlOptionsRunner_Create_Call {
+func (_c *KubectlOptionsRunner_Create_Call) RunAndReturn(run func(opts *create.CreateOptions, fact util.Factory, ignoredCmd *cobra.Command) error) *KubectlOptionsRunner_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }

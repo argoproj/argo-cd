@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	stderrors "errors"
 	"fmt"
 	"html"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -50,12 +52,20 @@ func NewLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "login SERVER",
 		Short: "Log in to Argo CD",
-		Long:  "Log in to Argo CD",
+		Long: `Log in to Argo CD
+
+A client certificate given with --client-crt and --client-crt-key is recorded in the context, so that
+subsequent commands reuse it without having to specify the flags again. The certificate is referenced
+by path and read on every invocation, which means certificates rotated by an external tool are picked
+up automatically.`,
 		Example: `# Login to Argo CD using a username and password
 argocd login cd.argoproj.io
 
 # Login to Argo CD using SSO
 argocd login cd.argoproj.io --sso
+
+# Login to an Argo CD instance behind a proxy requiring a client certificate
+argocd login cd.argoproj.io --client-crt ~/certs/argocd.crt --client-crt-key ~/certs/argocd.key
 
 # Configure direct access using Kubernetes API server
 argocd login cd.argoproj.io --core`,
@@ -98,13 +108,29 @@ argocd login cd.argoproj.io --core`,
 					}
 				}
 			}
+			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
+			errors.CheckError(err)
+			if localCfg == nil {
+				localCfg = &localconfig.LocalConfig{}
+			}
+
+			serverCfg := localconfig.Server{
+				Server:          server,
+				PlainText:       clientOpts.PlainText,
+				Insecure:        clientOpts.Insecure,
+				GRPCWeb:         clientOpts.GRPCWeb,
+				GRPCWebRootPath: clientOpts.GRPCWebRootPath,
+				Core:            clientOpts.Core,
+			}
+			// An error simply means the server has not been logged into before, nothing to carry over.
+			existingCfg, _ := localCfg.GetServer(server)
+			errors.CheckError(applyCertConfig(&serverCfg, existingCfg, clientOpts.ClientCertFile, clientOpts.ClientCertKeyFile))
+
 			loginOpts := argocdclient.ClientOptions{
 				ConfigPath:           "",
 				ServerAddr:           server,
 				Insecure:             clientOpts.Insecure,
 				PlainText:            clientOpts.PlainText,
-				ClientCertFile:       clientOpts.ClientCertFile,
-				ClientCertKeyFile:    clientOpts.ClientCertKeyFile,
 				GRPCWeb:              clientOpts.GRPCWeb,
 				GRPCWebRootPath:      clientOpts.GRPCWebRootPath,
 				PortForward:          clientOpts.PortForward,
@@ -113,6 +139,8 @@ argocd login cd.argoproj.io --core`,
 				KubeOverrides:        clientOpts.KubeOverrides,
 				ServerName:           clientOpts.ServerName,
 			}
+			loginOpts.ClientCertData, loginOpts.ClientCertKeyData, err = serverCfg.ClientCertPEM()
+			errors.CheckError(err)
 
 			if ctxName == "" {
 				ctxName = server
@@ -149,19 +177,7 @@ argocd login cd.argoproj.io --core`,
 			}
 
 			// login successful. Persist the config
-			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
-			errors.CheckError(err)
-			if localCfg == nil {
-				localCfg = &localconfig.LocalConfig{}
-			}
-			localCfg.UpsertServer(localconfig.Server{
-				Server:          server,
-				PlainText:       clientOpts.PlainText,
-				Insecure:        clientOpts.Insecure,
-				GRPCWeb:         clientOpts.GRPCWeb,
-				GRPCWebRootPath: clientOpts.GRPCWebRootPath,
-				Core:            clientOpts.Core,
-			})
+			localCfg.UpsertServer(serverCfg)
 			localCfg.UpsertUser(localconfig.User{
 				Name:         ctxName,
 				AuthToken:    tokenString,
@@ -190,6 +206,38 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
 	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the system default browser when performing SSO login")
 	return command
+}
+
+// applyCertConfig fills in the certificate settings of the server context being logged into. The
+// certificates of a previous login are carried over, so that --client-crt and --client-crt-key do
+// not have to be repeated on every login, unless new ones are given on the command line.
+func applyCertConfig(serverCfg *localconfig.Server, existing *localconfig.Server, clientCertFile, clientCertKeyFile string) error {
+	if existing != nil {
+		serverCfg.CACertificateAuthorityData = existing.CACertificateAuthorityData
+		serverCfg.ClientCertificate = existing.ClientCertificate
+		serverCfg.ClientCertificateKey = existing.ClientCertificateKey
+		serverCfg.ClientCertificateData = existing.ClientCertificateData
+		serverCfg.ClientCertificateKeyData = existing.ClientCertificateKeyData
+	}
+	switch {
+	case clientCertFile != "" && clientCertKeyFile != "":
+		// Persist absolute paths, since the CLI may later be invoked from a different directory.
+		cert, err := filepath.Abs(clientCertFile)
+		if err != nil {
+			return err
+		}
+		key, err := filepath.Abs(clientCertKeyFile)
+		if err != nil {
+			return err
+		}
+		serverCfg.ClientCertificate = cert
+		serverCfg.ClientCertificateKey = key
+		serverCfg.ClientCertificateData = ""
+		serverCfg.ClientCertificateKeyData = ""
+	case clientCertFile != "" || clientCertKeyFile != "":
+		return stderrors.New("--client-crt and --client-crt-key must always be specified together")
+	}
+	return nil
 }
 
 func userDisplayName(claims jwt.MapClaims) string {

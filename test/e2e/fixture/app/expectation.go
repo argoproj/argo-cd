@@ -111,7 +111,7 @@ func OperationRetriedMinimumTimes(minRetries int64) Expectation {
 	return func(c *Consequences) (state, string) {
 		operationState := c.app().Status.OperationState
 		actual := operationState.RetryCount
-		message := fmt.Sprintf("operation state retry cound should be at least %d, is %d, message: '%s'", minRetries, actual, operationState.Message)
+		message := fmt.Sprintf("operation state retry count should be at least %d, is %d, message: '%s'", minRetries, actual, operationState.Message)
 		return simple(actual >= minRetries, message)
 	}
 }
