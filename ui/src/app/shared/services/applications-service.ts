@@ -317,7 +317,8 @@ export class ApplicationsService {
         strategy: models.SyncStrategy,
         resources: models.SyncOperationResource[],
         syncOptions?: string[],
-        retryStrategy?: models.RetryStrategy
+        retryStrategy?: models.RetryStrategy,
+        message?: string
     ): Promise<boolean> {
         return requests
             .post(`/applications/${name}/sync`)
@@ -329,7 +330,8 @@ export class ApplicationsService {
                 strategy,
                 resources,
                 syncOptions: syncOptions ? {items: syncOptions} : null,
-                retryStrategy
+                retryStrategy,
+                infos: message ? [{name: 'message', value: message} as models.Info] : []
             })
             .then(() => true);
     }
