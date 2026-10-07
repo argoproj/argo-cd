@@ -312,7 +312,8 @@ connectors:
 
 // goodDexConfigWithRestrictedGrantTypes has an explicit oauth2.grantTypes list that
 // does NOT include urn:ietf:params:oauth:grant-type:device_code. GenerateDexConfigYAML
-// must inject device_code into this list so that Dex accepts device-flow requests.
+// must respect this restriction and NOT inject device_code — the operator intentionally
+// excluded it. A warning is emitted instead.
 var goodDexConfigWithRestrictedGrantTypes = `
 oauth2:
   passwordConnector: ldap
@@ -884,9 +885,10 @@ func Test_GenerateDexConfig(t *testing.T) {
 		assert.True(t, ok)
 		assert.False(t, skipApprScr)
 	})
-	t.Run("device_code grant type is injected when oauth2.grantTypes is explicitly restricted", func(t *testing.T) {
-		// Operator explicitly restricted grantTypes; device_code is absent.
-		// GenerateDexConfigYAML must append it so Dex accepts device-flow requests.
+	t.Run("device_code grant type is not injected when oauth2.grantTypes is explicitly restricted", func(t *testing.T) {
+		// Operator explicitly restricted grantTypes without device_code.
+		// GenerateDexConfigYAML must respect that restriction and leave the list
+		// unchanged — a warning is emitted but device_code is NOT appended.
 		s := settings.ArgoCDSettings{
 			URL:       "http://localhost",
 			DexConfig: goodDexConfigWithRestrictedGrantTypes,
@@ -907,7 +909,8 @@ func Test_GenerateDexConfig(t *testing.T) {
 		for _, g := range rawGrants {
 			grants = append(grants, g.(string))
 		}
-		assert.Contains(t, grants, "urn:ietf:params:oauth:grant-type:device_code")
+		// The operator's restriction must be preserved — device_code must NOT appear.
+		assert.NotContains(t, grants, deviceCodeGrantType)
 		assert.Contains(t, grants, "authorization_code")
 		assert.Contains(t, grants, "refresh_token")
 	})
@@ -931,7 +934,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 
 		count := 0
 		for _, g := range rawGrants {
-			if g.(string) == "urn:ietf:params:oauth:grant-type:device_code" {
+			if g.(string) == deviceCodeGrantType {
 				count++
 			}
 		}

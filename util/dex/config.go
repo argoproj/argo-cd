@@ -13,6 +13,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// deviceCodeGrantType is the URN for the OAuth 2.0 Device Authorization Grant (RFC 8628).
+const deviceCodeGrantType = "urn:ietf:params:oauth:grant-type:device_code"
+
 func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS bool) ([]byte, error) {
 	if !argocdSettings.IsDexConfigured() {
 		return nil, nil
@@ -85,19 +88,23 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 		if _, found := oauth2Cfg["skipApprovalScreen"].(bool); !found {
 			oauth2Cfg["skipApprovalScreen"] = true
 		}
-		// If the operator has explicitly restricted oauth2.grantTypes, ensure the
-		// device code grant is included — otherwise Dex will reject device code
-		// requests even though the argo-cd-cli client supports it.
+		// If the operator has explicitly set oauth2.grantTypes but omitted
+		// device_code, respect that restriction — do not silently override it.
+		// Emit a warning so the operator knows the CLI device authorization flow
+		// will not work until they add the grant type themselves.
 		if existing, found := oauth2Cfg["grantTypes"].([]any); found {
 			hasDeviceCode := false
 			for _, g := range existing {
-				if g == "urn:ietf:params:oauth:grant-type:device_code" {
+				if g == deviceCodeGrantType {
 					hasDeviceCode = true
 					break
 				}
 			}
 			if !hasDeviceCode {
-				oauth2Cfg["grantTypes"] = append(existing, "urn:ietf:params:oauth:grant-type:device_code")
+				log.Warnf("oauth2.grantTypes is explicitly configured but does not include %q. "+
+					"The Argo CD CLI device authorization flow will not work. "+
+					"Add %q to oauth2.grantTypes in your Dex configuration to enable it.",
+					deviceCodeGrantType, deviceCodeGrantType)
 			}
 		}
 	} else {
