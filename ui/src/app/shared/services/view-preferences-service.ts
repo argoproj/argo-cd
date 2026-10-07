@@ -332,6 +332,7 @@ export class ViewPreferencesService {
         appList.clustersFilter = appList.clustersFilter || [];
         appList.syncFilter = appList.syncFilter || [];
         appList.autoSyncFilter = appList.autoSyncFilter || [];
+        appList.hydrationFilter = appList.hydrationFilter || [];
         appList.healthFilter = appList.healthFilter || [];
         appList.operationFilter = appList.operationFilter || [];
         appList.favoritesAppList = appList.favoritesAppList || [];

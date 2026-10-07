@@ -1412,7 +1412,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(ctx context.Conte
 			return fmt.Errorf("error getting permitted app live objects: %w", err)
 		}
 
-		done, err := ctrl.executePreDeleteHooks(ctx, app, proj, objsMap, config, logCtx)
+		done, err := ctrl.executePreDeleteHooks(ctx, app, proj, destCluster, objsMap, config, logCtx)
 		if err != nil {
 			return fmt.Errorf("error executing pre-delete hooks: %w", err)
 		}
@@ -1494,7 +1494,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(ctx context.Conte
 			return err
 		}
 
-		done, err := ctrl.executePostDeleteHooks(ctx, app, proj, objsMap, config, logCtx)
+		done, err := ctrl.executePostDeleteHooks(ctx, app, proj, destCluster, objsMap, config, logCtx)
 		if err != nil {
 			return err
 		}
