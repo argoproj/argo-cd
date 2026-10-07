@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import * as models from '../../../shared/models';
+import {COLORS} from '../../../shared/components/colors';
 import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
 import {ApplicationStatusPanel} from './application-status-panel';
@@ -49,6 +50,28 @@ const appSet = {
 } as unknown as models.ApplicationSet;
 
 describe('ApplicationStatusPanel', () => {
+    it('colors the health status text by its status', () => {
+        render(<ApplicationStatusPanel application={application} />);
+        expect(screen.getByText('Healthy')).toHaveStyle({color: COLORS.health.healthy});
+    });
+
+    it('colors the collapsed health status text by its status', () => {
+        const degraded = {...application, status: {...application.status, health: {status: 'Degraded'}}} as unknown as models.Application;
+        render(<ApplicationStatusPanel application={degraded} collapsed={true} />);
+        expect(screen.getByTitle('App Health')).toHaveStyle({color: COLORS.health.degraded});
+    });
+
+    it('keeps the themed text color for an Unknown health status', () => {
+        const unknown = {...application, status: {...application.status, health: {status: 'Unknown'}}} as unknown as models.Application;
+        render(<ApplicationStatusPanel application={unknown} collapsed={true} />);
+        expect(screen.getByTitle('App Health')).not.toHaveStyle({color: COLORS.health.unknown});
+    });
+
+    it('spaces the expanded condition counters with sync-condition-details', () => {
+        const {container} = render(<ApplicationStatusPanel application={application} />);
+        expect(container.querySelectorAll('.application-status-panel__item .sync-condition-details').length).toBeGreaterThan(0);
+    });
+
     it('renders the full panel by default', () => {
         const {container} = render(<ApplicationStatusPanel application={application} />);
         expect(screen.getByText('APP HEALTH')).toBeInTheDocument();
@@ -346,6 +369,22 @@ describe('ApplicationStatusPanel', () => {
 });
 
 describe('ApplicationSetStatusPanel', () => {
+    it('colors the appset health status text by its status', () => {
+        render(<ApplicationSetStatusPanel appSet={appSet} />);
+        expect(screen.getByText('Healthy')).toHaveStyle({color: COLORS.health.healthy});
+    });
+
+    it('colors the collapsed appset health status text by its status', () => {
+        render(<ApplicationSetStatusPanel appSet={appSet} collapsed={true} />);
+        expect(screen.getByTitle('AppSet Health')).toHaveStyle({color: COLORS.health.healthy});
+    });
+
+    it('keeps the themed text color for an Unknown appset health status', () => {
+        const unknownAppSet = {...appSet, status: {conditions: []}} as unknown as models.ApplicationSet;
+        render(<ApplicationSetStatusPanel appSet={unknownAppSet} collapsed={true} />);
+        expect(screen.getByTitle('AppSet Health')).not.toHaveStyle({color: COLORS.health.unknown});
+    });
+
     it('renders the full panel by default', () => {
         const {container} = render(<ApplicationSetStatusPanel appSet={appSet} />);
         expect(screen.getByText('APPSET HEALTH')).toBeInTheDocument();
