@@ -45,7 +45,9 @@ jobs:
       - uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
         id: filter
         with:
-          # Any file which is not under docs/, ui/ or is not a markdown file is counted as a backend file.
+          # Any file which is not under docs/, ui/, manifests/, is not VERSION, or is not a markdown
+          # file is counted as a backend file.
+          # Version bumps (VERSION + manifests only) skip backend CI (tests, lint, e2e, etc.).
           # ui/embed.go and ui/dist/app placeholder files are Go embed inputs; changes must run make build-local.
           files_yaml: |
             backend:
@@ -54,6 +56,8 @@ jobs:
               - '!**.md'
               - '!**/*.md'
               - '!docs/**'
+              - '!VERSION'
+              - '!manifests/**'
               - 'ui/embed.go'
               - 'ui/dist/app/gitkeep'
               - 'ui/dist/app/assets/images/resources/.gitkeep'
@@ -690,7 +694,7 @@ jobs:
       - name: Pull Docker image required for tests
         run: |
           # renovate: datasource=github-releases depName=dexidp/dex
-          docker pull ghcr.io/dexidp/dex:v2.45.1
+          docker pull ghcr.io/dexidp/dex:v2.46.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
           # renovate: datasource=docker packageName=docker.io/library/redis
           docker pull redis:8.10.2-alpine
