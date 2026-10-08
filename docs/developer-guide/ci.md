@@ -45,7 +45,7 @@ Your code failed to lint correctly, or modifications were performed by the `gola
 
 * If you receive an error like, ```File is not `goimports`-ed (goimports)```, the file is not formatted correctly. Run `gofmt -w $file.go` to resolve this linter error.
 
-* `make lint` and `make lint-local` also run `actionlint` on `.github/workflows`, which checks workflow syntax, expressions and `run:` scripts (via `shellcheck`). Run `make actionlint` to run only that check in the test container, or `make actionlint-local` if you have `actionlint` and `shellcheck` on your `PATH` (`./hack/install.sh actionlint`).
+* `make lint` and `make lint-local` also run `actionlint` on `.github/workflows`, which checks workflow syntax, expressions and `run:` scripts. To run only that check, use `make actionlint` or `make actionlint-local`.
 
 ### Why does the test or e2e steps fail?
 
