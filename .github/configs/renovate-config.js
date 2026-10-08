@@ -12,6 +12,9 @@ module.exports = {
         "hack/installers/checksums/add-git-lfs-checksums.sh",
     ],
     binarySource: 'install',
+    // config:recommended sets 2. With master plus the supported release
+    // branches, one Go patch release alone queues five PRs.
+    prHourlyLimit: 10,
     extends: [
         "github>argoproj/argo-cd//renovate-presets/commons.json5",
         "github>argoproj/argo-cd//renovate-presets/custom-managers/shell.json5",
