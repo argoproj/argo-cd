@@ -149,7 +149,7 @@ func Test_nativeOCIClient_CleanCacheWaitsForExtraction(t *testing.T) {
 
 	extracted := make(chan error, 1)
 	go func() {
-		_, closer, err := reader.Extract(context.Background(), revision)
+		_, closer, err := reader.Extract(t.Context(), revision)
 		if err == nil {
 			err = closer.Close()
 		}
@@ -170,6 +170,8 @@ func Test_nativeOCIClient_CleanCacheWaitsForExtraction(t *testing.T) {
 	case err := <-cleaned:
 		require.NoError(t, err)
 		t.Fatal("cache cleanup completed while extraction still held the archive lock")
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for cache cleanup to attempt the lock")
 	}
 
 	releaseExtraction()
