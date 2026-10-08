@@ -18,7 +18,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
-
+	"time"
 	keysync "github.com/argoproj/pkg/v2/sync"
 	"github.com/opencontainers/go-digest"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
