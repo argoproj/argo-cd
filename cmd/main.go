@@ -21,6 +21,7 @@ import (
 	apiserver "github.com/argoproj/argo-cd/v3/cmd/argocd-server/commands"
 	cli "github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/log"
 )
 
@@ -34,6 +35,9 @@ func init() {
 }
 
 func main() {
+
+	grpc.DisableSRVLookups()
+
 	var command *cobra.Command
 
 	binaryName := filepath.Base(os.Args[0])
