@@ -778,6 +778,7 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 	Given(t).
 		// Create a ListGenerator-based ApplicationSet
 		When().Create(v1alpha1.ApplicationSet{
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSetSpec{
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
@@ -855,7 +856,7 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
 		// So AppSet deletion will be reflected, but all the applications it generates will still exist
 		When().
-		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete(metav1.DeletePropagationBackground).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestSyncPolicyCreateDelete(t *testing.T) {
@@ -974,6 +975,7 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 	Given(t).
 		// Create a ListGenerator-based ApplicationSet
 		When().Create(v1alpha1.ApplicationSet{
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSetSpec{
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
@@ -1042,7 +1044,7 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
 		// So AppSet deletion will be reflected, but all the applications it generates will still exist
 		When().
-		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace}))
+		Delete(metav1.DeletePropagationBackground).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func githubSCMMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {

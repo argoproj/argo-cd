@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {resourceIcons} from './resources';
 import {resourceIconGroups as resourceCustomizations} from './resource-customizations';
-import * as minimatch from 'minimatch';
+import {minimatch} from 'minimatch';
 
 const RESOURCE_ICON_WIDTH = '40px';
 const RESOURCE_ICON_HEIGHT = '32px';

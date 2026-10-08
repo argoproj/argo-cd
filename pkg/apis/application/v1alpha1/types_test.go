@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"path"
@@ -25,56 +26,533 @@ import (
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
 	testData := []struct {
+		name        string
 		projSources []string
 		appSource   string
 		isPermitted bool
-	}{{
-		projSources: []string{"*"}, appSource: "https://github.com/argoproj/test.git", isPermitted: true,
-	}, {
-		projSources: []string{"https://github.com/argoproj/test.git"}, appSource: "https://github.com/argoproj/test.git", isPermitted: true,
-	}, {
-		projSources: []string{"ssh://git@GITHUB.com:argoproj/test"}, appSource: "ssh://git@github.com:argoproj/test", isPermitted: true,
-	}, {
-		projSources: []string{"https://github.com/argoproj/*"}, appSource: "https://github.com/argoproj/argoproj.git", isPermitted: true,
-	}, {
-		projSources: []string{"https://github.com/test1/test.git", "https://github.com/test2/test.git"}, appSource: "https://github.com/test2/test.git", isPermitted: true,
-	}, {
-		projSources: []string{"https://github.com/argoproj/test1.git"}, appSource: "https://github.com/argoproj/test2.git", isPermitted: false,
-	}, {
-		projSources: []string{"https://github.com/argoproj/*.git"}, appSource: "https://github.com/argoproj1/test2.git", isPermitted: false,
-	}, {
-		projSources: []string{"https://github.com/argoproj/foo"}, appSource: "https://github.com/argoproj/foo1", isPermitted: false,
-	}, {
-		projSources: []string{"https://gitlab.com/group/*"}, appSource: "https://gitlab.com/group/repo/owner", isPermitted: false,
-	}, {
-		projSources: []string{"https://gitlab.com/group/*/*"}, appSource: "https://gitlab.com/group/repo/owner", isPermitted: true,
-	}, {
-		projSources: []string{"https://gitlab.com/group/*/*/*"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: true,
-	}, {
-		projSources: []string{"https://gitlab.com/group/**"}, appSource: "https://gitlab.com/group/sub-group/repo/owner", isPermitted: true,
-	}, {
-		// Domain-level wildcard: ** should match all repos under github.com
-		projSources: []string{"https://github.com/**"}, appSource: "https://github.com/argoproj/argocd-example-apps.git", isPermitted: true,
-	}, {
-		// Domain-level wildcard: ** should match nested org paths
-		projSources: []string{"https://github.com/**"}, appSource: "https://github.com/some-org/some-repo.git", isPermitted: true,
-	}, {
-		// Domain-level wildcard with **: should NOT match different domains
-		projSources: []string{"https://github.com/**"}, appSource: "https://gitlab.com/group/repo.git", isPermitted: false,
-	}, {
-		// Single-level wildcard: * should NOT match multi-level paths after domain
-		projSources: []string{"https://github.com/*"}, appSource: "https://github.com/argoproj/test.git", isPermitted: false,
-	}}
+	}{
+		{
+			name:        "wildcard permits any repository",
+			projSources: []string{"*"},
+			appSource:   "https://github.com/argoproj/test.git",
+			isPermitted: true,
+		},
+		{
+			name:        "exact repository URL",
+			projSources: []string{"https://github.com/argoproj/test.git"},
+			appSource:   "https://github.com/argoproj/test.git",
+			isPermitted: true,
+		},
+		{
+			name:        "SSH URL match ignores host case",
+			projSources: []string{"ssh://git@GITHUB.com:argoproj/test"},
+			appSource:   "ssh://git@github.com:argoproj/test",
+			isPermitted: true,
+		},
+		{
+			name:        "one path segment under the organization",
+			projSources: []string{"https://github.com/argoproj/*"},
+			appSource:   "https://github.com/argoproj/argoproj.git",
+			isPermitted: true,
+		},
+		{
+			name:        "second listed repository is permitted",
+			projSources: []string{"https://github.com/test1/test.git", "https://github.com/test2/test.git"},
+			appSource:   "https://github.com/test2/test.git",
+			isPermitted: true,
+		},
+		{
+			name:        "a different repository is not permitted",
+			projSources: []string{"https://github.com/argoproj/test1.git"},
+			appSource:   "https://github.com/argoproj/test2.git",
+			isPermitted: false,
+		},
+		{
+			name:        "one-segment glob does not match a different organization",
+			projSources: []string{"https://github.com/argoproj/*.git"},
+			appSource:   "https://github.com/argoproj1/test2.git",
+			isPermitted: false,
+		},
+		{
+			name:        "exact repository does not match a longer name",
+			projSources: []string{"https://github.com/argoproj/foo"},
+			appSource:   "https://github.com/argoproj/foo1",
+			isPermitted: false,
+		},
+		{
+			name:        "one star does not match two path segments",
+			projSources: []string{"https://gitlab.com/group/*"},
+			appSource:   "https://gitlab.com/group/repo/owner",
+			isPermitted: false,
+		},
+		{
+			name:        "exactly two path segments",
+			projSources: []string{"https://gitlab.com/group/*/*"},
+			appSource:   "https://gitlab.com/group/repo/owner",
+			isPermitted: true,
+		},
+		{
+			name:        "exactly three path segments",
+			projSources: []string{"https://gitlab.com/group/*/*/*"},
+			appSource:   "https://gitlab.com/group/sub-group/repo/owner",
+			isPermitted: true,
+		},
+		{
+			name:        "double star matches any depth under the group",
+			projSources: []string{"https://gitlab.com/group/**"},
+			appSource:   "https://gitlab.com/group/sub-group/repo/owner",
+			isPermitted: true,
+		},
+		{
+			name:        "double star matches a repository on github.com",
+			projSources: []string{"https://github.com/**"},
+			appSource:   "https://github.com/argoproj/argocd-example-apps.git",
+			isPermitted: true,
+		},
+		{
+			name:        "double star matches a nested path on github.com",
+			projSources: []string{"https://github.com/**"},
+			appSource:   "https://github.com/some-org/some-repo.git",
+			isPermitted: true,
+		},
+		{
+			name:        "double star does not match another host",
+			projSources: []string{"https://github.com/**"},
+			appSource:   "https://gitlab.com/group/repo.git",
+			isPermitted: false,
+		},
+		{
+			name:        "one star after the host does not match org/repo",
+			projSources: []string{"https://github.com/*"},
+			appSource:   "https://github.com/argoproj/test.git",
+			isPermitted: false,
+		},
+		// Cases below were added to the original table.
+		{
+			name:        "wildcard permits an SSH URL",
+			projSources: []string{"*"},
+			appSource:   "git@github.com:argoproj/argo-cd.git",
+			isPermitted: true,
+		},
+		{
+			name:        "bare double star permits any repository",
+			projSources: []string{"**"},
+			appSource:   "https://gitlab.com/group/sub/repo",
+			isPermitted: true,
+		},
+		{
+			name:        "github.com double star does not match a longer host",
+			projSources: []string{"https://github.com/**"},
+			appSource:   "https://github.com.evil.com/org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "double star ignores hostname case",
+			projSources: []string{"https://GitHub.com/**"},
+			appSource:   "https://github.com/argoproj/argo-cd",
+			isPermitted: true,
+		},
+		{
+			name:        "one path segment does not include a nested path",
+			projSources: []string{"https://github.com/argoproj/*"},
+			appSource:   "https://github.com/argoproj/nested/repo",
+			isPermitted: false,
+		},
+		// https://github.com/argoproj/argo-cd/issues/29584
+		// * stays inside one path segment, so a wildcard on the organization name
+		// admits a longer organization, and a wildcard on the repository name
+		// admits a longer repository name.
+		{
+			name:        "one path segment does not include a longer organization name",
+			projSources: []string{"https://github.com/acme/*"},
+			appSource:   "https://github.com/acme-evil/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "a wildcard on the organization name includes a longer organization",
+			projSources: []string{"https://github.com/acme*/*"},
+			appSource:   "https://github.com/acme-evil/repo",
+			isPermitted: true,
+		},
+		{
+			name:        "a wildcard on the repository name includes a longer repository name",
+			projSources: []string{"https://github.com/acme/pay*"},
+			appSource:   "https://github.com/acme/payroll-evil",
+			isPermitted: true,
+		},
+		{
+			name:        "one star after the host matches a single path segment",
+			projSources: []string{"https://github.com/*"},
+			appSource:   "https://github.com/argoproj",
+			isPermitted: true,
+		},
+		{
+			name:        "organizations starting with my-",
+			projSources: []string{"https://github.com/my-*/*"},
+			appSource:   "https://github.com/my-org/app",
+			isPermitted: true,
+		},
+		{
+			name:        "organizations starting with my- do not include a nested path",
+			projSources: []string{"https://github.com/my-*/*"},
+			appSource:   "https://github.com/my-org/nested/app",
+			isPermitted: false,
+		},
+		{
+			name:        "organizations starting with my- do not include an org named other",
+			projSources: []string{"https://github.com/my-*/*"},
+			appSource:   "https://github.com/other/app",
+			isPermitted: false,
+		},
+		{
+			name:        "my-org@evil.com is one path segment on github.com",
+			projSources: []string{"https://github.com/my-*/*"},
+			appSource:   "https://github.com/my-org@evil.com/app",
+			isPermitted: true,
+		},
+		{
+			name:        "an @ in the authority is a different host",
+			projSources: []string{"https://github.com/my-*/*"},
+			appSource:   "https://my-org@evil.com/app",
+			isPermitted: false,
+		},
+		{
+			name:        "exactly two path segments does not include one",
+			projSources: []string{"https://gitlab.com/group/*/*"},
+			appSource:   "https://gitlab.com/group/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "exactly two path segments does not include three",
+			projSources: []string{"https://gitlab.com/group/*/*"},
+			appSource:   "https://gitlab.com/group/a/b/c",
+			isPermitted: false,
+		},
+		{
+			name:        "repository named my-app at any depth",
+			projSources: []string{"https://github.com/**/my-app"},
+			appSource:   "https://github.com/org/my-app",
+			isPermitted: true,
+		},
+		{
+			name:        "repository named my-app does not include my-app-extra",
+			projSources: []string{"https://github.com/**/my-app"},
+			appSource:   "https://github.com/org/my-app-extra",
+			isPermitted: false,
+		},
+		{
+			name:        "repository named my-app on any host",
+			projSources: []string{"**/my-app"},
+			appSource:   "https://gitlab.com/group/sub/my-app",
+			isPermitted: true,
+		},
+		{
+			name:        "repository named my-app on any host, including SSH",
+			projSources: []string{"**/my-app"},
+			appSource:   "git@gitlab.example.com:group/sub/my-app.git",
+			isPermitted: true,
+		},
+		{
+			name:        "any-host my-app does not include a longer name",
+			projSources: []string{"**/my-app"},
+			appSource:   "https://github.com/org/my-app-extra",
+			isPermitted: false,
+		},
+		{
+			name:        "question mark matches one character",
+			projSources: []string{"https://github.com/org/repo-v?"},
+			appSource:   "https://github.com/org/repo-v1",
+			isPermitted: true,
+		},
+		{
+			name:        "question mark matches a different single character",
+			projSources: []string{"https://github.com/org/repo-v?"},
+			appSource:   "https://github.com/org/repo-v2",
+			isPermitted: true,
+		},
+		{
+			name:        "question mark does not match two characters",
+			projSources: []string{"https://github.com/org/repo-v?"},
+			appSource:   "https://github.com/org/repo-v10",
+			isPermitted: false,
+		},
+		{
+			name:        "question mark does not match an empty suffix",
+			projSources: []string{"https://github.com/org/repo-v?"},
+			appSource:   "https://github.com/org/repo-v",
+			isPermitted: false,
+		},
+		{
+			name:        "question mark is not the start of a query string",
+			projSources: []string{"https://github.com/org/repo-v?"},
+			appSource:   "https://github.com/org/repo-v1?ref=main",
+			isPermitted: false,
+		},
+		{
+			name:        "character class matches service-a",
+			projSources: []string{"https://github.com/org/service-[abc]/*"},
+			appSource:   "https://github.com/org/service-a/app",
+			isPermitted: true,
+		},
+		{
+			name:        "character class matches service-b",
+			projSources: []string{"https://github.com/org/service-[abc]/*"},
+			appSource:   "https://github.com/org/service-b/app",
+			isPermitted: true,
+		},
+		{
+			name:        "character class does not match service-d",
+			projSources: []string{"https://github.com/org/service-[abc]/*"},
+			appSource:   "https://github.com/org/service-d/app",
+			isPermitted: false,
+		},
+		{
+			name:        "character class is one character",
+			projSources: []string{"https://github.com/org/service-[abc]/*"},
+			appSource:   "https://github.com/org/service-ab/app",
+			isPermitted: false,
+		},
+		{
+			name:        "brace list does not include an unrelated org",
+			projSources: []string{"https://github.com/{argoproj,argoproj-labs}/*"},
+			appSource:   "https://github.com/other/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "brace host list does not include bitbucket",
+			projSources: []string{"https://{github,gitlab}.com/myorg/*"},
+			appSource:   "https://bitbucket.org/myorg/app",
+			isPermitted: false,
+		},
+		// Braces and character classes in the host are parsed as part of the URL,
+		// so the pattern does not permit the hosts it appears to name. A ? in
+		// the host still matches one character.
+		{
+			name:        "a brace list in the host does not permit github.com",
+			projSources: []string{"https://{github,gitlab}.com/myorg/*"},
+			appSource:   "https://github.com/myorg/app",
+			isPermitted: false,
+		},
+		{
+			name:        "a brace list in the host does not permit gitlab.com",
+			projSources: []string{"https://{github,gitlab}.com/myorg/*"},
+			appSource:   "https://gitlab.com/myorg/app",
+			isPermitted: false,
+		},
+		{
+			name:        "a character class in the host does not permit git-a",
+			projSources: []string{"https://git-[abc].example.com/**"},
+			appSource:   "https://git-a.example.com/org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "a brace list in an SSH host does not permit the named host",
+			projSources: []string{"git@{git,lab}.example.com:org/repo"},
+			appSource:   "git@git.example.com:org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "a character class in an SSH host does not permit git-a",
+			projSources: []string{"git@git-[ab].example.com:org/repo"},
+			appSource:   "git@git-a.example.com:org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "a question mark in the host matches one character",
+			projSources: []string{"https://git-?.example.com/**"},
+			appSource:   "https://git-a.example.com/org/repo",
+			isPermitted: true,
+		},
+		{
+			name:        "a question mark in the host does not match two characters",
+			projSources: []string{"https://git-?.example.com/**"},
+			appSource:   "https://git-ab.example.com/org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "any subdomain of example.com",
+			projSources: []string{"https://*.example.com/**"},
+			appSource:   "https://git.example.com/org/repo",
+			isPermitted: true,
+		},
+		{
+			name:        "the apex example.com has no label for the star",
+			projSources: []string{"https://*.example.com/**"},
+			appSource:   "https://example.com/org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "a different registrable domain does not match",
+			projSources: []string{"https://*.example.com/**"},
+			appSource:   "https://example.com.evil.com/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "userinfo does not change the host git.example.com",
+			projSources: []string{"https://*.example.com/**"},
+			appSource:   "https://evil.com@git.example.com/org/repo",
+			isPermitted: true,
+		},
+		{
+			name:        "a subdomain pattern does not match host evil.com",
+			projSources: []string{"https://*.example.com/**"},
+			appSource:   "https://git.example.com@evil.com/org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "organization names starting with argoproj",
+			projSources: []string{"https://github.com/argoproj*/**"},
+			appSource:   "https://github.com/argoproj/argo-cd",
+			isPermitted: true,
+		},
+		{
+			name:        "organization names starting with argoproj include argoproj-labs",
+			projSources: []string{"https://github.com/argoproj*/**"},
+			appSource:   "https://github.com/argoproj-labs/foo",
+			isPermitted: true,
+		},
+		{
+			name:        "organization names starting with argoproj stay on github.com",
+			projSources: []string{"https://github.com/argoproj*/**"},
+			appSource:   "https://argoproj@evil.com/foo",
+			isPermitted: false,
+		},
+		{
+			name:        "SSH organization pattern matches the scp URL",
+			projSources: []string{"git@github.com:argoproj/*"},
+			appSource:   "git@github.com:argoproj/argo-cd.git",
+			isPermitted: true,
+		},
+		{
+			name:        "SSH organization pattern matches the ssh form",
+			projSources: []string{"git@github.com:argoproj/*"},
+			appSource:   "ssh://git@github.com/argoproj/argo-cd",
+			isPermitted: true,
+		},
+		{
+			name:        "SSH organization pattern does not match the HTTPS URL",
+			projSources: []string{"git@github.com:argoproj/*"},
+			appSource:   "https://github.com/argoproj/argo-cd",
+			isPermitted: false,
+		},
+		{
+			name:        "SSH organization pattern does not include argoproj-labs",
+			projSources: []string{"git@github.com:argoproj/*"},
+			appSource:   "git@github.com:argoproj-labs/foo",
+			isPermitted: false,
+		},
+		{
+			name:        "ssh form of an organization pattern covers the scp URL",
+			projSources: []string{"ssh://git@github.com/argoproj/*"},
+			appSource:   "git@github.com:argoproj/argo-cd.git",
+			isPermitted: true,
+		},
+		{
+			name:        "git at double star matches an SSH URL",
+			projSources: []string{"git@**"},
+			appSource:   "git@github.com:org/repo.git",
+			isPermitted: true,
+		},
+		{
+			name:        "git at double star does not match HTTPS",
+			projSources: []string{"git@**"},
+			appSource:   "https://github.com/org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "SSH repos on a subdomain of example.com",
+			projSources: []string{"git@*.example.com:org/*"},
+			appSource:   "git@git.example.com:org/repo.git",
+			isPermitted: true,
+		},
+		{
+			name:        "SSH host pattern does not match the HTTPS URL",
+			projSources: []string{"git@*.example.com:org/*"},
+			appSource:   "https://git.example.com/org/repo",
+			isPermitted: false,
+		},
+		// Application repository URLs should never include passwords, but these
+		// cases test that anyway for completeness.
+		{
+			name:        "pattern userinfo is required",
+			projSources: []string{"https://user:pass@github.com/org/*"},
+			appSource:   "https://user:pass@github.com/org/app",
+			isPermitted: true,
+		},
+		{
+			name:        "pattern userinfo is not matched by a URL without it",
+			projSources: []string{"https://user:pass@github.com/org/*"},
+			appSource:   "https://github.com/org/app",
+			isPermitted: false,
+		},
+		{
+			name:        "pattern userinfo does not match a different user",
+			projSources: []string{"https://user:pass@github.com/org/*"},
+			appSource:   "https://other:secret@github.com/org/app",
+			isPermitted: false,
+		},
+		{
+			name:        "local repositories under /var/git",
+			projSources: []string{"file:///var/git/**"},
+			appSource:   "file:///var/git/team/app",
+			isPermitted: true,
+		},
+		{
+			name:        "local repositories under /var/git do not include /etc/passwd",
+			projSources: []string{"file:///var/git/**"},
+			appSource:   "file:///etc/passwd",
+			isPermitted: false,
+		},
+		{
+			name:        "one path segment under /var/git does not include a nested directory",
+			projSources: []string{"file:///var/git/*"},
+			appSource:   "file:///var/git/team/app",
+			isPermitted: false,
+		},
+		{
+			name:        "host character class does not include git-d",
+			projSources: []string{"https://git-[abc].example.com/**"},
+			appSource:   "https://git-d.example.com/org/repo",
+			isPermitted: false,
+		},
+		{
+			name:        "trailing slash matches that exact URL",
+			projSources: []string{"https://github.com/argoproj/"},
+			appSource:   "https://github.com/argoproj/",
+			isPermitted: true,
+		},
+		{
+			name:        "trailing slash does not match a child repository",
+			projSources: []string{"https://github.com/argoproj/"},
+			appSource:   "https://github.com/argoproj/argo-cd",
+			isPermitted: false,
+		},
+		{
+			name:        "matching SSH repos match",
+			projSources: []string{"ssh://git@github.com:trusted/allowed-repo"},
+			appSource:   "ssh://git@github.com:trusted/allowed-repo",
+			isPermitted: true,
+		},
+		{
+			name:        "an unparseable SSH entry does not permit a normal HTTPS repository",
+			projSources: []string{"ssh://git@github.com:argoproj/argo-cd"},
+			appSource:   "https://github.com/argoproj/argo-cd",
+			isPermitted: false,
+		},
+		{
+			name:        "an invalid percent-encoded entry does not permit a normal repository",
+			projSources: []string{"https://github.com/%zz/org/repo"},
+			appSource:   "https://github.com/argoproj/argo-cd",
+			isPermitted: false,
+		},
+	}
 
 	for _, data := range testData {
-		proj := AppProject{
-			Spec: AppProjectSpec{
-				SourceRepos: data.projSources,
-			},
-		}
-		assert.Equal(t, proj.IsSourcePermitted(ApplicationSource{
-			RepoURL: data.appSource,
-		}), data.isPermitted)
+		t.Run(data.name, func(t *testing.T) {
+			proj := AppProject{Spec: AppProjectSpec{SourceRepos: data.projSources}}
+			assert.Equal(t, data.isPermitted, proj.IsSourcePermitted(ApplicationSource{RepoURL: data.appSource}),
+				"sources: %#v\nrepoURL: %q", data.projSources, data.appSource)
+		})
 	}
 }
 
@@ -2031,6 +2509,17 @@ func TestKustomizeImage_Match(t *testing.T) {
 	assert.True(t, KustomizeImage("foo:1").Match("foo:2"))
 	assert.True(t, KustomizeImage("foo@1").Match("foo@2"))
 	assert.True(t, KustomizeImage("nginx").Match("nginx"))
+
+	// registry with port
+	assert.False(t, KustomizeImage("localhost:5000/foo:1").Match("localhost:5000/bar:2"))
+	assert.False(t, KustomizeImage("registry.example.com:5000/team/foo:1.0").Match("registry.example.com:5000/team/bar:1.0"))
+	assert.True(t, KustomizeImage("localhost:5000/foo:1").Match("localhost:5000/foo:2"))
+	assert.True(t, KustomizeImage("registry.example.com:5000/team/bar:1.0").Match("registry.example.com:5000/team/bar:2.0"))
+	assert.True(t, KustomizeImage("registry.example.com:5000/team/bar").Match("registry.example.com:5000/team/bar:2.0"))
+
+	// tag vs digest
+	assert.True(t, KustomizeImage("nginx:1.25").Match("nginx@sha256:12345"))
+	assert.True(t, KustomizeImage("registry.example.com:5000/team/bar:1.0").Match("registry.example.com:5000/team/bar@sha256:12345"))
 }
 
 func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
@@ -2043,6 +2532,26 @@ func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
 		k := ApplicationSourceKustomize{Images: KustomizeImages{"foo=1"}}
 		k.MergeImage("foo=2")
 		assert.Equal(t, KustomizeImages{"foo=2"}, k.Images)
+	})
+	t.Run("ReplaceWithRegistryPort", func(t *testing.T) {
+		k := ApplicationSourceKustomize{Images: KustomizeImages{
+			"registry.example.com:5000/team/foo:1.0",
+			"registry.example.com:5000/team/bar:1.0",
+		}}
+		k.MergeImage("registry.example.com:5000/team/bar:2.0")
+		assert.Equal(t, KustomizeImages{
+			"registry.example.com:5000/team/foo:1.0",
+			"registry.example.com:5000/team/bar:2.0",
+		}, k.Images)
+	})
+	t.Run("ReplaceTagWithDigest", func(t *testing.T) {
+		k := ApplicationSourceKustomize{Images: KustomizeImages{
+			"nginx:1.25",
+		}}
+		k.MergeImage("nginx@sha256:12345")
+		assert.Equal(t, KustomizeImages{
+			"nginx@sha256:12345",
+		}, k.Images)
 	})
 }
 
@@ -6511,4 +7020,147 @@ func TestSetK8SConfigDefaultsAddsServerSideTimeoutToEveryRetryAttempt(t *testing
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	assert.Equal(t, []string{"10ms", "10ms"}, receivedTimeouts)
 	assert.NoError(t, req.Context().Err())
+}
+
+func TestCluster_RESTConfig_QPSAndBurst(t *testing.T) {
+	tests := []struct {
+		name          string
+		config        ClusterConfig
+		expectedQPS   float32
+		expectedBurst int
+	}{
+		{
+			name:          "defaults to global settings when unset",
+			config:        ClusterConfig{},
+			expectedQPS:   K8sClientConfigQPS,
+			expectedBurst: K8sClientConfigBurst,
+		},
+		{
+			name: "custom QPS and Burst",
+			config: ClusterConfig{
+				QPS:   12.5,
+				Burst: 25,
+			},
+			expectedQPS:   12.5,
+			expectedBurst: 25,
+		},
+		{
+			name: "custom QPS only defaults Burst to 2x QPS",
+			config: ClusterConfig{
+				QPS: 15,
+			},
+			expectedQPS:   15,
+			expectedBurst: 30,
+		},
+		{
+			name: "custom QPS with low fractional value ensures minimum Burst of 1",
+			config: ClusterConfig{
+				QPS: 0.2,
+			},
+			expectedQPS:   0.2,
+			expectedBurst: 1,
+		},
+		{
+			name: "custom Burst only falls back QPS to global default",
+			config: ClusterConfig{
+				Burst: 42,
+			},
+			expectedQPS:   K8sClientConfigQPS,
+			expectedBurst: 42,
+		},
+		{
+			name: "negative values fall back to defaults",
+			config: ClusterConfig{
+				QPS:   -5,
+				Burst: -10,
+			},
+			expectedQPS:   K8sClientConfigQPS,
+			expectedBurst: K8sClientConfigBurst,
+		},
+		{
+			name: "explicit Burst exceeding MaxInt32 clamped to MaxInt32",
+			config: ClusterConfig{
+				Burst: math.MaxInt64,
+			},
+			expectedQPS:   K8sClientConfigQPS,
+			expectedBurst: math.MaxInt32,
+		},
+		{
+			name: "derived Burst from very large QPS clamped to MaxInt32",
+			config: ClusterConfig{
+				QPS: math.MaxFloat32,
+			},
+			expectedQPS:   math.MaxFloat32,
+			expectedBurst: math.MaxInt32,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := &Cluster{
+				Server: "https://kubernetes.example",
+				Config: tt.config,
+			}
+
+			rawConfig, err := cluster.RawRestConfig()
+			require.NoError(t, err)
+			assert.InDelta(t, tt.expectedQPS, rawConfig.QPS, 0.0001)
+			assert.Equal(t, tt.expectedBurst, rawConfig.Burst)
+
+			restConfig, err := cluster.RESTConfig()
+			require.NoError(t, err)
+			assert.InDelta(t, tt.expectedQPS, restConfig.QPS, 0.0001)
+			assert.Equal(t, tt.expectedBurst, restConfig.Burst)
+		})
+	}
+}
+
+func TestCluster_Sanitized_PreservesQPSAndBurst(t *testing.T) {
+	cluster := &Cluster{
+		Server: "https://kubernetes.example",
+		Config: ClusterConfig{
+			Username:    "sensitive-user",
+			Password:    "sensitive-pass",
+			BearerToken: "sensitive-token",
+			QPS:         30.5,
+			Burst:       61,
+		},
+	}
+
+	sanitized := cluster.Sanitized()
+	assert.InDelta(t, 30.5, sanitized.Config.QPS, 0.0001)
+	assert.Equal(t, int64(61), sanitized.Config.Burst)
+	assert.Empty(t, sanitized.Config.Username)
+	assert.Empty(t, sanitized.Config.Password)
+	assert.Empty(t, sanitized.Config.BearerToken)
+}
+
+func TestCluster_HashIdentity_IncludesQPSAndBurst(t *testing.T) {
+	base := &Cluster{
+		Server: "https://kubernetes.example",
+		Name:   "example",
+		Config: ClusterConfig{
+			QPS:   10,
+			Burst: 20,
+		},
+	}
+	withDiffQPS := &Cluster{
+		Server: "https://kubernetes.example",
+		Name:   "example",
+		Config: ClusterConfig{
+			QPS:   25,
+			Burst: 20,
+		},
+	}
+	withDiffBurst := &Cluster{
+		Server: "https://kubernetes.example",
+		Name:   "example",
+		Config: ClusterConfig{
+			QPS:   10,
+			Burst: 50,
+		},
+	}
+
+	assert.NotEqual(t, base.HashIdentity(0), withDiffQPS.HashIdentity(0))
+	assert.NotEqual(t, base.HashIdentity(0), withDiffBurst.HashIdentity(0))
 }
