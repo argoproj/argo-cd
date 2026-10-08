@@ -35,9 +35,7 @@ func init() {
 }
 
 func main() {
-
 	grpc.DisableSRVLookups()
-
 	var command *cobra.Command
 
 	binaryName := filepath.Base(os.Args[0])
