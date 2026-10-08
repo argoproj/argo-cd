@@ -1256,7 +1256,7 @@ func runHelmBuild(ctx context.Context, appPath string, revision string, h helm.H
 	} else if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	if err := os.WriteFile(markerFile, []byte("some-dummy-value"), 0o644); err != nil {
+	if err := os.WriteFile(markerFile, nil, 0o644); err != nil {
 		return err
 	}
 	err = h.DependencyBuild(ctx)
