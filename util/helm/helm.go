@@ -145,6 +145,7 @@ func Version() (string, error) {
 }
 
 func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error) {
+	var defaultValues string
 	var values []string
 	// Don't load values.yaml if it's an out-of-bounds link.
 	if _, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, "values.yaml", []string{}); err == nil {
@@ -152,7 +153,7 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 		if err != nil {
 			return nil, fmt.Errorf("failed to execute helm inspect values command: %w", err)
 		}
-		values = append(values, out)
+		defaultValues = out
 	} else {
 		log.Warnf("Values file %s is not allowed: %v", filepath.Join(appPath, "values.yaml"), err)
 	}
@@ -180,14 +181,26 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 		values = append(values, string(fileValues))
 	}
 
-	mergedValues := map[string]any{}
+	// Helm merges the supplied values files first and then coalesces the result with the
+	// chart defaults, so a null or a replaced map in an explicit file never hides defaults
+	// that a later file does not override.
+	explicitValues := map[string]any{}
 	for _, file := range values {
-		values := map[string]any{}
-		if err := yaml.Unmarshal([]byte(file), &values); err != nil {
+		parsed := map[string]any{}
+		if err := yaml.Unmarshal([]byte(file), &parsed); err != nil {
 			return nil, fmt.Errorf("failed to parse values: %w", err)
 		}
-		mergeValues(mergedValues, values)
+		mergeValues(explicitValues, parsed)
 	}
+
+	mergedValues := map[string]any{}
+	if err := yaml.Unmarshal([]byte(defaultValues), &mergedValues); err != nil {
+		return nil, fmt.Errorf("failed to parse values: %w", err)
+	}
+	if mergedValues == nil {
+		mergedValues = map[string]any{}
+	}
+	coalesceValues(mergedValues, explicitValues)
 
 	output := map[string]string{}
 	flatVals(mergedValues, output)
@@ -205,6 +218,25 @@ func mergeValues(dst, src map[string]any) {
 			}
 		}
 		dst[key] = value
+	}
+}
+
+// coalesceValues overlays the explicit values onto the chart defaults: maps merge
+// recursively, a null removes the default key, and any other value replaces it.
+func coalesceValues(defaults, explicit map[string]any) {
+	for key, value := range explicit {
+		switch v := value.(type) {
+		case nil:
+			delete(defaults, key)
+		case map[string]any:
+			if existing, ok := defaults[key].(map[string]any); ok {
+				coalesceValues(existing, v)
+				continue
+			}
+			defaults[key] = v
+		default:
+			defaults[key] = value
+		}
 	}
 }
 

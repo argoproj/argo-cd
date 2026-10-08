@@ -163,6 +163,46 @@ func TestHelmGetParamsArrayReplacement(t *testing.T) {
 	}
 }
 
+func TestHelmGetParamsExplicitValuesCoalescedWithDefaults(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name     string
+		selected string
+		inline   string
+		want     map[string]string
+	}{
+		{
+			name:     "null then map keeps untouched defaults",
+			selected: "nested: null\n",
+			inline:   "nested:\n  items: [replacement]\n",
+			want:     map[string]string{"nested.items[0]": "replacement", "nested.keep": "default"},
+		},
+		{
+			name:     "null alone removes the default key",
+			selected: "nested:\n  keep: null\n",
+			inline:   "other: value\n",
+			want:     map[string]string{"nested.items[0]": "first", "other": "value"},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			root := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(root, "Chart.yaml"), []byte("apiVersion: v2\nname: params-test\nversion: 0.1.0\n"), 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(root, "values.yaml"), []byte("nested:\n  items: [first]\n  keep: default\n"), 0o600))
+			selected := filepath.Join(root, "selected.yaml")
+			require.NoError(t, os.WriteFile(selected, []byte(tt.selected), 0o600))
+			inline := filepath.Join(root, "inline.yaml")
+			require.NoError(t, os.WriteFile(inline, []byte(tt.inline), 0o600))
+			h, err := NewHelmApp(root, nil, false, "", "", "", false, false)
+			require.NoError(t, err)
+			t.Cleanup(h.Dispose)
+			params, err := h.GetParameters([]path.ResolvedFilePath{path.ResolvedFilePath(selected), path.ResolvedFilePath(inline)}, root, root)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, params)
+		})
+	}
+}
+
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 	t.Parallel()
 	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false, false)
