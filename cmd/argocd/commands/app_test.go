@@ -1116,6 +1116,15 @@ func Test_unset(t *testing.T) {
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
+	kustomizeSource.Kustomize.Images = v1alpha1.KustomizeImages{
+		"registry.example.com:5000/team/foo:1.0",
+		"registry.example.com:5000/team/bar:1.0",
+	}
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"registry.example.com:5000/team/bar"}})
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	assert.Equal(t, v1alpha1.KustomizeImages{"registry.example.com:5000/team/foo:1.0"}, kustomizeSource.Kustomize.Images)
+
 	assert.Len(t, kustomizeSource.Kustomize.Replicas, 2)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
 	assert.Len(t, kustomizeSource.Kustomize.Replicas, 1)

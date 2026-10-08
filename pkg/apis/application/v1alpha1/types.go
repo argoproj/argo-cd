@@ -39,6 +39,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
 	"k8s.io/client-go/transport"
+	kutil "sigs.k8s.io/kustomize/api/pkg/util"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/util/hash"
@@ -685,21 +686,21 @@ func (ash *ApplicationSourceHelm) IsZero() bool {
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
 type KustomizeImage string
 
-func (i KustomizeImage) delim() string {
-	for _, d := range []string{"=", ":", "@"} {
-		if strings.Contains(string(i), d) {
-			return d
-		}
+// imageName returns the target image name being defined or overridden.
+// If an old image name is specified via '=', it returns the part before '='.
+// Otherwise, it returns the image name without tag and digest.
+func (i KustomizeImage) imageName() string {
+	s := string(i)
+	if name, _, ok := strings.Cut(s, "="); ok {
+		return name
 	}
-	return ":"
+	name, _, _ := kutil.SplitImageName(s)
+	return name
 }
 
-// Match returns true if the image name matches (i.e. up to the first delimiter)
+// Match returns true if the image name matches
 func (i KustomizeImage) Match(j KustomizeImage) bool {
-	delim := j.delim()
-	imageName, _, _ := strings.Cut(string(i), delim)
-	otherImageName, _, _ := strings.Cut(string(j), delim)
-	return imageName == otherImageName
+	return i.imageName() == j.imageName()
 }
 
 // KustomizeImages is a list of Kustomize images
