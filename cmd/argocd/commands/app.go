@@ -2399,33 +2399,6 @@ func formatPendingResources(pending []string, maxPending uint) string {
 	return strings.Join(pending, ", ")
 }
 
-// formatResourceStateLabel returns a human-readable label for a resource state.
-// Hook resources use phase/result labels; regular resources use sync/health.
-func formatResourceStateLabel(state *resourceState) string {
-	if state.Hook != "" {
-		return fmt.Sprintf("%s (hook: %s, result: %s)", state.Key(), state.Status, state.Health)
-	}
-	return fmt.Sprintf("%s (sync: %s, health: %s)", state.Key(), state.Status, state.Health)
-}
-
-func isHookPending(state *resourceState) bool {
-	return state.Hook != "" && state.Status != string(common.OperationSucceeded) && state.Status != string(common.OperationFailed) && state.Status != string(common.OperationError)
-}
-
-func isResourceOperationPending(app *argoappv1.Application, state *resourceState) bool {
-	if app.Status.OperationState == nil || app.Status.OperationState.SyncResult == nil {
-		return false
-	}
-	for _, res := range app.Status.OperationState.SyncResult.Resources {
-		if res.Group == state.Group && res.Kind == state.Kind && res.Namespace == state.Namespace && res.Name == state.Name {
-			if res.HookType != "" {
-				return res.HookPhase != common.OperationSucceeded && res.HookPhase != common.OperationFailed && res.HookPhase != common.OperationError
-			}
-			return res.Status == ""
-		}
-	}
-	return false
-}
 
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
 // are fulfilled or we reach the timeout. Returns the app once desired conditions have been filled.
@@ -2613,119 +2586,23 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	_ = printFinalStatus(appWithLock.GetApp())
 	app = appWithLock.GetApp()
 
-	hydrationFinished := appHydrationFinished(app)
-
-	if len(selectedResources) > 0 {
-		var conditions []string
-		if watch.operation && isOperationInProgress(app) {
-			conditions = append(conditions, "operation: still in progress")
-		}
-		if watch.hydrated && !hydrationFinished {
-			conditions = append(conditions, "hydration: not complete")
-		}
-
-		var pending []string
-		for _, state := range getResourceStates(app, selectedResources) {
-			if state.Hook != "" {
-				if isHookPending(state) {
-					pending = append(pending, formatResourceStateLabel(state))
-				}
-				continue
-			}
-			if watch.delete {
-				pending = append(pending, state.Key()+" (pending deletion)")
-				continue
-			}
-			if !checkResourceStatus(watch, state.Health, state.Status) {
-				// Skip resources with an empty Health when only the health check fails.
-				if state.Health == "" && checkResourceStatus(watchOpts{sync: watch.sync, operation: watch.operation, hydrated: watch.hydrated}, state.Health, state.Status) {
-					continue
-				}
-				pending = append(pending, formatResourceStateLabel(state))
-			} else if watch.operation && isResourceOperationPending(app, state) {
-				pending = append(pending, formatResourceStateLabel(state))
-			}
-		}
-
-		var detailParts []string
-		if len(conditions) > 0 {
-			detailParts = append(detailParts, "app "+strings.Join(conditions, ", "))
-		}
-		if len(pending) > 0 {
-			detailParts = append(detailParts, "resources not ready: "+formatPendingResources(pending, maxPending))
-		}
-		detail := strings.Join(detailParts, ", ")
-
-		if detail != "" {
-			return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state. %s", timeout, appName, detail)
-		}
-		return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state", timeout, appName)
-	}
-
-	// Build an app-level condition summary to explain what is still blocking.
-	var conditions []string
-	if watch.sync && string(app.Status.Sync.Status) != string(argoappv1.SyncStatusCodeSynced) {
-		conditions = append(conditions, fmt.Sprintf("sync status: %s", app.Status.Sync.Status))
-	}
-
-	healthCheckPassed := true
-	healthStatus := string(app.Status.Health.Status)
-	if watch.health || watch.suspended || watch.degraded {
-		healthCheckPassed = false
-		if watch.health && healthStatus == string(health.HealthStatusHealthy) {
-			healthCheckPassed = true
-		}
-		if watch.suspended && healthStatus == string(health.HealthStatusSuspended) {
-			healthCheckPassed = true
-		}
-		if watch.degraded && healthStatus == string(health.HealthStatusDegraded) {
-			healthCheckPassed = true
-		}
-	}
-	if !healthCheckPassed && healthStatus != "" {
-		conditions = append(conditions, fmt.Sprintf("health status: %s", app.Status.Health.Status))
-	}
-	if watch.operation && isOperationInProgress(app) {
-		conditions = append(conditions, "operation: still in progress")
-	}
-	if watch.hydrated && !hydrationFinished {
-		conditions = append(conditions, "hydration: not complete")
-	}
-
 	var pending []string
-	for _, state := range getResourceStates(app, nil) {
-		if state.Hook != "" {
-			if isHookPending(state) {
-				pending = append(pending, formatResourceStateLabel(state))
-			}
-			continue
-		}
+	var resList []*argoappv1.SyncOperationResource
+	if len(selectedResources) > 0 {
+		resList = selectedResources
+	}
+	for _, state := range getResourceStates(app, resList) {
 		if watch.delete {
-			pending = append(pending, state.Key()+" (pending deletion)")
+			pending = append(pending, state.Key())
 			continue
 		}
 		if !checkResourceStatus(watch, state.Health, state.Status) {
-			// Skip resources with an empty Health when only the health check fails.
-			if state.Health == "" && checkResourceStatus(watchOpts{sync: watch.sync, operation: watch.operation, hydrated: watch.hydrated}, state.Health, state.Status) {
-				continue
-			}
-			pending = append(pending, formatResourceStateLabel(state))
-		} else if watch.operation && isResourceOperationPending(app, state) {
-			pending = append(pending, formatResourceStateLabel(state))
+			pending = append(pending, state.Key())
 		}
 	}
 
-	var detailParts []string
-	if len(conditions) > 0 {
-		detailParts = append(detailParts, "app "+strings.Join(conditions, ", "))
-	}
 	if len(pending) > 0 {
-		detailParts = append(detailParts, "resources not ready: "+formatPendingResources(pending, maxPending))
-	}
-	detail := strings.Join(detailParts, ", ")
-
-	if detail != "" {
-		return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state. %s", timeout, appName, detail)
+		return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state. Pending resources: %s", timeout, appName, formatPendingResources(pending, maxPending))
 	}
 	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state", timeout, appName)
 }

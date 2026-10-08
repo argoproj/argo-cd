@@ -2917,46 +2917,6 @@ func TestIsContextCanceledErr(t *testing.T) {
 	})
 }
 
-func TestIsHookPending(t *testing.T) {
-	assert.False(t, isHookPending(&resourceState{Hook: ""}))
-	assert.False(t, isHookPending(&resourceState{Hook: "PreSync", Status: string(common.OperationSucceeded)}))
-	assert.False(t, isHookPending(&resourceState{Hook: "PreSync", Status: string(common.OperationFailed)}))
-	assert.False(t, isHookPending(&resourceState{Hook: "PreSync", Status: string(common.OperationError)}))
-	assert.True(t, isHookPending(&resourceState{Hook: "PreSync", Status: "Running"}))
-	assert.True(t, isHookPending(&resourceState{Hook: "PreSync", Status: ""}))
-}
-
-func TestIsResourceOperationPending(t *testing.T) {
-	app := &v1alpha1.Application{
-		Status: v1alpha1.ApplicationStatus{
-			OperationState: &v1alpha1.OperationState{
-				SyncResult: &v1alpha1.SyncOperationResult{
-					Resources: []*v1alpha1.ResourceResult{
-						{
-							Group: "apps", Kind: "Deployment", Namespace: "default", Name: "my-dep", Status: "", HookType: "",
-						},
-						{
-							Group: "apps", Kind: "Deployment", Namespace: "default", Name: "my-dep-synced", Status: "Synced", HookType: "",
-						},
-						{
-							Group: "", Kind: "Pod", Namespace: "default", Name: "my-hook", HookType: "PreSync", HookPhase: common.OperationRunning,
-						},
-						{
-							Group: "", Kind: "Pod", Namespace: "default", Name: "my-hook-done", HookType: "PreSync", HookPhase: common.OperationSucceeded,
-						},
-					},
-				},
-			},
-		},
-	}
-
-	assert.False(t, isResourceOperationPending(&v1alpha1.Application{}, &resourceState{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "my-dep"}))
-	assert.True(t, isResourceOperationPending(app, &resourceState{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "my-dep"}))
-	assert.False(t, isResourceOperationPending(app, &resourceState{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "my-dep-synced"}))
-	assert.True(t, isResourceOperationPending(app, &resourceState{Group: "", Kind: "Pod", Namespace: "default", Name: "my-hook"}))
-	assert.False(t, isResourceOperationPending(app, &resourceState{Group: "", Kind: "Pod", Namespace: "default", Name: "my-hook-done"}))
-	assert.False(t, isResourceOperationPending(app, &resourceState{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "not-in-sync"}))
-}
 
 func TestFormatPendingResources(t *testing.T) {
 	assert.Equal(t, "a, b, c", formatPendingResources([]string{"a", "b", "c"}, 0))
@@ -2965,21 +2925,6 @@ func TestFormatPendingResources(t *testing.T) {
 	assert.Empty(t, formatPendingResources([]string{}, 1))
 }
 
-func TestFormatResourceStateLabel(t *testing.T) {
-	state := &resourceState{
-		Group: "apps",
-		Kind:  "Deployment",
-		Name:  "test",
-	}
-	assert.Equal(t, "apps/Deployment//test (sync: , health: )", formatResourceStateLabel(state))
-
-	stateEmptyGroup := &resourceState{
-		Group: "",
-		Kind:  "Service",
-		Name:  "svc",
-	}
-	assert.Equal(t, "/Service//svc (sync: , health: )", formatResourceStateLabel(stateEmptyGroup))
-}
 
 type coverageAcdClient struct {
 	*fakeAcdClient
