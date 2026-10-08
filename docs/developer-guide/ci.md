@@ -45,7 +45,9 @@ Your code failed to lint correctly, or modifications were performed by the `gola
 
 * If you receive an error like, ```File is not `goimports`-ed (goimports)```, the file is not formatted correctly. Run `gofmt -w $file.go` to resolve this linter error.
 
-* `make lint` and `make lint-local` also run `actionlint` on `.github/workflows`, which checks workflow syntax, expressions and `run:` scripts (via `shellcheck`). Run `make actionlint-local` to run only that check; it needs `actionlint` and `shellcheck` on your `PATH` (`./hack/install.sh actionlint`).
+* `make lint` and `make lint-local` also run `actionlint` on `.github/workflows`, which checks workflow syntax, expressions and `run:` scripts. To run only that check, use `make actionlint` or `make actionlint-local`.
+
+* `make kubeconform` or `make kubeconform-local` validates the generated install manifests in `manifests/` and `manifests/ha/` against the Kubernetes schemas for the `k8s.io/api` version in `go.mod` and the three minor versions before it. It needs network access to download the schemas. If it reports an error, fix the source manifests and regenerate with `make manifests-local`.
 
 ### Why does the test or e2e steps fail?
 
