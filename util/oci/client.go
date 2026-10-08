@@ -44,6 +44,12 @@ var (
 	indexLock  = sync.NewKeyLock()
 )
 
+// maxOCIManifestSize bounds how many bytes we read when decoding an OCI manifest
+// returned by a registry. This matches oras-go's MaxMetadataBytes default (4 MiB)
+// and protects the repo-server from unbounded memory consumption if a registry
+// returns an excessively large manifest.
+const maxOCIManifestSize = 4 * 1024 * 1024 // 4 MiB
+
 const (
 	helmOCIConfigType = "application/vnd.cncf.helm.config.v1+json"
 	helmOCILayerType  = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
@@ -700,7 +706,10 @@ func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyTarget
 	defer rc.Close()
 
 	manifest := imagev1.Manifest{}
-	decoder := json.NewDecoder(rc)
+	// Limit how much we read while decoding the manifest to protect against a
+	// malicious or misbehaving registry returning an arbitrarily large response,
+	// which would otherwise be buffered into memory and could exhaust the repo-server.
+	decoder := json.NewDecoder(io.LimitReader(rc, maxOCIManifestSize))
 	if err = decoder.Decode(&manifest); err != nil {
 		return nil, fmt.Errorf("error decoding oci manifest for digest %s: %w", digest, err)
 	}

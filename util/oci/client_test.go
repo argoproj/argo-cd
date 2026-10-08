@@ -959,3 +959,44 @@ func fakeEventHandlers(t *testing.T, repoURL string) EventHandlers {
 		},
 	}
 }
+
+func Test_getOCIManifest(t *testing.T) {
+	pushManifest := func(t *testing.T, store *memory.Store, m imagev1.Manifest) string {
+		t.Helper()
+		blob, err := json.Marshal(m)
+		require.NoError(t, err)
+		desc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, blob)
+		require.NoError(t, store.Push(t.Context(), desc, bytes.NewReader(blob)))
+		require.NoError(t, store.Tag(t.Context(), desc, desc.Digest.String()))
+		return desc.Digest.String()
+	}
+
+	t.Run("decodes a normal manifest", func(t *testing.T) {
+		store := memory.New()
+		digest := pushManifest(t, store, imagev1.Manifest{
+			SchemaVersion: 2,
+			Config:        content.NewDescriptorFromBytes(imagev1.MediaTypeImageConfig, []byte("config")),
+		})
+
+		manifest, err := getOCIManifest(t.Context(), digest, store)
+		require.NoError(t, err)
+		assert.Equal(t, 2, manifest.SchemaVersion)
+	})
+
+	t.Run("rejects an oversized manifest", func(t *testing.T) {
+		// A malicious or misbehaving registry could return an arbitrarily large
+		// manifest to force the repo-server to buffer it entirely into memory.
+		// The io.LimitReader guard truncates the stream, so decoding must fail
+		// rather than reading the whole blob.
+		store := memory.New()
+		digest := pushManifest(t, store, imagev1.Manifest{
+			SchemaVersion: 2,
+			Config:        content.NewDescriptorFromBytes(imagev1.MediaTypeImageConfig, []byte("config")),
+			Annotations:   map[string]string{"pad": strings.Repeat("a", maxOCIManifestSize)},
+		})
+
+		_, err := getOCIManifest(t.Context(), digest, store)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "error decoding oci manifest")
+	})
+}

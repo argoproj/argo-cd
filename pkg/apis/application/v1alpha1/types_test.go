@@ -2509,6 +2509,17 @@ func TestKustomizeImage_Match(t *testing.T) {
 	assert.True(t, KustomizeImage("foo:1").Match("foo:2"))
 	assert.True(t, KustomizeImage("foo@1").Match("foo@2"))
 	assert.True(t, KustomizeImage("nginx").Match("nginx"))
+
+	// registry with port
+	assert.False(t, KustomizeImage("localhost:5000/foo:1").Match("localhost:5000/bar:2"))
+	assert.False(t, KustomizeImage("registry.example.com:5000/team/foo:1.0").Match("registry.example.com:5000/team/bar:1.0"))
+	assert.True(t, KustomizeImage("localhost:5000/foo:1").Match("localhost:5000/foo:2"))
+	assert.True(t, KustomizeImage("registry.example.com:5000/team/bar:1.0").Match("registry.example.com:5000/team/bar:2.0"))
+	assert.True(t, KustomizeImage("registry.example.com:5000/team/bar").Match("registry.example.com:5000/team/bar:2.0"))
+
+	// tag vs digest
+	assert.True(t, KustomizeImage("nginx:1.25").Match("nginx@sha256:12345"))
+	assert.True(t, KustomizeImage("registry.example.com:5000/team/bar:1.0").Match("registry.example.com:5000/team/bar@sha256:12345"))
 }
 
 func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
@@ -2521,6 +2532,26 @@ func TestApplicationSourceKustomize_MergeImage(t *testing.T) {
 		k := ApplicationSourceKustomize{Images: KustomizeImages{"foo=1"}}
 		k.MergeImage("foo=2")
 		assert.Equal(t, KustomizeImages{"foo=2"}, k.Images)
+	})
+	t.Run("ReplaceWithRegistryPort", func(t *testing.T) {
+		k := ApplicationSourceKustomize{Images: KustomizeImages{
+			"registry.example.com:5000/team/foo:1.0",
+			"registry.example.com:5000/team/bar:1.0",
+		}}
+		k.MergeImage("registry.example.com:5000/team/bar:2.0")
+		assert.Equal(t, KustomizeImages{
+			"registry.example.com:5000/team/foo:1.0",
+			"registry.example.com:5000/team/bar:2.0",
+		}, k.Images)
+	})
+	t.Run("ReplaceTagWithDigest", func(t *testing.T) {
+		k := ApplicationSourceKustomize{Images: KustomizeImages{
+			"nginx:1.25",
+		}}
+		k.MergeImage("nginx@sha256:12345")
+		assert.Equal(t, KustomizeImages{
+			"nginx@sha256:12345",
+		}, k.Images)
 	})
 }
 
