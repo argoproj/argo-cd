@@ -345,3 +345,46 @@ describe('EditablePanel – collapsible behavior', () => {
         expect(editButton.disabled).toBe(true);
     });
 });
+
+// ===========================================================================
+// 2f. Skip Schema Validation toggle
+// ===========================================================================
+
+describe('EditablePanel – skip schema validation toggle', () => {
+    test('toggle is not rendered by default in edit mode', () => {
+        renderPanel(
+            <EditablePanel values={{name: 'alice'}} items={basicItems} save={jest.fn().mockResolvedValue(undefined)} />
+        );
+        act(() => { fireEvent.click(screen.getByRole('button', {name: /Edit/i})); });
+        expect(screen.queryByLabelText('Skip Schema Validation')).toBeFalsy();
+    });
+
+    test('toggle is rendered in edit mode when showValidationToggle=true', () => {
+        renderPanel(
+            <EditablePanel values={{name: 'alice'}} items={basicItems} save={jest.fn().mockResolvedValue(undefined)} showValidationToggle={true} />
+        );
+        act(() => { fireEvent.click(screen.getByRole('button', {name: /Edit/i})); });
+        expect(screen.queryByLabelText('Skip Schema Validation')).toBeTruthy();
+    });
+
+    test('save passes {validate: true} when toggle is left unchecked', async () => {
+        const save = jest.fn().mockResolvedValue(undefined);
+        renderPanel(
+            <EditablePanel values={{name: 'alice'}} items={basicItems} save={save} showValidationToggle={true} />
+        );
+        act(() => { fireEvent.click(screen.getByRole('button', {name: /Edit/i})); });
+        await act(async () => { fireEvent.click(screen.getByRole('button', {name: /Save/i})); });
+        expect(save).toHaveBeenCalledWith(expect.anything(), {validate: true});
+    });
+
+    test('save passes {validate: false} after checking the toggle', async () => {
+        const save = jest.fn().mockResolvedValue(undefined);
+        renderPanel(
+            <EditablePanel values={{name: 'alice'}} items={basicItems} save={save} showValidationToggle={true} />
+        );
+        act(() => { fireEvent.click(screen.getByRole('button', {name: /Edit/i})); });
+        act(() => { fireEvent.click(screen.getByLabelText('Skip Schema Validation')); });
+        await act(async () => { fireEvent.click(screen.getByRole('button', {name: /Save/i})); });
+        expect(save).toHaveBeenCalledWith(expect.anything(), {validate: false});
+    });
+});
