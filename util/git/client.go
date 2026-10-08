@@ -187,7 +187,7 @@ type Client interface {
 	GetCommitNote(ctx context.Context, sha string, namespace string) (string, error)
 	// AddAndPushNote adds a note to a DRY sha and then pushes it.
 	AddAndPushNote(ctx context.Context, sha string, namespace string, note string) error
-	// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
+	// HasFileChanged returns the output of git diff considering whether it is tracked or un-tracked
 	HasFileChanged(ctx context.Context, filePath string) (bool, error)
 }
 
@@ -1725,6 +1725,7 @@ func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namesp
 	b.MaxInterval = 1 * time.Second
 
 	attempt := 0
+	permanent := false
 	operation := func() (struct{}, error) {
 		attempt++
 
@@ -1760,6 +1761,7 @@ func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namesp
 
 		// Check if this is a retryable error
 		if !isRetryableNotePushError(err.Error()) {
+			permanent = true
 			return struct{}{}, backoff.Permanent(fmt.Errorf("failed to push note: %w", err))
 		}
 
@@ -1771,7 +1773,11 @@ func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namesp
 		backoff.WithMaxElapsedTime(5*time.Second),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to push note after retries: %w", err)
+		if permanent {
+			// The operation already prefixed this error; prefixing again would duplicate it.
+			return err
+		}
+		return fmt.Errorf("failed to push note after %d attempts: %w", attempt, err)
 	}
 	return nil
 }
@@ -1790,7 +1796,7 @@ func isRetryableNotePushError(errStr string) bool {
 		strings.Contains(errStr, "cannot lock ref") // Server could not lock the notes ref because a concurrent push from another shard holds it
 }
 
-// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
+// HasFileChanged returns the output of git diff considering whether it is tracked or un-tracked
 func (m *nativeGitClient) HasFileChanged(ctx context.Context, filePath string) (bool, error) {
 	// Step 1: Is it UNTRACKED? (file is new to git)
 	_, err := m.runCmd(ctx, "ls-files", "--error-unmatch", filePath)

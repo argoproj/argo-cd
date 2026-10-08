@@ -130,6 +130,24 @@ spec:
                   name: argocd-cmd-params-cm
                   key: server.disable.swagger.ui
                   optional: true
+            - name: ARGOCD_SERVER_ENABLE_SOURCE_IP_LOGGING
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.enable.source.ip.logging
+                  optional: true
+            - name: ARGOCD_SERVER_TRUSTED_PROXIES
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.trusted.proxies
+                  optional: true
+            - name: ARGOCD_SERVER_CLIENT_IP_HEADER
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.client.ip.header
+                  optional: true
             - name: ARGOCD_SERVER_ENABLE_GZIP
               valueFrom:
                 configMapKeyRef:
@@ -213,6 +231,12 @@ spec:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
                   key: server.tls.ciphers
+                  optional: true
+            - name: ARGOCD_TLS_CURVE_PREFERENCES
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.tls.curvepreferences
                   optional: true
             - name: ARGOCD_SERVER_CONNECTION_STATUS_CACHE_EXPIRATION
               valueFrom:

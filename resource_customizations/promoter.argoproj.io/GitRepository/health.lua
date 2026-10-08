@@ -10,20 +10,19 @@ local function formatDeletingWithFinalizers(base, finalizers, catalog)
         local e = catalog[f]
         if e then
             table.insert(parts, f .. ": " .. e.wait .. " Risk if removed manually: " .. e.risk)
+        else
+            table.insert(parts, f .. ": still present.")
         end
     end
     return table.concat(parts, " ")
 end
 
-local hs = {}
-hs.status = "Progressing"
-hs.message = "Initializing Git repository"
-
 -- GitRepository (gitops-promoter v1alpha1): repo reference validated via standard Ready condition.
 
-if obj.metadata.deletionTimestamp then
+if obj.metadata and obj.metadata.deletionTimestamp then
+    local hs = {}
     hs.status = "Progressing"
-    hs.message = formatDeletingWithFinalizers(
+    hs.deletionMessage = formatDeletingWithFinalizers(
         "GitRepository is being deleted.",
         obj.metadata.finalizers,
         {
@@ -35,6 +34,10 @@ if obj.metadata.deletionTimestamp then
     )
     return hs
 end
+local hs = {}
+hs.status = "Progressing"
+hs.message = "Initializing Git repository"
+
 
 if not obj.status then
     return hs

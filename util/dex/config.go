@@ -57,6 +57,25 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 			if minVersion, ok := existingWeb["tlsMinVersion"]; ok && minVersion != "" {
 				webCfg["tlsMinVersion"] = minVersion
 			}
+			if ciphers, exists := existingWeb["tlsCiphers"]; exists {
+				if ciphersList, ok := ciphers.([]any); ok {
+					if len(ciphersList) > 0 {
+						webCfg["tlsCiphers"] = ciphersList
+					}
+				} else {
+					log.Warnf("Invalid 'tlsCiphers' value, expected a list, using default ciphers")
+				}
+			}
+
+			if curvePreferences, exists := existingWeb["tlsCurvePreferences"]; exists {
+				if curvePreferencesList, ok := curvePreferences.([]any); ok {
+					if len(curvePreferencesList) > 0 {
+						webCfg["tlsCurvePreferences"] = curvePreferencesList
+					}
+				} else {
+					log.Warnf("Invalid 'tlsCurvePreferences' value, expected a list, using default curve preferences")
+				}
+			}
 		}
 		dexCfg["web"] = webCfg
 	}

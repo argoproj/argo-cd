@@ -2,6 +2,8 @@ import * as React from 'react';
 import {Redirect, Route, RouteComponentProps, Switch} from 'react-router';
 import {KeybindingProvider} from 'argo-ui/v2';
 
+import {ErrorBoundary} from '../../shared/components/error-boundary/error-boundary';
+
 import {AccountDetails} from './account-details/account-details';
 import {AccountsList} from './accounts-list/accounts-list';
 import {AdvancedSettings} from './advanced-settings/advanced-settings';
@@ -17,20 +19,22 @@ import {AppearanceList} from './appearance-list/appearance-list';
 
 export const SettingsContainer = (props: RouteComponentProps<any>) => (
     <KeybindingProvider>
-        <Switch>
-            <Route exact={true} path={`${props.match.path}`} component={SettingsOverview} />
-            <Route exact={true} path={`${props.match.path}/repos`} component={ReposList} />
-            <Route exact={true} path={`${props.match.path}/certs`} component={CertsList} />
-            <Route exact={true} path={`${props.match.path}/gpgkeys`} component={GpgKeysList} />
-            <Route exact={true} path={`${props.match.path}/clusters`} component={ClustersList} />
-            <Route exact={true} path={`${props.match.path}/clusters/:server`} component={ClusterDetails} />
-            <Route exact={true} path={`${props.match.path}/projects`} component={ProjectsList} />
-            <Route exact={true} path={`${props.match.path}/projects/:name`} component={ProjectDetails} />
-            <Route exact={true} path={`${props.match.path}/accounts`} component={AccountsList} />
-            <Route exact={true} path={`${props.match.path}/accounts/:name`} component={AccountDetails} />
-            <Route exact={true} path={`${props.match.path}/appearance`} component={AppearanceList} />
-            <Route exact={true} path={`${props.match.path}/advanced`} component={AdvancedSettings} />
-            <Redirect path='*' to={`${props.match.path}`} />
-        </Switch>
+        <ErrorBoundary message='Failed to load this page. Please reload and try again.'>
+            <Switch>
+                <Route exact={true} path={`${props.match.path}`} component={SettingsOverview} />
+                <Route exact={true} path={`${props.match.path}/repos`} component={ReposList} />
+                <Route exact={true} path={`${props.match.path}/certs`} component={CertsList} />
+                <Route exact={true} path={`${props.match.path}/gpgkeys`} component={GpgKeysList} />
+                <Route exact={true} path={`${props.match.path}/clusters`} component={ClustersList} />
+                <Route exact={true} path={`${props.match.path}/clusters/:server`} component={ClusterDetails} />
+                <Route exact={true} path={`${props.match.path}/projects`} component={ProjectsList} />
+                <Route exact={true} path={`${props.match.path}/projects/:name`} component={ProjectDetails} />
+                <Route exact={true} path={`${props.match.path}/accounts`} component={AccountsList} />
+                <Route exact={true} path={`${props.match.path}/accounts/:name`} component={AccountDetails} />
+                <Route exact={true} path={`${props.match.path}/appearance`} component={AppearanceList} />
+                <Route exact={true} path={`${props.match.path}/advanced`} component={AdvancedSettings} />
+                <Redirect path='*' to={`${props.match.path}`} />
+            </Switch>
+        </ErrorBoundary>
     </KeybindingProvider>
 );

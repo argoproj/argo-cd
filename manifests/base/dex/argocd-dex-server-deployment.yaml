@@ -38,7 +38,7 @@ spec:
       containers:
       - name: dex
         # renovate: datasource=github-releases depName=dexidp/dex
-        image: ghcr.io/dexidp/dex:v2.45.1
+        image: ghcr.io/dexidp/dex:v2.46.0
         imagePullPolicy: Always
         command: [/shared/argocd-dex, rundex]
         env:

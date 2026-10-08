@@ -168,6 +168,8 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				contextName = clusterOpts.Name
 			}
 			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, managerBearerToken, awsAuthConf, execProviderConf, labelsMap, annotationsMap)
+			// Override K8s client QPS and Burst if specified via CLI flags
+			cmdutil.ApplyRateLimitOverrides(&clusterOpts, clst)
 			// If --server-proxy-url was explicitly provided, override the proxy that the ArgoCD server will use to
 			// reach this cluster.  An explicit empty string means "no proxy", which is the common case when the local
 			// machine needs a proxy but the two clusters can reach each other directly.
@@ -414,6 +416,12 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 		fmt.Printf("  AWS authentication:    %v\n", cluster.Config.AWSAuthConfig != nil)
 		fmt.Printf("\nDisable compression: %v\n", cluster.Config.DisableCompression)
 		fmt.Printf("\nUse proxy: %v\n", cluster.Config.ProxyUrl != "")
+		if cluster.Config.QPS > 0 {
+			fmt.Printf("\nK8s client QPS:        %v\n", cluster.Config.QPS)
+		}
+		if cluster.Config.Burst > 0 {
+			fmt.Printf("K8s client Burst:      %v\n", cluster.Config.Burst)
+		}
 		fmt.Println()
 	}
 }
