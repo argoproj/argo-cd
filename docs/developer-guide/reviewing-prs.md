@@ -1,13 +1,13 @@
 # Reviewing PRs
 
-This guide is for anyone who reviews pull requests to Argo CD. It defines when a review may block a PR, what a blocking review must contain, and when the reviewer need to re-review.
+This guide is for anyone who reviews pull requests to Argo CD. It defines when a review may block a PR, what a blocking review must contain, and when the reviewer needs to re-review.
 If you are submitting a PR, read [Submit Your PR](submit-your-pr.md) first; the sections below on blocking reviews tell you what to expect from reviewers.
 
 ## Summary
 
 | Situation                                                                 | Review type                                  | Required from the reviewer                                                |
 |---------------------------------------------------------------------------|----------------------------------------------|---------------------------------------------------------------------------|
-| Bug, regression, security issue, data loss, or undocumented breaking change | Request changes                          | Reason and exit condition on each blocking thread                         |
+| Bug, regression, security issue, data loss, wrong docs, or undocumented breaking change | Request changes                          | Reason and exit condition on each blocking thread                         |
 | Design disagreement                                                       | Request changes                          | Reason, exit condition, and a concrete alternative or violated constraint |
 | Missing tests or docs                                                     | Comment                                  | Flag it; approvers do not merge until it is fixed                         |
 | Anything else: style, naming, refactoring ideas, questions, optional work | Comment (or Approve with comments)   | Prefix with `nit:`, `suggestion:` or `question:`                          |
@@ -38,7 +38,7 @@ A Request changes review blocks a PR. Use it only for the three reasons below. E
 
 ### Allowed reasons
 
-1. Bug, security issue, or data loss. The change is incorrect, introduces a regression, opens a security hole, or could lose or corrupt user state (Applications, clusters, repositories, secrets, settings).
+1. Bug, security issue, or data loss. The change is incorrect, introduces a regression, opens a security hole, could lose or corrupt user state (Applications, clusters, repositories, secrets, settings), or adds documentation that is wrong or misleading.
 2. Undocumented breaking change. The change alters user-visible behavior, an API, a CLI flag, a manifest, or a default, and the PR does not document it in the relevant docs and in the upgrade notes under [`docs/operator-manual/upgrading/`](../operator-manual/upgrading/overview.md).
 3. Design disagreement. The approach conflicts with Argo CD's architecture or with an accepted proposal, even if the code works. This reason has extra conditions, described in [Design disagreements](#design-disagreements).
 
@@ -106,6 +106,7 @@ Approving with `nit:` or `suggestion:` comments is encouraged. It tells the auth
 Submitting a Request changes review is a commitment to come back.
 
 * When the author has addressed your blocking threads, they re-request your review using GitHub's Re-request review button, or by mentioning you in a comment. You then have 5 business days to re-review.
+* If you can't get to it straight away, acknowledge the request with a 👀 reaction or a one-line comment with a rough ETA, so the author knows it hasn't been forgotten.
 * Check your existing blocking threads against their exit conditions. You may raise a new blocking issue only if it is in code changed since your last review, or if it falls under the first [allowed reason](#allowed-reasons) and you missed it the first time. Do not move the goalposts.
 * If you cannot make it, say so on the PR before the window ends, and either hand the review to another reviewer by name or dismiss your own review.
 * When your comments and your concerns are addressed, you are encouraged to approve the PR, or dismiss your review if someone else will approve it.
