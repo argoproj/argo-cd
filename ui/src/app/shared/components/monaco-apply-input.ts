@@ -16,7 +16,8 @@ export function isEqualInput(first?: EditorInput, second?: EditorInput) {
 }
 
 // Update an existing Monaco editor's document without treating a live-text refresh as a new file.
-// Replacing the model via setModel resets scroll; setValue + restoreViewState keeps the view put.
+// Only the incoming props are compared, never the buffer, so text the user is still typing survives.
+// setValue (not an edit operation) so undo cannot resurrect a stale refresh and save it over the cluster.
 export function applyEditorInput(monaco: MonacoModelFactory, editor: monacoEditor.editor.IStandaloneCodeEditor, prev: EditorInput | undefined, next: EditorInput): void {
     if (isEqualInput(prev, next)) {
         return;

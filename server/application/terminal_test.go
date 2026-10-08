@@ -3,11 +3,13 @@ package application
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -338,4 +340,23 @@ func TestTerminalHandler_ServeHTTP_disallowed_namespace(t *testing.T) {
 	response := recorder.Result()
 	assert.Equal(t, http.StatusForbidden, response.StatusCode)
 	assert.Equal(t, security.NamespaceNotPermittedError("disallowed").Error()+"\n", recorder.Body.String())
+}
+
+func TestTerminalHandler_sourceIPFields(t *testing.T) {
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/terminal", http.NoBody)
+	request.RemoteAddr = "10.1.2.3:4711"
+	request.Header.Add("X-Forwarded-For", "203.0.113.7")
+
+	t.Run("disabled", func(t *testing.T) {
+		handler := terminalHandler{terminalOptions: &TerminalOptions{}}
+		assert.Empty(t, handler.sourceIPFields(request))
+	})
+
+	t.Run("enabled", func(t *testing.T) {
+		handler := terminalHandler{terminalOptions: &TerminalOptions{
+			EnableSourceIPLogging: true,
+			TrustedProxies:        []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")},
+		}}
+		assert.Equal(t, log.Fields{"source.ip": "203.0.113.7", "forwarded.for": "203.0.113.7"}, handler.sourceIPFields(request))
+	})
 }
