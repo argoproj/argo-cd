@@ -1280,7 +1280,7 @@ func cleanStaleHelmDependencies(ctx context.Context, appPath string, revision st
 	} else if err != nil {
 		return err
 	}
-	cmd := exec.CommandContext(ctx, "git", "clean", "-ffdx", "--", "charts", "Chart.lock", helmDepUpMarkerFile)
+	cmd := exec.CommandContext(ctx, "git", "clean", "-ffdx", "--", "charts", "Chart.lock", "requirements.lock", helmDepUpMarkerFile)
 	cmd.Dir = appPath
 	if _, err := argoexec.Run(cmd); err != nil {
 		return fmt.Errorf("error removing stale helm chart dependencies: %w", err)
