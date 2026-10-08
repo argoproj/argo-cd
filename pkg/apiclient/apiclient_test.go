@@ -405,3 +405,13 @@ func TestNewClient_SendsHeadersWhenRefreshingExpiredToken(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, "secret", receivedHeader.Load())
 }
+
+func TestNewClient_ReturnsErrorForMalformedHeader(t *testing.T) {
+	_, err := NewClient(&ClientOptions{
+		ServerAddr: "localhost:1234",
+		PlainText:  true,
+		Headers:    []string{"no-colon"},
+	})
+
+	require.ErrorContains(t, err, "additional headers must be colon(:)-separated: no-colon")
+}
