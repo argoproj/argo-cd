@@ -111,8 +111,8 @@ importers:
         specifier: 7.8.2
         version: 7.8.2
       superagent:
-        specifier: ^10.3.0
-        version: 10.4.0(supports-color@8.1.1)
+        specifier: ^10.4.1
+        version: 10.4.1(supports-color@8.1.1)
       swagger-ui-dist:
         specifier: ^5.32.11
         version: 5.32.14
@@ -5132,8 +5132,8 @@ packages:
     peerDependencies:
       webpack: ^5.27.0
 
-  superagent@10.4.0:
-    resolution: {integrity: sha512-QmE27Y9G7MvQR2B7S5q16IySUiZoNhhzxiU2YETs/NtfKrd5UaS5+yXzq4Doa4qDwQ36Wo6nQN3TW9Y7Wb4aew==}
+  superagent@10.4.1:
+    resolution: {integrity: sha512-PVMkMrhKrSTtFhUU8jiWuGh/gyRMKiyCTCmm0+qVzRNxlfntmRKJkDhlEXN62x3HIb33sQ4kmL8lcSdccWAchQ==}
     engines: {node: '>=14.18.0'}
 
   supports-color@7.2.0:
@@ -11403,7 +11403,7 @@ snapshots:
     dependencies:
       webpack: 5.110.3(clean-css@5.3.3)(esbuild@0.28.2)(html-minifier-terser@6.1.0)(postcss@8.5.23)(uglify-js@3.19.3)(webpack-cli@7.2.3)
 
-  superagent@10.4.0(supports-color@8.1.1):
+  superagent@10.4.1(supports-color@8.1.1):
     dependencies:
       component-emitter: 1.3.1
       cookiejar: 2.1.4
