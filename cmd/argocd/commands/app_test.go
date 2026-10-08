@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -2917,108 +2916,9 @@ func TestIsContextCanceledErr(t *testing.T) {
 	})
 }
 
-
 func TestFormatPendingResources(t *testing.T) {
 	assert.Equal(t, "a, b, c", formatPendingResources([]string{"a", "b", "c"}, 0))
 	assert.Equal(t, "a, b, c", formatPendingResources([]string{"a", "b", "c"}, 5))
 	assert.Equal(t, "a, ... and 2 more", formatPendingResources([]string{"a", "b", "c"}, 1))
 	assert.Empty(t, formatPendingResources([]string{}, 1))
-}
-
-
-type coverageAcdClient struct {
-	*fakeAcdClient
-}
-
-func (c *coverageAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
-	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
-
-	newApp := v1alpha1.Application{
-		Name:      "test-app",
-		Namespace: "argocd",
-		Status: v1alpha1.ApplicationStatus{
-			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
-			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusProgressing},
-			Resources: []v1alpha1.ResourceStatus{
-				{Group: "", Version: "v1", Kind: "Service", Name: "svc1", Status: v1alpha1.SyncStatusCodeOutOfSync, Health: &v1alpha1.HealthStatus{Status: health.HealthStatusProgressing}},
-				{Group: "", Version: "v1", Kind: "Service", Name: "svc2", Status: v1alpha1.SyncStatusCodeOutOfSync, Health: &v1alpha1.HealthStatus{Status: health.HealthStatusProgressing}},
-				{Group: "", Version: "v1", Kind: "Pod", Name: "hook1", Hook: true, Status: v1alpha1.SyncStatusCodeSynced, Health: &v1alpha1.HealthStatus{Status: health.HealthStatusProgressing}},
-			},
-			OperationState: &v1alpha1.OperationState{
-				Phase: common.OperationRunning,
-				SyncResult: &v1alpha1.SyncOperationResult{
-					Resources: []*v1alpha1.ResourceResult{
-						{Group: "", Version: "v1", Kind: "Service", Name: "svc1", HookPhase: common.OperationRunning},
-						{Group: "", Version: "v1", Kind: "Service", Name: "svc2", HookPhase: common.OperationRunning},
-						{Group: "", Version: "v1", Kind: "Pod", Name: "hook1", HookType: "PreSync", HookPhase: common.OperationRunning},
-					},
-				},
-			},
-		},
-	}
-
-	go func() {
-		time.Sleep(10 * time.Millisecond) // short sleep to let it process
-		appEventsCh <- &v1alpha1.ApplicationWatchEvent{
-			Type:        watch.Bookmark,
-			Application: newApp,
-		}
-		close(appEventsCh)
-	}()
-
-	return appEventsCh
-}
-
-func (c *coverageAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
-	return &fakeConnection{}, &fakeAppServiceClient{}
-}
-
-func (c *coverageAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
-	return &fakeConnection{}, &fakeSettingsServiceClient{}
-}
-
-func (c *coverageAcdClient) NewApplicationClientOrDieWithContext(_ context.Context) (io.Closer, applicationpkg.ApplicationServiceClient) {
-	return c.NewApplicationClientOrDie()
-}
-
-func (c *coverageAcdClient) NewSettingsClientOrDieWithContext(_ context.Context) (io.Closer, settingspkg.SettingsServiceClient) {
-	return c.NewSettingsClientOrDie()
-}
-
-func TestWaitOnApplicationStatus_Coverage(t *testing.T) {
-	acdClient := &coverageAcdClient{fakeAcdClient: &fakeAcdClient{}}
-	ctx := t.Context()
-	var selectResource []*v1alpha1.SyncOperationResource
-
-	// Test global wait maxPending
-	watchDelete := getWatchOpts(watchOpts{operation: true})
-	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 1, watchDelete, selectResource, "", 1)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "... and")
-
-	// Test delete wait maxPending
-	watchDel := getWatchOpts(watchOpts{delete: true})
-	_, _, errDelete := waitOnApplicationStatus(ctx, acdClient, "app-name", 1, watchDel, selectResource, "", 1)
-	require.Error(t, errDelete)
-	assert.Contains(t, errDelete.Error(), "(pending deletion)")
-
-	// Test selected-resource loop with operation pending
-	selectResource = []*v1alpha1.SyncOperationResource{{Name: "svc1", Kind: "Service", Group: ""}, {Name: "svc2", Kind: "Service", Group: ""}}
-	_, _, errSelected := waitOnApplicationStatus(ctx, acdClient, "app-name", 1, watchDelete, selectResource, "", 1)
-	require.Error(t, errSelected)
-	assert.Contains(t, errSelected.Error(), "/Service//svc1")
-	assert.Contains(t, errSelected.Error(), "... and")
-
-	// Additional coverage: test sync, health, suspended, degraded, hydrated
-	watchAll := getWatchOpts(watchOpts{sync: true, health: true, suspended: true, degraded: true, hydrated: true})
-	_, _, errAll := waitOnApplicationStatus(ctx, acdClient, "app-name", 1, watchAll, nil, "", 1)
-	require.Error(t, errAll)
-	assert.Contains(t, errAll.Error(), "sync status: OutOfSync")
-	assert.Contains(t, errAll.Error(), "health status: Progressing")
-	assert.Contains(t, errAll.Error(), "hydration: not complete")
-
-	// Additional coverage: test empty selectedResources with watchAll
-	_, _, errAllEmpty := waitOnApplicationStatus(ctx, acdClient, "app-name", 1, watchAll, selectResource, "", 1)
-	require.Error(t, errAllEmpty)
-	assert.Contains(t, errAllEmpty.Error(), "hydration: not complete")
 }

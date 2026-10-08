@@ -2399,7 +2399,6 @@ func formatPendingResources(pending []string, maxPending uint) string {
 	return strings.Join(pending, ", ")
 }
 
-
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
 // are fulfilled or we reach the timeout. Returns the app once desired conditions have been filled.
 // Additionally return the operationState at time of fulfilment (which may be different than returned app).
