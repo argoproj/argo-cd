@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/docs"
 )
 
+// main regenerates notification service documentation and its MkDocs navigation.
 func main() {
 	generateNotificationsDocs()
 }
@@ -69,6 +70,7 @@ func removeLegacyTeamsDocs(files []string) ([]string, error) {
 	return supported, nil
 }
 
+// updateMkDocsNav replaces the service pages under the specified navigation section.
 func updateMkDocsNav(parent string, child string, subchild string, files []string) error {
 	trimPrefixes(files, "docs/")
 	sort.Strings(files)
@@ -111,12 +113,14 @@ func updateMkDocsNav(parent string, child string, subchild string, files []strin
 	return os.WriteFile("mkdocs.yml", newmkdocs, 0o644)
 }
 
+// trimPrefixes converts generated file paths to paths relative to the documentation root.
 func trimPrefixes(files []string, prefix string) {
 	for i, f := range files {
 		files[i] = strings.TrimPrefix(f, prefix)
 	}
 }
 
+// findNavItem locates a named navigation section and its index.
 func findNavItem(nav []any, key string) (any, int) {
 	for i, item := range nav {
 		o, ismap := item.(map[any]any)
@@ -129,6 +133,7 @@ func findNavItem(nav []any, key string) (any, int) {
 	return nil, -1
 }
 
+// removeNavItem removes a named section before its replacement is appended.
 func removeNavItem(nav []any, key string) []any {
 	_, i := findNavItem(nav, key)
 	if i != -1 {
