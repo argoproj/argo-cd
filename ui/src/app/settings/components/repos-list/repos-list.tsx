@@ -89,7 +89,7 @@ export const normalizeHTTPSRepoParams = (params: NewHTTPSRepoParams): NewHTTPSRe
     const enableOCI = params.type === 'helm' && !!params.enableOCI;
     return {
         ...params,
-        url: enableOCI ? params.url.replace('https://', '').replace('oci://', '') : params.url,
+        url: enableOCI ? params.url.replace(/^(https?|oci):\/\//, '') : params.url,
         enableOCI,
         insecureOCIForceHttp: (params.type === 'oci' || enableOCI) && !!params.insecureOCIForceHttp
     };
