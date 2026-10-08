@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -25,11 +26,46 @@ func generateNotificationsDocs() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	files, err = removeLegacyTeamsDocs(files)
+	if err != nil {
+		log.Fatal(err)
+	}
 	if files != nil {
 		if e := updateMkDocsNav("Operator Manual", "Notifications", "Notification Services", files); e != nil {
 			log.Fatal(e)
 		}
 	}
+}
+
+// The shared notifications-engine still ships Office 365 Connector docs.
+// Exclude them from Argo CD until they are removed from the engine as well.
+func removeLegacyTeamsDocs(files []string) ([]string, error) {
+	var supported []string
+	for _, file := range files {
+		if filepath.Base(file) == "teams.md" {
+			if err := os.Remove(file); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		if filepath.Base(file) == "overview.md" {
+			data, err := os.ReadFile(file)
+			if err != nil {
+				return nil, err
+			}
+			var lines []string
+			for _, line := range strings.Split(string(data), "\n") {
+				if !strings.Contains(line, "(./teams.md)") {
+					lines = append(lines, line)
+				}
+			}
+			if err := os.WriteFile(file, []byte(strings.Join(lines, "\n")), 0o644); err != nil {
+				return nil, err
+			}
+		}
+		supported = append(supported, file)
+	}
+	return supported, nil
 }
 
 func updateMkDocsNav(parent string, child string, subchild string, files []string) error {

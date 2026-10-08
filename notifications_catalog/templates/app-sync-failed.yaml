@@ -30,7 +30,7 @@ slack:
           {{end}}
           ]
         }]
-teams:
+teams-workflows:
     themeColor: "#FF0000"
     title: Failed to sync application {{.app.metadata.name}}.
     facts: |

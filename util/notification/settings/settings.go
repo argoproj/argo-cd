@@ -56,8 +56,15 @@ func getContext(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Sec
 			return nil, err
 		}
 	}
+	if err := removeLegacyTeamsServices(cfg, configMap, secret); err != nil {
+		return nil, err
+	}
 	if err := ApplyLegacyConfig(cfg, context, configMap, secret); err != nil {
 		return nil, err
+	}
+	for name, template := range cfg.Templates {
+		template.Teams = nil
+		cfg.Templates[name] = template
 	}
 	return context, nil
 }

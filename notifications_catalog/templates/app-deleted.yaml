@@ -1,5 +1,5 @@
 message: &message Application {{.app.metadata.name}} has been deleted.
 email:
     subject: *message
-teams:
+teams-workflows:
     title: *message
