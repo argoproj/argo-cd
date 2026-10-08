@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Release branches selected by hack/supported-release-branches.sh receive Go toolchain patch bumps only.",
+  "description": "Release branches selected by hack/supported-release-branches.sh receive patch bumps for the Go toolchain, Helm, and Kustomize.",
   "packageRules": [
     {
       "description": "Disable every update on release branches. Master is unchanged.",
@@ -46,6 +46,21 @@
         "digest"
       ],
       "enabled": false
+    },
+    {
+      "description": "Re-enable Helm and Kustomize on release branches and keep each on the minor that branch already ships. Checksum and manifest refresh still comes from production-binaries.json5. git-lfs stays disabled.",
+      "matchBaseBranches": [
+        "/^release-\\d+\\.\\d+$/"
+      ],
+      "matchDatasources": [
+        "github-releases"
+      ],
+      "matchPackageNames": [
+        "helm/helm",
+        "kubernetes-sigs/kustomize"
+      ],
+      "allowedVersions": "~{{major}}.{{minor}}.0",
+      "enabled": true
     },
     {
       "description": "No lock file maintenance on release branches. That would bump modules outside the Go toolchain patch.",

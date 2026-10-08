@@ -69,8 +69,8 @@ jobs:
 
       # master, plus the supported release-* branches from
       # hack/supported-release-branches.sh. release-branches.json5 then limits
-      # those release branches to Go toolchain patch bumps. Without this env
-      # var, Renovate updates master only.
+      # those release branches to Go, Helm, and Kustomize patch bumps. Without
+      # this env var, Renovate updates master only.
       - name: Select Renovate base branches
         id: base_branches
         run: |
