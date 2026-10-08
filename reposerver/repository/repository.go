@@ -1251,7 +1251,7 @@ func runHelmBuild(ctx context.Context, appPath string, revision string, h helm.H
 	// a marker file holding the revision is used to check if command already run to avoid running it again unnecessarily
 	markerFile := path.Join(appPath, helmDepUpMarkerFile)
 	marker, err := os.ReadFile(markerFile)
-	if err == nil && string(marker) == revision {
+	if err == nil && len(marker) > 0 && string(marker) == revision {
 		return nil
 	} else if err != nil && !os.IsNotExist(err) {
 		return err
@@ -1275,7 +1275,7 @@ func cleanStaleHelmDependencies(ctx context.Context, appPath string, revision st
 	defer manifestGenerateLock.Unlock(appPath)
 
 	marker, err := os.ReadFile(path.Join(appPath, helmDepUpMarkerFile))
-	if os.IsNotExist(err) || (err == nil && string(marker) == revision) {
+	if os.IsNotExist(err) || (err == nil && len(marker) > 0 && string(marker) == revision) {
 		return nil
 	} else if err != nil {
 		return err
