@@ -57,7 +57,7 @@ func TestRemoveLegacyTeamsServices(t *testing.T) {
 	require.NoError(t, err)
 	for _, name := range []string{"teams", "legacy"} {
 		assert.NotContains(t, notificationAPI.GetNotificationServices(), name)
-		assert.ErrorContains(t, notificationAPI.Send(nil, nil, services.Destination{Service: name}), "is not supported")
+		require.ErrorContains(t, notificationAPI.Send(nil, nil, services.Destination{Service: name}), "is not supported")
 	}
 	assert.Zero(t, requests.Load())
 	for _, name := range []string{"teams-workflows", "workflow", "test"} {

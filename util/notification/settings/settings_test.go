@@ -203,7 +203,7 @@ func TestRetiredTeamsService(t *testing.T) {
 				for _, name := range []string{"teams", "legacy"} {
 					assert.NotContains(t, cfg.Services, name)
 					err := notificationAPI.Send(nil, nil, services.Destination{Service: name})
-					assert.EqualError(t, err, fmt.Sprintf("notification service '%s' is not supported", name))
+					require.EqualError(t, err, fmt.Sprintf("notification service '%s' is not supported", name))
 				}
 
 				for _, name := range []string{"teams-workflows", "workflow", "rescued", "test"} {

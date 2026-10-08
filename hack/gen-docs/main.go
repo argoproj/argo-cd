@@ -54,7 +54,7 @@ func removeLegacyTeamsDocs(files []string) ([]string, error) {
 				return nil, err
 			}
 			var lines []string
-			for _, line := range strings.Split(string(data), "\n") {
+			for line := range strings.SplitSeq(string(data), "\n") {
 				if !strings.Contains(line, "(./teams.md)") {
 					lines = append(lines, line)
 				}
