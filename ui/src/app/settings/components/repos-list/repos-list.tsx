@@ -85,6 +85,16 @@ export interface NewHTTPSRepoParams {
     useAzureWorkloadIdentity: boolean;
 }
 
+export const normalizeHTTPSRepoParams = (params: NewHTTPSRepoParams): NewHTTPSRepoParams => {
+    const enableOCI = params.type === 'helm' && !!params.enableOCI;
+    return {
+        ...params,
+        url: enableOCI ? params.url.replace(/^(https?|oci):\/\//, '') : params.url,
+        enableOCI,
+        insecureOCIForceHttp: (params.type === 'oci' || enableOCI) && !!params.insecureOCIForceHttp
+    };
+};
+
 interface NewGitHubAppRepoParams {
     type: string;
     name: string;
@@ -341,7 +351,11 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 return {
                     url:
                         (!validURLValues.url && 'Repository URL is required') ||
-                        (credsTemplate && !isHTTPOrHTTPSUrl(validURLValues.url) && !validURLValues.enableOCI && params.type != 'oci' && 'Not a valid HTTP/HTTPS URL') ||
+                        (credsTemplate &&
+                            !isHTTPOrHTTPSUrl(validURLValues.url) &&
+                            !(validURLValues.type === 'helm' && validURLValues.enableOCI) &&
+                            params.type != 'oci' &&
+                            'Not a valid HTTP/HTTPS URL') ||
                         (credsTemplate && !isOCIUrl(validURLValues.url) && params.type == 'oci' && 'Not a valid OCI URL'),
                     name: validURLValues.type === 'helm' && !validURLValues.name && 'Name is required',
                     username: !validURLValues.username && validURLValues.password && 'Username is required if password is given.',
@@ -389,8 +403,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             case ConnectionMethod.SSH:
                 return connectSSHRepo(params as NewSSHRepoParams);
             case ConnectionMethod.HTTPS:
-                params.url = params.enableOCI && params.type != 'oci' ? stripProtocol(params.url) : params.url;
-                return connectHTTPSRepo(params as NewHTTPSRepoParams);
+                return connectHTTPSRepo(normalizeHTTPSRepoParams(params as NewHTTPSRepoParams));
             case ConnectionMethod.GITHUBAPP:
                 return connectGitHubAppRepo(params as NewGitHubAppRepoParams);
             case ConnectionMethod.GOOGLECLOUD:
@@ -421,10 +434,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         } else {
             return false;
         }
-    };
-
-    const stripProtocol = (url: string) => {
-        return url.replace('https://', '').replace('oci://', '');
     };
 
     // only connections of git type which are not via GitHub App or Azure Service Principal are updatable
@@ -1202,13 +1211,17 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                 </div>
-                                                <div className='argo-form-row'>
-                                                    {formApi.getFormState().values.type !== 'oci' ? (
+                                                {formApi.getFormState().values.type === 'helm' && (
+                                                    <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Enable OCI' field='enableOCI' component={CheckboxField} />
-                                                    ) : (
+                                                    </div>
+                                                )}
+                                                {(formApi.getFormState().values.type === 'oci' ||
+                                                    (formApi.getFormState().values.type === 'helm' && formApi.getFormState().values.enableOCI)) && (
+                                                    <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Insecure HTTP Only' field='insecureOCIForceHttp' component={CheckboxField} />
-                                                    )}
-                                                </div>
+                                                    </div>
+                                                )}
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='Use Azure Workload Identity' field='useAzureWorkloadIdentity' component={CheckboxField} />
                                                 </div>
