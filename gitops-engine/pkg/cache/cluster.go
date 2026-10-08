@@ -31,6 +31,7 @@ import (
 	"runtime/debug"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -239,8 +240,10 @@ type clusterCache struct {
 	eventMetaCh           chan eventMeta
 	serverVersion         string
 	apiResources          []kube.APIResourceInfo
-	// namespacedResources is a simple map which indicates a groupKind is namespaced
-	namespacedResources map[schema.GroupKind]bool
+	// namespacedResources maps each watched GroupKind to whether it is namespaced.
+	// IsNamespaced reads it without c.lock, so writers publish a complete map
+	// and never edit a published one.
+	namespacedResources atomic.Pointer[map[schema.GroupKind]bool]
 
 	// maximum time we allow watches to run before relisting the group/kind and restarting the watch
 	watchResyncTimeout time.Duration
@@ -674,7 +677,7 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 		c.invalidateEventMeta()
 	}
 	c.apisMeta = nil
-	c.namespacedResources = nil
+	c.namespacedResources.Store(nil)
 	c.log.Info("Invalidated cluster")
 }
 
@@ -701,11 +704,10 @@ func (c *clusterCache) stopWatching(gk schema.GroupKind, ns string) {
 	if info, ok := c.apisMeta[gk]; ok {
 		info.watchCancel()
 		delete(c.apisMeta, gk)
-		// Keep in step with apisMeta. IsNamespaced reads this map without the
-		// lock, so replace it rather than editing it in place.
-		namespacedResources := maps.Clone(c.namespacedResources)
+		// Keep in step with apisMeta.
+		namespacedResources := maps.Clone(c.loadNamespacedResources())
 		delete(namespacedResources, gk)
-		c.namespacedResources = namespacedResources
+		c.namespacedResources.Store(&namespacedResources)
 		c.replaceResourceCache(gk, nil, ns)
 		c.log.Info(fmt.Sprintf("Stop watching: %s not found", gk))
 	}
@@ -766,7 +768,7 @@ func (c *clusterCache) startMissingWatches() error {
 			}
 		}
 	}
-	c.namespacedResources = namespacedResources
+	c.namespacedResources.Store(&namespacedResources)
 	return nil
 }
 
@@ -1182,7 +1184,9 @@ func (c *clusterCache) sync() (err error) {
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.resources = make(map[kube.ResourceKey]*Resource)
 	c.nsIndex = make(map[string]map[kube.ResourceKey]*Resource)
-	c.namespacedResources = make(map[schema.GroupKind]bool)
+	// Filled by the workers below and published once they finish.
+	namespacedResources := make(map[schema.GroupKind]bool)
+	defer c.namespacedResources.Store(&namespacedResources)
 	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
 	syncLock.Unlock()
 	config := c.config
@@ -1233,7 +1237,7 @@ func (c *clusterCache) sync() (err error) {
 		info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
 		syncLock.Lock()
 		c.apisMeta[api.GroupKind] = info
-		c.namespacedResources[api.GroupKind] = api.Meta.Namespaced
+		namespacedResources[api.GroupKind] = api.Meta.Namespaced
 		syncLock.Unlock()
 
 		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
@@ -1267,7 +1271,7 @@ func (c *clusterCache) sync() (err error) {
 					if !keep {
 						syncLock.Lock()
 						delete(c.apisMeta, api.GroupKind)
-						delete(c.namespacedResources, api.GroupKind)
+						delete(namespacedResources, api.GroupKind)
 						syncLock.Unlock()
 						return nil
 					}
@@ -1593,9 +1597,18 @@ func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map
 	return graph
 }
 
+// loadNamespacedResources returns the published namespacedResources map, which
+// callers must not modify.
+func (c *clusterCache) loadNamespacedResources() map[schema.GroupKind]bool {
+	if m := c.namespacedResources.Load(); m != nil {
+		return *m
+	}
+	return nil
+}
+
 // IsNamespaced answers if specified group/kind is a namespaced resource API or not
 func (c *clusterCache) IsNamespaced(gk schema.GroupKind) (bool, error) {
-	if isNamespaced, ok := c.namespacedResources[gk]; ok {
+	if isNamespaced, ok := c.loadNamespacedResources()[gk]; ok {
 		return isNamespaced, nil
 	}
 	return false, apierrors.NewNotFound(schema.GroupResource{Group: gk.Group}, "")

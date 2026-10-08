@@ -2091,13 +2091,43 @@ func TestStopWatching_RemovesNamespacedResourcesEntry(t *testing.T) {
 	require.NoError(t, cluster.EnsureSynced())
 	_, err := cluster.IsNamespaced(gk)
 	require.NoError(t, err)
-	before := cluster.namespacedResources // as a concurrent IsNamespaced might hold it
+	before := cluster.loadNamespacedResources() // as a concurrent IsNamespaced might hold it
 
 	cluster.stopWatching(gk, pod.Namespace)
 
 	_, err = cluster.IsNamespaced(gk)
 	assert.True(t, apierrors.IsNotFound(err), "got %v", err)
 	assert.Contains(t, before, gk, "the published map must be replaced, not edited in place")
+}
+
+// Regression: sync filled the published namespacedResources map in place while
+// IsNamespaced read it without the lock. Run with -race.
+func TestIsNamespaced_ConcurrentWithResync(t *testing.T) {
+	pod := testPod1()
+	gk := pod.GroupVersionKind().GroupKind()
+	cluster := newCluster(t, pod)
+	require.NoError(t, cluster.EnsureSynced())
+
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				_, _ = cluster.IsNamespaced(gk)
+			}
+		}
+	})
+	cluster.Invalidate()
+	require.NoError(t, cluster.EnsureSynced())
+	close(done)
+	wg.Wait()
+
+	namespaced, err := cluster.IsNamespaced(gk)
+	require.NoError(t, err)
+	assert.True(t, namespaced)
 }
 
 func TestCRDVersionsToAPIResources(t *testing.T) {
@@ -2349,10 +2379,11 @@ func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 			}})
 
 			// CRITICAL: Initialize namespacedResources so setNode will populate orphanedChildren index
-			cluster.namespacedResources = map[schema.GroupKind]bool{
+			namespaced := map[schema.GroupKind]bool{
 				{Group: "", Kind: "Pod"}:                                  true,
 				{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}: false,
 			}
+			cluster.namespacedResources.Store(&namespaced)
 
 			clusterParents := 100 // Fixed number of cluster-scoped resources
 
@@ -2433,11 +2464,12 @@ func BenchmarkIterateHierarchyV2_MultiLevelClusterScoped(b *testing.B) {
 				Meta:                 metav1.APIResource{Namespaced: true},
 			}})
 
-			cluster.namespacedResources = map[schema.GroupKind]bool{
+			namespaced := map[schema.GroupKind]bool{
 				{Group: "", Kind: "Pod"}:                                  true,
 				{Group: "", Kind: "Namespace"}:                            false,
 				{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}: false,
 			}
+			cluster.namespacedResources.Store(&namespaced)
 
 			// Create root cluster-scoped parent (Namespace, simulating Provider)
 			rootUID := uuid.New().String()
