@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,16 +14,25 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
+// Request URIs the client is expected to send; derived from the page-size constant.
+var (
+	pullRequestsURI      = "/repositories/OWNER/REPO/pullrequests/?pagelen=" + strconv.Itoa(bitbucketCloudPagelen)
+	pullRequestsPage1URI = pullRequestsURI + "&page=1"
+	pullRequestsPage2URI = pullRequestsURI + "&page=2"
+)
+
 func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) {
 	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		// The maximum page size must be requested so each listing uses as few API calls as possible.
+		assert.Equal(t, strconv.Itoa(bitbucketCloudPagelen), r.URL.Query().Get("pagelen"))
 		var err error
 		switch r.RequestURI {
-		case "/repositories/OWNER/REPO/pullrequests/":
-			_, err = io.WriteString(w, `{
+		case pullRequestsURI:
+			_, err = fmt.Fprintf(w, `{
 					"size": 1,
-					"pagelen": 10,
+					"pagelen": %d,
 					"page": 1,
 					"values": [
 						{
@@ -42,9 +52,9 @@ func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) 
 							}
 						}
 					]
-				}`)
+				}`, bitbucketCloudPagelen)
 		default:
-			t.Fail()
+			t.Errorf("unexpected request %s", r.RequestURI)
 		}
 		if err != nil {
 			t.Fail()
@@ -145,12 +155,12 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		var err error
 		switch r.RequestURI {
-		case "/repositories/OWNER/REPO/pullrequests/":
+		case pullRequestsURI:
 			_, err = fmt.Fprintf(w, `{
 				"size": 2,
-				"pagelen": 1,
+				"pagelen": %d,
 				"page": 1,
-				"next": "http://%s/repositories/OWNER/REPO/pullrequests/?pagelen=1&page=2",
+				"next": "http://%s%s",
 				"values": [
 					{
 						"id": 101,
@@ -185,13 +195,13 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 						}
 					}
 				]
-			}`, r.Host)
-		case "/repositories/OWNER/REPO/pullrequests/?pagelen=1&page=2":
+			}`, bitbucketCloudPagelen, r.Host, pullRequestsPage2URI)
+		case pullRequestsPage2URI:
 			_, err = fmt.Fprintf(w, `{
 				"size": 2,
-				"pagelen": 1,
+				"pagelen": %d,
 				"page": 2,
-				"previous": "http://%s/repositories/OWNER/REPO/pullrequests/?pagelen=1&page=1",
+				"previous": "http://%s%s",
 				"values": [
 					{
 						"id": 103,
@@ -210,9 +220,9 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 						}
 					}
 				]
-			}`, r.Host)
+			}`, bitbucketCloudPagelen, r.Host, pullRequestsPage1URI)
 		default:
-			t.Fail()
+			t.Errorf("unexpected request %s", r.RequestURI)
 		}
 		if err != nil {
 			t.Fail()
@@ -263,7 +273,7 @@ func TestListResponseMalformedCloud(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
-		case "/repositories/OWNER/REPO/pullrequests/":
+		case pullRequestsURI:
 			_, err := io.WriteString(w, `[{
 				"size": 1,
 				"pagelen": 10,
@@ -274,7 +284,7 @@ func TestListResponseMalformedCloud(t *testing.T) {
 				t.Fail()
 			}
 		default:
-			t.Fail()
+			t.Errorf("unexpected request %s", r.RequestURI)
 		}
 	}))
 	defer ts.Close()
@@ -288,7 +298,7 @@ func TestListResponseMalformedValuesCloud(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
-		case "/repositories/OWNER/REPO/pullrequests/":
+		case pullRequestsURI:
 			_, err := io.WriteString(w, `{
 				"size": 1,
 				"pagelen": 10,
@@ -299,7 +309,7 @@ func TestListResponseMalformedValuesCloud(t *testing.T) {
 				t.Fail()
 			}
 		default:
-			t.Fail()
+			t.Errorf("unexpected request %s", r.RequestURI)
 		}
 	}))
 	defer ts.Close()
@@ -313,7 +323,7 @@ func TestListResponseEmptyCloud(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
-		case "/repositories/OWNER/REPO/pullrequests/":
+		case pullRequestsURI:
 			_, err := io.WriteString(w, `{
 				"size": 1,
 				"pagelen": 10,
@@ -324,7 +334,7 @@ func TestListResponseEmptyCloud(t *testing.T) {
 				t.Fail()
 			}
 		default:
-			t.Fail()
+			t.Errorf("unexpected request %s", r.RequestURI)
 		}
 	}))
 	defer ts.Close()
@@ -341,12 +351,12 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		var err error
 		switch r.RequestURI {
-		case "/repositories/OWNER/REPO/pullrequests/":
+		case pullRequestsURI:
 			_, err = fmt.Fprintf(w, `{
 				"size": 2,
-				"pagelen": 1,
+				"pagelen": %d,
 				"page": 1,
-				"next": "http://%s/repositories/OWNER/REPO/pullrequests/?pagelen=1&page=2",
+				"next": "http://%s%s",
 				"values": [
 					{
 						"id": 101,
@@ -391,13 +401,13 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 						}
 					}
 				]
-			}`, r.Host)
-		case "/repositories/OWNER/REPO/pullrequests/?pagelen=1&page=2":
+			}`, bitbucketCloudPagelen, r.Host, pullRequestsPage2URI)
+		case pullRequestsPage2URI:
 			_, err = fmt.Fprintf(w, `{
 				"size": 2,
-				"pagelen": 1,
+				"pagelen": %d,
 				"page": 2,
-				"previous": "http://%s/repositories/OWNER/REPO/pullrequests/?pagelen=1&page=1",
+				"previous": "http://%s%s",
 				"values": [
 					{
 						"id": 102,
@@ -421,9 +431,9 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 						}
 					}
 				]
-			}`, r.Host)
+			}`, bitbucketCloudPagelen, r.Host, pullRequestsPage1URI)
 		default:
-			t.Fail()
+			t.Errorf("unexpected request %s", r.RequestURI)
 		}
 		if err != nil {
 			t.Fail()
