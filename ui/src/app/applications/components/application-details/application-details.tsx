@@ -8,7 +8,7 @@ import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
-import {AppContext, Context, ContextApis} from '../../../shared/context';
+import {AppContext, AuthSettingsCtx, Context, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
 
@@ -33,6 +33,7 @@ import {Filters, FiltersProps, getEffectiveResourceFilter} from './application-r
 import {getAppDefaultSource, getAppCurrentVersion, urlPattern, getApplicationDetailsContainerClass} from '../utils';
 import {ChartDetails, OCIMetadata} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
+import {getApplicationParent, getApplicationParentPath} from './application-parent';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
@@ -89,6 +90,7 @@ export const SelectNode = (fullName: string, containerIndex = 0, tab: string = n
 
 export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; name: string}> & {objectListKind: string}> = props => {
     const appContext = useContext(Context);
+    const authSettings = useContext(AuthSettingsCtx);
     const [appChanged] = useState(() => new BehaviorSubject<appModels.AbstractApplication>(null));
     const objectListKind = props.objectListKind;
 
@@ -930,7 +932,8 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                               title: 'Preview Apps',
                                                               iconClassName: 'fa fa-eye',
                                                               action: () => selectNode(appFullName, 0, 'preview')
-                                                          }
+                                                          },
+                                                          getApplicationParentAction(application, authSettings, appContext)
                                                       ]
                                             },
                                             tools: (
@@ -1474,10 +1477,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, objectListKind, 'hard')
                         }
                     ]
-                } as SplitButtonAction
+                } as SplitButtonAction,
+                getApplicationParentAction(app, authSettings, appContext)
             ];
         },
-        [selectNode, appContext, confirmDeletion, setOperationStatusVisible, setRollbackPanelVisible, deleteApplication, objectListKind, appChanged]
+        [selectNode, appContext, confirmDeletion, setOperationStatusVisible, setRollbackPanelVisible, deleteApplication, objectListKind, appChanged, authSettings]
     );
 
     const filterTreeNode = useCallback(
@@ -1622,3 +1626,18 @@ const ExtensionView = (props: {extension: AppViewExtension; application: models.
     const {extension, application, tree} = props;
     return <extension.component application={application} tree={tree} />;
 };
+
+function getApplicationParentAction(application: appModels.AbstractApplication, settings: appModels.AuthSettings, appContext: ContextApis) {
+    const parent = settings && getApplicationParent(application, settings);
+    return {
+        title: <span title={parent ? `Open parent ${parent.kind}: ${parent.namespace}/${parent.name}` : 'No parent'}>Parent</span>,
+        iconClassName: 'fa fa-level-up-alt',
+        qeId: 'application-parent-button',
+        disabled: !parent,
+        action: () => {
+            if (parent) {
+                appContext.navigation.goto(getApplicationParentPath(parent));
+            }
+        }
+    };
+}

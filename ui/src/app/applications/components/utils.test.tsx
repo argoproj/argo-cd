@@ -1,7 +1,13 @@
 import * as React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server.node';
+import {render, screen} from '@testing-library/react';
+import {BehaviorSubject} from 'rxjs';
+import {ContextApis} from '../../shared/context';
+import {services} from '../../shared/services';
+import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 import {
     Application,
+    AuthSettings,
     HealthStatus,
     HealthStatuses,
     OperationPhases,
@@ -30,6 +36,7 @@ import {
     nameConfirmationError,
     OperationState,
     ResourceResultIcon,
+    renderResourceMenu,
     toggleFavorite
 } from './utils';
 
@@ -1209,5 +1216,40 @@ describe('formatCreationTimestamp', () => {
         expect(html).toMatch(/2020/);
         expect(html).toMatch(/ago/i);
         expect(html).not.toContain('<time');
+    });
+});
+
+describe('renderResourceMenu', () => {
+    const application = {kind: 'Application', metadata: {name: 'shop', namespace: 'argocd'}, spec: {project: 'default'}, status: {resources: []}} as Application;
+    const tree = {nodes: [], orphanedNodes: [], hosts: []};
+    const resource: ResourceTreeNode = {group: 'argoproj.io', kind: 'Application', name: 'shop', namespace: 'argocd', version: 'v1alpha1', uid: 'app-uid', resourceVersion: '', parentRefs: [], info: []};
+    const apis: ContextApis = {navigation: {goto: jest.fn()}, popup: null, notifications: null, baseHref: '/'};
+
+    beforeEach(() => {
+        jest.spyOn(services.accounts, 'canI').mockResolvedValue(false);
+        jest.spyOn(services.authService, 'settings').mockResolvedValue({execEnabled: false} as AuthSettings);
+        jest.spyOn(services.applications, 'getResourceActions').mockResolvedValue([]);
+        jest.spyOn(services.applications, 'getResourceLinks').mockResolvedValue({items: []});
+    });
+
+    afterEach(() => jest.restoreAllMocks());
+
+    it('uses the Application action menu when name and namespace match the details-page Application', async () => {
+        const getApplicationActions = jest.fn(() => [{title: 'Parent', action: jest.fn()}]);
+        render(<>{renderResourceMenu(resource, application, tree, apis, new BehaviorSubject(application), getApplicationActions)}</>);
+
+        expect(await screen.findByText('Parent')).toBeDefined();
+        expect(getApplicationActions).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses the resource menu for a same-named Application in another namespace', async () => {
+        const getApplicationActions = jest.fn(() => [{title: 'Parent', action: jest.fn()}]);
+        const child = {...resource, namespace: 'team-a'};
+        render(<>{renderResourceMenu(child, application, tree, apis, new BehaviorSubject(application), getApplicationActions)}</>);
+
+        expect(getApplicationActions).not.toHaveBeenCalled();
+        expect(await screen.findByText('Details')).toBeDefined();
+        expect(screen.getByText('Delete')).toBeDefined();
+        expect(screen.queryByText('Parent')).toBeNull();
     });
 });
