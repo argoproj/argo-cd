@@ -19,6 +19,7 @@ func main() {
 	generateNotificationsDocs()
 }
 
+// generateNotificationsDocs refreshes service documentation and navigation without the retired Teams connector.
 func generateNotificationsDocs() {
 	_ = os.RemoveAll("./docs/operator-manual/notifications/services")
 	_ = os.MkdirAll("./docs/operator-manual/notifications/services", 0o755)
@@ -37,8 +38,8 @@ func generateNotificationsDocs() {
 	}
 }
 
-// The shared notifications-engine still ships Office 365 Connector docs.
-// Exclude them from Argo CD until they are removed from the engine as well.
+// removeLegacyTeamsDocs excludes the retired connector page and overview link
+// from documentation copied from the shared notifications-engine.
 func removeLegacyTeamsDocs(files []string) ([]string, error) {
 	var supported []string
 	for _, file := range files {

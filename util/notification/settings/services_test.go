@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// TestRemoveLegacyTeamsServices verifies Workflows delivery and rejection of retired Teams destinations.
 func TestRemoveLegacyTeamsServices(t *testing.T) {
 	t.Parallel()
 	var requests atomic.Int32
@@ -67,4 +68,15 @@ func TestRemoveLegacyTeamsServices(t *testing.T) {
 		require.NoError(t, notificationAPI.Send(nil, []string{"test"}, services.Destination{Service: name, Recipient: "channel"}))
 	}
 	assert.EqualValues(t, 2, requests.Load())
+}
+
+// TestRemoveLegacyTeamsServicesInvalidSupportedConfig keeps errors in active services visible.
+func TestRemoveLegacyTeamsServicesInvalidSupportedConfig(t *testing.T) {
+	t.Parallel()
+	cm := &corev1.ConfigMap{Data: map[string]string{
+		"service.teams":          "recipientUrls: {}",
+		"service.webhook.active": "url: [",
+	}}
+	_, err := getContext(&api.Config{}, cm, &corev1.Secret{})
+	require.ErrorContains(t, err, "failed to render service configuration webhook")
 }

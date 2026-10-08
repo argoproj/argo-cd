@@ -24,6 +24,7 @@ import (
 
 const testNamespace = "default"
 
+// TestNotificationServer verifies that supported notification configuration is exposed through the server API.
 func TestNotificationServer(t *testing.T) {
 	t.Parallel()
 	// catalogPath := path.Join(paths[1], "config", "notifications-catalog")

@@ -25,6 +25,7 @@ const (
 	testContextKeyValue = "test-context-key-value"
 )
 
+// TestInitGetVars verifies application, context and secret variables used by notification templates.
 func TestInitGetVars(t *testing.T) {
 	t.Parallel()
 	notificationsCm := corev1.ConfigMap{
@@ -173,6 +174,7 @@ func TestInitGetVarsAppProject(t *testing.T) {
 	})
 }
 
+// TestRetiredTeamsService verifies supported service aliases across controller, CLI and self-service settings.
 func TestRetiredTeamsService(t *testing.T) {
 	t.Parallel()
 	for _, selfService := range []bool{false, true} {

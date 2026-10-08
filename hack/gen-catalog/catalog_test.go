@@ -11,6 +11,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// TestCatalogTeamsWorkflows verifies that bundled notifications retain their titles through migration to Workflows.
 func TestCatalogTeamsWorkflows(t *testing.T) {
 	t.Parallel()
 	files, err := filepath.Glob("../../notifications_catalog/templates/*.yaml")

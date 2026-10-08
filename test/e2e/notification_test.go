@@ -20,6 +20,7 @@ func TestNotificationsListServices(t *testing.T) {
 	})
 }
 
+// TestNotificationsListTemplates verifies that the CLI lists templates configured for Teams Workflows.
 func TestNotificationsListTemplates(t *testing.T) {
 	ctx := notifFixture.Given(t)
 	ctx.When().

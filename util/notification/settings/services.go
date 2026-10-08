@@ -8,7 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-// Resolve services without retired Office 365 Connector entries, so they cannot
+// removeLegacyTeamsServices resolves services without retired Office 365 Connector entries, so they cannot
 // overwrite supported services using the same custom name during migration.
 func removeLegacyTeamsServices(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) error {
 	filtered := configMap.DeepCopy()
