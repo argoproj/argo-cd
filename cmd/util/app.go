@@ -921,3 +921,41 @@ func FilterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, gro
 	}
 	return filteredObjects, nil
 }
+
+// flagsRequiringSourcePosition are the flags handled by ConstructSource, constructSourceHydrator
+// and setParameterOverrides. Setting any of them on a multi-source app requires --source-position
+// to say which source they apply to.
+var flagsRequiringSourcePosition = map[string]struct{}{
+	"repo": {}, "path": {}, "helm-chart": {}, "revision": {}, "tag-prefix": {},
+	"values": {}, "ignore-missing-value-files": {}, "values-literal-file": {},
+	"release-name": {}, "helm-version": {}, "helm-pass-credentials": {},
+	"helm-set": {}, "helm-set-string": {}, "helm-set-file": {}, "helm-skip-crds": {},
+	"helm-skip-schema-validation": {}, "helm-skip-tests": {}, "helm-namespace": {},
+	"helm-kube-version": {}, "helm-api-versions": {},
+	"directory-recurse": {}, "directory-disable-extension-filter": {},
+	"directory-exclude": {}, "directory-include": {},
+	"config-management-plugin": {}, "nameprefix": {}, "namesuffix": {},
+	"kustomize-image": {}, "kustomize-replica": {}, "kustomize-version": {},
+	"kustomize-namespace": {}, "kustomize-kube-version": {}, "kustomize-api-versions": {},
+	"kustomize-common-label": {}, "kustomize-common-annotation": {},
+	"kustomize-label-without-selector": {}, "kustomize-label-include-templates": {},
+	"kustomize-force-common-label": {}, "kustomize-force-common-annotation": {},
+	"ignore-missing-components": {},
+	"jsonnet-tla-str":           {}, "jsonnet-tla-code": {},
+	"jsonnet-ext-var-str": {}, "jsonnet-ext-var-code": {}, "jsonnet-libs": {},
+	"plugin-env": {}, "ref": {}, "source-name": {}, "parameter": {},
+	"dry-source-repo": {}, "dry-source-path": {}, "dry-source-revision": {},
+	"sync-source-branch": {}, "sync-source-path": {}, "hydrate-to-branch": {},
+}
+
+// HasSourceScopedFlags returns true if any of the given flags target a specific source rather
+// than the application as a whole.
+func HasSourceScopedFlags(flags *pflag.FlagSet) bool {
+	hasSourceFlag := false
+	flags.Visit(func(f *pflag.Flag) {
+		if _, ok := flagsRequiringSourcePosition[f.Name]; ok {
+			hasSourceFlag = true
+		}
+	})
+	return hasSourceFlag
+}
