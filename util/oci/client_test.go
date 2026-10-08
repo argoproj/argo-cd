@@ -16,8 +16,11 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
+	keysync "github.com/argoproj/pkg/v2/sync"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -96,6 +99,86 @@ func addFileToDirectory(t *testing.T, dir, filename, content string) {
 	filePath := filepath.Join(dir, filename)
 	err := os.WriteFile(filePath, []byte(content), 0o644)
 	require.NoError(t, err)
+}
+
+type observingOCIKeyLock struct {
+	keysync.KeyLock
+	beforeLock func(string)
+	afterLock  func(string)
+}
+
+func (l observingOCIKeyLock) Lock(key string) {
+	if l.beforeLock != nil {
+		l.beforeLock(key)
+	}
+	l.KeyLock.Lock(key)
+	if l.afterLock != nil {
+		l.afterLock(key)
+	}
+}
+
+func Test_nativeOCIClient_CleanCacheWaitsForExtraction(t *testing.T) {
+	store := memory.New()
+	layer := createGzippedTarWithContent(t, "deployment.yaml", "some content")
+	revision := generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, layer), layer})
+	cachePaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	lock := keysync.NewKeyLock()
+	extractionLocked := make(chan string)
+	resumeExtraction := make(chan struct{})
+	releaseExtraction := sync.OnceFunc(func() { close(resumeExtraction) })
+	cleanupLockAttempt := make(chan string)
+	const repoURL = "oci://example.com/manifests"
+
+	reader := newClientWithLock(repoURL, observingOCIKeyLock{
+		KeyLock: lock,
+		afterLock: func(key string) {
+			extractionLocked <- key
+			<-resumeExtraction
+		},
+	}, store, nil, nil, []string{imagev1.MediaTypeImageLayerGzip},
+		WithImagePaths(cachePaths), WithManifestMaxExtractedSize(1000), WithEventHandlers(fakeEventHandlers(t, repoURL)))
+	cleaner := &nativeOCIClient{
+		repoURL: repoURL,
+		repoLock: observingOCIKeyLock{
+			KeyLock:    lock,
+			beforeLock: func(key string) { cleanupLockAttempt <- key },
+		},
+		repoCachePaths: cachePaths,
+	}
+	cachePath, err := cleaner.getCachedPath(revision)
+	require.NoError(t, err)
+	require.NoError(t, saveCompressedImageToPath(t.Context(), revision, store, cachePath))
+
+	extracted := make(chan error, 1)
+	go func() {
+		_, closer, err := reader.Extract(t.Context(), revision)
+		if err == nil {
+			err = closer.Close()
+		}
+		extracted <- err
+	}()
+	t.Cleanup(func() {
+		releaseExtraction()
+		assert.NoError(t, <-extracted)
+	})
+	require.Equal(t, cachePath, <-extractionLocked)
+
+	cleaned := make(chan error, 1)
+	go func() { cleaned <- cleaner.CleanCache(revision) }()
+	select {
+	case key := <-cleanupLockAttempt:
+		require.Equal(t, cachePath, key)
+		require.FileExists(t, cachePath)
+	case err := <-cleaned:
+		require.NoError(t, err)
+		t.Fatal("cache cleanup completed while extraction still held the archive lock")
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for cache cleanup to attempt the lock")
+	}
+
+	releaseExtraction()
+	require.NoError(t, <-cleaned)
+	require.NoFileExists(t, cachePath)
 }
 
 func Test_nativeOCIClient_Extract(t *testing.T) {
