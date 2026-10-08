@@ -36308,7 +36308,7 @@ spec:
               key: dexserver.connector.failure.continue
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.45.1
+        image: ghcr.io/dexidp/dex:v2.46.0
         imagePullPolicy: Always
         name: dex
         ports:
