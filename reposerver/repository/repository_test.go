@@ -3644,6 +3644,13 @@ func TestRunHelmBuildRecordsMarker(t *testing.T) {
 	marker, err = os.ReadFile(markerFile)
 	require.NoError(t, err)
 	assert.Equal(t, "rev2", string(marker))
+
+	// An empty marker means a previous helm dependency build was interrupted,
+	// so the command must run again.
+	require.NoError(t, os.WriteFile(markerFile, nil, 0o644))
+	err = runHelmBuild(t.Context(), appPath, "rev2", helmClient)
+	require.NoError(t, err)
+	assert.Equal(t, 3, helmClient.dependencyBuildCalls)
 }
 
 func TestCleanStaleHelmDependencies(t *testing.T) {
@@ -3691,10 +3698,22 @@ func TestCleanStaleHelmDependencies(t *testing.T) {
 	// Marker holds another revision: the untracked output of the stale build
 	// is removed, while files tracked in the requested revision are preserved.
 	require.NoError(t, os.WriteFile(markerFile, []byte("rev2-marker-is-stale"), 0o644))
+	staleRequirementsLockFile := filepath.Join(appPath, "requirements.lock")
+	require.NoError(t, os.WriteFile(staleRequirementsLockFile, []byte("stale"), 0o644))
 	require.NoError(t, cleanStaleHelmDependencies(t.Context(), appPath, "rev2"))
 	assert.NoFileExists(t, markerFile)
 	assert.NoFileExists(t, staleVendoredChartFile)
+	assert.NoFileExists(t, staleRequirementsLockFile)
 	assert.FileExists(t, committedChartLockFile)
+	assert.FileExists(t, committedVendoredChartFile)
+
+	// An empty marker means a previous helm dependency build was interrupted,
+	// so the stale output is removed.
+	writeStaleOutput()
+	require.NoError(t, os.WriteFile(markerFile, nil, 0o644))
+	require.NoError(t, cleanStaleHelmDependencies(t.Context(), appPath, "rev1"))
+	assert.NoFileExists(t, markerFile)
+	assert.NoFileExists(t, staleVendoredChartFile)
 	assert.FileExists(t, committedVendoredChartFile)
 }
 
