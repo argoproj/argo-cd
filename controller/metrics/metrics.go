@@ -23,7 +23,6 @@ import (
 	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
-	"github.com/argoproj/argo-cd/v3/util/glob"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	metricsutil "github.com/argoproj/argo-cd/v3/util/metrics"
 	"github.com/argoproj/argo-cd/v3/util/metrics/kubectl"
@@ -192,21 +191,12 @@ var (
 type AppProjectGetter func(app *argoappv1.Application) (*argoappv1.AppProject, error)
 
 // NewMetricsServer returns a new prometheus server which collects application metrics.
-// Sync window metrics are emitted only for applications whose project matches
-// one of the syncWindowProjects globs: they add four series per application, so
-// they are opt-in and empty disables them.
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter AppFilter, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string, getAppProject AppProjectGetter, syncWindowProjects []string) (*MetricsServer, error) {
+// Sync window metrics add four series per application, so they are emitted only
+// when syncWindows is set.
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter AppFilter, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string, getAppProject AppProjectGetter, syncWindows bool) (*MetricsServer, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
-	}
-
-	// An uncompilable pattern is never cached, so it would otherwise log once
-	// per application per scrape and silently match nothing.
-	for _, pattern := range syncWindowProjects {
-		if _, err := glob.MatchWithError(pattern, ""); err != nil {
-			return nil, fmt.Errorf("invalid sync window project pattern %q: %w", pattern, err)
-		}
 	}
 
 	if len(appLabels) > 0 {
@@ -229,7 +219,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	}
 
 	mux := http.NewServeMux()
-	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions, getAppProject, syncWindowProjects)
+	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions, getAppProject, syncWindows)
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
@@ -413,26 +403,25 @@ type appCollector struct {
 	appLabels     []string
 	appConditions []string
 	getAppProject AppProjectGetter
-	// Project name globs to emit sync window metrics for.
-	syncWindowProjects []string
+	syncWindows   bool
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter AppFilter, appLabels []string, appConditions []string, getAppProject AppProjectGetter, syncWindowProjects []string) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter AppFilter, appLabels []string, appConditions []string, getAppProject AppProjectGetter, syncWindows bool) prometheus.Collector {
 	return &appCollector{
-		store:              appLister,
-		appFilter:          appFilter,
-		appLabels:          appLabels,
-		appConditions:      appConditions,
-		getAppProject:      getAppProject,
-		syncWindowProjects: syncWindowProjects,
+		store:         appLister,
+		appFilter:     appFilter,
+		appLabels:     appLabels,
+		appConditions: appConditions,
+		getAppProject: getAppProject,
+		syncWindows:   syncWindows,
 	}
 }
 
 // NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister, appFilter AppFilter, appLabels []string, appConditions []string, getAppProject AppProjectGetter, syncWindowProjects []string) *prometheus.Registry {
+func NewAppRegistry(appLister applister.ApplicationLister, appFilter AppFilter, appLabels []string, appConditions []string, getAppProject AppProjectGetter, syncWindows bool) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, getAppProject, syncWindowProjects))
+	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, getAppProject, syncWindows))
 	return registry
 }
 
@@ -476,7 +465,7 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (c *appCollector) syncWindowsEnabled() bool {
-	return c.getAppProject != nil && len(c.syncWindowProjects) > 0
+	return c.getAppProject != nil && c.syncWindows
 }
 
 func boolFloat64(b bool) float64 {
@@ -549,7 +538,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		}
 	}
 
-	if syncWindows != nil && glob.MatchStringInList(c.syncWindowProjects, app.Spec.GetProject(), glob.GLOB) {
+	if syncWindows != nil {
 		allowActive, denyActive, blocked, failed, err := syncWindows.evaluate(app)
 		if err != nil {
 			// Once per project per scrape: evaluate only returns the error to
