@@ -13,7 +13,7 @@
       "enabled": false
     },
     {
-      "description": "Re-enable the Go build toolchain on release branches and keep it on the minor that branch already ships. Update type is unknown until after lookup, so matchUpdateTypes cannot re-enable these packages in time. allowedVersions drops newer minors before a version is chosen. go.mod, golangci-lint, and mockery stay disabled.",
+      "description": "Re-enable the Go build toolchain on release branches and keep it on the minor that branch already ships. Update type is unknown until after lookup, so matchUpdateTypes cannot re-enable these packages in time. allowedVersions drops newer minors before a version is chosen. go.mod, golangci-lint, and mockery stay disabled. groupName must not be \"group golang\": with multiple base branches, Renovate's branchPrefixOld lookup strips the base branch and would bind these updates to the existing master PR.",
       "matchBaseBranches": [
         "/^release-\\d+\\.\\d+$/"
       ],
@@ -27,6 +27,7 @@
         "/(?:^|/)golang$/"
       ],
       "allowedVersions": "~{{major}}.{{minor}}.0",
+      "groupName": "release Go toolchain",
       "enabled": true
     },
     {
