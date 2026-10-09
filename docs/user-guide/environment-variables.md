@@ -16,3 +16,5 @@ The following environment variables can be used with `argocd` CLI:
 | `ARGOCD_REDIS_KEY_PREFIX`            | the Argo CD Redis keys prefix (default "")
 |
 | `ARGOCD_GRPC_KEEP_ALIVE_MIN`         | defines the GRPCKeepAliveEnforcementMinimum, used in the grpc.KeepaliveEnforcementPolicy. Expects a "Duration" format (default `10s`).                                                                    |
+| `ARGOCD_GRPC_DISABLE_CUSTOM_DNS_RESOLVER` | disables Argo CD's custom DNS resolver and restores gRPC's default DNS resolver behavior (which includes SRV queries). (default `false`)                                                                  |
+

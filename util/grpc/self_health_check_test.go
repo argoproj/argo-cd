@@ -118,6 +118,7 @@ func TestSelfHealthCheckTarget_SurvivesSlowGRPCLBSRV(t *testing.T) {
 	const probeBudget = 500 * time.Millisecond
 
 	t.Run("legacy localhost target exceeds probe budget", func(t *testing.T) {
+		t.Setenv(EnvGRPCDisableCustomDNSResolver, "true")
 		err := healthCheckWithBudget(t, fmt.Sprintf("localhost:%d", port), probeBudget)
 		require.Error(t, err, "slow _grpclb SRV must cause the health Check to fail under the probe budget")
 		assert.Contains(t, err.Error(), "DeadlineExceeded")
