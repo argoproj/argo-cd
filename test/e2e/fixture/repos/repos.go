@@ -119,6 +119,25 @@ func AddHelmRepo(t *testing.T, name string) {
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
+// AddHelmProvenanceRepo adds the local helm-repo/provenance sub-repo with signed charts.
+func AddHelmProvenanceRepo(t *testing.T, name string) {
+	t.Helper()
+	repoURL := strings.TrimSuffix(fixture.RepoURL(fixture.RepoURLTypeHelmParent), "/") + "/provenance"
+	args := []string{
+		"repo",
+		"add",
+		repoURL,
+		"--username", fixture.GitUsername,
+		"--password", fixture.GitPassword,
+		"--type", "helm",
+		"--name", name,
+	}
+	if strings.HasPrefix(repoURL, "https://") {
+		args = append(args, "--tls-client-cert-path", CertPath(t), "--tls-client-cert-key-path", CertKeyPath(t))
+	}
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
+}
+
 func AddOCIRepo(t *testing.T, name, imagePath string) {
 	t.Helper()
 	args := []string{

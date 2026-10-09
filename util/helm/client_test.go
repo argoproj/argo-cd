@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -725,6 +726,147 @@ entries: {}
 		require.NoError(t, err, "Request should succeed with User-Agent set")
 		t.Log("Success! Server accepted request with User-Agent")
 	})
+}
+
+func TestGetChartTgzPath_OCIReturnsCachedPath(t *testing.T) {
+	client := NewClient("example.com", HelmCreds{}, true, "", "", WithChartPaths(utilio.NewRandomizedTempPaths(t.TempDir())))
+	path, err := client.GetChartTgzPath("my-chart", "1.0.0")
+	require.NoError(t, err)
+	assert.NotEmpty(t, path)
+}
+
+func TestReadProvenanceFromPullDir(t *testing.T) {
+	t.Run("finds provenance file", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "mychart-1.0.0.tgz"), []byte("chart"), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "mychart-1.0.0.tgz.prov"), []byte("prov"), 0o600))
+		prov, name, err := readProvenanceFromPullDir(dir)
+		require.NoError(t, err)
+		assert.Equal(t, []byte("prov"), prov)
+		assert.Equal(t, "mychart-1.0.0.tgz", name)
+	})
+	t.Run("missing provenance", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "mychart-1.0.0.tgz"), []byte("chart"), 0o600))
+		prov, name, err := readProvenanceFromPullDir(dir)
+		require.Error(t, err)
+		require.ErrorIs(t, err, ErrProvenanceNotFound)
+		assert.Nil(t, prov)
+		assert.Empty(t, name)
+	})
+}
+
+func TestFetchProvenance_MirrorFallback(t *testing.T) {
+	provContent := []byte("-----BEGIN PGP SIGNED MESSAGE-----\nHash: SHA256\n\nchart: mychart-1.0.0.tgz\n...\n-----BEGIN PGP SIGNATURE-----\n...\n-----END PGP SIGNATURE-----")
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/index.yaml":
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries:
+  mychart:
+  - version: "1.0.0"
+    urls:
+    - "https://primary.example.com/mychart-1.0.0.tgz"
+    - "/mychart-1.0.0.tgz"
+`))
+		case "/mychart-1.0.0.tgz.prov":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(provContent)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+	prov, chartFilename, err := client.FetchProvenance(context.Background(), "mychart", false, "1.0.0")
+	require.NoError(t, err)
+	assert.Equal(t, provContent, prov)
+	assert.Equal(t, "mychart-1.0.0.tgz", chartFilename)
+}
+
+func TestFetchProvenance_AllMirrorsFail(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/index.yaml":
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries:
+  mychart:
+  - version: "1.0.0"
+    urls:
+    - "mychart-primary-1.0.0.tgz"
+    - "mychart-secondary-1.0.0.tgz"
+`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+	prov, chartFilename, err := client.FetchProvenance(context.Background(), "mychart", false, "1.0.0")
+	require.Error(t, err)
+	assert.Nil(t, prov)
+	assert.Empty(t, chartFilename)
+	require.ErrorIs(t, err, ErrProvenanceNotFound)
+	require.ErrorContains(t, err, "failed to fetch provenance")
+	require.ErrorContains(t, err, "2 URL(s)")
+}
+
+func TestFetchProvenance_TransientError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/index.yaml":
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries:
+  mychart:
+  - version: "1.0.0"
+    urls:
+    - "mychart-1.0.0.tgz"
+`))
+		case "/mychart-1.0.0.tgz.prov":
+			w.WriteHeader(http.StatusBadGateway)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+	prov, chartFilename, err := client.FetchProvenance(context.Background(), "mychart", false, "1.0.0")
+	require.Error(t, err)
+	assert.Nil(t, prov)
+	assert.Empty(t, chartFilename)
+	require.NotErrorIs(t, err, ErrProvenanceNotFound)
+	require.ErrorContains(t, err, "failed to fetch provenance")
+}
+
+func TestFetchProvenance_Success(t *testing.T) {
+	provContent := []byte("-----BEGIN PGP SIGNED MESSAGE-----\nHash: SHA256\n\nchart: mychart-1.0.0.tgz\n...\n-----BEGIN PGP SIGNATURE-----\n...\n-----END PGP SIGNATURE-----")
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/index.yaml":
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries:
+  mychart:
+  - version: "1.0.0"
+    urls:
+    - "mychart-1.0.0.tgz"
+`))
+		case "/mychart-1.0.0.tgz.prov":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(provContent)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+	prov, chartFilename, err := client.FetchProvenance(context.Background(), "mychart", false, "1.0.0")
+	require.NoError(t, err)
+	assert.Equal(t, provContent, prov)
+	assert.Equal(t, "mychart-1.0.0.tgz", chartFilename)
 }
 
 func TestUserAgentPriority(t *testing.T) {
