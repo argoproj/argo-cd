@@ -11,7 +11,7 @@ rules:
   # Concurrency is managed explicitly where it matters (e.g. ci-build.yaml).
   concurrency-limits:
     disable: true
-  # Evaluated and necessary for the cherry-pick automation workflow, which must
+  # Evaluated and necessarys for the cherry-pick automation workflow, which must
   # react to pull_request_target events to cherry-pick merged PRs across
   # release branches using a GitHub App token.
   dangerous-triggers:
