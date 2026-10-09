@@ -46,8 +46,8 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --apply-out-of-sync-only                            Sync only out-of-sync resources
       --assumeYes                                         Assume yes as answer for all user queries or prompts
       --async                                             Do not wait for application to sync before continuing
-      --dry-run                                           Preview apply without affecting cluster
-      --force                                             Use a force apply
+      --dry-run                                           Preview apply without affecting cluster. If omitted, syncPolicy.manualDefaults.dryRun is used
+      --force                                             Use a force apply. If omitted with --strategy unset, syncPolicy.manualDefaults.force is used
   -h, --help                                              help for sync
       --ignore-normalizer-jq-execution-timeout duration   Set ignore normalizer JQ execution timeout (default 1s)
       --info stringArray                                  A list of key-value pairs during sync process. These infos will be persisted in app.
@@ -57,7 +57,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
   -o, --output string                                     Output format. One of: json|yaml|wide|tree|tree=detailed (default "wide")
       --preview-changes                                   Preview difference against the target and live state before syncing app and wait for user confirmation
       --project stringArray                               Sync apps that belong to the specified projects. This option may be specified repeatedly.
-      --prune                                             Allow deleting unexpected resources
+      --prune                                             Allow deleting unexpected resources. If omitted, syncPolicy.manualDefaults.prune is used (default true)
       --replace                                           Use a kubectl create/replace instead apply
       --resource stringArray                              Sync only specific resources as GROUP:KIND:NAME or !GROUP:KIND:NAME. Fields may be blank and '*' can be used. This option may be specified repeatedly
       --retry-backoff-duration duration                   Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
@@ -73,7 +73,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --server-side-diff-max-batch-kb int                 Max batch size in KB for server-side diff. Smaller values are safer for proxies (default 250)
       --source-names stringArray                          List of source names. Default is an empty array.
       --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
-      --strategy string                                   Sync strategy (one of: apply|hook)
+      --strategy string                                   Sync strategy (one of: apply|hook). If omitted with --force unset, syncPolicy.manualDefaults.applyOnly is used
       --timeout uint                                      Time out after this many seconds
 ```
 

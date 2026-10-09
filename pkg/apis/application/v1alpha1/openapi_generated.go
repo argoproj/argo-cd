@@ -168,7 +168,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncOperationResult":                     schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicy":                              schema_pkg_apis_application_v1alpha1_SyncPolicy(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicyAutomated":                     schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref),
-		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicyManualDefaults":                        schema_pkg_apis_application_v1alpha1_SyncPolicyManualDefaults(ref),
+		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicyManualDefaults":                schema_pkg_apis_application_v1alpha1_SyncPolicyManualDefaults(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncSource":                              schema_pkg_apis_application_v1alpha1_SyncSource(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncStatus":                              schema_pkg_apis_application_v1alpha1_SyncStatus(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncStrategy":                            schema_pkg_apis_application_v1alpha1_SyncStrategy(ref),

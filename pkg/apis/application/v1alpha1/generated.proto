@@ -2899,21 +2899,6 @@ message SyncPolicy {
   optional SyncPolicyManualDefaults manualDefaults = 5;
 }
 
-// SyncPolicyManualDefaults controls the behavior of a manual sync
-message SyncPolicyManualDefaults {
-  // Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of manual sync (default: true)
-  optional bool prune = 1;
-
-  // DryRun specifies whether manual syncs should be performed as a dry run by default (default: false)
-  optional bool dryRun = 2;
-
-  // ApplyOnly specifies whether manual syncs should use apply-only strategy by default (default: false)
-  optional bool applyOnly = 3;
-
-  // Force specifies whether manual syncs should supply --force to kubectl by default (default: false)
-  optional bool force = 4;
-}
-
 // SyncPolicyAutomated controls the behavior of an automated sync
 message SyncPolicyAutomated {
   // Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
@@ -2927,6 +2912,21 @@ message SyncPolicyAutomated {
 
   // Enable allows apps to explicitly control automated sync
   optional bool enabled = 4;
+}
+
+// SyncPolicyManualDefaults controls the default behavior of a manual sync
+message SyncPolicyManualDefaults {
+  // Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of manual sync (default: true)
+  optional bool prune = 1;
+
+  // DryRun specifies whether manual syncs should be performed as a dry run by default (default: false)
+  optional bool dryRun = 2;
+
+  // ApplyOnly specifies whether manual syncs should use apply-only strategy by default (default: false)
+  optional bool applyOnly = 3;
+
+  // Force specifies whether manual syncs should supply --force to kubectl by default (default: false)
+  optional bool force = 4;
 }
 
 // SyncSource specifies a location from which hydrated manifests may be synced. If RepoURL is not set, it is assumed

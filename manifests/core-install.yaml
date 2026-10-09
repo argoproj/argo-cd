@@ -8175,29 +8175,14 @@ spec:
                                           type: object
                                       type: object
                                     manualDefaults:
-                                      description: ManualDefaults controls the default
-                                        behavior of a manual sync
                                       properties:
                                         applyOnly:
-                                          description: 'ApplyOnly specifies whether
-                                            manual syncs should use apply-only strategy
-                                            by default (default: false)'
                                           type: boolean
                                         dryRun:
-                                          description: 'DryRun specifies whether manual
-                                            syncs should be performed as a dry run
-                                            by default (default: false)'
                                           type: boolean
                                         force:
-                                          description: 'Force specifies whether manual
-                                            syncs should supply --force to kubectl
-                                            by default (default: false)'
                                           type: boolean
                                         prune:
-                                          description: 'Prune specifies whether to
-                                            delete resources from the cluster that
-                                            are not found in the sources anymore as
-                                            part of manual sync (default: true)'
                                           type: boolean
                                       type: object
                                     retry:
@@ -9121,29 +9106,14 @@ spec:
                                           type: object
                                       type: object
                                     manualDefaults:
-                                      description: ManualDefaults controls the default
-                                        behavior of a manual sync
                                       properties:
                                         applyOnly:
-                                          description: 'ApplyOnly specifies whether
-                                            manual syncs should use apply-only strategy
-                                            by default (default: false)'
                                           type: boolean
                                         dryRun:
-                                          description: 'DryRun specifies whether manual
-                                            syncs should be performed as a dry run
-                                            by default (default: false)'
                                           type: boolean
                                         force:
-                                          description: 'Force specifies whether manual
-                                            syncs should supply --force to kubectl
-                                            by default (default: false)'
                                           type: boolean
                                         prune:
-                                          description: 'Prune specifies whether to
-                                            delete resources from the cluster that
-                                            are not found in the sources anymore as
-                                            part of manual sync (default: true)'
                                           type: boolean
                                       type: object
                                     retry:
@@ -10068,29 +10038,14 @@ spec:
                                           type: object
                                       type: object
                                     manualDefaults:
-                                      description: ManualDefaults controls the default
-                                        behavior of a manual sync
                                       properties:
                                         applyOnly:
-                                          description: 'ApplyOnly specifies whether
-                                            manual syncs should use apply-only strategy
-                                            by default (default: false)'
                                           type: boolean
                                         dryRun:
-                                          description: 'DryRun specifies whether manual
-                                            syncs should be performed as a dry run
-                                            by default (default: false)'
                                           type: boolean
                                         force:
-                                          description: 'Force specifies whether manual
-                                            syncs should supply --force to kubectl
-                                            by default (default: false)'
                                           type: boolean
                                         prune:
-                                          description: 'Prune specifies whether to
-                                            delete resources from the cluster that
-                                            are not found in the sources anymore as
-                                            part of manual sync (default: true)'
                                           type: boolean
                                       type: object
                                     retry:
@@ -10993,29 +10948,14 @@ spec:
                                           type: object
                                       type: object
                                     manualDefaults:
-                                      description: ManualDefaults controls the default
-                                        behavior of a manual sync
                                       properties:
                                         applyOnly:
-                                          description: 'ApplyOnly specifies whether
-                                            manual syncs should use apply-only strategy
-                                            by default (default: false)'
                                           type: boolean
                                         dryRun:
-                                          description: 'DryRun specifies whether manual
-                                            syncs should be performed as a dry run
-                                            by default (default: false)'
                                           type: boolean
                                         force:
-                                          description: 'Force specifies whether manual
-                                            syncs should supply --force to kubectl
-                                            by default (default: false)'
                                           type: boolean
                                         prune:
-                                          description: 'Prune specifies whether to
-                                            delete resources from the cluster that
-                                            are not found in the sources anymore as
-                                            part of manual sync (default: true)'
                                           type: boolean
                                       type: object
                                     retry:
@@ -11943,35 +11883,14 @@ spec:
                                                     type: object
                                                 type: object
                                               manualDefaults:
-                                                description: ManualDefaults controls
-                                                  the default behavior of a manual
-                                                  sync
                                                 properties:
                                                   applyOnly:
-                                                    description: 'ApplyOnly specifies
-                                                      whether manual syncs should
-                                                      use apply-only strategy by default
-                                                      (default: false)'
                                                     type: boolean
                                                   dryRun:
-                                                    description: 'DryRun specifies
-                                                      whether manual syncs should
-                                                      be performed as a dry run by
-                                                      default (default: false)'
                                                     type: boolean
                                                   force:
-                                                    description: 'Force specifies
-                                                      whether manual syncs should
-                                                      supply --force to kubectl by
-                                                      default (default: false)'
                                                     type: boolean
                                                   prune:
-                                                    description: 'Prune specifies
-                                                      whether to delete resources
-                                                      from the cluster that are not
-                                                      found in the sources anymore
-                                                      as part of manual sync (default:
-                                                      true)'
                                                     type: boolean
                                                 type: object
                                               retry:
@@ -12895,35 +12814,14 @@ spec:
                                                     type: object
                                                 type: object
                                               manualDefaults:
-                                                description: ManualDefaults controls
-                                                  the default behavior of a manual
-                                                  sync
                                                 properties:
                                                   applyOnly:
-                                                    description: 'ApplyOnly specifies
-                                                      whether manual syncs should
-                                                      use apply-only strategy by default
-                                                      (default: false)'
                                                     type: boolean
                                                   dryRun:
-                                                    description: 'DryRun specifies
-                                                      whether manual syncs should
-                                                      be performed as a dry run by
-                                                      default (default: false)'
                                                     type: boolean
                                                   force:
-                                                    description: 'Force specifies
-                                                      whether manual syncs should
-                                                      supply --force to kubectl by
-                                                      default (default: false)'
                                                     type: boolean
                                                   prune:
-                                                    description: 'Prune specifies
-                                                      whether to delete resources
-                                                      from the cluster that are not
-                                                      found in the sources anymore
-                                                      as part of manual sync (default:
-                                                      true)'
                                                     type: boolean
                                                 type: object
                                               retry:
@@ -13848,35 +13746,14 @@ spec:
                                                     type: object
                                                 type: object
                                               manualDefaults:
-                                                description: ManualDefaults controls
-                                                  the default behavior of a manual
-                                                  sync
                                                 properties:
                                                   applyOnly:
-                                                    description: 'ApplyOnly specifies
-                                                      whether manual syncs should
-                                                      use apply-only strategy by default
-                                                      (default: false)'
                                                     type: boolean
                                                   dryRun:
-                                                    description: 'DryRun specifies
-                                                      whether manual syncs should
-                                                      be performed as a dry run by
-                                                      default (default: false)'
                                                     type: boolean
                                                   force:
-                                                    description: 'Force specifies
-                                                      whether manual syncs should
-                                                      supply --force to kubectl by
-                                                      default (default: false)'
                                                     type: boolean
                                                   prune:
-                                                    description: 'Prune specifies
-                                                      whether to delete resources
-                                                      from the cluster that are not
-                                                      found in the sources anymore
-                                                      as part of manual sync (default:
-                                                      true)'
                                                     type: boolean
                                                 type: object
                                               retry:
@@ -14779,35 +14656,14 @@ spec:
                                                     type: object
                                                 type: object
                                               manualDefaults:
-                                                description: ManualDefaults controls
-                                                  the default behavior of a manual
-                                                  sync
                                                 properties:
                                                   applyOnly:
-                                                    description: 'ApplyOnly specifies
-                                                      whether manual syncs should
-                                                      use apply-only strategy by default
-                                                      (default: false)'
                                                     type: boolean
                                                   dryRun:
-                                                    description: 'DryRun specifies
-                                                      whether manual syncs should
-                                                      be performed as a dry run by
-                                                      default (default: false)'
                                                     type: boolean
                                                   force:
-                                                    description: 'Force specifies
-                                                      whether manual syncs should
-                                                      supply --force to kubectl by
-                                                      default (default: false)'
                                                     type: boolean
                                                   prune:
-                                                    description: 'Prune specifies
-                                                      whether to delete resources
-                                                      from the cluster that are not
-                                                      found in the sources anymore
-                                                      as part of manual sync (default:
-                                                      true)'
                                                     type: boolean
                                                 type: object
                                               retry:
@@ -15732,35 +15588,14 @@ spec:
                                                     type: object
                                                 type: object
                                               manualDefaults:
-                                                description: ManualDefaults controls
-                                                  the default behavior of a manual
-                                                  sync
                                                 properties:
                                                   applyOnly:
-                                                    description: 'ApplyOnly specifies
-                                                      whether manual syncs should
-                                                      use apply-only strategy by default
-                                                      (default: false)'
                                                     type: boolean
                                                   dryRun:
-                                                    description: 'DryRun specifies
-                                                      whether manual syncs should
-                                                      be performed as a dry run by
-                                                      default (default: false)'
                                                     type: boolean
                                                   force:
-                                                    description: 'Force specifies
-                                                      whether manual syncs should
-                                                      supply --force to kubectl by
-                                                      default (default: false)'
                                                     type: boolean
                                                   prune:
-                                                    description: 'Prune specifies
-                                                      whether to delete resources
-                                                      from the cluster that are not
-                                                      found in the sources anymore
-                                                      as part of manual sync (default:
-                                                      true)'
                                                     type: boolean
                                                 type: object
                                               retry:
@@ -16674,35 +16509,14 @@ spec:
                                                     type: object
                                                 type: object
                                               manualDefaults:
-                                                description: ManualDefaults controls
-                                                  the default behavior of a manual
-                                                  sync
                                                 properties:
                                                   applyOnly:
-                                                    description: 'ApplyOnly specifies
-                                                      whether manual syncs should
-                                                      use apply-only strategy by default
-                                                      (default: false)'
                                                     type: boolean
                                                   dryRun:
-                                                    description: 'DryRun specifies
-                                                      whether manual syncs should
-                                                      be performed as a dry run by
-                                                      default (default: false)'
                                                     type: boolean
                                                   force:
-                                                    description: 'Force specifies
-                                                      whether manual syncs should
-                                                      supply --force to kubectl by
-                                                      default (default: false)'
                                                     type: boolean
                                                   prune:
-                                                    description: 'Prune specifies
-                                                      whether to delete resources
-                                                      from the cluster that are not
-                                                      found in the sources anymore
-                                                      as part of manual sync (default:
-                                                      true)'
                                                     type: boolean
                                                 type: object
                                               retry:
@@ -17840,35 +17654,14 @@ spec:
                                                     type: object
                                                 type: object
                                               manualDefaults:
-                                                description: ManualDefaults controls
-                                                  the default behavior of a manual
-                                                  sync
                                                 properties:
                                                   applyOnly:
-                                                    description: 'ApplyOnly specifies
-                                                      whether manual syncs should
-                                                      use apply-only strategy by default
-                                                      (default: false)'
                                                     type: boolean
                                                   dryRun:
-                                                    description: 'DryRun specifies
-                                                      whether manual syncs should
-                                                      be performed as a dry run by
-                                                      default (default: false)'
                                                     type: boolean
                                                   force:
-                                                    description: 'Force specifies
-                                                      whether manual syncs should
-                                                      supply --force to kubectl by
-                                                      default (default: false)'
                                                     type: boolean
                                                   prune:
-                                                    description: 'Prune specifies
-                                                      whether to delete resources
-                                                      from the cluster that are not
-                                                      found in the sources anymore
-                                                      as part of manual sync (default:
-                                                      true)'
                                                     type: boolean
                                                 type: object
                                               retry:
@@ -19003,35 +18796,14 @@ spec:
                                                     type: object
                                                 type: object
                                               manualDefaults:
-                                                description: ManualDefaults controls
-                                                  the default behavior of a manual
-                                                  sync
                                                 properties:
                                                   applyOnly:
-                                                    description: 'ApplyOnly specifies
-                                                      whether manual syncs should
-                                                      use apply-only strategy by default
-                                                      (default: false)'
                                                     type: boolean
                                                   dryRun:
-                                                    description: 'DryRun specifies
-                                                      whether manual syncs should
-                                                      be performed as a dry run by
-                                                      default (default: false)'
                                                     type: boolean
                                                   force:
-                                                    description: 'Force specifies
-                                                      whether manual syncs should
-                                                      supply --force to kubectl by
-                                                      default (default: false)'
                                                     type: boolean
                                                   prune:
-                                                    description: 'Prune specifies
-                                                      whether to delete resources
-                                                      from the cluster that are not
-                                                      found in the sources anymore
-                                                      as part of manual sync (default:
-                                                      true)'
                                                     type: boolean
                                                 type: object
                                               retry:
@@ -19951,29 +19723,14 @@ spec:
                                           type: object
                                       type: object
                                     manualDefaults:
-                                      description: ManualDefaults controls the default
-                                        behavior of a manual sync
                                       properties:
                                         applyOnly:
-                                          description: 'ApplyOnly specifies whether
-                                            manual syncs should use apply-only strategy
-                                            by default (default: false)'
                                           type: boolean
                                         dryRun:
-                                          description: 'DryRun specifies whether manual
-                                            syncs should be performed as a dry run
-                                            by default (default: false)'
                                           type: boolean
                                         force:
-                                          description: 'Force specifies whether manual
-                                            syncs should supply --force to kubectl
-                                            by default (default: false)'
                                           type: boolean
                                         prune:
-                                          description: 'Prune specifies whether to
-                                            delete resources from the cluster that
-                                            are not found in the sources anymore as
-                                            part of manual sync (default: true)'
                                           type: boolean
                                       type: object
                                     retry:
@@ -20903,35 +20660,14 @@ spec:
                                                     type: object
                                                 type: object
                                               manualDefaults:
-                                                description: ManualDefaults controls
-                                                  the default behavior of a manual
-                                                  sync
                                                 properties:
                                                   applyOnly:
-                                                    description: 'ApplyOnly specifies
-                                                      whether manual syncs should
-                                                      use apply-only strategy by default
-                                                      (default: false)'
                                                     type: boolean
                                                   dryRun:
-                                                    description: 'DryRun specifies
-                                                      whether manual syncs should
-                                                      be performed as a dry run by
-                                                      default (default: false)'
                                                     type: boolean
                                                   force:
-                                                    description: 'Force specifies
-                                                      whether manual syncs should
-                                                      supply --force to kubectl by
-                                                      default (default: false)'
                                                     type: boolean
                                                   prune:
-                                                    description: 'Prune specifies
-                                                      whether to delete resources
-                                                      from the cluster that are not
-                                                      found in the sources anymore
-                                                      as part of manual sync (default:
-                                                      true)'
                                                     type: boolean
                                                 type: object
                                               retry:
@@ -21855,35 +21591,14 @@ spec:
                                                     type: object
                                                 type: object
                                               manualDefaults:
-                                                description: ManualDefaults controls
-                                                  the default behavior of a manual
-                                                  sync
                                                 properties:
                                                   applyOnly:
-                                                    description: 'ApplyOnly specifies
-                                                      whether manual syncs should
-                                                      use apply-only strategy by default
-                                                      (default: false)'
                                                     type: boolean
                                                   dryRun:
-                                                    description: 'DryRun specifies
-                                                      whether manual syncs should
-                                                      be performed as a dry run by
-                                                      default (default: false)'
                                                     type: boolean
                                                   force:
-                                                    description: 'Force specifies
-                                                      whether manual syncs should
-                                                      supply --force to kubectl by
-                                                      default (default: false)'
                                                     type: boolean
                                                   prune:
-                                                    description: 'Prune specifies
-                                                      whether to delete resources
-                                                      from the cluster that are not
-                                                      found in the sources anymore
-                                                      as part of manual sync (default:
-                                                      true)'
                                                     type: boolean
                                                 type: object
                                               retry:
@@ -22808,35 +22523,14 @@ spec:
                                                     type: object
                                                 type: object
                                               manualDefaults:
-                                                description: ManualDefaults controls
-                                                  the default behavior of a manual
-                                                  sync
                                                 properties:
                                                   applyOnly:
-                                                    description: 'ApplyOnly specifies
-                                                      whether manual syncs should
-                                                      use apply-only strategy by default
-                                                      (default: false)'
                                                     type: boolean
                                                   dryRun:
-                                                    description: 'DryRun specifies
-                                                      whether manual syncs should
-                                                      be performed as a dry run by
-                                                      default (default: false)'
                                                     type: boolean
                                                   force:
-                                                    description: 'Force specifies
-                                                      whether manual syncs should
-                                                      supply --force to kubectl by
-                                                      default (default: false)'
                                                     type: boolean
                                                   prune:
-                                                    description: 'Prune specifies
-                                                      whether to delete resources
-                                                      from the cluster that are not
-                                                      found in the sources anymore
-                                                      as part of manual sync (default:
-                                                      true)'
                                                     type: boolean
                                                 type: object
                                               retry:
@@ -23739,35 +23433,14 @@ spec:
                                                     type: object
                                                 type: object
                                               manualDefaults:
-                                                description: ManualDefaults controls
-                                                  the default behavior of a manual
-                                                  sync
                                                 properties:
                                                   applyOnly:
-                                                    description: 'ApplyOnly specifies
-                                                      whether manual syncs should
-                                                      use apply-only strategy by default
-                                                      (default: false)'
                                                     type: boolean
                                                   dryRun:
-                                                    description: 'DryRun specifies
-                                                      whether manual syncs should
-                                                      be performed as a dry run by
-                                                      default (default: false)'
                                                     type: boolean
                                                   force:
-                                                    description: 'Force specifies
-                                                      whether manual syncs should
-                                                      supply --force to kubectl by
-                                                      default (default: false)'
                                                     type: boolean
                                                   prune:
-                                                    description: 'Prune specifies
-                                                      whether to delete resources
-                                                      from the cluster that are not
-                                                      found in the sources anymore
-                                                      as part of manual sync (default:
-                                                      true)'
                                                     type: boolean
                                                 type: object
                                               retry:
@@ -24692,35 +24365,14 @@ spec:
                                                     type: object
                                                 type: object
                                               manualDefaults:
-                                                description: ManualDefaults controls
-                                                  the default behavior of a manual
-                                                  sync
                                                 properties:
                                                   applyOnly:
-                                                    description: 'ApplyOnly specifies
-                                                      whether manual syncs should
-                                                      use apply-only strategy by default
-                                                      (default: false)'
                                                     type: boolean
                                                   dryRun:
-                                                    description: 'DryRun specifies
-                                                      whether manual syncs should
-                                                      be performed as a dry run by
-                                                      default (default: false)'
                                                     type: boolean
                                                   force:
-                                                    description: 'Force specifies
-                                                      whether manual syncs should
-                                                      supply --force to kubectl by
-                                                      default (default: false)'
                                                     type: boolean
                                                   prune:
-                                                    description: 'Prune specifies
-                                                      whether to delete resources
-                                                      from the cluster that are not
-                                                      found in the sources anymore
-                                                      as part of manual sync (default:
-                                                      true)'
                                                     type: boolean
                                                 type: object
                                               retry:
@@ -25634,35 +25286,14 @@ spec:
                                                     type: object
                                                 type: object
                                               manualDefaults:
-                                                description: ManualDefaults controls
-                                                  the default behavior of a manual
-                                                  sync
                                                 properties:
                                                   applyOnly:
-                                                    description: 'ApplyOnly specifies
-                                                      whether manual syncs should
-                                                      use apply-only strategy by default
-                                                      (default: false)'
                                                     type: boolean
                                                   dryRun:
-                                                    description: 'DryRun specifies
-                                                      whether manual syncs should
-                                                      be performed as a dry run by
-                                                      default (default: false)'
                                                     type: boolean
                                                   force:
-                                                    description: 'Force specifies
-                                                      whether manual syncs should
-                                                      supply --force to kubectl by
-                                                      default (default: false)'
                                                     type: boolean
                                                   prune:
-                                                    description: 'Prune specifies
-                                                      whether to delete resources
-                                                      from the cluster that are not
-                                                      found in the sources anymore
-                                                      as part of manual sync (default:
-                                                      true)'
                                                     type: boolean
                                                 type: object
                                               retry:
@@ -26800,35 +26431,14 @@ spec:
                                                     type: object
                                                 type: object
                                               manualDefaults:
-                                                description: ManualDefaults controls
-                                                  the default behavior of a manual
-                                                  sync
                                                 properties:
                                                   applyOnly:
-                                                    description: 'ApplyOnly specifies
-                                                      whether manual syncs should
-                                                      use apply-only strategy by default
-                                                      (default: false)'
                                                     type: boolean
                                                   dryRun:
-                                                    description: 'DryRun specifies
-                                                      whether manual syncs should
-                                                      be performed as a dry run by
-                                                      default (default: false)'
                                                     type: boolean
                                                   force:
-                                                    description: 'Force specifies
-                                                      whether manual syncs should
-                                                      supply --force to kubectl by
-                                                      default (default: false)'
                                                     type: boolean
                                                   prune:
-                                                    description: 'Prune specifies
-                                                      whether to delete resources
-                                                      from the cluster that are not
-                                                      found in the sources anymore
-                                                      as part of manual sync (default:
-                                                      true)'
                                                     type: boolean
                                                 type: object
                                               retry:
@@ -27963,35 +27573,14 @@ spec:
                                                     type: object
                                                 type: object
                                               manualDefaults:
-                                                description: ManualDefaults controls
-                                                  the default behavior of a manual
-                                                  sync
                                                 properties:
                                                   applyOnly:
-                                                    description: 'ApplyOnly specifies
-                                                      whether manual syncs should
-                                                      use apply-only strategy by default
-                                                      (default: false)'
                                                     type: boolean
                                                   dryRun:
-                                                    description: 'DryRun specifies
-                                                      whether manual syncs should
-                                                      be performed as a dry run by
-                                                      default (default: false)'
                                                     type: boolean
                                                   force:
-                                                    description: 'Force specifies
-                                                      whether manual syncs should
-                                                      supply --force to kubectl by
-                                                      default (default: false)'
                                                     type: boolean
                                                   prune:
-                                                    description: 'Prune specifies
-                                                      whether to delete resources
-                                                      from the cluster that are not
-                                                      found in the sources anymore
-                                                      as part of manual sync (default:
-                                                      true)'
                                                     type: boolean
                                                 type: object
                                               retry:
@@ -28915,29 +28504,14 @@ spec:
                                           type: object
                                       type: object
                                     manualDefaults:
-                                      description: ManualDefaults controls the default
-                                        behavior of a manual sync
                                       properties:
                                         applyOnly:
-                                          description: 'ApplyOnly specifies whether
-                                            manual syncs should use apply-only strategy
-                                            by default (default: false)'
                                           type: boolean
                                         dryRun:
-                                          description: 'DryRun specifies whether manual
-                                            syncs should be performed as a dry run
-                                            by default (default: false)'
                                           type: boolean
                                         force:
-                                          description: 'Force specifies whether manual
-                                            syncs should supply --force to kubectl
-                                            by default (default: false)'
                                           type: boolean
                                         prune:
-                                          description: 'Prune specifies whether to
-                                            delete resources from the cluster that
-                                            are not found in the sources anymore as
-                                            part of manual sync (default: true)'
                                           type: boolean
                                       type: object
                                     retry:
@@ -29861,29 +29435,14 @@ spec:
                                           type: object
                                       type: object
                                     manualDefaults:
-                                      description: ManualDefaults controls the default
-                                        behavior of a manual sync
                                       properties:
                                         applyOnly:
-                                          description: 'ApplyOnly specifies whether
-                                            manual syncs should use apply-only strategy
-                                            by default (default: false)'
                                           type: boolean
                                         dryRun:
-                                          description: 'DryRun specifies whether manual
-                                            syncs should be performed as a dry run
-                                            by default (default: false)'
                                           type: boolean
                                         force:
-                                          description: 'Force specifies whether manual
-                                            syncs should supply --force to kubectl
-                                            by default (default: false)'
                                           type: boolean
                                         prune:
-                                          description: 'Prune specifies whether to
-                                            delete resources from the cluster that
-                                            are not found in the sources anymore as
-                                            part of manual sync (default: true)'
                                           type: boolean
                                       type: object
                                     retry:
@@ -30797,29 +30356,14 @@ spec:
                                           type: object
                                       type: object
                                     manualDefaults:
-                                      description: ManualDefaults controls the default
-                                        behavior of a manual sync
                                       properties:
                                         applyOnly:
-                                          description: 'ApplyOnly specifies whether
-                                            manual syncs should use apply-only strategy
-                                            by default (default: false)'
                                           type: boolean
                                         dryRun:
-                                          description: 'DryRun specifies whether manual
-                                            syncs should be performed as a dry run
-                                            by default (default: false)'
                                           type: boolean
                                         force:
-                                          description: 'Force specifies whether manual
-                                            syncs should supply --force to kubectl
-                                            by default (default: false)'
                                           type: boolean
                                         prune:
-                                          description: 'Prune specifies whether to
-                                            delete resources from the cluster that
-                                            are not found in the sources anymore as
-                                            part of manual sync (default: true)'
                                           type: boolean
                                       type: object
                                     retry:
@@ -31957,29 +31501,14 @@ spec:
                                           type: object
                                       type: object
                                     manualDefaults:
-                                      description: ManualDefaults controls the default
-                                        behavior of a manual sync
                                       properties:
                                         applyOnly:
-                                          description: 'ApplyOnly specifies whether
-                                            manual syncs should use apply-only strategy
-                                            by default (default: false)'
                                           type: boolean
                                         dryRun:
-                                          description: 'DryRun specifies whether manual
-                                            syncs should be performed as a dry run
-                                            by default (default: false)'
                                           type: boolean
                                         force:
-                                          description: 'Force specifies whether manual
-                                            syncs should supply --force to kubectl
-                                            by default (default: false)'
                                           type: boolean
                                         prune:
-                                          description: 'Prune specifies whether to
-                                            delete resources from the cluster that
-                                            are not found in the sources anymore as
-                                            part of manual sync (default: true)'
                                           type: boolean
                                       type: object
                                     retry:
@@ -33114,29 +32643,14 @@ spec:
                                           type: object
                                       type: object
                                     manualDefaults:
-                                      description: ManualDefaults controls the default
-                                        behavior of a manual sync
                                       properties:
                                         applyOnly:
-                                          description: 'ApplyOnly specifies whether
-                                            manual syncs should use apply-only strategy
-                                            by default (default: false)'
                                           type: boolean
                                         dryRun:
-                                          description: 'DryRun specifies whether manual
-                                            syncs should be performed as a dry run
-                                            by default (default: false)'
                                           type: boolean
                                         force:
-                                          description: 'Force specifies whether manual
-                                            syncs should supply --force to kubectl
-                                            by default (default: false)'
                                           type: boolean
                                         prune:
-                                          description: 'Prune specifies whether to
-                                            delete resources from the cluster that
-                                            are not found in the sources anymore as
-                                            part of manual sync (default: true)'
                                           type: boolean
                                       type: object
                                     retry:
@@ -34133,28 +33647,14 @@ spec:
                                 type: object
                             type: object
                           manualDefaults:
-                            description: ManualDefaults controls the default behavior
-                              of a manual sync
                             properties:
                               applyOnly:
-                                description: 'ApplyOnly specifies whether manual syncs
-                                  should use apply-only strategy by default (default:
-                                  false)'
                                 type: boolean
                               dryRun:
-                                description: 'DryRun specifies whether manual syncs
-                                  should be performed as a dry run by default (default:
-                                  false)'
                                 type: boolean
                               force:
-                                description: 'Force specifies whether manual syncs
-                                  should supply --force to kubectl by default (default:
-                                  false)'
                                 type: boolean
                               prune:
-                                description: 'Prune specifies whether to delete resources
-                                  from the cluster that are not found in the sources
-                                  anymore as part of manual sync (default: true)'
                                 type: boolean
                             type: object
                           retry:

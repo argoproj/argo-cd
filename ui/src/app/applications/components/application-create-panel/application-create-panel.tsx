@@ -94,11 +94,7 @@ const ManualSyncDefaultsFormField = ReactFormField((props: {fieldApi: FieldApi})
     return (
         <div className='application-create-panel__sync-params'>
             <div className='checkbox-container'>
-                <Checkbox
-                    onChange={val => update({prune: val})}
-                    checked={configured ? (manualDefaults.prune ?? true) : false}
-                    id='policyManualPrune'
-                />
+                <Checkbox onChange={val => update({prune: val})} checked={configured ? (manualDefaults.prune ?? true) : false} id='policyManualPrune' />
                 <label htmlFor='policyManualPrune'>Prune on Manual Sync</label>
                 <HelpIcon title='Set default prune for manual syncs (only applies once configured; default when set: true)' />
             </div>

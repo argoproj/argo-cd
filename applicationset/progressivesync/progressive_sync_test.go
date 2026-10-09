@@ -1552,16 +1552,16 @@ func TestSyncDesiredApplications_PruneIndependentOfAutomated(t *testing.T) {
 	}
 	desired := []v1alpha1.Application{
 		{
-			ObjectMeta: metav1.ObjectMeta{Name: "app-manual-prune"},
+			Name: "app-manual-prune",
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
-					Automated: &v1alpha1.SyncPolicyAutomated{Prune: new(false)},
+					Automated:      &v1alpha1.SyncPolicyAutomated{Prune: new(false)},
 					ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{Prune: new(true)},
 				},
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{Name: "app-auto-prune-only"},
+			Name: "app-auto-prune-only",
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{Prune: new(true)},

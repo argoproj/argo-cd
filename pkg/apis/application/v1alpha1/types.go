@@ -1650,7 +1650,7 @@ func (m *SyncPolicyManualDefaults) SyncStrategy() *SyncStrategy {
 	if m.GetApplyOnly() {
 		return &SyncStrategy{Apply: &SyncStrategyApply{Force: force}}
 	}
-	return &SyncStrategy{Hook: &SyncStrategyHook{SyncStrategyApply: SyncStrategyApply{Force: force}}}
+	return &SyncStrategy{Hook: &SyncStrategyHook{Force: force}}
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed

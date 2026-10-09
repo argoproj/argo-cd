@@ -794,11 +794,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                         : 'Are you sure you want to disable pruning by default on manual syncs?'
                                                 );
                                             }}
-                                            checked={
-                                                app.spec.syncPolicy?.manualDefaults
-                                                    ? (app.spec.syncPolicy.manualDefaults.prune ?? true)
-                                                    : false
-                                            }
+                                            checked={app.spec.syncPolicy?.manualDefaults ? (app.spec.syncPolicy.manualDefaults.prune ?? true) : false}
                                             id='prune-on-manual-sync'
                                         />
                                         <label htmlFor='prune-on-manual-sync'>PRUNE ON MANUAL SYNC</label>
