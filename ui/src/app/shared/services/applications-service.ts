@@ -320,7 +320,9 @@ export class ApplicationsService {
         retryStrategy?: models.RetryStrategy,
         message?: string
     ): Promise<boolean> {
-        // Omit prune when undefined so the API can apply syncPolicy.manualDefaults.prune when that field is set.
+        // Omit prune only when undefined so the API can apply syncPolicy.manualDefaults.prune
+        // when that object is set. Callers must pass false (not undefined) when the user
+        // unchecks Prune, otherwise apps with manualDefaults would still prune.
         const body: Record<string, unknown> = {
             appNamespace,
             revision,

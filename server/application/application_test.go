@@ -2504,24 +2504,42 @@ func TestSync_UsesSyncPolicyPruneDefault(t *testing.T) {
 	assert.False(t, syncedApp.Operation.Sync.Prune, "explicit prune=false should override syncPolicy.manualDefaults.prune")
 }
 
-func TestSync_LegacyDefaultsWithoutManualDefaults(t *testing.T) {
-	ctx := t.Context()
-	//nolint:staticcheck
-	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
-	appServer := newTestAppServer(t)
+// TestSync_NoManualDefaults_OmittedPruneIsFalse ensures backwards compatibility:
+// apps without syncPolicy.manualDefaults must not prune when the sync request
+// omits prune (e.g. `argocd app sync myapp` without --prune).
+func TestSync_NoManualDefaults_OmittedPruneIsFalse(t *testing.T) {
+	cases := []struct {
+		name       string
+		syncPolicy *v1alpha1.SyncPolicy
+	}{
+		{name: "nil syncPolicy", syncPolicy: nil},
+		// SyncPolicy without ManualDefaults: GetPrune() is false (legacy); Sync must not prune.
+		{name: "syncPolicy without manualDefaults", syncPolicy: &v1alpha1.SyncPolicy{}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := t.Context()
+			//nolint:staticcheck
+			ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
+			appServer := newTestAppServer(t)
 
-	testApp := newTestApp()
-	testApp.Name = "test-app-sync-prune-unset"
-	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
-	require.NoError(t, err)
+			testApp := newTestApp()
+			testApp.Name = "test-app-sync-prune-unset-" + strings.ReplaceAll(tc.name, " ", "-")
+			testApp.Spec.SyncPolicy = tc.syncPolicy
+			app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+			require.NoError(t, err)
+			require.True(t, app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.ManualDefaults == nil)
 
-	syncedApp, err := appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
-	require.NoError(t, err)
-	require.NotNil(t, syncedApp.Operation)
-	require.NotNil(t, syncedApp.Operation.Sync)
-	assert.False(t, syncedApp.Operation.Sync.Prune, "without manualDefaults, omitted prune must keep legacy false")
-	assert.False(t, syncedApp.Operation.Sync.DryRun, "without manualDefaults, omitted dryRun must keep legacy false")
-	assert.Nil(t, syncedApp.Operation.Sync.SyncStrategy, "without manualDefaults, omitted strategy must stay nil")
+			// Request without prune field (nil pointer), same as CLI/API omitting prune.
+			syncedApp, err := appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
+			require.NoError(t, err)
+			require.NotNil(t, syncedApp.Operation)
+			require.NotNil(t, syncedApp.Operation.Sync)
+			assert.False(t, syncedApp.Operation.Sync.Prune, "no manualDefaults + request without prune → Prune == false")
+			assert.False(t, syncedApp.Operation.Sync.DryRun, "without manualDefaults, omitted dryRun must keep legacy false")
+			assert.Nil(t, syncedApp.Operation.Sync.SyncStrategy, "without manualDefaults, omitted strategy must stay nil")
+		})
+	}
 }
 
 func TestSync_EmptyManualDefaultsAppliesFieldDefaults(t *testing.T) {

@@ -1546,13 +1546,13 @@ func (p *SyncPolicy) IsAutomatedSyncEnabled() bool {
 	return false
 }
 
-// GetPrune returns whether manual syncs should prune by default when manualDefaults is set.
+// GetPrune returns whether manual syncs should prune by default.
 // This is independent of SyncPolicyAutomated.Prune, which only applies to automated syncs.
-// When ManualDefaults is nil, returns the field-level default (true). Callers that must preserve
-// legacy sync behavior for apps without manualDefaults should check ManualDefaults != nil first.
+// When ManualDefaults is nil (every existing app without the opt-in), returns false so behavior
+// matches legacy Argo CD. When ManualDefaults is set and prune is omitted, defaults to true.
 func (p *SyncPolicy) GetPrune() bool {
-	if p == nil {
-		return true
+	if p == nil || p.ManualDefaults == nil {
+		return false
 	}
 	return p.ManualDefaults.GetPrune()
 }

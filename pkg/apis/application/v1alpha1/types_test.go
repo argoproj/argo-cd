@@ -4206,22 +4206,24 @@ func TestSyncPolicy_IsZero(t *testing.T) {
 
 func TestSyncPolicy_GetPrune(t *testing.T) {
 	var nilPolicy *SyncPolicy
-	assert.True(t, nilPolicy.GetPrune())
-	assert.True(t, (&SyncPolicy{}).GetPrune())
+	// No manualDefaults → legacy false (existing apps must not start pruning).
+	assert.False(t, nilPolicy.GetPrune())
+	assert.False(t, (&SyncPolicy{}).GetPrune())
+	// Opt-in: empty manualDefaults applies field default prune=true.
 	assert.True(t, (&SyncPolicy{ManualDefaults: &SyncPolicyManualDefaults{}}).GetPrune())
 	assert.False(t, (&SyncPolicy{ManualDefaults: &SyncPolicyManualDefaults{Prune: new(false)}}).GetPrune())
 	assert.True(t, (&SyncPolicy{ManualDefaults: &SyncPolicyManualDefaults{Prune: new(true)}}).GetPrune())
 
 	// manualDefaults.prune is independent of automated.prune
-	assert.True(t, (&SyncPolicy{
+	assert.False(t, (&SyncPolicy{
 		Automated: &SyncPolicyAutomated{Prune: new(true)},
 	}).GetPrune())
 	assert.True(t, (&SyncPolicy{
-		Automated: &SyncPolicyAutomated{Prune: new(false)},
+		Automated:      &SyncPolicyAutomated{Prune: new(false)},
 		ManualDefaults: &SyncPolicyManualDefaults{Prune: new(true)},
 	}).GetPrune())
 	assert.False(t, (&SyncPolicy{
-		Automated: &SyncPolicyAutomated{Prune: new(true)},
+		Automated:      &SyncPolicyAutomated{Prune: new(true)},
 		ManualDefaults: &SyncPolicyManualDefaults{Prune: new(false)},
 	}).GetPrune())
 }

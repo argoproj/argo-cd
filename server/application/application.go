@@ -2170,8 +2170,9 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	}
 
 	// Explicit values in the sync request always win. When omitted, fall back to
-	// syncPolicy.manualDefaults — but only when that field is populated. Apps without
-	// manualDefaults keep legacy zero-value behavior (prune/dryRun false, nil strategy).
+	// syncPolicy.manualDefaults only if that object is populated. Existing apps without
+	// manualDefaults keep legacy behavior (prune/dryRun false, nil strategy) — GetPrune()
+	// also returns false when ManualDefaults is nil so omitted prune never deletes resources.
 	prune := syncReq.GetPrune()
 	dryRun := syncReq.GetDryRun()
 	strategy := syncReq.Strategy
