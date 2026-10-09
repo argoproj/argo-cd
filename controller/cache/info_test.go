@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"fmt"
 	"sort"
 	"testing"
 
@@ -557,13 +558,12 @@ status:
 
 // These tests are equivalent to tests in ui/src/app/applications/components/utils.test.tsx. If you update tests here,
 // please make sure to update the equivalent tests in the UI.
-func TestGetPodInfo(t *testing.T) {
-	t.Parallel()
-
-	t.Run("TestGetPodInfo", func(t *testing.T) {
-		t.Parallel()
-
-		pod := strToUnstructured(`
+// guestbookPodManifest returns the base guestbook Pod YAML used by several
+// TestGetPodInfo subtests, with extraSpec (already correctly indented)
+// appended under spec: so a subtest can add e.g. volumes without duplicating
+// the whole manifest.
+func guestbookPodManifest(extraSpec string) string {
+	return fmt.Sprintf(`
   apiVersion: v1
   kind: Pod
   metadata:
@@ -583,7 +583,17 @@ func TestGetPodInfo(t *testing.T) {
       resources:
         requests:
           memory: 128Mi
-`)
+%s
+`, extraSpec)
+}
+
+func TestGetPodInfo(t *testing.T) {
+	t.Parallel()
+
+	t.Run("TestGetPodInfo", func(t *testing.T) {
+		t.Parallel()
+
+		pod := strToUnstructured(guestbookPodManifest(""))
 
 		info := &ResourceInfo{}
 		populateNodeInfo(pod, info, []string{})
@@ -599,6 +609,23 @@ func TestGetPodInfo(t *testing.T) {
 			ResourceRequests: corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("128Mi")},
 		}, info.PodInfo)
 		assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{Labels: map[string]string{"app": "guestbook"}}, info.NetworkingInfo)
+	})
+
+	t.Run("TestGetPodWithImageVolumeInfo", func(t *testing.T) {
+		t.Parallel()
+
+		pod := strToUnstructured(guestbookPodManifest(`      volumeMounts:
+      - name: artifact
+        mountPath: /artifact
+    volumes:
+    - name: artifact
+      image:
+        reference: quay.io/example/artifact:1.0.0
+        pullPolicy: IfNotPresent`))
+
+		info := &ResourceInfo{}
+		populateNodeInfo(pod, info, []string{})
+		assert.Equal(t, []string{"bar", "quay.io/example/artifact:1.0.0"}, info.Images)
 	})
 
 	t.Run("TestGetPodWithInitialContainerInfo", func(t *testing.T) {
