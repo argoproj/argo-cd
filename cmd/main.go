@@ -35,8 +35,9 @@ func init() {
 }
 
 func main() {
-	grpc.DisableSRVLookups()
 	var command *cobra.Command
+	// Enable the workaround for the SRV GRPC bug
+	grpc.DisableSRVLookups()
 
 	binaryName := filepath.Base(os.Args[0])
 	if val := os.Getenv(binaryNameEnv); val != "" {
