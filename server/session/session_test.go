@@ -166,7 +166,7 @@ func TestGetUserInfo_LocalUserStrictMode(t *testing.T) {
 		resp, err := s.GetUserInfo(ctxWithClaims(ssoClaims), nil)
 		require.NoError(t, err)
 		assert.Equal(t, "sally@example.com", resp.Username)
-		assert.Equal(t, "sally@example.com", resp.RbacSubject, "SSO users are not suffixed; rbacSubject mirrors username")
+		assert.Equal(t, "sally", resp.RbacSubject, "SSO rbacSubject is the enforced identifier (sub), not the email")
 	})
 
 	t.Run("strict mode disabled: username and rbacSubject are both the real name", func(t *testing.T) {

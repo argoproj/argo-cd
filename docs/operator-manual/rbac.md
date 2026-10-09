@@ -532,8 +532,8 @@ g, sally@local, role:developer
 > [!WARNING]
 > When you enable strict mode, any existing RBAC policies that reference local users by their plain name (for example
 > `g, sally, role:developer`) will stop matching those local users. You must update such bindings to use the `@local`
-> suffix. The built-in policy grants `role:admin` to both `admin` and `admin@local`, so the local `admin` account keeps
-> its access in either mode.
+> suffix. In strict mode the built-in `g, admin, role:admin` binding is replaced by `g, admin@local, role:admin`,
+> so the local `admin` account keeps its access while an SSO user or group named `admin` no longer inherits it.
 >
 > Strict mode is disabled by default; when it is unset, local account names are matched verbatim (the pre-existing
 > behavior).

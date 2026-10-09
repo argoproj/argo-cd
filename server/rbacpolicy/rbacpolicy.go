@@ -11,6 +11,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/assets"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 )
@@ -22,6 +23,21 @@ import (
 // The suffix is reserved for local accounts: SSO subjects and groups carrying it are never
 // matched against policies, regardless of strict mode.
 const LocalUserRBACSuffix = "@local"
+
+// builtinAdminBinding is the unqualified built-in admin binding that is only valid outside strict mode.
+const builtinAdminBinding = "g, " + common.ArgoCDAdminUsername + ", role:admin"
+
+// BuiltinPolicyCSV returns the built-in RBAC policy. In strict mode the unqualified `g, admin, role:admin`
+// binding is dropped so that only the local admin (enforced as `admin@local`) inherits role:admin and an SSO
+// identity named `admin` does not.
+func BuiltinPolicyCSV(strictMode bool) string {
+	if !strictMode {
+		return assets.BuiltinPolicyCSV
+	}
+	lines := strings.Split(assets.BuiltinPolicyCSV, "\n")
+	lines = slices.DeleteFunc(lines, func(l string) bool { return strings.TrimSpace(l) == builtinAdminBinding })
+	return strings.Join(lines, "\n")
+}
 
 // RBACPolicyEnforcer provides an RBAC Claims Enforcer which additionally consults AppProject
 // roles, jwt tokens, and groups. It is backed by a AppProject informer/lister cache and does not

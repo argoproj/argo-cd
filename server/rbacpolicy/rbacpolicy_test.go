@@ -13,6 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/assets"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -375,6 +376,40 @@ g, devs, role:viewer`)
 
 			claims := jwt.MapClaims{"sub": "sally@local", "iss": "https://accounts.google.com"}
 			assert.True(t, enf.Enforce(claims, "applications", "get", "my-proj/my-app"))
+		})
+	}
+}
+
+func TestBuiltinPolicyCSV(t *testing.T) {
+	assert.Equal(t, assets.BuiltinPolicyCSV, BuiltinPolicyCSV(false))
+
+	strict := BuiltinPolicyCSV(true)
+	assert.NotContains(t, strict, "g, admin, role:admin")
+	assert.Contains(t, strict, "g, admin@local, role:admin")
+	assert.Contains(t, strict, "g, role:admin, role:readonly", "only the admin binding is removed")
+}
+
+// TestBuiltinAdminBindingStrictMode verifies that with strict mode the built-in role:admin binding is only
+// reachable by the local admin account, not by an SSO identity named "admin".
+func TestBuiltinAdminBindingStrictMode(t *testing.T) {
+	localAdmin := jwt.MapClaims{"sub": common.ArgoCDAdminUsername, "iss": common.ArgoCDSessionClaimsIssuer}
+	ssoAdmin := jwt.MapClaims{"sub": common.ArgoCDAdminUsername, "iss": "https://accounts.google.com"}
+	ssoAdminGroup := jwt.MapClaims{"sub": "mallory", "iss": "https://accounts.google.com", "groups": []string{common.ArgoCDAdminUsername}}
+
+	for _, strict := range []bool{true, false} {
+		t.Run(fmt.Sprintf("strict=%t", strict), func(t *testing.T) {
+			kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+			enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+			rbacEnf := NewRBACPolicyEnforcer(enf, test.NewFakeProjLister(newFakeProj()))
+			rbacEnf.SetEnableLocalUserStrictMode(strict)
+			enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
+			require.NoError(t, enf.SetBuiltinPolicy(BuiltinPolicyCSV(strict)))
+
+			assert.True(t, enf.Enforce(localAdmin, "applications", "create", "my-proj/my-app"),
+				"local admin must keep role:admin in both modes")
+			// Outside strict mode the plain `admin` binding still matches SSO identities (pre-existing behavior).
+			assert.Equal(t, !strict, enf.Enforce(ssoAdmin, "applications", "create", "my-proj/my-app"))
+			assert.Equal(t, !strict, enf.Enforce(ssoAdminGroup, "applications", "create", "my-proj/my-app"))
 		})
 	}
 }
