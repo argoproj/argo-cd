@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -507,4 +509,290 @@ func TestBitbucketListRepos(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The shape below mirrors a real response from
+// https://api.bitbucket.org/2.0/repositories/atlassian/aui/refs/branches?pagelen=2 -- a public
+// repository with 356 branches. `next` is an absolute URL that repeats the query parameters of the
+// request that produced it, and is omitted entirely on the final page.
+//
+// Only `name` and `target.hash` are populated here, since those are the only fields listBranches
+// consumes; the fixtures earlier in this file carry the full branch shape already.
+func bitbucketCloudBranchesPage(page int, next string, names ...string) string {
+	values := make([]string, 0, len(names))
+	for i, name := range names {
+		values = append(values, fmt.Sprintf(`{"name": %q, "type": "branch", "target": {"hash": %q}}`,
+			name, fmt.Sprintf("%040d", page*100+i)))
+	}
+	nextField := ""
+	if next != "" {
+		nextField = fmt.Sprintf(`"next": %q,`, next)
+	}
+	return fmt.Sprintf(`{"pagelen": %d, "page": %d, "size": %d, %s "values": [%s]}`,
+		bitbucketCloudMaxPageLen, page, len(names), nextField, strings.Join(values, ","))
+}
+
+const bitbucketCloudBranchesPath = "/repositories/test-owner/testmike/refs/branches"
+
+// bitbucketCloudBranchServer serves the branch-listing endpoint and records the full request URI of
+// every call, so tests can assert that pagination followed the URLs the API handed back rather than
+// URLs it built itself. respond receives the recorded request and returns the body to write; an
+// empty body becomes a 500.
+func bitbucketCloudBranchServer(t *testing.T, respond func(req *http.Request) string) (*httptest.Server, func() []string) {
+	t.Helper()
+
+	var mu sync.Mutex
+	var requests []string
+
+	server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		if !strings.HasPrefix(req.URL.Path, bitbucketCloudBranchesPath) {
+			res.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		mu.Lock()
+		requests = append(requests, req.URL.RequestURI())
+		mu.Unlock()
+
+		body := respond(req)
+		if body == "" {
+			res.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		res.WriteHeader(http.StatusOK)
+		// assert rather than require: this runs on the server's goroutine, where FailNow is illegal.
+		_, err := res.Write([]byte(body))
+		assert.NoError(t, err)
+	}))
+
+	return server, func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return requests
+	}
+}
+
+func bitbucketCloudBranchNames(t *testing.T, repos []*Repository) []string {
+	t.Helper()
+	names := make([]string, 0, len(repos))
+	for _, r := range repos {
+		names = append(names, r.Branch)
+	}
+	return names
+}
+
+func bitbucketCloudProvider(t *testing.T, serverURL string, allBranches bool) *BitBucketCloudProvider {
+	t.Helper()
+	t.Setenv("BITBUCKET_API_BASE_URL", serverURL)
+	provider, err := NewBitBucketCloudProvider("test-owner", "user", "password", allBranches)
+	require.NoError(t, err)
+	return provider
+}
+
+func bitbucketCloudGetBranches(t *testing.T, provider *BitBucketCloudProvider) ([]*Repository, error) {
+	t.Helper()
+	return provider.GetBranches(t.Context(), &Repository{
+		Organization: "test-owner",
+		Repository:   "testmike",
+	})
+}
+
+// https://github.com/argoproj/argo-cd/issues/24081
+//
+// Bitbucket Cloud's refs/branches endpoint is paginated and defaults to a short page. Without
+// following the `next` link the SCM provider generator only ever sees the first page, so an
+// ApplicationSet silently generates Applications for a subset of the repository's branches.
+func TestBitbucketCloudGetBranchesPagination(t *testing.T) {
+	t.Run("follows the next link the api returned on every page", func(t *testing.T) {
+		var serverURL string
+		server, requests := bitbucketCloudBranchServer(t, func(req *http.Request) string {
+			switch req.URL.RequestURI() {
+			case bitbucketCloudBranchesPath + "?pagelen=100":
+				return bitbucketCloudBranchesPage(1, serverURL+bitbucketCloudBranchesPath+"?pagelen=100&page=2", "main", "feature-a")
+			case bitbucketCloudBranchesPath + "?pagelen=100&page=2":
+				return bitbucketCloudBranchesPage(2, serverURL+bitbucketCloudBranchesPath+"?pagelen=100&page=3", "feature-b", "feature-c")
+			case bitbucketCloudBranchesPath + "?pagelen=100&page=3":
+				// Final page: no next link.
+				return bitbucketCloudBranchesPage(3, "", "release-1.0")
+			default:
+				t.Errorf("unexpected request %q", req.URL.RequestURI())
+				return ""
+			}
+		})
+		defer server.Close()
+		serverURL = server.URL
+
+		repos, err := bitbucketCloudGetBranches(t, bitbucketCloudProvider(t, server.URL, true))
+		require.NoError(t, err)
+
+		// Every branch from all three pages, in the order the API returned them.
+		assert.Equal(t,
+			[]string{"main", "feature-a", "feature-b", "feature-c", "release-1.0"},
+			bitbucketCloudBranchNames(t, repos))
+
+		// Exactly the first page plus the two URLs the API advertised, and nothing after the page
+		// that carried no next link.
+		assert.Equal(t, []string{
+			bitbucketCloudBranchesPath + "?pagelen=100",
+			bitbucketCloudBranchesPath + "?pagelen=100&page=2",
+			bitbucketCloudBranchesPath + "?pagelen=100&page=3",
+		}, requests())
+	})
+
+	// Bitbucket documents two pagination styles. List-based collections expose a numeric `page`,
+	// but iterator-based ones put an unpredictable token in the next link, and the docs are explicit
+	// that clients should not construct these links themselves. Reconstructing the URL as page+1
+	// would re-request page 2 forever here; go-bitbucket cannot even represent a token page, since
+	// RepositoryBranchOptions.PageNum is an int.
+	t.Run("follows a next link carrying an opaque token instead of a page number", func(t *testing.T) {
+		const tokenPage = bitbucketCloudBranchesPath + "?pagelen=100&ctx=9c2c0a1f&page=eyJ0b2tlbiI6ICJhYmMifQ%3D%3D"
+
+		var serverURL string
+		server, requests := bitbucketCloudBranchServer(t, func(req *http.Request) string {
+			switch req.URL.RequestURI() {
+			case bitbucketCloudBranchesPath + "?pagelen=100":
+				return bitbucketCloudBranchesPage(1, serverURL+tokenPage, "main")
+			case tokenPage:
+				return bitbucketCloudBranchesPage(2, "", "feature-a")
+			default:
+				t.Errorf("unexpected request %q", req.URL.RequestURI())
+				return ""
+			}
+		})
+		defer server.Close()
+		serverURL = server.URL
+
+		repos, err := bitbucketCloudGetBranches(t, bitbucketCloudProvider(t, server.URL, true))
+		require.NoError(t, err)
+
+		assert.Equal(t, []string{"main", "feature-a"}, bitbucketCloudBranchNames(t, repos))
+		// The token URL is passed through byte for byte, query parameters and all.
+		assert.Equal(t, []string{bitbucketCloudBranchesPath + "?pagelen=100", tokenPage}, requests())
+	})
+
+	t.Run("sends credentials when following a next link", func(t *testing.T) {
+		var serverURL string
+		var mu sync.Mutex
+		var authHeaders []string
+
+		server, _ := bitbucketCloudBranchServer(t, func(req *http.Request) string {
+			mu.Lock()
+			authHeaders = append(authHeaders, req.Header.Get("Authorization"))
+			mu.Unlock()
+
+			if req.URL.Query().Get("page") == "" {
+				return bitbucketCloudBranchesPage(1, serverURL+bitbucketCloudBranchesPath+"?pagelen=100&page=2", "main")
+			}
+			return bitbucketCloudBranchesPage(2, "", "feature-a")
+		})
+		defer server.Close()
+		serverURL = server.URL
+
+		_, err := bitbucketCloudGetBranches(t, bitbucketCloudProvider(t, server.URL, true))
+		require.NoError(t, err)
+
+		// Private repositories are the common case, so the followed page must carry the same
+		// credentials the first page did.
+		mu.Lock()
+		defer mu.Unlock()
+		require.Len(t, authHeaders, 2)
+		assert.NotEmpty(t, authHeaders[1])
+		assert.Equal(t, authHeaders[0], authHeaders[1])
+	})
+
+	// The followed URL comes out of a response body and the request carries the provider's
+	// credentials, so a next link pointing somewhere else must not be followed.
+	t.Run("refuses a next link pointing at another host", func(t *testing.T) {
+		server, requests := bitbucketCloudBranchServer(t, func(_ *http.Request) string {
+			return bitbucketCloudBranchesPage(1, "https://attacker.example.com/repositories/test-owner/testmike/refs/branches?page=2", "main")
+		})
+		defer server.Close()
+
+		_, err := bitbucketCloudGetBranches(t, bitbucketCloudProvider(t, server.URL, true))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "refusing to follow next page url")
+		assert.Contains(t, err.Error(), "attacker.example.com")
+		// It stopped at the first page rather than reaching out to the other host.
+		assert.Len(t, requests(), 1)
+	})
+
+	// A next link that never advances would otherwise spin against the API forever.
+	t.Run("fails instead of looping when a next link repeats", func(t *testing.T) {
+		var serverURL string
+		server, requests := bitbucketCloudBranchServer(t, func(_ *http.Request) string {
+			return bitbucketCloudBranchesPage(1, serverURL+bitbucketCloudBranchesPath+"?pagelen=100&page=2", "main")
+		})
+		defer server.Close()
+		serverURL = server.URL
+
+		_, err := bitbucketCloudGetBranches(t, bitbucketCloudProvider(t, server.URL, true))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "repeated next page url")
+		// First page, then the repeated URL once -- it is not requested a third time.
+		assert.Len(t, requests(), 2)
+	})
+
+	t.Run("stops after a single request when there is no next link", func(t *testing.T) {
+		server, requests := bitbucketCloudBranchServer(t, func(req *http.Request) string {
+			if req.URL.RequestURI() != bitbucketCloudBranchesPath+"?pagelen=100" {
+				t.Errorf("expected exactly one request, also got %q", req.URL.RequestURI())
+				return ""
+			}
+			return bitbucketCloudBranchesPage(1, "", "main")
+		})
+		defer server.Close()
+
+		repos, err := bitbucketCloudGetBranches(t, bitbucketCloudProvider(t, server.URL, true))
+		require.NoError(t, err)
+
+		assert.Equal(t, []string{"main"}, bitbucketCloudBranchNames(t, repos))
+		assert.Len(t, requests(), 1)
+	})
+
+	t.Run("propagates an error from a followed page", func(t *testing.T) {
+		var serverURL string
+		server, _ := bitbucketCloudBranchServer(t, func(req *http.Request) string {
+			if req.URL.Query().Get("page") == "" {
+				return bitbucketCloudBranchesPage(1, serverURL+bitbucketCloudBranchesPath+"?pagelen=100&page=2", "main")
+			}
+			return "" // handler turns this into a 500
+		})
+		defer server.Close()
+		serverURL = server.URL
+
+		_, err := bitbucketCloudGetBranches(t, bitbucketCloudProvider(t, server.URL, true))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "500 Internal Server Error")
+		// The failure must name the repository, not just bubble up a bare transport error.
+		assert.Contains(t, err.Error(), "test-owner/testmike")
+	})
+
+	t.Run("does not paginate when allBranches is disabled", func(t *testing.T) {
+		var mu sync.Mutex
+		var requests []string
+
+		server := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+			mu.Lock()
+			requests = append(requests, req.URL.RequestURI())
+			mu.Unlock()
+
+			res.WriteHeader(http.StatusOK)
+			_, err := res.Write([]byte(`{"name": "main", "type": "branch",
+				"target": {"hash": "dc1edb6c7d650d8ba67719ddf7b662ad8f8fb798"}}`))
+			assert.NoError(t, err)
+		}))
+		defer server.Close()
+
+		provider := bitbucketCloudProvider(t, server.URL, false)
+		repos, err := provider.GetBranches(t.Context(), &Repository{
+			Organization: "test-owner",
+			Repository:   "testmike",
+			Branch:       "main",
+		})
+		require.NoError(t, err)
+
+		assert.Equal(t, []string{"main"}, bitbucketCloudBranchNames(t, repos))
+		// Single-branch lookups hit the per-branch endpoint and carry no pagination parameters.
+		assert.Equal(t, []string{bitbucketCloudBranchesPath + "/main"}, requests)
+	})
 }
