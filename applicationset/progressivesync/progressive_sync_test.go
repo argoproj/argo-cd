@@ -1577,7 +1577,7 @@ func TestSyncDesiredApplications_PruneIndependentOfAutomated(t *testing.T) {
 	assert.True(t, result[0].Operation.Sync.Prune, "progressive sync should honor manualDefaults.prune")
 	require.NotNil(t, result[1].Operation)
 	require.NotNil(t, result[1].Operation.Sync)
-	assert.True(t, result[1].Operation.Sync.Prune, "progressive sync uses manualDefaults.prune default (true) when unset, not automated.prune")
+	assert.True(t, result[1].Operation.Sync.Prune, "without manualDefaults, progressive sync keeps legacy automated.prune when automated sync is enabled")
 }
 
 func TestIsRollingSyncDeletionReversed(t *testing.T) {

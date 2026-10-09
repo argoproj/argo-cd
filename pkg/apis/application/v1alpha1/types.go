@@ -1546,9 +1546,10 @@ func (p *SyncPolicy) IsAutomatedSyncEnabled() bool {
 	return false
 }
 
-// GetPrune returns whether manual syncs should prune by default.
+// GetPrune returns whether manual syncs should prune by default when manualDefaults is set.
 // This is independent of SyncPolicyAutomated.Prune, which only applies to automated syncs.
-// When unset, pruning defaults to true.
+// When ManualDefaults is nil, returns the field-level default (true). Callers that must preserve
+// legacy sync behavior for apps without manualDefaults should check ManualDefaults != nil first.
 func (p *SyncPolicy) GetPrune() bool {
 	if p == nil {
 		return true
@@ -1556,8 +1557,8 @@ func (p *SyncPolicy) GetPrune() bool {
 	return p.ManualDefaults.GetPrune()
 }
 
-// GetDryRun returns whether manual syncs should dry-run by default.
-// When unset, dry-run defaults to false.
+// GetDryRun returns whether manual syncs should dry-run by default when manualDefaults is set.
+// When ManualDefaults is nil, returns the field-level default (false).
 func (p *SyncPolicy) GetDryRun() bool {
 	if p == nil {
 		return false
@@ -1565,8 +1566,8 @@ func (p *SyncPolicy) GetDryRun() bool {
 	return p.ManualDefaults.GetDryRun()
 }
 
-// GetApplyOnly returns whether manual syncs should use apply-only strategy by default.
-// When unset, apply-only defaults to false (hook strategy).
+// GetApplyOnly returns whether manual syncs should use apply-only strategy by default when manualDefaults is set.
+// When ManualDefaults is nil, returns the field-level default (false — hook strategy).
 func (p *SyncPolicy) GetApplyOnly() bool {
 	if p == nil {
 		return false
@@ -1574,8 +1575,8 @@ func (p *SyncPolicy) GetApplyOnly() bool {
 	return p.ManualDefaults.GetApplyOnly()
 }
 
-// GetForce returns whether manual syncs should force by default.
-// When unset, force defaults to false.
+// GetForce returns whether manual syncs should force by default when manualDefaults is set.
+// When ManualDefaults is nil, returns the field-level default (false).
 func (p *SyncPolicy) GetForce() bool {
 	if p == nil {
 		return false
@@ -1583,7 +1584,8 @@ func (p *SyncPolicy) GetForce() bool {
 	return p.ManualDefaults.GetForce()
 }
 
-// GetSyncStrategy returns the default sync strategy for manual syncs from syncPolicy.manualDefaults.
+// GetSyncStrategy returns the default sync strategy from syncPolicy.manualDefaults.
+// When ManualDefaults is nil, returns the field-level defaults (hook, no force).
 func (p *SyncPolicy) GetSyncStrategy() *SyncStrategy {
 	if p == nil {
 		return (&SyncPolicyManualDefaults{}).SyncStrategy()

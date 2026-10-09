@@ -2504,7 +2504,7 @@ func TestSync_UsesSyncPolicyPruneDefault(t *testing.T) {
 	assert.False(t, syncedApp.Operation.Sync.Prune, "explicit prune=false should override syncPolicy.manualDefaults.prune")
 }
 
-func TestSync_PruneDefaultsTrueWithoutSyncPolicyPrune(t *testing.T) {
+func TestSync_LegacyDefaultsWithoutManualDefaults(t *testing.T) {
 	ctx := t.Context()
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
@@ -2519,10 +2519,31 @@ func TestSync_PruneDefaultsTrueWithoutSyncPolicyPrune(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, syncedApp.Operation)
 	require.NotNil(t, syncedApp.Operation.Sync)
-	assert.True(t, syncedApp.Operation.Sync.Prune, "nil sync request prune without syncPolicy.manualDefaults.prune should default to true")
-	assert.False(t, syncedApp.Operation.Sync.DryRun, "dryRun should default to false")
+	assert.False(t, syncedApp.Operation.Sync.Prune, "without manualDefaults, omitted prune must keep legacy false")
+	assert.False(t, syncedApp.Operation.Sync.DryRun, "without manualDefaults, omitted dryRun must keep legacy false")
+	assert.Nil(t, syncedApp.Operation.Sync.SyncStrategy, "without manualDefaults, omitted strategy must stay nil")
+}
+
+func TestSync_EmptyManualDefaultsAppliesFieldDefaults(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
+	appServer := newTestAppServer(t)
+
+	testApp := newTestApp()
+	testApp.Name = "test-app-sync-empty-manual-defaults"
+	testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{}}
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+
+	syncedApp, err := appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
+	require.NoError(t, err)
+	require.NotNil(t, syncedApp.Operation)
+	require.NotNil(t, syncedApp.Operation.Sync)
+	assert.True(t, syncedApp.Operation.Sync.Prune, "empty manualDefaults should apply prune default true")
+	assert.False(t, syncedApp.Operation.Sync.DryRun, "empty manualDefaults should apply dryRun default false")
 	require.NotNil(t, syncedApp.Operation.Sync.SyncStrategy)
-	require.NotNil(t, syncedApp.Operation.Sync.SyncStrategy.Hook, "applyOnly false should use hook strategy")
+	require.NotNil(t, syncedApp.Operation.Sync.SyncStrategy.Hook, "empty manualDefaults should use hook strategy")
 	assert.False(t, syncedApp.Operation.Sync.SyncStrategy.Force())
 }
 

@@ -47,12 +47,18 @@ export const ApplicationSyncPanelBody = ({
                         resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
                         syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : [],
                         message: '',
-                        syncFlags: {
-                            Prune: application.spec.syncPolicy?.manualDefaults?.prune ?? true,
-                            DryRun: !!application.spec.syncPolicy?.manualDefaults?.dryRun,
-                            ApplyOnly: !!application.spec.syncPolicy?.manualDefaults?.applyOnly,
-                            Force: !!application.spec.syncPolicy?.manualDefaults?.force
-                        } as SyncFlags
+                        // Only pre-fill from manualDefaults when that field is set; otherwise keep
+                        // legacy unchecked defaults so behavior matches apps without the field.
+                        ...(application.spec.syncPolicy?.manualDefaults
+                            ? {
+                                  syncFlags: {
+                                      Prune: application.spec.syncPolicy.manualDefaults.prune ?? true,
+                                      DryRun: !!application.spec.syncPolicy.manualDefaults.dryRun,
+                                      ApplyOnly: !!application.spec.syncPolicy.manualDefaults.applyOnly,
+                                      Force: !!application.spec.syncPolicy.manualDefaults.force
+                                  } as SyncFlags
+                              }
+                            : {})
                     }}
                     validateError={values => ({
                         resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource'
@@ -222,7 +228,7 @@ export const ApplicationSyncPanelBody = ({
                                 application.metadata.name,
                                 application.metadata.namespace,
                                 params.revision,
-                                syncFlags.Prune ? true : undefined,
+                                syncFlags.Prune || false,
                                 syncFlags.DryRun || false,
                                 syncStrategy,
                                 selectedResources,

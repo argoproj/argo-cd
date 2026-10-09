@@ -39,7 +39,7 @@ For a standalone application, toggling auto-sync is performed by changing the ap
 
 By default (and as a safety mechanism), automated sync will not delete resources when Argo CD detects
 the resource is no longer defined in Git. To prune the resources, a manual sync can always be
-performed (with pruning checked), or you can enable [default prune for manual sync](#default-manual-sync-options)
+performed (with pruning checked), or you can opt in to [default prune for manual sync](#default-manual-sync-options)
 via `syncPolicy.manualDefaults.prune`. Pruning can also be enabled to happen automatically as part of the
 automated sync by running:
 
@@ -59,9 +59,16 @@ spec:
 ## Default Manual Sync Options
 
 You can configure defaults for **manual** syncs (UI, CLI, or API) without enabling automated
-sync. When a sync request omits a value, Argo CD uses `spec.syncPolicy.manualDefaults`:
+sync by setting `spec.syncPolicy.manualDefaults`.
 
-| Field | Default | Meaning |
+> [!IMPORTANT]
+> When `manualDefaults` is **not** set, API, CLI, and UI manual-sync behavior is unchanged from
+> previous Argo CD releases (for example, `argocd app sync` without `--prune` does not prune).
+> Behavior changes only after you populate this field.
+
+When `manualDefaults` is set and a sync request omits a value, Argo CD uses these defaults:
+
+| Field | Default (when field set) | Meaning |
 |-------|---------|---------|
 | `prune` | `true` | Delete resources missing from Git |
 | `dryRun` | `false` | Preview-only sync |
@@ -88,8 +95,10 @@ spec:
 ```
 
 > [!NOTE]
-> Manual (and other non-automated) syncs — including ApplicationSet RollingSync — use
-> `syncPolicy.manualDefaults`. Automated sync behavior is controlled only by `syncPolicy.automated`.
+> When `manualDefaults` is set, manual syncs and ApplicationSet RollingSync use it for omitted
+> request fields. Automated sync behavior is controlled only by `syncPolicy.automated`.
+> RollingSync apps without `manualDefaults` keep the previous behavior (use `automated.prune`
+> only when automated sync is enabled on the generated Application).
 
 ## Automatic Pruning with Allow-Empty (v1.8)
 
