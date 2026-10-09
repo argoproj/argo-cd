@@ -2354,34 +2354,95 @@ func appHydrationFinished(app *argoappv1.Application) bool {
 // are met (ready) and whether a sync/refresh operation is still in progress.
 // It does not mutate any state — callers are responsible for any side effects
 // such as triggering a status refresh before printing the final summary.
-func checkAppWaitConditions(app *argoappv1.Application, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource) (ready, operationInProgress bool) {
+func checkAppWaitConditions(app *argoappv1.Application, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource) (ready bool, operationInProgress bool, pending []string) {
 	operationInProgress = isOperationInProgress(app)
 	hydrationFinished := appHydrationFinished(app)
 
-	if watch.delete {
-		return false, operationInProgress
-	}
 	if watch.operation && operationInProgress {
-		return false, operationInProgress
+		pending = append(pending, "operation: still in progress")
 	}
 	if watch.hydrated && !hydrationFinished {
-		return false, operationInProgress
+		pending = append(pending, "hydration: not complete")
 	}
 
+	ready = len(pending) == 0
+
 	if len(selectedResources) > 0 {
-		ready = true
 		for _, state := range getResourceStates(app, selectedResources) {
+			if state.Hook != "" {
+				if isHookPending(state) {
+					ready = false
+					pending = append(pending, formatResourceStateLabel(state))
+				}
+				continue
+			}
+			if watch.delete {
+				ready = false
+				pending = append(pending, state.Key()+" (pending deletion)")
+				continue
+			}
 			if !checkResourceStatus(watch, state.Health, state.Status) {
 				ready = false
-				break
+				pending = append(pending, formatResourceStateLabel(state))
+			} else if watch.operation && isResourceOperationPending(app, state) {
+				ready = false
+				pending = append(pending, formatResourceStateLabel(state))
 			}
 		}
 	} else {
 		// Wait on the application as a whole
-		ready = checkResourceStatus(watch, string(app.Status.Health.Status), string(app.Status.Sync.Status))
+		ready = checkResourceStatus(watch, string(app.Status.Health.Status), string(app.Status.Sync.Status)) && ready
+		if !ready {
+			if watch.sync && string(app.Status.Sync.Status) != string(argoappv1.SyncStatusCodeSynced) {
+				pending = append(pending, fmt.Sprintf("sync status: %s", app.Status.Sync.Status))
+			}
+			healthBeingChecked := watch.suspended || watch.health || watch.degraded
+			if healthBeingChecked && string(app.Status.Health.Status) != string(health.HealthStatusHealthy) {
+				pending = append(pending, fmt.Sprintf("health status: %s", app.Status.Health.Status))
+			}
+		}
 	}
 
-	return ready, operationInProgress
+	if watch.delete {
+		ready = false // It's only ready when the watch receives the DELETED event.
+		if len(selectedResources) == 0 {
+			pending = append(pending, "app (pending deletion)")
+		}
+	}
+
+	return ready, operationInProgress, pending
+}
+
+// formatResourceStateLabel returns a human-readable label for a resource state.
+// Hook resources use phase/result labels; regular resources use sync/health.
+func formatResourceStateLabel(state *resourceState) string {
+	if state.Hook != "" {
+		return fmt.Sprintf("%s (hook: %s, result: %s)", state.Key(), state.Status, state.Health)
+	}
+	return fmt.Sprintf("%s (sync: %s, health: %s)", state.Key(), state.Status, state.Health)
+}
+
+// isHookPending determines if a hook is still pending by checking if its status
+// has not reached a terminal state (Succeeded, Failed, or Error).
+func isHookPending(state *resourceState) bool {
+	return state.Hook != "" && state.Status != string(common.OperationSucceeded) && state.Status != string(common.OperationFailed) && state.Status != string(common.OperationError)
+}
+
+// isResourceOperationPending evaluates if an operation is still actively running for a resource
+// by checking the application's OperationState SyncResult.
+func isResourceOperationPending(app *argoappv1.Application, state *resourceState) bool {
+	if app.Status.OperationState == nil || app.Status.OperationState.SyncResult == nil {
+		return false
+	}
+	for _, res := range app.Status.OperationState.SyncResult.Resources {
+		if res.Group == state.Group && res.Kind == state.Kind && res.Namespace == state.Namespace && res.Name == state.Name {
+			if res.HookType != "" {
+				return res.HookPhase != common.OperationSucceeded && res.HookPhase != common.OperationFailed && res.HookPhase != common.OperationError
+			}
+			return res.Status == ""
+		}
+	}
+	return false
 }
 
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
@@ -2519,7 +2580,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	// arrive. Skip the early return for --delete, which needs an actual
 	// Deleted event from the watch. See https://github.com/argoproj/argo-cd/issues/12211.
 	if !watch.delete {
-		if ready, operationInProgress := checkAppWaitConditions(app, watch, selectedResources); ready && (!operationInProgress || !watch.operation) {
+		if ready, operationInProgress, _ := checkAppWaitConditions(app, watch, selectedResources); ready && (!operationInProgress || !watch.operation) {
 			app = printFinalStatus(app)
 			return app, finalOperationState, nil
 		}
@@ -2537,7 +2598,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			return nil, nil, nil
 		}
 
-		selectedResourcesAreReady, operationInProgress := checkAppWaitConditions(app, watch, selectedResources)
+		selectedResourcesAreReady, operationInProgress, _ := checkAppWaitConditions(app, watch, selectedResources)
 		if app.Operation != nil && !app.Operation.DryRun() {
 			refresh = true
 		}
@@ -2568,6 +2629,35 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 		_ = w.Flush()
 	}
 	_ = printFinalStatus(appWithLock.GetApp())
+	app = appWithLock.GetApp()
+
+	_, _, pending := checkAppWaitConditions(app, watch, selectedResources)
+
+	var appConditions []string
+	var resourceConditions []string
+	for _, p := range pending {
+		if strings.HasPrefix(p, "operation:") || strings.HasPrefix(p, "hydration:") || strings.HasPrefix(p, "sync status:") || strings.HasPrefix(p, "health status:") {
+			appConditions = append(appConditions, p)
+		} else {
+			resourceConditions = append(resourceConditions, p)
+		}
+	}
+
+	var detailParts []string
+	if len(appConditions) > 0 {
+		detailParts = append(detailParts, "app "+strings.Join(appConditions, ", "))
+	}
+	if len(resourceConditions) > 0 {
+		// As requested, we could implement a maxPending check here, but we default to printing all.
+		// If there are many resources, we might want to truncate, but currently it prints all.
+		detailParts = append(detailParts, "resources not ready: "+strings.Join(resourceConditions, ", "))
+	}
+	detail := strings.Join(detailParts, ", ")
+
+	if detail != "" {
+		return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state. %s", timeout, appName, detail)
+	}
+
 	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
 }
 
