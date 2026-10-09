@@ -579,6 +579,12 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local ensure-e2e-image
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply --server-side --force-conflicts -f -
 	kubectl apply -f https://raw.githubusercontent.com/open-cluster-management/api/a6845f2ebcb186ec26b832f60c988537a58f3859/cluster/v1alpha1/0000_04_clusters.open-cluster-management.io_placementdecisions.crd.yaml
+	# Wait for the CRDs to be served, otherwise the API server can exit on its first AppProject write
+	kubectl wait --for=condition=Established --timeout=60s \
+		crd/applications.argoproj.io \
+		crd/applicationsets.argoproj.io \
+		crd/appprojects.argoproj.io \
+		crd/placementdecisions.cluster.open-cluster-management.io
 	# Wait for conversion webhook to be ready. It is a hard requirement: the
 	# Application CRD has webhook conversion configured, so v1beta1 requests
 	# (and the v1beta1 e2e package) fail confusingly without it — fail fast here.
