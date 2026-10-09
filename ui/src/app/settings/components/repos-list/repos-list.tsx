@@ -436,10 +436,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         }
     };
 
-    const stripProtocol = (url: string) => {
-        return url.replace('https://', '').replace('oci://', '');
-    };
-
     // only git/helm/oci connections which are not via SSH, GitHub App or Azure Service Principal are updatable
     const isRepoUpdatable = (item: UnifiedRepo) => {
         // Only readRepo or writeRepo can be updated (not templates)
