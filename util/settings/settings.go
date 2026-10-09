@@ -602,9 +602,9 @@ const (
 	impersonationEnforcedKey = "application.sync.impersonation.enforced"
 	// requireOverridePrivilegeForRevisionSyncKey is the key to configure whether giving an external revision during sync is considered an override
 	requireOverridePrivilegeForRevisionSyncKey = "application.sync.requireOverridePrivilegeForRevisionSync"
-	// rbacLocalUserStrictModeKey is the key to configure whether local accounts are disambiguated from SSO users
+	// RBACLocalUserStrictModeKey is the key to configure whether local accounts are disambiguated from SSO users
 	// during RBAC enforcement by appending an "@local" suffix to the local account name.
-	rbacLocalUserStrictModeKey = "rbac.local.user.strictmode"
+	RBACLocalUserStrictModeKey = "rbac.local.user.strictmode"
 )
 
 const (
@@ -1825,7 +1825,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.ExtensionConfig = getExtensionConfigs(argoCDCM.Data)
 	settings.ImpersonationEnabled = argoCDCM.Data[impersonationEnabledKey] == "true"
 	settings.RequireOverridePrivilegeForRevisionSync = argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey] == "true"
-	settings.RBACLocalUserStrictMode = argoCDCM.Data[rbacLocalUserStrictModeKey] == "true"
+	settings.RBACLocalUserStrictMode = argoCDCM.Data[RBACLocalUserStrictModeKey] == "true"
 }
 
 func getExtensionConfigs(cmData map[string]string) map[string]string {
