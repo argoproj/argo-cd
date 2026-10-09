@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -126,19 +125,15 @@ func newTestSessionServer(t *testing.T, cmData map[string]string) *Server {
 	const ns = "default"
 	kubeClient := fake.NewClientset(
 		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDConfigMapName,
-				Namespace: ns,
-				Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
-			},
-			Data: cmData,
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: ns,
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+			Data:      cmData,
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDSecretName,
-				Namespace: ns,
-			},
-			Data: map[string][]byte{"server.secretkey": []byte("test")},
+			Name:      common.ArgoCDSecretName,
+			Namespace: ns,
+			Data:      map[string][]byte{"server.secretkey": []byte("test")},
 		},
 	)
 	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, ns)
