@@ -232,7 +232,8 @@ func (sharding *ClusterSharding) getClusterAccessor() clusterAccessor {
 	}
 }
 
-// A read lock should be acquired before calling getGenerationAccessor.
+// The write lock must be held while the returned accessor is used: the distribution
+// functions it feeds cache the mapping per generation and are not safe for concurrent use.
 func (sharding *ClusterSharding) getGenerationAccessor() generationAccessor {
 	return func() uint64 {
 		return sharding.generation

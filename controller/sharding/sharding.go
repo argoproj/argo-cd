@@ -8,7 +8,6 @@ import (
 	"hash/fnv"
 	"math"
 	"os"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -201,10 +200,6 @@ func consistentHashingWithBoundedLoadsDistributionFunction(clusters clusterAcces
 			}
 			// if the cluster is not in the clusters list anymore, we should unassign it from any shard, so we
 			// return the reserved value of -1
-			if !slices.Contains(clusters(), c) {
-				log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
-				return -1
-			}
 			shard, ok := getShardIndexedByCluster()[c.ID]
 			if !ok {
 				log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
@@ -223,6 +218,10 @@ func consistentHashingWithBoundedLoadsDistributionFunction(clusters clusterAcces
 // hash ring, and a redistribution asks for one cluster at a time, so without this
 // cache a redistribution is quadratic in the number of clusters. With a nil
 // generation, compute runs on every call.
+//
+// The returned function writes the cached value on every generation change and is
+// not safe for concurrent use: callers must hold the write lock that guards the
+// generation (ClusterSharding.updateDistribution does).
 func memoizeByGeneration[T any](generation generationAccessor, compute func() T) func() T {
 	if generation == nil {
 		return compute
