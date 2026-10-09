@@ -34,7 +34,17 @@ if ! [[ "$shard" =~ ^[0-9]+$ ]] || ! [[ "$count" =~ ^[0-9]+$ ]] || [ "$count" -l
 fi
 
 # `go test -list` emits the matching names followed by a trailing "ok <pkg> <time>" line.
-names=$(go test -list '.*' "$pkg" | grep -E '^Test[A-Za-z0-9_]*$')
+listed=$(go test -list '.*' "$pkg")
+names=$(echo "$listed" | grep -E '^Test[A-Za-z0-9_]*$' || true)
+
+# A test whose name the filter above rejects (Go identifiers may contain non-ASCII
+# letters) would be selected by no shard and so never run, without any failure.
+rejected=$(echo "$listed" | grep -E '^Test' | grep -vE '^Test[A-Za-z0-9_]*$' || true)
+if [ -n "$rejected" ]; then
+	echo "e2e-shard: test names that no shard can select:" >&2
+	echo "$rejected" >&2
+	exit 1
+fi
 
 if [ -z "$names" ]; then
 	echo "e2e-shard: no tests found in $pkg" >&2

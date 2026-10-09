@@ -50,6 +50,33 @@ The Makefile's `start-e2e` target starts instances of ArgoCD on your local machi
 
 If you have changed the port for `argocd-server`, be sure to also set `ARGOCD_SERVER` environment variable to point to that port, e.g. `export ARGOCD_SERVER=localhost:8888` before running `make test-e2e` so that the test will communicate to the correct server component.
 
+## Running a Shard of the Suite
+
+CI splits the e2e suite into shards and runs each shard as its own job. You can run a single shard locally with `make test-e2e` or `make test-e2e-local` by setting both of these environment variables:
+
+- `ARGOCD_E2E_SHARD`: The shard to run, starting at `1`
+- `ARGOCD_E2E_SHARD_COUNT`: The total number of shards
+
+When either variable is unset, the whole suite runs. For example, to run the first of four shards:
+
+```bash
+ARGOCD_E2E_SHARD=1 ARGOCD_E2E_SHARD_COUNT=4 make test-e2e-local
+```
+
+`hack/e2e-shard.sh` assigns tests to shards by their measured duration, which it reads from `test/e2e/shard-weights.txt`. Tests missing from that file get the mean duration. To read durations from a different file when you run `make test-e2e-local`, set `ARGOCD_E2E_SHARD_WEIGHTS` to its path.
+
+> [!NOTE]
+> The e2e environment must be running before you run a shard, because listing the tests starts the test binary, and the test binary connects to the API server when it starts.
+
+### Refreshing the Shard Weights
+
+The shards become unbalanced when tests are added or their durations change. Each CI shard of the latest Kubernetes version uploads its test timings as an `e2e-test-timings-shard<N>` artifact. To regenerate the weights from a green CI run:
+
+```bash
+gh run download <run-id> -p 'e2e-test-timings-shard*'
+./hack/e2e-shard-weights.sh e2e-test-timings-shard*/junit.xml > test/e2e/shard-weights.txt
+```
+
 ## Test Isolation
 
 Some effort has been made to balance test isolation with speed. Tests are isolated as follows as each test gets:

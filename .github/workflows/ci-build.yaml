@@ -588,6 +588,10 @@ jobs:
         # references to their coverage output directories.
         # Each e2e shard uploads its own artifact, so the per-component directories appear
         # once per shard and have to be merged before they can be converted to text.
+        # A shard that uploaded nothing only warns on its upload step, and the pattern
+        # download then skips it, so check that every shard contributed.
+        env:
+          E2E_SHARD_COUNT: ${{ needs.changes.outputs.e2e_shard_count }}
         run: |
           set -o pipefail
           dirs=$(find e2e-code-coverage -mindepth 2 -maxdepth 2 -type d \
@@ -595,6 +599,11 @@ jobs:
             | sort | paste -sd, -)
           if [ -z "$dirs" ]; then
             echo "no e2e coverage directories found under e2e-code-coverage/" >&2
+            exit 1
+          fi
+          shards=$(echo "$dirs" | tr ',' '\n' | xargs -n1 dirname | sort -u | wc -l | tr -d ' ')
+          if [ "$shards" -ne "$E2E_SHARD_COUNT" ]; then
+            echo "e2e coverage came from $shards of $E2E_SHARD_COUNT shards; refusing to upload a partial profile" >&2
             exit 1
           fi
           echo "merging: $dirs"
@@ -614,7 +623,7 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload e2e test coverage to codecov.io
         if: ${{ needs.test-e2e.result == 'success' && github.repository == 'argoproj/argo-cd' }}
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.0.0
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           version: v11.2.8 # https://github.com/getsentry/prevent-cli/releases/tag/v11.2.8
           files: test-results/e2e-coverage.out
