@@ -42101,7 +42101,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.10.1-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.2-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -42763,6 +42763,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.metrics.application.conditions
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_SYNC_WINDOWS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.metrics.sync.windows
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS
