@@ -157,6 +157,7 @@ spec:
         - repos:
             - url: "https://github.com/my-group/*"
             - url: "!https://github.com/my-group/ignored.git"
+          signedTagsOnly: false
           gpg:
             mode: "none|head|strict"
             keys:
@@ -169,6 +170,51 @@ Given strategy will be used when matched some of the positive globs, while not m
 Only one policy is applied per source repository, and sources not matched by any policy will not have its integrity verified.
 
 Note that a multi-source application can have each of its source repositories validated against a different policy.
+
+### Restricting sources to signed tags
+
+Git tag can be a *lightweight* tag, which is no more than a named pointer to a commit or an *annotated* tag, which is a Git objectand, therefore the only kind that can carry a GnuPG signature.
+
+Set `signedTagsOnly: true` on a policy to require that the target revision resolves to an annotated tag:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+spec:
+  sourceIntegrity:
+    git:
+      policies:
+        - repos:
+            - url: "https://github.com/my-group/*"
+          signedTagsOnly: true
+          gpg:
+            mode: "head"
+            keys:
+              - "D56C4FCA57A46444"
+```
+
+Applications in the project can then only sync from an annotated tag.
+Branch names, reference names such as `HEAD`, commit SHAs and lightweight tags are all rejected before any signature is looked at, and the application reports a comparison error:
+
+```
+SignedTagsOnly is enabled, v1.0 is not annotated. Un-annotated tags cannot be signed
+```
+
+> [!NOTE]
+> `signedTagsOnly` only rejects revisions that *cannot* be signed — it does not verify a signature by
+> itself. The annotated tag must still satisfy the policy's `gpg` constraint to be synced. It follows
+> that the setting has no effect on a policy whose `gpg` mode is `none`, or on a policy with no
+> verification method configured at all.
+
+> [!WARNING]
+> Unlike a failed signature check, which is reported as a source integrity problem, a revision
+> rejected by `signedTagsOnly` fails manifest generation outright. Expect the error on the
+> application's comparison status rather than in the list of source integrity problems.
+
+> [!NOTE]
+> `signedTagsOnly` can currently only be set declaratively in the `AppProject` manifest. The
+> `argocd proj source-integrity git policies` commands neither set nor display it, though editing a
+> policy with `argocd proj source-integrity git policies update` preserves the value.
 
 ### The `gpg` verification policy
 
@@ -191,6 +237,7 @@ Note this accepts unsigned commits as well as commits with a signature that is i
 Verify only the commit/tag pointed to by the target revision of the source.
 If the revision is an annotated tag, it is the tag's signature that is verified, not the commit's signature (i.e. the tag itself must be signed using `git tag -s`).
 Otherwise, if target revision is a branch name, reference name (such as `HEAD`), or a commit SHA Argo CD verifies the commit's GnuPG signature.
+To reject revisions that are not annotated tags outright, combine this mode with [`signedTagsOnly`](#restricting-sources-to-signed-tags).
 
 ##### Verification mode `strict`
 

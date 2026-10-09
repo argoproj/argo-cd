@@ -28,6 +28,23 @@ var projectWithNoKeys = AppProjectSpec{
 	},
 }
 
+var projectWithSignedTagsOnly = AppProjectSpec{
+	SourceRepos:  []string{"*"},
+	Destinations: []ApplicationDestination{{Namespace: "*", Server: "*"}},
+	SourceIntegrity: &SourceIntegrity{
+		Git: &SourceIntegrityGit{
+			Policies: []*SourceIntegrityGitPolicy{{
+				Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
+				SignedTagsOnly: true, // Verifying annotated tags
+				GPG: &SourceIntegrityGitPolicyGPG{
+					Keys: []string{},
+					Mode: "head",
+				},
+			}},
+		},
+	},
+}
+
 func TestSyncToUnsignedCommit(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
 	fixture.EnsureCleanState(t)
@@ -454,4 +471,69 @@ func TestArtifactCacheInvalidatedOnSourceIntegrityChange(t *testing.T) {
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(Condition(ApplicationConditionComparisonError, "GIT/GPG: Failed verifying revision")).
 		Expect(Condition(ApplicationConditionComparisonError, "signed with unallowed key (key_id="+fixture.GpgGoodKeyID+")"))
+}
+
+func TestSignedTagsOnlyRejectsLightweightTag(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+	Given(t).
+		ProjectSpec(projectWithSignedTagsOnly).
+		Revision("lightweight-tag").
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		AddTag("lightweight-tag").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusMissing)).
+		Expect(Condition(ApplicationConditionComparisonError, "SignedTagsOnly is enabled, lightweight-tag is not annotated"))
+}
+
+func TestSignedTagsOnlyRejectsBranch(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+	Given(t).
+		ProjectSpec(projectWithSignedTagsOnly).
+		Revision("master").
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusMissing)).
+		Expect(Condition(ApplicationConditionComparisonError, "is not annotated"))
+}
+
+func TestSignedTagsOnlyAcceptsSignedAnnotatedTag(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+	Given(t).
+		ProjectSpec(projectWithSignedTagsOnly).
+		Revision("v2.0").
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddFile("test.yaml", "null").
+		AddSignedTag("v2.0").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions())
 }
