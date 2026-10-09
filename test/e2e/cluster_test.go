@@ -3,6 +3,7 @@ package e2e
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"testing"
 	"time"
 
@@ -14,7 +15,6 @@ import (
 	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	clusterFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/cluster"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 func TestClusterList(t *testing.T) {
@@ -22,8 +22,9 @@ func TestClusterList(t *testing.T) {
 	defer fixture.RecordTestRun(t)
 
 	last := ""
-	expected := fmt.Sprintf(`SERVER                          NAME        VERSION  STATUS      MESSAGE  PROJECT
-https://kubernetes.default.svc  in-cluster  %v  Successful           `, fixture.GetVersions(t).ServerVersion.String())
+	expectedRegexStr := fmt.Sprintf("^SERVER +NAME +VERSION +STATUS +MESSAGE +PROJECT\nhttps://kubernetes\\.default\\.svc +in-cluster +%v +Successful *$",
+		regexp.QuoteMeta(fixture.GetVersions(t).ServerVersion.String()))
+	expectedRegexp := regexp.MustCompile(expectedRegexStr)
 
 	ctx := clusterFixture.Given(t)
 	ctx.Project(fixture.ProjectName)
@@ -36,6 +37,7 @@ https://kubernetes.default.svc  in-cluster  %v  Successful           `, fixture.
 		CreateApp()
 
 	tries := 25
+	matches := false
 	for i := 0; i <= tries; i++ {
 		clusterFixture.GivenWithSameState(ctx).
 			When().
@@ -44,14 +46,15 @@ https://kubernetes.default.svc  in-cluster  %v  Successful           `, fixture.
 			AndCLIOutput(func(output string, _ error) {
 				last = output
 			})
-		if expected == last {
+		matches = expectedRegexp.MatchString(last)
+		if matches {
 			break
 		} else if i < tries {
 			// We retry with a simple backoff
 			time.Sleep(time.Duration(i+1) * 100 * time.Millisecond)
 		}
 	}
-	assert.Equal(t, expected, last)
+	assert.Regexp(t, expectedRegexp, last)
 }
 
 func TestClusterAdd(t *testing.T) {
@@ -169,9 +172,23 @@ func TestClusterSet(t *testing.T) {
 
 func TestClusterGet(t *testing.T) {
 	fixture.SkipIfAlreadyRun(t)
-	fixture.EnsureCleanState(t)
 	defer fixture.RecordTestRun(t)
-	output := errors.NewHandler(t).FailOnErr(fixture.RunCli("cluster", "get", "https://kubernetes.default.svc")).(string)
+
+	ctx := clusterFixture.Given(t)
+	ctx.Project(fixture.ProjectName)
+
+	app.GivenWithSameState(ctx).
+		Path(guestbookPath).
+		When().
+		CreateApp()
+
+	var output string
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		out, err := fixture.RunCli("cluster", "get", "https://kubernetes.default.svc")
+		require.NoError(c, err)
+		assert.Contains(c, out, "status: Successful")
+		output = out
+	}, 30*time.Second, time.Second)
 
 	assert.Contains(t, output, "name: in-cluster")
 	assert.Contains(t, output, "server: https://kubernetes.default.svc")
@@ -179,8 +196,6 @@ func TestClusterGet(t *testing.T) {
 	assert.Contains(t, output, `config:
   tlsClientConfig:
     insecure: false`)
-
-	assert.Contains(t, output, `status: Successful`)
 }
 
 func TestClusterNameInRestAPI(t *testing.T) {

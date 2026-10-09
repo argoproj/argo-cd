@@ -13,8 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/v3/common"
-
 	bb "github.com/ktrysmt/go-bitbucket"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/util/workqueue"
@@ -22,13 +20,13 @@ import (
 	alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 
 	"github.com/Masterminds/semver/v3"
+	bitbucketv1 "github.com/gfleury/go-bitbucket-v1"
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/bitbucket"
 	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	"github.com/go-playground/webhooks/v6/gogs"
-	gogsclient "github.com/gogits/go-gogs-client"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	log "github.com/sirupsen/logrus"
@@ -108,56 +106,26 @@ type ArgoCDWebhookHandler struct {
 	webhookRefreshJitterThreshold int
 }
 
-func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, webhookRefreshWorkers int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64, webhookRefreshJitter time.Duration, webhookRefreshJitterThreshold int, appProjectsLister alpha1.AppProjectNamespaceLister) *ArgoCDWebhookHandler {
-	githubWebhook, err := github.New(github.Options.Secret(set.GetWebhookGitHubSecret()))
-	if err != nil {
-		log.Warnf("Unable to init the GitHub webhook")
+// ArgoCDParserOptions returns the webhook events the Argo CD API server handles.
+func ArgoCDParserOptions() ParserOptions {
+	return ParserOptions{
+		AzureDevOpsEvents: []azuredevops.Event{azuredevops.GitPushEventType},
+		GogsEvents:        []gogs.Event{gogs.PushEvent},
+		GitHubEvents:      []github.Event{github.PushEvent, github.PingEvent},
+		GitLabEvents:      []gitlab.Event{gitlab.PushEvents, gitlab.TagEvents, gitlab.SystemHookEvents},
+		BitbucketEvents:   []bitbucket.Event{bitbucket.RepoPushEvent},
+		BitbucketServerEvents: []bitbucketserver.Event{
+			bitbucketserver.RepositoryReferenceChangedEvent,
+			bitbucketserver.DiagnosticsPingEvent,
+		},
+		Harbor:    true,
+		GHCR:      true,
+		DockerHub: true,
 	}
-	gitlabWebhook, err := gitlab.New(gitlab.Options.Secret(set.GetWebhookGitLabSecret()))
-	if err != nil {
-		log.Warnf("Unable to init the GitLab webhook")
-	}
-	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(set.GetWebhookBitbucketUUID()))
-	if err != nil {
-		log.Warnf("Unable to init the Bitbucket webhook")
-	}
-	bitbucketserverWebhook, err := bitbucketserver.New(bitbucketserver.Options.Secret(set.GetWebhookBitbucketServerSecret()))
-	if err != nil {
-		log.Warnf("Unable to init the Bitbucket Server webhook")
-	}
-	gogsWebhook, err := gogs.New(gogs.Options.Secret(set.GetWebhookGogsSecret()))
-	if err != nil {
-		log.Warnf("Unable to init the Gogs webhook")
-	}
-	azuredevopsWebhook, err := azuredevops.New(azuredevops.Options.BasicAuth(set.GetWebhookAzureDevOpsUsername(), set.GetWebhookAzureDevOpsPassword()))
-	if err != nil {
-		log.Warnf("Unable to init the Azure DevOps webhook")
-	}
-	// Each upstream constructor returns a nil *Webhook on error; skip those so a
-	// matching request doesn't panic with a nil-pointer dereference in Parse.
-	var parsers []Extractor
-	if azuredevopsWebhook != nil {
-		parsers = append(parsers, &azureDevOpsParser{webhook: azuredevopsWebhook})
-	}
-	// Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
-	if gogsWebhook != nil {
-		parsers = append(parsers, &gogsParser{webhook: gogsWebhook})
-	}
-	if githubWebhook != nil {
-		parsers = append(parsers, &githubParser{webhook: githubWebhook})
-	}
-	if gitlabWebhook != nil {
-		parsers = append(parsers, &gitlabParser{webhook: gitlabWebhook})
-	}
-	if bitbucketWebhook != nil {
-		parsers = append(parsers, &bitbucketParser{webhook: bitbucketWebhook})
-	}
-	if bitbucketserverWebhook != nil {
-		parsers = append(parsers, &bitbucketServerParser{webhook: bitbucketserverWebhook})
-	}
-	parsers = append(parsers, newGHCRParser(set.GetWebhookGitHubSecret()))
-	parsers = append(parsers, newHarborParser(set.GetWebhookHarborSecret()))
+}
 
+func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, webhookRefreshWorkers int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64, webhookRefreshJitter time.Duration, webhookRefreshJitterThreshold int, appProjectsLister alpha1.AppProjectNamespaceLister) *ArgoCDWebhookHandler {
+	parsers := NewParsers(set, ArgoCDParserOptions())
 	log.Debugf("webhookRefreshJitter=%v", webhookRefreshJitter)
 	log.Debugf("webhookRefreshJitterThreshold=%d", webhookRefreshJitterThreshold)
 
@@ -180,25 +148,10 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		webhookRefreshJitterThreshold: webhookRefreshJitterThreshold,
 	}
 
-	acdWebhook.startWorkerPool(webhookParallelism)
+	StartWorkers(&acdWebhook.WaitGroup, webhookParallelism, acdWebhook.queue, acdWebhook.HandleEvent, "api-server-webhook", panicMsgServer)
 	acdWebhook.startRefreshWorkers(webhookRefreshWorkers)
 
 	return &acdWebhook
-}
-
-func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
-	compLog := log.WithField("component", "api-server-webhook")
-	for range webhookParallelism {
-		a.Go(func() {
-			for {
-				payload, ok := <-a.queue
-				if !ok {
-					return
-				}
-				guard.RecoverAndLog(func() { a.HandleEvent(payload) }, compLog, panicMsgServer)
-			}
-		})
-	}
 }
 
 // startRefreshWorkers starts worker goroutines to process app refresh requests from the refresh queue
@@ -245,158 +198,76 @@ func ParseRevision(ref string) string {
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
 // the revision, and whether, or not this affected origin/HEAD (the default branch of the repository)
 func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
+	info := ParsePushEvent(payloadIf)
+	if info == nil {
+		return nil, "", changeInfo{}, false, nil
+	}
+	// Bitbucket payloads don't say whether the default branch moved or which files
+	// changed, so ask the provider API, but only for authenticated webhooks.
 	switch payload := payloadIf.(type) {
-	case azuredevops.GitPushEvent:
-		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
-		webURLs = append(webURLs, payload.Resource.Repository.RemoteURL)
-		if len(payload.Resource.RefUpdates) > 0 {
-			revision = ParseRevision(payload.Resource.RefUpdates[0].Name)
-			change.shaAfter = ParseRevision(payload.Resource.RefUpdates[0].NewObjectID)
-			change.shaBefore = ParseRevision(payload.Resource.RefUpdates[0].OldObjectID)
-			touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
-		}
-		// unfortunately, Azure DevOps doesn't provide a list of changed files
-	case github.PushPayload:
-		// See: https://developer.github.com/v3/activity/events/types/#pushevent
-		webURLs = append(webURLs, payload.Repository.HTMLURL)
-		revision = ParseRevision(payload.Ref)
-		change.shaAfter = ParseRevision(payload.After)
-		change.shaBefore = ParseRevision(payload.Before)
-		touchedHead = bool(payload.Repository.DefaultBranch == revision)
-		for _, commit := range payload.Commits {
-			changedFiles = append(changedFiles, commit.Added...)
-			changedFiles = append(changedFiles, commit.Modified...)
-			changedFiles = append(changedFiles, commit.Removed...)
-		}
-	case gitlab.PushEventPayload:
-		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
-		webURLs = append(webURLs, payload.Project.WebURL)
-		revision = ParseRevision(payload.Ref)
-		change.shaAfter = ParseRevision(payload.After)
-		change.shaBefore = ParseRevision(payload.Before)
-		touchedHead = bool(payload.Project.DefaultBranch == revision)
-		for _, commit := range payload.Commits {
-			changedFiles = append(changedFiles, commit.Added...)
-			changedFiles = append(changedFiles, commit.Modified...)
-			changedFiles = append(changedFiles, commit.Removed...)
-		}
-	case gitlab.TagEventPayload:
-		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
-		// NOTE: this is untested
-		webURLs = append(webURLs, payload.Project.WebURL)
-		revision = ParseRevision(payload.Ref)
-		change.shaAfter = ParseRevision(payload.After)
-		change.shaBefore = ParseRevision(payload.Before)
-		touchedHead = bool(payload.Project.DefaultBranch == revision)
-		for _, commit := range payload.Commits {
-			changedFiles = append(changedFiles, commit.Added...)
-			changedFiles = append(changedFiles, commit.Modified...)
-			changedFiles = append(changedFiles, commit.Removed...)
-		}
 	case bitbucket.RepoPushPayload:
-		// See: https://confluence.atlassian.com/bitbucket/event-payloads-740262817.html#EventPayloads-Push
-		// NOTE: this is untested
-		webURLs = append(webURLs, payload.Repository.Links.HTML.Href)
-		for _, changes := range payload.Push.Changes {
-			revision = changes.New.Name
-			change.shaBefore = changes.Old.Target.Hash
-			change.shaAfter = changes.New.Target.Hash
-			break
-		}
-		// Not actually sure how to check if the incoming change affected HEAD just by examining the
-		// payload alone. To be safe, we just return true and let the controller check for himself.
-		touchedHead = true
-
-		// Get DiffSet only for authenticated webhooks.
 		// when WebhookBitbucketUUID is set in argocd-secret, then the payload must be signed and
 		// signature is validated before payload is parsed.
 		if a.settings.GetWebhookBitbucketUUID() != "" {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			argoRepo, err := a.lookupRepository(ctx, webURLs[0])
-			if err != nil {
-				log.Warnf("error trying to find a matching repo for URL %s: %v", payload.Repository.Links.HTML.Href, err)
-				break
-			}
-			if argoRepo == nil {
-				// it could be a public repository with no repo creds stored.
-				// initialize with empty bearer token to use the no auth bitbucket client.
-				log.Debugf("no bitbucket repository configured for URL %s, initializing with empty bearer token", webURLs[0])
-				argoRepo = &v1alpha1.Repository{BearerToken: "", Repo: webURLs[0]}
-			}
-			apiBaseURL := strings.ReplaceAll(payload.Repository.Links.Self.Href, "/repositories/"+payload.Repository.FullName, "")
-			bbClient, err := newBitbucketClient(ctx, argoRepo, apiBaseURL)
-			if err != nil {
-				log.Warnf("error creating Bitbucket client for repo %s: %v", payload.Repository.Name, err)
-				break
-			}
-			log.Debugf("created bitbucket client with base URL '%s'", apiBaseURL)
-			owner, repoSlug, ok := strings.Cut(payload.Repository.FullName, "/")
-			if !ok || owner == "" || repoSlug == "" {
-				log.Warnf("error parsing bitbucket repository full name %q", payload.Repository.FullName)
-				break
-			}
-			spec := change.shaBefore + ".." + change.shaAfter
-			diffStatChangedFiles, err := fetchDiffStatFromBitbucket(ctx, bbClient, owner, repoSlug, spec)
-			if err != nil {
-				log.Warnf("error fetching changed files using bitbucket diffstat api: %v", err)
-			}
-			changedFiles = append(changedFiles, diffStatChangedFiles...)
-			touchedHead, err = isHeadTouched(ctx, bbClient, owner, repoSlug, revision)
-			if err != nil {
-				log.Warnf("error fetching bitbucket repo details: %v", err)
-				// To be safe, we just return true and let the controller check for himself.
-				touchedHead = true
-			}
+			a.addBitbucketChanges(info, payload)
 		}
-
-	// Bitbucket does not include a list of changed files anywhere in it's payload
-	// so we cannot update changedFiles for this type of payload
 	case bitbucketserver.RepositoryReferenceChangedPayload:
-
-		// Webhook module does not parse the inner links
-		if payload.Repository.Links != nil {
-			clone, ok := payload.Repository.Links["clone"].([]any)
-			if ok {
-				for _, l := range clone {
-					link := l.(map[string]any)
-					if link["name"] == "http" || link["name"] == "ssh" {
-						if href, ok := link["href"].(string); ok {
-							webURLs = append(webURLs, href)
-						}
-					}
-				}
+		// When WebhookBitbucketServerSecret is set, webhook requests are validated before processing.
+		httpCloneURL, _ := bitbucketServerCloneURLs(payload.Repository)
+		if a.settings.GetWebhookBitbucketServerSecret() != "" && httpCloneURL != "" {
+			bbFiles, headTouched, err := a.fetchBBServerChangedFiles(httpCloneURL, payload.Repository.Project.Key, payload.Repository.Slug, info.SHABefore, info.SHAAfter, info.Revision)
+			if err != nil {
+				log.Warnf("error fetching Bitbucket Server changed files: %v", err)
+			} else {
+				info.ChangedFiles = append(info.ChangedFiles, bbFiles...)
+				info.TouchedHead = headTouched
 			}
-		}
-
-		// TODO: bitbucket includes multiple changes as part of a single event.
-		// We only pick the first but need to consider how to handle multiple
-		for _, change := range payload.Changes {
-			revision = ParseRevision(change.Reference.ID)
-			break
-		}
-		// Not actually sure how to check if the incoming change affected HEAD just by examining the
-		// payload alone. To be safe, we just return true and let the controller check for himself.
-		touchedHead = true
-
-		// Bitbucket does not include a list of changed files anywhere in it's payload
-		// so we cannot update changedFiles for this type of payload
-
-	case gogsclient.PushPayload:
-		revision = ParseRevision(payload.Ref)
-		change.shaAfter = ParseRevision(payload.After)
-		change.shaBefore = ParseRevision(payload.Before)
-		if payload.Repo != nil {
-			webURLs = append(webURLs, payload.Repo.HTMLURL)
-			touchedHead = payload.Repo.DefaultBranch == revision
-		}
-		for _, commit := range payload.Commits {
-			changedFiles = append(changedFiles, commit.Added...)
-			changedFiles = append(changedFiles, commit.Modified...)
-			changedFiles = append(changedFiles, commit.Removed...)
 		}
 	}
-	return webURLs, revision, change, touchedHead, changedFiles
+	return info.WebURLs, info.Revision, changeInfo{shaBefore: info.SHABefore, shaAfter: info.SHAAfter}, info.TouchedHead, info.ChangedFiles
+}
+
+// addBitbucketChanges fills in the changed files and whether the default branch
+// moved for a Bitbucket Cloud push, using the Bitbucket API. On any API error it
+// leaves info as parsed from the payload.
+func (a *ArgoCDWebhookHandler) addBitbucketChanges(info *PushEventInfo, payload bitbucket.RepoPushPayload) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	argoRepo, err := a.lookupRepository(ctx, info.WebURLs[0])
+	if err != nil {
+		log.Warnf("error trying to find a matching repo for URL %s: %v", payload.Repository.Links.HTML.Href, err)
+		return
+	}
+	if argoRepo == nil {
+		// it could be a public repository with no repo creds stored.
+		// initialize with empty bearer token to use the no auth bitbucket client.
+		log.Debugf("no bitbucket repository configured for URL %s, initializing with empty bearer token", info.WebURLs[0])
+		argoRepo = &v1alpha1.Repository{BearerToken: "", Repo: info.WebURLs[0]}
+	}
+	apiBaseURL := strings.ReplaceAll(payload.Repository.Links.Self.Href, "/repositories/"+payload.Repository.FullName, "")
+	bbClient, err := newBitbucketClient(ctx, argoRepo, apiBaseURL)
+	if err != nil {
+		log.Warnf("error creating Bitbucket client for repo %s: %v", payload.Repository.Name, err)
+		return
+	}
+	log.Debugf("created bitbucket client with base URL '%s'", apiBaseURL)
+	owner, repoSlug, ok := strings.Cut(payload.Repository.FullName, "/")
+	if !ok || owner == "" || repoSlug == "" {
+		log.Warnf("error parsing bitbucket repository full name %q", payload.Repository.FullName)
+		return
+	}
+	spec := info.SHABefore + ".." + info.SHAAfter
+	diffStatChangedFiles, err := fetchDiffStatFromBitbucket(ctx, bbClient, owner, repoSlug, spec)
+	if err != nil {
+		log.Warnf("error fetching changed files using bitbucket diffstat api: %v", err)
+	}
+	info.ChangedFiles = append(info.ChangedFiles, diffStatChangedFiles...)
+	info.TouchedHead, err = isHeadTouched(ctx, bbClient, owner, repoSlug, info.Revision)
+	if err != nil {
+		log.Warnf("error fetching bitbucket repo details: %v", err)
+		// To be safe, we just return true and let the controller check for himself.
+		info.TouchedHead = true
+	}
 }
 
 type changeInfo struct {
@@ -498,7 +369,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 
 			// iterate over all sources and check if any files specified in refresh paths have changed
 			for _, source := range sources {
-				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
+				if RevisionHasChanged(source.TargetRevision, revision, touchedHead) && RepoURLMatches(source.RepoURL, repoRegexp) {
 					refreshPaths := path.GetSourceRefreshPaths(&app, source)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
 						var hydrateType *v1alpha1.HydrateType
@@ -678,22 +549,29 @@ func (a *ArgoCDWebhookHandler) lookupRepository(ctx context.Context, repoURL str
 	return repository, nil
 }
 
-func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string, touchedHead bool) bool {
-	targetRev := ParseRevision(source.TargetRevision)
+// RevisionHasChanged reports whether a webhook payload for revision affects targetRevision.
+//
+// targetRevision is the configured target: "HEAD", a branch or tag name, a fully qualified
+// ref such as "refs/heads/main", or a semver constraint such as ">=1.0.0". revision is the
+// ref carried by the payload, already reduced by ParseRevision. A targetRevision of "HEAD"
+// or "" tracks the repository's default branch, so it is affected exactly when touchedHead
+// is true; anything else is compared with CompareRevisions.
+func RevisionHasChanged(targetRevision string, revision string, touchedHead bool) bool {
+	targetRev := ParseRevision(targetRevision)
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
 		return touchedHead
 	}
 	targetRevisionHasPrefixList := []string{"refs/heads/", "refs/tags/"}
 	for _, prefix := range targetRevisionHasPrefixList {
-		if strings.HasPrefix(source.TargetRevision, prefix) {
-			return compareRevisions(revision, targetRev)
+		if strings.HasPrefix(targetRevision, prefix) {
+			return CompareRevisions(revision, targetRev)
 		}
 	}
 
-	return compareRevisions(revision, source.TargetRevision)
+	return CompareRevisions(revision, targetRevision)
 }
 
-func compareRevisions(revision string, targetRevision string) bool {
+func CompareRevisions(revision string, targetRevision string) bool {
 	if revision == targetRevision {
 		return true
 	}
@@ -715,13 +593,16 @@ func compareRevisions(revision string, targetRevision string) bool {
 	return constraint.Check(version)
 }
 
-func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp *regexp.Regexp) bool {
-	if !repoRegexp.MatchString(source.RepoURL) {
-		log.Debugf("%s does not match %s", source.RepoURL, repoRegexp.String())
+// RepoURLMatches reports whether repoURL refers to the same repository as the webhook payload that
+// repoRegexp was built from. A non-match is the normal case, since every configured repository is
+// checked against every incoming event, so it is logged at debug level.
+func RepoURLMatches(repoURL string, repoRegexp *regexp.Regexp) bool {
+	if !repoRegexp.MatchString(repoURL) {
+		log.Debugf("%s does not match %s", repoURL, repoRegexp.String())
 		return false
 	}
 
-	log.Debugf("%s uses repoURL %s", source.RepoURL, webURL)
+	log.Debugf("%s matches %s", repoURL, repoRegexp.String())
 	return true
 }
 
@@ -765,7 +646,7 @@ func newBitbucketClient(_ context.Context, repository *v1alpha1.Repository, apiB
 }
 
 // fetchDiffStatFromBitbucket gets the list of files changed between two commits, by making a diffstat api callback to the
-// bitbucket server from where the webhook orignated.
+// bitbucket server from where the webhook originated.
 func fetchDiffStatFromBitbucket(_ context.Context, bbClient *bb.Client, owner, repoSlug, spec string) ([]string, error) {
 	// Getting the files changed from diff API:
 	// https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get
@@ -805,76 +686,157 @@ func isHeadTouched(ctx context.Context, bbClient *bb.Client, owner, repoSlug, re
 	return bbRepo.Mainbranch.Name == revision, nil
 }
 
-func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)
-	payload, handled, err := a.processWebhook(r)
-	if !handled {
-		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
-		return
-	}
+// bbServerAPITimeout is the timeout for outbound Bitbucket Server REST API calls made during
+// webhook processing.
+const bbServerAPITimeout = 10 * time.Second
+
+// fetchBBServerChangedFiles calls the Bitbucket Server REST API to obtain the set of changed
+// files and whether the push touched the repository's default branch.
+func (a *ArgoCDWebhookHandler) fetchBBServerChangedFiles(httpCloneURL, projectKey, repoSlug, fromHash, toHash, revision string) ([]string, bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), bbServerAPITimeout)
+	defer cancel()
+
+	argoRepo, err := a.lookupRepository(ctx, httpCloneURL)
 	if err != nil {
-		if errors.Is(err, ErrHMACVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Registry webhook HMAC verification failed")
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-
-		// If the error is due to a large payload, return a more user-friendly error message
-		if isParsingPayloadError(err) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Warnf("Webhook processing failed: payload too large or corrupted (limit %v MB): %v", a.maxWebhookPayloadSizeB/1024/1024, err)
-			http.Error(w, fmt.Sprintf("Webhook processing failed: payload must be valid JSON under %v MB", a.maxWebhookPayloadSizeB/1024/1024), http.StatusBadRequest)
-			return
-		}
-
-		status := http.StatusBadRequest
-		if r.Method != http.MethodPost {
-			status = http.StatusMethodNotAllowed
-		}
-		log.Infof("Webhook processing failed: %v", err)
-		http.Error(w, "Webhook processing failed", status)
-		return
+		return nil, true, fmt.Errorf("error looking up repository for URL %s: %w", httpCloneURL, err)
 	}
-
-	// Parser claimed the request but produced no payload (e.g. GHCR event that
-	// was intentionally skipped). Acknowledge with 200 and skip the queue.
-	if payload == nil {
-		w.WriteHeader(http.StatusOK)
-		return
+	if argoRepo == nil {
+		log.Debugf("no Bitbucket Server repository configured for URL %s, skipping changed files fetch", httpCloneURL)
+		return nil, true, nil
 	}
-
-	select {
-	case a.queue <- payload:
-	default:
-		log.Info("Queue is full, discarding webhook payload")
-		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
-		return
+	serverURL, err := extractBBServerBaseURL(httpCloneURL)
+	if err != nil {
+		return nil, true, fmt.Errorf("error extracting Bitbucket Server base URL from %s: %w", httpCloneURL, err)
 	}
-	w.WriteHeader(http.StatusOK)
+	bbClient := newBitbucketServerClient(ctx, argoRepo, serverURL)
+	log.Debugf("created Bitbucket Server client with base URL '%s'", serverURL)
+
+	changedFiles, err := fetchChangesFromBitbucketServer(bbClient, projectKey, repoSlug, fromHash, toHash)
+	if err != nil {
+		log.Warnf("error fetching changed files from Bitbucket Server: %v", err)
+		changedFiles = nil
+	}
+	// Default to true (safe fallback) if the API call fails.
+	touchedHead := true
+	headTouched, err := isBBServerHeadTouched(bbClient, projectKey, repoSlug, revision)
+	if err != nil {
+		log.Warnf("error fetching Bitbucket Server default branch: %v", err)
+	} else {
+		touchedHead = headTouched
+	}
+	return changedFiles, touchedHead, nil
 }
 
-// isParsingPayloadError returns a bool if the error is parsing payload error
-func isParsingPayloadError(err error) bool {
-	return errors.Is(err, github.ErrParsingPayload) ||
-		errors.Is(err, gitlab.ErrParsingPayload) ||
-		errors.Is(err, gogs.ErrParsingPayload) ||
-		errors.Is(err, bitbucket.ErrParsingPayload) ||
-		errors.Is(err, bitbucketserver.ErrParsingPayload) ||
-		errors.Is(err, azuredevops.ErrParsingPayload)
+// extractBBServerBaseURL extracts the scheme and host from a Bitbucket Server clone URL.
+// For example, "https://bitbucketserver/scm/project/repo.git" returns "https://bitbucketserver".
+func extractBBServerBaseURL(cloneURL string) (string, error) {
+	u, err := url.Parse(cloneURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse Bitbucket Server clone URL '%s': %w", cloneURL, err)
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return "", fmt.Errorf("invalid Bitbucket Server clone URL '%s': missing scheme or host", cloneURL)
+	}
+	// Bitbucket Server clone URLs always contain "/scm/" as the separator between the
+	// server base path and the project/repo path. Everything before "/scm/" is the
+	// server base URL, which may include a subpath when Bitbucket is deployed under a
+	// context path (e.g. https://mycompany.com/bitbucket/scm/... → https://mycompany.com/bitbucket).
+	if idx := strings.Index(u.Path, "/scm/"); idx >= 0 {
+		return u.Scheme + "://" + u.Host + u.Path[:idx], nil
+	}
+	return u.Scheme + "://" + u.Host, nil
 }
 
-// processWebhook dispatches the request to the first matching parser.
-// The handled return is true when a parser claimed the request, regardless of
-// whether parsing produced a payload or an error; callers use it to distinguish
-// "unknown webhook event" (false) from "claimed but skipped" (true, nil, nil).
-func (a *ArgoCDWebhookHandler) processWebhook(r *http.Request) (any, bool, error) {
-	for _, p := range a.parsers {
-		if p.CanHandle(r) {
-			payload, err := p.Parse(r)
-			return payload, true, err
+// newBitbucketServerClient creates a new Bitbucket Server API client for the given repository credentials and server URL.
+func newBitbucketServerClient(ctx context.Context, repository *v1alpha1.Repository, serverURL string) *bitbucketv1.APIClient {
+	// Ensure the base path ends with /rest for the Bitbucket Server REST API
+	if !strings.HasSuffix(serverURL, "/rest") {
+		serverURL = strings.TrimSuffix(serverURL, "/") + "/rest"
+	}
+	bitbucketConfig := bitbucketv1.NewConfiguration(serverURL)
+	if repository != nil {
+		if repository.Username != "" && repository.Password != "" {
+			ctx = context.WithValue(ctx, bitbucketv1.ContextBasicAuth, bitbucketv1.BasicAuth{
+				UserName: repository.Username,
+				Password: repository.Password,
+			})
+		} else if repository.BearerToken != "" {
+			ctx = context.WithValue(ctx, bitbucketv1.ContextAccessToken, repository.BearerToken)
 		}
 	}
-	log.Debug("Ignoring unknown webhook event")
-	return nil, false, nil
+	return bitbucketv1.NewAPIClient(ctx, bitbucketConfig)
+}
+
+// bbServerChangesPageLimit is the page size used when fetching changed files from the Bitbucket Server
+// changes API. It minimizes the round trips. If the server admin has configured a lower hard max, the server
+// silently caps each page at that value and the pagination loop still terminates correctly via isLastPage.
+const bbServerChangesPageLimit = 1000
+
+// fetchChangesFromBitbucketServer retrieves the list of files changed between fromHash and toHash
+// by calling the Bitbucket Server changes REST API.
+func fetchChangesFromBitbucketServer(client *bitbucketv1.APIClient, projectKey, repoSlug, fromHash, toHash string) ([]string, error) {
+	log.Debugf("invoking Bitbucket Server changes call: [ProjectKey:%s, RepoSlug:%s, since:%s, until:%s]", projectKey, repoSlug, fromHash, toHash)
+	var changedFiles []string
+	start := 0
+	for {
+		opts := map[string]any{
+			"since": fromHash,
+			"until": toHash,
+			"start": start,
+			"limit": bbServerChangesPageLimit,
+		}
+		resp, err := client.DefaultApi.GetChanges(projectKey, repoSlug, opts)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching changes from Bitbucket Server: %w", err)
+		}
+		values, ok := resp.Values["values"].([]any)
+		if !ok {
+			break
+		}
+		for _, v := range values {
+			entry, ok := v.(map[string]any)
+			if !ok {
+				continue
+			}
+			pathObj, ok := entry["path"].(map[string]any)
+			if !ok {
+				continue
+			}
+			filePath, ok := pathObj["toString"].(string)
+			if !ok || filePath == "" {
+				continue
+			}
+			changedFiles = append(changedFiles, filePath)
+		}
+		isLastPage, _ := resp.Values["isLastPage"].(bool)
+		if isLastPage {
+			break
+		}
+		nextStart, ok := resp.Values["nextPageStart"].(float64)
+		if !ok {
+			break
+		}
+		start = int(nextStart)
+	}
+	log.Debugf("Bitbucket Server changed files: %v", changedFiles)
+	return changedFiles, nil
+}
+
+// isBBServerHeadTouched returns true if the push updated the repository's default branch.
+func isBBServerHeadTouched(client *bitbucketv1.APIClient, projectKey, repoSlug, revision string) (bool, error) {
+	resp, err := client.DefaultApi.GetDefaultBranch(projectKey, repoSlug)
+	if err != nil {
+		return false, err
+	}
+	branch, err := bitbucketv1.GetBranchResponse(resp)
+	if err != nil {
+		return false, err
+	}
+	return branch.DisplayID == revision, nil
+}
+
+func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
+	HandleRequest(w, r, a.parsers, a.maxWebhookPayloadSizeB, a.queue)
 }
 
 // Shutdown gracefully shuts down the webhook handler by closing queues and waiting for workers

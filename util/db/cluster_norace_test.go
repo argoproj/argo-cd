@@ -41,8 +41,9 @@ func TestWatchClusters_CreateRemoveCluster(t *testing.T) {
 	}
 	kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret)
 	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
-	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	completed := runWatchTest(t, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
+	watchClientSet := newWatchNotifyingClientSet(kubeclientset)
+	db := NewDB(fakeNamespace, settingsManager, watchClientSet)
+	completed := runWatchTest(t, watchClientSet, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
 		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
 			assert.Nil(t, old)
 			assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, new.Server)
@@ -93,8 +94,9 @@ func TestWatchClusters_LocalClusterModifications(t *testing.T) {
 	}
 	kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret)
 	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
-	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	completed := runWatchTest(t, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
+	watchClientSet := newWatchNotifyingClientSet(kubeclientset)
+	db := NewDB(fakeNamespace, settingsManager, watchClientSet)
+	completed := runWatchTest(t, watchClientSet, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
 		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
 			assert.Nil(t, old)
 			assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, new.Server)
@@ -144,8 +146,9 @@ func TestWatchClusters_MissingServerSecretKey(t *testing.T) {
 	}
 	kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecretWithoutSecretKey)
 	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
-	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	completed := runWatchTest(t, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
+	watchClientSet := newWatchNotifyingClientSet(kubeclientset)
+	db := NewDB(fakeNamespace, settingsManager, watchClientSet)
+	completed := runWatchTest(t, watchClientSet, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
 		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
 			assert.Nil(t, old)
 			assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, new.Server)
@@ -179,8 +182,9 @@ func TestWatchClusters_LocalClusterModificationsWhenDisabled(t *testing.T) {
 	}
 	kubeclientset := fake.NewClientset(argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
 	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
-	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	completed := runWatchTest(t, db, []func(_ *v1alpha1.Cluster, _ *v1alpha1.Cluster){
+	watchClientSet := newWatchNotifyingClientSet(kubeclientset)
+	db := NewDB(fakeNamespace, settingsManager, watchClientSet)
+	completed := runWatchTest(t, watchClientSet, db, []func(_ *v1alpha1.Cluster, _ *v1alpha1.Cluster){
 		func(_ *v1alpha1.Cluster, _ *v1alpha1.Cluster) {
 			assert.Fail(t, "The in-cluster should not be added when disabled")
 		},
