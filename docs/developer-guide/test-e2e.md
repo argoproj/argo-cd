@@ -63,7 +63,7 @@ When either variable is unset, the whole suite runs. For example, to run the fir
 ARGOCD_E2E_SHARD=1 ARGOCD_E2E_SHARD_COUNT=4 make test-e2e-local
 ```
 
-`hack/e2e-shard.sh` assigns tests to shards by their measured duration, which it reads from `test/e2e/shard-weights.txt`. Tests missing from that file get the mean duration. To read durations from a different file when you run `make test-e2e-local`, set `ARGOCD_E2E_SHARD_WEIGHTS` to its path.
+`hack/e2e-shard.sh` assigns tests to shards by their measured duration, which it reads from `test/e2e/shard-weights.txt`. Tests missing from that file get the mean duration. After every CI run, `hack/e2e-check-shard-coverage.sh` checks that each test in `test/e2e` ran in one of the shards, so a test cannot be left out without a failure. To read durations from a different file when you run `make test-e2e-local`, set `ARGOCD_E2E_SHARD_WEIGHTS` to its path.
 
 > [!NOTE]
 > The e2e environment must be running before you run a shard, because listing the tests starts the test binary, and the test binary connects to the API server when it starts.
