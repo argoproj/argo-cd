@@ -11,7 +11,7 @@ import (
 //
 // This will make an alias for the flag in the internal library
 // package that is set in init() and we cannot access it directly.
-// Must be called before we opening any GRPC connections.
+// Must be called before opening any GRPC connections.
 //
 //go:linkname enableSRVLookups google.golang.org/grpc/internal/resolver/dns.EnableSRVLookups
 var enableSRVLookups bool
