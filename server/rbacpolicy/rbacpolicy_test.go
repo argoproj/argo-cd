@@ -333,4 +333,48 @@ func TestEnforceLocalUserStrictMode(t *testing.T) {
 		assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"),
 			"project role tokens must not be suffixed with @local")
 	})
+
+	// The "@local" suffix is reserved for local accounts in both modes, so an SSO identity cannot
+	// impersonate a local user (e.g. the built-in `g, admin@local, role:admin` binding).
+	for _, strict := range []bool{true, false} {
+		name := fmt.Sprintf("strict=%t", strict)
+
+		t.Run(name+": SSO subject with @local suffix is ignored", func(t *testing.T) {
+			enf, rbacEnf := newEnforcer(t)
+			rbacEnf.SetEnableLocalUserStrictMode(strict)
+			_ = enf.SetBuiltinPolicy(`p, sally@local, applications, create, my-proj/*, allow`)
+
+			ssoLocalClaims := jwt.MapClaims{"sub": "sally@local", "iss": "https://accounts.google.com"}
+			assert.False(t, enf.Enforce(ssoLocalClaims, "applications", "create", "my-proj/my-app"),
+				"an SSO subject must not be able to claim the reserved @local suffix")
+			ssoEmailClaims := jwt.MapClaims{"sub": "x", "email": "sally@local", "iss": "https://accounts.google.com"}
+			assert.False(t, enf.Enforce(ssoEmailClaims, "applications", "create", "my-proj/my-app"),
+				"an SSO email must not be able to claim the reserved @local suffix")
+		})
+
+		t.Run(name+": SSO group with @local suffix is ignored", func(t *testing.T) {
+			enf, rbacEnf := newEnforcer(t)
+			rbacEnf.SetEnableLocalUserStrictMode(strict)
+			_ = enf.SetBuiltinPolicy(`p, role:creator, applications, create, my-proj/*, allow
+p, role:viewer, applications, get, my-proj/*, allow
+g, admin@local, role:creator
+g, devs, role:viewer`)
+
+			claims := jwt.MapClaims{"sub": "mallory", "iss": "https://accounts.google.com", "groups": []string{"admin@local", "devs"}}
+			assert.False(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"),
+				"an SSO group must not be able to claim the reserved @local suffix")
+			assert.True(t, enf.Enforce(claims, "applications", "get", "my-proj/my-app"),
+				"other SSO groups must still be evaluated")
+		})
+
+		t.Run(name+": SSO identity with @local suffix still gets the default role", func(t *testing.T) {
+			enf, rbacEnf := newEnforcer(t)
+			rbacEnf.SetEnableLocalUserStrictMode(strict)
+			_ = enf.SetBuiltinPolicy(`p, role:readonly, applications, get, */*, allow`)
+			enf.SetDefaultRole("role:readonly")
+
+			claims := jwt.MapClaims{"sub": "sally@local", "iss": "https://accounts.google.com"}
+			assert.True(t, enf.Enforce(claims, "applications", "get", "my-proj/my-app"))
+		})
+	}
 }

@@ -1,6 +1,7 @@
 package rbacpolicy
 
 import (
+	"slices"
 	"strings"
 	"sync/atomic"
 
@@ -18,6 +19,8 @@ import (
 // strict mode (rbac.local.user.strictmode) is enabled. This disambiguates local accounts from SSO
 // users that happen to share the same name/scope, so that e.g. a policy bound to `sally@local`
 // only applies to the local `sally` account and not to an SSO user named `sally`.
+// The suffix is reserved for local accounts: SSO subjects and groups carrying it are never
+// matched against policies, regardless of strict mode.
 const LocalUserRBACSuffix = "@local"
 
 // RBACPolicyEnforcer provides an RBAC Claims Enforcer which additionally consults AppProject
@@ -81,6 +84,11 @@ func isLocalAccount(mapClaims jwt.MapClaims) bool {
 	return jwtutil.StringField(mapClaims, "iss") == common.ArgoCDSessionClaimsIssuer
 }
 
+// hasLocalUserRBACSuffix reports whether an identity claims the reserved "@local" suffix.
+func hasLocalUserRBACSuffix(identity string) bool {
+	return strings.HasSuffix(identity, LocalUserRBACSuffix)
+}
+
 // EnforceClaims is an RBAC claims enforcer specific to the Argo CD API server
 func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool {
 	mapClaims, err := jwtutil.MapClaims(claims)
@@ -89,10 +97,16 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool
 	}
 
 	subject := jwtutil.GetUserIdentifier(mapClaims)
+	isLocal := isLocalAccount(mapClaims)
 	// When strict mode is enabled, disambiguate local accounts from SSO users by appending the
 	// "@local" suffix to the subject. Project tokens (proj:...) are left untouched.
-	if p.enableLocalUserStrictMode.Load() && isLocalAccount(mapClaims) && !IsProjectSubject(subject) {
+	if p.enableLocalUserStrictMode.Load() && isLocal && !IsProjectSubject(subject) {
 		subject += LocalUserRBACSuffix
+	}
+	// "@local" is reserved for local accounts; an SSO identity claiming it must not match any policy.
+	if !isLocal && hasLocalUserRBACSuffix(subject) {
+		log.WithField("subject", subject).Warn("ignoring SSO subject with reserved @local suffix")
+		subject = ""
 	}
 	// Check if the request is for an application resource. We have special enforcement which takes
 	// into consideration the project's token and group bindings
@@ -123,6 +137,9 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool
 	}
 	// Finally check if any of the user's groups grant them permissions
 	groups := jwtutil.GetScopeValues(mapClaims, scopes)
+	if !isLocal {
+		groups = slices.DeleteFunc(groups, hasLocalUserRBACSuffix)
+	}
 
 	// Get groups to reduce the amount to checking groups
 	groupingPolicies, err := enforcer.GetGroupingPolicy()
