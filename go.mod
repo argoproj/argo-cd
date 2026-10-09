@@ -48,7 +48,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.5
 	github.com/go-logr/logr v1.4.4
 	github.com/go-openapi/loads v0.25.3
-	github.com/go-openapi/runtime/server-middleware v0.33.2
+	github.com/go-openapi/runtime/server-middleware v0.33.3
 	github.com/go-playground/webhooks/v6 v6.4.0
 	github.com/go-redis/cache/v9 v9.0.0
 	github.com/gobwas/glob v1.0.0
@@ -89,7 +89,7 @@ require (
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/client_model v0.6.3
 	github.com/r3labs/diff/v3 v3.0.2
-	github.com/redis/go-redis/v9 v9.22.0
+	github.com/redis/go-redis/v9 v9.23.0
 	github.com/robfig/cron/v3 v3.0.2-0.20210106135023-bc59245fe10e
 	github.com/sirupsen/logrus v1.10.2
 	github.com/skeema/knownhosts v1.3.3
@@ -134,6 +134,7 @@ require (
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 	oras.land/oras-go/v2 v2.6.2
 	sigs.k8s.io/controller-runtime v0.25.2
+	sigs.k8s.io/kustomize/api v0.21.2
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2
 	sigs.k8s.io/yaml v1.6.0
 )
@@ -243,7 +244,7 @@ require (
 	github.com/kevinburke/ssh_config v1.2.0 // indirect
 	github.com/keybase/go-keychain v0.0.1 // indirect
 	github.com/klauspost/compress v1.19.1 // indirect
-	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
+	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/liggitt/tabwriter v0.0.0-20181228230101-89fcab3d43de // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
@@ -292,7 +293,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.47.0 // indirect
 	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
-	go.uber.org/atomic v1.11.0 // indirect
+	go.uber.org/atomic v1.12.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.4 // indirect
 	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
@@ -318,8 +319,7 @@ require (
 	k8s.io/kubernetes v1.37.0 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
-	sigs.k8s.io/kustomize/api v0.21.1 // indirect
-	sigs.k8s.io/kustomize/kyaml v0.21.1 // indirect
+	sigs.k8s.io/kustomize/kyaml v0.21.2 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 )
 

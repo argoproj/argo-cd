@@ -166,6 +166,12 @@ spec:
               name: argocd-cmd-params-cm
               key: controller.metrics.application.conditions
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_SYNC_WINDOWS
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.metrics.sync.windows
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS
           valueFrom:
             configMapKeyRef:

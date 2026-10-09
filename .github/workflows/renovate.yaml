@@ -67,6 +67,26 @@ jobs:
         with:
           persist-credentials: false
 
+      # master, plus the supported release-* branches from
+      # hack/supported-release-branches.sh. release-branches.json5 then limits
+      # those release branches to Go, Helm, and Kustomize patch bumps. Without
+      # this env var, Renovate updates master only.
+      - name: Select Renovate base branches
+        id: base_branches
+        run: |
+          set -euo pipefail
+          json='["master"'
+          # Assign before the loop. A process substitution would hide a failed
+          # script, and Renovate would update master only.
+          release_branches="$(hack/supported-release-branches.sh)"
+          while IFS= read -r branch; do
+            [[ -z "$branch" ]] && continue
+            json+=",\"${branch}\""
+          done <<< "$release_branches"
+          json+=']'
+          echo "Renovate base branches: ${json}"
+          echo "branches=${json}" >> "$GITHUB_OUTPUT"
+
       # Unlike every other action here, the `uses:` pin below is managed by Renovate
       # rather than dependabot, so its update will be grouped into the same PR
       # as the image (below).
@@ -87,3 +107,4 @@ jobs:
         env:
           LOG_LEVEL: 'debug'
           RENOVATE_REPOSITORIES: '${{ github.repository }}'
+          RENOVATE_BASE_BRANCHES: '${{ steps.base_branches.outputs.branches }}'
