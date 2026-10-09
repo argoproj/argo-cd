@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:8.10.1@sha256:691577adaf11927f4bb8871d40a5dd69a5c300d4453b742e8f6383c3e6e8d2e1 AS redis
+FROM docker.io/library/redis:8.10.2@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3 AS redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -6,7 +6,7 @@ FROM docker.io/library/redis:8.10.1@sha256:691577adaf11927f4bb8871d40a5dd69a5c30
 RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
-FROM docker.io/library/node:24.17.0@sha256:032e78d7e54e352129831743737e3a83171d9cc5b5896f411649c597ce0b11ea AS node
+FROM docker.io/library/node:24.21.0@sha256:3d27e5c11e5786e309ec3e03f93ae536eb36e6e5eb3714d5eb3300a36157add0 AS node
 
 FROM docker.io/library/golang:1.27.1@sha256:f773aa2679c165b2d4ccf04c1de9ef5f34c0e4fd7008b3c449d4cdc47d83af55 AS golang
 
@@ -38,6 +38,7 @@ RUN  apt-get update && apt-get install --fix-missing --no-install-recommends -y 
     wget \
     gcc \
     g++ \
+    shellcheck \
     sudo \
     tini \
     unzip \
@@ -72,6 +73,8 @@ RUN ./install.sh helm && \
     ./install.sh codegen-tools && \
     ./install.sh codegen-go-tools && \
     ./install.sh lint-tools && \
+    ./install.sh actionlint && \
+    ./install.sh kubeconform && \
     ./install.sh gotestsum && \
     ./install.sh git-lfs && \
     ./install.sh oras && \

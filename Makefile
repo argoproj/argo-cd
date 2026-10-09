@@ -80,6 +80,8 @@ ARGOCD_E2E_DIR?=/tmp/argo-e2e
 
 ARGOCD_E2E_TEST_TIMEOUT?=90m
 ARGOCD_E2E_RERUN_FAILS?=5
+ARGOCD_E2E_SHARD?=
+ARGOCD_E2E_SHARD_COUNT?=
 
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
@@ -292,13 +294,6 @@ codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen m
 .PHONY: codegen-local-fast
 codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen mockgen manifests-local notification-docs notification-catalog
 
-# Recompiles the GitHub Agentics workflow lock files after editing issue-triage.md or aw.json.
-# Only needed by maintainers working on GitHub Agentics workflows; requires an installed and
-# authenticated gh CLI plus the gh-aw extension (see install-gh-aw-local).
-.PHONY: gh-aw-compile
-gh-aw-compile:
-	gh aw compile
-
 .PHONY: codegen
 codegen: test-tools-image
 	$(call run-in-test-client,make codegen-local)
@@ -416,9 +411,41 @@ lint: test-tools-image
 
 # Run linter on the code (local version)
 .PHONY: lint-local
-lint-local:
+lint-local: actionlint-local
 	golangci-lint --version
 	golangci-lint run --fix --verbose
+
+# Run actionlint on the GitHub Actions workflows
+.PHONY: actionlint
+actionlint: test-tools-image
+	$(call run-in-test-client,make actionlint-local)
+
+# Run actionlint on the GitHub Actions workflows (local version)
+.PHONY: actionlint-local
+actionlint-local:
+	actionlint --version
+	actionlint
+
+# Kubernetes versions whose schemas the generated install manifests are validated against: the minor version of
+# k8s.io/api in go.mod and the three before it, which matches the versions used for e2e tests in CI.
+KUBECONFORM_KUBERNETES_MINOR ?= $(shell go list -m -f '{{.Version}}' k8s.io/api | cut -d. -f2)
+KUBECONFORM_KUBERNETES_VERSIONS ?= $(foreach offset,0 1 2 3,1.$(shell echo $$(($(KUBECONFORM_KUBERNETES_MINOR) - $(offset)))).0)
+
+# Validate the generated install manifests against the Kubernetes schemas
+.PHONY: kubeconform
+kubeconform: test-tools-image
+	$(call run-in-test-client,make kubeconform-local)
+
+# Validate the generated install manifests against the Kubernetes schemas (local version).
+# CustomResourceDefinitions are skipped because kubeconform has no schema for them.
+.PHONY: kubeconform-local
+kubeconform-local:
+	kubeconform -v
+	@for version in $(KUBECONFORM_KUBERNETES_VERSIONS); do \
+		echo "Validating against Kubernetes $$version"; \
+		kubeconform -strict -summary -skip CustomResourceDefinition -kubernetes-version $$version \
+			manifests/*.yaml manifests/ha/*.yaml || exit 1; \
+	done
 
 .PHONY: lint-ui
 lint-ui: test-tools-image
@@ -494,7 +521,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS=$${ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS:-true}  DIST_DIR=${DIST_DIR} RERUN_FAILS=$(ARGOCD_E2E_RERUN_FAILS) PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_CONFIG_DIR=$(HOME)/.config/argocd-e2e ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
+	ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS=$${ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS:-true}  DIST_DIR=${DIST_DIR} RERUN_FAILS=$(ARGOCD_E2E_RERUN_FAILS) ARGOCD_E2E_SHARD=$(ARGOCD_E2E_SHARD) ARGOCD_E2E_SHARD_COUNT=$(ARGOCD_E2E_SHARD_COUNT) PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_CONFIG_DIR=$(HOME)/.config/argocd-e2e ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
@@ -520,6 +547,12 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply --server-side --force-conflicts -f -
 	kubectl apply -f https://raw.githubusercontent.com/open-cluster-management/api/a6845f2ebcb186ec26b832f60c988537a58f3859/cluster/v1alpha1/0000_04_clusters.open-cluster-management.io_placementdecisions.crd.yaml
+	# Wait for the CRDs to be served, otherwise the API server can exit on its first AppProject write
+	kubectl wait --for=condition=Established --timeout=60s \
+		crd/applications.argoproj.io \
+		crd/applicationsets.argoproj.io \
+		crd/appprojects.argoproj.io \
+		crd/placementdecisions.cluster.open-cluster-management.io
 	# Create GPG keys and source directories
 	if test -d $(ARGOCD_E2E_DIR)/app/config/gpg; then rm -rf $(ARGOCD_E2E_DIR)/app/config/gpg/*; fi
 	mkdir -p $(ARGOCD_E2E_DIR)/app/config/gpg/keys && chmod 0700 $(ARGOCD_E2E_DIR)/app/config/gpg/keys
@@ -645,17 +678,6 @@ show-go-version: test-tools-image
 .PHONY: install-tools-local
 install-tools-local: install-test-tools-local install-codegen-tools-local install-go-tools-local
 
-# Installs the gh aw CLI extension for managing GitHub Agentics workflows.
-# Only needed by maintainers working on GitHub Agentics workflows; not part of install-tools-local.
-# Requires an installed and authenticated gh CLI.
-.PHONY: install-gh-aw-local
-install-gh-aw-local:
-	@if ! command -v gh >/dev/null 2>&1; then \
-		echo "gh CLI is required to install the gh-aw extension. See https://cli.github.com/ and https://argo-cd.readthedocs.io/en/latest/developer-guide/github-agentics-issue-triage/"; \
-		exit 1; \
-	fi
-	. hack/tool-versions.sh && gh extension install --pin v$${GH_AW_VERSION} --force github/gh-aw
-
 # Installs all tools required for running unit & end-to-end tests (Linux packages)
 .PHONY: install-test-tools-local
 install-test-tools-local:
@@ -675,6 +697,8 @@ install-codegen-tools-local:
 install-go-tools-local:
 	./hack/install.sh codegen-go-tools
 	./hack/install.sh lint-tools
+	./hack/install.sh actionlint
+	./hack/install.sh kubeconform
 
 .PHONY: dep-ui
 dep-ui: test-tools-image
@@ -769,7 +793,3 @@ help:
 	@echo '  codegen(-local) -- if using -local, run the following targets first'
 	@echo '  install-codegen-tools-local -- run this to install the codegen tools'
 	@echo '  install-go-tools-local -- run this to install go libraries for codegen'
-	@echo
-	@echo 'github agentics (maintainers only):'
-	@echo '  install-gh-aw-local -- install the gh aw CLI extension (requires an authenticated gh CLI)'
-	@echo '  gh-aw-compile -- recompile the agentics workflow lock files after editing issue-triage.md or aw.json'
