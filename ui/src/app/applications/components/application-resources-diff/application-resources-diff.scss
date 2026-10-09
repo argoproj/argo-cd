@@ -28,6 +28,15 @@
         flex: 1;
         min-width: 0;
     }
+    // names the per-resource checkbox for screen readers without showing text
+    &__select-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+    }
     &__diff {
         font-size: 10pt;
         &__title {

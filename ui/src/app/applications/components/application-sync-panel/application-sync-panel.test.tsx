@@ -34,6 +34,14 @@ describe('resourcesPreSelection', () => {
         expect(resourcesPreSelection(resources, 'does/not/match/anything')).toEqual([true, true, true]);
     });
 
+    it('selects only the matching keys of a partly stale list', () => {
+        expect(resourcesPreSelection(resources, `${key(a)},apps/Deployment/default/gone`)).toEqual([true, false, false]);
+    });
+
+    it('selects nothing for a list that matches no resource, so it cannot become a full sync', () => {
+        expect(resourcesPreSelection(resources, 'apps/Deployment/default/gone,apps/Deployment/default/also-gone')).toEqual([false, false, false]);
+    });
+
     it('selects everything when the value is empty', () => {
         expect(resourcesPreSelection(resources, '')).toEqual([true, true, true]);
     });

@@ -54,7 +54,9 @@ ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${i.name}`, bname: `b/${i
                 const showPath = props.states.length > 1;
                 const files = parseDiff(diffText);
                 const viewType = pref.appDetails.inlineDiff ? 'unified' : 'split';
-                const selectedKeys = Object.keys(selected).filter(key => selected[key]);
+                // only resources still shown in the diff can be synced; a key checked
+                // before the diff reloaded without that resource is dropped
+                const selectedKeys = items.map(i => i.resourceKey).filter(key => selected[key]);
                 return (
                     <div className='application-resources-diff'>
                         <div className={whiteBox + ' application-resources-diff__checkboxes'}>
@@ -109,6 +111,9 @@ ${formatLines(diffLines(i.a, i.b), {context, aname: `a/${i.name}`, bname: `b/${i
                                             checked={!!selected[resourceKey]}
                                             onChange={() => setSelected(prev => ({...prev, [resourceKey]: !prev[resourceKey]}))}
                                         />
+                                        <label htmlFor={`diff-select-${resourceKey}`} className='application-resources-diff__select-label'>
+                                            Select {file.newPath} to sync
+                                        </label>
                                         <div className='application-resources-diff__entry-diff'>{section}</div>
                                     </div>
                                 );
