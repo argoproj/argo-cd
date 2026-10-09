@@ -101,16 +101,16 @@ func TestK8sEventListToAPIEventList(t *testing.T) {
 		input := &corev1.EventList{
 			Items: []corev1.Event{
 				{
-					Name: "legacy", Namespace: "default",
+					ObjectMeta:    metav1.ObjectMeta{Name: "legacy", Namespace: "default"},
 					Count:         5,
 					LastTimestamp: legacyTime,
 				},
 				{
-					Name: "series-only", Namespace: "default",
-					Series: &corev1.EventSeries{Count: 7, LastObservedTime: observedTime},
+					ObjectMeta: metav1.ObjectMeta{Name: "series-only", Namespace: "default"},
+					Series:     &corev1.EventSeries{Count: 7, LastObservedTime: observedTime},
 				},
 				{
-					Name: "singleton", Namespace: "default",
+					ObjectMeta: metav1.ObjectMeta{Name: "singleton", Namespace: "default"},
 				},
 			},
 		}
@@ -141,7 +141,7 @@ func TestK8sEventListToAPIEventList(t *testing.T) {
 		input := &corev1.EventList{
 			Items: []corev1.Event{
 				{
-					Name: "mixed", Namespace: "default",
+					ObjectMeta:    metav1.ObjectMeta{Name: "mixed", Namespace: "default"},
 					Count:         5,
 					LastTimestamp: legacyTime,
 					Series:        &corev1.EventSeries{Count: 9, LastObservedTime: observedTime},
@@ -162,8 +162,8 @@ func TestK8sEventListToAPIEventList(t *testing.T) {
 		input := &corev1.EventList{
 			Items: []corev1.Event{
 				{
-					Name: "new-api-singleton", Namespace: "default",
-					EventTime: eventTime,
+					ObjectMeta: metav1.ObjectMeta{Name: "new-api-singleton", Namespace: "default"},
+					EventTime:  eventTime,
 				},
 			},
 		}
