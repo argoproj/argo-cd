@@ -32,7 +32,7 @@ export interface AbstractAppDetailsPreferences {
     compactDiff: boolean;
     hideManagedFields?: boolean;
     orphanedResources: boolean;
-    showAppSetParent?: boolean;
+    showAppParent?: boolean;
     hideStatusPanel?: boolean;
 }
 
@@ -196,7 +196,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         hideManagedFields: true,
         resourceView: 'manifest',
         orphanedResources: false,
-        showAppSetParent: false,
+        showAppParent: false,
         hideStatusPanel: false,
         podView: {
             sortMode: 'node',
@@ -332,6 +332,7 @@ export class ViewPreferencesService {
         appList.clustersFilter = appList.clustersFilter || [];
         appList.syncFilter = appList.syncFilter || [];
         appList.autoSyncFilter = appList.autoSyncFilter || [];
+        appList.hydrationFilter = appList.hydrationFilter || [];
         appList.healthFilter = appList.healthFilter || [];
         appList.operationFilter = appList.operationFilter || [];
         appList.favoritesAppList = appList.favoritesAppList || [];

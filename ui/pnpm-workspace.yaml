@@ -4,7 +4,7 @@ overrides:
   '@types/react': ^19.0.0
   '@types/react-dom': ^19.0.0
   rxjs: 7.8.2
-  dompurify: 3.4.7
+  dompurify: 3.4.13
 
 # pnpm 11+ errors on un-declared dependency build scripts (strictDepBuilds).
 # None of these were built under pnpm 10 either; keep them off.
