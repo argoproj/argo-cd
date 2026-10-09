@@ -69,6 +69,35 @@ func TestParseFloatFromEnv(t *testing.T) {
 	}
 }
 
+func TestParseFloat64FromEnv(t *testing.T) {
+	const envKey = "SOMEKEY"
+	const minimum = 0.0
+	const maximum = 1.0
+	const def = 0.1
+	testCases := []struct {
+		name     string
+		env      string
+		expected float64
+	}{
+		{"Valid value within bounds", "0.5", 0.5},
+		{"Text as invalid float", "abc", def},
+		{"Equals maximum", "1.0", maximum},
+		{"Equals minimum", "0.0", minimum},
+		{"Greater than maximum", "1.5", def},
+		{"Lesser than minimum", "-0.5", def},
+		{"NaN is rejected", "NaN", def},
+		{"Environment not set at", "", def},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(envKey, tt.env)
+			f := ParseFloat64FromEnv(envKey, def, minimum, maximum)
+			assert.InDelta(t, tt.expected, f, 0.0001)
+		})
+	}
+}
+
 func TestParseInt64FromEnv(t *testing.T) {
 	const envKey = "SOMEKEY"
 	const minimum int64 = 1
