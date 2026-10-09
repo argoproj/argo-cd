@@ -111,7 +111,7 @@ func OperationRetriedMinimumTimes(minRetries int64) Expectation {
 	return func(c *Consequences) (state, string) {
 		operationState := c.app().Status.OperationState
 		actual := operationState.RetryCount
-		message := fmt.Sprintf("operation state retry cound should be at least %d, is %d, message: '%s'", minRetries, actual, operationState.Message)
+		message := fmt.Sprintf("operation state retry count should be at least %d, is %d, message: '%s'", minRetries, actual, operationState.Message)
 		return simple(actual >= minRetries, message)
 	}
 }
@@ -398,6 +398,33 @@ func NotPod(predicate func(p corev1.Pod) bool) Expectation {
 			}
 		}
 		return succeeded, "pod predicate did not match any pod"
+	}
+}
+
+// ResourceTreeNode checks that the app resource tree has a node matching the predicate
+func ResourceTreeNode(predicate func(node v1alpha1.ResourceNode) bool) Expectation {
+	return resourceTreeNode(predicate, succeeded, pending)
+}
+
+// NotResourceTreeNode checks that the app resource tree has no node matching the predicate
+func NotResourceTreeNode(predicate func(node v1alpha1.ResourceNode) bool) Expectation {
+	return resourceTreeNode(predicate, pending, succeeded)
+}
+
+// resourceTreeNode looks for a node matching the predicate in the app resource tree and reports
+// whenMatched if one is found, whenNotMatched otherwise.
+func resourceTreeNode(predicate func(node v1alpha1.ResourceNode) bool, whenMatched, whenNotMatched state) Expectation {
+	return func(c *Consequences) (state, string) {
+		tree, err := c.resourceTree()
+		if err != nil {
+			return failed, err.Error()
+		}
+		for _, node := range tree.Nodes {
+			if predicate(node) {
+				return whenMatched, fmt.Sprintf("resource tree node predicate matched node named '%s'", node.Name)
+			}
+		}
+		return whenNotMatched, "resource tree node predicate did not match any node"
 	}
 }
 

@@ -99,7 +99,7 @@ It is also possible to provide an internal-only ingress path and an external-onl
 
 This provides the opportunity to deploy the Argo CD UI privately but still allow for SSO callbacks to succeed.
 
-### Private Argo CD UI with  Multiple Ingress Objects and BYO Certificate
+### Private Argo CD UI with Multiple Ingress Objects and BYO Certificate
 Since Contour Ingress supports only a single protocol per Ingress object, define three Ingress objects. One for private HTTP/HTTPS, one for private gRPC, and one for public HTTPS SSO callbacks.
 
 Internal HTTP/HTTPS Ingress:
@@ -987,7 +987,7 @@ To automate certificate management, `cert-manager` supports [gateway annotations
 If your security requirements allow it, the Argo CD API server can be run with TLS disabled: pass the `--insecure` flag to the `argocd-server` command,
 or set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
 
-It is also possible to keep TLS enabled, encrypting traffic between the gateway and the Argo CD API server, by using a [BackendTLSPolicy](https://gateway-api.sigs.k8s.io/api-types/backendtlspolicy/).
+It is also possible to keep TLS enabled, encrypting traffic between the gateway and the Argo CD API server, by using a [BackendTLSPolicy](https://gateway-api.sigs.k8s.io/reference/api-types/policy/backendtlspolicy/).
 Consult the [Upstream TLS](https://gateway-api.sigs.k8s.io/guides/tls/#upstream-tls) documentation for more details.
 
 ```yaml
@@ -1070,7 +1070,7 @@ server:
 
 ##### Routing gRPC and HTTP through the same domain
 
-Although officially [discouraged](https://gateway-api.sigs.k8s.io/api-types/grpcroute/#cross-serving),
+Although officially [discouraged](https://gateway-api.sigs.k8s.io/reference/api-types/grpcroute/#cross-serving),
 attaching the `HTTPRoute` and `GRPCRoute` to the same domain may be supported by some implementations.
 Matching requests headers become necessary to disambiguate the destination, as shown below:
 
@@ -1102,7 +1102,7 @@ spec:
 TLS can also be configured to terminate at the Argo CD API server.
 
 This requires attaching a `TLSRoute` to the gateway,
-which is part of the [Experimental](https://gateway-api.sigs.k8s.io/reference/1.4/specx/) Gateway API CRDs.
+which is part of the [Experimental](https://gateway-api.sigs.k8s.io/reference/api-spec/1.4/specx/) Gateway API CRDs.
 
 ```yaml
 kind: Gateway

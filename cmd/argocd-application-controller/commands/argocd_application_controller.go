@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"os"
-	"os/signal"
 	"runtime/debug"
-	"syscall"
+	"sync"
 	"time"
 
 	"github.com/argoproj/pkg/v2/stats"
@@ -76,6 +74,7 @@ func NewCommand() *cobra.Command {
 		metricsCacheExpiration           time.Duration
 		metricsApplicationLabels         []string
 		metricsApplicationConditions     []string
+		metricsSyncWindows               bool
 		metricsClusterLabels             []string
 		kubectlParallelismLimit          int64
 		cacheSource                      func() (*appstatecache.Cache, error)
@@ -105,7 +104,7 @@ func NewCommand() *cobra.Command {
 		Short:             "Run ArgoCD Application Controller",
 		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
-		RunE: func(c *cobra.Command, _ []string) error {
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, _ []string, _ context.CancelFunc) error {
 			ctx, cancel := context.WithCancel(c.Context())
 			defer cancel()
 
@@ -210,6 +209,7 @@ func NewCommand() *cobra.Command {
 				metricsCacheExpiration,
 				metricsApplicationLabels,
 				metricsApplicationConditions,
+				metricsSyncWindows,
 				metricsClusterLabels,
 				kubectlParallelismLimit,
 				persistResourceHealth,
@@ -237,23 +237,17 @@ func NewCommand() *cobra.Command {
 				defer closeTracer()
 			}
 
-			// Graceful shutdown code
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-			go func() {
-				s := <-sigCh
-				log.Printf("got signal %v, attempting graceful shutdown", s)
-				cancel()
-			}()
-
-			go appController.Run(ctx, statusProcessors, operationProcessors, hydrationProcessors)
-
-			<-ctx.Done()
-
+			// Run blocks until ctx is done; Wait joins it so the queue shutdowns land before the deferred
+			// tracer flush. Workers are not joined and ShutDown does not drain in-flight items.
+			wg := sync.WaitGroup{}
+			wg.Go(func() {
+				appController.Run(ctx, statusProcessors, operationProcessors, hydrationProcessors)
+			})
+			wg.Wait()
 			log.Println("clean shutdown")
 
 			return nil
-		},
+		}),
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
@@ -285,6 +279,7 @@ func NewCommand() *cobra.Command {
 	errors.CheckError(command.Flags().MarkDeprecated("repo-server-strict-tls", "use --repo-server-ca-cert-path instead"))
 	command.Flags().StringSliceVar(&metricsApplicationLabels, "metrics-application-labels", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_LABELS", []string{}, ","), "List of Application labels that will be added to the argocd_app_labels metric")
 	command.Flags().StringSliceVar(&metricsApplicationConditions, "metrics-application-conditions", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_CONDITIONS", []string{}, ","), "List of Application conditions that will be added to the argocd_app_condition metric")
+	command.Flags().BoolVar(&metricsSyncWindows, "metrics-sync-windows", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_SYNC_WINDOWS", false), "Enable the argocd_app_sync_window, argocd_app_sync_blocked and argocd_app_sync_window_error metrics")
 	command.Flags().StringSliceVar(&metricsClusterLabels, "metrics-cluster-labels", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS", []string{}, ","), "List of Cluster labels that will be added to the argocd_cluster_labels metric")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")

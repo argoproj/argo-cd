@@ -2,7 +2,10 @@ package commands
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"regexp"
+	"strings"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,9 +15,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	log "github.com/sirupsen/logrus"
+
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	projectmocks "github.com/argoproj/argo-cd/v3/pkg/apiclient/project/mocks"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/test"
 )
 
 func TestModifyResourceListCmd_AddClusterAllowItemWithName(t *testing.T) {
@@ -251,6 +258,198 @@ func Test_modifyAllowClusterResourceList(t *testing.T) {
 			result, _ := modifyClusterResourcesList(&list, tt.add, "", tt.group, tt.kind, tt.resourceName)
 			assert.Equal(t, tt.expectedResult, result)
 			assert.Equal(t, tt.expectedList, list)
+		})
+	}
+}
+
+func dummySIProject(name string, si *v1alpha1.SourceIntegrity, sk []v1alpha1.SignatureKey) v1alpha1.AppProject { // nolint:staticcheck
+	return v1alpha1.AppProject{
+		Name: name,
+		Spec: v1alpha1.AppProjectSpec{
+			Description:     "No description",
+			SourceIntegrity: si,
+			SignatureKeys:   sk, // nolint:staticcheck
+		},
+	}
+}
+
+func sampleGitGpgSourceIntegrity() *v1alpha1.SourceIntegrity {
+	return &v1alpha1.SourceIntegrity{
+		Git: &v1alpha1.SourceIntegrityGit{
+			Policies: []*v1alpha1.SourceIntegrityGitPolicy{
+				{
+					Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
+						{
+							URL: "*",
+						},
+					},
+					GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+						Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
+						Keys: []string{"ABCD1234ABCD1234"},
+					},
+				},
+			},
+		},
+	}
+}
+
+func sampleSignatureKeys() []v1alpha1.SignatureKey { // nolint:staticcheck
+	return []v1alpha1.SignatureKey{ // nolint:staticcheck
+		{
+			KeyID: "ABCD1234ABCD1234",
+		},
+	}
+}
+
+func Test_projList_SourceIntegrity(t *testing.T) {
+	getExpectedOutput := func(projectName string, description string, expectedSourceIntegrity string) string {
+		header := "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSOURCE-INTEGRITY\tORPHANED-RESOURCES\tDESTINATION-SERVICE-ACCOUNTS"
+		content := fmt.Sprintf("%s\t%s\t<none>\t<none>\t<none>\t<none>\t%s\tdisabled\t<none>", projectName, description, expectedSourceIntegrity)
+		return fmt.Sprintf("%s\n%s\n", header, content)
+	}
+
+	tests := []struct {
+		name             string
+		projects         []v1alpha1.AppProject
+		expectedOutput   string
+		expectedWarnings []string
+	}{
+		{
+			name:             "SourceIntegrity is empty no warnings",
+			projects:         []v1alpha1.AppProject{dummySIProject("empty-si", nil, []v1alpha1.SignatureKey{})}, // nolint:staticcheck
+			expectedOutput:   getExpectedOutput("empty-si", "No description", "<none>"),
+			expectedWarnings: []string{},
+		},
+		{
+			name:             "Project has Git SourceIntegrity no warnings",
+			projects:         []v1alpha1.AppProject{dummySIProject("git-si", sampleGitGpgSourceIntegrity(), []v1alpha1.SignatureKey{})}, // nolint:staticcheck
+			expectedOutput:   getExpectedOutput("git-si", "No description", "GIT/GPG"),
+			expectedWarnings: []string{},
+		},
+		{
+			name:           "Project has SignatureKeys warning",
+			projects:       []v1alpha1.AppProject{dummySIProject("signature-keys", nil, sampleSignatureKeys())},
+			expectedOutput: getExpectedOutput("signature-keys", "No description", "GIT/GPG"), // SignatureKeys are effectively Git + GPG
+			expectedWarnings: []string{
+				"Creating project SourceIntegrity from legacy SignatureKeys specified in signature-keys AppProject. Migrate them to SourceIntegrity.",
+			},
+		},
+		{
+			name:           "Project has both Git SourceIntegrity and SignatureKeys warning",
+			projects:       []v1alpha1.AppProject{dummySIProject("git-si", sampleGitGpgSourceIntegrity(), sampleSignatureKeys())},
+			expectedOutput: getExpectedOutput("git-si", "No description", "GIT/GPG"),
+			expectedWarnings: []string{
+				"Both SourceIntegrity and SignatureKeys specified in git-si AppProject. Ignoring SignatureKeys. Migrate them to SourceIntegrity.",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hook := test.NewLogHook(log.WarnLevel)
+			log.AddHook(hook)
+			t.Cleanup(hook.CleanupHook)
+
+			projects := mockProjectClient(t)
+			projects.On("List", mock.Anything, mock.Anything).Return(&v1alpha1.AppProjectList{Items: tt.projects}, nil)
+
+			cmd := NewProjectListCommand(&argocdclient.ClientOptions{})
+			out, _, err := runCmd(t, cmd)
+			require.NoError(t, err)
+
+			tabbedOut := regexp.MustCompile(" {2,}").ReplaceAllString(out, "\t")
+
+			assert.Equal(t, tt.expectedOutput, tabbedOut)
+			assert.Equal(t, tt.expectedWarnings, hook.GetEntries())
+		})
+	}
+}
+
+func Test_projGet_SourceIntegrity(t *testing.T) {
+	getExpectedOutput := func(projectName string, description string, expectedSourceIntegrity string) string {
+		parts := []struct {
+			key   string
+			value string
+		}{
+			{key: "Name:", value: projectName},
+			{key: "Description:", value: description},
+			{key: "Destinations:", value: "<none>"},
+			{key: "Repositories:", value: "<none>"},
+			{key: "Source Namespaces:", value: "<none>"},
+			{key: "Scoped Repositories:", value: "<none>"},
+			{key: "Allowed Cluster Resources:", value: "<none>"},
+			{key: "Scoped Clusters:", value: "<none>"},
+			{key: "Denied Namespaced Resources:", value: "<none>"},
+			{key: "Source integrity:", value: expectedSourceIntegrity},
+			{key: "Orphaned Resources:", value: "disabled"},
+		}
+
+		const printProjFmtStr = "%-29s%s\n"
+
+		output := ""
+		var outputSb390 strings.Builder
+		for _, part := range parts {
+			fmt.Fprintf(&outputSb390, printProjFmtStr, part.key, part.value)
+		}
+		output += outputSb390.String()
+		return output
+	}
+
+	tests := []struct {
+		name             string
+		project          v1alpha1.AppProject
+		expectedOutput   string
+		expectedWarnings []string
+	}{
+		{
+			name:             "SourceIntegrity is empty no warnings",
+			project:          dummySIProject("empty-si", nil, []v1alpha1.SignatureKey{}), // nolint:staticcheck
+			expectedOutput:   getExpectedOutput("empty-si", "No description", "<none>"),
+			expectedWarnings: []string{},
+		},
+		{
+			name:             "Project has Git SourceIntegrity no warnings",
+			project:          dummySIProject("git-si", sampleGitGpgSourceIntegrity(), []v1alpha1.SignatureKey{}), // nolint:staticcheck
+			expectedOutput:   getExpectedOutput("git-si", "No description", "GIT/GPG"),
+			expectedWarnings: []string{},
+		},
+		{
+			name:           "Project has SignatureKeys warning",
+			project:        dummySIProject("signature-keys", nil, sampleSignatureKeys()),
+			expectedOutput: getExpectedOutput("signature-keys", "No description", "GIT/GPG"), // SignatureKeys are effectively Git + GPG
+			expectedWarnings: []string{
+				"Creating project SourceIntegrity from legacy SignatureKeys specified in signature-keys AppProject. Migrate them to SourceIntegrity.",
+			},
+		},
+		{
+			name:           "Project has both Git SourceIntegrity and SignatureKeys warning",
+			project:        dummySIProject("git-si", sampleGitGpgSourceIntegrity(), sampleSignatureKeys()),
+			expectedOutput: getExpectedOutput("git-si", "No description", "GIT/GPG"),
+			expectedWarnings: []string{
+				"Both SourceIntegrity and SignatureKeys specified in git-si AppProject. Ignoring SignatureKeys. Migrate them to SourceIntegrity.",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hook := test.NewLogHook(log.WarnLevel)
+			log.AddHook(hook)
+			t.Cleanup(hook.CleanupHook)
+
+			projects := mockProjectClient(t)
+			projects.EXPECT().
+				GetDetailedProject(mock.Anything, &projectpkg.ProjectQuery{Name: tt.project.Name}).
+				Return(&projectpkg.DetailedProjectsResponse{
+					Project: &tt.project,
+				}, nil)
+
+			cmd := NewProjectGetCommand(&argocdclient.ClientOptions{})
+			out, _, err := runCmd(t, cmd, tt.project.Name) // stderr checked by log hook as it does not use cmd.ErrOrStderr()
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.expectedOutput, out)
+			assert.Equal(t, tt.expectedWarnings, hook.GetEntries())
 		})
 	}
 }

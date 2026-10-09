@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/util/assets"
@@ -31,15 +30,11 @@ var noOpUpdate = func(_ *corev1.ConfigMap) error {
 
 func fakeConfigMap() *corev1.ConfigMap {
 	cm := corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "ConfigMap",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fakeConfigMapName,
-			Namespace: fakeNamespace,
-		},
-		Data: make(map[string]string),
+		Kind:       "ConfigMap",
+		APIVersion: "v1",
+		Name:       fakeConfigMapName,
+		Namespace:  fakeNamespace,
+		Data:       make(map[string]string),
 	}
 	return &cm
 }

@@ -77,6 +77,8 @@ data:
   controller.metrics.application.labels: "team,env"
   # List of Application conditions added to the argocd_app_conditions metric (comma separated)
   controller.metrics.application.conditions: "OrphanedResourceWarning"
+  # Enable the sync window metrics (argocd_app_sync_window, argocd_app_sync_blocked, argocd_app_sync_window_error). Default is false.
+  controller.metrics.sync.windows: "false"
   # List of Cluster labels added to the argocd_cluster_labels metric (comma separated)
   controller.metrics.cluster.labels: "environment"
   # Specifies timeout between application self heal attempts
@@ -206,6 +208,13 @@ data:
   server.disable.swagger.ui: "false"
   # Toggle GZIP compression
   server.enable.gzip: "true"
+  # Include the source IP address of the client in API request logs
+  server.enable.source.ip.logging: "false"
+  # Comma separated CIDRs or addresses of proxies in front of the API server. When a request arrives from one of them, the
+  # source IP is taken from server.client.ip.header or from X-Forwarded-For instead (default: none)
+  server.trusted.proxies: ""
+  # Header a trusted proxy sets to the client IP, e.g. CF-Connecting-IP, True-Client-IP or X-Real-IP (default: none)
+  server.client.ip.header: ""
   # Set X-Frame-Options header in HTTP responses to value. To disable, set to "". (default "sameorigin")
   server.x.frame.options: "sameorigin"
   # The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
@@ -330,6 +339,14 @@ data:
   # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
   # See https://github.com/argoproj/argo-cd/issues/24991
   commitserver.grpc.enable.txt.service.config: "false"
+  # Path to the ASCII-armored GPG private key used as the commit server's default
+  # signing key for hydrated commits (default ""). Setting this enables signing:
+  # there is no separate on/off toggle. When set, the commit server fails at
+  # startup if the key cannot be loaded — it will not silently fall back to
+  # unsigned commits.
+  commitserver.signing.key.path: ""
+  # Optional path to a file containing the passphrase for the signing key.
+  commitserver.signing.key.passphrase.file: ""
 
   # Set the logging format. One of: json|text (default "json")
   dexserver.log.format: "json"
@@ -397,6 +414,18 @@ data:
   applicationsetcontroller.status.max.resources.count: "5000"
   # Enables profile endpoint on the internal metrics port
   applicationsetcontroller.profile.enabled: "false"
+  # Workqueue rate limiter bucket size (default "500")
+  applicationsetcontroller.wq.bucket.size: "500"
+  # Workqueue rate limiter bucket QPS. Defaults to MaxFloat64, which disables the bucket limiter
+  applicationsetcontroller.wq.bucket.qps: "500"
+  # Workqueue per-item rate limiter base delay, in nanoseconds (default "1000000", 1ms)
+  applicationsetcontroller.wq.basedelay.ns: "1000000"
+  # Workqueue per-item rate limiter max delay, in nanoseconds (default "1000000000", 1s)
+  applicationsetcontroller.wq.maxdelay.ns: "1000000000"
+  # Workqueue per-item rate limiter backoff factor (default "1.5")
+  applicationsetcontroller.wq.backoff.factor: "1.5"
+  # Workqueue per-item rate limiter cooldown duration, in nanoseconds. 0 disables the per-item rate limiter (default "0")
+  applicationsetcontroller.wq.cooldown.ns: "0"
   # QPS (Queries Per Second) limit for K8s API client requests (default "50")
   # Can also be set via ARGOCD_K8S_CLIENT_QPS environment variable
   applicationsetcontroller.k8s.client.qps: "50"

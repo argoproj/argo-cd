@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -21,6 +22,8 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -267,13 +270,49 @@ func init() {
 }
 
 func loginAs(username, password string) error {
-	closer, client, err := ArgoCDClientset.NewSessionClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	for {
+		attemptCtx, cancelAttempt := context.WithTimeout(ctx, 5*time.Second)
+		err := tryLoginAs(attemptCtx, username, password)
+		cancelAttempt()
+		if !isLoginRetryable(err) || ctx.Err() != nil {
+			return err
+		}
+		log.Warnf("API server unavailable while logging in as %s, retrying: %v", username, err)
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
+}
+
+func removeAllRetrying(path string) error {
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		err := os.RemoveAll(path)
+		if !stderrors.Is(err, syscall.ENOTEMPTY) || time.Now().After(deadline) {
+			return err
+		}
+		log.Warnf("%s is still being written to, retrying removal: %v", path, err)
+		time.Sleep(200 * time.Millisecond)
+	}
+}
+
+func isLoginRetryable(err error) bool {
+	code := status.Code(err)
+	return code == codes.Unavailable || code == codes.DeadlineExceeded
+}
+
+func tryLoginAs(ctx context.Context, username, password string) error {
+	closer, client, err := ArgoCDClientset.NewSessionClientWithContext(ctx)
 	if err != nil {
-		return err
+		return status.Errorf(codes.Unavailable, "connecting to API server: %v", err)
 	}
 	defer utilio.Close(closer)
 
-	userInfoResponse, err := client.GetUserInfo(context.Background(), &sessionpkg.GetUserInfoRequest{})
+	userInfoResponse, err := client.GetUserInfo(ctx, &sessionpkg.GetUserInfoRequest{})
 	if err != nil {
 		return err
 	}
@@ -281,7 +320,7 @@ func loginAs(username, password string) error {
 		return nil
 	}
 
-	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: username, Password: password})
+	sessionResponse, err := client.Create(ctx, &sessionpkg.SessionCreateRequest{Username: username, Password: password})
 	if err != nil {
 		return err
 	}
@@ -575,8 +614,13 @@ func SetResourceFilter(filters settings.ResourcesFilter) error {
 		if err != nil {
 			return err
 		}
+		selectors, err := yaml.Marshal(filters.ResourceSelectors)
+		if err != nil {
+			return err
+		}
 		cm.Data["resource.exclusions"] = string(exclusions)
 		cm.Data["resource.inclusions"] = string(inclusions)
+		cm.Data["resource.selectors"] = string(selectors)
 		return nil
 	})
 }
@@ -635,6 +679,10 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 	// Register this test after it has been run & was successful
 	t.Cleanup(func() {
 		RecordTestRun(t)
+	})
+
+	t.Cleanup(func() {
+		require.NoError(t, LoginAs(adminUsername), "could not restore the %s session after %s", adminUsername, t.Name())
 	})
 
 	// Create TestState to hold test-specific variables
@@ -877,9 +925,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Create(
 				t.Context(),
 				&v1alpha1.AppProject{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "gpg",
-					},
+					Name: "gpg",
 					Spec: v1alpha1.AppProjectSpec{
 						OrphanedResources:        nil,
 						SourceRepos:              []string{"*"},
@@ -900,7 +946,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 				return err
 			}
 			for _, entry := range entries {
-				err := os.RemoveAll(filepath.Join(tmpDir, entry.Name()))
+				err := removeAllRetrying(filepath.Join(tmpDir, entry.Name()))
 				if err != nil {
 					return err
 				}

@@ -8,14 +8,17 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 
 | Metric                                            |   Type    | Description                                                                                                                                                                                             |
 | ------------------------------------------------- | :-------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `argocd_app_info`                                 |   gauge   | Information about Applications. It contains labels such as `sync_status` and `health_status` that reflect the application state in Argo CD.                                                             |
+| `argocd_app_info`                                 |   gauge   | Information about Applications. It contains labels such as `sync_status`, `health_status`, and `hydrator_status` that reflect the application state in Argo CD.                                                             |
 | `argocd_app_condition`                            |   gauge   | Report Applications conditions. It contains the conditions currently present in the application status.                                                                                                 |
 | `argocd_app_k8s_request_total`                    |  counter  | Number of Kubernetes requests executed during application reconciliation                                                                                                                                |
 | `argocd_app_labels`                               |   gauge   | Argo Application labels converted to Prometheus labels. Disabled by default. See section below about how to enable it.                                                                                  |
 | `argocd_app_orphaned_resources_count`             |   gauge   | Number of orphaned resources per application.                                                                                                                                                           |
 | `argocd_app_reconcile`                            | histogram | Application reconciliation performance in seconds.                                                                                                                                                      |
-| `argocd_app_sync_total`                           |  counter  | Counter for application sync history                                                                                                                                                                    |
+| `argocd_app_sync_blocked`                         |   gauge   | Whether automatic syncs of the application are currently blocked by its project sync windows. 1 means an automatic sync attempt right now would be rejected. 0 when no sync windows are configured. Also 1 when the windows cannot be evaluated; see `argocd_app_sync_window_error`. |
 | `argocd_app_sync_duration_seconds_total`          |  counter  | Application sync performance in seconds total.                                                                                                                                                          |
+| `argocd_app_sync_total`                           |  counter  | Counter for application sync history                                                                                                                                                                    |
+| `argocd_app_sync_window`                          |   gauge   | Whether a sync window of the given kind is currently active for the application. Emitted as a 0/1 gauge per `window_kind` (`allow`, `deny`); 1 means at least one matching window of that kind is currently active.                        |
+| `argocd_app_sync_window_error`                    |   gauge   | Whether the application's sync windows could not be evaluated. 1 means the `AppProject` could not be resolved, or a window matching the application has a schedule or duration that cannot be parsed, so `argocd_app_sync_window` does not reflect the configured windows and `argocd_app_sync_blocked` is reported fail-closed as 1. |
 | `argocd_cluster_api_resource_objects`             |   gauge   | Number of k8s resource objects in the cache.                                                                                                                                                            |
 | `argocd_cluster_api_resources`                    |   gauge   | Number of monitored Kubernetes API resources.                                                                                                                                                           |
 | `argocd_cluster_cache_age_seconds`                |   gauge   | Cluster cache age in seconds.                                                                                                                                                                           |
@@ -40,6 +43,11 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | `argocd_kubectl_transport_cache_entries`          |   gauge   | Number of kubectl transport cache entries.                                                                                                                                                              |
 | `argocd_kubectl_transport_create_calls_total`     |  counter  | Number of kubectl transport create calls.                                                                                                                                                               |
 
+> [!NOTE]
+> The sync window metrics (`argocd_app_sync_window`, `argocd_app_sync_blocked`
+> and `argocd_app_sync_window_error`) are disabled by default. See
+> [Exposing sync window metrics](#exposing-sync-window-metrics).
+
 ### Labels
 
 | Label Name         | Example Value                   | Description                                                                                                                                                                                     |
@@ -52,12 +60,13 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | group              | apps                            | Group name of a Kubernetes resource being monitored.                                                                                                                                            |
 | host               | example.com                     | Hostname of the Kubernetes API to which the request was made.                                                                                                                                   |
 | hostname           | argocd-application-controller-0 | Hostname of the Argo CD component that initiated the request to Redis.                                                                                                                          |
+| hydrator_status    | Failed                          | Source Hydrator phase for apps with `spec.sourceHydrator` set. Empty when hydrator is not configured on the Application. `Unknown` when hydrator is configured but `status.sourceHydrator.currentOperation.phase` is absent or empty. Possible values: `Hydrating`, `Failed`, `Hydrated`, `Unknown`.         |
 | initiator          | argocd-server                   | Name of the Argo CD component that initiated the request to Redis. Possible values are: argocd-application-controller, argocd-repo-server, argocd-server.                                       |
 | kind               | Deployment                      | Kind name of a Kubernetes resource being monitored.                                                                                                                                             |
 | method             | GET                             | HTTP method used for the request. Possible values are: GET, DELETE, PATCH, POST, PUT.                                                                                                           |
 | name               | my-app                          | Name of an Application.                                                                                                                                                                         |
 | namespace          | default                         | Namespace of an Application (namespace where the Application CR is located, not the destination namespace).                                                                                     |
-| phase              | Succeeded                       | Phase of a sync operation. Possible values are: Error, Failed, Running, Succeeded, Terminating.                                                                                                 |
+| phase              | Succeeded                       | Phase of a sync operation. Possible values are: Error, Failed, Running, Succeeded, Terminating. |
 | project            | my-project                      | AppProject of an Application.                                                                                                                                                                   |
 | resource_kind      | Pod                             | Kind of Kubernetes resource being synced.                                                                                                                                                       |
 | resource_namespace | default                         | Namespace of Kubernetes resource being synced.                                                                                                                                                  |
@@ -65,6 +74,7 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | result             | hit                             | Result of an attempt to get a transport from the kubectl (client-go) transport cache. Possible values are: hit, miss, unreachable.                                                              |
 | server             | https://example.com             | Server where the operation is performed.                                                                                                                                                        |
 | verb               | List                            | Kubernetes API verb used in the request. Possible values are: Get, Watch, List, Create, Delete, Patch, Update.                                                                                  |
+| window_kind        | deny                            | Kind of sync window reported by `argocd_app_sync_window`. Possible values are: allow, deny.                                                                                                     |
 
 ### Metrics Cache Expiration
 
@@ -139,6 +149,22 @@ containers:
       - ExcludedResourceWarning
 ```
 
+### Exposing sync window metrics
+
+The sync window metrics add four series per Application (`argocd_app_sync_window` per `window_kind`,
+`argocd_app_sync_blocked` and `argocd_app_sync_window_error`), so they are disabled by default. To enable them, set
+`controller.metrics.sync.windows` in the `argocd-cmd-params-cm` ConfigMap:
+
+```yaml
+controller.metrics.sync.windows: "true"
+```
+
+Alternatively, pass `--metrics-sync-windows` to the application controller.
+
+When enabled, every Application emits the metrics, even when its project configures no sync windows. The zeros are
+deliberate: `argocd_app_sync_blocked` reporting 0 distinguishes "no windows configured" from "blocked because a
+matching allow window is inactive".
+
 ### Exposing Cluster labels as Prometheus metrics
 
 As the Cluster labels are specific to each company, this feature is disabled by default. To enable it, set the
@@ -171,23 +197,27 @@ argocd_cluster_labels{label_environment="production",label_team_name="team3",nam
 
 The Application Set controller exposes the following metrics for application sets.
 
-| Metric                                            |   Type    | Description                                                                                                                                                                                |
-| ------------------------------------------------- | :-------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `argocd_appset_info`                              |   gauge   | Information about Application Sets. It contains labels for the name and namespace of an application set as well as `Resource_update_status` that reflects the `ResourcesUpToDate` property |
-| `argocd_appset_reconcile`                         | histogram | Application reconciliation performance in seconds. It contains labels for the name and namespace of an applicationset                                                                      |
-| `argocd_appset_labels`                            |   gauge   | Applicationset labels translated to Prometheus labels. Disabled by default                                                                                                                 |
-| `argocd_appset_owned_applications`                |   gauge   | Number of applications owned by the applicationset. It contains labels for the name and namespace of an applicationset.                                                                    |
-| `argocd_kubectl_client_cert_rotation_age_seconds` |   gauge   | Age of kubectl client certificate rotation.                                                                                                                                                |
-| `argocd_kubectl_request_duration_seconds`         | histogram | Latency of kubectl requests.                                                                                                                                                               |
-| `argocd_kubectl_dns_resolution_duration_seconds`  | histogram | Latency of kubectl resolver.                                                                                                                                                               |
-| `argocd_kubectl_request_size_bytes`               | histogram | Size of kubectl requests.                                                                                                                                                                  |
-| `argocd_kubectl_response_size_bytes`              | histogram | Size of kubectl responses.                                                                                                                                                                 |
-| `argocd_kubectl_rate_limiter_duration_seconds`    | histogram | Latency of kubectl rate limiter.                                                                                                                                                           |
-| `argocd_kubectl_requests_total`                   |  counter  | Result of kubectl requests.                                                                                                                                                                |
-| `argocd_kubectl_exec_plugin_call_total`           |  counter  | Number of kubectl exec plugin calls.                                                                                                                                                       |
-| `argocd_kubectl_request_retries_total`            |  counter  | Number of kubectl request retries.                                                                                                                                                         |
-| `argocd_kubectl_transport_cache_entries`          |   gauge   | Number of kubectl transport cache entries.                                                                                                                                                 |
-| `argocd_kubectl_transport_create_calls_total`     |  counter  | Number of kubectl transport create calls.                                                                                                                                                  |
+| Metric                                                        |   Type    | Description                                                                                                                                                                                |
+|---------------------------------------------------------------|:---------:|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `argocd_appset_info`                                          |   gauge   | Information about Application Sets. It contains labels for the name and namespace of an application set as well as `Resource_update_status` that reflects the `ResourcesUpToDate` property |
+| `argocd_appset_reconcile`                                     | histogram | Application reconciliation performance in seconds. It contains labels for the name and namespace of an applicationset                                                                      |
+| `argocd_appset_labels`                                        |   gauge   | Applicationset labels translated to Prometheus labels. Disabled by default                                                                                                                 |
+| `argocd_appset_owned_applications`                            |   gauge   | Number of applications owned by the applicationset. It contains labels for the name and namespace of an applicationset.                                                                    |
+| `argocd_appset_progressive_sync_app_status`                   |   gauge   | Number of applications in each progressive sync step by status (Waiting, Pending, Progressing, Healthy) when using the RollingSync strategy                                               |
+| `argocd_appset_progressive_sync_syncs_triggered_total`        |  counter  | Counts sync operations triggered by progressive sync                                                                                                                                       |
+| `argocd_appset_progressive_sync_detection_to_trigger_seconds` | histogram | Time from detecting that a progressive sync is needed to triggering the sync operation, including processing time                                                                          |
+| `argocd_appset_app_refresh_total`                 | counter   | Number of application refreshes triggered by Application for progressive sync steps                                                                                                        |
+| `argocd_kubectl_client_cert_rotation_age_seconds`             |   gauge   | Age of kubectl client certificate rotation.                                                                                                                                                |
+| `argocd_kubectl_request_duration_seconds`                     | histogram | Latency of kubectl requests.                                                                                                                                                               |
+| `argocd_kubectl_dns_resolution_duration_seconds`              | histogram | Latency of kubectl resolver.                                                                                                                                                               |
+| `argocd_kubectl_request_size_bytes`                           | histogram | Size of kubectl requests.                                                                                                                                                                  |
+| `argocd_kubectl_response_size_bytes`                          | histogram | Size of kubectl responses.                                                                                                                                                                 |
+| `argocd_kubectl_rate_limiter_duration_seconds`                | histogram | Latency of kubectl rate limiter.                                                                                                                                                           |
+| `argocd_kubectl_requests_total`                               |  counter  | Result of kubectl requests.                                                                                                                                                                |
+| `argocd_kubectl_exec_plugin_call_total`                       |  counter  | Number of kubectl exec plugin calls.                                                                                                                                                       |
+| `argocd_kubectl_request_retries_total`                        |  counter  | Number of kubectl request retries.                                                                                                                                                         |
+| `argocd_kubectl_transport_cache_entries`                      |   gauge   | Number of kubectl transport cache entries.                                                                                                                                                 |
+| `argocd_kubectl_transport_create_calls_total`                 |  counter  | Number of kubectl transport create calls.                                                                                                                                                  |
 
 Similar to the same metric in application controller (`argocd_app_labels`) the metric `argocd_appset_labels` is disabled by default. You can enable it by providing the `–metrics-applicationset-labels` argument to the applicationset controller.
 

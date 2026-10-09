@@ -65,19 +65,13 @@ func TestParseServiceAccountToken(t *testing.T) {
 func TestCreateServiceAccount(t *testing.T) {
 	t.Parallel()
 	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "kube-system",
-		},
+		Name: "kube-system",
 	}
 	sa := &corev1.ServiceAccount{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ServiceAccount",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-manager",
-			Namespace: "kube-system",
-		},
+		APIVersion: "v1",
+		Kind:       "ServiceAccount",
+		Name:       "argocd-manager",
+		Namespace:  "kube-system",
 	}
 
 	t.Run("New SA", func(t *testing.T) {
@@ -137,25 +131,19 @@ func _MockK8STokenController(objects kubetesting.ObjectTracker) kubetesting.Reac
 func TestInstallClusterManagerRBAC(t *testing.T) {
 	t.Parallel()
 	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test",
-		},
+		Name: "test",
 	}
 	legacyAutoSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "sa-secret",
-			Namespace: "test",
-		},
-		Type: corev1.SecretTypeServiceAccountToken,
+		Name:      "sa-secret",
+		Namespace: "test",
+		Type:      corev1.SecretTypeServiceAccountToken,
 		Data: map[string][]byte{
 			"token": []byte("foobar"),
 		},
 	}
 	sa := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ArgoCDManagerServiceAccount,
-			Namespace: "test",
-		},
+		Name:      ArgoCDManagerServiceAccount,
+		Namespace: "test",
 		Secrets: []corev1.ObjectReference{
 			{
 				Kind:            legacyAutoSecret.GetObjectKind().GroupVersionKind().Kind,
@@ -168,12 +156,10 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 		},
 	}
 	longLivedSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      sa.Name + SATokenSecretSuffix,
-			Namespace: "test",
-			Annotations: map[string]string{
-				corev1.ServiceAccountNameKey: sa.Name,
-			},
+		Name:      sa.Name + SATokenSecretSuffix,
+		Namespace: "test",
+		Annotations: map[string]string{
+			corev1.ServiceAccountNameKey: sa.Name,
 		},
 		Type: corev1.SecretTypeServiceAccountToken,
 		Data: map[string][]byte{
@@ -283,11 +269,9 @@ func TestGetServiceAccountBearerToken(t *testing.T) {
 	sa := newServiceAccount(t)
 	tokenSecret := newServiceAccountSecret(t)
 	dockercfgSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-manager-dockercfg-d8j66",
-			Namespace: "kube-system",
-		},
-		Type: corev1.SecretTypeDockercfg,
+		Name:      "argocd-manager-dockercfg-d8j66",
+		Namespace: "kube-system",
+		Type:      corev1.SecretTypeDockercfg,
 		// Skipping data, doesn't really matter.
 	}
 	sa.Secrets = []corev1.ObjectReference{
@@ -305,23 +289,17 @@ func TestGetServiceAccountBearerToken(t *testing.T) {
 
 func Test_getOrCreateServiceAccountTokenSecret_NoSecretForSA(t *testing.T) {
 	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "kube-system",
-		},
+		Name: "kube-system",
 	}
 	sa := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ArgoCDManagerServiceAccount,
-			Namespace: ns.Name,
-		},
+		Name:      ArgoCDManagerServiceAccount,
+		Namespace: ns.Name,
 	}
 	manualSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ArgoCDManagerServiceAccount + SATokenSecretSuffix,
-			Namespace: ns.Name,
-			Annotations: map[string]string{
-				corev1.ServiceAccountNameKey: sa.Name,
-			},
+		Name:      ArgoCDManagerServiceAccount + SATokenSecretSuffix,
+		Namespace: ns.Name,
+		Annotations: map[string]string{
+			corev1.ServiceAccountNameKey: sa.Name,
 		},
 		Type: corev1.SecretTypeServiceAccountToken,
 	}
@@ -367,27 +345,21 @@ func Test_getOrCreateServiceAccountTokenSecret_NoSecretForSA(t *testing.T) {
 
 func Test_getOrCreateServiceAccountTokenSecret_SAHasSecret(t *testing.T) {
 	ns := &corev1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "kube-system",
-		},
+		Name: "kube-system",
 	}
 
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "sa-secret",
-			Namespace: ns.Name,
-		},
-		Type: corev1.SecretTypeServiceAccountToken,
+		Name:      "sa-secret",
+		Namespace: ns.Name,
+		Type:      corev1.SecretTypeServiceAccountToken,
 		Data: map[string][]byte{
 			"token": []byte("foobar"),
 		},
 	}
 
 	saWithSecret := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      ArgoCDManagerServiceAccount,
-			Namespace: ns.Name,
-		},
+		Name:      ArgoCDManagerServiceAccount,
+		Namespace: ns.Name,
 		Secrets: []corev1.ObjectReference{
 			{
 				Kind:            secret.GetObjectKind().GroupVersionKind().Kind,

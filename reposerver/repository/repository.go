@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	gosync "sync"
@@ -710,11 +711,11 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	settings := operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, noRevisionCache: q.NoRevisionCache, allowConcurrent: q.ApplicationSource.AllowsConcurrentProcessing()}
 	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.SourceIntegrity, cacheFn, operation, settings, q.HasMultipleSources, q.RefSources)
 
-	// if the tarDoneCh message is sent it means that the manifest
-	// generation is being managed by the cmp-server. In this case
-	// we have to wait for the responseCh to send the manifest
-	// response.
-	if tarConcluded && res == nil {
+	// If tarDoneCh fired, the cmp-server is generating the manifests and
+	// runManifestGenAsync will send exactly one more message, on responseCh
+	// or errCh. Always receive it, even if res is already set: cacheFn may
+	// have stored a stale cached response in res.
+	if tarConcluded {
 		select {
 		case resp := <-promise.responseCh:
 			res = resp
@@ -2157,14 +2158,14 @@ func getPotentiallyValidManifestFile(path string, f os.FileInfo, appPath, repoRo
 	realFileInfo = f
 
 	if files.IsSymlink(f) {
-		realPath, err := filepath.EvalSymlinks(path)
+		realPath, ok, err := files.ResolveInbound(path, repoRoot)
 		if err != nil {
 			if os.IsNotExist(err) {
 				return nil, fmt.Sprintf("destination of symlink %q is missing", relPath), nil
 			}
 			return nil, "", fmt.Errorf("failed to evaluate symlink at %q: %w", relPath, err)
 		}
-		if !files.Inbound(realPath, repoRoot) {
+		if !ok {
 			return nil, "", fmt.Errorf("illegal filepath in symlink at %q", relPath)
 		}
 		realFileInfo, err = os.Stat(realPath)
@@ -2305,11 +2306,88 @@ func makeJsonnetVM(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 		jpaths = append(jpaths, string(jpath))
 	}
 
-	vm.Importer(&jsonnet.FileImporter{
-		JPaths: jpaths,
+	vm.Importer(&confinedImporter{
+		FileImporter: &jsonnet.FileImporter{JPaths: jpaths},
+		repoRoot:     repoRoot,
 	})
 
 	return vm, nil
+}
+
+// confinedImporter wraps a jsonnet.FileImporter and rejects any import whose
+// resolved path (after symlink resolution) falls outside repoRoot, or that
+// isn't a regular file, preventing import/importstr from reading files
+// outside the checked-out repository (e.g. absolute paths like
+// /proc/self/environ, or relative traversal).
+//
+// The candidate path is located and validated with stat calls only, before
+// FileImporter.Import is ever invoked: FileImporter reads the full file
+// unconditionally via os.ReadFile, so validating after that call would let
+// an import of a non-terminating virtual file (e.g. /dev/zero) exhaust
+// repo-server memory before the rejection ever runs.
+type confinedImporter struct {
+	*jsonnet.FileImporter
+	repoRoot string
+}
+
+func (i *confinedImporter) Import(importedFrom, importedPath string) (jsonnet.Contents, string, error) {
+	dir, _ := filepath.Split(importedFrom)
+	foundAt, err := i.locate(dir, importedPath)
+	if err != nil {
+		return jsonnet.Contents{}, "", err
+	}
+	if err := i.validate(foundAt, importedPath); err != nil {
+		return jsonnet.Contents{}, "", err
+	}
+	return i.FileImporter.Import(importedFrom, importedPath)
+}
+
+// locate mirrors the candidate search order of go-jsonnet's own
+// FileImporter.Import/tryPath (importedFrom's directory, then JPaths in
+// reverse order), but only stats each candidate instead of reading it.
+func (i *confinedImporter) locate(dir, importedPath string) (string, error) {
+	if filepath.IsAbs(importedPath) {
+		if _, err := os.Lstat(importedPath); err != nil {
+			if os.IsNotExist(err) {
+				return "", fmt.Errorf("couldn't open import %q: no match locally or in the Jsonnet library paths", importedPath)
+			}
+			return "", err
+		}
+		return importedPath, nil
+	}
+
+	bases := make([]string, 0, len(i.JPaths)+1)
+	bases = append(bases, dir)
+	for _, jpath := range slices.Backward(i.JPaths) {
+		bases = append(bases, jpath)
+	}
+	for _, base := range bases {
+		absPath := filepath.Join(base, importedPath)
+		if _, err := os.Lstat(absPath); err == nil {
+			return absPath, nil
+		} else if !os.IsNotExist(err) {
+			return "", err
+		}
+	}
+	return "", fmt.Errorf("couldn't open import %q: no match locally or in the Jsonnet library paths", importedPath)
+}
+
+func (i *confinedImporter) validate(foundAt, importedPath string) error {
+	resolved, ok, err := files.ResolveInbound(foundAt, i.repoRoot)
+	if err != nil {
+		return fmt.Errorf("failed to resolve jsonnet import %q: %w", importedPath, err)
+	}
+	if !ok {
+		return fmt.Errorf("jsonnet import %q resolves outside repository root", importedPath)
+	}
+	info, err := os.Stat(resolved)
+	if err != nil {
+		return fmt.Errorf("failed to stat jsonnet import %q: %w", importedPath, err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("jsonnet import %q is not a regular file", importedPath)
+	}
+	return nil
 }
 
 func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, error) {
@@ -3342,34 +3420,9 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 		}
 	}
 
-	repoRoot := gitClient.Root()
-	var paths []string
-	if err := filepath.WalkDir(repoRoot, func(path string, entry fs.DirEntry, fnErr error) error {
-		if fnErr != nil {
-			return fmt.Errorf("error walking the file tree: %w", fnErr)
-		}
-		if !entry.IsDir() { // Skip files: directories only
-			return nil
-		}
-
-		if !s.initConstants.IncludeHiddenDirectories && strings.HasPrefix(entry.Name(), ".") {
-			return filepath.SkipDir // Skip hidden directory
-		}
-
-		relativePath, err := filepath.Rel(repoRoot, path)
-		if err != nil {
-			return fmt.Errorf("error constructing relative repo path: %w", err)
-		}
-
-		if relativePath == "." { // Exclude '.' from results
-			return nil
-		}
-
-		paths = append(paths, relativePath)
-
-		return nil
-	}); err != nil {
-		return nil, err
+	paths, err := walkDirectoryTree(gitClient.Root(), s.initConstants.IncludeHiddenDirectories)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to walk directory tree: %v", err)
 	}
 
 	log.Debugf("found %d git paths from %s", len(paths), repo.Repo)
@@ -3601,13 +3654,18 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 	// No changes detected, update the cache using resolved revisions
 	err := s.updateCachedRevision(logCtx, sRevision, rRevision, request, oldRepoRefs, newRepoRefs)
 	if err != nil {
-		if !errors.Is(err, cache.ErrCacheMiss) {
-			// Only warn with the error, no need to block anything if there is a caching error.
+		// Path filtering already established that no relevant files changed. A cache
+		// rename failure (miss, Redis unreachable, etc.) must not flip Changes to true,
+		// or automated sync will treat the revision advance as an application change
+		// and sync unrelated sibling apps in a mono-repo (issue #29430).
+		if errors.Is(err, cache.ErrCacheMiss) {
+			logCtx.Info("manifest cache miss while moving manifests cache to the new revision")
+		} else {
 			logCtx.Warnf("error updating cached revision for source %s with revision %s: %v", request.ApplicationSource.RepoURL, rRevision, err)
 		}
 		return &apiclient.UpdateRevisionForPathsResponse{
 			Revision: rRevision,
-			Changes:  true,
+			Changes:  false,
 		}, nil
 	}
 
@@ -3633,7 +3691,6 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 	err := s.cache.SetNewRevisionManifests(oldKey, newKey)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
-			logCtx.Info("manifest cache miss while moving manifests cache to the new revision")
 			return fmt.Errorf("manifest cache miss during comparison for application %s in repo %s from revision %s: %w", request.AppName, request.GetRepo().Repo, oldRev, cache.ErrCacheMiss)
 		}
 		return fmt.Errorf("manifest cache move error for %s: %w", request.AppName, err)
@@ -3641,6 +3698,144 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 
 	logCtx.Infof("manifest cache moved")
 	return nil
+}
+
+func (s *Service) GetOciFiles(ctx context.Context, request *apiclient.OciFilesRequest) (*apiclient.OciFilesResponse, error) {
+	repo := request.GetRepo()
+	revision := request.GetRevision()
+	ociPath := request.GetGlob()
+	noRevisionCache := request.GetNoRevisionCache()
+	if ociPath == "" {
+		ociPath = "."
+	}
+
+	if repo == nil {
+		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
+	}
+
+	ociClient, digest, err := s.newOCIClientResolveRevision(ctx, repo, revision, noRevisionCache)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to resolve OCI revision %s: %v", revision, err)
+	}
+
+	// check the cache and return the results if present
+	if cachedFiles, err := s.cache.GetOciFiles(repo.Repo, digest, ociPath); err == nil {
+		log.Debugf("cache hit for OCI repo: %s revision: %s pattern: %s", repo.Repo, digest, ociPath)
+		return &apiclient.OciFilesResponse{
+			Files: cachedFiles,
+		}, nil
+	}
+
+	s.metricsServer.IncPendingRepoRequest(repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
+
+	// cache miss, extract the OCI artifact
+	extractedPath, closer, err := ociClient.Extract(ctx, digest)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to extract OCI artifact %s with revision %s: %v", repo.Repo, digest, err)
+	}
+	defer utilio.Close(closer)
+
+	globPattern := ociPath
+	if globPattern == "." {
+		globPattern = "**"
+	}
+	root, err := os.OpenRoot(extractedPath)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to open extracted path %s: %v", extractedPath, err)
+	}
+	defer root.Close()
+
+	matchedFiles, err := doublestar.Glob(root.FS(), globPattern)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to match files. repo %s with revision %s pattern %s: %v", repo.Repo, digest, ociPath, err)
+	}
+
+	log.Infof("matched %d OCI files from %s under %s", len(matchedFiles), repo.Repo, ociPath)
+
+	res := make(map[string][]byte)
+	for _, filePath := range matchedFiles {
+		fileInfo, err := root.Stat(filePath)
+		if err != nil {
+			if _, ok := errors.AsType[*fs.PathError](err); ok {
+				log.WithFields(log.Fields{
+					common.SecurityField: common.SecurityHigh,
+					"repo":               repo.Repo,
+					"digest":             digest,
+					"path":               filePath,
+				}).Warnf("skipping OCI file that does not resolve within the artifact root: %v", err)
+				continue
+			}
+			return nil, status.Errorf(codes.Internal, "unable to stat file %s: %v", filePath, err)
+		}
+		if fileInfo.IsDir() {
+			continue
+		}
+
+		fileContents, err := root.ReadFile(filePath)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "unable to read file. repo %s with revision %s pattern %s: %v", repo.Repo, digest, ociPath, err)
+		}
+
+		res[filePath] = fileContents
+	}
+
+	err = s.cache.SetOciFiles(repo.Repo, digest, ociPath, res)
+	if err != nil {
+		log.Warnf("error caching OCI files for repo %s with revision %s pattern %s: %v", repo.Repo, digest, ociPath, err)
+	}
+
+	return &apiclient.OciFilesResponse{
+		Files: res,
+	}, nil
+}
+
+// GetOciDirectories returns a set of directory paths for the given OCI artifact
+func (s *Service) GetOciDirectories(ctx context.Context, request *apiclient.OciDirectoriesRequest) (*apiclient.OciDirectoriesResponse, error) {
+	repo := request.GetRepo()
+	revision := request.GetRevision()
+	noRevisionCache := request.GetNoRevisionCache()
+	if repo == nil {
+		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
+	}
+
+	ociClient, digest, err := s.newOCIClientResolveRevision(ctx, repo, revision, noRevisionCache)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to resolve OCI revision %s: %v", revision, err)
+	}
+
+	// check the cache and return the results if present
+	if cachedPaths, err := s.cache.GetOciDirectories(repo.Repo, digest); err == nil {
+		log.Debugf("cache hit for OCI repo: %s revision: %s", repo.Repo, digest)
+		return &apiclient.OciDirectoriesResponse{
+			Paths: cachedPaths,
+		}, nil
+	}
+
+	s.metricsServer.IncPendingRepoRequest(repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
+
+	// cache miss, extract the OCI artifact
+	extractedPath, closer, err := ociClient.Extract(ctx, digest)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to extract OCI artifact %s with revision %s: %v", repo.Repo, digest, err)
+	}
+	defer utilio.Close(closer)
+
+	paths, err := walkDirectoryTree(extractedPath, s.initConstants.IncludeHiddenDirectories)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to walk directory tree: %v", err)
+	}
+
+	log.Debugf("found %d OCI paths from %s", len(paths), repo.Repo)
+	err = s.cache.SetOciDirectories(repo.Repo, digest, paths)
+	if err != nil {
+		log.Warnf("error caching OCI directories for repo %s with revision %s: %v", repo.Repo, digest, err)
+	}
+
+	return &apiclient.OciDirectoriesResponse{
+		Paths: paths,
+	}, nil
 }
 
 func (s *Service) ociClientStandardOpts() []oci.ClientOpts {

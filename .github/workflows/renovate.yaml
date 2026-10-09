@@ -19,7 +19,7 @@ jobs:
     steps:
       - name: Harden the runner (Block unknown outbound calls)
         if: ${{ vars.disable_harden_runner != 'true' }}
-        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: block
           disable-sudo-and-containers: "false" # renovatebot runs in `docker run`
@@ -67,11 +67,31 @@ jobs:
         with:
           persist-credentials: false
 
+      # master, plus the supported release-* branches from
+      # hack/supported-release-branches.sh. release-branches.json5 then limits
+      # those release branches to Go, Helm, and Kustomize patch bumps. Without
+      # this env var, Renovate updates master only.
+      - name: Select Renovate base branches
+        id: base_branches
+        run: |
+          set -euo pipefail
+          json='["master"'
+          # Assign before the loop. A process substitution would hide a failed
+          # script, and Renovate would update master only.
+          release_branches="$(hack/supported-release-branches.sh)"
+          while IFS= read -r branch; do
+            [[ -z "$branch" ]] && continue
+            json+=",\"${branch}\""
+          done <<< "$release_branches"
+          json+=']'
+          echo "Renovate base branches: ${json}"
+          echo "branches=${json}" >> "$GITHUB_OUTPUT"
+
       # Unlike every other action here, the `uses:` pin below is managed by Renovate
       # rather than dependabot, so its update will be grouped into the same PR
       # as the image (below).
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@e09d604f8f803bb527bd8321ed5be06c460b8682 # v46.2.2
+        uses: renovatebot/github-action@230ce922b08968d0a4f6f70f295601daff09ef1d # v46.3.7
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'
@@ -83,7 +103,8 @@ jobs:
           # renovate-presets/custom-managers/renovate-action.json5, which expects
           # `renovate-image` and `renovate-version` to stay on adjacent lines.
           renovate-image: "ghcr.io/renovatebot/renovate"
-          renovate-version: "44.35.4@sha256:e49d14979ef91b6ac7a968188cfd7a641f7bdf315957873f73fc4e9efba2c666"
+          renovate-version: "44.133.0@sha256:05c512c35c764ef6a179e69c3b30567eca254d67f13a0143479fe3c84852c67a"
         env:
           LOG_LEVEL: 'debug'
           RENOVATE_REPOSITORIES: '${{ github.repository }}'
+          RENOVATE_BASE_BRANCHES: '${{ steps.base_branches.outputs.branches }}'

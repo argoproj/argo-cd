@@ -166,6 +166,24 @@ cache. Default: 1000
 * `ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT`: Limits max number of concurrent login requests.
 If set to 0 then limit is disabled. Default: 50.
 
+### Revoked token resync
+
+Logging out of the UI revokes that session's token. Revocations are broadcast to all `argocd-server`
+replicas over Redis pub/sub immediately, and each replica additionally reloads the full set of revoked
+tokens once at startup and then on a timer. That reload performs a full-keyspace `SCAN`, so its cost grows
+with the total size of the Redis keyspace — normally dominated by the manifest cache rather than by revoked
+tokens — and with the number of `argocd-server` replicas.
+
+* `ARGOCD_SESSION_REVOKED_TOKEN_RESYNC_DURATION`: How often each `argocd-server` replica reloads the full
+set of revoked tokens from Redis. Accepts any Go duration string (for example `15m`), between 15s and 1h.
+Values outside that range, or that cannot be parsed, are ignored in favour of the default. Default: 5m.
+
+Because normal revocation latency is set by pub/sub and freshly started replicas load the set before
+serving, the timer is only a backstop against a dropped pub/sub message. Shortening it narrows the window
+in which a replica that dropped a message may still accept a revoked token, at a proportional increase in
+Redis CPU spent on `SCAN`; lengthening it does the reverse, and is worth doing on installations with a
+large Redis keyspace and few token revocations.
+
 ## SSO
 
 There are two ways that SSO can be configured:
@@ -908,3 +926,127 @@ Disabling certificate verification might make sense if:
 
 If either of those two applies, then you can disable OIDC provider certificate verification by setting
 `oidc.tls.insecure.skip.verify` to `"true"` in the `argocd-cm` ConfigMap.
+
+## Dex Storage Backend
+
+By default, Dex stores session state (auth requests, refresh tokens, signingkeys) in memory. This means state does not persist across `argocd-dex-server` pod restarts, and it is not safe to run multiple Dex replicas since each replica would have its own independent state.
+
+To persist state and support HA deployments, configure a durable storage backend via `dex.config` and respective configurations in `argocd-cm`:
+
+```yaml
+  dex.config: |
+    storage:
+      type: kubernetes
+      config:
+        inCluster: true
+```
+
+Supported values for `storage.type` in `dex.config`:
+
+| Type         | Persists across restarts | HA support | Notes                                                                                          |
+| ------------ | ------------------------ | ---------- | ---------------------------------------------------------------------------------------------- |
+| `memory`     | No                       | No         | Default. Simplest, no extra setup.                                                             |
+| `kubernetes` | Yes                      | Yes        | Stores state as custom resources in-cluster. Requires additional RBAC for `argocd-dex-server`. |
+| `postgres`   | Yes                      | Yes        | Requires a reachable Postgres instance.                                                        |
+| `sqlite3`    | Yes                      | No         | File-based; not suitable for multiple replicas.                                                |
+| `etcd`       | Yes                      | Yes        | Requires a reachable etcd cluster.                                                             |
+
+#### Kubernetes storage RBAC
+
+```yaml
+# RBAC for Dex Kubernetes Storage Backend
+#
+# Apply this manifest only when using:
+#
+#   dex.config: |
+#     storage:
+#       type: kubernetes
+#
+# This grants the Dex ServiceAccount permission to:
+#   - Access ConfigMaps and Secrets used by Dex
+#   - Manage Dex custom resources (AuthCodes, RefreshTokens, SigningKeys, etc.)
+#
+# Replace the namespace below if Argo CD is installed in a different namespace.
+# Restart existing dex pod for reflecting below RBAC permissions.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-dex-server
+  namespace: argocd
+rules:
+- apiGroups:
+    - dex.coreos.com
+  resources:
+    - authcodes
+    - authrequests
+    - oauth2clients
+    - signingkeies
+    - refreshtokens
+    - passwords
+    - offlinesessions
+    - connectors
+    - devicerequests
+    - devicetokens
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+- apiGroups:
+    - ""
+  resources:
+    - configmaps
+    - secrets
+  verbs:
+    - get
+    - list
+    - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-dex-server
+  namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-dex-server
+subjects:
+- kind: ServiceAccount
+  name: argocd-dex-server
+  namespace: argocd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argocd-dex-server-crd-manager
+rules:
+- apiGroups:
+    - apiextensions.k8s.io
+  resources:
+    - customresourcedefinitions
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argocd-dex-server-crd-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-dex-server-crd-manager
+subjects:
+- kind: ServiceAccount
+  name: argocd-dex-server
+  namespace: argocd
+```

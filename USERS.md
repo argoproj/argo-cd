@@ -195,6 +195,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Intel](https://www.intel.com)
 1. [Intuit](https://www.intuit.com/)
 1. [IQVIA](https://www.iqvia.com/)
+1. [jedarden.com](https://jedarden.com)
 1. [Jellysmack](https://www.jellysmack.com)
 1. [Joblift](https://joblift.com/)
 1. [JovianX](https://www.jovianx.com/)
