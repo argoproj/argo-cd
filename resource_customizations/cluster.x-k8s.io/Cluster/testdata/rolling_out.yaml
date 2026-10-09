@@ -1,0 +1,132 @@
+apiVersion: cluster.x-k8s.io/v1beta2
+kind: Cluster
+spec: {}
+status:
+  conditions:
+    - lastTransitionTime: '2025-11-27T14:17:52Z'
+      message: ''
+      observedGeneration: 43
+      reason: Available
+      status: 'True'
+      type: Available
+    - lastTransitionTime: '2025-10-08T17:16:40Z'
+      message: ''
+      observedGeneration: 43
+      reason: ProbeSucceeded
+      status: 'True'
+      type: RemoteConnectionProbe
+    - lastTransitionTime: '2025-10-23T08:47:46Z'
+      message: ''
+      observedGeneration: 43
+      reason: Ready
+      status: 'True'
+      type: InfrastructureReady
+    - lastTransitionTime: '2025-10-08T17:16:40Z'
+      message: ''
+      observedGeneration: 3
+      reason: Initialized
+      status: 'True'
+      type: ControlPlaneInitialized
+    - lastTransitionTime: '2025-11-27T14:17:52Z'
+      message: ''
+      observedGeneration: 43
+      reason: Available
+      status: 'True'
+      type: ControlPlaneAvailable
+    - lastTransitionTime: '2025-10-23T14:19:36Z'
+      message: ''
+      observedGeneration: 43
+      reason: Available
+      status: 'True'
+      type: WorkersAvailable
+    - lastTransitionTime: '2025-11-27T14:03:14Z'
+      message: ''
+      observedGeneration: 43
+      reason: ReconcileSucceeded
+      status: 'True'
+      type: TopologyReconciled
+    - lastTransitionTime: '2025-11-26T15:02:15Z'
+      message: |-
+        * MachineDeployment cluster-foo-md-0-7dhjv:
+          * Rolling out 2 not up-to-date replicas
+            * Version v1.33.5, v1.33.6 required
+            * KubeadmConfig is not up-to-date
+            * Metal3Machine is not up-to-date
+      observedGeneration: 43
+      reason: RollingOut
+      status: 'True'
+      type: RollingOut
+    - lastTransitionTime: '2025-11-28T09:34:45Z'
+      message: ''
+      observedGeneration: 43
+      reason: NotRemediating
+      status: 'False'
+      type: Remediating
+    - lastTransitionTime: '2025-11-27T14:25:25Z'
+      message: ''
+      observedGeneration: 43
+      reason: NotScalingDown
+      status: 'False'
+      type: ScalingDown
+    - lastTransitionTime: '2025-11-28T09:34:46Z'
+      message: ''
+      observedGeneration: 43
+      reason: NotScalingUp
+      status: 'False'
+      type: ScalingUp
+    - lastTransitionTime: '2025-11-27T14:25:25Z'
+      message: ''
+      observedGeneration: 43
+      reason: Ready
+      status: 'True'
+      type: ControlPlaneMachinesReady
+    - lastTransitionTime: '2025-11-28T09:34:46Z'
+      message: |-
+        * Machine cluster-foo-md-0-7dhjv-72kpt-trwws:
+          * NodeHealthy: Waiting for Metal3Machine to report spec.providerID
+      observedGeneration: 43
+      reason: ReadyUnknown
+      status: Unknown
+      type: WorkerMachinesReady
+    - lastTransitionTime: '2025-11-27T14:25:24Z'
+      message: ''
+      observedGeneration: 43
+      reason: UpToDate
+      status: 'True'
+      type: ControlPlaneMachinesUpToDate
+    - lastTransitionTime: '2025-11-26T15:02:15Z'
+      message: >-
+        * Machines cluster-foo-md-0-7dhjv-2mp2z-x2zgc,
+        cluster-foo-md-0-7dhjv-2mp2z-z2fgc:
+          * Version v1.33.5, v1.33.6 required
+          * KubeadmConfig is not up-to-date
+          * Metal3Machine is not up-to-date
+      observedGeneration: 43
+      reason: NotUpToDate
+      status: 'False'
+      type: WorkerMachinesUpToDate
+    - lastTransitionTime: '2025-10-08T17:12:37Z'
+      message: ''
+      observedGeneration: 43
+      reason: NotPaused
+      status: 'False'
+      type: Paused
+    - lastTransitionTime: '2025-10-08T17:12:38Z'
+      message: ''
+      observedGeneration: 43
+      reason: NotDeleting
+      status: 'False'
+      type: Deleting
+  controlPlane:
+    availableReplicas: 3
+    desiredReplicas: 3
+    readyReplicas: 3
+    replicas: 3
+    upToDateReplicas: 3
+  phase: Provisioned
+  workers:
+    availableReplicas: 5
+    desiredReplicas: 6
+    readyReplicas: 5
+    replicas: 6
+    upToDateReplicas: 4
