@@ -383,11 +383,42 @@ You can specify a custom field manager for the client-side apply migration using
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  name: my-app
   annotations:
     argocd.argoproj.io/client-side-apply-migration-manager: 'my-custom-manager'
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
 ```
 
 This is useful when you have other operators managing resources that are no longer in use and would like Argo CD to own all the fields for that operator.
+
+The annotation also accepts a comma-separated list, for example when resources are edited with more than one tool.
+Setting the annotation replaces the default, so include `kubectl-client-side-apply` if you still want it migrated:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+  annotations:
+    argocd.argoproj.io/client-side-apply-migration-manager: 'kubectl-client-side-apply,kubectl-edit'
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
 
 ### How it works
 
