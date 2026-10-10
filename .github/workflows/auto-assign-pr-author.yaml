@@ -1,0 +1,44 @@
+name: Auto Assign PR Author
+
+on:
+  # pull_request_target is required so the token can write to PRs opened from
+  # forks. This workflow never checks out or executes code from the PR; it only
+  # calls the GitHub API with the PR number and author login from the event.
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions: {}
+
+env:
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+
+jobs:
+  assign-author:
+    permissions:
+      pull-requests: write # to add the PR author as an assignee
+    name: Assign PR Author
+    # Bot accounts (Renovate, Dependabot, GitHub Apps) cannot be assigned.
+    if: github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Assign PR author
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          gh api --method POST "repos/${REPO}/issues/${PR_NUMBER}/assignees" \
+            -f "assignees[]=${PR_AUTHOR}" \
+            --jq '.assignees[].login' > assignees.txt
+          # The API silently drops users who cannot be assigned, so check the result.
+          if ! grep -qxF "${PR_AUTHOR}" assignees.txt; then
+            echo "::warning::Could not assign ${PR_AUTHOR} to #${PR_NUMBER}"
+          fi

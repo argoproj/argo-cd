@@ -435,7 +435,7 @@ func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) ([]string, 
 	var data []byte
 	if !noCache && c.tagsCache != nil {
 		if err := c.tagsCache.GetOCITags(c.repoURL, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
-			log.Warnf("Failed to load index cache for repo: %s: %s", c.repoLock, err)
+			log.Warnf("Failed to load index cache for repo: %s: %s", c.repoURL, err)
 		}
 	}
 
@@ -458,7 +458,11 @@ func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) ([]string, 
 		).Info("took to get tags")
 
 		if c.tagsCache != nil {
-			if err := c.tagsCache.SetOCITags(c.repoURL, data); err != nil {
+			cacheData, err := json.Marshal(tags)
+			if err != nil {
+				return nil, fmt.Errorf("failed to encode tags: %w", err)
+			}
+			if err := c.tagsCache.SetOCITags(c.repoURL, cacheData); err != nil {
 				log.Warnf("Failed to store tags list cache for repo: %s: %s", c.repoURL, err)
 			}
 		}
