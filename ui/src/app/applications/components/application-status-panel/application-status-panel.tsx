@@ -15,12 +15,14 @@ import {
     getAppDefaultSyncRevisionExtra,
     getSyncRevisionLabelSuffix,
     getAppOperationState,
+    getHealthStatusColor,
     HydrateOperationPhaseIcon,
     hydrationStatusMessage,
     getProgressiveSyncStatusColor,
     getProgressiveSyncStatusIcon
 } from '../utils';
 import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, getAppDefaultSyncRevision, getAppDefaultOperationSyncRevision} from '../utils';
+import {ConditionCounters} from './condition-counters';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 import * as utils from '../utils';
 import {COLORS} from '../../../shared/components/colors';
@@ -115,16 +117,30 @@ const renderSyncStatusRevision = (application: models.Application) => {
     );
 };
 
-const ProgressiveSyncStatus = ({application}: {application: models.Application}) => {
+const NullLoadingRenderer: React.FC = () => null;
+
+const ProgressiveSyncStatus = ({application, collapsed}: {application: models.Application; collapsed?: boolean}) => {
     const appSetRef = getApplicationSetOwnerRef(application);
     if (!appSetRef) {
         return null;
     }
+    // an owner reference always points into the application's own namespace
+    const appSetIdentity = `${application.metadata.namespace}/${appSetRef.name}`;
 
     return (
         <DataLoader
-            input={application}
+            // the key unmounts the loader when the owner changes, so a pending request
+            // for the previous owner cannot overwrite the new owner's data
+            key={appSetIdentity}
+            // load() only depends on the owner identity; while collapsed that stable input
+            // keeps application watch events from re-firing the cluster-wide list call
+            input={collapsed ? appSetIdentity : application}
+            noLoaderOnInputChange={true}
+            loadingRenderer={collapsed ? NullLoadingRenderer : undefined}
             errorRenderer={() => {
+                if (collapsed) {
+                    return null;
+                }
                 // For any errors, show a minimal error state
                 return (
                     <div className='application-status-panel__item'>
@@ -142,7 +158,7 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
             load={async () => {
                 // Find ApplicationSet by searching all namespaces dynamically
                 const appSetList = await services.applications.listApplicationSets();
-                const appSet = appSetList.items?.find(item => item.metadata.name === appSetRef.name);
+                const appSet = appSetList.items?.find(item => item.metadata.name === appSetRef.name && item.metadata.namespace === application.metadata.namespace);
 
                 return {appSet};
             }}>
@@ -154,6 +170,17 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
 
                 // Get the current application's status from the ApplicationSet applicationStatus
                 const appResource = appSet.status?.applicationStatus?.find(status => status.application === application.metadata.name);
+
+                if (collapsed) {
+                    const status = appResource?.status ?? 'Waiting';
+                    return (
+                        <div className='application-status-panel__collapsed-item' title='Progressive Sync' style={{color: getProgressiveSyncStatusColor(status)}}>
+                            {getProgressiveSyncStatusIcon({status})}
+                            &nbsp;
+                            {status}
+                        </div>
+                    );
+                }
 
                 // If no application status is found, show a default status
                 if (!appResource) {
@@ -250,6 +277,9 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
     );
     const appOperationState = getAppOperationState(application);
 
+    // Unknown's palette color is too low-contrast for text; inherit the themed color there
+    const healthTextColor = application.status.health.status === models.HealthStatuses.Unknown ? undefined : getHealthStatusColor(application.status.health.status);
+
     const statusExtensions = services.extensions.getStatusPanelExtensions();
 
     const operationStateRevision = getAppDefaultOperationSyncRevision(application);
@@ -269,34 +299,13 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
 
     const conditionSummary = (infos || warnings || errors) && (
         <div className='application-status-panel__collapsed-item application-status-panel__conditions' onClick={() => showConditions && showConditions()}>
-            {infos && (
-                <a className='info'>
-                    <i className='fa fa-info-circle application-status-panel__item-value__status-button' />
-                    <span className='sync-condition-details'>{infos} Info</span>
-                </a>
-            )}
-            {warnings && (
-                <a className='warning'>
-                    <i className='fa fa-exclamation-triangle application-status-panel__item-value__status-button' />
-                    <span className='sync-condition-details'>
-                        {warnings} Warning{warnings !== 1 && 's'}
-                    </span>
-                </a>
-            )}
-            {errors && (
-                <a className='error'>
-                    <i className='fa fa-exclamation-circle application-status-panel__item-value__status-button' />
-                    <span className='sync-condition-details'>
-                        {errors} Error{errors !== 1 && 's'}
-                    </span>
-                </a>
-            )}
+            <ConditionCounters infos={infos} warnings={warnings} errors={errors} />
         </div>
     );
 
     const collapsedSummary = collapsed && (
         <div className='application-status-panel application-status-panel--collapsed row'>
-            <div className='application-status-panel__collapsed-item' title='App Health'>
+            <div className='application-status-panel__collapsed-item' title='App Health' style={{color: healthTextColor}}>
                 <HealthStatusIcon state={application.status.health} />
                 &nbsp;
                 {application.status.health.status}
@@ -338,6 +347,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                 </div>
             )}
             {conditionSummary}
+            <ProgressiveSyncStatus application={application} collapsed={true} />
         </div>
     );
 
@@ -348,7 +358,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                 <div className='application-status-panel row' style={collapsed ? {display: 'none'} : undefined}>
                     <div className='application-status-panel__item'>
                         {sectionHeader({title: 'APP HEALTH', helpContent: 'The health status of your app'})}
-                        <div className='application-status-panel__item-value'>
+                        <div className='application-status-panel__item-value' style={{color: healthTextColor}}>
                             <HealthStatusIcon state={application.status.health} />
                             &nbsp;
                             {application.status.health.status}
@@ -506,21 +516,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                         <div className={`application-status-panel__item`}>
                             {sectionHeader({title: 'APP CONDITIONS'})}
                             <div className='application-status-panel__item-value application-status-panel__conditions' onClick={() => showConditions && showConditions()}>
-                                {infos && (
-                                    <a className='info'>
-                                        <i className='fa fa-info-circle application-status-panel__item-value__status-button' /> {infos} Info
-                                    </a>
-                                )}
-                                {warnings && (
-                                    <a className='warning'>
-                                        <i className='fa fa-exclamation-triangle application-status-panel__item-value__status-button' /> {warnings} Warning{warnings !== 1 && 's'}
-                                    </a>
-                                )}
-                                {errors && (
-                                    <a className='error'>
-                                        <i className='fa fa-exclamation-circle application-status-panel__item-value__status-button' /> {errors} Error{errors !== 1 && 's'}
-                                    </a>
-                                )}
+                                <ConditionCounters infos={infos} warnings={warnings} errors={errors} />
                             </div>
                         </div>
                     )}
@@ -544,7 +540,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                                                 'Yellow: manual syncs allowed. ' +
                                                 'Green: all syncs allowed'
                                         })}
-                                        <div className='application-status-panel__item-value' style={{margin: 'auto 0'}}>
+                                        <div className='application-status-panel__item-value'>
                                             <ApplicationSyncWindowStatusIcon project={application.spec.project} state={data} />
                                         </div>
                                     </div>

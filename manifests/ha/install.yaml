@@ -36404,7 +36404,7 @@ spec:
               key: dexserver.connector.failure.continue
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.45.1
+        image: ghcr.io/dexidp/dex:v2.46.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -37918,6 +37918,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.metrics.application.conditions
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_SYNC_WINDOWS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.metrics.sync.windows
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS
