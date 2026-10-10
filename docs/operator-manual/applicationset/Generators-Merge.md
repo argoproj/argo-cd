@@ -117,6 +117,10 @@ When merged with the updated base parameters, the `values.redis` value for the p
 
 Some generators support additional values and interpolating from generated variables to selected values. This can be used to teach the merge generator which generated variables to use to combine different generators.
 
+> [!NOTE]
+> This example uses the default (non-Go) template syntax on purpose. Merging on nested values such as `values.selector`
+> is not supported while `goTemplate: true` is set (see [Restrictions](#restrictions)).
+
 The following example combines discovered clusters and a git repository by cluster labels and the branch name:
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -124,22 +128,18 @@ kind: ApplicationSet
 metadata:
   name: cluster-git
 spec:
-  goTemplate: true
-  goTemplateOptions: ["missingkey=error"]
   generators:
     # merge 'parent' generator:
     # Use the selector set by both child generators to combine them.
     - merge:
         mergeKeys:
-          # Note that this would not work with goTemplate enabled,
-          # nested merge keys are not supported there.
           - values.selector
         generators:
           # Assuming, all configured clusters have a label for their location:
           # Set the selector to this location.
           - clusters:
               values:
-                selector: '{{index .metadata.labels "location"}}'
+                selector: '{{ metadata.labels.location }}'
           # The git repo may have different directories which correspond to the
           # cluster locations, using these as a selector.
           - git:
@@ -148,19 +148,19 @@ spec:
               directories:
               - path: '*'
               values:
-                selector: '{{.path.path}}'
+                selector: '{{ path }}'
   template:
     metadata:
-      name: '{{.name}}'
+      name: '{{name}}'
     spec:
-      project: '{{index .metadata.labels "environment"}}'
+      project: '{{metadata.labels.environment}}'
       source:
         repoURL: https://github.com/argoproj/argocd-example-apps/
         # The cluster values field for each generator will be substituted here:
         targetRevision: HEAD
-        path: '{{.path.path}}'
+        path: '{{path}}'
       destination:
-        server: '{{.server}}'
+        server: '{{server}}'
         namespace: default
 ```
 
