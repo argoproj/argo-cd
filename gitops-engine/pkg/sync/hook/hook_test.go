@@ -107,3 +107,16 @@ func TestBothHooks(t *testing.T) {
 func example(hook string) *unstructured.Unstructured {
 	return testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", hook)
 }
+
+func TestHasArgoHookTypes(t *testing.T) {
+	t.Parallel()
+	assert.False(t, HasArgoHookTypes(testingutils.NewPod()))
+	assert.True(t, HasArgoHookTypes(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", "Sync")))
+	assert.False(t, HasArgoHookTypes(testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook", "pre-install")))
+	// Helm hooks are ignored when Argo CD hooks are defined.
+	both := testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook", "pre-install"), "argocd.argoproj.io/hook", "Sync")
+	assert.True(t, HasArgoHookTypes(both))
+	// An invalid Argo CD hook value does not count as a defined hook.
+	invalid := testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook", "pre-install"), "argocd.argoproj.io/hook", "bogus")
+	assert.False(t, HasArgoHookTypes(invalid))
+}
