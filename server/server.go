@@ -362,11 +362,12 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
-	err = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+	err = enf.SetBuiltinPolicy(rbacpolicy.BuiltinPolicyCSV(settings.RBACLocalUserStrictMode))
 	errorsutil.CheckError(err)
 	enf.EnableLog(os.Getenv(common.EnvVarRBACDebug) == "1")
 
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
+	policyEnf.SetEnableLocalUserStrictMode(settings.RBACLocalUserStrictMode)
 	enf.SetClaimsEnforcerFunc(policyEnf.EnforceClaims)
 
 	staticFS, err := fs.Sub(ui.Embedded, "dist/app")
@@ -810,6 +811,24 @@ func checkOIDCConfigChange(currentOIDCConfig *settings_util.OIDCConfig, newArgoC
 	return false
 }
 
+// applyLocalUserStrictMode switches the built-in policy and the enforcer flag together. The plain `admin`
+// binding is removed before local subjects start being suffixed (and restored only after they stop), so
+// there is no window in which an SSO identity named "admin" can match it while strict mode is active.
+func (server *ArgoCDServer) applyLocalUserStrictMode(enabled bool) {
+	if enabled {
+		if err := server.enf.SetBuiltinPolicy(rbacpolicy.BuiltinPolicyCSV(true)); err != nil {
+			log.WithError(err).Error("failed to reload built-in RBAC policy; local-user strict mode not enabled")
+			return
+		}
+		server.policyEnforcer.SetEnableLocalUserStrictMode(true)
+		return
+	}
+	server.policyEnforcer.SetEnableLocalUserStrictMode(false)
+	if err := server.enf.SetBuiltinPolicy(rbacpolicy.BuiltinPolicyCSV(false)); err != nil {
+		log.WithError(err).Error("failed to reload built-in RBAC policy after disabling local-user strict mode")
+	}
+}
+
 // watchSettings watches the configmap and secret for any setting updates that would warrant a
 // restart of the API server.
 func (server *ArgoCDServer) watchSettings() {
@@ -837,7 +856,11 @@ func (server *ArgoCDServer) watchSettings() {
 
 	for {
 		newSettings := <-updateCh
+		prevStrictMode := server.settings.RBACLocalUserStrictMode
 		server.settings = newSettings
+		if prevStrictMode != newSettings.RBACLocalUserStrictMode {
+			server.applyLocalUserStrictMode(newSettings.RBACLocalUserStrictMode)
+		}
 		newDexCfgBytes, err := dexutil.GenerateDexConfigYAML(server.settings, server.DexTLSConfig == nil || server.DexTLSConfig.DisableTLS)
 		errorsutil.CheckError(err)
 		if !bytes.Equal(newDexCfgBytes, prevDexCfgBytes) {

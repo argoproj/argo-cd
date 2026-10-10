@@ -108,7 +108,46 @@ argocd account update-password \
 argocd account generate-token --account <username>
 ```
 
+### Disambiguating local users from SSO users (strict mode)
+
+When both local users and [SSO](#sso) are configured, an SSO user whose scope (for example a group or org name)
+matches a local user's name inherits the same RBAC roles as that local user. See
+[Ambiguous Group Assignments](../rbac.md#local-usersaccounts) for details.
+
+To avoid this, enable strict mode for local users in the `argocd-cm` ConfigMap:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  rbac.local.user.strictmode: "true"
+```
+
+When enabled, Argo CD appends an `@local` suffix to local account names during RBAC enforcement only. Reference local
+users in your RBAC policies using that suffix, for example `g, sally@local, role:developer`. In strict mode the
+built-in `g, admin, role:admin` binding is replaced by `g, admin@local, role:admin`, so the local `admin` account keeps
+its access while an SSO user or group named `admin` no longer inherits it. The `@local` suffix is reserved for local
+accounts: SSO subjects and groups ending in `@local` are always ignored during RBAC enforcement.
+
+> [!NOTE]
+> Users still log in with their normal account name (for example `sally`) in both the CLI and UI. The `@local` suffix
+> only affects RBAC matching. While strict mode is enabled, the UI user info section displays the `@local` identity so
+> you know which subject to reference in your policies.
+
+> [!WARNING]
+> Enabling strict mode causes existing RBAC bindings that reference local users by their plain name to stop matching.
+> Update those bindings to use the `@local` suffix. Strict mode is disabled by default, preserving the existing
+> verbatim-matching behavior. See [Local Users/Accounts](../rbac.md#local-usersaccounts) in the RBAC documentation for
+> more details.
+
 ### Failed logins rate limiting
+
 
 Argo CD rejects login attempts after too many failed in order to prevent password brute-forcing.
 The following environments variables are available to control throttling settings:

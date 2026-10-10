@@ -1,9 +1,11 @@
 package session
 
 import (
+	"context"
 	"strconv"
 	"testing"
 
+	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +15,9 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/util/password"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 	sessionmgr "github.com/argoproj/argo-cd/v3/util/session"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -114,4 +118,62 @@ func TestCreate_LogsLoginAttempt(t *testing.T) {
 			}
 		})
 	}
+}
+
+func newTestSessionServer(t *testing.T, cmData map[string]string) *Server {
+	t.Helper()
+	const ns = "default"
+	kubeClient := fake.NewClientset(
+		&corev1.ConfigMap{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: ns,
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+			Data:      cmData,
+		},
+		&corev1.Secret{
+			Name:      common.ArgoCDSecretName,
+			Namespace: ns,
+			Data:      map[string][]byte{"server.secretkey": []byte("test")},
+		},
+	)
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, ns)
+	enf := rbac.NewEnforcer(kubeClient, ns, common.ArgoCDConfigMapName, nil)
+	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, nil)
+	policyEnf.SetEnableLocalUserStrictMode(cmData["rbac.local.user.strictmode"] == "true")
+	return NewServer(nil, settingsMgr, nil, policyEnf, nil)
+}
+
+func ctxWithClaims(claims jwt.MapClaims) context.Context {
+	//nolint:staticcheck // the production code reads the "claims" string key from context
+	return context.WithValue(context.Background(), "claims", claims)
+}
+
+func TestGetUserInfo_LocalUserStrictMode(t *testing.T) {
+	localClaims := jwt.MapClaims{"sub": "sally", "iss": sessionmgr.SessionManagerClaimsIssuer}
+	ssoClaims := jwt.MapClaims{"sub": "sally", "iss": "https://accounts.google.com", "email": "sally@example.com"}
+
+	t.Run("strict mode: username stays real, rbacSubject carries @local for local accounts", func(t *testing.T) {
+		s := newTestSessionServer(t, map[string]string{"rbac.local.user.strictmode": "true"})
+		resp, err := s.GetUserInfo(ctxWithClaims(localClaims), nil)
+		require.NoError(t, err)
+		assert.Equal(t, "sally", resp.Username, "username must remain the real account name so clients can resolve the account")
+		assert.Equal(t, "sally@local", resp.RbacSubject)
+		assert.Equal(t, sessionmgr.SessionManagerClaimsIssuer, resp.Iss)
+	})
+
+	t.Run("strict mode does not affect SSO users", func(t *testing.T) {
+		s := newTestSessionServer(t, map[string]string{"rbac.local.user.strictmode": "true"})
+		resp, err := s.GetUserInfo(ctxWithClaims(ssoClaims), nil)
+		require.NoError(t, err)
+		assert.Equal(t, "sally@example.com", resp.Username)
+		assert.Equal(t, "sally", resp.RbacSubject, "SSO rbacSubject is the enforced identifier (sub), not the email")
+	})
+
+	t.Run("strict mode disabled: username and rbacSubject are both the real name", func(t *testing.T) {
+		s := newTestSessionServer(t, map[string]string{})
+		resp, err := s.GetUserInfo(ctxWithClaims(localClaims), nil)
+		require.NoError(t, err)
+		assert.Equal(t, "sally", resp.Username)
+		assert.Equal(t, "sally", resp.RbacSubject)
+	})
 }

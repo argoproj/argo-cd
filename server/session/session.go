@@ -107,10 +107,23 @@ func (s *Server) AuthFuncOverride(ctx context.Context, _ string) (context.Contex
 }
 
 func (s *Server) GetUserInfo(ctx context.Context, _ *session.GetUserInfoRequest) (*session.GetUserInfoResponse, error) {
+	username := sessionmgr.Username(ctx)
+	iss := sessionmgr.Iss(ctx)
+	// rbacSubject is the identity RBAC policies match on. It is the token's user identifier (sub or the
+	// federated user_id), which for SSO can differ from the email-based display username. Local accounts
+	// in strict mode additionally carry the "@local" suffix. Username stays the real account name so
+	// clients can still resolve the account for actions such as changing the password.
+	rbacSubject := sessionmgr.GetUserIdentifier(ctx)
+	if iss == sessionmgr.SessionManagerClaimsIssuer && rbacSubject != "" && !rbacpolicy.IsProjectSubject(rbacSubject) {
+		if s.policyEnf.GetEnableLocalUserStrictMode() {
+			rbacSubject += rbacpolicy.LocalUserRBACSuffix
+		}
+	}
 	return &session.GetUserInfoResponse{
-		LoggedIn: sessionmgr.LoggedIn(ctx),
-		Username: sessionmgr.Username(ctx),
-		Iss:      sessionmgr.Iss(ctx),
-		Groups:   sessionmgr.Groups(ctx, s.policyEnf.GetScopes()),
+		LoggedIn:    sessionmgr.LoggedIn(ctx),
+		Username:    username,
+		Iss:         iss,
+		Groups:      sessionmgr.Groups(ctx, s.policyEnf.GetScopes()),
+		RbacSubject: rbacSubject,
 	}, nil
 }
