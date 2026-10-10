@@ -117,6 +117,44 @@ metadata:
 *Note: Please report any issues that forced you to disable the
 Server-Side Diff feature*
 
+### Client-side apply
+
+> [!WARNING]
+> Server-Side Diff does not show removal of a field that client-side apply still owns.
+
+Client-side apply records each field under the `argocd-controller` field
+manager with `operation: Update`, and stores it in the
+`kubectl.kubernetes.io/last-applied-configuration` annotation. Server-Side
+Diff asks the API server for a Server-Side Apply dry-run of the desired
+manifest. That dry-run keeps a field owned as `Update`, so Argo CD compares
+two copies of the live object and reports no difference.
+
+The Application stays `Synced`. The UI diff is empty. Auto-sync does not
+run. This includes a key removed from a ConfigMap or Secret `data` map, and
+a container removed from a Deployment.
+
+The legacy three-way diff still sees the removal while
+`last-applied-configuration` lists the field. A sync that applies the
+resource also removes it: the dry-run is what hides the change, not the
+apply. `ApplyOutOfSyncOnly=true` skips that apply, because the diff says
+the resource is unchanged, and the field stays on the cluster.
+
+To keep client-side apply, turn Server-Side Diff off for the Application
+with `argocd.argoproj.io/compare-options: ServerSideDiff=false`, or set
+`controller.diff.server.side: "false"` and restart the application
+controller. Refresh the Application and sync.
+
+To keep Server-Side Diff, set the `ServerSideApply=true` sync option and
+run a manual sync. Do not use `ApplyOutOfSyncOnly=true` for that sync.
+Auto-sync will not start it, because the Application still looks `Synced`.
+The sync moves field ownership to `operation: Apply`. Removals after that
+are detected. `ServerSideApply=true` enables Server-Side Diff on its own
+unless the Application sets `ServerSideDiff=false`.
+
+`Replace=true` deletes the stuck field once. The object is then left with
+`operation: Update` and no `last-applied-configuration`, so the next
+removal is missed by both Server-Side Diff and the legacy diff.
+
 ### Local diff with server-side generation
 
 `argocd app diff` supports a `--local` flag that compares a local directory against the live state. When combined with `--server-side-generate`, the CLI uploads the local source to the repo-server for manifest generation instead of running generation locally — this is useful in CI pipelines or when the local environment lacks the required tools (e.g. Helm plugins, Kustomize components).
