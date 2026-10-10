@@ -140,8 +140,8 @@ func (_c *Repos_GetDirectories_Call) RunAndReturn(run func(ctx context.Context, 
 }
 
 // GetFiles provides a mock function for the type Repos
-func (_mock *Repos) GetFiles(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error) {
-	ret := _mock.Called(ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)
+func (_mock *Repos) GetFiles(ctx context.Context, repoURL string, revision string, project string, includePatterns []string, excludePatterns []string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error) {
+	ret := _mock.Called(ctx, repoURL, revision, project, includePatterns, excludePatterns, noRevisionCache, sourceIntegrity)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetFiles")
@@ -149,18 +149,18 @@ func (_mock *Repos) GetFiles(ctx context.Context, repoURL string, revision strin
 
 	var r0 map[string][]byte
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool, *v1alpha1.SourceIntegrity) (map[string][]byte, error)); ok {
-		return returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, []string, []string, bool, *v1alpha1.SourceIntegrity) (map[string][]byte, error)); ok {
+		return returnFunc(ctx, repoURL, revision, project, includePatterns, excludePatterns, noRevisionCache, sourceIntegrity)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool, *v1alpha1.SourceIntegrity) map[string][]byte); ok {
-		r0 = returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, []string, []string, bool, *v1alpha1.SourceIntegrity) map[string][]byte); ok {
+		r0 = returnFunc(ctx, repoURL, revision, project, includePatterns, excludePatterns, noRevisionCache, sourceIntegrity)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string][]byte)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, bool, *v1alpha1.SourceIntegrity) error); ok {
-		r1 = returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, []string, []string, bool, *v1alpha1.SourceIntegrity) error); ok {
+		r1 = returnFunc(ctx, repoURL, revision, project, includePatterns, excludePatterns, noRevisionCache, sourceIntegrity)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -177,14 +177,15 @@ type Repos_GetFiles_Call struct {
 //   - repoURL string
 //   - revision string
 //   - project string
-//   - pattern string
+//   - includePatterns []string
+//   - excludePatterns []string
 //   - noRevisionCache bool
 //   - sourceIntegrity *v1alpha1.SourceIntegrity
-func (_e *Repos_Expecter) GetFiles(ctx any, repoURL any, revision any, project any, pattern any, noRevisionCache any, sourceIntegrity any) *Repos_GetFiles_Call {
-	return &Repos_GetFiles_Call{Call: _e.mock.On("GetFiles", ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)}
+func (_e *Repos_Expecter) GetFiles(ctx any, repoURL any, revision any, project any, includePatterns any, excludePatterns any, noRevisionCache any, sourceIntegrity any) *Repos_GetFiles_Call {
+	return &Repos_GetFiles_Call{Call: _e.mock.On("GetFiles", ctx, repoURL, revision, project, includePatterns, excludePatterns, noRevisionCache, sourceIntegrity)}
 }
 
-func (_c *Repos_GetFiles_Call) Run(run func(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity)) *Repos_GetFiles_Call {
+func (_c *Repos_GetFiles_Call) Run(run func(ctx context.Context, repoURL string, revision string, project string, includePatterns []string, excludePatterns []string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity)) *Repos_GetFiles_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -202,17 +203,21 @@ func (_c *Repos_GetFiles_Call) Run(run func(ctx context.Context, repoURL string,
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
-		var arg4 string
+		var arg4 []string
 		if args[4] != nil {
-			arg4 = args[4].(string)
+			arg4 = args[4].([]string)
 		}
-		var arg5 bool
+		var arg5 []string
 		if args[5] != nil {
-			arg5 = args[5].(bool)
+			arg5 = args[5].([]string)
 		}
-		var arg6 *v1alpha1.SourceIntegrity
+		var arg6 bool
 		if args[6] != nil {
-			arg6 = args[6].(*v1alpha1.SourceIntegrity)
+			arg6 = args[6].(bool)
+		}
+		var arg7 *v1alpha1.SourceIntegrity
+		if args[7] != nil {
+			arg7 = args[7].(*v1alpha1.SourceIntegrity)
 		}
 		run(
 			arg0,
@@ -222,6 +227,7 @@ func (_c *Repos_GetFiles_Call) Run(run func(ctx context.Context, repoURL string,
 			arg4,
 			arg5,
 			arg6,
+			arg7,
 		)
 	})
 	return _c
@@ -232,7 +238,7 @@ func (_c *Repos_GetFiles_Call) Return(stringToBytes map[string][]byte, err error
 	return _c
 }
 
-func (_c *Repos_GetFiles_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error)) *Repos_GetFiles_Call {
+func (_c *Repos_GetFiles_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, includePatterns []string, excludePatterns []string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error)) *Repos_GetFiles_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -324,8 +330,8 @@ func (_c *Repos_GetOciDirectories_Call) RunAndReturn(run func(ctx context.Contex
 }
 
 // GetOciFiles provides a mock function for the type Repos
-func (_mock *Repos) GetOciFiles(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool) (map[string][]byte, error) {
-	ret := _mock.Called(ctx, repoURL, revision, project, pattern, noRevisionCache)
+func (_mock *Repos) GetOciFiles(ctx context.Context, repoURL string, revision string, project string, includePatterns []string, excludePatterns []string, noRevisionCache bool) (map[string][]byte, error) {
+	ret := _mock.Called(ctx, repoURL, revision, project, includePatterns, excludePatterns, noRevisionCache)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetOciFiles")
@@ -333,18 +339,18 @@ func (_mock *Repos) GetOciFiles(ctx context.Context, repoURL string, revision st
 
 	var r0 map[string][]byte
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool) (map[string][]byte, error)); ok {
-		return returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, []string, []string, bool) (map[string][]byte, error)); ok {
+		return returnFunc(ctx, repoURL, revision, project, includePatterns, excludePatterns, noRevisionCache)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool) map[string][]byte); ok {
-		r0 = returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, []string, []string, bool) map[string][]byte); ok {
+		r0 = returnFunc(ctx, repoURL, revision, project, includePatterns, excludePatterns, noRevisionCache)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string][]byte)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, bool) error); ok {
-		r1 = returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, []string, []string, bool) error); ok {
+		r1 = returnFunc(ctx, repoURL, revision, project, includePatterns, excludePatterns, noRevisionCache)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -361,13 +367,14 @@ type Repos_GetOciFiles_Call struct {
 //   - repoURL string
 //   - revision string
 //   - project string
-//   - pattern string
+//   - includePatterns []string
+//   - excludePatterns []string
 //   - noRevisionCache bool
-func (_e *Repos_Expecter) GetOciFiles(ctx any, repoURL any, revision any, project any, pattern any, noRevisionCache any) *Repos_GetOciFiles_Call {
-	return &Repos_GetOciFiles_Call{Call: _e.mock.On("GetOciFiles", ctx, repoURL, revision, project, pattern, noRevisionCache)}
+func (_e *Repos_Expecter) GetOciFiles(ctx any, repoURL any, revision any, project any, includePatterns any, excludePatterns any, noRevisionCache any) *Repos_GetOciFiles_Call {
+	return &Repos_GetOciFiles_Call{Call: _e.mock.On("GetOciFiles", ctx, repoURL, revision, project, includePatterns, excludePatterns, noRevisionCache)}
 }
 
-func (_c *Repos_GetOciFiles_Call) Run(run func(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool)) *Repos_GetOciFiles_Call {
+func (_c *Repos_GetOciFiles_Call) Run(run func(ctx context.Context, repoURL string, revision string, project string, includePatterns []string, excludePatterns []string, noRevisionCache bool)) *Repos_GetOciFiles_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -385,13 +392,17 @@ func (_c *Repos_GetOciFiles_Call) Run(run func(ctx context.Context, repoURL stri
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
-		var arg4 string
+		var arg4 []string
 		if args[4] != nil {
-			arg4 = args[4].(string)
+			arg4 = args[4].([]string)
 		}
-		var arg5 bool
+		var arg5 []string
 		if args[5] != nil {
-			arg5 = args[5].(bool)
+			arg5 = args[5].([]string)
+		}
+		var arg6 bool
+		if args[6] != nil {
+			arg6 = args[6].(bool)
 		}
 		run(
 			arg0,
@@ -400,6 +411,7 @@ func (_c *Repos_GetOciFiles_Call) Run(run func(ctx context.Context, repoURL stri
 			arg3,
 			arg4,
 			arg5,
+			arg6,
 		)
 	})
 	return _c
@@ -410,7 +422,7 @@ func (_c *Repos_GetOciFiles_Call) Return(stringToBytes map[string][]byte, err er
 	return _c
 }
 
-func (_c *Repos_GetOciFiles_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool) (map[string][]byte, error)) *Repos_GetOciFiles_Call {
+func (_c *Repos_GetOciFiles_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, includePatterns []string, excludePatterns []string, noRevisionCache bool) (map[string][]byte, error)) *Repos_GetOciFiles_Call {
 	_c.Call.Return(run)
 	return _c
 }

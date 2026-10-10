@@ -803,13 +803,47 @@ func TestGetGitDirectories(t *testing.T) {
 	})
 }
 
+func TestFilePatternsKey(t *testing.T) {
+	t.Parallel()
+
+	t.Run("pattern order does not change the key", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t,
+			filePatternsKey([]string{"a/*.json", "b/*.json"}, []string{"x/*", "y/*"}),
+			filePatternsKey([]string{"b/*.json", "a/*.json"}, []string{"y/*", "x/*"}))
+	})
+
+	t.Run("includes and excludes are distinguished", func(t *testing.T) {
+		t.Parallel()
+		assert.NotEqual(t,
+			filePatternsKey([]string{"a/*.json", "b/*.json"}, nil),
+			filePatternsKey([]string{"a/*.json"}, []string{"b/*.json"}))
+	})
+
+	t.Run("patterns containing a separator are not ambiguous", func(t *testing.T) {
+		t.Parallel()
+		// A glob may contain a comma via brace alternation, so a joined key would
+		// collide here.
+		assert.NotEqual(t,
+			filePatternsKey([]string{"{a,b}/*.json"}, nil),
+			filePatternsKey([]string{"{a", "b}/*.json"}, nil))
+	})
+
+	t.Run("an added exclude changes the key", func(t *testing.T) {
+		t.Parallel()
+		assert.NotEqual(t,
+			filePatternsKey([]string{"*.json"}, nil),
+			filePatternsKey([]string{"*.json"}, []string{"skip/*.json"}))
+	})
+}
+
 func TestGetGitFiles(t *testing.T) {
 	t.Parallel()
 	t.Run("GetGitFiles cache miss", func(t *testing.T) {
 		t.Parallel()
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
-		directories, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
+		directories, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", []string{"*.json"}, nil)
 		require.ErrorIs(t, err, ErrCacheMiss)
 		assert.Empty(t, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
@@ -821,11 +855,11 @@ func TestGetGitFiles(t *testing.T) {
 		cache := fixtures.cache
 		expectedItem := map[string][]byte{"test/file.json": []byte("\"test\":\"contents\""), "test/file1.json": []byte("\"test1\":\"contents1\"")}
 		err := cache.cache.SetItem(
-			gitFilesKey("test-repo", "test-revision", "*.json"),
+			gitFilesKey("test-repo", "test-revision", []string{"*.json"}, nil),
 			expectedItem,
 			&cacheutil.CacheActionOpts{Expiration: 30 * time.Second})
 		require.NoError(t, err)
-		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
+		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", []string{"*.json"}, nil)
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
@@ -836,9 +870,9 @@ func TestGetGitFiles(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		expectedItem := map[string][]byte{"test/file.json": []byte("\"test\":\"contents\""), "test/file1.json": []byte("\"test1\":\"contents1\"")}
-		err := fixtures.cache.SetGitFiles("test-repo", "test-revision", "*.json", expectedItem)
+		err := fixtures.cache.SetGitFiles("test-repo", "test-revision", []string{"*.json"}, nil, expectedItem)
 		require.NoError(t, err)
-		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
+		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", []string{"*.json"}, nil)
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
@@ -945,7 +979,7 @@ func TestGetOciFiles(t *testing.T) {
 	t.Run("GetOciFiles cache miss", func(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
-		files, err := fixtures.cache.GetOciFiles("oci://ghcr.io/example/manifests", "v1.0.0", "*.json")
+		files, err := fixtures.cache.GetOciFiles("oci://ghcr.io/example/manifests", "v1.0.0", []string{"*.json"}, nil)
 		require.ErrorIs(t, err, ErrCacheMiss)
 		assert.Empty(t, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
@@ -956,11 +990,11 @@ func TestGetOciFiles(t *testing.T) {
 		cache := fixtures.cache
 		expectedItem := map[string][]byte{"test/file.json": []byte("\"test\":\"contents\""), "test/file1.json": []byte("\"test1\":\"contents1\"")}
 		err := cache.cache.SetItem(
-			ociFilesKey("oci://ghcr.io/example/manifests", "v1.0.0", "*.json"),
+			ociFilesKey("oci://ghcr.io/example/manifests", "v1.0.0", []string{"*.json"}, nil),
 			expectedItem,
 			&cacheutil.CacheActionOpts{Expiration: 30 * time.Second})
 		require.NoError(t, err)
-		files, err := fixtures.cache.GetOciFiles("oci://ghcr.io/example/manifests", "v1.0.0", "*.json")
+		files, err := fixtures.cache.GetOciFiles("oci://ghcr.io/example/manifests", "v1.0.0", []string{"*.json"}, nil)
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
@@ -970,9 +1004,9 @@ func TestGetOciFiles(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		expectedItem := map[string][]byte{"test/file.json": []byte("\"test\":\"contents\""), "test/file1.json": []byte("\"test1\":\"contents1\"")}
-		err := fixtures.cache.SetOciFiles("oci://ghcr.io/example/manifests", "v1.0.0", "*.json", expectedItem)
+		err := fixtures.cache.SetOciFiles("oci://ghcr.io/example/manifests", "v1.0.0", []string{"*.json"}, nil, expectedItem)
 		require.NoError(t, err)
-		files, err := fixtures.cache.GetOciFiles("oci://ghcr.io/example/manifests", "v1.0.0", "*.json")
+		files, err := fixtures.cache.GetOciFiles("oci://ghcr.io/example/manifests", "v1.0.0", []string{"*.json"}, nil)
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
