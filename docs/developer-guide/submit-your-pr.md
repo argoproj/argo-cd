@@ -40,7 +40,7 @@ When you submit a PR against Argo CD's GitHub repository, a couple of CI checks 
 > [!NOTE]
 > Please make sure that you always create PRs from a branch that is up-to-date with the latest changes from Argo CD's master branch. Depending on how long it takes for the maintainers to review and merge your PR, it might be necessary to pull in latest changes into your branch again.
 
-Please understand that we, as an Open Source project, have limited capacities for reviewing and merging PRs to Argo CD. We will do our best to review your PR and give you feedback as soon as possible, but please bear with us if it takes a little longer than expected.
+Please understand that we, as an Open Source project, have limited capacities for reviewing and merging PRs to Argo CD. We will do our best to review your PR and give you feedback as soon as possible, but please bear with us if it takes a little longer than expected. [Reviewing PRs](reviewing-prs.md) explains when a reviewer may block your PR and how long they have to re-review it after you address their comments.
 
 The following guide will help you to submit a PR that meets the standards of our CI tests:
 
