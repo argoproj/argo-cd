@@ -6,7 +6,10 @@
 .md-sidebar--primary a.md-nav__link--active {
   font-weight: 600;
   border-left: 3px solid var(--md-primary-fg-color);
-  background-color: rgba(0, 148, 133, 0.14);
+  background-color: rgba(0, 148, 133, 0.1);
+}
+body[data-md-color-scheme="slate"] .md-sidebar--primary a.md-nav__link--active {
+  color: var(--md-default-fg-color);
 }
 @media screen and (min-width: 76.25em) {
   .md-sidebar--primary a.md-nav__link--active {
