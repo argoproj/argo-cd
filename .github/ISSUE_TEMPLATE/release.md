@@ -20,6 +20,7 @@ Target GA date: ___. __, ____
 ## RC1 Release Checklist
 
  - [ ] 1wk before feature freeze post in #argo-contributors that PRs must be merged by DD-MM-YYYY to be included in the release - ask approvers to drop items from milestone they can't merge
+ - [ ] Create the `vX.Y` milestone for the next minor release if it does not exist yet, so that dropped items can move there. The [roadmap](https://argo-cd.readthedocs.io/en/latest/roadmap/) links to the milestones.
  - [ ] At least two days before RC1 date, draft RC blog post and submit it for review (or delegate this task)
  - [ ] Create new release branch (or delegate this task to an Approver)
     - [ ] Add the release branch to ReadTheDocs
@@ -90,5 +91,5 @@ Target GA date: ___. __, ____
      
      Thanks to all the folks who spent their time contributing to this release in any way possible!
      ```
- - [ ] (For the next release champion) Review the [items scheduled for the next release](https://github.com/orgs/argoproj/projects/25). If any item does not have an assignee who can commit to finish the feature, move it to the next release.
+ - [ ] (For the next release champion) Review the [items scheduled for the next release](https://github.com/argoproj/argo-cd/milestones). If any item does not have an assignee who can commit to finish the feature, move it to the next release.
  - [ ] (For the next release champion) Schedule a time mid-way through the release cycle to review items again.
