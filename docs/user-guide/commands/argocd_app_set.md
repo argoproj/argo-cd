@@ -92,8 +92,12 @@ argocd app set APPNAME [flags]
       --self-heal                                  Set self healing for automated sync policy
       --source-name string                         Name of the source from the list of sources of the app.
       --source-position int                        Position of the source from the list of sources of the app. Counting starts at 1. (default -1)
+      --sync-apply-only                            Apply-only by default on manual sync (sets syncPolicy.manualDefaults.applyOnly)
+      --sync-dry-run                               Dry-run by default on manual sync (sets syncPolicy.manualDefaults.dryRun)
+      --sync-force                                 Force by default on manual sync (sets syncPolicy.manualDefaults.force)
       --sync-option Prune=false                    Add or remove a sync option, e.g add Prune=false. Remove using `!` prefix, e.g. `!Prune=false`
       --sync-policy string                         Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))
+      --sync-prune                                 Prune resources by default on manual sync (sets syncPolicy.manualDefaults.prune) (default true)
       --sync-retry-backoff-duration duration       Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
       --sync-retry-backoff-factor int              Factor multiplies the base duration after each failed sync retry (default 2)
       --sync-retry-backoff-max-duration duration   Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)

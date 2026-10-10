@@ -2339,6 +2339,28 @@ spec:
                           type: string
                         type: object
                     type: object
+                  manualDefaults:
+                    description: ManualDefaults controls the default behavior of a
+                      manual sync
+                    properties:
+                      applyOnly:
+                        description: 'ApplyOnly specifies whether manual syncs should
+                          use apply-only strategy by default (default: false)'
+                        type: boolean
+                      dryRun:
+                        description: 'DryRun specifies whether manual syncs should
+                          be performed as a dry run by default (default: false)'
+                        type: boolean
+                      force:
+                        description: 'Force specifies whether manual syncs should
+                          supply --force to kubectl by default (default: false)'
+                        type: boolean
+                      prune:
+                        description: 'Prune specifies whether to delete resources
+                          from the cluster that are not found in the sources anymore
+                          as part of manual sync (default: true)'
+                        type: boolean
+                    type: object
                   retry:
                     description: Retry controls failed sync retry behavior
                     properties:
@@ -8152,6 +8174,17 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
+                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -9071,6 +9104,17 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                      type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
                                       type: object
                                     retry:
                                       properties:
@@ -9993,6 +10037,17 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
+                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -10891,6 +10946,17 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                      type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
                                       type: object
                                     retry:
                                       properties:
@@ -11816,6 +11882,17 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -12735,6 +12812,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -13657,6 +13745,17 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -14555,6 +14654,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -15477,6 +15587,17 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -16386,6 +16507,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -17521,6 +17653,17 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -18652,6 +18795,17 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -19567,6 +19721,17 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                      type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
                                       type: object
                                     retry:
                                       properties:
@@ -20494,6 +20659,17 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -21413,6 +21589,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -22335,6 +22522,17 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -23233,6 +23431,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -24155,6 +24364,17 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -25064,6 +25284,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -26199,6 +26430,17 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -27330,6 +27572,17 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -28249,6 +28502,17 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                      type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
                                       type: object
                                     retry:
                                       properties:
@@ -29170,6 +29434,17 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
+                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -30079,6 +30354,17 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                      type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
                                       type: object
                                     retry:
                                       properties:
@@ -31214,6 +31500,17 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
+                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -32345,6 +32642,17 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
+                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -33337,6 +33645,17 @@ spec:
                                 additionalProperties:
                                   type: string
                                 type: object
+                            type: object
+                          manualDefaults:
+                            properties:
+                              applyOnly:
+                                type: boolean
+                              dryRun:
+                                type: boolean
+                              force:
+                                type: boolean
+                              prune:
+                                type: boolean
                             type: object
                           retry:
                             properties:

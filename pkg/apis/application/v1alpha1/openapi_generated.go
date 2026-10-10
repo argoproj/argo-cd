@@ -168,6 +168,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncOperationResult":                     schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicy":                              schema_pkg_apis_application_v1alpha1_SyncPolicy(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicyAutomated":                     schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref),
+		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicyManualDefaults":                schema_pkg_apis_application_v1alpha1_SyncPolicyManualDefaults(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncSource":                              schema_pkg_apis_application_v1alpha1_SyncSource(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncStatus":                              schema_pkg_apis_application_v1alpha1_SyncStatus(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncStrategy":                            schema_pkg_apis_application_v1alpha1_SyncStrategy(ref),
@@ -8171,11 +8172,58 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicy(ref common.ReferenceCallbac
 							Ref:         ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata"),
 						},
 					},
+					"manualDefaults": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManualDefaults controls the default behavior of a manual sync",
+							Ref:         ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicyManualDefaults"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.RetryStrategy", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicyAutomated"},
+			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.RetryStrategy", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicyAutomated", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicyManualDefaults"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SyncPolicyManualDefaults(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SyncPolicyManualDefaults controls the default behavior of a manual sync",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"prune": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of manual sync (default: true)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"dryRun": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DryRun specifies whether manual syncs should be performed as a dry run by default (default: false)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"applyOnly": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ApplyOnly specifies whether manual syncs should use apply-only strategy by default (default: false)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"force": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Force specifies whether manual syncs should supply --force to kubectl by default (default: false)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

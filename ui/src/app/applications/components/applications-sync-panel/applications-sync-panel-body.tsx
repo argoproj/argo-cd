@@ -50,6 +50,9 @@ export const ApplicationsSyncPanelBody = ({apps, getApi, setPending}: {apps: mod
                         setProgress({percentage: 0, title: 'Starting...'});
                         let i = 0;
                         for (const app of selectedApps) {
+                            // Always send an explicit prune boolean. Omitting prune when unchecked
+                            // would let apps with manualDefaults.prune fall back to true, so the
+                            // UI checkbox could not disable pruning for a single sync.
                             await services.applications
                                 .sync(
                                     app.metadata.name,

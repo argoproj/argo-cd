@@ -83,6 +83,40 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
     );
 });
 
+const ManualSyncDefaultsFormField = ReactFormField((props: {fieldApi: FieldApi}) => {
+    const {
+        fieldApi: {getValue, setValue}
+    } = props;
+    const configured = getValue() as models.ManualDefaults | undefined;
+    const manualDefaults = (configured || {}) as models.ManualDefaults;
+    const update = (patch: Partial<models.ManualDefaults>) => setValue({...manualDefaults, ...patch});
+
+    return (
+        <div className='application-create-panel__sync-params'>
+            <div className='checkbox-container'>
+                <Checkbox onChange={val => update({prune: val})} checked={configured ? (manualDefaults.prune ?? true) : false} id='policyManualPrune' />
+                <label htmlFor='policyManualPrune'>Prune on Manual Sync</label>
+                <HelpIcon title='Set default prune for manual syncs (only applies once configured; default when set: true)' />
+            </div>
+            <div className='checkbox-container'>
+                <Checkbox onChange={val => update({dryRun: val})} checked={!!manualDefaults.dryRun} id='policyManualDryRun' />
+                <label htmlFor='policyManualDryRun'>Dry Run on Manual Sync</label>
+                <HelpIcon title='Set default dry-run for manual syncs (only applies once configured; default when set: false)' />
+            </div>
+            <div className='checkbox-container'>
+                <Checkbox onChange={val => update({applyOnly: val})} checked={!!manualDefaults.applyOnly} id='policyManualApplyOnly' />
+                <label htmlFor='policyManualApplyOnly'>Apply Only on Manual Sync</label>
+                <HelpIcon title='Set default apply-only strategy for manual syncs (only applies once configured; default when set: false)' />
+            </div>
+            <div className='checkbox-container'>
+                <Checkbox onChange={val => update({force: val})} checked={!!manualDefaults.force} id='policyManualForce' />
+                <label htmlFor='policyManualForce'>Force on Manual Sync</label>
+                <HelpIcon title='Set default force for manual syncs (only applies once configured; default when set: false)' />
+            </div>
+        </div>
+    );
+});
+
 function normalizeAppSource(app: models.Application, type: string): boolean {
     const source = getAppDefaultSource(app);
     const repoType = source.repoURL.startsWith('oci://') ? 'oci' : (source.hasOwnProperty('chart') && 'helm') || 'git';
@@ -345,6 +379,7 @@ export const ApplicationCreatePanel = (props: {
                                                     qeId='application-create-field-sync-policy'
                                                     component={AutoSyncFormField}
                                                 />
+                                                <FormField formApi={api} field='spec.syncPolicy.manualDefaults' component={ManualSyncDefaultsFormField} />
                                             </div>
                                             <div className='argo-form-row'>
                                                 <FormField formApi={api} field='metadata.finalizers' component={SetFinalizerOnApplication} />

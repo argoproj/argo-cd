@@ -1535,6 +1535,8 @@ type SyncPolicy struct {
 	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
 	// ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
 	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,4,opt,name=managedNamespaceMetadata"`
+	// ManualDefaults controls the default behavior of a manual sync
+	ManualDefaults *SyncPolicyManualDefaults `json:"manualDefaults,omitempty" protobuf:"bytes,5,opt,name=manualDefaults"`
 	// If you add a field here, be sure to update IsZero.
 }
 
@@ -1546,9 +1548,109 @@ func (p *SyncPolicy) IsAutomatedSyncEnabled() bool {
 	return false
 }
 
+// GetPrune returns whether manual syncs should prune by default.
+// This is independent of SyncPolicyAutomated.Prune, which only applies to automated syncs.
+// When ManualDefaults is nil (every existing app without the opt-in), returns false so behavior
+// matches legacy Argo CD. When ManualDefaults is set and prune is omitted, defaults to true.
+func (p *SyncPolicy) GetPrune() bool {
+	if p == nil || p.ManualDefaults == nil {
+		return false
+	}
+	return p.ManualDefaults.GetPrune()
+}
+
+// GetDryRun returns whether manual syncs should dry-run by default when manualDefaults is set.
+// When ManualDefaults is nil, returns the field-level default (false).
+func (p *SyncPolicy) GetDryRun() bool {
+	if p == nil {
+		return false
+	}
+	return p.ManualDefaults.GetDryRun()
+}
+
+// GetApplyOnly returns whether manual syncs should use apply-only strategy by default when manualDefaults is set.
+// When ManualDefaults is nil, returns the field-level default (false — hook strategy).
+func (p *SyncPolicy) GetApplyOnly() bool {
+	if p == nil {
+		return false
+	}
+	return p.ManualDefaults.GetApplyOnly()
+}
+
+// GetForce returns whether manual syncs should force by default when manualDefaults is set.
+// When ManualDefaults is nil, returns the field-level default (false).
+func (p *SyncPolicy) GetForce() bool {
+	if p == nil {
+		return false
+	}
+	return p.ManualDefaults.GetForce()
+}
+
+// GetSyncStrategy returns the default sync strategy from syncPolicy.manualDefaults.
+// When ManualDefaults is nil, returns the field-level defaults (hook, no force).
+func (p *SyncPolicy) GetSyncStrategy() *SyncStrategy {
+	if p == nil {
+		return (&SyncPolicyManualDefaults{}).SyncStrategy()
+	}
+	return p.ManualDefaults.SyncStrategy()
+}
+
 // IsZero returns true if the sync policy is empty
 func (p *SyncPolicy) IsZero() bool {
-	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
+	return p == nil || (p.Automated == nil && p.ManualDefaults == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
+}
+
+// SyncPolicyManualDefaults controls the default behavior of a manual sync
+type SyncPolicyManualDefaults struct {
+	// Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of manual sync (default: true)
+	Prune *bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
+	// DryRun specifies whether manual syncs should be performed as a dry run by default (default: false)
+	DryRun *bool `json:"dryRun,omitempty" protobuf:"bytes,2,opt,name=dryRun"`
+	// ApplyOnly specifies whether manual syncs should use apply-only strategy by default (default: false)
+	ApplyOnly *bool `json:"applyOnly,omitempty" protobuf:"bytes,3,opt,name=applyOnly"`
+	// Force specifies whether manual syncs should supply --force to kubectl by default (default: false)
+	Force *bool `json:"force,omitempty" protobuf:"bytes,4,opt,name=force"`
+}
+
+// GetPrune returns the value of Prune, defaulting to true if nil.
+func (m *SyncPolicyManualDefaults) GetPrune() bool {
+	if m == nil || m.Prune == nil {
+		return true
+	}
+	return *m.Prune
+}
+
+// GetDryRun returns the value of DryRun, defaulting to false if nil.
+func (m *SyncPolicyManualDefaults) GetDryRun() bool {
+	if m == nil || m.DryRun == nil {
+		return false
+	}
+	return *m.DryRun
+}
+
+// GetApplyOnly returns the value of ApplyOnly, defaulting to false if nil.
+func (m *SyncPolicyManualDefaults) GetApplyOnly() bool {
+	if m == nil || m.ApplyOnly == nil {
+		return false
+	}
+	return *m.ApplyOnly
+}
+
+// GetForce returns the value of Force, defaulting to false if nil.
+func (m *SyncPolicyManualDefaults) GetForce() bool {
+	if m == nil || m.Force == nil {
+		return false
+	}
+	return *m.Force
+}
+
+// SyncStrategy returns the SyncStrategy implied by ApplyOnly and Force.
+func (m *SyncPolicyManualDefaults) SyncStrategy() *SyncStrategy {
+	force := m.GetForce()
+	if m.GetApplyOnly() {
+		return &SyncStrategy{Apply: &SyncStrategyApply{Force: force}}
+	}
+	return &SyncStrategy{Hook: &SyncStrategyHook{Force: force}}
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed

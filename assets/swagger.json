@@ -11106,6 +11106,9 @@
         "managedNamespaceMetadata": {
           "$ref": "#/definitions/v1alpha1ManagedNamespaceMetadata"
         },
+        "manualDefaults": {
+          "$ref": "#/definitions/v1alpha1SyncPolicyManualDefaults"
+        },
         "retry": {
           "$ref": "#/definitions/v1alpha1RetryStrategy"
         },
@@ -11137,6 +11140,28 @@
         "selfHeal": {
           "type": "boolean",
           "title": "SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)"
+        }
+      }
+    },
+    "v1alpha1SyncPolicyManualDefaults": {
+      "type": "object",
+      "title": "SyncPolicyManualDefaults controls the default behavior of a manual sync",
+      "properties": {
+        "applyOnly": {
+          "type": "boolean",
+          "title": "ApplyOnly specifies whether manual syncs should use apply-only strategy by default (default: false)"
+        },
+        "dryRun": {
+          "type": "boolean",
+          "title": "DryRun specifies whether manual syncs should be performed as a dry run by default (default: false)"
+        },
+        "force": {
+          "type": "boolean",
+          "title": "Force specifies whether manual syncs should supply --force to kubectl by default (default: false)"
+        },
+        "prune": {
+          "type": "boolean",
+          "title": "Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of manual sync (default: true)"
         }
       }
     },

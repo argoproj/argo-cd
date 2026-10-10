@@ -2169,14 +2169,33 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		source = new(a.Spec.GetSource())
 	}
 
+	// Explicit values in the sync request always win. When omitted, fall back to
+	// syncPolicy.manualDefaults only if that object is populated. Existing apps without
+	// manualDefaults keep legacy behavior (prune/dryRun false, nil strategy) — GetPrune()
+	// also returns false when ManualDefaults is nil so omitted prune never deletes resources.
+	prune := syncReq.GetPrune()
+	dryRun := syncReq.GetDryRun()
+	strategy := syncReq.Strategy
+	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.ManualDefaults != nil {
+		if syncReq.Prune == nil {
+			prune = a.Spec.SyncPolicy.GetPrune()
+		}
+		if syncReq.DryRun == nil {
+			dryRun = a.Spec.SyncPolicy.GetDryRun()
+		}
+		if strategy == nil {
+			strategy = a.Spec.SyncPolicy.GetSyncStrategy()
+		}
+	}
+
 	op := v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{
 			Source:       source,
 			Revision:     revision,
-			Prune:        syncReq.GetPrune(),
-			DryRun:       syncReq.GetDryRun(),
+			Prune:        prune,
+			DryRun:       dryRun,
 			SyncOptions:  syncOptions,
-			SyncStrategy: syncReq.Strategy,
+			SyncStrategy: strategy,
 			Resources:    resources,
 			Manifests:    syncReq.Manifests,
 			Sources:      a.Spec.Sources,
