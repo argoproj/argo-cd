@@ -17,6 +17,7 @@ import {
     PRUNE_SOME_WARNING
 } from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
+import {resourcesPreSelection} from './resources-pre-selection';
 
 export const ApplicationSyncPanelBody = ({
     application,
@@ -34,7 +35,6 @@ export const ApplicationSyncPanelBody = ({
     const appResources = ((application && selectedResource && application.status && application.status.resources) || [])
         .sort((first, second) => nodeKey(first).localeCompare(nodeKey(second), undefined, {numeric: true}))
         .filter(item => !item.hook);
-    const syncResIndex = appResources.findIndex(item => nodeKey(item) === selectedResource);
     const syncStrategy = {} as models.SyncStrategy;
     const source = getAppDefaultSource(application);
 
@@ -44,7 +44,7 @@ export const ApplicationSyncPanelBody = ({
                 <Form
                     defaultValues={{
                         revision: new URLSearchParams(ctx.history.location.search).get('revision') || source.targetRevision || 'HEAD',
-                        resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
+                        resources: resourcesPreSelection(appResources, selectedResource),
                         syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : [],
                         message: ''
                     }}
