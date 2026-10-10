@@ -32,6 +32,65 @@ func TestSyncHookSuccessful(t *testing.T) {
 	testHookSuccessful(t, HookTypeSync)
 }
 
+func TestSyncHookReplacesTrackedResource(t *testing.T) {
+	var originalUID string
+	ctx := Given(t)
+	ctx.Path("hook").
+		When().
+		// Start with an ordinary tracked Pod. Its earlier wave makes pruning
+		// finish in a separate reconciliation from creating the replacement hook.
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-wave": "-1"}}]`).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(Pod(func(p corev1.Pod) bool {
+			return p.Name == "hook" && p.Status.Phase == corev1.PodSucceeded
+		})).
+		And(func(_ *Application) {
+			pod, err := KubeClientset.CoreV1().Pods(ctx.DeploymentNamespace()).Get(t.Context(), "hook", metav1.GetOptions{})
+			require.NoError(t, err)
+			require.Empty(t, pod.Annotations[AnnotationKeyHook])
+			originalUID = string(pod.UID)
+			require.NotEmpty(t, originalUID)
+		}).
+		When().
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {
+			"argocd.argoproj.io/hook": "Sync",
+			"argocd.argoproj.io/hook-delete-policy": "BeforeHookCreation",
+			"argocd.argoproj.io/sync-wave": "0"
+		}}]`).
+		Sync("--prune").
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// A successful operation alone is not sufficient: the old bug reported
+		// success after pruning without ever creating or running the hook.
+		And(func(app *Application) {
+			pod, err := KubeClientset.CoreV1().Pods(ctx.DeploymentNamespace()).Get(t.Context(), "hook", metav1.GetOptions{})
+			require.NoError(t, err, "a successful sync must create the replacement hook")
+			assert.NotEqual(t, originalUID, string(pod.UID))
+			assert.Equal(t, string(HookTypeSync), pod.Annotations[AnnotationKeyHook])
+			assert.Equal(t, corev1.PodSucceeded, pod.Status.Phase, "sync must wait for the replacement hook to complete")
+
+			var pruned, completedHooks int
+			for _, result := range app.Status.OperationState.SyncResult.Resources {
+				if result.Kind != "Pod" || result.Name != "hook" || result.Namespace != ctx.DeploymentNamespace() {
+					continue
+				}
+				if result.Status == ResultCodePruned && result.HookType == "" {
+					pruned++
+				}
+				if result.Status == ResultCodeSynced && result.HookType == HookTypeSync && result.HookPhase == OperationSucceeded {
+					completedHooks++
+				}
+			}
+			assert.Equal(t, 1, pruned, "the operation must prune the original resource")
+			assert.Equal(t, 1, completedHooks, "the same operation must run the replacement hook to completion")
+		})
+}
+
 func TestPostSyncHookSuccessful(t *testing.T) {
 	testHookSuccessful(t, HookTypePostSync)
 }
