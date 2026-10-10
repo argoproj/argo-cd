@@ -1925,6 +1925,8 @@ const (
 	ApplicationConditionExcludedResourceWarning = "ExcludedResourceWarning"
 	// ApplicationConditionOrphanedResourceWarning indicates that application has orphaned resources
 	ApplicationConditionOrphanedResourceWarning = "OrphanedResourceWarning"
+	// ApplicationConditionSyncWarning indicates that the last successful sync reported resource warnings
+	ApplicationConditionSyncWarning = "SyncWarning"
 )
 
 // ApplicationCondition contains details about an application condition, which is usually an error or warning

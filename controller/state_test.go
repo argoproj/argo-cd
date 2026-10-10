@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -2869,4 +2870,106 @@ func TestShouldUseServerSideDiff(t *testing.T) {
 			assert.Equal(t, tc.expected, shouldUseServerSideDiff(tc.app, tc.controllerLevelSSD))
 		})
 	}
+}
+
+func TestSyncWarningCondition(t *testing.T) {
+	t.Parallel()
+
+	now := metav1.Now()
+	result := func(name, message string) *v1alpha1.ResourceResult {
+		return &v1alpha1.ResourceResult{Group: "apps", Kind: "Deployment", Namespace: "default", Name: name, Message: message}
+	}
+	succeeded := func(resources ...*v1alpha1.ResourceResult) *v1alpha1.OperationState {
+		return &v1alpha1.OperationState{
+			Phase:      synccommon.OperationSucceeded,
+			SyncResult: &v1alpha1.SyncOperationResult{Resources: resources},
+		}
+	}
+
+	t.Run("no operation state yields no condition", func(t *testing.T) {
+		t.Parallel()
+		assert.Nil(t, syncWarningCondition(nil, now))
+	})
+
+	t.Run("operation without a sync result yields no condition", func(t *testing.T) {
+		t.Parallel()
+		assert.Nil(t, syncWarningCondition(&v1alpha1.OperationState{Phase: synccommon.OperationSucceeded}, now))
+	})
+
+	t.Run("a sync without warnings yields no condition", func(t *testing.T) {
+		t.Parallel()
+		assert.Nil(t, syncWarningCondition(succeeded(result("nginx", "deployment.apps/nginx configured")), now))
+	})
+
+	t.Run("a failed sync yields no condition", func(t *testing.T) {
+		t.Parallel()
+		state := succeeded(result("nginx", "Warning: deprecated"))
+		state.Phase = synccommon.OperationFailed
+		assert.Nil(t, syncWarningCondition(state, now))
+	})
+
+	t.Run("the warned resources are named", func(t *testing.T) {
+		t.Parallel()
+		cond := syncWarningCondition(succeeded(
+			result("nginx", `deployment.apps/nginx configured. Warning: would violate PodSecurity "restricted:latest"`),
+			result("quiet", "deployment.apps/quiet configured"),
+			result("db", "deployment.apps/db configured. Warning: first\nWarning: second"),
+		), now)
+
+		require.NotNil(t, cond)
+		assert.Equal(t, v1alpha1.ApplicationConditionSyncWarning, cond.Type)
+		assert.False(t, cond.IsError())
+		assert.Equal(t, &now, cond.LastTransitionTime)
+		assert.Equal(t, "The last sync completed successfully but reported warnings for 2 resources: "+
+			"apps/Deployment:default/nginx, apps/Deployment:default/db. "+
+			"See each resource's message in the sync result for details.", cond.Message)
+	})
+
+	t.Run("a single warned resource reads in the singular", func(t *testing.T) {
+		t.Parallel()
+		cond := syncWarningCondition(succeeded(result("nginx", "Warning: deprecated")), now)
+
+		require.NotNil(t, cond)
+		assert.Contains(t, cond.Message, "warnings for 1 resource: apps/Deployment:default/nginx.")
+	})
+
+	t.Run("a cluster-scoped resource is named without a namespace", func(t *testing.T) {
+		t.Parallel()
+		crb := &v1alpha1.ResourceResult{
+			Group: "rbac.authorization.k8s.io", Kind: "ClusterRoleBinding", Name: "my-crb", Message: "Warning: deprecated",
+		}
+		cond := syncWarningCondition(succeeded(crb), now)
+
+		require.NotNil(t, cond)
+		assert.Contains(t, cond.Message, "rbac.authorization.k8s.io/ClusterRoleBinding:my-crb.")
+	})
+
+	t.Run("the resource list is capped", func(t *testing.T) {
+		t.Parallel()
+		resources := make([]*v1alpha1.ResourceResult, 0, 500)
+		for i := range 500 {
+			resources = append(resources, result("nginx-"+strconv.Itoa(i), "Warning: deprecated"))
+		}
+
+		cond := syncWarningCondition(succeeded(resources...), now)
+
+		require.NotNil(t, cond)
+		assert.Contains(t, cond.Message, "warnings for 500 resources:")
+		assert.Contains(t, cond.Message, "apps/Deployment:default/nginx-0")
+		assert.NotContains(t, cond.Message, "nginx-10,")
+		assert.Contains(t, cond.Message, "and 490 more.")
+	})
+
+	t.Run("long names keep the message bounded", func(t *testing.T) {
+		t.Parallel()
+		resources := make([]*v1alpha1.ResourceResult, 0, 50)
+		for i := range 50 {
+			resources = append(resources, result(strings.Repeat("n", 250)+strconv.Itoa(i), "Warning: deprecated"))
+		}
+
+		cond := syncWarningCondition(succeeded(resources...), now)
+
+		require.NotNil(t, cond)
+		assert.Less(t, len(cond.Message), 4096)
+	})
 }

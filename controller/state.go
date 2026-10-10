@@ -1165,11 +1165,16 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		}
 	}
 
+	if cond := syncWarningCondition(app.Status.OperationState, now); cond != nil {
+		conditions = append(conditions, *cond)
+	}
+
 	app.Status.SetConditions(conditions, map[v1alpha1.ApplicationConditionType]bool{
 		v1alpha1.ApplicationConditionComparisonError:         true,
 		v1alpha1.ApplicationConditionSharedResourceWarning:   true,
 		v1alpha1.ApplicationConditionRepeatedResourceWarning: true,
 		v1alpha1.ApplicationConditionExcludedResourceWarning: true,
+		v1alpha1.ApplicationConditionSyncWarning:             true,
 	})
 	ts.AddCheckpoint("health_ms")
 	compRes.timings = ts.Timings()
@@ -1188,6 +1193,67 @@ func shouldUseServerSideDiff(app *v1alpha1.Application, controllerLevelSSD bool)
 	return controllerLevelSSD ||
 		resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=true") ||
 		(app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions.HasOption("ServerSideApply=true"))
+}
+
+// syncWarningPrefix identifies warnings returned by the Kubernetes API server.
+const syncWarningPrefix = "Warning: "
+
+// maxSyncWarningResourcesShown bounds how many warnings are rendered in application conditions to keep them readable.
+const maxSyncWarningResourcesShown = 10
+
+// syncWarningCondition returns a SyncWarning condition when the last successful sync reported
+// warnings for one or more resources.
+func syncWarningCondition(state *v1alpha1.OperationState, now metav1.Time) *v1alpha1.ApplicationCondition {
+	// Report warnings only for successful syncs.
+	if state == nil || state.SyncResult == nil || !state.Phase.Successful() {
+		return nil
+	}
+
+	warned := make([]*v1alpha1.ResourceResult, 0, len(state.SyncResult.Resources))
+	for _, res := range state.SyncResult.Resources {
+		if res != nil && strings.Contains(res.Message, syncWarningPrefix) {
+			warned = append(warned, res)
+		}
+	}
+	if len(warned) == 0 {
+		return nil
+	}
+
+	return &v1alpha1.ApplicationCondition{
+		Type: v1alpha1.ApplicationConditionSyncWarning,
+		Message: fmt.Sprintf("The last sync completed successfully but reported warnings for %s. "+
+			"See each resource's message in the sync result for details.", formatSyncWarningResources(warned)),
+		LastTransitionTime: &now,
+	}
+}
+
+func formatSyncWarningResources(warned []*v1alpha1.ResourceResult) string {
+	resources := "resources"
+	if len(warned) == 1 {
+		resources = "resource"
+	}
+
+	listed := make([]string, 0, maxSyncWarningResourcesShown)
+	for i, res := range warned {
+		if i >= maxSyncWarningResourcesShown {
+			break
+		}
+		gk := res.Kind
+		if res.Group != "" {
+			gk = res.Group + "/" + res.Kind
+		}
+		name := res.Name
+		if res.Namespace != "" {
+			name = res.Namespace + "/" + res.Name
+		}
+		listed = append(listed, gk+":"+name)
+	}
+
+	summary := fmt.Sprintf("%d %s: %s", len(warned), resources, strings.Join(listed, ", "))
+	if remaining := len(warned) - len(listed); remaining > 0 {
+		summary += fmt.Sprintf(" and %d more", remaining)
+	}
+	return summary
 }
 
 // useDiffCache will determine if the diff should be calculated based
