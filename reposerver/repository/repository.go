@@ -2691,9 +2691,33 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 	if err != nil {
 		return fmt.Errorf("failed to resolve value files: %w", err)
 	}
+	// Match helmTemplate precedence: valueFiles, then values/valuesObject as an
+	// extra values file, then parameters (--set) overlaying the flattened map.
+	if q.Source.Helm != nil && !q.Source.Helm.ValuesIsEmpty() {
+		valuesFile, err := os.CreateTemp("", "argocd-helm-values-*")
+		if err != nil {
+			return fmt.Errorf("error creating Helm values file: %w", err)
+		}
+		p := valuesFile.Name()
+		defer func() { _ = os.Remove(p) }()
+		_, writeErr := valuesFile.Write(q.Source.Helm.ValuesYAML())
+		closeErr := valuesFile.Close()
+		if writeErr != nil {
+			return fmt.Errorf("error writing Helm values file: %w", writeErr)
+		}
+		if closeErr != nil {
+			return fmt.Errorf("error closing Helm values file: %w", closeErr)
+		}
+		resolvedSelectedValueFiles = append(resolvedSelectedValueFiles, pathutil.ResolvedFilePath(p))
+	}
 	params, err := h.GetParameters(resolvedSelectedValueFiles, appPath, repoRoot)
 	if err != nil {
 		return err
+	}
+	if q.Source.Helm != nil {
+		for _, p := range q.Source.Helm.Parameters {
+			params[unescapeHelmParameterName(p.Name)] = p.Value
+		}
 	}
 	for k, v := range params {
 		res.Helm.Parameters = append(res.Helm.Parameters, &v1alpha1.HelmParameter{
@@ -2708,6 +2732,24 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 		})
 	}
 	return nil
+}
+
+// Helm removes escape characters in --set keys; flattened YAML keys are unescaped.
+func unescapeHelmParameterName(name string) string {
+	var key strings.Builder
+	escaped := false
+	for _, char := range name {
+		if char == '\\' && !escaped {
+			escaped = true
+			continue
+		}
+		key.WriteRune(char)
+		escaped = false
+	}
+	if escaped {
+		key.WriteRune('\\')
+	}
+	return key.String()
 }
 
 func loadFileIntoIfExists(path pathutil.ResolvedFilePath, destination *string) error {

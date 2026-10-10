@@ -3808,6 +3808,94 @@ func Test_populateHelmAppDetails(t *testing.T) {
 	assert.Len(t, res.Helm.ValueFiles, 5)
 }
 
+func Test_populateHelmAppDetails_valuesBlockAndParameters(t *testing.T) {
+	// Regression for https://github.com/argoproj/argo-cd/issues/6086:
+	// App details must project values/valuesObject and parameters the same
+	// way helmTemplate does, so the Parameters UI shows the effective overrides.
+	sha := "632039659e542ed7de0c170a4fcc1c571b288fc0"
+	service := newService(t, ".")
+	emptyTempPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	appPath, err := filepath.Abs("./testdata/values-files/")
+	require.NoError(t, err)
+
+	paramByName := func(params []*v1alpha1.HelmParameter) map[string]string {
+		out := map[string]string{}
+		for _, p := range params {
+			out[p.Name] = p.Value
+		}
+		return out
+	}
+
+	t.Run("values block overrides valueFiles", func(t *testing.T) {
+		res := apiclient.RepoAppDetailsResponse{}
+		q := apiclient.RepoServerAppDetailsQuery{
+			Repo: &v1alpha1.Repository{},
+			Source: &v1alpha1.ApplicationSource{
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					ValueFiles: []string{"has-the-word-values.yaml"},
+					Values:     "has:\n  the:\n    word:\n      values: hello-from-values-block\n",
+				},
+			},
+		}
+		err := service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &q, emptyTempPaths)
+		require.NoError(t, err)
+		got := paramByName(res.Helm.Parameters)
+		assert.Equal(t, "hello-from-values-block", got["has.the.word.values"])
+	})
+
+	t.Run("valuesObject overrides values string", func(t *testing.T) {
+		res := apiclient.RepoAppDetailsResponse{}
+		q := apiclient.RepoServerAppDetailsQuery{
+			Repo: &v1alpha1.Repository{},
+			Source: &v1alpha1.ApplicationSource{
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					ValueFiles:   []string{"has-the-word-values.yaml"},
+					Values:       "has:\n  the:\n    word:\n      values: from-values-string\n",
+					ValuesObject: &runtime.RawExtension{Raw: []byte(`{"has":{"the":{"word":{"values":"from-values-object"}}}}`)},
+				},
+			},
+		}
+		err := service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &q, emptyTempPaths)
+		require.NoError(t, err)
+		got := paramByName(res.Helm.Parameters)
+		assert.Equal(t, "from-values-object", got["has.the.word.values"])
+	})
+
+	t.Run("parameters overlay values", func(t *testing.T) {
+		res := apiclient.RepoAppDetailsResponse{}
+		q := apiclient.RepoServerAppDetailsQuery{
+			Repo: &v1alpha1.Repository{},
+			Source: &v1alpha1.ApplicationSource{
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					ValueFiles: []string{"has-the-word-values.yaml"},
+					Values:     "has:\n  the:\n    word:\n      values: from-values\n",
+					Parameters: []v1alpha1.HelmParameter{
+						{Name: "has.the.word.values", Value: "from-parameter"},
+					},
+				},
+			},
+		}
+		err := service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &q, emptyTempPaths)
+		require.NoError(t, err)
+		got := paramByName(res.Helm.Parameters)
+		assert.Equal(t, "from-parameter", got["has.the.word.values"])
+	})
+	t.Run("escaped parameter overlays flattened inline value", func(t *testing.T) {
+		res := apiclient.RepoAppDetailsResponse{}
+		q := apiclient.RepoServerAppDetailsQuery{
+			Repo: &v1alpha1.Repository{},
+			Source: &v1alpha1.ApplicationSource{Helm: &v1alpha1.ApplicationSourceHelm{
+				Values:     "service:\n  annotations:\n    prometheus.io/scrape: false\n",
+				Parameters: []v1alpha1.HelmParameter{{Name: `service.annotations.prometheus\.io/scrape`, Value: "true,{literal}"}},
+			}},
+		}
+		require.NoError(t, service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &q, emptyTempPaths))
+		got := paramByName(res.Helm.Parameters)
+		assert.Equal(t, "true,{literal}", got["service.annotations.prometheus.io/scrape"])
+		assert.NotContains(t, got, `service.annotations.prometheus\.io/scrape`)
+	})
+}
+
 func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 	dummyErrMsg := "dummy error"
 	repoURL := "https://github.com/foo/bar"
@@ -6781,4 +6869,16 @@ func TestGetOciFiles(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestUnescapeHelmParameterName(t *testing.T) {
+	for _, tc := range []struct{ name, want string }{
+		{`service.annotations.prometheus\.io/scrape`, `service.annotations.prometheus.io/scrape`},
+		{`servers[2].port`, `servers[2].port`},
+		{`labels.a\,b`, `labels.a,b`},
+		{`labels.a\\b`, `labels.a\b`},
+		{`labels.日本語`, `labels.日本語`},
+	} {
+		assert.Equal(t, tc.want, unescapeHelmParameterName(tc.name))
+	}
 }
