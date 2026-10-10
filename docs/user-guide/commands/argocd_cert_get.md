@@ -1,51 +1,31 @@
-# `argocd cert` Command Reference
+# `argocd cert get` Command Reference
 
-## argocd cert
+## argocd cert get
 
-Manage repository certificates and SSH known hosts entries
+Get the certificates and SSH known hosts entries configured for SERVERNAME
 
 ```
-argocd cert [flags]
+argocd cert get SERVERNAME [flags]
 ```
 
 ### Examples
 
 ```
-  # Add a TLS certificate for cd.example.com to ArgoCD cert store from a file
-  argocd cert add-tls --from ~/mycert.pem cd.example.com
+  # Get all certificates and SSH known hosts entries for github.com
+  argocd cert get github.com
 
-  # Add a TLS certificate for cd.example.com to ArgoCD via stdin
-  cat ~/mycert.pem | argocd cert add-tls cd.example.com
-
-  # Add SSH known host entries for cd.example.com to ArgoCD by scanning host
-  ssh-keyscan cd.example.com | argocd cert add-ssh --batch
-
-  # List all known TLS certificates
-  argocd cert list --cert-type https
-
-  # Remove all TLS certificates for cd.example.com
-  argocd cert rm --cert-type https cd.example.com
-
-  # Remove all certificates and SSH known host entries for cd.example.com
-  argocd cert rm cd.example.com
+  # Get only the TLS certificates for cd.example.com in YAML format
+  argocd cert get cd.example.com --cert-type https -o yaml
 
 ```
 
 ### Options
 
 ```
-      --cluster string             The name of the kubeconfig cluster to use
-      --context string             The name of the kubeconfig context to use
-  -h, --help                       help for cert
-      --insecure-skip-tls-verify   If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
-      --kubeconfig string          Path to a kube config. Only required if out-of-cluster
-  -n, --namespace string           If present, the namespace scope for this CLI request
-      --password string            Password for basic authentication to the API server
-      --proxy-url string           If provided, this URL will be used to connect via proxy
-      --request-timeout string     The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --token string               Bearer token for authentication to the API server
-      --user string                The name of the kubeconfig user to use
-      --username string            Username for basic authentication to the API server
+      --cert-sub-type string   Only get certs of given sub-type (e.g. ssh-ed25519 or rsa)
+      --cert-type string       Only get certs of given type (ssh, https)
+  -h, --help                   help for get
+  -o, --output string          Output format. One of: json|yaml|wide (default "wide")
 ```
 
 ### Options inherited from parent commands
@@ -81,10 +61,5 @@ argocd cert [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls an Argo CD server
-* [argocd cert add-ssh](argocd_cert_add-ssh.md)	 - Add SSH known host entries for repository servers
-* [argocd cert add-tls](argocd_cert_add-tls.md)	 - Add TLS certificate data for connecting to repository server SERVERNAME
-* [argocd cert get](argocd_cert_get.md)	 - Get the certificates and SSH known hosts entries configured for SERVERNAME
-* [argocd cert list](argocd_cert_list.md)	 - List configured certificates
-* [argocd cert rm](argocd_cert_rm.md)	 - Remove certificate of TYPE for REPOSERVER
+* [argocd cert](argocd_cert.md)	 - Manage repository certificates and SSH known hosts entries
 

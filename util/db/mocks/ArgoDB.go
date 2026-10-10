@@ -1388,6 +1388,86 @@ func (_c *ArgoDB_GetProjectWriteRepositories_Call) RunAndReturn(run func(project
 	return _c
 }
 
+// GetRepoCertificates provides a mock function for the type ArgoDB
+func (_mock *ArgoDB) GetRepoCertificates(ctx context.Context, serverName string, certType string, certSubType string) (*v1alpha1.RepositoryCertificateList, error) {
+	ret := _mock.Called(ctx, serverName, certType, certSubType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetRepoCertificates")
+	}
+
+	var r0 *v1alpha1.RepositoryCertificateList
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (*v1alpha1.RepositoryCertificateList, error)); ok {
+		return returnFunc(ctx, serverName, certType, certSubType)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) *v1alpha1.RepositoryCertificateList); ok {
+		r0 = returnFunc(ctx, serverName, certType, certSubType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.RepositoryCertificateList)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = returnFunc(ctx, serverName, certType, certSubType)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ArgoDB_GetRepoCertificates_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRepoCertificates'
+type ArgoDB_GetRepoCertificates_Call struct {
+	*mock.Call
+}
+
+// GetRepoCertificates is a helper method to define mock.On call
+//   - ctx context.Context
+//   - serverName string
+//   - certType string
+//   - certSubType string
+func (_e *ArgoDB_Expecter) GetRepoCertificates(ctx any, serverName any, certType any, certSubType any) *ArgoDB_GetRepoCertificates_Call {
+	return &ArgoDB_GetRepoCertificates_Call{Call: _e.mock.On("GetRepoCertificates", ctx, serverName, certType, certSubType)}
+}
+
+func (_c *ArgoDB_GetRepoCertificates_Call) Run(run func(ctx context.Context, serverName string, certType string, certSubType string)) *ArgoDB_GetRepoCertificates_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *ArgoDB_GetRepoCertificates_Call) Return(repositoryCertificateList *v1alpha1.RepositoryCertificateList, err error) *ArgoDB_GetRepoCertificates_Call {
+	_c.Call.Return(repositoryCertificateList, err)
+	return _c
+}
+
+func (_c *ArgoDB_GetRepoCertificates_Call) RunAndReturn(run func(ctx context.Context, serverName string, certType string, certSubType string) (*v1alpha1.RepositoryCertificateList, error)) *ArgoDB_GetRepoCertificates_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetRepository provides a mock function for the type ArgoDB
 func (_mock *ArgoDB) GetRepository(ctx context.Context, url string, project string) (*v1alpha1.Repository, error) {
 	ret := _mock.Called(ctx, url, project)

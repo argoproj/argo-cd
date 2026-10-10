@@ -28,12 +28,29 @@ message RepositoryCertificateCreateRequest {
   bool upsert = 2;
 }
 
+// Message to get the configured repository certificates of a single server
+message RepositoryCertificateGetRequest {
+  // The exact name of the server (not a pattern) the certificates are configured for
+  string serverName = 1;
+  // The type of the certificates to get (ssh or https)
+  string certType = 2;
+  // The sub type of the certificates to get (protocol dependent, usually only used for ssh certs)
+  string certSubType = 3;
+}
+
 message RepositoryCertificateResponse {}
 
 service CertificateService {
   // List all available repository certificates
   rpc ListCertificates(RepositoryCertificateQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
     option (google.api.http).get = "/api/v1/certificates";
+  }
+
+  // Get the repository certificates of a single server, including the certificate data
+  rpc GetCertificate(RepositoryCertificateGetRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RepositoryCertificateList) {
+    // The server name must not be the last path segment: grpc-gateway treats
+    // a colon in it as a custom verb, which breaks names like "[host]:port".
+    option (google.api.http).get = "/api/v1/certificates/{serverName}/details";
   }
 
   // Creates repository certificates on the server 
