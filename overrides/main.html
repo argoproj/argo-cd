@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{#- Breadcrumb trail above the page title, built from the nav hierarchy
+    (page.ancestors is provided by MkDocs). Styled in docs/assets/nav.css. -#}
+{% block content %}
+  {% if page.ancestors %}
+    <nav class="md-breadcrumbs" aria-label="Breadcrumb">
+      <ol>
+        {% for ancestor in page.ancestors | reverse %}
+          <li>{{ ancestor.title }}</li>
+        {% endfor %}
+        <li aria-current="page">{{ page.title }}</li>
+      </ol>
+    </nav>
+  {% endif %}
+  {{ super() }}
+{% endblock %}

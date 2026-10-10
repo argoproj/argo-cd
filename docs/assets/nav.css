@@ -1,0 +1,74 @@
+/* Sidebar wayfinding: make the current page and its section visible
+   without relying on colour alone, and keep the active section pinned
+   while its children scroll. Scoped to the primary (left) sidebar. */
+
+/* 1. Current page: weight + tint + left bar (not just colour). */
+.md-sidebar--primary a.md-nav__link--active {
+  font-weight: 600;
+  border-left: 3px solid var(--md-primary-fg-color);
+  background-color: rgba(0, 148, 133, 0.14);
+}
+@media screen and (min-width: 76.25em) {
+  .md-sidebar--primary a.md-nav__link--active {
+    margin-left: -0.6rem;
+    padding: 0.15rem 0.4rem 0.15rem calc(0.6rem - 3px);
+    border-radius: 0 0.2rem 0.2rem 0;
+  }
+}
+
+/* 2. Ancestors of the current page: bold, so the path reads top-down. */
+.md-sidebar--primary li.md-nav__item--nested.md-nav__item--active > label.md-nav__link {
+  font-weight: 600;
+  color: var(--md-default-fg-color);
+}
+
+/* 3. Keep the active section's label pinned to the top of the sidebar
+   while its pages scroll underneath (one row per nesting level). */
+@media screen and (min-width: 76.25em) {
+  .md-sidebar--primary li.md-nav__item--nested.md-nav__item--active > label.md-nav__link {
+    position: sticky;
+    z-index: 2;
+    margin-top: 0;
+    padding-top: 0.4375rem; /* covers the row gap so nothing shows through */
+    padding-bottom: 0.2rem;
+    background-color: var(--md-default-bg-color);
+    box-shadow: 0 1px 0 var(--md-default-fg-color--lightest);
+  }
+  .md-sidebar--primary .md-nav[data-md-level="0"] > .md-nav__list > li.md-nav__item--active > label.md-nav__link { top: 0; }
+  .md-sidebar--primary .md-nav[data-md-level="1"] > .md-nav__list > li.md-nav__item--active > label.md-nav__link { top: 1.35rem; }
+  .md-sidebar--primary .md-nav[data-md-level="2"] > .md-nav__list > li.md-nav__item--active > label.md-nav__link { top: 2.7rem; }
+  .md-sidebar--primary .md-nav[data-md-level="3"] > .md-nav__list > li.md-nav__item--active > label.md-nav__link { top: 4.05rem; }
+}
+
+/* 4. Section toggles are keyboard-operable (see nav.js): show focus. */
+.md-sidebar--primary label.md-nav__link:focus-visible,
+.md-sidebar--primary a.md-nav__link:focus-visible {
+  outline: 2px solid var(--md-primary-fg-color);
+  outline-offset: 2px;
+}
+
+/* 5. Breadcrumb above the page title (rendered by overrides/main.html). */
+.md-breadcrumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.4rem;
+  margin: 0 0 0.8rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.7rem;
+  color: var(--md-default-fg-color--light);
+}
+.md-breadcrumbs li + li::before {
+  content: "\203A"; /* › */
+  margin-right: 0.4rem;
+  color: var(--md-default-fg-color--lighter);
+}
+.md-breadcrumbs li[aria-current="page"] {
+  color: var(--md-default-fg-color);
+  font-weight: 600;
+}
+
+/* 6. Link colour that meets WCAG AA on white (3.77:1 -> 5.25:1); same hue. */
+body[data-md-color-scheme="default"][data-md-color-primary="teal"] {
+  --md-typeset-a-color: #007a6c;
+}
