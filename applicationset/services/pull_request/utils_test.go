@@ -1,6 +1,7 @@
 package pull_request
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,6 +33,225 @@ func TestFilterBranchMatchBadRegexp(t *testing.T) {
 	}
 	_, err := ListPullRequests(t.Context(), provider, filters)
 	require.Error(t, err)
+}
+
+func TestFilterBranchMatchLookahead(t *testing.T) {
+	t.Parallel()
+	provider, _ := NewFakeService(
+		t.Context(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Title:        "PR feature",
+				Branch:       "feature/one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
+			},
+			{
+				Number:       2,
+				Title:        "PR release",
+				Branch:       "release/1.0",
+				TargetBranch: "master",
+				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name2",
+			},
+		},
+		nil,
+	)
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			BranchMatch: new("^(?!release/).*"),
+		},
+	}
+	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 1)
+	assert.Equal(t, "feature/one", pullRequests[0].Branch)
+}
+
+func TestFilterTitleMatchLookbehind(t *testing.T) {
+	t.Parallel()
+	provider, _ := NewFakeService(
+		t.Context(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Title:        "WIP: add feature",
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
+			},
+			{
+				Number:       2,
+				Title:        "add feature",
+				Branch:       "two",
+				TargetBranch: "master",
+				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name2",
+			},
+		},
+		nil,
+	)
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			TitleMatch: new("(?<=WIP: ).*"),
+		},
+	}
+	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 1)
+	assert.Equal(t, "one", pullRequests[0].Branch)
+}
+
+// Patterns written for Go's regexp package must keep their meaning: \d only matches ASCII digits.
+func TestFilterBranchMatchKeepsGoRegexpSemantics(t *testing.T) {
+	t.Parallel()
+	provider, _ := NewFakeService(
+		t.Context(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Title:        "PR ascii",
+				Branch:       "feature-123",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
+			},
+			{
+				Number:       2,
+				Title:        "PR arabic-indic digits",
+				Branch:       "feature-1١٢",
+				TargetBranch: "master",
+				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name2",
+			},
+		},
+		nil,
+	)
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			BranchMatch: new(`^feature-1\d{2}$`),
+		},
+	}
+	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 1)
+	assert.Equal(t, "feature-123", pullRequests[0].Branch)
+}
+
+func TestFilterTitleMatchNamedGroup(t *testing.T) {
+	t.Parallel()
+	provider, _ := NewFakeService(
+		t.Context(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Title:        "feat: add thing",
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
+			},
+			{
+				Number:       2,
+				Title:        "chore: tidy",
+				Branch:       "two",
+				TargetBranch: "master",
+				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name2",
+			},
+		},
+		nil,
+	)
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			TitleMatch: new(`^(?P<type>feat|fix): .*`),
+		},
+	}
+	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 1)
+	assert.Equal(t, "one", pullRequests[0].Branch)
+}
+
+// A filter that cannot be evaluated must fail generation. Silently dropping the pull request would make the
+// generator succeed with fewer results, and the ApplicationSet controller would delete the pull request's Application.
+func TestFilterMatchErrorFailsGeneration(t *testing.T) {
+	t.Parallel()
+	evilInput := strings.Repeat("a", 28) + "!"
+	tests := []struct {
+		name   string
+		filter argoprojiov1alpha1.PullRequestGeneratorFilter
+	}{
+		{"BranchMatch", argoprojiov1alpha1.PullRequestGeneratorFilter{BranchMatch: new(`^(a+)+$`)}},
+		{"TargetBranchMatch", argoprojiov1alpha1.PullRequestGeneratorFilter{TargetBranchMatch: new(`^(a+)+$`)}},
+		{"TitleMatch", argoprojiov1alpha1.PullRequestGeneratorFilter{TitleMatch: new(`^(a+)+$`)}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			provider, _ := NewFakeService(
+				t.Context(),
+				[]*PullRequest{
+					{
+						Number:       1,
+						Title:        evilInput,
+						Branch:       evilInput,
+						TargetBranch: evilInput,
+						HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+						Author:       "name1",
+					},
+				},
+				nil,
+			)
+			pullRequests, err := ListPullRequests(t.Context(), provider, []argoprojiov1alpha1.PullRequestGeneratorFilter{tt.filter})
+			require.ErrorContains(t, err, "error filtering pull request 1")
+			require.ErrorContains(t, err, "error matching "+tt.name+` regexp "^(a+)+$"`)
+			require.ErrorContains(t, err, "match timeout")
+			assert.Nil(t, pullRequests)
+		})
+	}
+}
+
+// Every filter field compiles its own pattern, so each one must report a bad or unsupported pattern by field name.
+func TestFilterCompileErrorNamesTheField(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name    string
+		pattern string
+		wantErr string
+	}{
+		{"malformed pattern", `(`, "error parsing regexp"},
+		{"literal quoting", `^\Qa.b\E$`, "literal quoting is not supported"},
+	}
+	fields := []struct {
+		name   string
+		filter func(pattern string) argoprojiov1alpha1.PullRequestGeneratorFilter
+	}{
+		{"BranchMatch", func(p string) argoprojiov1alpha1.PullRequestGeneratorFilter {
+			return argoprojiov1alpha1.PullRequestGeneratorFilter{BranchMatch: &p}
+		}},
+		{"TargetBranchMatch", func(p string) argoprojiov1alpha1.PullRequestGeneratorFilter {
+			return argoprojiov1alpha1.PullRequestGeneratorFilter{TargetBranchMatch: &p}
+		}},
+		{"TitleMatch", func(p string) argoprojiov1alpha1.PullRequestGeneratorFilter {
+			return argoprojiov1alpha1.PullRequestGeneratorFilter{TitleMatch: &p}
+		}},
+	}
+	for _, field := range fields {
+		for _, tt := range tests {
+			t.Run(field.name+"/"+tt.name, func(t *testing.T) {
+				t.Parallel()
+				provider, _ := NewFakeService(t.Context(), []*PullRequest{{Number: 1, Branch: "one", TargetBranch: "master", Title: "PR one"}}, nil)
+				pullRequests, err := ListPullRequests(t.Context(), provider, []argoprojiov1alpha1.PullRequestGeneratorFilter{field.filter(tt.pattern)})
+				require.ErrorContains(t, err, "error compiling "+field.name+" regexp")
+				require.ErrorContains(t, err, tt.wantErr)
+				assert.Nil(t, pullRequests)
+			})
+		}
+	}
 }
 
 func TestFilterBranchMatch(t *testing.T) {

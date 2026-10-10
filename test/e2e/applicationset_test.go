@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 
 	"github.com/google/uuid"
@@ -2018,6 +2019,209 @@ func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
 			require.NoError(t, err)
 			assert.Contains(t, output, "scm provider not allowed")
 		})
+}
+
+// TestSimpleSCMProviderGeneratorRegexLookahead checks that SCM provider filters accept lookahead assertions.
+func TestSimpleSCMProviderGeneratorRegexLookahead(t *testing.T) {
+	ts := testServerWithPort(t, 8341, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		githubSCMMockHandler(t)(w, r)
+	}))
+	ts.Start()
+	defer ts.Close()
+
+	expectedApp := v1alpha1.Application{
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "argo-cd-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+		Spec: v1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "git@github.com:argoproj/argo-cd.git",
+				TargetRevision: "master",
+				Path:           "guestbook",
+			},
+			Destination: v1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook",
+			},
+		},
+	}
+
+	Given(t).
+		// Create an SCMProviderGenerator-based ApplicationSet that excludes repositories ending in -deprecated
+		When().Create(v1alpha1.ApplicationSet{
+		Spec: v1alpha1.ApplicationSetSpec{
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{ repository }}-guestbook"},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "{{ url }}",
+						TargetRevision: "{{ branch }}",
+						Path:           "guestbook",
+					},
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					SCMProvider: &v1alpha1.SCMProviderGenerator{
+						Github: &v1alpha1.SCMProviderGeneratorGithub{
+							Organization: "argoproj",
+							API:          ts.URL,
+						},
+						Filters: []v1alpha1.SCMProviderGeneratorFilter{
+							{
+								RepositoryMatch: new("^(?!.*-deprecated$).*"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp}))
+}
+
+// TestSimplePullRequestGeneratorRegexLookaround checks that pull request filters accept lookahead and lookbehind assertions.
+func TestSimplePullRequestGeneratorRegexLookaround(t *testing.T) {
+	ts := testServerWithPort(t, 8343, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		githubPullMockHandler(t)(w, r)
+	}))
+
+	ts.Start()
+	defer ts.Close()
+
+	expectedApp := v1alpha1.Application{
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "guestbook-1",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+		Spec: v1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
+				TargetRevision: "824a5c987fdfb2b0629e9dbf5f31636c69ba4772",
+				Path:           "kustomize-guestbook",
+				Kustomize: &v1alpha1.ApplicationSourceKustomize{
+					NamePrefix: "guestbook-1",
+				},
+			},
+			Destination: v1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook-pull-request",
+			},
+		},
+	}
+
+	Given(t).
+		// Create a PullRequestGenerator-based ApplicationSet with a lookahead branch filter and a lookbehind title filter
+		When().Create(v1alpha1.ApplicationSet{
+		Spec: v1alpha1.ApplicationSetSpec{
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "guestbook-{{ number }}"},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
+						TargetRevision: "{{ head_sha }}",
+						Path:           "kustomize-guestbook",
+						Kustomize: &v1alpha1.ApplicationSourceKustomize{
+							NamePrefix: "guestbook-{{ number }}",
+						},
+					},
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook-{{ branch }}",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					PullRequest: &v1alpha1.PullRequestGenerator{
+						Github: &v1alpha1.PullRequestGeneratorGithub{
+							API:   ts.URL,
+							Owner: "applicationset-test-org",
+							Repo:  "argocd-example-apps",
+							Labels: []string{
+								"preview",
+							},
+						},
+						Filters: []v1alpha1.PullRequestGeneratorFilter{
+							{
+								BranchMatch: new("^(?!release/).*"),
+								TitleMatch:  new(`(?<=title)\d`),
+							},
+						},
+					},
+				},
+			},
+		},
+	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp}))
+}
+
+// TestPullRequestGeneratorUnsupportedRegexpReportsError checks that a filter pattern the engine cannot honor is
+// reported on the ApplicationSet instead of silently matching nothing.
+func TestPullRequestGeneratorUnsupportedRegexpReportsError(t *testing.T) {
+	ts := testServerWithPort(t, 8344, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		githubPullMockHandler(t)(w, r)
+	}))
+
+	ts.Start()
+	defer ts.Close()
+
+	expectedErrorMessage := regexp.MustCompile(`literal quoting is not supported`)
+
+	Given(t).
+		When().Create(v1alpha1.ApplicationSet{
+		Spec: v1alpha1.ApplicationSetSpec{
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "guestbook-{{ number }}"},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
+						TargetRevision: "{{ head_sha }}",
+						Path:           "kustomize-guestbook",
+					},
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook-{{ branch }}",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					PullRequest: &v1alpha1.PullRequestGenerator{
+						Github: &v1alpha1.PullRequestGeneratorGithub{
+							API:   ts.URL,
+							Owner: "applicationset-test-org",
+							Repo:  "argocd-example-apps",
+							Labels: []string{
+								"preview",
+							},
+						},
+						Filters: []v1alpha1.PullRequestGeneratorFilter{
+							{
+								BranchMatch: new(`^\Qpull-request\E$`),
+							},
+						},
+					},
+				},
+			},
+		},
+	}).Then().
+		Expect(ApplicationSetHasCondition(
+			v1alpha1.ApplicationSetConditionErrorOccurred,
+			v1alpha1.ApplicationSetConditionStatusTrue,
+			expectedErrorMessage,
+			v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		))
 }
 
 // TestApplicationSetAPIListResourceEvents tests the ApplicationSet ListResourceEvents API
