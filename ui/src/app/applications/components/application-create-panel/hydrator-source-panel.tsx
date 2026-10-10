@@ -1,13 +1,13 @@
 import * as React from 'react';
 import {FormApi, Text} from 'argo-ui';
-import {AutocompleteField, FormField} from 'argo-ui';
+import {AutocompleteField, AutocompleteOption, FormField} from 'argo-ui';
 
 import * as models from '../../../shared/models';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 
 interface HydratorSourcePanelProps {
     formApi: FormApi;
-    repos: string[];
+    repos: models.Repository[];
 }
 
 interface LabeledRevisionFieldProps {
@@ -48,6 +48,7 @@ export const HydratorSourcePanel = (props: HydratorSourcePanelProps) => {
     const app = props.formApi.getFormState().values as models.Application;
     const drySourceRepoURL = app.spec.sourceHydrator?.drySource?.repoURL || '';
     const syncSourceRepoURL = app.spec.sourceHydrator?.syncSource?.repoURL || drySourceRepoURL;
+    const repoOptions = props.repos.map((r): AutocompleteOption => ({value: r.repo, label: r.repo, description: r.name}));
 
     return (
         <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
@@ -62,7 +63,7 @@ export const HydratorSourcePanel = (props: HydratorSourcePanelProps) => {
                                 field='spec.sourceHydrator.drySource.repoURL'
                                 component={AutocompleteField}
                                 componentProps={{
-                                    items: props.repos,
+                                    items: repoOptions,
                                     filterSuggestions: true
                                 }}
                             />
@@ -93,7 +94,7 @@ export const HydratorSourcePanel = (props: HydratorSourcePanelProps) => {
                                 field='spec.sourceHydrator.syncSource.repoURL'
                                 component={AutocompleteField}
                                 componentProps={{
-                                    items: props.repos,
+                                    items: repoOptions,
                                     filterSuggestions: true
                                 }}
                             />
