@@ -53,6 +53,12 @@ data:
   # A dex connector configuration (optional). See SSO configuration documentation:
   # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/user-management/index.md#sso
   # https://dexidp.io/docs/connectors/
+  #
+  # By default, Argo CD escapes `$` characters in resolved Dex connector
+  # configuration values because Dex expands environment variables in connector
+  # configuration. If Dex environment-variable expansion is disabled by setting
+  # `DEX_EXPAND_ENV=false` on the Dex server, Argo CD preserves `$` characters
+  # in resolved connector values.
   dex.config: |
     # Optional: configure Dex storage backend to persist sessions and signing keys
     storage:
