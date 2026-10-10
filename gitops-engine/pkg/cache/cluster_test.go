@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"sync"
 	"testing"
@@ -19,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -2067,6 +2069,64 @@ func Test_watchEvents_Deadlock(t *testing.T) {
 			t.FailNow()
 		}
 	}
+}
+
+// Regression: startMissingWatches panicked on the nil apisMeta left by Invalidate.
+// It must also start no watches, since nothing may sync or cancel them later.
+func TestStartMissingWatches_DoesNothingAfterInvalidate(t *testing.T) {
+	cluster := newCluster(t)
+	cluster.lock.Lock()
+	defer cluster.lock.Unlock()
+	cluster.apisMeta = nil
+
+	require.NotPanics(t, func() { require.NoError(t, cluster.startMissingWatches()) })
+	assert.Nil(t, cluster.apisMeta)
+}
+
+// Regression: stopWatching left the GroupKind in namespacedResources.
+func TestStopWatching_RemovesNamespacedResourcesEntry(t *testing.T) {
+	pod := testPod1()
+	gk := pod.GroupVersionKind().GroupKind()
+	cluster := newCluster(t, pod)
+	require.NoError(t, cluster.EnsureSynced())
+	_, err := cluster.IsNamespaced(gk)
+	require.NoError(t, err)
+	before := cluster.namespacedResources // as a concurrent IsNamespaced might hold it
+
+	cluster.stopWatching(gk, pod.Namespace)
+
+	_, err = cluster.IsNamespaced(gk)
+	assert.True(t, apierrors.IsNotFound(err), "got %v", err)
+	assert.Contains(t, before, gk, "the published map must be replaced, not edited in place")
+}
+
+func TestCRDVersionsToAPIResources(t *testing.T) {
+	crd := func(extraSpec map[string]any) *unstructured.Unstructured {
+		spec := map[string]any{
+			"group":    "example.com",
+			"names":    map[string]any{"kind": "Dummy", "plural": "dummies", "singular": "dummy"},
+			"scope":    "Namespaced",
+			"versions": []any{map[string]any{"name": "v1", "served": true, "storage": true}},
+		}
+		maps.Copy(spec, extraSpec)
+		return &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "apiextensions.k8s.io/v1",
+			"kind":       "CustomResourceDefinition",
+			"metadata":   map[string]any{"name": "dummies.example.com"},
+			"spec":       spec,
+		}}
+	}
+	cluster := newCluster(t)
+
+	resources, err := cluster.crdVersionsToAPIResources(crd(nil))
+	require.NoError(t, err)
+	require.Len(t, resources, 1)
+	assert.Equal(t, "Dummy.example.com", resources[0].GroupKind.String())
+
+	// spec.versions decodes before the bad field, so a partial result is possible.
+	resources, err = cluster.crdVersionsToAPIResources(crd(map[string]any{"preserveUnknownFields": "not-a-bool"}))
+	require.Error(t, err)
+	assert.Nil(t, resources)
 }
 
 func buildTestResourceMap() map[kube.ResourceKey]*Resource {
