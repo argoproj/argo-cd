@@ -263,6 +263,57 @@ func TestDependencyBuild(t *testing.T) {
 	}
 }
 
+func TestInjectSSLCertDir(t *testing.T) {
+	dir := t.TempDir()
+
+	tests := []struct {
+		name        string
+		env         []string
+		argoTLSPath string
+		expected    string
+	}{
+		{
+			name:        "SSL_CERT_DIR absent",
+			env:         []string{"OTHER=val"},
+			argoTLSPath: dir,
+			expected:    "SSL_CERT_DIR=" + dir,
+		},
+		{
+			name:        "SSL_CERT_DIR set without argo dir",
+			env:         []string{"SSL_CERT_DIR=/etc/ssl/certs"},
+			argoTLSPath: dir,
+			expected:    "SSL_CERT_DIR=" + dir + ":/etc/ssl/certs",
+		},
+		{
+			name:        "SSL_CERT_DIR already contains argo dir",
+			env:         []string{"SSL_CERT_DIR=" + dir + ":/etc/ssl/certs"},
+			argoTLSPath: dir,
+			expected:    "SSL_CERT_DIR=" + dir + ":/etc/ssl/certs",
+		},
+		{
+			name:        "cert dir does not exist",
+			env:         []string{"SSL_CERT_DIR=/etc/ssl/certs"},
+			argoTLSPath: "/nonexistent/path",
+			expected:    "SSL_CERT_DIR=/etc/ssl/certs",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("ARGOCD_TLS_DATA_PATH", tc.argoTLSPath)
+			result := injectSSLCertDir(tc.env)
+			var got string
+			for _, e := range result {
+				if strings.HasPrefix(e, "SSL_CERT_DIR=") {
+					got = e
+					break
+				}
+			}
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+}
+
 func TestRegistryLogout(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
