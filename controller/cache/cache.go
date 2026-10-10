@@ -70,6 +70,9 @@ const (
 	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
 	EnvClusterCacheRetryUseBackoff = "ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF"
 
+	// EnvClusterCacheWatchRetryUseBackoff is the env variable to control whether to use exponential backoff for watch retries on auth/server errors
+	EnvClusterCacheWatchRetryUseBackoff = "ARGOCD_CLUSTER_CACHE_WATCH_RETRY_USE_BACKOFF"
+
 	// EnvClusterCacheBatchEventsProcessing is the env variable to control whether to enable batch events processing
 	EnvClusterCacheBatchEventsProcessing = "ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING"
 
@@ -111,6 +114,9 @@ var (
 	// clusterCacheRetryUseBackoff specifies whether to use a backoff strategy on cluster cache sync, if retry is enabled
 	clusterCacheRetryUseBackoff = false
 
+	// clusterCacheWatchRetryUseBackoff specifies whether to use an exponential backoff strategy on cluster cache watch errors
+	clusterCacheWatchRetryUseBackoff = false
+
 	// clusterCacheBatchEventsProcessing specifies whether to enable batch events processing
 	clusterCacheBatchEventsProcessing = false
 
@@ -127,6 +133,7 @@ func init() {
 	clusterCacheListSemaphoreSize = env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, clusterCacheListSemaphoreSize, 0, math.MaxInt64)
 	clusterCacheAttemptLimit = int32(env.ParseNumFromEnv(EnvClusterCacheAttemptLimit, int(clusterCacheAttemptLimit), 1, math.MaxInt32))
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
+	clusterCacheWatchRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheWatchRetryUseBackoff, false)
 	clusterCacheBatchEventsProcessing = env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, true)
 	clusterCacheEventsProcessingInterval = env.ParseDurationFromEnv(EnvClusterCacheEventsProcessingInterval, clusterCacheEventsProcessingInterval, 0, math.MaxInt64)
 }
@@ -596,6 +603,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		}),
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
+		clustercache.SetWatchRetryUseBackoff(clusterCacheWatchRetryUseBackoff),
 		clustercache.SetRespectRBAC(respectRBAC),
 		clustercache.SetBatchEventsProcessing(clusterCacheBatchEventsProcessing),
 		clustercache.SetEventProcessingInterval(clusterCacheEventsProcessingInterval),
