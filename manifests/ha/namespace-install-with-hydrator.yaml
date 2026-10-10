@@ -1751,6 +1751,28 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
+    app.kubernetes.io/component: repo-server
+    app.kubernetes.io/name: argocd-repo-server-headless
+    app.kubernetes.io/part-of: argocd
+  name: argocd-repo-server-headless
+spec:
+  clusterIP: None
+  ports:
+  - name: server
+    port: 8081
+    protocol: TCP
+    targetPort: 8081
+  - name: metrics
+    port: 8084
+    protocol: TCP
+    targetPort: 8084
+  selector:
+    app.kubernetes.io/name: argocd-repo-server
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
@@ -2780,6 +2802,18 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_PARALLELISM_LIMIT_FAIL_FAST
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.parallelism.limit.fail.fast
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_MAX_CONCURRENT_GRPC_REQUESTS
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.max.concurrent.grpc.requests
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_LISTEN_ADDRESS
