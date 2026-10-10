@@ -7883,6 +7883,21 @@ func schema_pkg_apis_application_v1alpha1_SuccessfulHydrateOperation(ref common.
 							Ref:         ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SourceHydrator"),
 						},
 					},
+					"hydratedGroupApps": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HydratedGroupApps holds the qualified names of every app committed together as of this operation, so a membership change (an app added to or removed from the group) can be detected without inferring it from git state.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
 			},
 		},

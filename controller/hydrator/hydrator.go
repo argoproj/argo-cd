@@ -275,6 +275,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 
 	logCtx.Debug("Successfully hydrated apps")
 	finishedAt := metav1.Now()
+	groupApps := hydrationGroupAppNames(apps)
 	for _, app := range apps {
 		origApp := app.DeepCopy()
 		operation := &appv1.HydrateOperation{
@@ -289,9 +290,10 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 		app.Status.SourceHydrator.CurrentOperation = operation
 		app.Status.SourceHydrator.LastComparedDryRevision = drySHA
 		app.Status.SourceHydrator.LastSuccessfulOperation = &appv1.SuccessfulHydrateOperation{
-			DrySHA:         drySHA,
-			HydratedSHA:    hydratedSHA,
-			SourceHydrator: app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
+			DrySHA:            drySHA,
+			HydratedSHA:       hydratedSHA,
+			SourceHydrator:    app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
+			HydratedGroupApps: groupApps,
 		}
 		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 		h.dependencies.RemoveHydrationAnnotations(origApp)
@@ -453,11 +455,36 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 	}
 	paths := []*commitclient.PathDetails{pathDetails}
 	logCtx = logCtx.WithFields(log.Fields{"drySha": targetRevision})
-	// De-dupe, if the drySha was already hydrated log a debug and return using the data from the last successful hydration run.
-	// We only inspect one app. If apps have been added/removed, that will be handled on the next DRY commit.
-	if apps[0].Status.SourceHydrator.LastSuccessfulOperation != nil && targetRevision == apps[0].Status.SourceHydrator.LastSuccessfulOperation.DrySHA {
-		logCtx.Debug("Skipping hydration since the DRY commit was already hydrated")
-		return targetRevision, apps[0].Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, nil, nil
+
+	// De-dupe check: Skip hydration only if all apps have already been hydrated with this drySha under
+	// their current hydrator config, as part of exactly this set of apps. We must check every app
+	// individually and if any app needs hydration, we must proceed.
+	if len(apps) > 0 {
+		allAppsAlreadyHydrated := true
+		currentGroupApps := hydrationGroupAppNames(apps)
+
+		for _, app := range apps {
+			if app.Status.SourceHydrator.LastSuccessfulOperation == nil {
+				allAppsAlreadyHydrated = false
+				break
+			}
+
+			lastDrySHA := app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+			lastConfig := app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator
+			lastGroupApps := app.Status.SourceHydrator.LastSuccessfulOperation.HydratedGroupApps
+
+			// The dry SHA and config comparisons catch changes to this app; comparing the recorded
+			// group membership catches an app being added to or removed from the group
+			if targetRevision != lastDrySHA || !app.Spec.SourceHydrator.DeepEquals(lastConfig) || !slices.Equal(lastGroupApps, currentGroupApps) {
+				allAppsAlreadyHydrated = false
+				break
+			}
+		}
+
+		if allAppsAlreadyHydrated {
+			// All apps already hydrated - return the hydratedSHA from the first app (all should have the same value)
+			return targetRevision, apps[0].Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, nil, nil
+		}
 	}
 
 	// NB: use a distinct name for the errgroup-derived context. errgroup cancels it as soon as
@@ -729,6 +756,18 @@ func genericHydrationError(validationErrors map[string]error) error {
 		remainder = fmt.Sprintf("and %d more have errors", len(keys)-1)
 	}
 	return fmt.Errorf("cannot hydrate because application %s %s", keys[0], remainder)
+}
+
+// hydrationGroupAppNames returns the sorted, qualified names of every app in a hydration group, suitable
+// for recording on SuccessfulHydrateOperation.HydratedGroupApps or comparing against a previously recorded
+// set to detect a membership change (an app added to or removed from the group).
+func hydrationGroupAppNames(apps []*appv1.Application) []string {
+	names := make([]string, 0, len(apps))
+	for _, app := range apps {
+		names = append(names, app.QualifiedName())
+	}
+	slices.Sort(names)
+	return names
 }
 
 // IsRootPath returns whether the path references a root path

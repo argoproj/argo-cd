@@ -173,7 +173,6 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 	// short-circuit if already hydrated
 	if isHydrated {
 		logCtx.Debugf("this dry sha %s is already hydrated", r.DrySha)
-		return "", hydratedSha, nil
 	}
 
 	logCtx.Debug("Writing manifests")
@@ -182,12 +181,14 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
 	if !shouldCommit {
-		// Manifests did not change, so we don't need to create a new commit.
-		// Add a git note to track that this dry SHA has been processed, and return the existing hydrated SHA.
-		logCtx.Debug("Adding commit note")
-		err = AddNote(ctx, gitClient, r.DrySha, hydratedSha)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to add commit note: %w", err)
+		// Manifests did not change, so we don't need to create a new commit. If the note on this commit
+		// doesn't already reflect this dry SHA, add it so future requests can short-circuit here too.
+		if !isHydrated {
+			logCtx.Debug("Adding commit note")
+			err = AddNote(ctx, gitClient, r.DrySha, hydratedSha)
+			if err != nil {
+				return "", "", fmt.Errorf("failed to add commit note: %w", err)
+			}
 		}
 		return "", hydratedSha, nil
 	}
