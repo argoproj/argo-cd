@@ -9,7 +9,7 @@ import {ClusterCtx, DataLoader, EmptyState, Page, Paginate, SearchBar, Spinner} 
 import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
-import {AppsListPreferences, AppsListViewKey, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
+import {AppsListPreferences, AppsListViewKey, AppsListViewType, HealthStatusBarPreferences, services, ViewPreferences} from '../../../shared/services';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
@@ -22,6 +22,7 @@ import {ApplicationTiles} from './applications-tiles';
 import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
 import {FlexTopBar} from '../../../shared/components';
 import {ViewTypeSwitcher} from './view-type-switcher';
+import {appProject, countByProject, ProjectGrouping} from './project-groups';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
 import {isInvalidRegex, queryParamsChanged} from '../../../shared/utils';
@@ -345,6 +346,15 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
     );
 };
 
+const useViewPreferences = (): ViewPreferences | undefined => {
+    const [prefs, setPrefs] = React.useState<ViewPreferences>();
+    React.useEffect(() => {
+        const subscription = services.viewPreferences.getPreferences().subscribe(setPrefs);
+        return () => subscription.unsubscribe();
+    }, []);
+    return prefs;
+};
+
 export const ApplicationsList = (props: RouteComponentProps<any>) => {
     const query = useQuery();
     const observableQuery$ = useObservableQuery();
@@ -357,6 +367,8 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
     const loaderRef = React.useRef<DataLoader | null>(null);
     const {List, Summary, Tiles} = AppsListViewKey;
     const authSettings = React.useContext(AuthSettingsCtx);
+    const viewPrefs = useViewPreferences();
+    const groupAppsByProject = !!viewPrefs?.groupAppsByProject;
 
     function refreshApp(appName: string, appNamespace: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
@@ -469,14 +481,35 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
 
                                             const apps = applications as models.Application[];
                                             const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search, pref.searchRegex, authSettings?.hydratorEnabled);
+                                            const grouping: ProjectGrouping | undefined = groupAppsByProject
+                                                ? {
+                                                      collapsed: viewPrefs.collapsedProjectGroups,
+                                                      counts: countByProject(filteredApps),
+                                                      onToggle: project => {
+                                                          const collapsed = viewPrefs.collapsedProjectGroups;
+                                                          services.viewPreferences.updatePreferences({
+                                                              collapsedProjectGroups: collapsed.includes(project) ? collapsed.filter(p => p !== project) : [...collapsed, project]
+                                                          });
+                                                      }
+                                                  }
+                                                : undefined;
 
                                             return (
                                                 <React.Fragment>
                                                     <FlexTopBar
-                                                        key={`toolbar-${healthBarPrefs.showHealthStatusBar}-${pref.view}`}
+                                                        key={`toolbar-${healthBarPrefs.showHealthStatusBar}-${pref.view}-${groupAppsByProject}`}
                                                         toolbar={{
                                                             tools: <ApplicationsToolbar applications={applications} pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />,
-                                                            options: <ViewTypeSwitcher pref={pref} ctx={ctx} />,
+                                                            options: (
+                                                                <ViewTypeSwitcher
+                                                                    pref={pref}
+                                                                    ctx={ctx}
+                                                                    groupByProject={{
+                                                                        enabled: groupAppsByProject,
+                                                                        onToggle: () => services.viewPreferences.updatePreferences({groupAppsByProject: !groupAppsByProject})
+                                                                    }}
+                                                                />
+                                                            ),
                                                             actionMenu: {
                                                                 items: [
                                                                     {
@@ -565,6 +598,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                             }
                                                                         ]}
                                                                         data={filteredApps}
+                                                                        groupBy={grouping ? appProject : undefined}
                                                                         onPageChange={page => ctx.navigation.goto('.', {page})}>
                                                                         {(data, useVirtualScrolling) =>
                                                                             (pref.view === 'tiles' && (
@@ -579,6 +613,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                     }
                                                                                     useVirtualScrolling={useVirtualScrolling}
                                                                                     statusBarVisible={healthBarPrefs.showHealthStatusBar}
+                                                                                    grouping={grouping}
                                                                                 />
                                                                             )) || (
                                                                                 <ApplicationsTable
@@ -592,6 +627,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                     }
                                                                                     useVirtualScrolling={useVirtualScrolling}
                                                                                     statusBarVisible={healthBarPrefs.showHealthStatusBar}
+                                                                                    grouping={grouping}
                                                                                 />
                                                                             )
                                                                         }
