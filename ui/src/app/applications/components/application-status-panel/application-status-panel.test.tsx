@@ -1,5 +1,6 @@
 import * as React from 'react';
 import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
+import {NEVER, Subject} from 'rxjs';
 import * as models from '../../../shared/models';
 import {COLORS} from '../../../shared/components/colors';
 import {Context} from '../../../shared/context';
@@ -18,7 +19,8 @@ jest.mock('../../../shared/services', () => ({
                     message: 'Test commit message'
                 })
             ),
-            listApplicationSets: jest.fn(() => Promise.resolve({items: []}))
+            listApplicationSets: jest.fn(() => Promise.resolve({items: []})),
+            watch: jest.fn(() => NEVER)
         },
         extensions: {
             getStatusPanelExtensions: jest.fn(() => [])
@@ -143,9 +145,11 @@ describe('ApplicationStatusPanel', () => {
         await waitFor(() => expect(screen.getAllByText('Degraded').length).toBeGreaterThan(0));
         expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(2);
 
-        // expanding unmounts the compact loader and refreshes the full-panel one once
+        // expanding unmounts the compact loader; the full-panel loader stays mounted and
+        // keeps a live ApplicationSet watch, so re-expanding does not refetch the ApplicationSet
         rerender(<ApplicationStatusPanel application={appV2} collapsed={false} />);
-        await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(3));
+        await waitFor(() => expect(screen.getAllByText('Degraded').length).toBeGreaterThan(0));
+        expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(2);
     });
 
     it('refreshes the sync window state on re-expand even when the application is unchanged', async () => {
@@ -240,6 +244,31 @@ describe('ApplicationStatusPanel', () => {
         expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(2);
         rerender(<ApplicationStatusPanel application={withOwner} collapsed={true} />);
         await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(3));
+    });
+
+    it('updates the progressive sync step when the ApplicationSet changes without the application changing', async () => {
+        const psApp = {
+            ...application,
+            metadata: {...application.metadata, ownerReferences: [{kind: 'ApplicationSet', name: 'ps-appset'}]}
+        } as unknown as models.Application;
+        const rollingSyncAppSet = (step: string) =>
+            ({
+                metadata: {name: 'ps-appset', namespace: 'argocd'},
+                spec: {strategy: {type: 'RollingSync'}},
+                status: {applicationStatus: [{application: 'test-app', status: 'Progressing', step}]}
+            }) as unknown as models.ApplicationSet;
+
+        (services.applications.listApplicationSets as jest.Mock).mockResolvedValueOnce({items: [rollingSyncAppSet('1')], metadata: {resourceVersion: '1'}});
+        const appSetWatch$ = new Subject<models.ApplicationWatchEvent>();
+        (services.applications.watch as jest.Mock).mockReturnValueOnce(appSetWatch$);
+
+        render(<ApplicationStatusPanel application={psApp} collapsed={false} />);
+        await waitFor(() => expect(screen.getByText('Step: 1')).toBeInTheDocument());
+
+        // The ApplicationSet advances a step; the application object is untouched.
+        appSetWatch$.next({type: 'MODIFIED', application: rollingSyncAppSet('2') as unknown as models.Application});
+        await waitFor(() => expect(screen.getByText('Step: 2')).toBeInTheDocument());
+        expect(screen.queryByText('Step: 1')).toBeNull();
     });
 
     it('does not remount the hydrator metadata loader on live hydrator transitions while collapsed', async () => {
