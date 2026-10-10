@@ -241,6 +241,9 @@ spec:
       labels:
         app: nginx
     spec:
+      initContainers:
+      - name: setup
+        image: setup:1.0.0
       containers:
       - name: nginx
         image: nginx:1.7.9
@@ -248,7 +251,7 @@ spec:
           - containerPort: 80
       - name: agent
         image: agent:1.0.0`),
-			expected:    []string{"nginx:1.7.9", "agent:1.0.0"},
+			expected:    []string{"setup:1.0.0", "nginx:1.7.9", "agent:1.0.0"},
 			description: "deployment with two containers",
 		},
 		{
@@ -260,6 +263,9 @@ metadata:
   labels:
     app: my-app
 spec:
+  initContainers:
+  - name: setup
+    image: setup:2.0.0
   containers:
   - name: nginx-container
     image: nginx:1.21
@@ -269,7 +275,7 @@ spec:
     image: busybox:1.35
     command: ["sh", "-c", "echo Hello from the sidecar; sleep 3600"]
 `),
-			expected:    []string{"nginx:1.21", "busybox:1.35"},
+			expected:    []string{"setup:2.0.0", "nginx:1.21", "busybox:1.35"},
 			description: "pod with containers",
 		},
 		{
@@ -284,11 +290,14 @@ spec:
     spec:
       template:
         spec:
+          initContainers:
+          - name: setup
+            image: setup:3.0.0
           containers:
           - name: hello
             image: busybox:1.28
 `),
-			expected:    []string{"busybox:1.28"},
+			expected:    []string{"setup:3.0.0", "busybox:1.28"},
 			description: "cronjob with containers",
 		},
 		{
