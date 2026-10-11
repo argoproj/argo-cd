@@ -3119,6 +3119,8 @@ spec:
           name: argocd-home
         - mountPath: /home/argocd/params
           name: argocd-cmd-params-cm
+        - mountPath: /app/config/tls
+          name: tls-certs
         - mountPath: /tmp
           name: argocd-application-controller-tmp
         workingDir: /home/argocd
@@ -3128,6 +3130,9 @@ spec:
       volumes:
       - emptyDir: {}
         name: argocd-home
+      - configMap:
+          name: argocd-tls-certs-cm
+        name: tls-certs
       - emptyDir: {}
         name: argocd-application-controller-tmp
       - name: argocd-repo-server-tls
