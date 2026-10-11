@@ -1,8 +1,8 @@
 # Roadmap
 
 Argo CD does not publish a dated feature roadmap. Minor versions ship on a fixed quarterly schedule, and a feature
-ships in the next minor release cut from `master` after it is merged. Larger features need a
-[design document](developer-guide/code-contributions.md#design-documents) first.
+ships in the next minor release cut from `master` after it is merged. For larger features, maintainers may ask for a
+[design document](developer-guide/code-contributions.md#design-documents) during triage.
 
 The links below always show the current state of the project.
 
