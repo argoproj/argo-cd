@@ -1,6 +1,8 @@
 package sharding
 
 import (
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -588,4 +590,192 @@ func TestHasShardingUpdates(t *testing.T) {
 			assert.Equal(t, tc.expected, hasShardingUpdates(tc.old, tc.new))
 		})
 	}
+}
+
+// TestClusterSharding_AddApp_SameNameDifferentNamespace ensures apps that share
+// a name across namespaces (apps-in-any-namespace) are tracked separately and
+// counted independently, instead of colliding on a name-only map key.
+func TestClusterSharding_AddApp_SameNameDifferentNamespace(t *testing.T) {
+	t.Parallel()
+	sharding := setupTestSharding(0, 2)
+
+	sharding.Init(
+		&v1alpha1.ClusterList{
+			Items: []v1alpha1.Cluster{
+				{ID: "1", Server: "https://serverA"},
+			},
+		},
+		&v1alpha1.ApplicationList{},
+	)
+
+	appA := createAppWithNamespace("frontend", "team-a", "https://serverA")
+	appB := createAppWithNamespace("frontend", "team-b", "https://serverA")
+	sharding.AddApp(&appA)
+	sharding.AddApp(&appB)
+
+	assert.Len(t, sharding.Apps, 2, "same-named apps in different namespaces must not collide")
+
+	appDistribution := sharding.GetAppDistribution()
+	assert.Equal(t, 2, appDistribution["https://serverA"], "both apps must be counted for the cluster")
+}
+
+// TestClusterSharding_UpsertApp_DestinationChange ensures that changing an
+// existing app's destination cluster triggers a redistribution (the consistent
+// hashing algorithm weights clusters by app count), while an update that leaves
+// the destination unchanged does not. Both AddApp and UpdateApp must behave
+// this way: the informer can deliver an Add for an app already recorded by
+// Init or by the shard-resync loop.
+func TestClusterSharding_UpsertApp_DestinationChange(t *testing.T) {
+	t.Parallel()
+	for name, upsert := range map[string]func(*ClusterSharding, *v1alpha1.Application){
+		"AddApp":    (*ClusterSharding).AddApp,
+		"UpdateApp": (*ClusterSharding).UpdateApp,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			testUpsertAppDestinationChange(t, upsert)
+		})
+	}
+}
+
+func testUpsertAppDestinationChange(t *testing.T, upsert func(*ClusterSharding, *v1alpha1.Application)) {
+	t.Helper()
+	sharding := setupTestSharding(0, 2)
+
+	// Spy on the distribution function to observe whether updateDistribution ran.
+	var shardCalls int
+	sharding.getClusterShard = func(_ *v1alpha1.Cluster) int {
+		shardCalls++
+		return 0
+	}
+
+	sharding.Init(
+		&v1alpha1.ClusterList{
+			Items: []v1alpha1.Cluster{
+				{ID: "1", Server: "https://serverA"},
+				{ID: "2", Server: "https://serverB"},
+			},
+		},
+		&v1alpha1.ApplicationList{
+			Items: []v1alpha1.Application{
+				createApp("app1", "https://serverA"),
+			},
+		},
+	)
+
+	// Moving the app to a different destination cluster must recompute.
+	shardCalls = 0
+	movedApp := createApp("app1", "https://serverB")
+	upsert(sharding, &movedApp)
+	assert.Positive(t, shardCalls, "destination change should trigger updateDistribution")
+
+	appDistribution := sharding.GetAppDistribution()
+	assert.Equal(t, 1, appDistribution["https://serverB"], "app should now be counted on serverB")
+	assert.Equal(t, 0, appDistribution["https://serverA"], "app should no longer be counted on serverA")
+
+	// An update that does not change the destination must skip redistribution.
+	shardCalls = 0
+	sameApp := createApp("app1", "https://serverB")
+	upsert(sharding, &sameApp)
+	assert.Zero(t, shardCalls, "no destination change should skip updateDistribution")
+}
+
+// TestClusterSharding_UpdateShard_ConcurrentWithReads exercises UpdateShard
+// concurrently with IsManagedCluster. UpdateShard must take the write lock
+// while mutating sharding.Shard; run with -race to detect a regression.
+func TestClusterSharding_UpdateShard_ConcurrentWithReads(t *testing.T) {
+	sharding := setupTestSharding(0, 2)
+	sharding.Init(
+		&v1alpha1.ClusterList{
+			Items: []v1alpha1.Cluster{
+				{ID: "1", Server: "https://serverA"},
+			},
+		},
+		&v1alpha1.ApplicationList{},
+	)
+	cluster := &v1alpha1.Cluster{ID: "1", Server: "https://serverA"}
+
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Writer: flips the shard assignment back and forth (real writes to sharding.Shard).
+	go func() {
+		defer wg.Done()
+		defer close(done)
+		for i := range 5000 {
+			sharding.UpdateShard(i % 2)
+		}
+	}()
+
+	// Reader: hammers IsManagedCluster, which reads sharding.Shard under RLock,
+	// for the whole lifetime of the writer.
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				sharding.IsManagedCluster(cluster)
+			}
+		}
+	}()
+
+	wg.Wait()
+
+	// The goroutines have joined: the last write (UpdateShard(4999 % 2)) must
+	// have taken effect.
+	assert.Equal(t, 1, sharding.Shard)
+}
+
+// TestClusterSharding_UpdateDistribution_OneGenerationPerRedistribution
+// verifies that all distribution function calls of one redistribution observe
+// the same generation, so the full mapping is computed once per redistribution
+// rather than once per cluster.
+func TestClusterSharding_UpdateDistribution_OneGenerationPerRedistribution(t *testing.T) {
+	t.Parallel()
+	sharding := setupTestSharding(0, 2)
+
+	var seen []uint64
+	sharding.getClusterShard = func(_ *v1alpha1.Cluster) int {
+		seen = append(seen, sharding.getGenerationAccessor()())
+		return 0
+	}
+	sharding.Init(
+		&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
+			{ID: "1", Server: "https://serverA"},
+			{ID: "2", Server: "https://serverB"},
+			{ID: "3", Server: "https://serverC"},
+		}},
+		&v1alpha1.ApplicationList{},
+	)
+	assert.Equal(t, []uint64{1, 1, 1}, seen)
+
+	seen = nil
+	sharding.Add(&v1alpha1.Cluster{ID: "4", Server: "https://serverD"})
+	assert.Equal(t, []uint64{2, 2, 2, 2}, seen)
+}
+
+// TestClusterSharding_UpdateShard_ConcurrentCallers exercises concurrent
+// UpdateShard calls with the same new shard (overlapping readiness probes).
+// The comparison and the write must happen under the same write lock so that
+// exactly one caller observes the change; run with -race to detect a regression.
+func TestClusterSharding_UpdateShard_ConcurrentCallers(t *testing.T) {
+	sharding := setupTestSharding(0, 2)
+	sharding.Init(&v1alpha1.ClusterList{}, &v1alpha1.ApplicationList{})
+
+	var changed atomic.Int32
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Go(func() {
+			if sharding.UpdateShard(1) {
+				changed.Add(1)
+			}
+		})
+	}
+	wg.Wait()
+
+	assert.Equal(t, int32(1), changed.Load(), "exactly one caller must observe the shard change")
+	assert.Equal(t, 1, sharding.Shard)
 }
