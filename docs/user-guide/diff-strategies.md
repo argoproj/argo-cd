@@ -64,6 +64,14 @@ This is to save an additional call to KubeAPI and provide a much lighter and fas
 Server-Side Diff won't have the benefit of the Kubernetes Admission Controller in the diff stage as validation webhooks 
 won't be executed when calculating diffs if the resource is not applied in the cluster yet.
 
+Secrets are an exception in the `argocd app diff` command. The Argo CD API
+server masks Secret values before the CLI receives them, so a Server-Side
+Apply of the masked manifest would compare placeholder data against the
+cluster, and for a typed Secret such as `kubernetes.io/dockerconfigjson` the
+Kubernetes API server rejects the request. The command diffs Secrets
+client-side instead. The Application controller is not affected and still
+uses Server-Side Diff for Secrets.
+
 ### Enabling it
 
 Server-Side Diff can be enabled at the Argo CD Controller level or per
