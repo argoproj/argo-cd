@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -14,14 +15,20 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/docs"
 )
 
+// main regenerates notification service documentation and its MkDocs navigation.
 func main() {
 	generateNotificationsDocs()
 }
 
+// generateNotificationsDocs refreshes service documentation and navigation without the retired Teams connector.
 func generateNotificationsDocs() {
 	_ = os.RemoveAll("./docs/operator-manual/notifications/services")
 	_ = os.MkdirAll("./docs/operator-manual/notifications/services", 0o755)
 	files, err := docs.CopyServicesDocs("./docs/operator-manual/notifications/services")
+	if err != nil {
+		log.Fatal(err)
+	}
+	files, err = removeLegacyTeamsDocs(files)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -32,6 +39,38 @@ func generateNotificationsDocs() {
 	}
 }
 
+// removeLegacyTeamsDocs excludes the retired connector page and overview link
+// from documentation copied from the shared notifications-engine.
+func removeLegacyTeamsDocs(files []string) ([]string, error) {
+	var supported []string
+	for _, file := range files {
+		if filepath.Base(file) == "teams.md" {
+			if err := os.Remove(file); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		if filepath.Base(file) == "overview.md" {
+			data, err := os.ReadFile(file)
+			if err != nil {
+				return nil, err
+			}
+			var lines []string
+			for line := range strings.SplitSeq(string(data), "\n") {
+				if !strings.Contains(line, "(./teams.md)") {
+					lines = append(lines, line)
+				}
+			}
+			if err := os.WriteFile(file, []byte(strings.Join(lines, "\n")), 0o644); err != nil {
+				return nil, err
+			}
+		}
+		supported = append(supported, file)
+	}
+	return supported, nil
+}
+
+// updateMkDocsNav replaces the service pages under the specified navigation section.
 func updateMkDocsNav(parent string, child string, subchild string, files []string) error {
 	trimPrefixes(files, "docs/")
 	sort.Strings(files)
@@ -74,12 +113,14 @@ func updateMkDocsNav(parent string, child string, subchild string, files []strin
 	return os.WriteFile("mkdocs.yml", newmkdocs, 0o644)
 }
 
+// trimPrefixes converts generated file paths to paths relative to the documentation root.
 func trimPrefixes(files []string, prefix string) {
 	for i, f := range files {
 		files[i] = strings.TrimPrefix(f, prefix)
 	}
 }
 
+// findNavItem locates a named navigation section and its index.
 func findNavItem(nav []any, key string) (any, int) {
 	for i, item := range nav {
 		o, ismap := item.(map[any]any)
@@ -92,6 +133,7 @@ func findNavItem(nav []any, key string) (any, int) {
 	return nil, -1
 }
 
+// removeNavItem removes a named section before its replacement is appended.
 func removeNavItem(nav []any, key string) []any {
 	_, i := findNavItem(nav, key)
 	if i != -1 {

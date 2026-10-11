@@ -16,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
+	notificationmocks "github.com/argoproj/argo-cd/v3/util/notification/argocd/mocks"
 )
 
 const (
@@ -24,6 +25,7 @@ const (
 	testContextKeyValue = "test-context-key-value"
 )
 
+// TestInitGetVars verifies application, context and secret variables used by notification templates.
 func TestInitGetVars(t *testing.T) {
 	t.Parallel()
 	notificationsCm := corev1.ConfigMap{
@@ -32,7 +34,7 @@ func TestInitGetVars(t *testing.T) {
 		Data: map[string]string{
 			"context":              fmt.Sprintf("%s: %s", testContextKey, testContextKeyValue),
 			"service.webhook.test": "url: https://test.example.com",
-			"template.app-created": "email:\n  subject: Application {{.app.metadata.name}} has been created.\nmessage: Application {{.app.metadata.name}} has been created.\nteams:\n  title: Application {{.app.metadata.name}} has been created.\n",
+			"template.app-created": "email:\n  subject: Application {{.app.metadata.name}} has been created.\nmessage: Application {{.app.metadata.name}} has been created.\nteams-workflows:\n  title: Application {{.app.metadata.name}} has been created.\n",
 			"trigger.on-created":   "- description: Application is created.\n  oncePer: app.metadata.name\n  send:\n  - app-created\n  when: \"true\"\n",
 		},
 	}
@@ -170,4 +172,49 @@ func TestInitGetVarsAppProject(t *testing.T) {
 		_, exists := result["appProject"]
 		assert.True(t, exists)
 	})
+}
+
+// TestRetiredTeamsService verifies supported service aliases across controller, CLI and self-service settings.
+func TestRetiredTeamsService(t *testing.T) {
+	t.Parallel()
+	for _, selfService := range []bool{false, true} {
+		for _, cli := range []bool{false, true} {
+			t.Run(fmt.Sprintf("selfService=%t/cli=%t", selfService, cli), func(t *testing.T) {
+				t.Parallel()
+				cm := &corev1.ConfigMap{Data: map[string]string{
+					"service.teams":                    "recipientUrls: {}",
+					"service.teams.workflow":           "recipientUrls: {}",
+					"service.teams.rescued":            "recipientUrls: {}",
+					"service.teams.legacy":             "recipientUrls: {}",
+					"service.teams-workflows":          "recipientUrls: {}",
+					"service.teams-workflows.workflow": "recipientUrls: {}",
+					"service.webhook.test":             "url: https://example.com",
+				}}
+				secret := &corev1.Secret{Data: map[string][]byte{"notifiers.yaml": []byte("webhook:\n- name: rescued\n  url: https://example.com")}}
+				cfg, err := api.ParseConfig(cm, secret)
+				require.NoError(t, err)
+				svc := &notificationmocks.Service{}
+				settings := GetFactorySettings(svc, "secret", "cm", selfService)
+				if cli {
+					settings = GetFactorySettingsForCLI(func() service.Service { return svc }, "secret", "cm", selfService)
+				}
+				getVars, err := settings.InitGetVars(cfg, cm, secret)
+				require.NoError(t, err)
+				notificationAPI, err := api.NewAPI(*cfg, getVars)
+				require.NoError(t, err)
+				for _, name := range []string{"teams", "legacy"} {
+					assert.NotContains(t, cfg.Services, name)
+					err := notificationAPI.Send(nil, nil, services.Destination{Service: name})
+					require.EqualError(t, err, fmt.Sprintf("notification service '%s' is not supported", name))
+				}
+
+				for _, name := range []string{"teams-workflows", "workflow", "rescued", "test"} {
+					require.Contains(t, cfg.Services, name)
+					sender, err := cfg.Services[name]()
+					require.NoError(t, err)
+					assert.NotNil(t, sender)
+				}
+			})
+		}
+	}
 }

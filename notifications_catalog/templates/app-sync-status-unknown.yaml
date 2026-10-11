@@ -35,7 +35,7 @@ slack:
           {{end}}
           ]
         }]
-teams:
+teams-workflows:
     title: Application {{.app.metadata.name}} sync status is 'Unknown'
     facts: |
         [{
