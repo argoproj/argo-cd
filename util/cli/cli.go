@@ -145,9 +145,7 @@ func PromptPassword(password string) string {
 			reader := bufio.NewReader(os.Stdin)
 			input, err := reader.ReadString('\n')
 			errors.CheckError(err)
-			// Only strip line terminators. Leading or trailing spaces and tabs
-			// can be intentional parts of a password.
-			password = strings.TrimRight(input, "\r\n")
+			password = strings.TrimSpace(input)
 			return password
 		}
 		password = string(passwordRaw)

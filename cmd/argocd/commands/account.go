@@ -91,9 +91,10 @@ has appropriate RBAC permissions to change other accounts.
 	argocd account update-password --account foobar
 
 	# Non-interactively update a password by piping it to stdin (useful for
-	# scripting). --current-password is required because only the new
-	# password is read from stdin. Avoid 'echo' with a literal password,
-	# it ends up in shell history. Read from a variable or file instead:
+	# scripting). Local users must also pass --current-password, because only
+	# the new password is read from stdin. Other users on the same machine can
+	# see that value with 'ps', so only do this on a host you trust. Avoid
+	# 'echo' with a literal password, it ends up in shell history:
 	printf '%s' "$NEW_PASSWORD" | argocd account update-password \
 	    --stdin --current-password "$OLD_PASSWORD"
 `,
@@ -104,16 +105,17 @@ has appropriate RBAC permissions to change other accounts.
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			if err := validateUpdatePasswordFlags(stdin, currentPassword, newPassword); err != nil {
-				log.Fatal(err)
-			}
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, usrIf := acdClient.NewAccountClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			userInfo := getCurrentAccount(ctx, acdClient)
+			localUser := userInfo.Iss == sessionutil.SessionManagerClaimsIssuer
+			if err := validateUpdatePasswordFlags(stdin, localUser, currentPassword, newPassword); err != nil {
+				log.Fatal(err)
+			}
 
-			if userInfo.Iss == sessionutil.SessionManagerClaimsIssuer && currentPassword == "" {
+			if localUser && currentPassword == "" {
 				fmt.Printf("*** Enter password of currently logged in user (%s): ", userInfo.Username)
 				password, err := term.ReadPassword(int(os.Stdin.Fd()))
 				errors.CheckError(err)
@@ -168,22 +170,23 @@ has appropriate RBAC permissions to change other accounts.
 	command.Flags().StringVar(&currentPassword, "current-password", "", "Password of the currently logged on user")
 	command.Flags().StringVar(&newPassword, "new-password", "", "New password you want to update to")
 	command.Flags().StringVar(&account, "account", "", "An account name that should be updated. Defaults to current user account")
-	command.Flags().BoolVar(&stdin, "stdin", false, "Read the new password from stdin (single read, no confirmation). Requires --current-password.")
+	command.Flags().BoolVar(&stdin, "stdin", false, "Read the new password from stdin (single read, no confirmation). Local users must also pass --current-password.")
 	return command
 }
 
 // validateUpdatePasswordFlags rejects flag combinations that would otherwise
 // silently surprise the caller (e.g. --stdin combined with --new-password,
 // where --stdin is dead code) or leave the command waiting on a TTY in a
-// non-interactive context (--stdin without --current-password).
-func validateUpdatePasswordFlags(stdin bool, currentPassword, newPassword string) error {
+// non-interactive context (--stdin without --current-password for a local
+// user). SSO users are never asked for a current password, so they skip that check.
+func validateUpdatePasswordFlags(stdin, localUser bool, currentPassword, newPassword string) error {
 	if !stdin {
 		return nil
 	}
 	if newPassword != "" {
 		return stderrors.New("--stdin cannot be combined with --new-password")
 	}
-	if currentPassword == "" {
+	if localUser && currentPassword == "" {
 		return stderrors.New("--current-password is required when --stdin is used")
 	}
 	return nil
