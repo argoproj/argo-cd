@@ -1474,6 +1474,11 @@ func (in *ApplicationStatus) DeepCopyInto(out *ApplicationStatus) {
 		copy(*out, *in)
 	}
 	in.SourceHydrator.DeepCopyInto(&out.SourceHydrator)
+	if in.RolledBackRevisions != nil {
+		in, out := &in.RolledBackRevisions, &out.RolledBackRevisions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -4823,6 +4828,11 @@ func (in *SyncOperation) DeepCopyInto(out *SyncOperation) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.RolledBackFromRevisions != nil {
+		in, out := &in.RolledBackFromRevisions, &out.RolledBackFromRevisions
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -4973,6 +4983,11 @@ func (in *SyncPolicyAutomated) DeepCopyInto(out *SyncPolicyAutomated) {
 	}
 	if in.Enabled != nil {
 		in, out := &in.Enabled, &out.Enabled
+		*out = new(bool)
+		**out = **in
+	}
+	if in.RollbackAware != nil {
+		in, out := &in.RollbackAware, &out.RollbackAware
 		*out = new(bool)
 		**out = **in
 	}

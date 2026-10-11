@@ -1272,9 +1272,10 @@ func (m *appStateManager) persistRevisionHistory(
 	revisions []string,
 	sources []v1alpha1.ApplicationSource,
 	hasMultipleSources bool,
-	startedAt metav1.Time,
-	initiatedBy v1alpha1.OperationInitiator,
+	state *v1alpha1.OperationState,
 ) error {
+	startedAt := state.StartedAt
+	initiatedBy := state.Operation.InitiatedBy
 	var nextID int64
 	if len(app.Status.History) > 0 {
 		nextID = app.Status.History.LastRevisionHistory().ID + 1
@@ -1302,16 +1303,32 @@ func (m *appStateManager) persistRevisionHistory(
 
 	app.Status.History = app.Status.History.Trunc(app.Spec.GetRevisionHistoryLimit())
 
-	patch, err := json.Marshal(map[string]map[string][]v1alpha1.RevisionHistory{
-		"status": {
-			"history": app.Status.History,
-		},
-	})
+	statusPatch := map[string]any{
+		"history": app.Status.History,
+	}
+	if state.Operation.Sync.IsRollback() {
+		app.Status.RolledBackRevision = state.Operation.Sync.RolledBackFromRevision
+		app.Status.RolledBackRevisions = state.Operation.Sync.RolledBackFromRevisions
+	} else {
+		app.Status.RolledBackRevision = ""
+		app.Status.RolledBackRevisions = nil
+	}
+	statusPatch["rolledBackRevision"] = nilIfEmpty(app.Status.RolledBackRevision)
+	statusPatch["rolledBackRevisions"] = nilIfEmpty(app.Status.RolledBackRevisions)
+
+	patch, err := json.Marshal(map[string]any{"status": statusPatch})
 	if err != nil {
 		return fmt.Errorf("error marshaling revision history patch: %w", err)
 	}
 	_, err = m.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	return err
+}
+
+func nilIfEmpty[T string | []string](v T) any {
+	if len(v) == 0 {
+		return nil
+	}
+	return v
 }
 
 // NewAppStateManager creates new instance of AppStateManager

@@ -903,6 +903,36 @@ export function getSyncRevisionLabelSuffix(repoUrl: string, targetRevision: stri
     return '';
 }
 
+/** Whether automated sync is configured and not turned off. */
+export function isAutomatedSyncEnabled(app: appModels.Application): boolean {
+    const automated = app.spec.syncPolicy?.automated;
+    return !!automated && automated.enabled !== false;
+}
+
+/**
+ * Whether rollback-aware automated sync applies to this application. An explicit per-application
+ * `rollbackAware` wins over `rollbackAwareDefault`, the instance-wide default served by the settings API.
+ */
+export function isRollbackAwareAutoSync(app: appModels.Application, rollbackAwareDefault?: boolean): boolean {
+    return app.spec.syncPolicy?.automated?.rollbackAware ?? rollbackAwareDefault ?? false;
+}
+
+/**
+ * Whether automated sync is currently paused because the application was rolled back. This mirrors the
+ * controller: a recorded revision only pauses automated sync while the feature applies, and only while the
+ * desired revision is still the recorded one (OutOfSync) or cannot be established at all (Unknown). The record
+ * itself outlives the pause — it is kept when the feature is off, when automated sync is off, and once the
+ * application is Synced — so it is not on its own evidence that anything is being skipped.
+ */
+export function isAutoSyncPausedByRollback(app: appModels.Application, rollbackAwareDefault?: boolean): boolean {
+    const hasRecord = !!app.status.rolledBackRevisions?.length || !!app.status.rolledBackRevision;
+    if (!hasRecord || !isAutomatedSyncEnabled(app) || !isRollbackAwareAutoSync(app, rollbackAwareDefault)) {
+        return false;
+    }
+    const status = app.status.sync?.status;
+    return status === appModels.SyncStatuses.OutOfSync || status === appModels.SyncStatuses.Unknown;
+}
+
 export function syncStatusMessage(app: appModels.Application) {
     const source = getAppDefaultSource(app);
     const revision = getAppDefaultSyncRevision(app);

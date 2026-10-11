@@ -138,6 +138,11 @@ spec:
         - /spec/syncPolicy
 ```
 
+> [!TIP]
+> If you disable auto-sync only to roll back an Application, you may not need this rule. With
+> [rollback-aware automated sync](../../user-guide/auto_sync.md#rollback-aware-automated-sync-v37), you can roll back
+> while auto-sync stays enabled.
+
 ### Limitations of `ignoreApplicationDifferences`
 
 When an ApplicationSet is reconciled, the controller will compare the ApplicationSet spec with the spec of each Application

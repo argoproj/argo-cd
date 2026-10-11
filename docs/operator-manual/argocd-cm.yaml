@@ -420,6 +420,13 @@ data:
   # When omitted or 'false' (the default), rollback uses the 'sync' permission for backwards compatibility.
   server.rbac.rollback.enforce.enable: "false"
 
+  # application.rollbackAwareAutoSyncEnabled allows rollbacks while automated sync is enabled. After a rollback, automated
+  # sync skips the rolled-back revision until the application source moves to a different revision.
+  # This is the instance-wide default; individual applications override it with
+  # spec.syncPolicy.automated.rollbackAware. When omitted or 'false' (the default), rollback requires automated sync
+  # to be disabled first.
+  application.rollbackAwareAutoSyncEnabled: "false"
+
   # exec.enabled indicates whether the UI exec feature is enabled. It is disabled by default.
   exec.enabled: "false"
 
