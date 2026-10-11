@@ -90,6 +90,12 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 		}
 	}
 
+	newOperationStateWithResult := func(phase common.OperationPhase, revision string) *v1alpha1.OperationState {
+		opState := newOperationState(phase)
+		opState.SyncResult = &v1alpha1.SyncOperationResult{Revision: revision}
+		return opState
+	}
+
 	for _, cc := range []struct {
 		name              string
 		appSet            v1alpha1.ApplicationSet
@@ -108,7 +114,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			name:   "handles a nil list of statuses with a healthy application",
 			appSet: newDefaultAppSet(2, nil),
 			apps: []v1alpha1.Application{
-				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "next", newOperationState(common.OperationSucceeded)),
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "next", newOperationStateWithResult(common.OperationSucceeded, "next")),
 			},
 			appStepMap: map[string]int{
 				"app1": 0,
@@ -127,7 +133,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			name:   "moves a new application to healthy when app is synced and healthy",
 			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{}),
 			apps: []v1alpha1.Application{
-				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "current", newOperationStateWithResult(common.OperationSucceeded, "current")),
 			},
 			appStepMap: map[string]int{
 				"app1": 0,
@@ -155,7 +161,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 			}),
 			apps: []v1alpha1.Application{
-				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "current", newOperationStateWithResult(common.OperationSucceeded, "current")),
 			},
 			appStepMap: map[string]int{
 				"app1": 0,
@@ -174,7 +180,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			name:   "moves a new application to progressing when app is synced but not healthy",
 			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{}),
 			apps: []v1alpha1.Application{
-				newApp("app1", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
+				newApp("app1", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced, "current", newOperationStateWithResult(common.OperationSucceeded, "current")),
 			},
 			appStepMap: map[string]int{
 				"app1": 0,
@@ -190,7 +196,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "moves an application with new revision to Healthy when it is not OutOfSync",
+			name: "does not promote a new revision to Healthy when the last successful sync reached the previous revision",
 			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:        "app1",
@@ -202,7 +208,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 			}),
 			apps: []v1alpha1.Application{
-				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "next", newOperationState(common.OperationSucceeded)),
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "next", newOperationStateWithResult(common.OperationSucceeded, "previous")),
 			},
 			appStepMap: map[string]int{
 				"app1": 0,
@@ -210,8 +216,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
-					Message:         "Application resource has synced, updating status to Healthy",
-					Status:          v1alpha1.ProgressiveSyncHealthy,
+					Message:         revisionChangedMsg,
+					Status:          v1alpha1.ProgressiveSyncWaiting,
 					Step:            "1",
 					TargetRevisions: []string{"next"},
 				},
@@ -263,11 +269,11 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "does not move a Healthy application to another status if the revision has not changed",
+			name: "moves a Healthy application back to Waiting when it is OutOfSync for the recorded target",
 			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:        "app1",
-					Message:            "",
+					Message:            "Application resource has synced, updating status to Healthy",
 					Status:             v1alpha1.ProgressiveSyncHealthy,
 					Step:               "1",
 					TargetRevisions:    []string{"next"},
@@ -282,12 +288,11 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					Application:        "app1",
-					Message:            "",
-					Status:             v1alpha1.ProgressiveSyncHealthy,
-					Step:               "1",
-					TargetRevisions:    []string{"next"},
-					LastTransitionTime: &nowMinus5,
+					Application:     "app1",
+					Message:         applicationOutOfSyncMsg,
+					Status:          v1alpha1.ProgressiveSyncWaiting,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
 				},
 			},
 		},
@@ -332,7 +337,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 			}),
 			apps: []v1alpha1.Application{
-				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", newOperationState(common.OperationSucceeded)),
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", newOperationStateWithResult(common.OperationSucceeded, "next")),
 			},
 			appStepMap: map[string]int{
 				"app1": 0,
