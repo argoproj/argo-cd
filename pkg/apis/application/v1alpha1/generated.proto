@@ -2774,6 +2774,9 @@ message SourceIntegrityGitPolicy {
 
   // Verify GPG commit/tag signatures
   optional SourceIntegrityGitPolicyGPG gpg = 2;
+
+  // Verify if tag is annotated, un-annotated tags cannot be signed
+  optional bool signedTagsOnly = 3;
 }
 
 // SourceIntegrityGitPolicyGPG verifies that the commit(s) are both correctly signed by a key in the repo-server keyring,

@@ -74,7 +74,7 @@ func TestGPGUnknownMode(t *testing.T) {
 	gitClient.EXPECT().CommitSHA(mock.Anything).Return("DEADBEEF", nil)
 
 	s := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: "foobar", Keys: []string{}}
-	result, _, err := verify(t.Context(), s, gitClient, "https://github.com/argoproj/argo-cd.git")
+	result, _, err := verifyGPG(t.Context(), s, gitClient, "https://github.com/argoproj/argo-cd.git")
 	require.ErrorContains(t, err, `unknown GPG mode "foobar" configured for GIT source integrity`)
 	assert.Nil(t, result)
 }
@@ -245,7 +245,7 @@ gpg: Good signature from "test user <testuser@example.com>" [ultimate]`, fingerp
 
 	gpgWithTag := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{fingerprint}}
 	// And verifying a given revision
-	result, legacy, err := verify(t.Context(), gpgWithTag, gitClient, "1.0")
+	result, legacy, err := verifyGPG(t.Context(), gpgWithTag, gitClient, "1.0")
 	require.NoError(t, err)
 
 	assert.True(t, result.IsValid())
@@ -301,7 +301,7 @@ gpg: Good signature from "test user <testuser@example.com>" [ultimate]`, keyId)
 				Keys: []string{keyId, "0000000000000000"},
 			}
 			// And verifying a given revision
-			result, legacy, err := verify(t.Context(), gpgWithTag, gitClient, test.revision)
+			result, legacy, err := verifyGPG(t.Context(), gpgWithTag, gitClient, test.revision)
 			require.NoError(t, err)
 			// Then it is checked and valid
 			assert.True(t, result.IsValid())
@@ -342,7 +342,7 @@ func TestGPGSubkeySignature(t *testing.T) {
 
 	t.Run("subkey accepted when its primary is allowed", func(t *testing.T) {
 		gpg := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{primaryKeyID}}
-		result, _, err := verify(t.Context(), gpg, subkeySignature(), "1.0")
+		result, _, err := verifyGPG(t.Context(), gpg, subkeySignature(), "1.0")
 		require.NoError(t, err)
 		assert.True(t, result.IsValid())
 		require.NoError(t, result.AsError())
@@ -350,7 +350,7 @@ func TestGPGSubkeySignature(t *testing.T) {
 
 	t.Run("subkey rejected when its primary is not allowed", func(t *testing.T) {
 		gpg := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{unrelatedKeyID}}
-		result, _, err := verify(t.Context(), gpg, subkeySignature(), "1.0")
+		result, _, err := verifyGPG(t.Context(), gpg, subkeySignature(), "1.0")
 		require.NoError(t, err)
 		assert.False(t, result.IsValid())
 		require.ErrorContains(t, result.AsError(), "signed with unallowed key (key_id="+subkeyID+")")
@@ -645,7 +645,7 @@ gpg: Good signature from "%s" [ultimate]`, "Wed Feb 26 23:22:34 2020 CET", ret[0
 				Keys: []string{keyOfFirst, keyOfSecond},
 			}
 			// And verifying a given revision
-			result, legacy, err := verify(t.Context(), gpgWithTag, gitClient, test.revision)
+			result, legacy, err := verifyGPG(t.Context(), gpgWithTag, gitClient, test.revision)
 			require.NoError(t, err)
 
 			// Then it is checked and valid
@@ -660,6 +660,105 @@ gpg: Good signature from "%s" [ultimate]`, "Wed Feb 26 23:22:34 2020 CET", ret[0
 			}
 			assert.Equal(t, test.expectedLegacy, legacy)
 			assert.Equal(t, test.expectedPassed, result.PassedChecks())
+			assert.Empty(t, logger.GetEntries())
+		})
+	}
+}
+
+func TestSignedTagsOnly(t *testing.T) {
+	const repoURL = "https://github.com/group/app.git"
+	const keyID = "4cfe068f80b1681b"
+	const sha = "0c7a9c3f939c1f19b518bcdd11e2fce9703c4901"
+
+	si := func(signedTagsOnly bool) *v1alpha1.SourceIntegrity {
+		return &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
+			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+				Repos:          []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://github.com/group/*"}},
+				SignedTagsOnly: signedTagsOnly,
+				GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+					Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
+					Keys: []string{keyID},
+				},
+			}},
+		}}
+	}
+
+	// Make the inner GPG check succeed
+	goodSignature := func(gitClient *gitmocks.Client) {
+		gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+			func(_ context.Context, revision string, _ bool) ([]git.RevisionSignatureInfo, string, error) {
+				return []git.RevisionSignatureInfo{{
+					Revision: revision, VerificationResult: git.GPGVerificationResultGood,
+					SignatureKeyID: keyID, Date: "ignored", AuthorIdentity: "ignored",
+				}}, `gpg: Good signature from "test user <testuser@example.com>" [ultimate]`, nil
+			})
+	}
+
+	testCases := []struct {
+		name           string
+		signedTagsOnly bool
+		revision       string
+		annotated      bool
+		expectedError  string
+	}{
+		{
+			name:           "annotated tag passes the gate",
+			signedTagsOnly: true,
+			revision:       "v1.0",
+			annotated:      true,
+		},
+		{
+			name:           "lightweight tag is rejected before verification",
+			signedTagsOnly: true,
+			revision:       "v1.0-lightweight",
+			expectedError:  "SignedTagsOnly is enabled, v1.0-lightweight is not annotated. Un-annotated tags cannot be signed",
+		},
+		{
+			name:           "commit sha is rejected before verification",
+			signedTagsOnly: true,
+			revision:       sha,
+			expectedError:  "SignedTagsOnly is enabled, " + sha + " is not annotated. Un-annotated tags cannot be signed",
+		},
+		{
+			name:           "gate is not applied when SignedTagsOnly is off",
+			signedTagsOnly: false,
+			revision:       sha,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gitClient := &gitmocks.Client{}
+			gitClient.EXPECT().RepoURL().Return(repoURL)
+
+			if tc.signedTagsOnly {
+				gitClient.EXPECT().IsAnnotatedTag(mock.Anything, tc.revision).Return(tc.annotated)
+			}
+			if tc.expectedError == "" {
+				goodSignature(gitClient)
+			}
+
+			logger := utilTest.LogHook{}
+			logrus.AddHook(&logger)
+			t.Cleanup(logger.CleanupHook)
+
+			result, _, err := VerifyGit(t.Context(), si(tc.signedTagsOnly), gitClient, tc.revision)
+
+			if tc.expectedError != "" {
+				require.EqualError(t, err, tc.expectedError)
+				assert.Nil(t, result)
+				gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
+				assert.Equal(t, []string{tc.expectedError}, logger.GetEntries())
+				return
+			}
+
+			require.NoError(t, err)
+			assert.True(t, result.IsValid())
+			assert.Equal(t, []string{"GIT/GPG"}, result.PassedChecks())
+
+			gitClient.AssertCalled(t, "LsSignatures", mock.Anything, tc.revision, false)
+			if !tc.signedTagsOnly {
+				gitClient.AssertNotCalled(t, "IsAnnotatedTag", mock.Anything, mock.Anything)
+			}
 			assert.Empty(t, logger.GetEntries())
 		})
 	}
