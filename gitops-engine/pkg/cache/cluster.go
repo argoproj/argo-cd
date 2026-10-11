@@ -102,10 +102,17 @@ const (
 )
 
 type apiMeta struct {
-	namespaced bool
-	// watchCancel stops the watch of all resources for this API. This gets called when the cache is invalidated or when
-	// the watched API ceases to exist (e.g. a CRD gets deleted).
-	watchCancel context.CancelFunc
+	namespaced   bool
+	watchCancels map[string]context.CancelFunc
+}
+
+func (m *apiMeta) cancelAll() {
+	if m == nil {
+		return
+	}
+	for _, cancel := range m.watchCancels {
+		cancel()
+	}
 }
 
 type eventMeta struct {
@@ -631,7 +638,7 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 	c.syncStatus.lock.Unlock()
 
 	for i := range c.apisMeta {
-		c.apisMeta[i].watchCancel()
+		c.apisMeta[i].cancelAll()
 	}
 	for i := range opts {
 		opts[i](c)
@@ -666,10 +673,23 @@ func (c *clusterCache) stopWatching(gk schema.GroupKind, ns string) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	if info, ok := c.apisMeta[gk]; ok {
-		info.watchCancel()
-		delete(c.apisMeta, gk)
+		if cancel, exists := info.watchCancels[ns]; exists {
+			cancel()
+			delete(info.watchCancels, ns)
+		} else if cancel, exists := info.watchCancels[""]; exists {
+			cancel()
+			delete(info.watchCancels, "")
+		} else if ns == "" {
+			for k, cancel := range info.watchCancels {
+				cancel()
+				delete(info.watchCancels, k)
+			}
+		}
 		c.replaceResourceCache(gk, nil, ns)
 		c.log.Info(fmt.Sprintf("Stop watching: %s not found", gk))
+		if len(info.watchCancels) == 0 {
+			delete(c.apisMeta, gk)
+		}
 	}
 }
 
@@ -691,34 +711,48 @@ func (c *clusterCache) startMissingWatches() error {
 	for i := range apis {
 		api := apis[i]
 		namespacedResources[api.GroupKind] = api.Meta.Namespaced
-		if _, ok := c.apisMeta[api.GroupKind]; !ok {
-			ctx, cancel := context.WithCancel(context.Background())
-			c.apisMeta[api.GroupKind] = &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
+		info, ok := c.apisMeta[api.GroupKind]
+		if !ok {
+			info = &apiMeta{namespaced: api.Meta.Namespaced, watchCancels: make(map[string]context.CancelFunc)}
+			c.apisMeta[api.GroupKind] = info
+		}
 
-			err := c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
-				resourceVersion, err := c.loadInitialState(ctx, api, resClient, ns, false) // don't lock here, we are already in a lock before startMissingWatches is called inside watchEvents
-				if err != nil && c.isRestrictedResource(err) {
-					keep := false
-					if c.respectRBAC == RespectRbacStrict {
-						k, permErr := c.checkPermission(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api)
-						if permErr != nil {
-							return fmt.Errorf("failed to check permissions for resource %s: %w, original error=%v", api.GroupKind.String(), permErr, err.Error())
-						}
-						keep = k
-					}
-					// if we are not allowed to list the resource, remove it from the watch list
-					if !keep {
-						delete(c.apisMeta, api.GroupKind)
-						delete(namespacedResources, api.GroupKind)
-						return nil
-					}
-				}
-				go c.watchEvents(ctx, api, resClient, ns, resourceVersion)
+		err := c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
+			if _, watching := info.watchCancels[ns]; watching {
 				return nil
-			})
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			resourceVersion, err := c.loadInitialState(ctx, api, resClient, ns, false) // don't lock here, we are already in a lock before startMissingWatches is called inside watchEvents
+			if err != nil && c.isRestrictedResource(err) {
+				keep := false
+				if c.respectRBAC == RespectRbacStrict {
+					k, permErr := c.checkPermission(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api)
+					if permErr != nil {
+						cancel()
+						return fmt.Errorf("failed to check permissions for resource %s: %w, original error=%v", api.GroupKind.String(), permErr, err.Error())
+					}
+					keep = k
+				}
+				// if we are not allowed to list the resource, remove it from the watch list
+				if !keep {
+					cancel()
+					return nil
+				}
+			}
 			if err != nil {
+				cancel()
 				return err
 			}
+			info.watchCancels[ns] = cancel
+			go c.watchEvents(ctx, api, resClient, ns, resourceVersion)
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		if len(info.watchCancels) == 0 {
+			delete(c.apisMeta, api.GroupKind)
+			delete(namespacedResources, api.GroupKind)
 		}
 	}
 	c.namespacedResources = namespacedResources
@@ -1141,7 +1175,7 @@ func (c *clusterCache) sync() (err error) {
 	}()
 
 	for i := range c.apisMeta {
-		c.apisMeta[i].watchCancel()
+		c.apisMeta[i].cancelAll()
 	}
 
 	if c.batchEventsProcessing {
@@ -1200,14 +1234,14 @@ func (c *clusterCache) sync() (err error) {
 	err = kube.RunAllAsync(len(apis), func(i int) error {
 		api := apis[i]
 
-		ctx, cancel := context.WithCancel(context.Background())
-		info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
+		info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancels: make(map[string]context.CancelFunc)}
 		syncLock.Lock()
 		c.apisMeta[api.GroupKind] = info
 		c.namespacedResources[api.GroupKind] = api.Meta.Namespaced
 		syncLock.Unlock()
 
-		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
+		err := c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
+			ctx, cancel := context.WithCancel(context.Background())
 			resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
 				// Use the WithAlloc variant: newResource may retain the object (as Resource.Resource, or via the
 				// Info returned by the OnPopulateResourceInfoHandler). Plain EachListItem yields &list.Items[i],
@@ -1230,26 +1264,39 @@ func (c *clusterCache) sync() (err error) {
 					if c.respectRBAC == RespectRbacStrict {
 						k, permErr := c.checkPermission(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api)
 						if permErr != nil {
+							cancel()
 							return fmt.Errorf("failed to check permissions for resource %s: %w, original error=%v", api.GroupKind.String(), permErr, err.Error())
 						}
 						keep = k
 					}
 					// if we are not allowed to list the resource, remove it from the watch list
 					if !keep {
-						syncLock.Lock()
-						delete(c.apisMeta, api.GroupKind)
-						delete(c.namespacedResources, api.GroupKind)
-						syncLock.Unlock()
+						cancel()
 						return nil
 					}
 				}
+				cancel()
 				return fmt.Errorf("failed to load initial state of resource %s: %w", api.GroupKind.String(), err)
 			}
+
+			syncLock.Lock()
+			info.watchCancels[ns] = cancel
+			syncLock.Unlock()
 
 			go c.watchEvents(ctx, api, resClient, ns, resourceVersion)
 
 			return nil
 		})
+		if err != nil {
+			return err
+		}
+		syncLock.Lock()
+		if len(info.watchCancels) == 0 {
+			delete(c.apisMeta, api.GroupKind)
+			delete(c.namespacedResources, api.GroupKind)
+		}
+		syncLock.Unlock()
+		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("failed to sync cluster %s: %w", c.config.Host, err)
