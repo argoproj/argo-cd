@@ -310,6 +310,71 @@ connectors:
       nameAttr: cn
 `
 
+// goodDexConfigWithRestrictedGrantTypes has an explicit oauth2.grantTypes list that
+// does NOT include urn:ietf:params:oauth:grant-type:device_code. GenerateDexConfigYAML
+// must respect this restriction and NOT inject device_code — the operator intentionally
+// excluded it. A warning is emitted instead.
+var goodDexConfigWithRestrictedGrantTypes = `
+oauth2:
+  passwordConnector: ldap
+  grantTypes:
+  - authorization_code
+  - refresh_token
+connectors:
+- type: ldap
+  name: OpenLDAP
+  id: ldap
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: admin
+    usernamePrompt: Email Address
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=person)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+    groupSearch:
+      baseDN: ou=Groups,dc=example,dc=org
+      filter: "(objectClass=groupOfNames)"
+      nameAttr: cn
+`
+
+// goodDexConfigWithDeviceCodeGrantType already contains device_code in grantTypes.
+// GenerateDexConfigYAML must not add a second copy.
+var goodDexConfigWithDeviceCodeGrantType = `
+oauth2:
+  passwordConnector: ldap
+  grantTypes:
+  - authorization_code
+  - refresh_token
+  - urn:ietf:params:oauth:grant-type:device_code
+connectors:
+- type: ldap
+  name: OpenLDAP
+  id: ldap
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: admin
+    usernamePrompt: Email Address
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=person)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+    groupSearch:
+      baseDN: ou=Groups,dc=example,dc=org
+      filter: "(objectClass=groupOfNames)"
+      nameAttr: cn
+`
+
 var goodDexConfigWithEnabledApprovalScreen = `
 oauth2:
   passwordConnector: ldap
@@ -819,6 +884,80 @@ func Test_GenerateDexConfig(t *testing.T) {
 		skipApprScr, ok := oauth2Config["skipApprovalScreen"].(bool)
 		assert.True(t, ok)
 		assert.False(t, skipApprScr)
+	})
+	t.Run("device_code grant type is not injected when oauth2.grantTypes is explicitly restricted", func(t *testing.T) {
+		// Operator explicitly restricted grantTypes without device_code.
+		// GenerateDexConfigYAML must respect that restriction and leave the list
+		// unchanged — a warning is emitted but device_code is NOT appended.
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithRestrictedGrantTypes,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		require.NotNil(t, config)
+		var dexCfg map[string]any
+		err = yaml.Unmarshal(config, &dexCfg)
+		require.NoError(t, err)
+
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]any)
+		require.True(t, ok)
+		rawGrants, ok := oauth2Config["grantTypes"].([]any)
+		require.True(t, ok)
+
+		grants := make([]string, 0, len(rawGrants))
+		for _, g := range rawGrants {
+			grants = append(grants, g.(string))
+		}
+		// The operator's restriction must be preserved — device_code must NOT appear.
+		assert.NotContains(t, grants, deviceCodeGrantType)
+		assert.Contains(t, grants, "authorization_code")
+		assert.Contains(t, grants, "refresh_token")
+	})
+	t.Run("device_code grant type is not duplicated when already present in oauth2.grantTypes", func(t *testing.T) {
+		// Operator already included device_code; it must appear exactly once.
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithDeviceCodeGrantType,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		require.NotNil(t, config)
+		var dexCfg map[string]any
+		err = yaml.Unmarshal(config, &dexCfg)
+		require.NoError(t, err)
+
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]any)
+		require.True(t, ok)
+		rawGrants, ok := oauth2Config["grantTypes"].([]any)
+		require.True(t, ok)
+
+		count := 0
+		for _, g := range rawGrants {
+			if g.(string) == deviceCodeGrantType {
+				count++
+			}
+		}
+		assert.Equal(t, 1, count, "device_code should appear exactly once in grantTypes")
+	})
+	t.Run("device_code grant type is not injected when oauth2.grantTypes is absent", func(t *testing.T) {
+		// Operator did not set grantTypes at all; the code must not create the key,
+		// leaving Dex to use its own defaults (which include device_code).
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithOauthOverrides,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		require.NotNil(t, config)
+		var dexCfg map[string]any
+		err = yaml.Unmarshal(config, &dexCfg)
+		require.NoError(t, err)
+
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]any)
+		require.True(t, ok)
+		_, hasGrants := oauth2Config["grantTypes"]
+		assert.False(t, hasGrants, "grantTypes should not be injected when not set by the operator")
 	})
 }
 
