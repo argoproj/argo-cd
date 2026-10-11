@@ -20,9 +20,10 @@ export const useSidebarTarget = () => {
 
     React.useEffect(() => {
         const sidebar = document.getElementById(SIDEBAR_TOOLS_ID);
-        sidebar.appendChild(sidebarTarget?.current);
+        const target = sidebarTarget.current;
+        sidebar.appendChild(target);
         return () => {
-            sidebarTarget.current?.remove();
+            target?.remove();
         };
     }, []);
 
