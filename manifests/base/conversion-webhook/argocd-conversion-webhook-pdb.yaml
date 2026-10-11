@@ -1,0 +1,16 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-conversion-webhook
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: conversion-webhook
+  name: argocd-conversion-webhook
+spec:
+  # Keep at least one webhook pod through voluntary disruptions (node drains,
+  # cluster upgrades): kube-apiserver calls this webhook to serve every
+  # v1beta1 Application request, including all controller status writes.
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-conversion-webhook

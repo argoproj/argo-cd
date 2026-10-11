@@ -9,6 +9,7 @@ resources:
 - ../base/applicationset-controller
 - ../base/repo-server
 - ../base/redis
+- ../base/conversion-webhook
 images:
 - name: quay.io/argoproj/argocd
   newName: quay.io/argoproj/argocd

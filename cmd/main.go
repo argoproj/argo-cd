@@ -13,6 +13,7 @@ import (
 	applicationset "github.com/argoproj/argo-cd/v3/cmd/argocd-applicationset-controller/commands"
 	cmpserver "github.com/argoproj/argo-cd/v3/cmd/argocd-cmp-server/commands"
 	commitserver "github.com/argoproj/argo-cd/v3/cmd/argocd-commit-server/commands"
+	conversionwebhook "github.com/argoproj/argo-cd/v3/cmd/argocd-conversion-webhook/commands"
 	dex "github.com/argoproj/argo-cd/v3/cmd/argocd-dex/commands"
 	gitaskpass "github.com/argoproj/argo-cd/v3/cmd/argocd-git-ask-pass/commands"
 	k8sauth "github.com/argoproj/argo-cd/v3/cmd/argocd-k8s-auth/commands"
@@ -70,6 +71,8 @@ func main() {
 	case common.CommandK8sAuth:
 		command = k8sauth.NewCommand()
 		isArgocdCLI = true
+	case "argocd-conversion-webhook":
+		command = conversionwebhook.NewCommand()
 	default:
 		// "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe" are also valid binary names
 		command = cli.NewCommand()
