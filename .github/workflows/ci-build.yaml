@@ -33,6 +33,9 @@ jobs:
       backend: ${{ steps.filter.outputs.backend_any_changed }}
       frontend: ${{ steps.filter.outputs.frontend_any_changed }}
       docs: ${{ steps.filter.outputs.docs_any_changed }}
+      e2e: ${{ steps.filter.outputs.e2e_any_changed }}
+      e2e_shards: ${{ steps.shards.outputs.list }}
+      e2e_shard_count: ${{ steps.shards.outputs.count }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         if: ${{ vars.disable_harden_runner != 'true' }}
@@ -45,7 +48,9 @@ jobs:
       - uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
         id: filter
         with:
-          # Any file which is not under docs/, ui/ or is not a markdown file is counted as a backend file.
+          # Any file which is not under docs/, ui/, manifests/, is not VERSION, or is not a markdown
+          # file is counted as a backend file.
+          # Version bumps (VERSION + manifests only) skip backend CI (tests, lint, e2e, etc.).
           # ui/embed.go and ui/dist/app placeholder files are Go embed inputs; changes must run make build-local.
           files_yaml: |
             backend:
@@ -54,6 +59,34 @@ jobs:
               - '!**.md'
               - '!**/*.md'
               - '!docs/**'
+              - '!VERSION'
+              - '!manifests/**'
+              - 'ui/embed.go'
+              - 'ui/dist/app/gitkeep'
+              - 'ui/dist/app/assets/images/resources/.gitkeep'
+            # The e2e suite is the backend set minus paths that provably cannot change its
+            # outcome. Keep this list conservative: a false negative here means a regression
+            # ships untested, while a false positive only costs CI time.
+            e2e:
+              - '**'
+              - '!ui/**'
+              - '!**.md'
+              - '!**/*.md'
+              - '!docs/**'
+              # Workflows other than this one never execute during the e2e job. This file is
+              # re-included below because it defines the job itself.
+              - '!.github/**'
+              - '.github/workflows/ci-build.yaml'
+              # Consumed by docs generation and the notifications engine's own unit tests.
+              - '!notifications_catalog/**'
+              # Sample manifests for users; never applied by the e2e fixtures.
+              - '!examples/**'
+              # Renovate/Sonar/ownership metadata, not build or runtime inputs.
+              - '!renovate-presets/**'
+              - '!renovate.json'
+              - '!sonar-project.properties'
+              - '!CODEOWNERS'
+              - '!OWNERS'
               - 'ui/embed.go'
               - 'ui/dist/app/gitkeep'
               - 'ui/dist/app/assets/images/resources/.gitkeep'
@@ -62,6 +95,17 @@ jobs:
               - Dockerfile
             docs:
               - 'docs/**'
+      - name: Compute the e2e shard split
+        id: shards
+        env:
+          SHARD_COUNT: '4'
+        run: |
+          set -eu
+          # awk rather than `seq -s,`: BSD seq appends a trailing separator and GNU does
+          # not, which would emit invalid JSON on a non-GNU runner.
+          list=$(awk -v n="${SHARD_COUNT}" 'BEGIN { printf "["; for (i = 1; i <= n; i++) printf "%s%d", (i > 1 ? "," : ""), i; printf "]" }')
+          echo "count=${SHARD_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "list=${list}" >> "$GITHUB_OUTPUT"
   check-go:
     name: Ensure Go modules synchronicity
     if: ${{ needs.changes.outputs.backend == 'true' }}
@@ -155,6 +199,64 @@ jobs:
           version: v2.13.2
           args: --verbose
 
+  lint-actions:
+    permissions:
+      contents: read # for actions/checkout to fetch code
+    name: Lint GitHub Actions workflows
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-24.04
+    needs:
+      - changes
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Golang
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Install actionlint
+        run: |
+          ./hack/install.sh actionlint
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Run actionlint
+        run: make actionlint-local
+
+  lint-manifests:
+    permissions:
+      contents: read # for actions/checkout to fetch code
+    name: Validate install manifests
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    runs-on: ubuntu-24.04
+    needs:
+      - changes
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Golang
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GOLANG_VERSION }}
+      - name: Install kubeconform
+        run: |
+          ./hack/install.sh kubeconform
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Run kubeconform
+        run: make kubeconform-local
+
   test-go:
     name: Run unit tests for Go packages
     if: ${{ needs.changes.outputs.backend == 'true' }}
@@ -179,7 +281,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Create symlink in GOPATH
-        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
+        run: ln -s "$(pwd)" ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -256,7 +358,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Create symlink in GOPATH
-        run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
+        run: ln -s "$(pwd)" ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
@@ -362,7 +464,8 @@ jobs:
       - name: Run codegen
         run: |
           set -x
-          export GOPATH=$(go env GOPATH)
+          GOPATH=$(go env GOPATH)
+          export GOPATH
           git checkout -- go.mod go.sum
           make codegen-local
         # generalizing repo name for forks:  ${{ github.event.repository.name }}
@@ -399,7 +502,7 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           # renovate: datasource=node-version packageName=node versioning=node
-          node-version: '24.17.0'
+          node-version: '24.21.0'
           cache: 'pnpm'
           cache-dependency-path: '**/pnpm-lock.yaml'
       - name: Install node dependencies
@@ -407,7 +510,7 @@ jobs:
           cd ui && pnpm i --frozen-lockfile
       - name: Build UI code
         run: |
-          NODE_ENV=test pnpm test
+          NODE_ENV='test' pnpm test
           pnpm build
         env:
           NODE_ENV: production
@@ -428,12 +531,17 @@ jobs:
           persist-credentials: false
       - run: |
           sudo apt-get install shellcheck
+          # shellcheck disable=SC2046
           shellcheck -e SC2059 -e SC2154 -e SC2034 -e SC2016 -e SC1091 $(find . -type f -name '*.sh' | grep -v './ui/node_modules') | tee sc.log
           test ! -s sc.log
 
   analyze:
     name: Process & analyze test artifacts
-    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
+    if: >-
+      ${{ !cancelled()
+          && needs.test-go.result == 'success'
+          && needs.build-ui.result == 'success'
+          && (needs.test-e2e.result == 'success' || needs.test-e2e.result == 'skipped') }}
     runs-on: ubuntu-24.04
     needs:
       - test-go
@@ -455,9 +563,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Get e2e code coverage
+        if: ${{ needs.test-e2e.result == 'success' }}
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: e2e-code-coverage
+          pattern: e2e-code-coverage-shard*
           path: e2e-code-coverage
       - name: Get unit test code coverage
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -472,12 +581,26 @@ jobs:
           go tool covdata merge -pcombine -i=test-results,test-results/gitops-engine -o test-results/merged
           go tool covdata textfmt -i=test-results/merged -o test-results/unit-coverage.out
       - name: Generate e2e test coverage profile
+        if: ${{ needs.test-e2e.result == 'success' }}
         # We generate coverage reports for all Argo CD components, but only the applicationset-controller,
         # app-controller, repo-server, and commit-server report contain coverage data. The other components currently
         # don't shut down gracefully, so no coverage data is produced. Once those components are fixed, we can add
         # references to their coverage output directories.
+        # Each e2e shard uploads its own artifact, so the per-component directories appear
+        # once per shard and have to be merged before they can be converted to text.
         run: |
-          go tool covdata textfmt -i=e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server,e2e-code-coverage/app-controller,e2e-code-coverage/commit-server -o test-results/e2e-coverage.out
+          set -o pipefail
+          dirs=$(find e2e-code-coverage -mindepth 2 -maxdepth 2 -type d \
+            \( -name applicationset-controller -o -name repo-server -o -name app-controller -o -name commit-server \) \
+            | sort | paste -sd, -)
+          if [ -z "$dirs" ]; then
+            echo "no e2e coverage directories found under e2e-code-coverage/" >&2
+            exit 1
+          fi
+          echo "merging: $dirs"
+          mkdir -p e2e-code-coverage/merged
+          go tool covdata merge -pcombine -i="$dirs" -o e2e-code-coverage/merged
+          go tool covdata textfmt -i=e2e-code-coverage/merged -o test-results/e2e-coverage.out
       - name: Upload unit test coverage to codecov.io
         if: github.repository == 'argoproj/argo-cd'
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
@@ -490,8 +613,8 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload e2e test coverage to codecov.io
-        if: github.repository == 'argoproj/argo-cd'
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        if: ${{ needs.test-e2e.result == 'success' && github.repository == 'argoproj/argo-cd' }}
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.0.0
         with:
           version: v11.2.8 # https://github.com/getsentry/prevent-cli/releases/tag/v11.2.8
           files: test-results/e2e-coverage.out
@@ -514,11 +637,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         if: env.sonar_secret != ''
   test-e2e:
-    name: Run end-to-end tests
-    if: ${{ needs.changes.outputs.backend == 'true' }}
+    # Without an explicit name GitHub builds one from every matrix value, which leaks
+    # the meaningless `latest` boolean into all 16 check names, e.g. "(v1.34.11, false, 1)".
+    name: e2e (k8s ${{ matrix.k3s.version }}, shard ${{ matrix.shard }})
+    if: ${{ needs.changes.outputs.e2e == 'true' }}
     runs-on: ${{ github.repository == 'argoproj/argo-cd' && 'oracle-vm-16cpu-64gb-x86-64' || 'ubuntu-24.04' }}
     strategy:
       fail-fast: false
@@ -534,6 +659,9 @@ jobs:
             latest: false
           - version: v1.34.11
             latest: false
+        # The e2e suite is one serial package; splitting it across jobs is the only way to
+        # cut its wall-clock time. Legs and count both come from the changes job.
+        shard: ${{ fromJSON(needs.changes.outputs.e2e_shards) }}
     needs:
       - build-go
       - changes
@@ -542,6 +670,8 @@ jobs:
       ARGOCD_E2E_K3S: 'true'
       ARGOCD_IN_CI: 'true'
       ARGOCD_E2E_APISERVER_PORT: '8088'
+      ARGOCD_E2E_SHARD: ${{ matrix.shard }}
+      ARGOCD_E2E_SHARD_COUNT: ${{ needs.changes.outputs.e2e_shard_count }}
       ARGOCD_APPLICATION_NAMESPACES: 'argocd-e2e-external,argocd-e2e-external-2'
       ARGOCD_SERVER: '127.0.0.1:8088'
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -575,7 +705,7 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           # renovate: datasource=node-version packageName=node versioning=node
-          node-version: '24.17.0'
+          node-version: '24.21.0'
       - name: Install pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
@@ -590,9 +720,10 @@ jobs:
           set -x
           curl -sfL https://get.k3s.io | sh -
           sudo chmod -R a+rw /etc/rancher/k3s
-          sudo mkdir -p $HOME/.kube && sudo chown -R $(whoami) $HOME/.kube
+          sudo mkdir -p $HOME/.kube && sudo chown -R "$(whoami)" $HOME/.kube
+          # shellcheck disable=SC2024
           sudo k3s kubectl config view --raw > $HOME/.kube/config
-          sudo chown $(whoami) $HOME/.kube/config
+          sudo chown "$(whoami)" $HOME/.kube/config
           sudo chmod go-r $HOME/.kube/config
           kubectl version
       - name: Restore go build and module cache
@@ -629,14 +760,14 @@ jobs:
       - name: Pull Docker image required for tests
         run: |
           # renovate: datasource=github-releases depName=dexidp/dex
-          docker pull ghcr.io/dexidp/dex:v2.45.1
+          docker pull ghcr.io/dexidp/dex:v2.46.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
           # renovate: datasource=docker packageName=docker.io/library/redis
           docker pull redis:8.10.2-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
-          chown $(whoami) dist
+          chown "$(whoami)" dist
       - name: Run E2E server and wait for it being available
         timeout-minutes: 30
         run: |
@@ -656,23 +787,43 @@ jobs:
             count=$((count+1))
           done
       - name: Run E2E testsuite
+        id: e2e
         run: |
           set -x
           make test-e2e-local
+          # gotestsum retries failures (--rerun-fails), so a green job can still hide a
+          # flake. Flag it so the server logs below are kept for diagnosis.
+          if [ -s rerunreport.txt ]; then
+            echo "reran=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::e2e tests were retried; see the e2e-server log artifact"
+            cat rerunreport.txt
+          fi
           goreman run stop-all || echo "goreman trouble"
           sleep 30
       - name: Upload e2e coverage report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: e2e-code-coverage
+          name: e2e-code-coverage-shard${{ matrix.shard }}
           path: /tmp/coverage
         if: ${{ matrix.k3s.latest }}
-      - name: Upload e2e-server logs
+      - name: Upload e2e test timings
+        # Feeds hack/e2e-shard-weights.sh, which regenerates test/e2e/shard-weights.txt.
+        # Only the "latest" k3s version is needed: one full pass over the suite.
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: e2e-server-k8s${{ matrix.k3s.version }}.log
-          path: /tmp/e2e-server.log
-        if: ${{ failure() }}
+          name: e2e-test-timings-shard${{ matrix.shard }}
+          path: test-results/junit.xml
+        if: ${{ matrix.k3s.latest }}
+      - name: Upload e2e-server logs
+        # Also kept when a test only failed on its first attempt: without this the logs
+        # for a retried-then-passed flake are discarded and it cannot be diagnosed.
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-server-k8s${{ matrix.k3s.version }}-shard${{ matrix.shard }}.log
+          path: |
+            /tmp/e2e-server.log
+            rerunreport.txt
+        if: ${{ failure() || steps.e2e.outputs.reran == 'true' }}
 
   # workaround for status checks -- check this one job instead of each individual E2E job in the matrix
   # this allows us to skip the entire matrix when it doesn't need to run while still having accurate status checks

@@ -147,6 +147,11 @@ metadata:
 To confirm the deletion you can use Argo CD UI, CLI or manually apply the `argocd.argoproj.io/deletion-approved: <ISO formatted timestamp>`
 annotation to the application.
 
+When deletion requires confirmation, the Application remains in a Deleting state until approval is granted.
+The UI displays a "Confirm Deletion" button to approve the deletion:
+
+![Argo CD Application UI showing the Confirm Deletion button](../assets/confirm-delete.png)
+
 It is also possible to set this option as a default option on the application level:
 
 ```yaml

@@ -235,11 +235,10 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
     const [itemsPer, setItemsPer] = React.useState(0);
 
     React.useEffect(() => {
+        let timeoutId: ReturnType<typeof setTimeout>;
         const handleResize = () => {
-            let timeoutId: any;
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
-                timeoutId = null;
                 const itemWidth = itemRef.current ? itemRef.current.offsetWidth : -1;
                 const containerWidth = containerRef.current ? containerRef.current.offsetWidth : -1;
                 const curItemsPer = containerWidth > 0 && itemWidth > 0 ? Math.floor(containerWidth / itemWidth) : 1;
@@ -251,6 +250,7 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
         window.addEventListener('resize', handleResize);
         handleResize();
         return () => {
+            clearTimeout(timeoutId);
             window.removeEventListener('resize', handleResize);
         };
     }, []);

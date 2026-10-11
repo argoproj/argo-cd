@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -269,25 +270,49 @@ func init() {
 }
 
 func loginAs(username, password string) error {
-	deadline := time.Now().Add(30 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	for {
-		err := tryLoginAs(username, password)
-		if status.Code(err) != codes.Unavailable || time.Now().After(deadline) {
+		attemptCtx, cancelAttempt := context.WithTimeout(ctx, 5*time.Second)
+		err := tryLoginAs(attemptCtx, username, password)
+		cancelAttempt()
+		if !isLoginRetryable(err) || ctx.Err() != nil {
 			return err
 		}
 		log.Warnf("API server unavailable while logging in as %s, retrying: %v", username, err)
-		time.Sleep(500 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(500 * time.Millisecond):
+		}
 	}
 }
 
-func tryLoginAs(username, password string) error {
-	closer, client, err := ArgoCDClientset.NewSessionClient()
+func removeAllRetrying(path string) error {
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		err := os.RemoveAll(path)
+		if !stderrors.Is(err, syscall.ENOTEMPTY) || time.Now().After(deadline) {
+			return err
+		}
+		log.Warnf("%s is still being written to, retrying removal: %v", path, err)
+		time.Sleep(200 * time.Millisecond)
+	}
+}
+
+func isLoginRetryable(err error) bool {
+	code := status.Code(err)
+	return code == codes.Unavailable || code == codes.DeadlineExceeded
+}
+
+func tryLoginAs(ctx context.Context, username, password string) error {
+	closer, client, err := ArgoCDClientset.NewSessionClientWithContext(ctx)
 	if err != nil {
 		return status.Errorf(codes.Unavailable, "connecting to API server: %v", err)
 	}
 	defer utilio.Close(closer)
 
-	userInfoResponse, err := client.GetUserInfo(context.Background(), &sessionpkg.GetUserInfoRequest{})
+	userInfoResponse, err := client.GetUserInfo(ctx, &sessionpkg.GetUserInfoRequest{})
 	if err != nil {
 		return err
 	}
@@ -295,7 +320,7 @@ func tryLoginAs(username, password string) error {
 		return nil
 	}
 
-	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: username, Password: password})
+	sessionResponse, err := client.Create(ctx, &sessionpkg.SessionCreateRequest{Username: username, Password: password})
 	if err != nil {
 		return err
 	}
@@ -921,7 +946,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 				return err
 			}
 			for _, entry := range entries {
-				err := os.RemoveAll(filepath.Join(tmpDir, entry.Name()))
+				err := removeAllRetrying(filepath.Join(tmpDir, entry.Name()))
 				if err != nil {
 					return err
 				}
