@@ -235,9 +235,13 @@ type clusterCache struct {
 
 	apisMeta              map[schema.GroupKind]*apiMeta
 	batchEventsProcessing bool
-	eventMetaCh           chan eventMeta
-	serverVersion         string
-	apiResources          []kube.APIResourceInfo
+	// eventMetaCh carries watch events to the processEvents goroutine started by the
+	// current sync. eventMetaDone is closed when that generation is retired. Both are
+	// guarded by lock, and both are replaced on every sync.
+	eventMetaCh   chan eventMeta
+	eventMetaDone chan struct{}
+	serverVersion string
+	apiResources  []kube.APIResourceInfo
 	// namespacedResources is a simple map which indicates a groupKind is namespaced
 	namespacedResources map[schema.GroupKind]bool
 
@@ -1147,6 +1151,7 @@ func (c *clusterCache) sync() (err error) {
 	if c.batchEventsProcessing {
 		c.invalidateEventMeta()
 		c.eventMetaCh = make(chan eventMeta)
+		c.eventMetaDone = make(chan struct{})
 	}
 
 	syncLock.Lock()
@@ -1193,7 +1198,10 @@ func (c *clusterCache) sync() (err error) {
 	}
 
 	if c.batchEventsProcessing {
-		go c.processEvents()
+		// Hand this generation's channels to the goroutine. It must not read them back
+		// off the cache later: by then an Invalidate may have cleared them, and the
+		// goroutine would wait on a nil channel forever.
+		go c.processEvents(c.eventMetaCh, c.eventMetaDone)
 	}
 
 	discoveryEnd = time.Now()
@@ -1257,11 +1265,18 @@ func (c *clusterCache) sync() (err error) {
 	return nil
 }
 
-// invalidateEventMeta closes the eventMeta channel if it is open
+// invalidateEventMeta retires the current event-processing generation. The caller
+// must hold c.lock.
+//
+// It closes eventMetaDone rather than eventMetaCh. recordEvent sends on eventMetaCh
+// without holding the lock, so closing that channel here would panic those senders
+// with "send on closed channel". Closing a separate done channel stops both the
+// senders and the processEvents goroutine without touching the channel they use.
 func (c *clusterCache) invalidateEventMeta() {
 	if c.eventMetaCh != nil {
-		close(c.eventMetaCh)
+		close(c.eventMetaDone)
 		c.eventMetaCh = nil
+		c.eventMetaDone = nil
 	}
 }
 
@@ -1696,7 +1711,21 @@ func (c *clusterCache) recordEvent(event watch.EventType, un *unstructured.Unstr
 	}
 
 	if c.batchEventsProcessing {
-		c.eventMetaCh <- eventMeta{event, un}
+		c.lock.RLock()
+		ch, done := c.eventMetaCh, c.eventMetaDone
+		c.lock.RUnlock()
+		if ch == nil {
+			// The cache has been invalidated and not synced again yet. The next sync
+			// relists every resource, so this event is not needed.
+			return
+		}
+		// The lock is released before the send: processEventsBatch takes it to drain the
+		// channel, so holding it here would deadlock. done unblocks the send if this
+		// generation is retired while we wait for the reader.
+		select {
+		case ch <- eventMeta{event, un}:
+		case <-done:
+		}
 	} else {
 		c.lock.Lock()
 		defer c.lock.Unlock()
@@ -1704,13 +1733,9 @@ func (c *clusterCache) recordEvent(event watch.EventType, un *unstructured.Unstr
 	}
 }
 
-func (c *clusterCache) processEvents() {
+func (c *clusterCache) processEvents(ch <-chan eventMeta, done <-chan struct{}) {
 	log := c.log.WithValues("functionName", "processItems")
 	log.V(1).Info("Start processing events")
-
-	c.lock.Lock()
-	ch := c.eventMetaCh
-	c.lock.Unlock()
 
 	eventMetas := make([]eventMeta, 0)
 	ticker := time.NewTicker(c.eventProcessingInterval)
@@ -1718,22 +1743,24 @@ func (c *clusterCache) processEvents() {
 
 	for {
 		select {
-		case evMeta, ok := <-ch:
-			if !ok {
-				log.V(2).Info("Event processing channel closed, finish processing")
-				return
-			}
+		case <-done:
+			log.V(2).Info("Event processing generation retired, finish processing")
+			return
+		case evMeta := <-ch:
 			eventMetas = append(eventMetas, evMeta)
 		case <-ticker.C:
 			if len(eventMetas) > 0 {
-				c.processEventsBatch(eventMetas)
+				c.processEventsBatch(eventMetas, done)
 				eventMetas = eventMetas[:0]
 			}
 		}
 	}
 }
 
-func (c *clusterCache) processEventsBatch(eventMetas []eventMeta) {
+// processEventsBatch applies a batch of watch events. done belongs to the generation
+// the events were collected for; a batch whose generation was retired while it waited
+// for the lock is dropped rather than applied.
+func (c *clusterCache) processEventsBatch(eventMetas []eventMeta, done <-chan struct{}) {
 	log := c.log.WithValues("functionName", "processEventsBatch")
 	start := time.Now()
 	c.lock.RLock()
@@ -1760,6 +1787,17 @@ func (c *clusterCache) processEventsBatch(eventMetas []eventMeta) {
 			handler(duration, len(eventMetas))
 		}
 	}()
+
+	// invalidateEventMeta closes done while holding this lock, so the check is
+	// authoritative: if the generation is current here, it stays current until we
+	// unlock. A resync has already relisted every resource, so applying events
+	// collected before it would write stale state over the fresh cache.
+	select {
+	case <-done:
+		log.V(2).Info("Dropping events from a retired generation", "count", len(eventMetas))
+		return
+	default:
+	}
 
 	for i, evMeta := range eventMetas {
 		key := kube.GetResourceKey(evMeta.un)
