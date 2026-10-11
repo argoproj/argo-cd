@@ -1148,6 +1148,10 @@ func TestHydrator_hydrate_Success(t *testing.T) {
 		assert.Equal(t, "hydrated-next", in.TargetBranch)
 		assert.Equal(t, "sha123", in.DrySha)
 		assert.Equal(t, writeRepo, in.Repo)
+		// The dry source repository URL is sent so the commit server can
+		// render the README's git clone command against it. See
+		// https://github.com/argoproj/argo-cd/issues/29197.
+		assert.Equal(t, "https://example.com/repo", in.DrySourceRepoURL)
 		assert.Len(t, in.Paths, 2)
 		assert.Equal(t, app1.Spec.SourceHydrator.SyncSource.Path, in.Paths[0].Path)
 		assert.Equal(t, app2.Spec.SourceHydrator.SyncSource.Path, in.Paths[1].Path)
@@ -1160,6 +1164,51 @@ func TestHydrator_hydrate_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "sha123", sha)
 	assert.Equal(t, "hydrated123", hydratedSha)
+	assert.Empty(t, errs)
+}
+
+// TestHydrator_hydrate_SanitizesDrySourceRepoURL ensures embedded credentials
+// are stripped from the dry source repository URL before it is sent to the
+// commit server, so they can never end up in the generated README.md. See
+// https://github.com/argoproj/argo-cd/issues/29197.
+func TestHydrator_hydrate_SanitizesDrySourceRepoURL(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	h := &Hydrator{
+		dependencies:    d,
+		repoGetter:      r,
+		repoClientset:   &reposervermocks.Clientset{RepoServerServiceClient: rc},
+		commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc},
+	}
+
+	app := newTestApp("app1")
+	app.Spec.SourceHydrator.DrySource.RepoURL = "https://user:secret-token@example.com/repo.git"
+	apps := []*v1alpha1.Application{app}
+	proj := newTestProject()
+	projects := map[string]*v1alpha1.AppProject{app.Spec.Project: proj}
+	writeRepo := &v1alpha1.Repository{Repo: "https://example.com/repo"}
+
+	readRepo := &v1alpha1.Repository{Repo: app.Spec.SourceHydrator.DrySource.RepoURL}
+	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "main", proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil)
+	r.EXPECT().GetRepository(mock.Anything, readRepo.Repo, proj.Name).Return(readRepo, nil)
+	d.EXPECT().GetWriteCredentials(mock.Anything, mock.Anything, proj.Name).Return(writeRepo, nil)
+	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil)
+	d.EXPECT().GetHydratorReadmeMessageTemplate().Return("readme message", nil)
+	d.EXPECT().GetCommitAuthorName().Return("", nil)
+	d.EXPECT().GetCommitAuthorEmail().Return("", nil)
+	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{Message: "metadata"}, nil)
+	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "hydrated123"}, nil).Run(func(_ context.Context, in *commitclient.CommitHydratedManifestsRequest, _ ...grpc.CallOption) {
+		assert.Equal(t, "https://example.com/repo.git", in.DrySourceRepoURL)
+	})
+	logCtx := log.NewEntry(log.StandardLogger())
+
+	_, _, errs, err := h.hydrate(t.Context(), logCtx, apps, projects)
+
+	require.NoError(t, err)
 	assert.Empty(t, errs)
 }
 

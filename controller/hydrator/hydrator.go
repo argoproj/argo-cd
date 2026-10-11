@@ -551,6 +551,10 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 		ReadmeMessage:     readmeTemplate,
 		AuthorName:        authorName,
 		AuthorEmail:       authorEmail,
+		// The README template's git clone command must point at the dry
+		// source repository, not the hydration destination. Strip any
+		// embedded credentials so they are never written into the README.
+		DrySourceRepoURL: git.SanitizeRepoURL(drySourceRepoURL),
 	}
 
 	closer, commitService, err := h.commitClientset.NewCommitServerClient()
