@@ -104,7 +104,7 @@ type Server struct {
 	settingsMgr            *settings.SettingsManager
 	cache                  *servercache.Cache
 	projInformer           cache.SharedIndexInformer
-	enabledNamespaces      []string
+	enabledNamespaces      *security.ApplicationNamespaceSet
 	syncWithReplaceAllowed bool
 }
 
@@ -124,7 +124,7 @@ func NewServer(
 	projectLock sync.KeyLock,
 	settingsMgr *settings.SettingsManager,
 	projInformer cache.SharedIndexInformer,
-	enabledNamespaces []string,
+	enabledNamespaces *security.ApplicationNamespaceSet,
 	enableK8sEvent []string,
 	syncWithReplaceAllowed bool,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
@@ -2989,7 +2989,7 @@ func (s *Server) appNamespaceOrDefault(appNs string) string {
 }
 
 func (s *Server) isNamespaceEnabled(namespace string) bool {
-	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces)
+	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces.List())
 }
 
 // getProjectsFromApplicationQuery gets the project names from a query. If the legacy "project" field was specified, use
