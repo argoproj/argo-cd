@@ -53,6 +53,22 @@ Your code failed to lint correctly, or modifications were performed by the `gola
 
 You should check for the cause of the failure in the check's detail page as described above. This will give you the name of the test that has failed, and details about why. If your test is passing locally (using the virtualized toolchain), chances are that the test might be flaky and will pass the next time it is run. Please retrigger the CI pipeline as described above and see if the test step now passes.
 
+### Why was my PR converted to a draft?
+
+The [PR Issue Policy](https://github.com/argoproj/argo-cd/blob/master/.github/workflows/pr-issue-policy.yaml) workflow
+converts PRs to drafts when they do not link to an issue, or when they link to an enhancement that has not been
+accepted yet. The comment the workflow posts on your PR explains what is missing. See
+[Linking your PR to an issue](submit-your-pr.md#linking-your-pr-to-an-issue) for the full policy.
+
+### Why does the "Test GitHub Actions scripts" step fail?
+
+This step runs the unit tests of the JavaScript files in `.github/scripts`, which are used by the GitHub Actions
+workflows. To run them locally, use Node.js 18 or later:
+
+```bash
+node --test .github/scripts/*.test.js
+```
+
 ## Updating The Builder Image
 
 Login to Docker Hub:
