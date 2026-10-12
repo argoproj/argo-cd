@@ -1,5 +1,4 @@
 import * as React from 'react';
-import type {OverscanIndices, OverscanIndicesGetterParams} from 'react-virtualized';
 import * as models from '../../../shared/models';
 import {getAppDefaultSource, isApp} from '../utils';
 
@@ -22,9 +21,6 @@ export const VIRTUAL_THRESHOLD = 50;
 export const TILE_OVERSCAN_ROW_COUNT = 8;
 export const TABLE_OVERSCAN_ROW_COUNT = 16;
 
-/** Multiplier for overscanRowCount from viewport height (see computeOverscanRowCount). */
-export const OVERSCAN_VIEWPORT_SCREENS = 0.75;
-
 /**
  * Virtual table slot heights include the 8px gap used by argo-ui table rows.
  * The row itself needs 60px (86px with a hydrator status line).
@@ -41,31 +37,8 @@ export const TILE_HEIGHT = 360;
 export const TILE_GAP = 24;
 export const TILE_MIN_WIDTH = 370;
 
-/** Estimated tile row height (content + gap) for overscan math. */
-export const TILE_ROW_STRIDE = TILE_HEIGHT + TILE_GAP;
-
 export function shouldUseVirtualScroll(useVirtualScrolling: boolean | undefined, length: number): boolean {
     return !!useVirtualScrolling && length > VIRTUAL_THRESHOLD;
-}
-
-/** Overscan row count from viewport height; never below minOverscan. Passed to List/Grid as overscanRowCount. */
-export function computeOverscanRowCount(viewportHeight: number, rowHeight: number, minOverscan: number, screens: number = OVERSCAN_VIEWPORT_SCREENS): number {
-    if (viewportHeight <= 0 || rowHeight <= 0 || screens <= 0) {
-        return minOverscan;
-    }
-    return Math.max(minOverscan, Math.ceil((viewportHeight / rowHeight) * screens));
-}
-
-/**
- * Overscan both sides of the visible range (direction-independent).
- * Grid's default getter is scroll-direction only; List's accessibility getter keeps only 1 trailing cell —
- * both remount a large trailing band on reversal.
- */
-export function bidirectionalOverscanIndicesGetter({cellCount, overscanCellsCount, startIndex, stopIndex}: OverscanIndicesGetterParams): OverscanIndices {
-    return {
-        overscanStartIndex: Math.max(0, startIndex - overscanCellsCount),
-        overscanStopIndex: Math.min(cellCount - 1, stopIndex + overscanCellsCount)
-    };
 }
 
 export function computeColumnsPerRow(containerWidth: number, minItemWidth: number = TILE_MIN_WIDTH, gap: number = TILE_GAP): number {
