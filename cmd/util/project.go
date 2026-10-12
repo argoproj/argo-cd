@@ -3,10 +3,11 @@ package util
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -188,6 +189,7 @@ func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, pro
 			spec.SourceRepos = projOpts.Sources
 		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 		case "signature-keys":
+			log.Warn("Warning: --signature-keys option is deprecated. Configure Source Integrity instead with: argocd proj source-integrity git policies ...")
 			spec.SignatureKeys = projOpts.GetSignatureKeys() // nolint:staticcheck
 		case "allow-cluster-resource":
 			spec.ClusterResourceWhitelist = projOpts.GetAllowedClusterResources()
@@ -212,10 +214,8 @@ func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, pro
 
 func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.Command) (*v1alpha1.AppProject, error) {
 	proj := v1alpha1.AppProject{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.AppProjectKind,
-			APIVersion: application.Group + "/v1alpha1",
-		},
+		Kind:       application.AppProjectKind,
+		APIVersion: application.Group + "/v1alpha1",
 	}
 	switch {
 	case fileURL == "-":

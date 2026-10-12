@@ -402,6 +402,7 @@ func (repo *Repository) Sanitized() *Repository {
 		Repo:                          repo.Repo,
 		Type:                          repo.Type,
 		Name:                          repo.Name,
+		Username:                      repo.Username,
 		Insecure:                      repo.IsInsecure(),
 		EnableLFS:                     repo.EnableLFS,
 		EnableOCI:                     repo.EnableOCI,
@@ -423,7 +424,11 @@ func (repo *Repository) Sanitized() *Repository {
 
 func (repo *Repository) Normalize() *Repository {
 	if repo.Type == "" {
-		repo.Type = common.DefaultRepoType
+		if strings.HasPrefix(repo.Repo, "oci://") {
+			repo.Type = "oci"
+		} else {
+			repo.Type = common.DefaultRepoType
+		}
 	}
 	return repo
 }

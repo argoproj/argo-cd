@@ -1,0 +1,12 @@
+# v2 cluster scoped twin of ProviderConfigUsage. No status at all.
+apiVersion: aws.m.upbound.io/v1beta1
+kind: ClusterProviderConfigUsage
+metadata:
+  name: 8f2a1c4e-7b3d-4f6a-9c2e-1d5b8a0f3e7c
+providerConfigRef:
+  kind: ClusterProviderConfig
+  name: default
+resourceRef:
+  apiVersion: ec2.m.aws.upbound.io/v1beta1
+  kind: Instance
+  name: sample-instance

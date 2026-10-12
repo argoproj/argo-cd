@@ -47,7 +47,7 @@ export const ProjectRoleGroupsEdit = (props: ProjectRoleGroupsProps) => (
                                     onClick={() => {
                                         if (api.values.groupName?.length > 0) {
                                             props.formApi.setValue('groups', (props.formApi.values.groups || []).concat(api.values.groupName));
-                                            api.values.groupName = '';
+                                            api.setValue('groupName', '');
                                         }
                                     }}>
                                     Add group
@@ -62,8 +62,9 @@ export const ProjectRoleGroupsEdit = (props: ProjectRoleGroupsProps) => (
 );
 
 function removeEl(items: any[], index: number) {
-    items.splice(index, 1);
-    return items;
+    const updated = items.slice();
+    updated.splice(index, 1);
+    return updated;
 }
 
 interface GroupProps {

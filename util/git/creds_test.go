@@ -1,7 +1,6 @@
 package git
 
 import (
-	"context"
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
@@ -24,7 +23,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	argoio "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/io"
+	argoio "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/io"
 
 	"github.com/argoproj/argo-cd/v3/util/cert"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -273,14 +272,25 @@ func Test_SSHCreds_Environ_WithProxy(t *testing.T) {
 			hostsPath := cert.GetSSHKnownHostsDataPath()
 			assert.Contains(t, env[1], "-o UserKnownHostsFile="+hostsPath)
 		}
-		assert.Contains(t, env[1], "-o ProxyCommand='connect-proxy -S 127.0.0.1:1080 -5 %h %p'")
+
+		proxyRegex := regexp.MustCompile(`-o ProxyCommand=([^ ]+)`)
+		assert.Regexp(t, proxyRegex, env[1])
+		proxyScript := proxyRegex.FindStringSubmatch(env[1])[1]
+		assert.FileExists(t, proxyScript)
+
+		scriptBytes, err := os.ReadFile(proxyScript)
+		require.NoError(t, err)
+		assert.Contains(t, string(scriptBytes), "127.0.0.1:1080")
+		assert.Contains(t, string(scriptBytes), "connect-proxy")
 
 		envRegex := regexp.MustCompile("-i ([^ ]+)")
 		assert.Regexp(t, envRegex, env[1])
 		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
 		assert.FileExists(t, privateKeyFile)
+
 		utilio.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
+		assert.NoFileExists(t, proxyScript)
 	}
 }
 
@@ -301,32 +311,27 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 		assert.Equal(t, "SOCKS5_USER=user", env[2], "SOCKS5 user env var must be set")
 		assert.Equal(t, "SOCKS5_PASSWD=password", env[3], "SOCKS5 password env var must be set")
 
-		if insecureIgnoreHostKey {
-			assert.Contains(t, env[1], "-o StrictHostKeyChecking=no")
-			assert.Contains(t, env[1], "-o UserKnownHostsFile=/dev/null")
-		} else {
-			assert.Contains(t, env[1], "-o StrictHostKeyChecking=yes")
-			hostsPath := cert.GetSSHKnownHostsDataPath()
-			assert.Contains(t, env[1], "-o UserKnownHostsFile="+hostsPath)
-		}
-		assert.Contains(t, env[1], "-o ProxyCommand='connect-proxy -S 127.0.0.1:1080 -5 %h %p'")
+		proxyRegex := regexp.MustCompile(`-o ProxyCommand=([^ ]+)`)
+		assert.Regexp(t, proxyRegex, env[1])
+		proxyScript := proxyRegex.FindStringSubmatch(env[1])[1]
+		assert.FileExists(t, proxyScript)
+
+		scriptBytes, err := os.ReadFile(proxyScript)
+		require.NoError(t, err)
+		assert.Contains(t, string(scriptBytes), "127.0.0.1:1080")
 
 		envRegex := regexp.MustCompile("-i ([^ ]+)")
 		assert.Regexp(t, envRegex, env[1])
 		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
 		assert.FileExists(t, privateKeyFile)
+
 		utilio.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
+		assert.NoFileExists(t, proxyScript)
 	}
 }
 
 func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
-	// Previously, if the proxy URL was invalid, a temporary file would be left in /dev/shm. This ensures the file is cleaned up in this case.
-
-	// argoio.TempDir will be /dev/shm or "" (on an OS without /dev/shm).
-	// In this case os.CreateTemp(), which is used by creds.Environ(),
-	// will use os.TempDir for the temporary directory.
-	// Reproducing this logic here:
 	argoioTempDir := argoio.TempDir
 	if argoioTempDir == "" {
 		argoioTempDir = os.TempDir()
@@ -346,15 +351,95 @@ func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 		err := os.WriteFile(caFile, []byte(""), os.FileMode(0o600))
 		require.NoError(t, err)
 		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, ":invalid-proxy-url")
+		require.Empty(t, creds.proxy, "invalid proxy must not be stored on the creds struct")
 
 		filesInDevShmBeforeInvocation := countFilesInDevShm()
 
-		_, _, err = creds.Environ()
-		require.Error(t, err)
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		if closer != nil {
+			require.NoError(t, closer.Close())
+		}
+		for _, e := range env {
+			require.NotContains(t, e, "ProxyCommand", "no ProxyCommand must be set for a rejected proxy")
+		}
 
 		filesInDevShmAfterInvocation := countFilesInDevShm()
-
 		assert.Equal(t, filesInDevShmBeforeInvocation, filesInDevShmAfterInvocation, "no temporary files should leak if the proxy url cannot be parsed")
+	}
+}
+
+func TestValidateProxyURL_RejectsUnsafeHostnames(t *testing.T) {
+	t.Parallel()
+	malicious := []struct {
+		name string
+		url  string
+	}{
+		{"single quote and command substitution", "socks5://evil'$(id>/tmp/x)'host:1080"},
+		{"semicolon", "socks5://host;id:1080"},
+		{"pipe", "socks5://host|id:1080"},
+		{"ampersand", "socks5://host&id:1080"},
+		{"dollar sign", "socks5://host$(x):1080"},
+		{"backtick", "socks5://host`x`:1080"},
+		{"redirect gt", "socks5://host>x:1080"},
+		{"redirect lt", "socks5://host<x:1080"},
+		{"whitespace in host", "socks5://ho st:1080"},
+		{"newline in port", "socks5://host:\n1080"},
+		{"port zero", "socks5://host:0"},
+		{"port too high", "socks5://host:65536"},
+		{"empty host", "socks5://:1080"},
+		{"wrong scheme http", "http://host:1080"},
+		{"wrong scheme https", "https://host:1080"},
+		{"wrong scheme socks4", "socks4://host:1080"},
+	}
+	for _, tc := range malicious {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateProxyURL(tc.url)
+			require.Error(t, err, "expected rejection of: %s", tc.url)
+		})
+	}
+}
+
+func TestValidateProxyURL_AcceptsValidURLs(t *testing.T) {
+	t.Parallel()
+	valid := []struct {
+		name string
+		url  string
+	}{
+		{"IPv4", "socks5://127.0.0.1:1080"},
+		{"hostname", "socks5://proxy.example.com:1080"},
+		{"IPv6 bracketed", "socks5://[::1]:1080"},
+		{"IPv6 full address", "socks5h://proxy.internal:9050"},
+		{"port 1", "socks5://proxy.example.com:1"},
+		{"port 65535", "socks5://proxy.example.com:65535"},
+	}
+	for _, tc := range valid {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateProxyURL(tc.url)
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestSSHCreds_Environ_RejectsMaliciousProxyURL(t *testing.T) {
+	t.Parallel()
+	// Verify that the malicious PoC proxy URL from the advisory is rejected
+	// at construction time (NewSSHCreds), so it never flows into Environ(),
+	// GIT_SSH_COMMAND, or any persisted creds state.
+	creds := NewSSHCreds("sshPrivateKey", "", false,
+		"socks5://evil'$(id>/tmp/PWNED)'host:1080")
+	require.Empty(t, creds.proxy, "malicious proxy must not be stored on the creds struct")
+
+	closer, env, err := creds.Environ()
+	require.NoError(t, err)
+	if closer != nil {
+		defer closer.Close()
+	}
+	for _, e := range env {
+		assert.NotContains(t, e, "ProxyCommand", "no ProxyCommand must be set for a rejected proxy")
+		assert.NotContains(t, e, "PWNED", "no part of the malicious proxy must leak into the environment")
 	}
 }
 
@@ -558,7 +643,7 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 		})
 
 		// Execute
-		ctx := context.Background()
+		ctx := t.Context()
 		actualId, err := DiscoverGitHubAppInstallationID(ctx, appId, "fake-key", "", org)
 
 		// Assert
@@ -593,7 +678,7 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 		})
 
 		// Execute & Assert
-		ctx := context.Background()
+		ctx := t.Context()
 		// Pass the mock server URL as the enterpriseBaseURL so the GitHub client uses it
 		// Note: The mock server will have a different domain (e.g., 127.0.0.1) than the first test (github.com),
 		// so there's no cache collision between the two subtests.
@@ -625,7 +710,7 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 			}
 		})
 
-		ctx := context.Background()
+		ctx := t.Context()
 		actualId, err := DiscoverGitHubAppInstallationID(ctx, 12345, fakeGitHubAppPrivateKey, server.URL, "target-org")
 		require.NoError(t, err)
 		assert.Equal(t, int64(22222), actualId, "should return the installation ID for the requested org, not the last one in the list")
@@ -872,10 +957,10 @@ func TestGitHubAppGetAccessToken_TCPConnectionErrors(t *testing.T) {
 	})
 
 	t.Run("DNS resolution failure", func(t *testing.T) {
+		t.Parallel()
 		if testing.Short() {
 			t.Skip("skipping DNS failure test (~15s due to hardcoded context timeout)")
 		}
-		t.Parallel()
 		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey,
 			"http://this-host-does-not-exist-anywhere.invalid:8080")
 		token, err := creds.getAccessToken()
@@ -910,7 +995,7 @@ func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 		gitClientTimeout = 15 * time.Second
 	})
 
-	t.Run("gitClientTimeout must be honoured for for token requests as well", func(t *testing.T) {
+	t.Run("gitClientTimeout must be honoured for token requests as well", func(t *testing.T) {
 		gitClientTimeout = 1 * time.Second // Very short — should cause timeout but won't
 
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1056,6 +1141,7 @@ var gcpImpersonatedServiceAccountKeyJSON string
 var gcpAuthorizedUserJSON string
 
 func TestCredentialTypeFromJSON(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -1105,6 +1191,7 @@ func TestCredentialTypeFromJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			actual := credentialTypeFromJSON([]byte(tt.input))
 			assert.Equal(t, tt.expected, actual)
 		})

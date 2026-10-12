@@ -15,10 +15,13 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
+	"sync"
 	"testing"
+	"time"
 
+	keysync "github.com/argoproj/pkg/v2/sync"
 	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/image-spec/specs-go"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -52,9 +55,9 @@ func generateManifestWithConfig(t *testing.T, store *memory.Store, configMediaTy
 	}
 
 	manifestBlob, err := json.Marshal(imagev1.Manifest{
-		Config:    configDesc,
-		Layers:    layers,
-		Versioned: specs.Versioned{SchemaVersion: 2},
+		Config:        configDesc,
+		Layers:        layers,
+		SchemaVersion: 2,
 	})
 	require.NoError(t, err)
 	manifestDesc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, manifestBlob)
@@ -97,6 +100,86 @@ func addFileToDirectory(t *testing.T, dir, filename, content string) {
 	require.NoError(t, err)
 }
 
+type observingOCIKeyLock struct {
+	keysync.KeyLock
+	beforeLock func(string)
+	afterLock  func(string)
+}
+
+func (l observingOCIKeyLock) Lock(key string) {
+	if l.beforeLock != nil {
+		l.beforeLock(key)
+	}
+	l.KeyLock.Lock(key)
+	if l.afterLock != nil {
+		l.afterLock(key)
+	}
+}
+
+func Test_nativeOCIClient_CleanCacheWaitsForExtraction(t *testing.T) {
+	store := memory.New()
+	layer := createGzippedTarWithContent(t, "deployment.yaml", "some content")
+	revision := generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, layer), layer})
+	cachePaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	lock := keysync.NewKeyLock()
+	extractionLocked := make(chan string)
+	resumeExtraction := make(chan struct{})
+	releaseExtraction := sync.OnceFunc(func() { close(resumeExtraction) })
+	cleanupLockAttempt := make(chan string)
+	const repoURL = "oci://example.com/manifests"
+
+	reader := newClientWithLock(repoURL, observingOCIKeyLock{
+		KeyLock: lock,
+		afterLock: func(key string) {
+			extractionLocked <- key
+			<-resumeExtraction
+		},
+	}, store, nil, nil, []string{imagev1.MediaTypeImageLayerGzip},
+		WithImagePaths(cachePaths), WithManifestMaxExtractedSize(1000), WithEventHandlers(fakeEventHandlers(t, repoURL)))
+	cleaner := &nativeOCIClient{
+		repoURL: repoURL,
+		repoLock: observingOCIKeyLock{
+			KeyLock:    lock,
+			beforeLock: func(key string) { cleanupLockAttempt <- key },
+		},
+		repoCachePaths: cachePaths,
+	}
+	cachePath, err := cleaner.getCachedPath(revision)
+	require.NoError(t, err)
+	require.NoError(t, saveCompressedImageToPath(t.Context(), revision, store, cachePath))
+
+	extracted := make(chan error, 1)
+	go func() {
+		_, closer, err := reader.Extract(t.Context(), revision)
+		if err == nil {
+			err = closer.Close()
+		}
+		extracted <- err
+	}()
+	t.Cleanup(func() {
+		releaseExtraction()
+		assert.NoError(t, <-extracted)
+	})
+	require.Equal(t, cachePath, <-extractionLocked)
+
+	cleaned := make(chan error, 1)
+	go func() { cleaned <- cleaner.CleanCache(revision) }()
+	select {
+	case key := <-cleanupLockAttempt:
+		require.Equal(t, cachePath, key)
+		require.FileExists(t, cachePath)
+	case err := <-cleaned:
+		require.NoError(t, err)
+		t.Fatal("cache cleanup completed while extraction still held the archive lock")
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for cache cleanup to attempt the lock")
+	}
+
+	releaseExtraction()
+	require.NoError(t, <-cleaned)
+	require.NoFileExists(t, cachePath)
+}
+
 func Test_nativeOCIClient_Extract(t *testing.T) {
 	cacheDir := utilio.NewRandomizedTempPaths(t.TempDir())
 
@@ -130,7 +213,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				manifestMaxExtractedSize:        10,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: errors.New("cannot extract contents of oci image with revision sha256:1b6dfd71e2b35c2f35dffc39007c2276f3c0e235cbae4c39cba74bd406174e22: failed to perform \"Push\" on destination: could not decompress layer: error while iterating on tar reader: unexpected EOF"),
+			expectedError: errors.New(`cannot extract contents of oci image with revision {{digest}}: failed to perform "Push" on destination: could not decompress layer: error while iterating on tar reader: unexpected EOF`),
 		},
 		{
 			name: "extraction fails due to multiple content layers",
@@ -606,7 +689,8 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			path, gotCloser, err := c.Extract(t.Context(), sha)
 
 			if tt.expectedError != nil {
-				require.EqualError(t, err, tt.expectedError.Error())
+				// The digest depends on the Go version's gzip output, so it is substituted rather than hardcoded.
+				require.EqualError(t, err, strings.ReplaceAll(tt.expectedError.Error(), "{{digest}}", sha))
 				return
 			}
 
@@ -767,6 +851,41 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 	}
 }
 
+type fakeTagsCache struct {
+	data []byte
+}
+
+func (f *fakeTagsCache) SetOCITags(_ string, indexData []byte) error {
+	f.data = indexData
+	return nil
+}
+
+func (f *fakeTagsCache) GetOCITags(_ string, indexData *[]byte) error {
+	*indexData = f.data
+	return nil
+}
+
+// Regression test for https://github.com/argoproj/argo-cd/issues/30117:
+// GetTags must store the fetched tags, not the empty cache-read buffer.
+func Test_nativeOCIClient_GetTagsUsesCache(t *testing.T) {
+	calls := 0
+	tagsFunc := func(context.Context, string) ([]string, error) {
+		calls++
+		return []string{"1.0.0", "1.1.0_build.1"}, nil
+	}
+	repoURL := "example.com/myorg/myrepo"
+	c := newClientWithLock(repoURL, globalLock, memory.New(), tagsFunc, func(context.Context) error {
+		return nil
+	}, nil, WithIndexCache(&fakeTagsCache{}), WithEventHandlers(fakeEventHandlers(t, repoURL)))
+
+	for range 2 {
+		tags, err := c.GetTags(t.Context(), false)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"1.0.0", "1.1.0+build.1"}, tags)
+	}
+	assert.Equal(t, 1, calls, "the second call should be served from the cache")
+}
+
 func Test_nativeOCIClient_DigestMetadata(t *testing.T) {
 	// Regression test for https://github.com/argoproj/argo-cd/issues/27521:
 	// DigestMetadata must work on any replica without relying on a local tar
@@ -776,9 +895,9 @@ func Test_nativeOCIClient_DigestMetadata(t *testing.T) {
 		configBlob := []byte("config")
 		configDesc := content.NewDescriptorFromBytes("application/vnd.cncf.helm.config.v1+json", configBlob)
 		manifestBlob, err := json.Marshal(imagev1.Manifest{
-			Versioned:   specs.Versioned{SchemaVersion: 2},
-			Config:      configDesc,
-			Annotations: annotations,
+			SchemaVersion: 2,
+			Config:        configDesc,
+			Annotations:   annotations,
 		})
 		require.NoError(t, err)
 		manifestDesc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, manifestBlob)
@@ -818,7 +937,9 @@ func Test_nativeOCIClient_DigestMetadata(t *testing.T) {
 }
 
 func TestNewClientUsesHTTP2(t *testing.T) {
+	t.Parallel()
 	t.Run("should negotiate HTTP/2 when TLS is configured", func(t *testing.T) {
+		t.Parallel()
 		var requestProtos []string
 		server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestProtos = append(requestProtos, r.Proto)
@@ -873,4 +994,45 @@ func fakeEventHandlers(t *testing.T, repoURL string) EventHandlers {
 			return func(_ string) { require.Equal(t, repoURL, repo) }
 		},
 	}
+}
+
+func Test_getOCIManifest(t *testing.T) {
+	pushManifest := func(t *testing.T, store *memory.Store, m imagev1.Manifest) string {
+		t.Helper()
+		blob, err := json.Marshal(m)
+		require.NoError(t, err)
+		desc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, blob)
+		require.NoError(t, store.Push(t.Context(), desc, bytes.NewReader(blob)))
+		require.NoError(t, store.Tag(t.Context(), desc, desc.Digest.String()))
+		return desc.Digest.String()
+	}
+
+	t.Run("decodes a normal manifest", func(t *testing.T) {
+		store := memory.New()
+		digest := pushManifest(t, store, imagev1.Manifest{
+			SchemaVersion: 2,
+			Config:        content.NewDescriptorFromBytes(imagev1.MediaTypeImageConfig, []byte("config")),
+		})
+
+		manifest, err := getOCIManifest(t.Context(), digest, store)
+		require.NoError(t, err)
+		assert.Equal(t, 2, manifest.SchemaVersion)
+	})
+
+	t.Run("rejects an oversized manifest", func(t *testing.T) {
+		// A malicious or misbehaving registry could return an arbitrarily large
+		// manifest to force the repo-server to buffer it entirely into memory.
+		// The io.LimitReader guard truncates the stream, so decoding must fail
+		// rather than reading the whole blob.
+		store := memory.New()
+		digest := pushManifest(t, store, imagev1.Manifest{
+			SchemaVersion: 2,
+			Config:        content.NewDescriptorFromBytes(imagev1.MediaTypeImageConfig, []byte("config")),
+			Annotations:   map[string]string{"pad": strings.Repeat("a", maxOCIManifestSize)},
+		})
+
+		_, err := getOCIManifest(t.Context(), digest, store)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "error decoding oci manifest")
+	})
 }

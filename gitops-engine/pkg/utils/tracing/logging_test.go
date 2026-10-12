@@ -6,10 +6,11 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing/mocks"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/tracing/mocks"
 )
 
 func TestLoggingTracer(t *testing.T) {
+	t.Parallel()
 	l := mocks.NewLogSink(t)
 	initCall := l.EXPECT().Init(mock.Anything).Return().Once()
 	withBaggageCall := l.EXPECT().WithValues("my-key", "my-value").Return(l).Once()

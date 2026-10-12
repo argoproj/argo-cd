@@ -12,7 +12,6 @@ import (
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -30,6 +29,7 @@ func (obj *mockAddRateLimitingInterface) Add(item reconcile.Request) {
 }
 
 func TestClusterEventHandler(t *testing.T) {
+	t.Parallel()
 	scheme := runtime.NewScheme()
 	err := argov1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
@@ -61,10 +61,8 @@ func TestClusterEventHandler(t *testing.T) {
 			name: "a cluster generator should produce a request",
 			items: []argov1alpha1.ApplicationSet{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-app-set",
-						Namespace: "argocd",
-					},
+					Name:      "my-app-set",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -84,17 +82,15 @@ func TestClusterEventHandler(t *testing.T) {
 				},
 			},
 			expectedRequests: []reconcile.Request{{
-				NamespacedName: types.NamespacedName{Namespace: "argocd", Name: "my-app-set"},
+				Namespace: "argocd", Name: "my-app-set",
 			}},
 		},
 		{
 			name: "multiple cluster generators should produce multiple requests",
 			items: []argov1alpha1.ApplicationSet{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-app-set",
-						Namespace: "argocd",
-					},
+					Name:      "my-app-set",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -104,10 +100,8 @@ func TestClusterEventHandler(t *testing.T) {
 					},
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-app-set2",
-						Namespace: "argocd",
-					},
+					Name:      "my-app-set2",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -127,18 +121,16 @@ func TestClusterEventHandler(t *testing.T) {
 				},
 			},
 			expectedRequests: []reconcile.Request{
-				{NamespacedName: types.NamespacedName{Namespace: "argocd", Name: "my-app-set"}},
-				{NamespacedName: types.NamespacedName{Namespace: "argocd", Name: "my-app-set2"}},
+				{Namespace: "argocd", Name: "my-app-set"},
+				{Namespace: "argocd", Name: "my-app-set2"},
 			},
 		},
 		{
 			name: "non-cluster generator should not match",
 			items: []argov1alpha1.ApplicationSet{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-app-set",
-						Namespace: "argocd",
-					},
+					Name:      "my-app-set",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -148,10 +140,8 @@ func TestClusterEventHandler(t *testing.T) {
 					},
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app-set-non-cluster",
-						Namespace: "argocd",
-					},
+					Name:      "app-set-non-cluster",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -171,17 +161,15 @@ func TestClusterEventHandler(t *testing.T) {
 				},
 			},
 			expectedRequests: []reconcile.Request{
-				{NamespacedName: types.NamespacedName{Namespace: "argocd", Name: "my-app-set"}},
+				{Namespace: "argocd", Name: "my-app-set"},
 			},
 		},
 		{
 			name: "cluster generators in other namespaces should not match",
 			items: []argov1alpha1.ApplicationSet{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-app-set",
-						Namespace: "my-namespace-not-allowed",
-					},
+					Name:      "my-app-set",
+					Namespace: "my-namespace-not-allowed",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -206,10 +194,8 @@ func TestClusterEventHandler(t *testing.T) {
 			name: "non-argo cd secret should not match",
 			items: []argov1alpha1.ApplicationSet{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-app-set",
-						Namespace: "another-namespace",
-					},
+					Name:      "my-app-set",
+					Namespace: "another-namespace",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -231,10 +217,8 @@ func TestClusterEventHandler(t *testing.T) {
 			name: "a matrix generator with a cluster generator should produce a request",
 			items: []argov1alpha1.ApplicationSet{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-app-set",
-						Namespace: "argocd",
-					},
+					Name:      "my-app-set",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -260,17 +244,15 @@ func TestClusterEventHandler(t *testing.T) {
 				},
 			},
 			expectedRequests: []reconcile.Request{{
-				NamespacedName: types.NamespacedName{Namespace: "argocd", Name: "my-app-set"},
+				Namespace: "argocd", Name: "my-app-set",
 			}},
 		},
 		{
 			name: "a matrix generator with non cluster generator should not match",
 			items: []argov1alpha1.ApplicationSet{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-app-set",
-						Namespace: "argocd",
-					},
+					Name:      "my-app-set",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -301,10 +283,8 @@ func TestClusterEventHandler(t *testing.T) {
 			name: "a matrix generator with a nested matrix generator containing a cluster generator should produce a request",
 			items: []argov1alpha1.ApplicationSet{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-app-set",
-						Namespace: "argocd",
-					},
+					Name:      "my-app-set",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -346,17 +326,15 @@ func TestClusterEventHandler(t *testing.T) {
 				},
 			},
 			expectedRequests: []reconcile.Request{{
-				NamespacedName: types.NamespacedName{Namespace: "argocd", Name: "my-app-set"},
+				Namespace: "argocd", Name: "my-app-set",
 			}},
 		},
 		{
 			name: "a matrix generator with a nested matrix generator containing non cluster generator should not match",
 			items: []argov1alpha1.ApplicationSet{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-app-set",
-						Namespace: "argocd",
-					},
+					Name:      "my-app-set",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -402,10 +380,8 @@ func TestClusterEventHandler(t *testing.T) {
 			name: "a merge generator with a cluster generator should produce a request",
 			items: []argov1alpha1.ApplicationSet{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-app-set",
-						Namespace: "argocd",
-					},
+					Name:      "my-app-set",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -431,17 +407,15 @@ func TestClusterEventHandler(t *testing.T) {
 				},
 			},
 			expectedRequests: []reconcile.Request{{
-				NamespacedName: types.NamespacedName{Namespace: "argocd", Name: "my-app-set"},
+				Namespace: "argocd", Name: "my-app-set",
 			}},
 		},
 		{
 			name: "a matrix generator with non cluster generator should not match",
 			items: []argov1alpha1.ApplicationSet{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-app-set",
-						Namespace: "argocd",
-					},
+					Name:      "my-app-set",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -472,10 +446,8 @@ func TestClusterEventHandler(t *testing.T) {
 			name: "a merge generator with a nested merge generator containing a cluster generator should produce a request",
 			items: []argov1alpha1.ApplicationSet{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-app-set",
-						Namespace: "argocd",
-					},
+					Name:      "my-app-set",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -517,17 +489,15 @@ func TestClusterEventHandler(t *testing.T) {
 				},
 			},
 			expectedRequests: []reconcile.Request{{
-				NamespacedName: types.NamespacedName{Namespace: "argocd", Name: "my-app-set"},
+				Namespace: "argocd", Name: "my-app-set",
 			}},
 		},
 		{
 			name: "a merge generator with a nested merge generator containing non cluster generator should not match",
 			items: []argov1alpha1.ApplicationSet{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "my-app-set",
-						Namespace: "argocd",
-					},
+					Name:      "my-app-set",
+					Namespace: "argocd",
 					Spec: argov1alpha1.ApplicationSetSpec{
 						Generators: []argov1alpha1.ApplicationSetGenerator{
 							{
@@ -573,6 +543,7 @@ func TestClusterEventHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			appSetList := argov1alpha1.ApplicationSetList{
 				Items: test.items,
 			}
@@ -595,6 +566,7 @@ func TestClusterEventHandler(t *testing.T) {
 }
 
 func TestNestedGeneratorHasClusterGenerator_NestedClusterGenerator(t *testing.T) {
+	t.Parallel()
 	nested := argov1alpha1.ApplicationSetNestedGenerator{
 		Clusters: &argov1alpha1.ClusterGenerator{},
 	}
@@ -606,6 +578,7 @@ func TestNestedGeneratorHasClusterGenerator_NestedClusterGenerator(t *testing.T)
 }
 
 func TestNestedGeneratorHasClusterGenerator_NestedMergeGenerator(t *testing.T) {
+	t.Parallel()
 	nested := argov1alpha1.ApplicationSetNestedGenerator{
 		Merge: &apiextensionsv1.JSON{
 			Raw: []byte(
@@ -633,6 +606,7 @@ func TestNestedGeneratorHasClusterGenerator_NestedMergeGenerator(t *testing.T) {
 }
 
 func TestNestedGeneratorHasClusterGenerator_NestedMergeGeneratorWithInvalidJSON(t *testing.T) {
+	t.Parallel()
 	nested := argov1alpha1.ApplicationSetNestedGenerator{
 		Merge: &apiextensionsv1.JSON{
 			Raw: []byte(

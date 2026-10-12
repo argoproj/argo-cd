@@ -536,6 +536,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 }
 
 func TestGiteaListRepos(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, proto                             string
 		hasError, allBranches, includeSubgroups bool
@@ -806,9 +807,10 @@ func TestGiteaListRepos(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
 	}))
-	defer ts.Close()
+	t.Cleanup(ts.Close)
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			provider, _ := NewGiteaProvider("test-argocd", "", ts.URL, c.allBranches, false, c.excludeArchivedRepos, "", "")
 			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 
@@ -828,10 +830,11 @@ func TestGiteaListRepos(t *testing.T) {
 }
 
 func TestGiteaHasPath(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
 	}))
-	defer ts.Close()
+	t.Cleanup(ts.Close)
 	host, _ := NewGiteaProvider("gitea", "", ts.URL, false, false, false, "", "")
 	repo := &Repository{
 		Organization: "gitea",
@@ -840,18 +843,21 @@ func TestGiteaHasPath(t *testing.T) {
 	}
 
 	t.Run("file exists", func(t *testing.T) {
+		t.Parallel()
 		ok, err := host.RepoHasPath(t.Context(), repo, "README.md")
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
 
 	t.Run("directory exists", func(t *testing.T) {
+		t.Parallel()
 		ok, err := host.RepoHasPath(t.Context(), repo, "gitea")
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
 
 	t.Run("does not exists", func(t *testing.T) {
+		t.Parallel()
 		ok, err := host.RepoHasPath(t.Context(), repo, "notathing")
 		require.NoError(t, err)
 		assert.False(t, ok)
@@ -859,6 +865,7 @@ func TestGiteaHasPath(t *testing.T) {
 }
 
 func TestNewGiteaProvider_Proxy(t *testing.T) {
+	t.Parallel()
 	targetTS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Path == "/api/v1/version" {

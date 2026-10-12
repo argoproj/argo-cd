@@ -6,11 +6,9 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"os/signal"
 	"runtime/debug"
 	"strings"
 	"sync"
-	"syscall"
 
 	"github.com/argoproj/notifications-engine/pkg/controller"
 	"github.com/prometheus/client_golang/prometheus"
@@ -24,6 +22,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	notificationscontroller "github.com/argoproj/argo-cd/v3/notification_controller/controller"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
@@ -51,13 +50,13 @@ func NewCommand() *cobra.Command {
 		secretName                     string
 		applicationNamespaces          []string
 		selfServiceNotificationEnabled bool
+		repoServerClientTLSConfigSrc   func() (tls.Configuration, error)
 	)
 	command := cobra.Command{
 		Use:   common.CommandNotifications,
 		Short: "Starts Argo CD Notifications controller",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, _ []string, _ context.CancelFunc) error {
+			ctx := c.Context()
 
 			vers := common.GetVersion()
 			namespace, _, err := clientConfig.Namespace()
@@ -74,6 +73,14 @@ func NewCommand() *cobra.Command {
 				return fmt.Errorf("failed to create REST client config: %w", err)
 			}
 			restConfig.UserAgent = fmt.Sprintf("argocd-notifications-controller/%s (%s)", vers.Version, vers.Platform)
+			// Apply Argo CD's shared client defaults (QPS/burst, transport, timeouts)
+			// like the other components. client-go's defaults (QPS 5 / burst 10) are
+			// far too low and throttle the per-app PATCH that persists the `notified`
+			// annotation; SetK8SConfigDefaults raises them to K8sClientConfigQPS/Burst
+			// (50/100, tunable via ARGOCD_K8S_CLIENT_QPS / ARGOCD_K8S_CLIENT_BURST).
+			if err := v1alpha1.SetK8SConfigDefaults(restConfig); err != nil {
+				return fmt.Errorf("failed to apply K8s client defaults: %w", err)
+			}
 			dynamicClient, err := dynamic.NewForConfig(restConfig)
 			if err != nil {
 				return fmt.Errorf("failed to create dynamic client: %w", err)
@@ -112,11 +119,14 @@ func NewCommand() *cobra.Command {
 				}
 			}()
 
-			tlsConfig := apiclient.TLSConfiguration{
-				DisableTLS:       argocdRepoServerPlaintext,
-				StrictValidation: argocdRepoServerStrictTLS,
+			tlsConfig, err := repoServerClientTLSConfigSrc()
+			if err != nil {
+				return fmt.Errorf("failed to get repo-server client TLS configuration: %w", err)
 			}
-			if !tlsConfig.DisableTLS && tlsConfig.StrictValidation {
+			tlsConfig.DisableTLS = argocdRepoServerPlaintext
+			tlsConfig.StrictValidation = tlsConfig.StrictValidation || argocdRepoServerStrictTLS
+
+			if !tlsConfig.DisableTLS && tlsConfig.StrictValidation && tlsConfig.Certificates == nil {
 				pool, err := tls.LoadX509CertPool(
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/tls.crt",
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/ca.crt",
@@ -148,19 +158,15 @@ func NewCommand() *cobra.Command {
 				return fmt.Errorf("failed to initialize controller: %w", err)
 			}
 
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+			// Run blocks until ctx is done; Wait joins it so the queue shutdown lands before the deferred
+			// argocdService.Close(). Workers are not joined and ShutDown does not drain in-flight items.
 			wg := sync.WaitGroup{}
 			wg.Go(func() {
-				s := <-sigCh
-				log.Printf("got signal %v, attempting graceful shutdown", s)
-				cancel()
+				ctrl.Run(ctx, processorsCount)
 			})
-
-			go ctrl.Run(ctx, processorsCount)
-			<-ctx.Done()
+			wg.Wait()
 			return nil
-		},
+		}),
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().IntVar(&processorsCount, "processors-count", env.ParseNumFromEnv("ARGOCD_NOTIFICATION_CONTROLLER_PROCESSORS_COUNT", 1, 1, math.MaxInt32), "Processors count.")
@@ -171,9 +177,11 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&argocdRepoServer, "argocd-repo-server", common.DefaultRepoServerAddr, "Argo CD repo server address")
 	command.Flags().BoolVar(&argocdRepoServerPlaintext, "argocd-repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to repository server")
 	command.Flags().BoolVar(&argocdRepoServerStrictTLS, "argocd-repo-server-strict-tls", false, "Perform strict validation of TLS certificates when connecting to repo server")
+	errors.CheckError(command.Flags().MarkDeprecated("argocd-repo-server-strict-tls", "use --argocd-repo-server-ca-cert-path instead"))
 	command.Flags().StringVar(&configMapName, "config-map-name", "argocd-notifications-cm", "Set notifications ConfigMap name")
 	command.Flags().StringVar(&secretName, "secret-name", "argocd-notifications-secret", "Set notifications Secret name")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that this controller should send notifications for")
 	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", env.ParseBoolFromEnv("ARGOCD_NOTIFICATION_CONTROLLER_SELF_SERVICE_NOTIFICATION_ENABLED", false), "Allows the Argo CD notification controller to pull notification config from the namespace that the resource is in. This is useful for self-service notification.")
+	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmdWithPrefix(&command, "NOTIFICATION_CONTROLLER")
 	return &command
 }

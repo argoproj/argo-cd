@@ -12,8 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -90,11 +90,9 @@ func createClusterSecretWithShard(ctx *Context, shard int, ns string) string {
 	require.NoError(ctx.T(), err)
 
 	clusterRole := rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: DnsFriendly("allow-all-shard"+strconv.Itoa(shard), "-"+ctx.ShortID()),
-			Labels: map[string]string{
-				TestingLabel: "true",
-			},
+		Name: DnsFriendly("allow-all-shard"+strconv.Itoa(shard), "-"+ctx.ShortID()),
+		Labels: map[string]string{
+			TestingLabel: "true",
 		},
 		Rules: []rbacv1.PolicyRule{{
 			Verbs:     []string{"*"},
@@ -106,11 +104,9 @@ func createClusterSecretWithShard(ctx *Context, shard int, ns string) string {
 	require.NoError(ctx.T(), err)
 
 	clusterRoleBinding := rbacv1.ClusterRoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: DnsFriendly("allow-all-binding-shard"+strconv.Itoa(shard), "-"+ctx.ShortID()),
-			Labels: map[string]string{
-				TestingLabel: "true",
-			},
+		Name: DnsFriendly("allow-all-binding-shard"+strconv.Itoa(shard), "-"+ctx.ShortID()),
+		Labels: map[string]string{
+			TestingLabel: "true",
 		},
 		Subjects: []rbacv1.Subject{{
 			Kind:      rbacv1.ServiceAccountKind,
@@ -145,9 +141,7 @@ func createClusterSecretWithShard(ctx *Context, shard int, ns string) string {
 
 	clusterSecretConfigJSON := ClusterConfig{
 		BearerToken: token,
-		TLSClientConfig: TLSClientConfig{
-			Insecure: true,
-		},
+		Insecure:    true,
 	}
 
 	jsonStringBytes, err := json.Marshal(clusterSecretConfigJSON)

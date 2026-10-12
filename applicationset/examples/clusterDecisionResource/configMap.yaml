@@ -1,11 +1,12 @@
-# To generate a Status.Decisions from this CRD, requires https://github.com/open-cluster-management/multicloud-operators-placementrule be deployed
+# To generate a Status.Decisions from this CRD, requires the open-cluster-management.io Placement controller be deployed.
+# See: https://open-cluster-management.io/docs/concepts/content-placement/placement/
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: ocm-placement
 data:
-  apiVersion: apps.open-cluster-management.io/v1
-  kind: placementrules
+  apiVersion: cluster.open-cluster-management.io/v1beta1
+  kind: placementdecisions
   statusListKey: decisions
   matchKey: clusterName

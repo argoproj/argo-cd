@@ -29,3 +29,6 @@ tests:
   - healthStatus:
       status: Healthy
     inputPath: testdata/health_unknown.yaml
+  - healthStatus:
+      status: Healthy
+    inputPath: testdata/health_propagated_dep.yaml

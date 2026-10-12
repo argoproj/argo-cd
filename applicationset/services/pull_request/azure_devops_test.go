@@ -16,6 +16,7 @@ import (
 )
 
 func TestListPullRequest(t *testing.T) {
+	t.Parallel()
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
 	prID := 123
@@ -72,6 +73,7 @@ func TestListPullRequest(t *testing.T) {
 }
 
 func TestConvertLabes(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		gotLabels      *[]core.WebApiTagDefinition
@@ -106,6 +108,7 @@ func TestConvertLabes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			got := convertLabels(tc.gotLabels)
 			assert.Equal(t, tc.expectedLabels, got)
 		})
@@ -113,6 +116,7 @@ func TestConvertLabes(t *testing.T) {
 }
 
 func TestContainAzureDevOpsLabels(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		expectedLabels []string
@@ -147,6 +151,7 @@ func TestContainAzureDevOpsLabels(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			got := containAzureDevOpsLabels(tc.expectedLabels, tc.gotLabels)
 			assert.Equal(t, tc.expectedResult, got)
 		})
@@ -154,6 +159,7 @@ func TestContainAzureDevOpsLabels(t *testing.T) {
 }
 
 func TestBuildURL(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name         string
 		url          string
@@ -188,6 +194,7 @@ func TestBuildURL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := buildURL(tc.url, tc.organization)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -195,6 +202,7 @@ func TestBuildURL(t *testing.T) {
 }
 
 func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
+	t.Parallel()
 	args := git.GetPullRequestsByProjectArgs{
 		Project:        new("nonexistent"),
 		SearchCriteria: &git.GitPullRequestSearchCriteria{},

@@ -18,6 +18,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
@@ -497,6 +498,53 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			assert.Equal(t, http.StatusBadRequest, w.Code)
 			assert.Empty(t, w.Header().Get("Location"))
 		})
+	})
+	t.Run("with multiple dex connectors", func(t *testing.T) {
+		tests := []struct {
+			cdSettings   *settings.ArgoCDSettings
+			name         string
+			expectConnID bool
+		}{
+			{
+				name: "set connector_id if specified",
+				cdSettings: &settings.ArgoCDSettings{
+					URL:                dexTestServer.URL,
+					DexConfig:          "connectors: [{id: github}, {id: gitlab}]",
+					DexAuthConnectorID: "github",
+				},
+				expectConnID: true,
+			},
+			{
+				name: "omit connector_id if empty",
+				cdSettings: &settings.ArgoCDSettings{
+					URL:                dexTestServer.URL,
+					DexConfig:          "connectors: [{id: github}, {id: gitlab}]",
+					DexAuthConnectorID: "",
+				},
+				expectConnID: false,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				app, err := NewClientApp(tt.cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+				require.NoError(t, err)
+
+				req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
+				w := httptest.NewRecorder()
+				app.HandleLogin(w, req)
+
+				assert.Equal(t, http.StatusSeeOther, w.Code)
+				location, err := url.Parse(w.Header().Get("Location"))
+				require.NoError(t, err)
+				values, err := url.ParseQuery(location.RawQuery)
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectConnID, values.Has("connector_id"))
+				if tt.expectConnID {
+					assert.Equal(t, tt.cdSettings.DexAuthConnectorID, values.Get("connector_id"))
+				}
+			})
+		}
 	})
 }
 
@@ -1448,7 +1496,7 @@ func TestGetOidcTokenCacheFromJSON(t *testing.T) {
 		},
 		{
 			name:           "simple",
-			oidcTokenCache: NewOidcTokenCache("", (&oauth2.Token{}).WithExtra(map[string]any{"id_token": "simple"})),
+			oidcTokenCache: NewOidcTokenCache("", (&oauth2.Token{}).WithExtra(map[string]any{"id_token": "simple"}), time.Time{}),
 			expectIdToken:  "simple",
 		},
 	}
@@ -1491,7 +1539,7 @@ func TestClientApp_GetTokenSourceFromCache(t *testing.T) {
 		},
 		{
 			name:           "simple",
-			oidcTokenCache: NewOidcTokenCache("", (&oauth2.Token{}).WithExtra(map[string]any{"id_token": "simple"})),
+			oidcTokenCache: NewOidcTokenCache("", (&oauth2.Token{}).WithExtra(map[string]any{"id_token": "simple"}), time.Time{}),
 			provider:       &fakeProvider{},
 		},
 	}
@@ -1565,6 +1613,7 @@ clientID: test-client-id
 clientSecret: test-client-secret
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 				OIDCTLSInsecureSkipVerify: true,
+				UserSessionDuration:       24 * time.Hour,
 			}
 			app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
 			require.NoError(t, err)
@@ -1584,6 +1633,115 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			}
 		})
 	}
+}
+
+func TestSessionRemainingTTL(t *testing.T) {
+	const dur = 10 * time.Minute
+
+	t.Run("zero session start returns original full duration", func(t *testing.T) {
+		ttl := sessionRemainingTTL(time.Time{}, dur)
+		assert.Equal(t, dur, ttl)
+	})
+
+	t.Run("active session returns remaining time", func(t *testing.T) {
+		sessionStart := time.Now().Add(-4 * time.Minute)
+		ttl := sessionRemainingTTL(sessionStart, dur)
+		// ~6 min remaining; accept ±5s of test jitter
+		assert.InDelta(t, (6 * time.Minute).Seconds(), ttl.Seconds(), 5)
+	})
+
+	t.Run("expired session returns zero", func(t *testing.T) {
+		sessionStart := time.Now().Add(-11 * time.Minute)
+		ttl := sessionRemainingTTL(sessionStart, dur)
+		assert.Equal(t, time.Duration(0), ttl)
+	})
+}
+
+func TestClientApp_GetUpdatedOidcTokenFromCache_SessionCeiling(t *testing.T) {
+	// 10 minute UserSessionDuration, 9 minutes of current session already passed
+	const sessionDuration = 10 * time.Minute
+	sessionStart := time.Now().Add(-9 * time.Minute)
+
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+		UserSessionDuration:       sessionDuration,
+	}
+	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	sub, sid := "alice", "s1"
+	oidcTokenCacheJSON, err := json.Marshal(&OidcTokenCache{
+		Token:        &oauth2.Token{RefreshToken: "not empty"},
+		SessionStart: sessionStart,
+	})
+	require.NoError(t, err)
+	require.NoError(t, app.SetValueInEncryptedCache(t.Context(), formatOidcTokenCacheKey(sub, sid), oidcTokenCacheJSON, sessionDuration))
+
+	_, err = app.GetUpdatedOidcTokenFromCache(t.Context(), sub, sid)
+	require.NoError(t, err)
+
+	// Retrieve the updated entry and confirm SessionStart was not reset to now.
+	updatedJSON, err := app.GetValueFromEncryptedCache(t.Context(), formatOidcTokenCacheKey(sub, sid))
+	require.NoError(t, err)
+	require.NotNil(t, updatedJSON, "cache entry should exist after refresh")
+
+	updatedCache, err := GetOidcTokenCacheFromJSON(updatedJSON)
+	require.NoError(t, err)
+
+	// TTL should be less than 1 minute after token refresh
+	assert.WithinDuration(t, sessionStart, updatedCache.SessionStart, 5*time.Second,
+		"SessionStart must be preserved across token refreshes")
+}
+
+func TestClientApp_GetUpdatedOidcTokenFromCache_SessionCeilingExceeded(t *testing.T) {
+	const sessionDuration = 10 * time.Minute
+	sessionStart := time.Now().Add(-11 * time.Minute)
+
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+		UserSessionDuration:       sessionDuration,
+	}
+	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	sub, sid := "alice", "s1"
+	cacheKey := formatOidcTokenCacheKey(sub, sid)
+	originalJSON, err := json.Marshal(&OidcTokenCache{
+		Token:        &oauth2.Token{RefreshToken: "not empty"},
+		SessionStart: sessionStart,
+	})
+	require.NoError(t, err)
+	require.NoError(t, app.SetValueInEncryptedCache(t.Context(), cacheKey, originalJSON, time.Minute))
+
+	token, err := app.GetUpdatedOidcTokenFromCache(t.Context(), sub, sid)
+	require.NoError(t, err)
+	assert.Nil(t, token, "expired session must not yield a refreshed token")
+
+	// The refreshed token must not overwrite the cache entry with the default TTL
+	cachedValue, err := app.GetValueFromEncryptedCache(t.Context(), cacheKey)
+	require.NoError(t, err)
+	assert.JSONEq(t, string(originalJSON), string(cachedValue),
+		"expired session must not be re-cached with the cache's default TTL")
 }
 
 func TestClientApp_CheckAndGetRefreshToken(t *testing.T) {
@@ -1649,6 +1807,7 @@ clientSecret: test-client-secret
 refreshTokenThreshold: %s
 requestedScopes: ["oidc"]`, oidcTestServer.URL, tt.refreshTokenThreshold),
 				OIDCTLSInsecureSkipVerify: true,
+				UserSessionDuration:       24 * time.Hour,
 			}
 			// The base href (the last argument for NewClientApp) is what HandleLogin will fall back to when no explicit
 			// redirect URL is given.
@@ -1722,4 +1881,115 @@ func TestClientApp_getRedirectURIForRequest(t *testing.T) {
 			assert.Equal(t, expectedRedirectURI, redirectURI, "expected URI")
 		})
 	}
+}
+
+func findLoginEntry(t *testing.T, hook *logtest.Hook) *log.Entry {
+	t.Helper()
+	for _, e := range hook.AllEntries() {
+		if e.Data["login.type"] == "sso" {
+			return e
+		}
+	}
+	t.Fatal("expected an sso login log entry")
+	return nil
+}
+
+func TestHandleCallback_LogsLoginAttempt(t *testing.T) {
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+	}
+
+	t.Run("successful login", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		t.Cleanup(hook.Reset)
+		app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
+		app.HandleLogin(w, req)
+		redirectURL, err := w.Result().Location()
+		require.NoError(t, err)
+		state := redirectURL.Query().Get("state")
+
+		req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, fmt.Sprintf("https://argocd.example.com/auth/callback?state=%s&code=abc", state), http.NoBody)
+		for _, cookie := range w.Result().Cookies() {
+			req.AddCookie(cookie)
+		}
+		w = httptest.NewRecorder()
+		app.HandleCallback(w, req)
+		require.Equal(t, http.StatusSeeOther, w.Code)
+
+		entry := findLoginEntry(t, hook)
+		assert.Equal(t, log.InfoLevel, entry.Level)
+		assert.Equal(t, "Web login successful", entry.Message)
+		// sub of the token issued by the OIDC test server
+		assert.Equal(t, "1234567890", entry.Data["username"])
+		assert.NotEmpty(t, entry.Data["claims"])
+	})
+
+	t.Run("failed login", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		t.Cleanup(hook.Reset)
+		app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/callback?state=bogus&code=abc", http.NoBody)
+		w := httptest.NewRecorder()
+		app.HandleCallback(w, req)
+		require.Equal(t, http.StatusBadRequest, w.Code)
+
+		entry := findLoginEntry(t, hook)
+		assert.Equal(t, log.WarnLevel, entry.Level)
+		assert.Equal(t, "Login failed", entry.Message)
+		assert.NotEmpty(t, entry.Data["error"])
+		assert.NotContains(t, entry.Data, "username")
+	})
+
+	t.Run("failed implicit flow login", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		t.Cleanup(hook.Reset)
+		app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/callback?state=bogus", http.NoBody)
+		w := httptest.NewRecorder()
+		app.HandleCallback(w, req)
+		require.Equal(t, http.StatusBadRequest, w.Code)
+
+		entry := findLoginEntry(t, hook)
+		assert.Equal(t, log.WarnLevel, entry.Level)
+		assert.Equal(t, "Login failed", entry.Message)
+		assert.NotEmpty(t, entry.Data["error"])
+	})
+
+	t.Run("failed provider setup", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		t.Cleanup(hook.Reset)
+		// the OIDC test server uses a self-signed certificate, so provider discovery fails without OIDCTLSInsecureSkipVerify
+		strictSettings := *cdSettings
+		strictSettings.OIDCTLSInsecureSkipVerify = false
+		app, err := NewClientApp(&strictSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/callback?state=bogus&code=abc", http.NoBody)
+		w := httptest.NewRecorder()
+		app.HandleCallback(w, req)
+		require.Equal(t, http.StatusInternalServerError, w.Code)
+
+		entry := findLoginEntry(t, hook)
+		assert.Equal(t, log.WarnLevel, entry.Level)
+		assert.Equal(t, "Login failed", entry.Message)
+		assert.NotEmpty(t, entry.Data["error"])
+	})
 }

@@ -51,6 +51,68 @@ test('bitbucket.org', () => {
     );
 });
 
+// for self-hosted Bitbucket Server installations
+// Clone URLs use /scm/ prefix; browse URLs use /users/ or /projects/ prefix.
+test('bitbucket server (self-hosted, personal repo, HTTPS)', () => {
+    expect(repoUrl('https://bitbucket.example.com/scm/~user/repo-name.git')).toBe(
+        'https://bitbucket.example.com/users/user/repos/repo-name',
+    );
+    expect(revisionUrl('https://bitbucket.example.com/scm/~user/repo-name.git', 'abc1234', false)).toBe(
+        'https://bitbucket.example.com/users/user/repos/repo-name/commits/abc1234',
+    );
+    expect(revisionUrl('https://bitbucket.example.com/scm/~user/repo-name.git', 'main', false)).toBe(
+        'https://bitbucket.example.com/users/user/repos/repo-name/browse?at=main',
+    );
+    expect(revisionUrl('https://bitbucket.example.com/scm/~user/repo-name.git', 'v1.0.0', false)).toBe(
+        'https://bitbucket.example.com/users/user/repos/repo-name/browse?at=v1.0.0',
+    );
+    expect(revisionUrl('https://bitbucket.example.com/scm/~user/repo-name.git', '', false)).toBe(
+        'https://bitbucket.example.com/users/user/repos/repo-name/browse',
+    );
+    expect(revisionUrl('https://bitbucket.example.com/scm/~user/repo-name.git', 'HEAD', false)).toBe(
+        'https://bitbucket.example.com/users/user/repos/repo-name/browse',
+    );
+});
+
+test('bitbucket server (self-hosted, project repo, HTTPS)', () => {
+    expect(repoUrl('https://bitbucket.example.com/scm/MYPROJECT/repo-name.git')).toBe(
+        'https://bitbucket.example.com/projects/MYPROJECT/repos/repo-name',
+    );
+    expect(revisionUrl('https://bitbucket.example.com/scm/MYPROJECT/repo-name.git', 'abc1234', false)).toBe(
+        'https://bitbucket.example.com/projects/MYPROJECT/repos/repo-name/commits/abc1234',
+    );
+    expect(revisionUrl('https://bitbucket.example.com/scm/MYPROJECT/repo-name.git', 'main', false)).toBe(
+        'https://bitbucket.example.com/projects/MYPROJECT/repos/repo-name/browse?at=main',
+    );
+    expect(revisionUrl('https://bitbucket.example.com/scm/MYPROJECT/repo-name.git', 'v1.0.0', false)).toBe(
+        'https://bitbucket.example.com/projects/MYPROJECT/repos/repo-name/browse?at=v1.0.0',
+    );
+    expect(revisionUrl('https://bitbucket.example.com/scm/MYPROJECT/repo-name.git', '', false)).toBe(
+        'https://bitbucket.example.com/projects/MYPROJECT/repos/repo-name/browse',
+    );
+    expect(revisionUrl('https://bitbucket.example.com/scm/MYPROJECT/repo-name.git', 'HEAD', false)).toBe(
+        'https://bitbucket.example.com/projects/MYPROJECT/repos/repo-name/browse',
+    );
+});
+
+test('bitbucket server (self-hosted, SSH)', () => {
+    expect(repoUrl('git@bitbucket.example.com:scm/~user/repo-name.git')).toBe(
+        'https://bitbucket.example.com/users/user/repos/repo-name',
+    );
+    expect(repoUrl('git@bitbucket.example.com:scm/MYPROJECT/repo-name.git')).toBe(
+        'https://bitbucket.example.com/projects/MYPROJECT/repos/repo-name',
+    );
+});
+
+test('bitbucket server (self-hosted, HTTP with explicit port)', () => {
+    expect(repoUrl('http://bitbucket.example.com:7990/scm/MYPROJECT/repo-name.git')).toBe(
+        'http://bitbucket.example.com:7990/projects/MYPROJECT/repos/repo-name',
+    );
+    expect(revisionUrl('http://bitbucket.example.com:7990/scm/MYPROJECT/repo-name.git', 'main', false)).toBe(
+        'http://bitbucket.example.com:7990/projects/MYPROJECT/repos/repo-name/browse?at=main',
+    );
+});
+
 test('empty url', () => {
     expect(repoUrl('')).toBe(null);
 });

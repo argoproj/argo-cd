@@ -14,38 +14,34 @@ updates:
       otel:
         patterns:
           - "go.opentelemetry.io/*"
+      golang-x:
+        patterns:
+          - "golang.org/x/*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "monday"
+    ignore:
+      # Renovate manages its own action, together with it's pinned docker image version.
+      # So whenever they are updated they both going to land in the same PR.
+      # See renovate-presets/devtool.json5.
+      - dependency-name: "renovatebot/github-action"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: "npm"
     directory: "/ui/"
     schedule:
       interval: "daily"
-
-  - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "daily"
-    ignore:
-      # We use consistent go and node versions across a lot of different files, and updating via dependabot would cause
-      # drift among those files, instead we let renovate bot handle them.
-      - dependency-name: "library/golang"
-      - dependency-name: "library/node"
-
-  - package-ecosystem: "docker"
-    directory: "/test/container/"
-    schedule:
-      interval: "daily"
-
-  - package-ecosystem: "docker"
-    directory: "/test/e2e/multiarch-container/"
-    schedule:
-      interval: "daily"
-
-  - package-ecosystem: "docker"
-    directory: "/test/remote/"
-    schedule:
-      interval: "daily"
+    groups:
+      # react-dom throws at runtime unless react is the exact same version.
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"

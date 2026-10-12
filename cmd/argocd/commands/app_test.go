@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -23,6 +23,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
+	grpccodes "google.golang.org/grpc/codes"
+	grpcstatus "google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -122,7 +124,6 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 		Conditions:     nil,
 		ReconciledAt:   nil,
 		OperationState: nil,
-		ObservedAt:     nil,
 		SourceType:     "",
 		Summary:        v1alpha1.ApplicationSummary{},
 	}
@@ -230,7 +231,6 @@ func TestFindRevisionHistoryWithoutPassedIdWithMultipleSources(t *testing.T) {
 		Conditions:     nil,
 		ReconciledAt:   nil,
 		OperationState: nil,
-		ObservedAt:     nil,
 		SourceType:     "",
 		Summary:        v1alpha1.ApplicationSummary{},
 	}
@@ -283,7 +283,6 @@ func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
 		Conditions:     nil,
 		ReconciledAt:   nil,
 		OperationState: nil,
-		ObservedAt:     nil,
 		SourceType:     "",
 		Summary:        v1alpha1.ApplicationSummary{},
 	}
@@ -314,7 +313,6 @@ func TestFindRevisionHistoryWithPassedId(t *testing.T) {
 		Conditions:     nil,
 		ReconciledAt:   nil,
 		OperationState: nil,
-		ObservedAt:     nil,
 		SourceType:     "",
 		Summary:        v1alpha1.ApplicationSummary{},
 	}
@@ -344,7 +342,6 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 		Conditions:     nil,
 		ReconciledAt:   nil,
 		OperationState: nil,
-		ObservedAt:     nil,
 		SourceType:     "",
 		Summary:        v1alpha1.ApplicationSummary{},
 	}
@@ -614,10 +611,8 @@ func TestPrintApplicationHistoryTableWithMultipleSources(t *testing.T) {
 func TestPrintAppSummaryTable(t *testing.T) {
 	output, _ := captureOutput(func() error {
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test",
-				Namespace: "argocd",
-			},
+			Name:      "test",
+			Namespace: "argocd",
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
@@ -702,10 +697,8 @@ Health Status:      Progressing
 func TestPrintAppSummaryTable_MultipleSources(t *testing.T) {
 	output, _ := captureOutput(func() error {
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test",
-				Namespace: "argocd",
-			},
+			Name:      "test",
+			Namespace: "argocd",
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
@@ -984,9 +977,7 @@ func TestCheckForDeleteEvent(t *testing.T) {
 func TestPrintApplicationNames(t *testing.T) {
 	output, _ := captureOutput(func() error {
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test",
-			},
+			Name: "test",
 		}
 		printApplicationNames([]v1alpha1.Application{*app, *app})
 		return nil
@@ -1002,7 +993,7 @@ func TestNewApplicationUnsetCommand_Validation(t *testing.T) {
 		_ = cmd.Execute()
 	}
 
-	cmd := exec.CommandContext(context.Background(), os.Args[0], "-test.run=TestNewApplicationUnsetCommand_Validation")
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=TestNewApplicationUnsetCommand_Validation")
 	cmd.Env = append(os.Environ(), "BE_CRASHER=1")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -1125,6 +1116,15 @@ func Test_unset(t *testing.T) {
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
+	kustomizeSource.Kustomize.Images = v1alpha1.KustomizeImages{
+		"registry.example.com:5000/team/foo:1.0",
+		"registry.example.com:5000/team/bar:1.0",
+	}
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"registry.example.com:5000/team/bar"}})
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	assert.Equal(t, v1alpha1.KustomizeImages{"registry.example.com:5000/team/foo:1.0"}, kustomizeSource.Kustomize.Images)
+
 	assert.Len(t, kustomizeSource.Kustomize.Replicas, 2)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
 	assert.Len(t, kustomizeSource.Kustomize.Replicas, 1)
@@ -1199,8 +1199,6 @@ func Test_unset(t *testing.T) {
 }
 
 func Test_unset_nothingToUnset(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
 		name   string
 		source v1alpha1.ApplicationSource
@@ -1214,8 +1212,6 @@ func Test_unset_nothingToUnset(t *testing.T) {
 		testCaseCopy := testCase
 
 		t.Run(testCaseCopy.name, func(t *testing.T) {
-			t.Parallel()
-
 			updated, nothingToUnset := unset(&testCaseCopy.source, unsetOpts{})
 			assert.False(t, updated)
 			assert.True(t, nothingToUnset)
@@ -1529,9 +1525,7 @@ func TestParseSelectedResourcesEmptyList(t *testing.T) {
 func TestPrintApplicationTableNotWide(t *testing.T) {
 	output, err := captureOutput(func() error {
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "app-name",
-			},
+			Name: "app-name",
 			Spec: v1alpha1.ApplicationSpec{
 				Destination: v1alpha1.ApplicationDestination{
 					Server:    "http://localhost:8080",
@@ -1560,9 +1554,7 @@ func TestPrintApplicationTableNotWide(t *testing.T) {
 func TestPrintApplicationTableWide(t *testing.T) {
 	output, err := captureOutput(func() error {
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "app-name",
-			},
+			Name: "app-name",
 			Spec: v1alpha1.ApplicationSpec{
 				Destination: v1alpha1.ApplicationDestination{
 					Server:    "http://localhost:8080",
@@ -1690,7 +1682,7 @@ func TestCheckResourceStatus(t *testing.T) {
 			suspended: true,
 			health:    true,
 			degraded:  true,
-		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced))
 		assert.True(t, res)
 	})
 	t.Run("Degraded, Suspended and health status failed", func(t *testing.T) {
@@ -1698,57 +1690,64 @@ func TestCheckResourceStatus(t *testing.T) {
 			suspended: true,
 			health:    true,
 			degraded:  true,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced))
 		assert.False(t, res)
 	})
 	t.Run("Suspended and health status passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
 			health:    true,
-		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced))
 		assert.True(t, res)
 	})
 	t.Run("Suspended and health status failed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
 			health:    true,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced))
 		assert.False(t, res)
 	})
 	t.Run("Suspended passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
 			health:    false,
-		}, string(health.HealthStatusSuspended), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
+		}, string(health.HealthStatusSuspended), string(v1alpha1.SyncStatusCodeSynced))
 		assert.True(t, res)
 	})
 	t.Run("Suspended failed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: true,
 			health:    false,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced))
 		assert.False(t, res)
 	})
 	t.Run("Health passed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: false,
 			health:    true,
-		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
+		}, string(health.HealthStatusHealthy), string(v1alpha1.SyncStatusCodeSynced))
 		assert.True(t, res)
 	})
 	t.Run("Health failed", func(t *testing.T) {
 		res := checkResourceStatus(watchOpts{
 			suspended: false,
 			health:    true,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced))
 		assert.False(t, res)
 	})
+	t.Run("Health check passes when resource has no health status", func(t *testing.T) {
+		res := checkResourceStatus(watchOpts{
+			suspended: false,
+			health:    true,
+		}, "", string(v1alpha1.SyncStatusCodeSynced))
+		assert.True(t, res)
+	})
 	t.Run("Synced passed", func(t *testing.T) {
-		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
+		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced))
 		assert.True(t, res)
 	})
 	t.Run("Synced failed", func(t *testing.T) {
-		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeOutOfSync), &v1alpha1.Operation{}, true)
+		res := checkResourceStatus(watchOpts{}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeOutOfSync))
 		assert.True(t, res)
 	})
 	t.Run("Degraded passed", func(t *testing.T) {
@@ -1756,7 +1755,7 @@ func TestCheckResourceStatus(t *testing.T) {
 			suspended: false,
 			health:    false,
 			degraded:  true,
-		}, string(health.HealthStatusDegraded), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
+		}, string(health.HealthStatusDegraded), string(v1alpha1.SyncStatusCodeSynced))
 		assert.True(t, res)
 	})
 	t.Run("Degraded failed", func(t *testing.T) {
@@ -1764,7 +1763,7 @@ func TestCheckResourceStatus(t *testing.T) {
 			suspended: false,
 			health:    false,
 			degraded:  true,
-		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced), &v1alpha1.Operation{}, true)
+		}, string(health.HealthStatusProgressing), string(v1alpha1.SyncStatusCodeSynced))
 		assert.False(t, res)
 	})
 }
@@ -1835,12 +1834,10 @@ func Test_hasAppChanged(t *testing.T) {
 
 func testApp(name, project string, labels map[string]string, annotations map[string]string, finalizers []string) *v1alpha1.Application {
 	return &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Labels:      labels,
-			Annotations: annotations,
-			Finalizers:  finalizers,
-		},
+		Name:        name,
+		Labels:      labels,
+		Annotations: annotations,
+		Finalizers:  finalizers,
 		Spec: v1alpha1.ApplicationSpec{
 			Source: &v1alpha1.ApplicationSource{
 				RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
@@ -1862,10 +1859,11 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	}
 	watch = getWatchOpts(watch)
 
-	output, err := captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
-		return nil
-	},
+	output, err := captureOutput(
+		func() error {
+			_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+			return nil
+		},
 	)
 	require.NoError(t, err)
 	assert.True(t, json.Valid([]byte(output)))
@@ -2044,7 +2042,7 @@ func TestCheckAppWaitConditions(t *testing.T) {
 			name:             "pending operation marks operation in progress",
 			app:              &v1alpha1.Application{Operation: &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}, Status: v1alpha1.ApplicationStatus{Sync: v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced}, Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy}}},
 			watch:            syncHealth,
-			wantReady:        false, // !watch.operation || operationStatus == nil → false when operation pending and watch.operation
+			wantReady:        false, // !watch.operation || operationStatus == nil -> false when operation pending and watch.operation
 			wantOpInProgress: true,
 		},
 		{
@@ -2055,7 +2053,7 @@ func TestCheckAppWaitConditions(t *testing.T) {
 				OperationState: &v1alpha1.OperationState{Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}},
 			}},
 			watch:            syncHealth,
-			wantReady:        true,
+			wantReady:        false,
 			wantOpInProgress: true,
 		},
 		{
@@ -2067,7 +2065,7 @@ func TestCheckAppWaitConditions(t *testing.T) {
 				ReconciledAt:   &beforeFinished,
 			}},
 			watch:            syncHealth,
-			wantReady:        true,
+			wantReady:        false,
 			wantOpInProgress: true,
 		},
 		{
@@ -2085,6 +2083,12 @@ func TestCheckAppWaitConditions(t *testing.T) {
 			name:      "out of sync app is not ready",
 			app:       appWith(v1alpha1.SyncStatusCodeOutOfSync, health.HealthStatusHealthy),
 			watch:     syncHealth,
+			wantReady: false,
+		},
+		{
+			name:      "delete blocks ready",
+			app:       &v1alpha1.Application{},
+			watch:     watchOpts{delete: true},
 			wantReady: false,
 		},
 		{
@@ -2127,6 +2131,51 @@ func TestCheckAppWaitConditions(t *testing.T) {
 			watch:     watchOpts{sync: true, health: true, hydrated: true},
 			wantReady: false, // hydration not finished yet
 		},
+		{
+			// Regression for hydration blocking when resources are selected
+			name: "hydration in progress blocks ready even when selected resources are ready",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+				Resources: []v1alpha1.ResourceStatus{
+					{Kind: "Deployment", Name: "a", Namespace: "default", Status: v1alpha1.SyncStatusCodeSynced, Health: &v1alpha1.HealthStatus{Status: health.HealthStatusHealthy}},
+				},
+				SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation: &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseHydrating},
+				},
+			}},
+			watch:             watchOpts{sync: true, health: true, hydrated: true},
+			selectedResources: []*v1alpha1.SyncOperationResource{{Kind: "Deployment", Name: "a", Namespace: "default"}},
+			wantReady:         false, // hydration not finished yet
+		},
+		{
+			name: "successful hydration returns ready",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+				SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation: &v1alpha1.HydrateOperation{
+						Phase:       v1alpha1.HydrateOperationPhaseHydrated,
+						DrySHA:      "some-sha",
+						HydratedSHA: "some-sha",
+						SourceHydrator: v1alpha1.SourceHydrator{
+							DrySource:  v1alpha1.DrySource{RepoURL: "repo"},
+							SyncSource: v1alpha1.SyncSource{TargetBranch: "main"},
+						},
+					},
+					LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
+						DrySHA:      "some-sha",
+						HydratedSHA: "some-sha",
+						SourceHydrator: v1alpha1.SourceHydrator{
+							DrySource:  v1alpha1.DrySource{RepoURL: "repo"},
+							SyncSource: v1alpha1.SyncSource{TargetBranch: "main"},
+						},
+					},
+				},
+			}},
+			watch:     watchOpts{sync: true, health: true, hydrated: true},
+			wantReady: true,
+		},
 	}
 
 	for _, tc := range tests {
@@ -2166,7 +2215,7 @@ func TestWaitOnApplicationStatus_ReturnsImmediatelyWhenAlreadyInDesiredState(t *
 
 // TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn verifies that
 // `argocd app wait --delete` does not short-circuit on the initial Get and
-// instead consumes the watch for the Deleted event — the Get can only return
+// instead consumes the watch for the Deleted event - the Get can only return
 // an existing application, so its state cannot satisfy the delete condition.
 func TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn(t *testing.T) {
 	acdClient := &deleteAcdClient{fakeAcdClient: &fakeAcdClient{}}
@@ -2230,6 +2279,14 @@ func (c *readyEventAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.S
 	return &fakeConnection{}, &fakeSettingsServiceClient{}
 }
 
+func (c *readyEventAcdClient) NewApplicationClientOrDieWithContext(_ context.Context) (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return c.NewApplicationClientOrDie()
+}
+
+func (c *readyEventAcdClient) NewSettingsClientOrDieWithContext(_ context.Context) (io.Closer, settingspkg.SettingsServiceClient) {
+	return c.NewSettingsClientOrDie()
+}
+
 // deleteAcdClient emits a single Deleted event immediately so the watch loop
 // can return without relying on a timeout.
 type deleteAcdClient struct {
@@ -2256,6 +2313,14 @@ func (c *deleteAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.Setti
 	return &fakeConnection{}, &fakeSettingsServiceClient{}
 }
 
+func (c *deleteAcdClient) NewApplicationClientOrDieWithContext(_ context.Context) (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return c.NewApplicationClientOrDie()
+}
+
+func (c *deleteAcdClient) NewSettingsClientOrDieWithContext(_ context.Context) (io.Closer, settingspkg.SettingsServiceClient) {
+	return c.NewSettingsClientOrDie()
+}
+
 // readyAcdClient is like customAcdClient but returns an application that is
 // already Synced and Healthy with no operation pending.
 type readyAcdClient struct {
@@ -2266,7 +2331,7 @@ func (c *readyAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, 
 	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
 	go func() {
 		// Block long enough that the test would clearly fail if the early
-		// return regresses. Never emit an event — mirrors the real-world
+		// return regresses. Never emit an event - mirrors the real-world
 		// behavior reported in #12211 where no events arrive because the
 		// application CR is not changing.
 		time.Sleep(time.Duration(c.simulateTimeout) * time.Second)
@@ -2283,16 +2348,22 @@ func (c *readyAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.Settin
 	return &fakeConnection{}, &fakeSettingsServiceClient{}
 }
 
+func (c *readyAcdClient) NewApplicationClientOrDieWithContext(_ context.Context) (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return c.NewApplicationClientOrDie()
+}
+
+func (c *readyAcdClient) NewSettingsClientOrDieWithContext(_ context.Context) (io.Closer, settingspkg.SettingsServiceClient) {
+	return c.NewSettingsClientOrDie()
+}
+
 type readyFakeAppServiceClient struct {
 	fakeAppServiceClient
 }
 
 func (c *readyFakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
 	return &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "argocd",
-		},
+		Name:      "test",
+		Namespace: "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Project:     "default",
 			Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
@@ -2342,6 +2413,14 @@ func (c *customAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.Setti
 	return &fakeConnection{}, &fakeSettingsServiceClient{}
 }
 
+func (c *customAcdClient) NewApplicationClientOrDieWithContext(_ context.Context) (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return c.NewApplicationClientOrDie()
+}
+
+func (c *customAcdClient) NewSettingsClientOrDieWithContext(_ context.Context) (io.Closer, settingspkg.SettingsServiceClient) {
+	return c.NewSettingsClientOrDie()
+}
+
 type fakeConnection struct{}
 
 func (c *fakeConnection) Close() error {
@@ -2365,10 +2444,8 @@ type fakeAppServiceClient struct{}
 func (c *fakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
 	time := metav1.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC)
 	return &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "argocd",
-		},
+		Name:      "test",
+		Namespace: "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			SyncPolicy: &v1alpha1.SyncPolicy{
 				Automated: &v1alpha1.SyncPolicyAutomated{
@@ -2666,6 +2743,110 @@ func (c *fakeAcdClient) NewAccountClientOrDie() (io.Closer, accountpkg.AccountSe
 	return nil, nil
 }
 
+func (c *fakeAcdClient) NewRepoClientWithContext(_ context.Context) (io.Closer, repositorypkg.RepositoryServiceClient, error) {
+	return c.NewRepoClient()
+}
+
+func (c *fakeAcdClient) NewRepoClientOrDieWithContext(_ context.Context) (io.Closer, repositorypkg.RepositoryServiceClient) {
+	return c.NewRepoClientOrDie()
+}
+
+func (c *fakeAcdClient) NewRepoCredsClientWithContext(_ context.Context) (io.Closer, repocredspkg.RepoCredsServiceClient, error) {
+	return c.NewRepoCredsClient()
+}
+
+func (c *fakeAcdClient) NewRepoCredsClientOrDieWithContext(_ context.Context) (io.Closer, repocredspkg.RepoCredsServiceClient) {
+	return c.NewRepoCredsClientOrDie()
+}
+
+func (c *fakeAcdClient) NewCertClientWithContext(_ context.Context) (io.Closer, certificatepkg.CertificateServiceClient, error) {
+	return c.NewCertClient()
+}
+
+func (c *fakeAcdClient) NewCertClientOrDieWithContext(_ context.Context) (io.Closer, certificatepkg.CertificateServiceClient) {
+	return c.NewCertClientOrDie()
+}
+
+func (c *fakeAcdClient) NewClusterClientWithContext(_ context.Context) (io.Closer, clusterpkg.ClusterServiceClient, error) {
+	return c.NewClusterClient()
+}
+
+func (c *fakeAcdClient) NewClusterClientOrDieWithContext(_ context.Context) (io.Closer, clusterpkg.ClusterServiceClient) {
+	return c.NewClusterClientOrDie()
+}
+
+func (c *fakeAcdClient) NewGPGKeyClientWithContext(_ context.Context) (io.Closer, gpgkeypkg.GPGKeyServiceClient, error) {
+	return c.NewGPGKeyClient()
+}
+
+func (c *fakeAcdClient) NewGPGKeyClientOrDieWithContext(_ context.Context) (io.Closer, gpgkeypkg.GPGKeyServiceClient) {
+	return c.NewGPGKeyClientOrDie()
+}
+
+func (c *fakeAcdClient) NewApplicationClientWithContext(_ context.Context) (io.Closer, applicationpkg.ApplicationServiceClient, error) {
+	return c.NewApplicationClient()
+}
+
+func (c *fakeAcdClient) NewApplicationClientOrDieWithContext(_ context.Context) (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return c.NewApplicationClientOrDie()
+}
+
+func (c *fakeAcdClient) NewApplicationSetClientWithContext(_ context.Context) (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error) {
+	return c.NewApplicationSetClient()
+}
+
+func (c *fakeAcdClient) NewApplicationSetClientOrDieWithContext(_ context.Context) (io.Closer, applicationsetpkg.ApplicationSetServiceClient) {
+	return c.NewApplicationSetClientOrDie()
+}
+
+func (c *fakeAcdClient) NewNotificationClientWithContext(_ context.Context) (io.Closer, notificationpkg.NotificationServiceClient, error) {
+	return c.NewNotificationClient()
+}
+
+func (c *fakeAcdClient) NewNotificationClientOrDieWithContext(_ context.Context) (io.Closer, notificationpkg.NotificationServiceClient) {
+	return c.NewNotificationClientOrDie()
+}
+
+func (c *fakeAcdClient) NewSessionClientWithContext(_ context.Context) (io.Closer, sessionpkg.SessionServiceClient, error) {
+	return c.NewSessionClient()
+}
+
+func (c *fakeAcdClient) NewSessionClientOrDieWithContext(_ context.Context) (io.Closer, sessionpkg.SessionServiceClient) {
+	return c.NewSessionClientOrDie()
+}
+
+func (c *fakeAcdClient) NewSettingsClientWithContext(_ context.Context) (io.Closer, settingspkg.SettingsServiceClient, error) {
+	return c.NewSettingsClient()
+}
+
+func (c *fakeAcdClient) NewSettingsClientOrDieWithContext(_ context.Context) (io.Closer, settingspkg.SettingsServiceClient) {
+	return c.NewSettingsClientOrDie()
+}
+
+func (c *fakeAcdClient) NewVersionClientWithContext(_ context.Context) (io.Closer, versionpkg.VersionServiceClient, error) {
+	return c.NewVersionClient()
+}
+
+func (c *fakeAcdClient) NewVersionClientOrDieWithContext(_ context.Context) (io.Closer, versionpkg.VersionServiceClient) {
+	return c.NewVersionClientOrDie()
+}
+
+func (c *fakeAcdClient) NewProjectClientWithContext(_ context.Context) (io.Closer, projectpkg.ProjectServiceClient, error) {
+	return c.NewProjectClient()
+}
+
+func (c *fakeAcdClient) NewProjectClientOrDieWithContext(_ context.Context) (io.Closer, projectpkg.ProjectServiceClient) {
+	return c.NewProjectClientOrDie()
+}
+
+func (c *fakeAcdClient) NewAccountClientWithContext(_ context.Context) (io.Closer, accountpkg.AccountServiceClient, error) {
+	return c.NewAccountClient()
+}
+
+func (c *fakeAcdClient) NewAccountClientOrDieWithContext(_ context.Context) (io.Closer, accountpkg.AccountServiceClient) {
+	return c.NewAccountClientOrDie()
+}
+
 func (c *fakeAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
 	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
 
@@ -2697,4 +2878,40 @@ func (c *fakeAcdClient) WatchApplicationSetWithRetry(_ context.Context, _ string
 		appSetEventsCh <- addedEvent
 	}()
 	return appSetEventsCh
+}
+
+func TestIsContextCanceledErr(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil error returns false", func(t *testing.T) {
+		t.Parallel()
+		assert.False(t, isContextCanceledErr(nil))
+	})
+
+	t.Run("context.Canceled returns true", func(t *testing.T) {
+		t.Parallel()
+		assert.True(t, isContextCanceledErr(context.Canceled))
+	})
+
+	t.Run("context.DeadlineExceeded returns true", func(t *testing.T) {
+		t.Parallel()
+		assert.True(t, isContextCanceledErr(context.DeadlineExceeded))
+	})
+
+	t.Run("gRPC Canceled status returns true", func(t *testing.T) {
+		t.Parallel()
+		grpcErr := grpcstatus.Error(grpccodes.Canceled, "context canceled")
+		assert.True(t, isContextCanceledErr(grpcErr))
+	})
+
+	t.Run("gRPC DeadlineExceeded status returns true", func(t *testing.T) {
+		t.Parallel()
+		grpcErr := grpcstatus.Error(grpccodes.DeadlineExceeded, "deadline exceeded")
+		assert.True(t, isContextCanceledErr(grpcErr))
+	})
+
+	t.Run("unrelated error returns false", func(t *testing.T) {
+		t.Parallel()
+		assert.False(t, isContextCanceledErr(errors.New("some other error")))
+	})
 }

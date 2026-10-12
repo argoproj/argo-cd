@@ -17,6 +17,7 @@ func setupTestSharding(shard int, replicas int) *ClusterSharding {
 }
 
 func TestNewClusterSharding(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -29,6 +30,7 @@ func TestNewClusterSharding(t *testing.T) {
 }
 
 func TestClusterSharding_Add(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -64,6 +66,7 @@ func TestClusterSharding_Add(t *testing.T) {
 }
 
 func TestClusterSharding_AddRoundRobin_Redistributes(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 
@@ -124,6 +127,7 @@ func TestClusterSharding_AddRoundRobin_Redistributes(t *testing.T) {
 }
 
 func TestClusterSharding_Delete(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -155,6 +159,7 @@ func TestClusterSharding_Delete(t *testing.T) {
 }
 
 func TestClusterSharding_Update(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -204,6 +209,7 @@ func TestClusterSharding_Update(t *testing.T) {
 }
 
 func TestClusterSharding_UpdateServerName(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -255,6 +261,7 @@ func TestClusterSharding_UpdateServerName(t *testing.T) {
 }
 
 func TestClusterSharding_IsManagedCluster(t *testing.T) {
+	t.Parallel()
 	replicas := 2
 	sharding0 := setupTestSharding(0, replicas)
 
@@ -324,6 +331,7 @@ func TestClusterSharding_IsManagedCluster(t *testing.T) {
 }
 
 func TestIsManagedCluster_SkipReconcileAnnotation(t *testing.T) {
+	t.Parallel()
 	sharding := setupTestSharding(0, 1)
 	sharding.Init(
 		&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{{ID: "1", Server: "https://cluster1"}}},
@@ -345,7 +353,62 @@ func TestIsManagedCluster_SkipReconcileAnnotation(t *testing.T) {
 	assert.True(t, sharding.IsManagedCluster(nil))
 }
 
+func TestClusterSharding_IsManagedClusterByServer(t *testing.T) {
+	t.Parallel()
+	replicas := 2
+	shard0, shard1 := int64(0), int64(1)
+	clusters := &v1alpha1.ClusterList{
+		Items: []v1alpha1.Cluster{
+			{ID: "1", Server: "https://kubernetes.default.svc", Shard: &shard0},
+			{ID: "2", Server: "https://127.0.0.1:6443", Shard: &shard1},
+			{ID: "3", Server: "https://skipped", Shard: &shard0, Annotations: map[string]string{common.AnnotationKeyAppSkipReconcile: "true"}},
+			{ID: "4", Server: "https://not-skipped", Shard: &shard0, Annotations: map[string]string{common.AnnotationKeyAppSkipReconcile: "false"}},
+		},
+	}
+	apps := &v1alpha1.ApplicationList{
+		Items: []v1alpha1.Application{
+			createApp("app1", "https://kubernetes.default.svc"),
+			createApp("app2", "https://127.0.0.1:6443"),
+		},
+	}
+
+	sharding0 := setupTestSharding(0, replicas)
+	sharding0.Init(clusters, apps)
+	sharding1 := setupTestSharding(1, replicas)
+	sharding1.Init(clusters, apps)
+
+	tests := []struct {
+		name       string
+		server     string
+		wantShard0 bool
+		wantShard1 bool
+		wantKnown  bool
+	}{
+		{"cluster assigned to shard 0", "https://kubernetes.default.svc", true, false, true},
+		{"cluster assigned to shard 1", "https://127.0.0.1:6443", false, true, true},
+		{"cluster with skip-reconcile annotation", "https://skipped", false, false, true},
+		{"cluster with skip-reconcile annotation set to false", "https://not-skipped", true, false, true},
+		// An unknown server reports managed, matching IsManagedCluster(nil), with known=false so
+		// callers can fall back to the full lookup.
+		{"server the cache holds no cluster for", "https://unknown", true, true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			managed, known := sharding0.IsManagedClusterByServer(tt.server)
+			assert.Equal(t, tt.wantShard0, managed, "shard 0 managed")
+			assert.Equal(t, tt.wantKnown, known, "shard 0 known")
+
+			managed, known = sharding1.IsManagedClusterByServer(tt.server)
+			assert.Equal(t, tt.wantShard1, managed, "shard 1 managed")
+			assert.Equal(t, tt.wantKnown, known, "shard 1 known")
+		})
+	}
+}
+
 func TestClusterSharding_ClusterShardOfResourceShouldNotBeChanged(t *testing.T) {
+	t.Parallel()
 	shard := 1
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
@@ -398,6 +461,7 @@ func TestClusterSharding_ClusterShardOfResourceShouldNotBeChanged(t *testing.T) 
 }
 
 func TestHasShardingUpdates(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		old      *v1alpha1.Cluster
@@ -520,6 +584,7 @@ func TestHasShardingUpdates(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tc.expected, hasShardingUpdates(tc.old, tc.new))
 		})
 	}
