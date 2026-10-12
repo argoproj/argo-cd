@@ -609,8 +609,8 @@ jobs:
         if: env.sonar_secret != ''
       - name: Generate e2e test coverage profile
         if: ${{ needs.test-e2e.result == 'success' }}
-        # Runs after every other step, so an incomplete e2e profile fails the job without
-        # skipping the unit coverage upload or the SonarCloud scan.
+        # Runs after the unit coverage upload and the SonarCloud scan, so an incomplete e2e
+        # profile fails the job without skipping them.
         # We generate coverage reports for all Argo CD components, but only the applicationset-controller,
         # app-controller, repo-server, and commit-server report contain coverage data. The other components currently
         # don't shut down gracefully, so no coverage data is produced. Once those components are fixed, we can add

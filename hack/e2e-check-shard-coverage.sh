@@ -31,6 +31,13 @@ if [ "$#" -ne "$count" ]; then
 	exit 1
 fi
 
+for report in "$@"; do
+	if ! [ -f "$report" ] || ! [ -r "$report" ]; then
+		echo "e2e-check-shard-coverage: cannot read report '$report'" >&2
+		exit 1
+	fi
+done
+
 dir="${E2E_TEST_DIR:-test/e2e}"
 
 # grep fails when nothing matches; `|| true` lets the checks below report why instead.
