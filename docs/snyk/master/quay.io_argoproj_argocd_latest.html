@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="46 known vulnerabilities found in 111 vulnerable dependency paths.">
+  <meta name="description" content="44 known vulnerabilities found in 112 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">September 27th 2026, 12:36:39 am (UTC+00:00)</p>
+                <p class="timestamp">October 11th 2026, 12:38:15 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -507,9 +507,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>46</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>111 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2556</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>44</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>112 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2550</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -517,280 +517,6 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Directory Traversal</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--high">
-                        <span class="label__text">high severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/go-git/go-git/v5/storage/filesystem/dotgit
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v3@* and github.com/go-git/go-git/v5/storage/filesystem/dotgit@v5.19.1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/storage/filesystem/dotgit@v5.19.1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Directory Traversal via the processing of reference names in <code>dotgit</code>. An attacker can modify or overwrite files outside the intended reference storage by supplying specially crafted reference names containing path traversal sequences. This is only exploitable if the application uses filesystem-backed storage and interacts with a malicious Git server or processes attacker-controlled reference names.</p>
-        <h2 id="workaround">Workaround</h2>
-        <p>This vulnerability can be mitigated by exclusively using in-memory storage or by validating reference names at the application level before passing them to filesystem-backed storage.</p>
-        <h2 id="details">Details</h2>
-        <p>A Directory Traversal attack (also known as path traversal) aims to access files and directories that are stored outside the intended folder. By manipulating files with &quot;dot-dot-slash (../)&quot; sequences and its variations, or by using absolute file paths, it may be possible to access arbitrary files and directories stored on file system, including application source code, configuration, and other critical system files.</p>
-        <p>Directory Traversal vulnerabilities can be generally divided into two types:</p>
-        <ul>
-        <li><strong>Information Disclosure</strong>: Allows the attacker to gain information about the folder structure or read the contents of sensitive files on the system.</li>
-        </ul>
-        <p><code>st</code> is a module for serving static files on web pages, and contains a <a href="https://snyk.io/vuln/npm:st:20140206">vulnerability of this type</a>. In our example, we will serve files from the <code>public</code> route.</p>
-        <p>If an attacker requests the following URL from our server, it will in turn leak the sensitive private key of the root user.</p>
-        <pre><code>curl http://localhost:8080/public/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/root/.ssh/id_rsa
-        </code></pre>
-        <p><strong>Note</strong> <code>%2e</code> is the URL encoded version of <code>.</code> (dot).</p>
-        <ul>
-        <li><strong>Writing arbitrary files</strong>: Allows the attacker to create or replace existing files. This type of vulnerability is also known as <code>Zip-Slip</code>.</li>
-        </ul>
-        <p>One way to achieve this is by using a malicious <code>zip</code> archive that holds path traversal filenames. When each filename in the zip archive gets concatenated to the target extraction folder, without validation, the final path ends up outside of the target folder. If an executable or a configuration file is overwritten with a file containing malicious code, the problem can turn into an arbitrary code execution issue quite easily.</p>
-        <p>The following is an example of a <code>zip</code> archive with one benign file and one malicious file. Extracting the malicious file will result in traversing out of the target folder, ending up in <code>/root/.ssh/</code> overwriting the <code>authorized_keys</code> file:</p>
-        <pre><code>2018-04-15 22:04:29 .....           19           19  good.txt
-        2018-04-15 22:04:42 .....           20           20  ../../../../../../root/.ssh/authorized_keys
-        </code></pre>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/go-git/go-git/v5/storage/filesystem/dotgit</code> to version 5.19.2 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/go-git/go-git/security/advisories/GHSA-qgq7-7hm3-q39j">GitHub Advisory</a></li>
-        <li><a href="https://github.com/go-git/go-git/commit/4a0e66d555de5f9a30c31e2df64f445f42bd01e7">GitHub Commit</a></li>
-        <li><a href="https://github.com/go-git/go-git/commit/da9f7d8a0e98b475600177348d6ece384a370f36">GitHub Commit</a></li>
-        <li><a href="https://github.com/go-git/go-git/pull/2247">GitHub PR</a></li>
-        <li><a href="https://github.com/go-git/go-git/pull/2254">GitHub PR</a></li>
-        <li><a href="https://github.com/go-git/go-git/releases/tag/v5.19.2">GitHub Release</a></li>
-        <li><a href="https://github.com/go-git/go-git/releases/tag/v6.0.0-alpha.5">GitHub Release</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5STORAGEFILESYSTEMDOTGIT-18593984">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Directory Traversal</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--high">
-                        <span class="label__text">high severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/go-git/go-git/v5/plumbing
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v3@* and github.com/go-git/go-git/v5/plumbing@v5.19.1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5/plumbing@v5.19.1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/github.com/go-git/go-git/v5/plumbing">github.com/go-git/go-git/v5/plumbing</a> is a highly extensible git implementation library written in pure Go.</p>
-        <p>Affected versions of this package are vulnerable to Directory Traversal via the processing of reference names in <code>dotgit</code>. An attacker can modify or overwrite files outside the intended reference storage by supplying specially crafted reference names containing path traversal sequences. This is only exploitable if the application uses filesystem-backed storage and interacts with a malicious Git server or processes attacker-controlled reference names.</p>
-        <h2 id="workaround">Workaround</h2>
-        <p>This vulnerability can be mitigated by exclusively using in-memory storage or by validating reference names at the application level before passing them to filesystem-backed storage.</p>
-        <h2 id="details">Details</h2>
-        <p>A Directory Traversal attack (also known as path traversal) aims to access files and directories that are stored outside the intended folder. By manipulating files with &quot;dot-dot-slash (../)&quot; sequences and its variations, or by using absolute file paths, it may be possible to access arbitrary files and directories stored on file system, including application source code, configuration, and other critical system files.</p>
-        <p>Directory Traversal vulnerabilities can be generally divided into two types:</p>
-        <ul>
-        <li><strong>Information Disclosure</strong>: Allows the attacker to gain information about the folder structure or read the contents of sensitive files on the system.</li>
-        </ul>
-        <p><code>st</code> is a module for serving static files on web pages, and contains a <a href="https://snyk.io/vuln/npm:st:20140206">vulnerability of this type</a>. In our example, we will serve files from the <code>public</code> route.</p>
-        <p>If an attacker requests the following URL from our server, it will in turn leak the sensitive private key of the root user.</p>
-        <pre><code>curl http://localhost:8080/public/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/root/.ssh/id_rsa
-        </code></pre>
-        <p><strong>Note</strong> <code>%2e</code> is the URL encoded version of <code>.</code> (dot).</p>
-        <ul>
-        <li><strong>Writing arbitrary files</strong>: Allows the attacker to create or replace existing files. This type of vulnerability is also known as <code>Zip-Slip</code>.</li>
-        </ul>
-        <p>One way to achieve this is by using a malicious <code>zip</code> archive that holds path traversal filenames. When each filename in the zip archive gets concatenated to the target extraction folder, without validation, the final path ends up outside of the target folder. If an executable or a configuration file is overwritten with a file containing malicious code, the problem can turn into an arbitrary code execution issue quite easily.</p>
-        <p>The following is an example of a <code>zip</code> archive with one benign file and one malicious file. Extracting the malicious file will result in traversing out of the target folder, ending up in <code>/root/.ssh/</code> overwriting the <code>authorized_keys</code> file:</p>
-        <pre><code>2018-04-15 22:04:29 .....           19           19  good.txt
-        2018-04-15 22:04:42 .....           20           20  ../../../../../../root/.ssh/authorized_keys
-        </code></pre>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/go-git/go-git/v5/plumbing</code> to version 5.19.2 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/go-git/go-git/security/advisories/GHSA-qgq7-7hm3-q39j">GitHub Advisory</a></li>
-        <li><a href="https://github.com/go-git/go-git/commit/4a0e66d555de5f9a30c31e2df64f445f42bd01e7">GitHub Commit</a></li>
-        <li><a href="https://github.com/go-git/go-git/commit/da9f7d8a0e98b475600177348d6ece384a370f36">GitHub Commit</a></li>
-        <li><a href="https://github.com/go-git/go-git/pull/2247">GitHub PR</a></li>
-        <li><a href="https://github.com/go-git/go-git/pull/2254">GitHub PR</a></li>
-        <li><a href="https://github.com/go-git/go-git/releases/tag/v5.19.2">GitHub Release</a></li>
-        <li><a href="https://github.com/go-git/go-git/releases/tag/v6.0.0-alpha.5">GitHub Release</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5PLUMBING-18593988">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Symlink Attack</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--high">
-                        <span class="label__text">high severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/go-git/go-git/v5
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v3@* and github.com/go-git/go-git/v5@v5.19.1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-git/go-git/v5@v5.19.1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Symlink Attack in <code>worktree_fs.go</code> and <code>worktree.go</code> are vulnerable to symlink traversal in filesystem-backed worktrees. An attacker can modify or overwrite files outside the intended worktree by placing a symlink in the tree and then triggering a worktree operation, such as checkout, create, rename, or remove, against a path that resolves through that link. This can redirect writes into the repository’s <code>.git</code> metadata or another external target, leading to arbitrary file write and corruption of repository state, which can break subsequent Git operations and expose or alter files the application did not intend to touch.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/go-git/go-git/v5</code> to version 5.19.2 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/go-git/go-git/commit/008a78f2dd86f52544ddff8b8e8ddeecdf3f7aab">GitHub Commit</a></li>
-        <li><a href="https://github.com/go-git/go-git/commit/661d1c7f101d34e002a3cfcf8dbea5b7421d07ac">GitHub Commit</a></li>
-        <li><a href="https://github.com/go-git/go-git/security/advisories/GHSA-hc8v-wwc9-vgxm">Maintainer&#39;s Advisory</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2512562">Red Hat Bugzilla Bug</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5-18857903">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">GPL-3.0 license</h2>
             <div class="card__section">
@@ -976,7 +702,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssh/openssh-client@1:10.2p1-2ubuntu3.6
+                                        openssh/openssh-client@1:10.2p1-2ubuntu3.7
                                          <span class="list-paths__item__arrow">›</span> 
                                         zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3.1
                                         
@@ -1026,7 +752,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssh/openssh-client@1:10.2p1-2ubuntu3.6
+                                        openssh/openssh-client@1:10.2p1-2ubuntu3.7
                                          <span class="list-paths__item__arrow">›</span> 
                                         libfido2/libfido2-1@1.16.0-2build1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1043,7 +769,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         apt/libapt-pkg7.0@3.2.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3t64@3.5.5-1ubuntu3.5
+                                        openssl/libssl3t64@3.5.5-1ubuntu3.7
                                          <span class="list-paths__item__arrow">›</span> 
                                         zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3.1
                                         
@@ -3073,6 +2799,120 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Protection of Alternate Path</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:26.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            pcre2/libpcre2-8-0
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@latest and pcre2/libpcre2-8-0@10.46-1build1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pcre2/libpcre2-8-0@10.46-1build1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.53.0-1ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pcre2/libpcre2-8-0@10.46-1build1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        grep@3.12-1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pcre2/libpcre2-8-0@10.46-1build1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@3.2.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        base-passwd@3.6.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libselinux/libselinux1@3.9-4build1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pcre2/libpcre2-8-0@10.46-1build1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pcre2</code> package and not the <code>pcre2</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
+        <p>PCRE2 before 10.48 allows a pcre2_dfa_match out-of-bounds write because reuse of a cached workspace block, in a recursive DFA matching workspace, lacks a size check (even though a newly allocated block, for the same purpose, does have a size check). This outcome requires an attacker-controlled regular expression, or a recursive pattern in conjunction with a small heap limit (this can be set through the API).</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>pcre2</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-86145">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-86145</a></li>
+        <li><a href="https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48">https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48</a></li>
+        <li><a href="https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-3r4p-g7gg-ppmf">https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-3r4p-g7gg-ppmf</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/09/05/3">http://www.openwall.com/lists/oss-security/2026/09/05/3</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-PCRE2-19638410">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Free of Memory not on the Heap</h2>
             <div class="card__section">
         
@@ -3267,6 +3107,13 @@
         <li><a href="https://access.redhat.com/errata/RHSA-2026:54387">https://access.redhat.com/errata/RHSA-2026:54387</a></li>
         <li><a href="https://access.redhat.com/errata/RHSA-2026:54760">https://access.redhat.com/errata/RHSA-2026:54760</a></li>
         <li><a href="https://access.redhat.com/errata/RHSA-2026:58981">https://access.redhat.com/errata/RHSA-2026:58981</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:72394">https://access.redhat.com/errata/RHSA-2026:72394</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:72395">https://access.redhat.com/errata/RHSA-2026:72395</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:72399">https://access.redhat.com/errata/RHSA-2026:72399</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:72470">https://access.redhat.com/errata/RHSA-2026:72470</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:72475">https://access.redhat.com/errata/RHSA-2026:72475</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:72476">https://access.redhat.com/errata/RHSA-2026:72476</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:72502">https://access.redhat.com/errata/RHSA-2026:72502</a></li>
         </ul>
         
               <hr/>
@@ -4551,7 +4398,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssh/openssh-client@1:10.2p1-2ubuntu3.6
+                                        openssh/openssh-client@1:10.2p1-2ubuntu3.7
                                          <span class="list-paths__item__arrow">›</span> 
                                         libfido2/libfido2-1@1.16.0-2build1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -4675,7 +4522,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssh/openssh-client@1:10.2p1-2ubuntu3.6
+                                        openssh/openssh-client@1:10.2p1-2ubuntu3.7
                                          <span class="list-paths__item__arrow">›</span> 
                                         shadow/passwd@1:4.17.4-2ubuntu3
                                         
@@ -4752,7 +4599,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and openssh/openssh-client@1:10.2p1-2ubuntu3.6
+                                docker-image|quay.io/argoproj/argocd@latest and openssh/openssh-client@1:10.2p1-2ubuntu3.7
         
                     </li>
                 </ul>
@@ -4767,7 +4614,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssh/openssh-client@1:10.2p1-2ubuntu3.6
+                                        openssh/openssh-client@1:10.2p1-2ubuntu3.7
                                         
                                 </span>
         
