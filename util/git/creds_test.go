@@ -358,7 +358,7 @@ func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, ":invalid-proxy-url")
 		require.Empty(t, creds.proxy, "invalid proxy must not be stored on the creds struct")
 
-		filesInArgoioTempDirBeforeInvocation := countFilesInArgoioTempDir()
+		filesBeforeWithEmptyProxy := countFilesInArgoioTempDir()
 
 		closer, env, err := creds.Environ()
 		require.NoError(t, err)
@@ -369,9 +369,21 @@ func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 			require.NotContains(t, e, "ProxyCommand", "no ProxyCommand must be set for a rejected proxy")
 		}
 
-		filesInArgoioTempDirAfterInvocation := countFilesInArgoioTempDir()
+		filesAfterWithEmptyProxy := countFilesInArgoioTempDir()
 
-		assert.Equal(t, filesInArgoioTempDirBeforeInvocation, filesInArgoioTempDirAfterInvocation, "no temporary files should leak if the proxy url cannot be parsed")
+		assert.Equal(t, filesBeforeWithEmptyProxy, filesAfterWithEmptyProxy, "no temporary files should leak if the proxy url is empty")
+
+		// NewSSHCreds clears invalid proxies, override so Environ() hits the validation path
+		creds.proxy = ":invalid-proxy-url"
+
+		filesBeforeWithInvalidProxy := countFilesInArgoioTempDir()
+
+		_, _, err = creds.Environ()
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unsafe proxy URL rejected")
+
+		filesAfterWithInvalidProxy := countFilesInArgoioTempDir()
+		assert.Equal(t, filesBeforeWithInvalidProxy, filesAfterWithInvalidProxy, "no temporary files should leak if the proxy url is invalid")
 	}
 }
 
