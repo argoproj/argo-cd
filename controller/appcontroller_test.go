@@ -248,6 +248,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		data.metricsCacheExpiration,
 		[]string{},
 		[]string{},
+		false,
 		[]string{},
 		0,
 		persistResourceHealth,
@@ -604,6 +605,117 @@ var fakeRoleBinding = `
       "namespace": "default"
     }
   ]
+}
+`
+
+// fakePreDeleteHookForbiddenNamespace is a PreDelete hook whose manifest pins an
+// explicit metadata.namespace (kube-system) that the AppProject does not permit.
+// It is used to verify that the delete-hook creation path enforces AppProject
+// destination restrictions instead of blindly creating the resource.
+var fakePreDeleteHookForbiddenNamespace = `
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "pre-delete-hook",
+    "namespace": "kube-system",
+    "annotations": {
+      "argocd.argoproj.io/hook": "PreDelete"
+    }
+  },
+  "spec": {
+    "containers": [
+      {
+        "name": "pre-delete-hook",
+        "image": "busybox",
+        "command": ["/bin/sh", "-c", "echo pwned"]
+      }
+    ]
+  }
+}
+`
+
+// fakePostDeleteHookForbiddenNamespace is the PostDelete counterpart of
+// fakePreDeleteHookForbiddenNamespace.
+var fakePostDeleteHookForbiddenNamespace = `
+{
+  "apiVersion": "batch/v1",
+  "kind": "Job",
+  "metadata": {
+    "name": "post-delete-hook",
+    "namespace": "kube-system",
+    "annotations": {
+      "argocd.argoproj.io/hook": "PostDelete"
+    }
+  },
+  "spec": {
+    "template": {
+      "metadata": {"name": "post-delete-hook"},
+      "spec": {
+        "containers": [
+          {
+            "name": "post-delete-hook",
+            "image": "busybox",
+            "command": ["/bin/sh", "-c", "echo pwned"]
+          }
+        ],
+        "restartPolicy": "Never"
+      }
+    }
+  }
+}
+`
+
+// fakePreDeleteHookForbiddenKind is a PreDelete hook that lands in the app's own
+// (permitted) destination namespace but whose group/kind (Pod) is not in the
+// AppProject's namespace resource whitelist. It verifies that the delete-hook
+// path enforces group/kind restrictions, not just namespace restrictions.
+var fakePreDeleteHookForbiddenKind = `
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "pre-delete-hook",
+    "namespace": "` + test.FakeDestNamespace + `",
+    "annotations": {
+      "argocd.argoproj.io/hook": "PreDelete"
+    }
+  },
+  "spec": {
+    "containers": [
+      {
+        "name": "pre-delete-hook",
+        "image": "busybox",
+        "command": ["/bin/sh", "-c", "echo hi"]
+      }
+    ]
+  }
+}
+`
+
+// fakePreDeleteHookPermitted is a PreDelete hook that lands in the app's own
+// (permitted) destination namespace with a permitted kind. It is the control
+// case ensuring the enforcement does not over-block legitimate hooks.
+var fakePreDeleteHookPermitted = `
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "pre-delete-hook",
+    "namespace": "` + test.FakeDestNamespace + `",
+    "annotations": {
+      "argocd.argoproj.io/hook": "PreDelete"
+    }
+  },
+  "spec": {
+    "containers": [
+      {
+        "name": "pre-delete-hook",
+        "image": "busybox",
+        "command": ["/bin/sh", "-c", "echo hi"]
+      }
+    ]
+  }
 }
 `
 
@@ -1592,6 +1704,109 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		// Verify cache is cleared using InstanceName key
 		err = ctrl.cache.GetAppManagedResources(instanceName, &managedResources)
 		assert.ErrorIs(t, err, appstatecache.ErrCacheMiss, "Cache should be cleared for InstanceName key")
+	})
+}
+
+// TestFinalizeAppDeletion_DeleteHookProjectRestriction verifies that PreDelete and
+// PostDelete hooks are subject to the same AppProject destination and resource
+// restrictions as the normal sync path. A tenant with Git write access must not be
+// able to escape their AppProject boundary by defining a delete hook that targets a
+// forbidden namespace or a disallowed group/kind.
+func TestFinalizeAppDeletion_DeleteHookProjectRestriction(t *testing.T) {
+	now := metav1.Now()
+
+	// restrictedProj permits only the app's own destination namespace.
+	newRestrictedProj := func() *v1alpha1.AppProject {
+		return &v1alpha1.AppProject{
+			Name:      "restricted",
+			Namespace: test.FakeArgoCDNamespace,
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos: []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{
+					{Server: "*", Namespace: test.FakeDestNamespace},
+				},
+			},
+		}
+	}
+
+	newRestrictedApp := func() *v1alpha1.Application {
+		app := newFakeApp()
+		app.Spec.Project = "restricted"
+		app.Spec.Destination.Namespace = test.FakeDestNamespace
+		app.DeletionTimestamp = &now
+		return app
+	}
+
+	// runDeletion wires up a controller for the given hook manifest and returns the
+	// resources the controller attempted to create, whether the finalizer was removed
+	// (patched), and the error from finalizeApplicationDeletion.
+	runDeletion := func(t *testing.T, app *v1alpha1.Application, proj *v1alpha1.AppProject, hookManifest string) ([]*unstructured.Unstructured, bool, error) {
+		t.Helper()
+		ctrl := newFakeController(t.Context(), &fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{hookManifest},
+			}},
+			apps:            []runtime.Object{app, proj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+		}, nil)
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, &v1alpha1.Application{}, nil
+		})
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		return ctrl.kubectl.(*MockKubectl).CreatedResources, patched, err
+	}
+
+	t.Run("PreDelete_ForbiddenNamespace_Rejected", func(t *testing.T) {
+		app := newRestrictedApp()
+		app.SetPreDeleteFinalizer()
+		created, patched, err := runDeletion(t, app, newRestrictedProj(), fakePreDeleteHookForbiddenNamespace)
+		require.Error(t, err, "deletion must fail hard when a PreDelete hook targets a forbidden namespace")
+		assert.Empty(t, created, "forbidden PreDelete hook must not be created")
+		assert.False(t, patched, "finalizer must not be removed when hook creation is rejected")
+	})
+
+	t.Run("PostDelete_ForbiddenNamespace_Rejected", func(t *testing.T) {
+		app := newRestrictedApp()
+		app.SetPostDeleteFinalizer()
+		created, patched, err := runDeletion(t, app, newRestrictedProj(), fakePostDeleteHookForbiddenNamespace)
+		require.Error(t, err, "deletion must fail hard when a PostDelete hook targets a forbidden namespace")
+		assert.Empty(t, created, "forbidden PostDelete hook must not be created")
+		assert.False(t, patched, "finalizer must not be removed when hook creation is rejected")
+	})
+
+	t.Run("PreDelete_ForbiddenGroupKind_Rejected", func(t *testing.T) {
+		proj := newRestrictedProj()
+		// Permit only ConfigMap; a Pod hook must be rejected on group/kind grounds
+		// even though it lands in the permitted destination namespace.
+		proj.Spec.NamespaceResourceWhitelist = []metav1.GroupKind{{Group: "", Kind: "ConfigMap"}}
+		app := newRestrictedApp()
+		app.SetPreDeleteFinalizer()
+		created, patched, err := runDeletion(t, app, proj, fakePreDeleteHookForbiddenKind)
+		require.Error(t, err, "deletion must fail hard when a PreDelete hook uses a disallowed group/kind")
+		assert.Empty(t, created, "forbidden-kind PreDelete hook must not be created")
+		assert.False(t, patched, "finalizer must not be removed when hook creation is rejected")
+	})
+
+	t.Run("PreDelete_Permitted_StillCreated", func(t *testing.T) {
+		app := newRestrictedApp()
+		app.SetPreDeleteFinalizer()
+		created, patched, err := runDeletion(t, app, newRestrictedProj(), fakePreDeleteHookPermitted)
+		require.NoError(t, err, "a permitted PreDelete hook must not be blocked")
+		require.Len(t, created, 1, "permitted PreDelete hook must be created")
+		assert.Equal(t, "pre-delete-hook", created[0].GetName())
+		// hook is still progressing, so the finalizer must remain
+		assert.False(t, patched)
 	})
 }
 
@@ -2785,7 +3000,7 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
 		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
 		common.DefaultPortArgoCDMetrics, 0,
-		[]string{}, []string{}, []string{},
+		[]string{}, []string{}, false, []string{},
 		0, true, nil, nil, nil, false, false,
 		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
 	)
@@ -2848,7 +3063,7 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
 		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
 		common.DefaultPortArgoCDMetrics, 0,
-		[]string{}, []string{}, []string{},
+		[]string{}, []string{}, false, []string{},
 		0, true, nil, nil, nil, false, false,
 		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
 	)

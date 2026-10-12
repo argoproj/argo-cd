@@ -77,6 +77,8 @@ data:
   controller.metrics.application.labels: "team,env"
   # List of Application conditions added to the argocd_app_conditions metric (comma separated)
   controller.metrics.application.conditions: "OrphanedResourceWarning"
+  # Enable the sync window metrics (argocd_app_sync_window, argocd_app_sync_blocked, argocd_app_sync_window_error). Default is false.
+  controller.metrics.sync.windows: "false"
   # List of Cluster labels added to the argocd_cluster_labels metric (comma separated)
   controller.metrics.cluster.labels: "environment"
   # Specifies timeout between application self heal attempts
