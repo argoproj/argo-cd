@@ -539,9 +539,11 @@ func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
 			fixture.Patch(t, "progressive-sync/updateRevision/deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)
 			t.Log("Git revision changed to revisionB")
 		}).
+		RefreshApp([]string{"refresh-prod-app3"}).
 		Then().
 		// Since applications were already healthy, before checking the progressive sync status of all applications, check if all applications were reconciled after changeTime
-		// ensureApplicationsReconciled adds refresh annotations to applications, but processing that annotation happens asynchronously by app controller and thus difficult to check deterministically in e2e tests
+		// Refreshing refresh-prod-app3 above stands in for a git webhook, so the change is noticed without waiting for the periodic resync.
+		// ensureApplicationsReconciled then adds refresh annotations to the other applications, which is what refresh-staging-app2 reconciling here relies on
 		ExpectWithDuration(CheckApplicationsReconciledAfter([]string{"refresh-prod-app3", "refresh-staging-app2"}, changeTime), TransitionTimeout*4).
 		Expect(CheckApplicationsNotReconciledAfter([]string{"refresh-dev-app1"}, changeTime)).                               // Check application with skip-reconcile was not reconciled
 		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectProgressiveSyncBlocked), TransitionTimeout*3). // This ensures that applications do not sync out of order
