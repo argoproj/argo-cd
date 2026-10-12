@@ -352,3 +352,33 @@ func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {
 		})
 	}
 }
+
+func TestDependencyBuild_InsecureFromDependencyRepo(t *testing.T) {
+	tests := []struct {
+		name           string
+		depInsecure    []bool
+		expectInsecure bool
+	}{
+		{name: "no insecure deps", depInsecure: []bool{false, false}, expectInsecure: false},
+		{name: "any insecure dep forces insecure build", depInsecure: []bool{false, true}, expectInsecure: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var capturedArgs []string
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(string) string) (string, error) {
+				capturedArgs = cmd.Args
+				return "", nil
+			})
+			require.NoError(t, err)
+
+			repos := make([]HelmRepository, len(tc.depInsecure))
+			for i, insecure := range tc.depInsecure {
+				repos[i] = HelmRepository{Repo: "oci://localhost:5000/myrepo", EnableOci: true, Insecure: insecure, Creds: HelmCreds{}}
+			}
+
+			err = (&helm{cmd: *c, repos: repos}).DependencyBuild(t.Context())
+			require.NoError(t, err)
+			require.Equal(t, tc.expectInsecure, slices.Contains(capturedArgs, "--insecure-skip-tls-verify"))
+		})
+	}
+}
