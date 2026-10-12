@@ -3,6 +3,7 @@ package rbacpolicy
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -436,4 +437,47 @@ func TestBuiltinAdminBindingStrictMode(t *testing.T) {
 			assert.False(t, enf.Enforce(ssoLocalAdminGroup, "applications", "create", "my-proj/my-app"))
 		})
 	}
+}
+
+// TestApplyLocalUserStrictModeTransitions toggles strict mode while concurrently enforcing, and checks that an
+// SSO identity named admin@local never gains role:admin, including mid-transition.
+func TestApplyLocalUserStrictModeTransitions(t *testing.T) {
+	localAdmin := jwt.MapClaims{"sub": common.ArgoCDAdminUsername, "iss": common.ArgoCDSessionClaimsIssuer}
+	ssoLocalAdmin := jwt.MapClaims{"sub": "admin@local", "iss": "https://accounts.google.com"}
+	ssoLocalAdminGroup := jwt.MapClaims{"sub": "mallory", "iss": "https://accounts.google.com", "groups": []string{"admin@local"}}
+
+	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	rbacEnf := NewRBACPolicyEnforcer(enf, test.NewFakeProjLister(newFakeProj()))
+	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
+	require.NoError(t, enf.SetBuiltinPolicy(BuiltinPolicyCSV(false)))
+
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	var leaked atomic.Bool
+	wg.Go(func() {
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			if enf.Enforce(ssoLocalAdmin, "applications", "create", "my-proj/my-app") ||
+				enf.Enforce(ssoLocalAdminGroup, "applications", "create", "my-proj/my-app") {
+				leaked.Store(true)
+			}
+		}
+	})
+
+	for i := range 20 {
+		strict := i%2 == 0
+		require.NoError(t, rbacEnf.ApplyLocalUserStrictMode(strict))
+		assert.Equal(t, strict, rbacEnf.GetEnableLocalUserStrictMode())
+		assert.True(t, enf.Enforce(localAdmin, "applications", "create", "my-proj/my-app"),
+			"local admin must have role:admin after switching to strict=%t", strict)
+	}
+	close(stop)
+	wg.Wait()
+
+	assert.False(t, leaked.Load(), "an SSO admin@local identity must never match role:admin during a mode switch")
 }
