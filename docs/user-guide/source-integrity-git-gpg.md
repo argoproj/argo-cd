@@ -211,10 +211,23 @@ SignedTagsOnly is enabled, v1.0 is not annotated. Un-annotated tags cannot be si
 > rejected by `signedTagsOnly` fails manifest generation outright. Expect the error on the
 > application's comparison status rather than in the list of source integrity problems.
 
+The constraint can be managed with the CLI and can be set with `--signed-tags-only` flag:
+
+```bash
+# Require annotated tags for a new policy
+argocd proj source-integrity git policies add PROJECT \
+  --repo-url 'https://github.com/my-group/*' \
+  --signed-tags-only \
+  --gpg-mode head \
+  --gpg-key D56C4FCA57A46444
+
+# Stop requiring them for an existing policy
+argocd proj source-integrity git policies update PROJECT POLICY_ID --signed-tags-only=false
+```
+
 > [!NOTE]
-> `signedTagsOnly` can currently only be set declaratively in the `AppProject` manifest. The
-> `argocd proj source-integrity git policies` commands neither set nor display it, though editing a
-> policy with `argocd proj source-integrity git policies update` preserves the value.
+> On `update`, the constraint is only touched when `--signed-tags-only` is passed explicitly, so
+> changing a policy's repositories or keys leaves it as it was.
 
 ### The `gpg` verification policy
 

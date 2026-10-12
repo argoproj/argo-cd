@@ -28,6 +28,7 @@ var projectWithNoKeys = AppProjectSpec{
 	},
 }
 
+// FIX TESTS HERE
 var projectWithSignedTagsOnly = AppProjectSpec{
 	SourceRepos:  []string{"*"},
 	Destinations: []ApplicationDestination{{Namespace: "*", Server: "*"}},
