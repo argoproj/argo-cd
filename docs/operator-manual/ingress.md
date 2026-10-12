@@ -1097,6 +1097,42 @@ spec:
               value: "^application/grpc.*$"
 ```
 
+In cases where this is not supported, the `HTTPRoute` can be used to route gRPC requests too:
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: argocd-http-route
+  namespace: argocd
+spec:
+  parentRefs:
+    - name: cluster-gateway
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - "argocd.local.example.com"
+  rules:
+    - backendRefs:
+        - name: argocd-server
+          port: 80
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+    - backendRefs:
+        - name: argocd-server
+          port: 8008
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+          headers:
+            - name: Content-Type
+              type: RegularExpression
+              value: "^application/grpc.*$"
+```
+
 ### TLS passthrough
 
 TLS can also be configured to terminate at the Argo CD API server.
