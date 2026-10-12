@@ -78,7 +78,7 @@ func NewCommand() *cobra.Command {
 		metricsClusterLabels             []string
 		kubectlParallelismLimit          int64
 		cacheSource                      func() (*appstatecache.Cache, error)
-		redisClient                      *redis.Client
+		redisClient                      redis.UniversalClient
 		repoServerPlaintext              bool
 		repoServerStrictTLS              bool
 		otlpAddress                      string
@@ -306,7 +306,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&hydratorEnabled, "hydrator-enabled", env.ParseBoolFromEnv("ARGOCD_HYDRATOR_ENABLED", false), "Feature flag to enable Hydrator. Default (\"false\")")
 	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmdWithPrefix(&command, "APPLICATION_CONTROLLER")
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, cacheutil.Options{
-		OnClientCreated: func(client *redis.Client) {
+		OnClientCreated: func(client redis.UniversalClient) {
 			redisClient = client
 		},
 	})

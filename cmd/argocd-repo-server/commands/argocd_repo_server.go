@@ -66,7 +66,7 @@ func NewCommand() *cobra.Command {
 		cacheSrc                           func() (*reposervercache.Cache, error)
 		tlsConfigCustomizer                tls.ConfigCustomizer
 		tlsConfigCustomizerSrc             func() (tls.ConfigCustomizer, error)
-		redisClient                        *redis.Client
+		redisClient                        redis.UniversalClient
 		maxCombinedDirectoryManifestsSize  string
 		cmpTarExcludedGlobs                []string
 		allowOutOfBoundsSymlinks           bool
@@ -280,7 +280,7 @@ func NewCommand() *cobra.Command {
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
-		OnClientCreated: func(client *redis.Client) {
+		OnClientCreated: func(client redis.UniversalClient) {
 			redisClient = client
 		},
 	})
