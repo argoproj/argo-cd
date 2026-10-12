@@ -355,7 +355,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 		repoURLs       []string
 		deleteRepoURLs []string
 		addRepoURLs    []string
-		signedTagsOnly  bool
+		signedTagsOnly bool
 		gpgMode        string
 		gpgKeys        []string
 		deleteGPGKeys  []string
@@ -531,7 +531,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 	command.Flags().StringSliceVar(&repoURLs, "repo-url", []string{}, "Set repository URL pattern (replaces existing)")
 	command.Flags().StringSliceVar(&addRepoURLs, "add-repo-url", []string{}, "Add repository URL pattern")
 	command.Flags().StringSliceVar(&deleteRepoURLs, "delete-repo-url", []string{}, "Delete repository URL pattern")
-	command.Flags().BoolVar(&signedTagOnly, "signed-tag-only", false, "Sync only from annotated tags")
+	command.Flags().BoolVar(&signedTagsOnly, "signed-tag-only", false, "Sync only from annotated tags")
 	command.Flags().StringSliceVar(&gpgKeys, "gpg-key", []string{}, "Set GPG key ID (replaces existing)")
 	command.Flags().StringSliceVar(&addGPGKeys, "add-gpg-key", []string{}, "Add GPG key ID")
 	command.Flags().StringSliceVar(&deleteGPGKeys, "delete-gpg-key", []string{}, "Delete GPG key ID")
