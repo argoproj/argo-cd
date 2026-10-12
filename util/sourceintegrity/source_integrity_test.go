@@ -695,11 +695,11 @@ func TestSignedTagsOnly(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name           string
-		signedTagsOnly bool
-		revision       string
-		annotated      bool
-		expectedError  string
+		name            string
+		signedTagsOnly  bool
+		revision        string
+		annotated       bool
+		expectedProblem string
 	}{
 		{
 			name:           "annotated tag passes the gate",
@@ -708,16 +708,16 @@ func TestSignedTagsOnly(t *testing.T) {
 			annotated:      true,
 		},
 		{
-			name:           "lightweight tag is rejected before verification",
-			signedTagsOnly: true,
-			revision:       "v1.0-lightweight",
-			expectedError:  "SignedTagsOnly is enabled, v1.0-lightweight is not annotated. Un-annotated tags cannot be signed",
+			name:            "lightweight tag is rejected before verification",
+			signedTagsOnly:  true,
+			revision:        "v1.0-lightweight",
+			expectedProblem: "SignedTagsOnly is enabled, v1.0-lightweight is not annotated. Un-annotated tags cannot be signed",
 		},
 		{
-			name:           "commit sha is rejected before verification",
-			signedTagsOnly: true,
-			revision:       sha,
-			expectedError:  "SignedTagsOnly is enabled, " + sha + " is not annotated. Un-annotated tags cannot be signed",
+			name:            "commit sha is rejected before verification",
+			signedTagsOnly:  true,
+			revision:        sha,
+			expectedProblem: "SignedTagsOnly is enabled, " + sha + " is not annotated. Un-annotated tags cannot be signed",
 		},
 		{
 			name:           "gate is not applied when SignedTagsOnly is off",
@@ -733,7 +733,7 @@ func TestSignedTagsOnly(t *testing.T) {
 			if tc.signedTagsOnly {
 				gitClient.EXPECT().IsAnnotatedTag(mock.Anything, tc.revision).Return(tc.annotated)
 			}
-			if tc.expectedError == "" {
+			if tc.expectedProblem == "" {
 				goodSignature(gitClient)
 			}
 
@@ -741,17 +741,20 @@ func TestSignedTagsOnly(t *testing.T) {
 			logrus.AddHook(&logger)
 			t.Cleanup(logger.CleanupHook)
 
-			result, _, err := VerifyGit(t.Context(), si(tc.signedTagsOnly), gitClient, tc.revision)
+			result, legacy, err := VerifyGit(t.Context(), si(tc.signedTagsOnly), gitClient, tc.revision)
+			require.NoError(t, err)
+			require.NotNil(t, result)
 
-			if tc.expectedError != "" {
-				require.EqualError(t, err, tc.expectedError)
-				assert.Nil(t, result)
+			if tc.expectedProblem != "" {
+				assert.False(t, result.IsValid())
+				require.EqualError(t, result.AsError(), "GIT/SIGNED-TAGS: "+tc.expectedProblem)
+				assert.Empty(t, result.PassedChecks())
+				assert.Equal(t, tc.expectedProblem, legacy)
 				gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
-				assert.Equal(t, []string{tc.expectedError}, logger.GetEntries())
+				assert.Equal(t, []string{tc.expectedProblem}, logger.GetEntries())
 				return
 			}
 
-			require.NoError(t, err)
 			assert.True(t, result.IsValid())
 			assert.Equal(t, []string{"GIT/GPG"}, result.PassedChecks())
 
