@@ -3,7 +3,7 @@ package rbacpolicy
 import (
 	"slices"
 	"strings"
-	"sync/atomic"
+	"sync"
 
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
@@ -49,12 +49,12 @@ func BuiltinPolicyCSV(strictMode bool) string {
 // roles, jwt tokens, and groups. It is backed by a AppProject informer/lister cache and does not
 // make any API calls during enforcement.
 type RBACPolicyEnforcer struct {
-	enf                       *rbac.Enforcer
-	projLister                applister.AppProjectNamespaceLister
-	scopes                    []string
-	enableLocalUserStrictMode atomic.Bool
-	// reserveLocalSuffix filters SSO identities ending in "@local"; it outlives the flag above during mode changes.
-	reserveLocalSuffix atomic.Bool
+	enf        *rbac.Enforcer
+	projLister applister.AppProjectNamespaceLister
+	scopes     []string
+	// modeMu makes the strict-mode flag and the matching built-in policy a single snapshot for each enforcement.
+	modeMu                    sync.RWMutex
+	enableLocalUserStrictMode bool
 }
 
 // NewRBACPolicyEnforcer returns a new RBAC Enforcer for the Argo CD API Server
@@ -82,33 +82,31 @@ func (p *RBACPolicyEnforcer) GetScopes() []string {
 // LocalUserRBACSuffix ("@local") during RBAC enforcement to disambiguate them from SSO users.
 // It does not touch the built-in policy; use ApplyLocalUserStrictMode to switch modes at runtime.
 func (p *RBACPolicyEnforcer) SetEnableLocalUserStrictMode(enabled bool) {
-	p.reserveLocalSuffix.Store(enabled)
-	p.enableLocalUserStrictMode.Store(enabled)
+	p.modeMu.Lock()
+	defer p.modeMu.Unlock()
+	p.enableLocalUserStrictMode = enabled
 }
 
-// ApplyLocalUserStrictMode switches strict mode together with the matching built-in policy. SSO identities
-// ending in "@local" stay filtered whenever `g, admin@local, role:admin` may be loaded, and local accounts are
-// only suffixed while it is, so no intermediate state grants more than either settled mode.
+// ApplyLocalUserStrictMode atomically switches strict mode together with the matching built-in policy.
+// If the policy reload fails, the previous mode and policy are kept.
 func (p *RBACPolicyEnforcer) ApplyLocalUserStrictMode(enabled bool) error {
-	if enabled {
-		p.reserveLocalSuffix.Store(true)
-		if err := p.enf.SetBuiltinPolicy(BuiltinPolicyCSV(true)); err != nil {
-			return err
+	p.modeMu.Lock()
+	defer p.modeMu.Unlock()
+	if err := p.enf.SetBuiltinPolicy(BuiltinPolicyCSV(enabled)); err != nil {
+		if rerr := p.enf.SetBuiltinPolicy(BuiltinPolicyCSV(p.enableLocalUserStrictMode)); rerr != nil {
+			log.WithError(rerr).Error("failed to restore built-in RBAC policy")
 		}
-		p.enableLocalUserStrictMode.Store(true)
-		return nil
-	}
-	p.enableLocalUserStrictMode.Store(false)
-	if err := p.enf.SetBuiltinPolicy(BuiltinPolicyCSV(false)); err != nil {
 		return err
 	}
-	p.reserveLocalSuffix.Store(false)
+	p.enableLocalUserStrictMode = enabled
 	return nil
 }
 
 // GetEnableLocalUserStrictMode reports whether local-user strict mode is enabled.
 func (p *RBACPolicyEnforcer) GetEnableLocalUserStrictMode() bool {
-	return p.enableLocalUserStrictMode.Load()
+	p.modeMu.RLock()
+	defer p.modeMu.RUnlock()
+	return p.enableLocalUserStrictMode
 }
 
 func IsProjectSubject(subject string) bool {
@@ -138,17 +136,18 @@ func hasLocalUserRBACSuffix(identity string) bool {
 // EnforcementSubject returns the subject that RBAC policies are matched against for the given claims.
 // In strict mode local accounts get the "@local" suffix and SSO subjects claiming it are dropped ("").
 func (p *RBACPolicyEnforcer) EnforcementSubject(mapClaims jwt.MapClaims) string {
+	return enforcementSubject(mapClaims, p.GetEnableLocalUserStrictMode())
+}
+
+func enforcementSubject(mapClaims jwt.MapClaims, strict bool) string {
 	subject := jwtutil.GetUserIdentifier(mapClaims)
-	if subject == "" || IsProjectSubject(subject) {
+	if subject == "" || IsProjectSubject(subject) || !strict {
 		return subject
 	}
 	if isLocalAccount(mapClaims) {
-		if p.enableLocalUserStrictMode.Load() {
-			return subject + LocalUserRBACSuffix
-		}
-		return subject
+		return subject + LocalUserRBACSuffix
 	}
-	if p.reserveLocalSuffix.Load() && hasLocalUserRBACSuffix(subject) {
+	if hasLocalUserRBACSuffix(subject) {
 		log.WithField("subject", subject).Warn("ignoring SSO subject with reserved @local suffix")
 		return ""
 	}
@@ -162,7 +161,11 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool
 		return false
 	}
 
-	subject := p.EnforcementSubject(mapClaims)
+	p.modeMu.RLock()
+	defer p.modeMu.RUnlock()
+	strict := p.enableLocalUserStrictMode
+
+	subject := enforcementSubject(mapClaims, strict)
 	// Check if the request is for an application resource. We have special enforcement which takes
 	// into consideration the project's token and group bindings
 	var runtimePolicy string
@@ -192,7 +195,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool
 	}
 	// Finally check if any of the user's groups grant them permissions
 	groups := jwtutil.GetScopeValues(mapClaims, scopes)
-	if p.reserveLocalSuffix.Load() && !isLocalAccount(mapClaims) {
+	if strict && !isLocalAccount(mapClaims) {
 		groups = slices.DeleteFunc(groups, hasLocalUserRBACSuffix)
 	}
 
