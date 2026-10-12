@@ -5,14 +5,34 @@
 (function () {
   'use strict';
 
-  function sidebar() {
-    return document.querySelector('.md-sidebar--primary .md-sidebar__scrollwrap');
+  // The current page's visible link: an <a> on desktop and in the tablet
+  // drawer, a <label> (opening the page's table of contents) in the drawer
+  // below 60em, where the <a> is hidden.
+  function activeLink() {
+    var links = document.querySelectorAll('.md-sidebar--primary li.md-nav__item--active > .md-nav__link--active');
+    for (var i = 0; i < links.length; i++) {
+      if (links[i].offsetHeight > 0) { return links[i]; }
+    }
+    return null;
+  }
+
+  // Nearest scrolling ancestor: the sidebar on desktop, the section panel's
+  // list in the drawer. Chosen by overflow, not by current size, so a panel
+  // that happens to fit is not skipped in favour of a hidden parent panel.
+  function scrollParent(el) {
+    var node = el.parentElement;
+    while (node && node !== document.body) {
+      var overflow = window.getComputedStyle(node).overflowY;
+      if (overflow === 'auto' || overflow === 'scroll') { return node; }
+      node = node.parentElement;
+    }
+    return null;
   }
 
   function revealActive() {
-    var wrap = sidebar();
-    var active = wrap && wrap.querySelector('a.md-nav__link--active');
-    if (!wrap || !active) { return; }
+    var active = activeLink();
+    var wrap = active && scrollParent(active);
+    if (!active || !wrap) { return; }
     var w = wrap.getBoundingClientRect();
     var a = active.getBoundingClientRect();
     var stickyRows = wrap.querySelectorAll('li.md-nav__item--nested.md-nav__item--active > label.md-nav__link').length;
@@ -23,8 +43,10 @@
   }
 
   function markCurrent() {
-    var active = document.querySelector('.md-sidebar--primary a.md-nav__link--active');
-    if (active && !active.hasAttribute('aria-current')) { active.setAttribute('aria-current', 'page'); }
+    var links = document.querySelectorAll('.md-sidebar--primary li.md-nav__item--active > .md-nav__link--active');
+    Array.prototype.forEach.call(links, function (link) {
+      if (!link.hasAttribute('aria-current')) { link.setAttribute('aria-current', 'page'); }
+    });
   }
 
   function keyboardToggles() {
@@ -56,6 +78,14 @@
       window.requestAnimationFrame(revealActive);
       window.setTimeout(revealActive, 250);
     });
+    // Re-check when the drawer opens: the viewport may have crossed 76.25em
+    // since load, in which case only the desktop sidebar was scrolled.
+    var drawer = document.getElementById('__drawer');
+    if (drawer) {
+      drawer.addEventListener('change', function () {
+        if (drawer.checked) { window.requestAnimationFrame(revealActive); }
+      });
+    }
   }
 
   if (document.readyState === 'loading') {
