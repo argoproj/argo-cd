@@ -33,14 +33,15 @@ fi
 
 dir="${E2E_TEST_DIR:-test/e2e}"
 
-expected=$(grep -hE '^func Test[A-Za-z0-9_]*\([A-Za-z_][A-Za-z0-9_]* \*testing\.T\)' "$dir"/*_test.go \
+# grep fails when nothing matches; `|| true` lets the checks below report why instead.
+expected=$( { grep -hE '^func Test[A-Za-z0-9_]*\([A-Za-z_][A-Za-z0-9_]* \*testing\.T\)' "$dir"/*_test.go 2>/dev/null || true; } \
 	| sed -E 's/^func (Test[A-Za-z0-9_]*)\(.*/\1/' | sort -u)
 if [ -z "$expected" ]; then
 	echo "e2e-check-shard-coverage: no tests found in $dir" >&2
 	exit 1
 fi
 
-ran=$(grep -hoE '<testcase [^>]*name="Test[A-Za-z0-9_]*"' "$@" \
+ran=$( { grep -hoE '<testcase [^>]*name="Test[A-Za-z0-9_]*"' "$@" || true; } \
 	| sed -E 's/.*name="([^"]*)"/\1/' | sort -u)
 
 missing=$(comm -23 <(echo "$expected") <(echo "$ran"))

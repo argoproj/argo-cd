@@ -568,17 +568,6 @@ jobs:
         with:
           pattern: e2e-code-coverage-shard*
           path: e2e-code-coverage
-      - name: Get e2e test reports
-        if: ${{ needs.test-e2e.result == 'success' }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          pattern: e2e-test-timings-shard*
-          path: e2e-test-reports
-      - name: Check that every e2e test ran in a shard
-        if: ${{ needs.test-e2e.result == 'success' }}
-        env:
-          E2E_SHARD_COUNT: ${{ needs.changes.outputs.e2e_shard_count }}
-        run: ./hack/e2e-check-shard-coverage.sh "$E2E_SHARD_COUNT" e2e-test-reports/*/junit.xml
       - name: Get unit test code coverage
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -591,8 +580,37 @@ jobs:
           mkdir -p test-results/merged
           go tool covdata merge -pcombine -i=test-results,test-results/gitops-engine -o test-results/merged
           go tool covdata textfmt -i=test-results/merged -o test-results/unit-coverage.out
+      - name: Upload unit test coverage to codecov.io
+        if: github.repository == 'argoproj/argo-cd'
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          version: v11.2.8 # https://github.com/getsentry/prevent-cli/releases/tag/v11.2.8
+          files: test-results/unit-coverage.out
+          flags: unit-tests
+          disable_search: true
+          fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        # Codecov uploads test results to Codecov.io on upstream master branch.
+        if: github.repository == 'argoproj/argo-cd' && github.ref == 'refs/heads/master' && github.event_name == 'push'
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          version: v11.2.8 # https://github.com/getsentry/prevent-cli/releases/tag/v11.2.8
+          files: test-results/junit.xml
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
+          report_type: test_results
+      - name: Perform static code analysis using SonarCloud
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        if: env.sonar_secret != ''
       - name: Generate e2e test coverage profile
         if: ${{ needs.test-e2e.result == 'success' }}
+        # Runs after every other step, so an incomplete e2e profile fails the job without
+        # skipping the unit coverage upload or the SonarCloud scan.
         # We generate coverage reports for all Argo CD components, but only the applicationset-controller,
         # app-controller, repo-server, and commit-server report contain coverage data. The other components currently
         # don't shut down gracefully, so no coverage data is produced. Once those components are fixed, we can add
@@ -621,17 +639,6 @@ jobs:
           mkdir -p e2e-code-coverage/merged
           go tool covdata merge -pcombine -i="$dirs" -o e2e-code-coverage/merged
           go tool covdata textfmt -i=e2e-code-coverage/merged -o test-results/e2e-coverage.out
-      - name: Upload unit test coverage to codecov.io
-        if: github.repository == 'argoproj/argo-cd'
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
-        with:
-          version: v11.2.8 # https://github.com/getsentry/prevent-cli/releases/tag/v11.2.8
-          files: test-results/unit-coverage.out
-          flags: unit-tests
-          disable_search: true
-          fail_ci_if_error: true
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload e2e test coverage to codecov.io
         if: ${{ needs.test-e2e.result == 'success' && github.repository == 'argoproj/argo-cd' }}
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
@@ -643,22 +650,6 @@ jobs:
           fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      - name: Upload test results to Codecov
-        # Codecov uploads test results to Codecov.io on upstream master branch.
-        if: github.repository == 'argoproj/argo-cd' && github.ref == 'refs/heads/master' && github.event_name == 'push'
-        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
-        with:
-          version: v11.2.8 # https://github.com/getsentry/prevent-cli/releases/tag/v11.2.8
-          files: test-results/junit.xml
-          fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
-          report_type: test_results
-      - name: Perform static code analysis using SonarCloud
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
-        if: env.sonar_secret != ''
   test-e2e:
     # Without an explicit name GitHub builds one from every matrix value, which leaks
     # the meaningless `latest` boolean into all 16 check names, e.g. "(v1.34.11, false, 1)".
@@ -874,3 +865,21 @@ jobs:
           fi
         env:
           NEEDS_TEST_E2E_RESULT: ${{ needs.test-e2e.result }}
+      # Runs in this job because it is the required one: a test that no shard selected has
+      # to block the merge, not only turn a non-required job red.
+      - name: Checkout code
+        if: ${{ needs.test-e2e.result == 'success' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Get e2e test reports
+        if: ${{ needs.test-e2e.result == 'success' }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: e2e-test-timings-shard*
+          path: e2e-test-reports
+      - name: Check that every e2e test ran in a shard
+        if: ${{ needs.test-e2e.result == 'success' }}
+        env:
+          E2E_SHARD_COUNT: ${{ needs.changes.outputs.e2e_shard_count }}
+        run: ./hack/e2e-check-shard-coverage.sh "$E2E_SHARD_COUNT" e2e-test-reports/*/junit.xml
