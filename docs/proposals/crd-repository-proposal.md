@@ -10,7 +10,7 @@ approvers:
   - TBD
 
 creation-date: 2025-12-10
-last-updated: 2026-09-13
+last-updated: 2026-10-19
 ---
 
 # Repository CRD
@@ -20,16 +20,14 @@ secret-based implementation.
 
 ## Open Questions
 
-* **SCM-specific blocks.** GitHub App fields currently sit under `git` (`git.githubAppID`, …). Grouping them per
-  SCM instead (`github.appID`, `github.appInstallationID`, …) reads better and leaves room for other providers, at the
-  cost of a second axis (type × SCM) in the spec. Not decided here.
-* **Cache-backed reads.** The CRD backend currently resolves repositories with direct (uncached) LIST calls, one per
-  lookup. Backing the lookup with a shared informer/lister would remove the remaining per-reconcile API-server load.
+* **Should SCM-specific fields get their own block?** GitHub App fields currently sit under `git`
+  (`git.githubAppID`, …). Grouping them per SCM instead (`github.appID`, `github.appInstallationID`, …) reads better
+  and leaves room for other providers, at the cost of a second axis (type × SCM) in the spec.
 
 ## Summary
 
 Argo CD stores repository configuration and credentials in Secrets. This proposal adds two namespaced CRDs —
-`Repository` and `RepositoryCredential` (`argoproj.io/v1alpha1`) — holding all *non-secret* configuration
+`Repository` and `RepositoryCredential` (`argoproj.io/v1alpha1`), holding all *non-secret* configuration
 declaratively, with credential material remaining in a Secret referenced via `spec.secretRef`. Storage is selected
 fleet-wide by the `repository.backend` key in `argocd-cm`: `secret` (default, existing behavior), `crd`, or `hybrid`
 (read both, CRDs win; writes migrate to CRDs). The CRDs are spec-only: connection health keeps
@@ -94,9 +92,8 @@ being reported the way it is today, and a `status` subresource is deferred to a 
 7. **Repository status.** The CRDs ship spec-only: no `status` subresource and no connection-health controller.
    Connection state keeps being produced exactly as it is today — the API server runs `TestRepository` on a
    connection-state cache miss (`server/repository.List`) — so `argocd repo list` and the UI behave identically in
-   every mode. A real status is worth having, especially the multi-controlplane view an agent-based deployment cannot
-   get from a per-controlplane cache, but it is a design of its own (write amplification, per-controlplane field
-   ownership, retention limits) and is deferred to a follow-up proposal. It can be added backwards compatibly:
+   every mode. A real status is worth having, but it is a design of its own (write amplification, per-controlplane
+   field ownership, retention limits) and is deferred to a follow-up proposal. It can be added backwards compatibly:
    a `status` subresource and its RBAC grant are additive to an existing CRD version, readers finding no status fall
    back to the probe-on-read path above, and nothing in the spec described here changes.
 
@@ -340,6 +337,8 @@ spec:
   applied from Git with bad credentials or an unreachable URL surfaces only when an Application referencing it fails
   to refresh. This is the status quo for declaratively-created repository Secrets, and imperative creation still runs
   its connection test (`argocd repo add`), but it is the main thing deferring status costs.
+* **Uncached lookups add API-server load.** The CRD backend resolves repositories with a direct LIST per lookup.
+  Backing it with a shared informer/lister removes that load and can follow without changing the spec.
 
 ### Upgrade / Downgrade Strategy
 
@@ -382,6 +381,14 @@ spec:
   for a `status` later. The `$secret:key` indirection also solves less than `secretRef` does — it inlines one value
   at a time, so a credential spanning several keys (TLS cert + key, GitHub App ID + key) is several references rather
   than one Secret.
+* **Convert Secrets to CRs at startup instead of a `hybrid` mode.** A one-time pass would create a CR for every
+  repository Secret, after which only CRDs are read. This removes the cross-backend resolution rules (longest prefix
+  across stores, project-scope ranking), but a startup pass only sees Secrets that exist at boot: those applied later
+  from Git, by External Secrets Operator or via the Helm chart's `configs.repositories` stay invisible until the next
+  restart. Closing that gap means either reading Secrets at runtime (`hybrid`), watching for them (a controller), or
+  dropping Secret-based repositories (non-goal 2). It also moves the source of truth unasked: for a Secret managed in
+  Git, later edits to its `url`, `project` or proxy settings are silently shadowed by the converted CR. `hybrid` keeps
+  that dual-representation risk opt-in and per-repository, and keeps backend branching confined to `db.NewDB`.
 * Alternatively, we could have a single `Repository` CRD instead of having the `Repository`/`RepositoryCredential`
   split. In that case we would need to define how a repository credential template is defined in the context of a
   `Repository` (perhaps with a field denoting it to be a credential template)
