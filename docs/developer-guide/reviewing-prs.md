@@ -9,7 +9,7 @@ If you are submitting a PR, read [Submit Your PR](submit-your-pr.md) first; the 
 |---------------------------------------------------------------------------|----------------------------------------------|---------------------------------------------------------------------------|
 | Bug, regression, security issue, data loss, wrong docs, or undocumented breaking change | Request changes                          | Reason and exit condition on each blocking thread                         |
 | Design disagreement                                                       | Request changes                          | Reason, exit condition, and a concrete alternative or violated constraint |
-| Missing tests, or missing docs for a non-breaking change                  | Comment                                  | Flag it; approvers do not merge until it is fixed (see [Missing tests and docs](#missing-tests-and-docs)) |
+| Missing tests, or missing docs for a non-breaking change                  | Comment                                  | Flag it; approvers do not merge until it is addressed (see [Missing tests and docs](#missing-tests-and-docs)) |
 | Anything else: style, naming, refactoring ideas, questions, optional work | Comment (or Approve with comments)   | Prefix with `nit:`, `suggestion:` or `question:`                          |
 
 The above table doesn't mean that all bugs or all cases should request a change. The reviewer should use their best judgement to decide whether a change is necessary or not.
@@ -84,10 +84,10 @@ Design concerns are cheapest to raise before code is written, while an enhanceme
 
 ## Missing tests and docs
 
-Tests and docs are a merge requirement, not a reason to block. The exception is missing docs for a breaking change, which may block under [allowed reason 2](#allowed-reasons). Every fix needs a test that fails without it, and every feature needs tests and docs.
+Tests and docs are a merge requirement, not a reason to block. The exception is missing docs for a breaking change, which may block under [allowed reason 2](#allowed-reasons). Every fix needs a test that fails without it, and every feature needs tests and docs. If tests are not feasible, the PR description must explain why.
 
 * Reviewers flag what is missing in a comment.
-* Approvers do not merge a PR until the tests and docs are in place, or the PR description explains why tests are not feasible.
+* Approvers do not merge a PR until these requirements are met.
 
 ## Non-blocking feedback
 
@@ -130,7 +130,7 @@ If 5 business days have passed since the author re-requested review and the revi
 Dismissing a review because the window passed is not a decision on its content. The original reviewer may submit a new Request changes review later, following the same rules.
 
 > [!WARNING]
-> Approvers must not merge a PR while a valid Request changes review is still in place. Clear it first through one of the dismissal paths in this guide: a malformed review, a reviewer handing off, or a missed re-review window.
+> Approvers must not merge a PR while a Request changes review is still in place. It clears when the reviewer approves, or when an approver dismisses it for one of the reasons in this guide: the review is malformed, the reviewer hands off or says their concerns are resolved, the re-review window has passed, or the contributor meeting decided against the block.
 
 ## Reviewer checklist for Argo CD
 
