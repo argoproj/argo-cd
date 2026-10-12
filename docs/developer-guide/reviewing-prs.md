@@ -101,6 +101,14 @@ Submit non-blocking feedback as a Comment review, or as Approve if nothing in yo
 
 Approving with `nit:` or `suggestion:` comments is encouraged. It tells the author that the PR can merge as is and that the comments are optional.
 
+## Say what happens next
+
+Unless you are merging the PR now, end your review with one line telling the author what happens next. For example:
+
+* You're an approver and another reviewer still has a Request changes review in place: "Approved from my side. This now waits for @name to finish their review."
+* You approve but don't have merge rights: "Looks good to me. It still needs a review from an approver." If you are an Argo member or reviewer, also add the `ready-for-review` label and add the PR to the Argo CD Review project (see the [FAQ](faq.md#how-do-i-get-my-pr-labeled-ready-for-review)).
+* You requested changes: your blocking threads and their exit conditions already tell the author what's next.
+
 ## Re-review commitment
 
 Submitting a Request changes review is a commitment to come back.
@@ -132,3 +140,4 @@ Besides general code quality, check the following for every PR:
 * RBAC and security. New API endpoints enforce RBAC. New settings that touch credentials, TLS, or network access are secure by default.
 * Backports. Bug fixes that should go to supported release branches get a `cherry-pick/x.y` label (see [Backport Your Fix](backporting-fixes.md)).
 * Docs. User-facing changes are documented under `docs/`.
+* Next step. If you are not merging, your review tells the author what to expect (see [Say what happens next](#say-what-happens-next)).
