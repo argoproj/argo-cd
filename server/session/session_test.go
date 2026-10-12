@@ -176,4 +176,18 @@ func TestGetUserInfo_LocalUserStrictMode(t *testing.T) {
 		assert.Equal(t, "sally", resp.Username)
 		assert.Equal(t, "sally", resp.RbacSubject)
 	})
+
+	t.Run("rbacSubject matches enforcement for an SSO subject ending in @local", func(t *testing.T) {
+		ssoLocalClaims := jwt.MapClaims{"sub": "sally@local", "iss": "https://accounts.google.com"}
+
+		s := newTestSessionServer(t, map[string]string{"rbac.local.user.strictmode": "true"})
+		resp, err := s.GetUserInfo(ctxWithClaims(ssoLocalClaims), nil)
+		require.NoError(t, err)
+		assert.Empty(t, resp.RbacSubject, "strict mode ignores SSO subjects claiming the reserved suffix")
+
+		s = newTestSessionServer(t, map[string]string{})
+		resp, err = s.GetUserInfo(ctxWithClaims(ssoLocalClaims), nil)
+		require.NoError(t, err)
+		assert.Equal(t, "sally@local", resp.RbacSubject)
+	})
 }

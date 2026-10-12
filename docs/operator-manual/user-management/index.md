@@ -132,8 +132,8 @@ data:
 When enabled, Argo CD appends an `@local` suffix to local account names during RBAC enforcement only. Reference local
 users in your RBAC policies using that suffix, for example `g, sally@local, role:developer`. In strict mode the
 built-in `g, admin, role:admin` binding is replaced by `g, admin@local, role:admin`, so the local `admin` account keeps
-its access while an SSO user or group named `admin` no longer inherits it. The `@local` suffix is reserved for local
-accounts: SSO subjects and groups ending in `@local` are always ignored during RBAC enforcement.
+its access while an SSO user or group named `admin` no longer inherits it. While strict mode is enabled, the `@local`
+suffix is reserved for local accounts: SSO subjects and groups ending in `@local` are ignored during RBAC enforcement.
 
 > [!NOTE]
 > Users still log in with their normal account name (for example `sally`) in both the CLI and UI. The `@local` suffix

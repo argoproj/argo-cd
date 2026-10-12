@@ -6,6 +6,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -14,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	sessionmgr "github.com/argoproj/argo-cd/v3/util/session"
 )
 
@@ -109,14 +111,12 @@ func (s *Server) AuthFuncOverride(ctx context.Context, _ string) (context.Contex
 func (s *Server) GetUserInfo(ctx context.Context, _ *session.GetUserInfoRequest) (*session.GetUserInfoResponse, error) {
 	username := sessionmgr.Username(ctx)
 	iss := sessionmgr.Iss(ctx)
-	// rbacSubject is the identity RBAC policies match on. It is the token's user identifier (sub or the
-	// federated user_id), which for SSO can differ from the email-based display username. Local accounts
-	// in strict mode additionally carry the "@local" suffix. Username stays the real account name so
-	// clients can still resolve the account for actions such as changing the password.
-	rbacSubject := sessionmgr.GetUserIdentifier(ctx)
-	if iss == sessionmgr.SessionManagerClaimsIssuer && rbacSubject != "" && !rbacpolicy.IsProjectSubject(rbacSubject) {
-		if s.policyEnf.GetEnableLocalUserStrictMode() {
-			rbacSubject += rbacpolicy.LocalUserRBACSuffix
+	// rbacSubject is the identity RBAC policies match on, which can differ from the display username
+	// (e.g. SSO email vs sub, or the "@local" suffix for local accounts in strict mode).
+	var rbacSubject string
+	if claims, ok := ctx.Value("claims").(jwt.Claims); ok {
+		if mapClaims, err := jwtutil.MapClaims(claims); err == nil {
+			rbacSubject = s.policyEnf.EnforcementSubject(mapClaims)
 		}
 	}
 	return &session.GetUserInfoResponse{

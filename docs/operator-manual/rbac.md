@@ -539,9 +539,9 @@ g, sally@local, role:developer
 > behavior).
 
 > [!NOTE]
-> The `@local` suffix is reserved for local accounts regardless of whether strict mode is enabled. Subjects and groups
-> from SSO tokens that end in `@local` are ignored during RBAC enforcement, so an SSO identity such as `admin@local`
-> cannot match a policy intended for a local account.
+> While strict mode is enabled, the `@local` suffix is reserved for local accounts. Subjects and groups from SSO tokens
+> that end in `@local` are ignored during RBAC enforcement, so an SSO identity such as `admin@local` cannot match a
+> policy intended for a local account. When strict mode is disabled, SSO identities are matched verbatim as before.
 
 ## Policy CSV Composition
 

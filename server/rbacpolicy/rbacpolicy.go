@@ -20,22 +20,28 @@ import (
 // strict mode (rbac.local.user.strictmode) is enabled. This disambiguates local accounts from SSO
 // users that happen to share the same name/scope, so that e.g. a policy bound to `sally@local`
 // only applies to the local `sally` account and not to an SSO user named `sally`.
-// The suffix is reserved for local accounts: SSO subjects and groups carrying it are never
-// matched against policies, regardless of strict mode.
+// While strict mode is enabled the suffix is reserved for local accounts: SSO subjects and groups
+// carrying it are never matched against policies.
 const LocalUserRBACSuffix = "@local"
 
-// builtinAdminBinding is the unqualified built-in admin binding that is only valid outside strict mode.
-const builtinAdminBinding = "g, " + common.ArgoCDAdminUsername + ", role:admin"
+var (
+	builtinAdminBinding      = "g, " + common.ArgoCDAdminUsername + ", role:admin"
+	builtinLocalAdminBinding = "g, " + common.ArgoCDAdminUsername + LocalUserRBACSuffix + ", role:admin"
+)
 
-// BuiltinPolicyCSV returns the built-in RBAC policy. In strict mode the unqualified `g, admin, role:admin`
-// binding is dropped so that only the local admin (enforced as `admin@local`) inherits role:admin and an SSO
-// identity named `admin` does not.
+// BuiltinPolicyCSV returns the built-in RBAC policy. In strict mode the `g, admin, role:admin` binding is
+// replaced by `g, admin@local, role:admin`, so only the local admin account inherits role:admin and an SSO
+// identity named `admin` does not. Outside strict mode the policy is returned unchanged.
 func BuiltinPolicyCSV(strictMode bool) string {
 	if !strictMode {
 		return assets.BuiltinPolicyCSV
 	}
 	lines := strings.Split(assets.BuiltinPolicyCSV, "\n")
-	lines = slices.DeleteFunc(lines, func(l string) bool { return strings.TrimSpace(l) == builtinAdminBinding })
+	for i, l := range lines {
+		if strings.TrimSpace(l) == builtinAdminBinding {
+			lines[i] = builtinLocalAdminBinding
+		}
+	}
 	return strings.Join(lines, "\n")
 }
 
@@ -105,6 +111,23 @@ func hasLocalUserRBACSuffix(identity string) bool {
 	return strings.HasSuffix(identity, LocalUserRBACSuffix)
 }
 
+// EnforcementSubject returns the subject that RBAC policies are matched against for the given claims.
+// In strict mode local accounts get the "@local" suffix and SSO subjects claiming it are dropped ("").
+func (p *RBACPolicyEnforcer) EnforcementSubject(mapClaims jwt.MapClaims) string {
+	subject := jwtutil.GetUserIdentifier(mapClaims)
+	if subject == "" || IsProjectSubject(subject) || !p.enableLocalUserStrictMode.Load() {
+		return subject
+	}
+	if isLocalAccount(mapClaims) {
+		return subject + LocalUserRBACSuffix
+	}
+	if hasLocalUserRBACSuffix(subject) {
+		log.WithField("subject", subject).Warn("ignoring SSO subject with reserved @local suffix")
+		return ""
+	}
+	return subject
+}
+
 // EnforceClaims is an RBAC claims enforcer specific to the Argo CD API server
 func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool {
 	mapClaims, err := jwtutil.MapClaims(claims)
@@ -112,18 +135,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool
 		return false
 	}
 
-	subject := jwtutil.GetUserIdentifier(mapClaims)
-	isLocal := isLocalAccount(mapClaims)
-	// When strict mode is enabled, disambiguate local accounts from SSO users by appending the
-	// "@local" suffix to the subject. Project tokens (proj:...) are left untouched.
-	if p.enableLocalUserStrictMode.Load() && isLocal && !IsProjectSubject(subject) {
-		subject += LocalUserRBACSuffix
-	}
-	// "@local" is reserved for local accounts; an SSO identity claiming it must not match any policy.
-	if !isLocal && hasLocalUserRBACSuffix(subject) {
-		log.WithField("subject", subject).Warn("ignoring SSO subject with reserved @local suffix")
-		subject = ""
-	}
+	subject := p.EnforcementSubject(mapClaims)
 	// Check if the request is for an application resource. We have special enforcement which takes
 	// into consideration the project's token and group bindings
 	var runtimePolicy string
@@ -153,7 +165,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool
 	}
 	// Finally check if any of the user's groups grant them permissions
 	groups := jwtutil.GetScopeValues(mapClaims, scopes)
-	if !isLocal {
+	if p.enableLocalUserStrictMode.Load() && !isLocalAccount(mapClaims) {
 		groups = slices.DeleteFunc(groups, hasLocalUserRBACSuffix)
 	}
 

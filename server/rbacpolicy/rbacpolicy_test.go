@@ -335,35 +335,34 @@ func TestEnforceLocalUserStrictMode(t *testing.T) {
 			"project role tokens must not be suffixed with @local")
 	})
 
-	// The "@local" suffix is reserved for local accounts in both modes, so an SSO identity cannot
-	// impersonate a local user (e.g. the built-in `g, admin@local, role:admin` binding).
+	// In strict mode the "@local" suffix is reserved for local accounts, so an SSO identity cannot impersonate
+	// a local user. Outside strict mode SSO identities are matched verbatim (pre-existing behavior).
 	for _, strict := range []bool{true, false} {
 		name := fmt.Sprintf("strict=%t", strict)
 
-		t.Run(name+": SSO subject with @local suffix is ignored", func(t *testing.T) {
+		t.Run(name+": SSO subject with @local suffix", func(t *testing.T) {
 			enf, rbacEnf := newEnforcer(t)
 			rbacEnf.SetEnableLocalUserStrictMode(strict)
-			_ = enf.SetBuiltinPolicy(`p, sally@local, applications, create, my-proj/*, allow`)
+			rbacEnf.SetScopes([]string{"groups", "email"})
+			_ = enf.SetBuiltinPolicy(`p, role:creator, applications, create, my-proj/*, allow
+g, sally@local, role:creator`)
 
 			ssoLocalClaims := jwt.MapClaims{"sub": "sally@local", "iss": "https://accounts.google.com"}
-			assert.False(t, enf.Enforce(ssoLocalClaims, "applications", "create", "my-proj/my-app"),
-				"an SSO subject must not be able to claim the reserved @local suffix")
+			assert.Equal(t, !strict, enf.Enforce(ssoLocalClaims, "applications", "create", "my-proj/my-app"))
 			ssoEmailClaims := jwt.MapClaims{"sub": "x", "email": "sally@local", "iss": "https://accounts.google.com"}
-			assert.False(t, enf.Enforce(ssoEmailClaims, "applications", "create", "my-proj/my-app"),
-				"an SSO email must not be able to claim the reserved @local suffix")
+			assert.Equal(t, !strict, enf.Enforce(ssoEmailClaims, "applications", "create", "my-proj/my-app"))
 		})
 
-		t.Run(name+": SSO group with @local suffix is ignored", func(t *testing.T) {
+		t.Run(name+": SSO group with @local suffix", func(t *testing.T) {
 			enf, rbacEnf := newEnforcer(t)
 			rbacEnf.SetEnableLocalUserStrictMode(strict)
 			_ = enf.SetBuiltinPolicy(`p, role:creator, applications, create, my-proj/*, allow
 p, role:viewer, applications, get, my-proj/*, allow
-g, admin@local, role:creator
+g, ops@local, role:creator
 g, devs, role:viewer`)
 
-			claims := jwt.MapClaims{"sub": "mallory", "iss": "https://accounts.google.com", "groups": []string{"admin@local", "devs"}}
-			assert.False(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"),
-				"an SSO group must not be able to claim the reserved @local suffix")
+			claims := jwt.MapClaims{"sub": "mallory", "iss": "https://accounts.google.com", "groups": []string{"ops@local", "devs"}}
+			assert.Equal(t, !strict, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
 			assert.True(t, enf.Enforce(claims, "applications", "get", "my-proj/my-app"),
 				"other SSO groups must still be evaluated")
 		})
@@ -380,21 +379,43 @@ g, devs, role:viewer`)
 	}
 }
 
+func TestEnforcementSubject(t *testing.T) {
+	local := jwt.MapClaims{"sub": "sally", "iss": common.ArgoCDSessionClaimsIssuer}
+	sso := jwt.MapClaims{"sub": "sally", "iss": "https://accounts.google.com"}
+	ssoLocal := jwt.MapClaims{"sub": "sally@local", "iss": "https://accounts.google.com"}
+	proj := jwt.MapClaims{"sub": "proj:my-proj:my-role", "iss": common.ArgoCDSessionClaimsIssuer}
+
+	rbacEnf := NewRBACPolicyEnforcer(nil, nil)
+	assert.Equal(t, "sally", rbacEnf.EnforcementSubject(local))
+	assert.Equal(t, "sally", rbacEnf.EnforcementSubject(sso))
+	assert.Equal(t, "sally@local", rbacEnf.EnforcementSubject(ssoLocal))
+	assert.Equal(t, "proj:my-proj:my-role", rbacEnf.EnforcementSubject(proj))
+
+	rbacEnf.SetEnableLocalUserStrictMode(true)
+	assert.Equal(t, "sally@local", rbacEnf.EnforcementSubject(local))
+	assert.Equal(t, "sally", rbacEnf.EnforcementSubject(sso))
+	assert.Empty(t, rbacEnf.EnforcementSubject(ssoLocal))
+	assert.Equal(t, "proj:my-proj:my-role", rbacEnf.EnforcementSubject(proj))
+}
+
 func TestBuiltinPolicyCSV(t *testing.T) {
 	assert.Equal(t, assets.BuiltinPolicyCSV, BuiltinPolicyCSV(false))
+	assert.NotContains(t, BuiltinPolicyCSV(false), "admin@local")
 
 	strict := BuiltinPolicyCSV(true)
 	assert.NotContains(t, strict, "g, admin, role:admin")
 	assert.Contains(t, strict, "g, admin@local, role:admin")
-	assert.Contains(t, strict, "g, role:admin, role:readonly", "only the admin binding is removed")
+	assert.Contains(t, strict, "g, role:admin, role:readonly", "only the admin binding is changed")
 }
 
 // TestBuiltinAdminBindingStrictMode verifies that with strict mode the built-in role:admin binding is only
-// reachable by the local admin account, not by an SSO identity named "admin".
+// reachable by the local admin account, not by an SSO identity named "admin" or "admin@local".
 func TestBuiltinAdminBindingStrictMode(t *testing.T) {
 	localAdmin := jwt.MapClaims{"sub": common.ArgoCDAdminUsername, "iss": common.ArgoCDSessionClaimsIssuer}
 	ssoAdmin := jwt.MapClaims{"sub": common.ArgoCDAdminUsername, "iss": "https://accounts.google.com"}
 	ssoAdminGroup := jwt.MapClaims{"sub": "mallory", "iss": "https://accounts.google.com", "groups": []string{common.ArgoCDAdminUsername}}
+	ssoLocalAdmin := jwt.MapClaims{"sub": "admin@local", "iss": "https://accounts.google.com"}
+	ssoLocalAdminGroup := jwt.MapClaims{"sub": "mallory", "iss": "https://accounts.google.com", "groups": []string{"admin@local"}}
 
 	for _, strict := range []bool{true, false} {
 		t.Run(fmt.Sprintf("strict=%t", strict), func(t *testing.T) {
@@ -410,6 +431,9 @@ func TestBuiltinAdminBindingStrictMode(t *testing.T) {
 			// Outside strict mode the plain `admin` binding still matches SSO identities (pre-existing behavior).
 			assert.Equal(t, !strict, enf.Enforce(ssoAdmin, "applications", "create", "my-proj/my-app"))
 			assert.Equal(t, !strict, enf.Enforce(ssoAdminGroup, "applications", "create", "my-proj/my-app"))
+			// admin@local is never bound outside strict mode and is filtered for SSO in strict mode.
+			assert.False(t, enf.Enforce(ssoLocalAdmin, "applications", "create", "my-proj/my-app"))
+			assert.False(t, enf.Enforce(ssoLocalAdminGroup, "applications", "create", "my-proj/my-app"))
 		})
 	}
 }
