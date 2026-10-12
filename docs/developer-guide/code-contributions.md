@@ -44,6 +44,8 @@ We encourage our community to pick up issues that are labeled in this way *and* 
 
 ## Triage process
 
+Maintainers are discussing an updated triage model (GitHub project board, statuses, rotation, priorities). That **draft** is written up in [Argo CD triage proposal](triage-proposal.md) and does not replace the summary below until it is adopted and this page is updated accordingly.
+
 ### Overview
 
 Our triage process for enhancements proposals ensures that we take a look at all incoming enhancements to determine whether we will accept code submissions to implement them.
