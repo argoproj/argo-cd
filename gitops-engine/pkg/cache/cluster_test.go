@@ -2230,7 +2230,15 @@ func TestCRDVersionsToAPIResources(t *testing.T) {
 // would deadlock and the test would time out.
 func TestHandleCRDEvent_LockContract(t *testing.T) {
 	t.Parallel()
-	cluster := newCluster(t)
+	// Not newCluster: its cleanup calls Invalidate, which would wait forever on
+	// the lock a deadlocked handleCRDEvent still holds.
+	cluster := newClusterWithOptions(t, nil)
+	deadlocked := false
+	t.Cleanup(func() {
+		if !deadlocked {
+			cluster.Invalidate()
+		}
+	})
 	require.NoError(t, cluster.EnsureSynced())
 
 	crd := strToUnstructured(`
@@ -2259,6 +2267,7 @@ spec:
 		select {
 		case <-done:
 		case <-time.After(10 * time.Second):
+			deadlocked = true
 			t.Fatalf("handleCRDEvent(%s) did not return; store.lock is likely acquired twice", event)
 		}
 	}
