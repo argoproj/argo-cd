@@ -45,10 +45,11 @@ body[data-md-color-scheme="slate"] .md-sidebar--primary li.md-nav__item--active 
     background-color: var(--md-default-bg-color);
     box-shadow: 0 1px 0 var(--md-default-fg-color--lightest);
   }
+  /* Deeper labels extend left over the indent, so a label pinned below
+     another fully covers that label's divider instead of leaving a stub. */
   .md-sidebar--primary .md-nav[data-md-level="0"] > .md-nav__list > li.md-nav__item--active > label.md-nav__link { top: 0; }
-  .md-sidebar--primary .md-nav[data-md-level="1"] > .md-nav__list > li.md-nav__item--active > label.md-nav__link { top: 1.35rem; }
-  .md-sidebar--primary .md-nav[data-md-level="2"] > .md-nav__list > li.md-nav__item--active > label.md-nav__link { top: 2.7rem; }
-  .md-sidebar--primary .md-nav[data-md-level="3"] > .md-nav__list > li.md-nav__item--active > label.md-nav__link { top: 4.05rem; }
+  .md-sidebar--primary .md-nav[data-md-level="1"] > .md-nav__list > li.md-nav__item--active > label.md-nav__link { top: 1.35rem; margin-left: -0.6rem; padding-left: 0.6rem; }
+  .md-sidebar--primary .md-nav[data-md-level="2"] > .md-nav__list > li.md-nav__item--active > label.md-nav__link { top: 2.7rem; margin-left: -1.2rem; padding-left: 1.2rem; }
 }
 
 /* 4. Section toggles are keyboard-operable (see nav.js): show focus. */
