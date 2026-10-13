@@ -16,7 +16,7 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	k8scache "k8s.io/client-go/tools/cache"
 
-	kubetest "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	"github.com/argoproj/pkg/v2/sync"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -27,8 +27,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	utilassets "github.com/argoproj/argo-cd/v3/util/assets"
-	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
-	appstate "github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	dbutil "github.com/argoproj/argo-cd/v3/util/db"
 	utilrbac "github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -79,7 +79,7 @@ func newTestAppServerWithDroppingBroadcaster(t *testing.T, objects ...runtime.Ob
 	testApp.Spec.Project = "default"
 
 	objects = append(objects, &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: testNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: testNamespace}, //nolint:modernize // embedlit: cannot elide the embedded type when mixing field:value and value elements
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -87,9 +87,9 @@ func newTestAppServerWithDroppingBroadcaster(t *testing.T, objects ...runtime.Ob
 	})
 
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, Name: "argocd-cm", Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"}},
+		ObjectMeta: metav1.ObjectMeta{Namespace: testNamespace, Name: "argocd-cm", Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"}}, //nolint:modernize // embedlit: cannot elide the embedded type when mixing field:value and value elements
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: testNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: testNamespace}, //nolint:modernize // embedlit: cannot elide the embedded type when mixing field:value and value elements
 		Data:       map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
 	})
 	ctx := t.Context()
@@ -112,9 +112,8 @@ func newTestAppServerWithDroppingBroadcaster(t *testing.T, objects ...runtime.Ob
 	require.NoError(t, enforcer.SetBuiltinPolicy(utilassets.BuiltinPolicyCSV))
 	enforcer.SetDefaultRole("role:admin")
 
-	appStateCache := appstate.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Hour)), time.Hour)
+	appStateCache := appstate.NewCache(cache.NewCache(cache.NewInMemoryCache(time.Hour)), time.Hour)
 	appCache := servercache.NewCache(appStateCache, time.Hour, time.Hour)
-
 	server, _ := NewServer(
 		testNamespace,
 		kubeclientset,
