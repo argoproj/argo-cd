@@ -412,6 +412,16 @@ func TestInvalidRuntimePolicy(t *testing.T) {
 	assert.False(t, enf.EnforceRuntimePolicy("", badPolicy, "role:readonly", "applications", "update", "foo/bar"))
 }
 
+// TestInvalidPolicy tests that an invalid built-in or user-defined policy is rejected
+func TestInvalidPolicy(t *testing.T) {
+	kubeclientset := fake.NewClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	badPolicy := "this, is, not, a, good, policy"
+	require.ErrorContains(t, enf.SetBuiltinPolicy(badPolicy), "error creating casbin enforcer")
+	require.NoError(t, enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV))
+	require.ErrorContains(t, enf.SetUserPolicy(badPolicy), "error creating casbin enforcer")
+}
+
 func TestValidatePolicy(t *testing.T) {
 	goodPolicies := []string{
 		"p, role:admin, projects, delete, *, allow",
