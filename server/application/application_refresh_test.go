@@ -183,6 +183,11 @@ func TestGetAppRefresh_DroppedCompletionEvent(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, fetched)
+	// The waiter must return the completed application from the informer, not
+	// the pre-refresh one, so a future return-path regression cannot pass by
+	// returning a stale object.
+	assert.Equal(t, "3", fetched.ResourceVersion)
+	assert.NotContains(t, fetched.GetAnnotations(), v1alpha1.AnnotationKeyRefresh)
 	assert.True(t, appServer.appBroadcaster.(*droppingBroadcaster).dropped.Load(),
 		"test setup must have dropped the completion event")
 }
