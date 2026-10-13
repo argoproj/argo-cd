@@ -151,6 +151,11 @@ The sync moves field ownership to `operation: Apply`. Removals after that
 are detected. `ServerSideApply=true` enables Server-Side Diff on its own
 unless the Application sets `ServerSideDiff=false`.
 
+That migration looks for `kubectl-client-side-apply` by default. If the
+field was client-side applied by another manager, set
+`argocd.argoproj.io/client-side-apply-migration-manager` to that manager.
+See [Client-Side Apply Migration](sync-options.md#client-side-apply-migration).
+
 `Replace=true` deletes the stuck field once. The object is then left with
 `operation: Update` and no `last-applied-configuration`, so the next
 removal is missed by both Server-Side Diff and the legacy diff.
