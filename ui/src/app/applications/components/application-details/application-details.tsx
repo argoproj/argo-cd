@@ -29,7 +29,7 @@ import * as AppUtils from '../utils';
 import {ApplicationResourceList, ApplicationResourceParentRef} from './application-resource-list';
 import {APPLICATION_DETAILS_SORT_KEY, ApplicationResourceSortKey, compareApplicationResource, GROUPED_NODES_DETAILS_SORT_KEY} from './application-resource-sort';
 import {useListSort} from '../../../shared/hooks/use-list-sort';
-import {Filters, FiltersProps, getEffectiveResourceFilter} from './application-resource-filter';
+import {Filters, FiltersProps, getEffectiveResourceFilter, resourceNodeMatchesFilter} from './application-resource-filter';
 import {getAppDefaultSource, getAppCurrentVersion, urlPattern, getApplicationDetailsContainerClass} from '../utils';
 import {ChartDetails, OCIMetadata} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
@@ -170,29 +170,6 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
     const highlightNodeInfo = NodeInfo(new URLSearchParams(props.history.location.search).get('highlight'));
     const highlightNodeKey = highlightNodeInfo.key;
     const selectedExtension = new URLSearchParams(props.history.location.search).get('extension');
-
-    // Define escapeRegex first as it's used by other functions
-    const escapeRegex = useCallback((input: string): string => {
-        return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    }, []);
-
-    // Define nodeNameMatchesWildcardFilters as it's used by filterTreeNode
-    const nodeNameMatchesWildcardFilters = useCallback(
-        (nodeName: string, filterInputNames: string[]): boolean => {
-            const regularExpression = new RegExp(
-                filterInputNames
-                    // Escape any regex input to ensure only * can be used
-                    .map(pattern => '^' + escapeRegex(pattern) + '$')
-                    // Replace any escaped * with proper regex
-                    .map(pattern => pattern.replace(/\\\*/g, '.*'))
-                    // Join all filterInputs to a single regular expression
-                    .join('|'),
-                'gi'
-            );
-            return regularExpression.test(nodeName);
-        },
-        [escapeRegex]
-    );
 
     const setNodeExpansion = useCallback((node: string, isExpanded: boolean) => {
         setState(prevState => {
@@ -1496,31 +1473,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
         [selectNode, appContext, confirmDeletion, setOperationStatusVisible, setRollbackPanelVisible, deleteApplication, objectListKind, appChanged]
     );
 
-    const filterTreeNode = useCallback(
-        (node: ResourceTreeNode, filterInput: FilterInput): boolean => {
-            const syncStatuses = filterInput.sync.map(item => (item === 'OutOfSync' ? ['OutOfSync', 'Unknown'] : [item])).reduce((first, second) => first.concat(second), []);
-
-            const root = node.root || ({} as ResourceTreeNode);
-            const hook = root && root.hook;
-            if (
-                (filterInput.name.length === 0 || nodeNameMatchesWildcardFilters(node.name, filterInput.name)) &&
-                (filterInput.kind.length === 0 || filterInput.kind.indexOf(node.kind) > -1) &&
-                // include if node's root sync matches filter
-                (syncStatuses.length === 0 || hook || (root.status && syncStatuses.indexOf(root.status) > -1)) &&
-                // include if node or node's root health matches filter
-                (filterInput.health.length === 0 ||
-                    hook ||
-                    (root.health && filterInput.health.indexOf(root.health.status) > -1) ||
-                    (node.health && filterInput.health.indexOf(node.health.status) > -1)) &&
-                (filterInput.namespace.length === 0 || filterInput.namespace.includes(node.namespace))
-            ) {
-                return true;
-            }
-
-            return false;
-        },
-        [nodeNameMatchesWildcardFilters]
-    );
+    const filterTreeNode = useCallback((node: ResourceTreeNode, filterInput: FilterInput): boolean => resourceNodeMatchesFilter(node, filterInput), []);
 
     const onAppDeleted = useCallback(() => {
         appContext.notifications.show({type: NotificationType.Success, content: `Application '${props.match.params.name}' was deleted`});
