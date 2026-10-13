@@ -38,7 +38,6 @@ argocd version [flags]
   -o, --output string              Output format. One of: json|yaml|wide|short (default "wide")
       --password string            Password for basic authentication to the API server
       --proxy-url string           If provided, this URL will be used to connect via proxy
-      --request-timeout string     The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --short                      print just the version number
       --token string               Bearer token for authentication to the API server
       --user string                The name of the kubeconfig user to use
