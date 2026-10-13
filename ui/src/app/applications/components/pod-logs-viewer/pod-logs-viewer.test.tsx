@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {act} from 'react';
 import {createRoot, Root} from 'react-dom/client';
-import {EMPTY, of} from 'rxjs';
+import {EMPTY, of, Subject} from 'rxjs';
 import {LogEntry} from '../../../shared/models';
 import {PodsLogsViewer} from './pod-logs-viewer';
 
@@ -160,5 +160,31 @@ describe('PodsLogsViewer clear logs button', () => {
         const disabledClearButton = getClearButton();
         expect(disabledClearButton).toHaveClass('disabled');
         expect(mockCopyLogsButton).toHaveBeenLastCalledWith(logsFixture);
+    });
+
+    it('starts the view over at the replayed lines when the stream reconnects', () => {
+        jest.useFakeTimers();
+        const stream = new Subject<LogEntry>();
+        mockGetContainerLogs.mockReturnValue(stream);
+
+        renderComponent();
+
+        act(() => {
+            stream.next({...logsFixture[0], first: true});
+            stream.next(logsFixture[1]);
+            jest.advanceTimersByTime(150);
+        });
+        expect(container.textContent).toContain('INFO  Starting application');
+
+        // a reconnected stream replays its tail, marking the first line it sends
+        act(() => {
+            stream.next({...logsFixture[0], first: true});
+            stream.next(logsFixture[1]);
+            jest.advanceTimersByTime(150);
+        });
+
+        expect(container.textContent.match(/INFO  Starting application/g)).toHaveLength(1);
+        expect(container.textContent.match(/INFO  Listening on :8080/g)).toHaveLength(1);
+        jest.useRealTimers();
     });
 });
