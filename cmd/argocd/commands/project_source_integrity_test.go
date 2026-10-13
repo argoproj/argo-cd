@@ -554,8 +554,6 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 			},
 		},
 		{
-			// An unrelated update must not reset the constraint, which is why the command keys off
-			// cobra's Changed() rather than the flag value - a bool has no "unset" sentinel.
 			name:            "Keep signed tags only when the flag is not given",
 			sourceIntegrity: dummySourceIntegritySignedTagsOnly(),
 			args:            []string{projectName, "0", "--gpg-mode=strict", "--yes"},

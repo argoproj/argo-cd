@@ -37,7 +37,7 @@ var projectWithSignedTagsOnly = AppProjectSpec{
 				Repos:          []SourceIntegrityGitPolicyRepo{{URL: "*"}},
 				SignedTagsOnly: true, // Verifying annotated tags
 				GPG: &SourceIntegrityGitPolicyGPG{
-					Keys: []string{fixture.GpgGoodKeyID}, // Allowed, so only the tag constraint can fail a sync
+					Keys: []string{fixture.GpgGoodKeyID},
 					Mode: "head",
 				},
 			}},
