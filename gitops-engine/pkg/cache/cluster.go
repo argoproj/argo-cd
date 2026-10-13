@@ -27,6 +27,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"runtime/debug"
 	"slices"
 	"sync"
@@ -66,6 +67,15 @@ const (
 
 	// default duration before we invalidate entire cluster cache. Can be set to 0 to never invalidate cache
 	defaultClusterResyncTimeout = 24 * time.Hour
+
+	// default jitter factor (0 disables) applied on top of resyncTimeout each time the full
+	// cluster cache is (re)synced (see wait.Jitter). Disabled by default so existing installs
+	// keep the exact pre-jitter behavior; jitter is opt-in. Without jitter, all clusters
+	// (re)synced around the same time (e.g. right after a controller restart managing a large
+	// number of clusters) keep re-triggering their full resync in lockstep every resyncTimeout,
+	// causing a recurring "thundering herd" of concurrent List+Decode calls across every one of
+	// their watches at once, instead of a steady, spread-out load.
+	defaultResyncTimeoutJitterFactor = 0.0
 
 	// default duration before restarting individual resource watch
 	defaultWatchResyncTimeout = 10 * time.Minute
@@ -207,8 +217,9 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 			Tracer: tracing.NopTracer{},
 		},
 		syncStatus: clusterCacheSync{
-			resyncTimeout: defaultClusterResyncTimeout,
-			syncTime:      nil,
+			resyncTimeout:             defaultClusterResyncTimeout,
+			resyncTimeoutJitterFactor: defaultResyncTimeoutJitterFactor,
+			syncTime:                  nil,
 		},
 		watchResyncTimeout:      defaultWatchResyncTimeout,
 		clusterSyncRetryTimeout: ClusterRetryTimeout,
@@ -305,6 +316,52 @@ type clusterCacheSync struct {
 	syncTime      *time.Time
 	syncError     error
 	resyncTimeout time.Duration
+	// random jitter factor (0 disables) applied on top of resyncTimeout each time the full
+	// cluster cache is (re)synced, to avoid many clusters resyncing in lockstep after a
+	// controller restart. See wait.Jitter and resyncTimeoutWithJitter for semantics.
+	resyncTimeoutJitterFactor float64
+	// effectiveResyncTimeout is the (possibly jittered) timeout actually used by synced() for the
+	// current sync cycle. It is (re)computed once per sync, right after syncTime is set (see
+	// EnsureSynced), rather than on every synced() call, so that a given cycle's deadline doesn't
+	// move around each time synced() is polled.
+	effectiveResyncTimeout time.Duration
+	// hasSyncedOnce tracks whether the cluster has ever completed a *successful* full sync since
+	// creation or since the last Invalidate. It intentionally does not simply mirror
+	// "syncTime != nil": syncTime is set on every sync() attempt, including failed ones (see
+	// EnsureSynced), so using it directly would make a failed initial attempt cause the
+	// subsequent successful retry to be (incorrectly) treated as a non-initial resync, and use
+	// the narrow post-first-sync jitter range instead of the intended full-period spread. See
+	// resyncTimeoutWithJitter.
+	hasSyncedOnce bool
+}
+
+// resyncTimeoutWithJitter returns the timeout to use for a full cluster cache resync cycle,
+// applying jitter on top of timeout when enabled. A returned value of 0 means the resync timeout
+// is disabled altogether (see synced).
+//
+// Jitter avoids a "thundering herd": without it, all clusters (re)synced around the same time
+// (e.g. right after a controller restart managing a large number of clusters) would keep
+// resyncing in lockstep every timeout, producing a recurring spike of concurrent List+Decode
+// calls across every one of their watches at once, instead of a steady, spread-out load.
+//
+// initialStart controls how the spread is computed:
+//   - true (a cluster's very first sync, or its first sync after Invalidate): the returned
+//     timeout is chosen uniformly from the *entire* [0, timeout) range, so that clusters started
+//     in the same instant (e.g. right after a controller restart, when many clusters are added
+//     at once) are spread across the whole period immediately, rather than waiting a full
+//     timeout before the first (small) jitter has any spreading effect.
+//   - false (every subsequent resync): the timeout uses wait.Jitter's normal semantics, chosen
+//     uniformly from [timeout, timeout+timeout*factor). This keeps the resync interval close to
+//     the configured timeout while still perturbing it enough that clusters don't re-converge
+//     over time.
+func resyncTimeoutWithJitter(timeout time.Duration, jitterFactor float64, initialStart bool) time.Duration {
+	if timeout <= 0 || jitterFactor <= 0 {
+		return timeout
+	}
+	if initialStart {
+		return time.Duration(rand.Int64N(int64(timeout)))
+	}
+	return wait.Jitter(timeout, jitterFactor)
 }
 
 // ListRetryFuncNever never retries on errors
@@ -628,6 +685,7 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 
 	c.syncStatus.lock.Lock()
 	c.syncStatus.syncTime = nil
+	c.syncStatus.hasSyncedOnce = false
 	c.syncStatus.lock.Unlock()
 
 	for i := range c.apisMeta {
@@ -659,7 +717,7 @@ func (syncStatus *clusterCacheSync) synced(clusterRetryTimeout time.Duration) bo
 		// cluster resync timeout has been disabled
 		return true
 	}
-	return time.Now().Before(syncTime.Add(syncStatus.resyncTimeout))
+	return time.Now().Before(syncTime.Add(syncStatus.effectiveResyncTimeout))
 }
 
 func (c *clusterCache) stopWatching(gk schema.GroupKind, ns string) {
@@ -1288,10 +1346,20 @@ func (c *clusterCache) EnsureSynced() error {
 	if syncStatus.synced(c.clusterSyncRetryTimeout) {
 		return syncStatus.syncError
 	}
+	// A cluster's very first successful sync (or its first sync after Invalidate, which resets
+	// hasSyncedOnce) spreads its resync deadline across the whole [0, resyncTimeout) range
+	// instead of the usual small jitter, so that clusters started/invalidated together don't
+	// stay converged. See resyncTimeoutWithJitter and the hasSyncedOnce field doc comment for why
+	// this must not be derived from syncTime alone (syncTime is also set on failed attempts).
+	initialStart := !syncStatus.hasSyncedOnce
 	err := c.sync()
 	syncTime := time.Now()
 	syncStatus.syncTime = &syncTime
 	syncStatus.syncError = err
+	if err == nil {
+		syncStatus.hasSyncedOnce = true
+	}
+	syncStatus.effectiveResyncTimeout = resyncTimeoutWithJitter(syncStatus.resyncTimeout, syncStatus.resyncTimeoutJitterFactor, initialStart)
 	return syncStatus.syncError
 }
 

@@ -104,6 +104,14 @@ func ParseFloat64FromEnv(env string, defaultValue, minimum, maximum float64) flo
 		log.Warnf("Could not parse '%s' as a float64 from environment %s", str, env)
 		return defaultValue
 	}
+	// strconv.ParseFloat happily parses "NaN" without error, but NaN compares false against both
+	// minimum and maximum below (all comparisons with NaN are false), so it would otherwise slip
+	// past both bounds checks and propagate as an invalid value to callers (e.g. producing NaN
+	// timeouts from wait.Jitter).
+	if math.IsNaN(num) {
+		log.Warnf("Value in %s is NaN, which is not a valid number", env)
+		return defaultValue
+	}
 	if num < minimum {
 		log.Warnf("Value in %s is %f, which is less than minimum %f allowed", env, num, minimum)
 		return defaultValue

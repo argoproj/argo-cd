@@ -47,6 +47,13 @@ const (
 	// EnvClusterCacheResyncDuration is the env variable that holds cluster cache re-sync duration
 	EnvClusterCacheResyncDuration = "ARGOCD_CLUSTER_CACHE_RESYNC_DURATION"
 
+	// EnvClusterCacheResyncJitterFactor is the env variable that holds the random jitter factor
+	// applied on top of the full cluster cache re-sync duration, to avoid many clusters (re)synced
+	// around the same time (e.g. right after a controller restart) from resyncing in lockstep. Set
+	// to 0 (the default) to disable jitter and always resync exactly every
+	// EnvClusterCacheResyncDuration.
+	EnvClusterCacheResyncJitterFactor = "ARGOCD_CLUSTER_CACHE_RESYNC_JITTER_FACTOR"
+
 	// EnvClusterCacheWatchResyncDuration is the env variable that holds cluster cache watch re-sync duration
 	EnvClusterCacheWatchResyncDuration = "ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION"
 
@@ -87,6 +94,14 @@ var (
 	// NOTE: this differs from gitops-engine default of 24h
 	clusterCacheResyncDuration = 12 * time.Hour
 
+	// clusterCacheResyncJitterFactor controls the random jitter applied on top of
+	// clusterCacheResyncDuration, to avoid many clusters (re)synced around the same time (e.g.
+	// after a controller restart managing a large number of clusters) from resyncing in lockstep,
+	// which causes a recurring spike of concurrent List+Decode calls across all their watches at
+	// once. Disabled (0) by default: jitter is opt-in, existing installs keep the exact pre-jitter
+	// behavior.
+	clusterCacheResyncJitterFactor = 0.0
+
 	// clusterCacheWatchResyncDuration controls the maximum duration that group/kind watches are allowed to run
 	// for before relisting & restarting the watch
 	clusterCacheWatchResyncDuration = 10 * time.Minute
@@ -120,6 +135,7 @@ var (
 
 func init() {
 	clusterCacheResyncDuration = env.ParseDurationFromEnv(EnvClusterCacheResyncDuration, clusterCacheResyncDuration, 0, math.MaxInt64)
+	clusterCacheResyncJitterFactor = env.ParseFloat64FromEnv(EnvClusterCacheResyncJitterFactor, clusterCacheResyncJitterFactor, 0, 1)
 	clusterCacheWatchResyncDuration = env.ParseDurationFromEnv(EnvClusterCacheWatchResyncDuration, clusterCacheWatchResyncDuration, 0, math.MaxInt64)
 	clusterSyncRetryTimeoutDuration = env.ParseDurationFromEnv(EnvClusterSyncRetryTimeoutDuration, clusterSyncRetryTimeoutDuration, 0, math.MaxInt64)
 	clusterCacheListPageSize = env.ParseInt64FromEnv(EnvClusterCacheListPageSize, clusterCacheListPageSize, 0, math.MaxInt64)
@@ -561,6 +577,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		clustercache.SetWatchResyncTimeout(clusterCacheWatchResyncDuration),
 		clustercache.SetClusterSyncRetryTimeout(clusterSyncRetryTimeoutDuration),
 		clustercache.SetResyncTimeout(clusterCacheResyncDuration),
+		clustercache.SetResyncTimeoutJitterFactor(clusterCacheResyncJitterFactor),
 		clustercache.SetSettings(cacheSettings.clusterSettings),
 		clustercache.SetNamespaces(cluster.Namespaces),
 		clustercache.SetClusterResources(cluster.ClusterResources),

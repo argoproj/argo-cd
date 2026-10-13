@@ -216,6 +216,19 @@ stringData:
   `100ms`.
   The variable is used only when `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` is set to `true`.
 
+* `ARGOCD_CLUSTER_CACHE_RESYNC_JITTER_FACTOR` - environment variable controlling the random jitter applied on top of
+  `ARGOCD_CLUSTER_CACHE_RESYNC_DURATION` each time a cluster's full cache is (re)synced. Without jitter, all clusters
+  (re)synced around the same time (e.g. right after a controller restart in a deployment managing a large number of
+  clusters) keep resyncing in lockstep every resync duration, producing a recurring synchronized spike of concurrent
+  List+Decode calls across every one of their watches at once. The valid value is a float between `0` and `1`.
+  Jitter is opt-in and disabled (`0`) by default, so existing installs keep the exact pre-jitter behavior; set to a
+  value greater than `0` (e.g. `0.1` for up to +10%) to enable it. The effective resync duration depends on whether
+  this is the cluster's very first sync (including right after a controller restart, or after the cluster cache is
+  invalidated) or a later one: on the very first sync, the duration is chosen uniformly from `[0, duration)` so that
+  clusters starting together spread out across the whole period immediately; on every later resync, it is chosen
+  uniformly from `[duration, duration + duration * factor)`, which keeps subsequent resyncs close to the configured
+  duration.
+
 * `resource.manifest.storage` - `argocd-cm` setting controlling the serialization format for cached resource
   manifests when manifest compression is enabled. Valid values: `json` (default), `msgpack`.
 

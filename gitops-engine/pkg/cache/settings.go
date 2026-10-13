@@ -116,6 +116,21 @@ func SetResyncTimeout(timeout time.Duration) UpdateSettingsFunc {
 	}
 }
 
+// SetResyncTimeoutJitterFactor sets the random jitter factor applied on top of the full cluster
+// resyncTimeout each time the cluster cache is (re)synced. Pass 0 to disable jitter and always
+// use exactly resyncTimeout, matching pre-jitter behavior. See wait.Jitter for exact semantics:
+// the effective timeout is chosen uniformly from [timeout, timeout+timeout*factor), except on a
+// cluster's very first sync (or first sync after Invalidate), where it is chosen uniformly from
+// [0, timeout) instead. See resyncTimeoutWithJitter.
+func SetResyncTimeoutJitterFactor(factor float64) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.syncStatus.lock.Lock()
+		defer cache.syncStatus.lock.Unlock()
+
+		cache.syncStatus.resyncTimeoutJitterFactor = factor
+	}
+}
+
 // SetWatchResyncTimeout updates cluster re-sync timeout
 func SetWatchResyncTimeout(timeout time.Duration) UpdateSettingsFunc {
 	return func(cache *clusterCache) {

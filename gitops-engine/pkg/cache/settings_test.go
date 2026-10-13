@@ -51,6 +51,15 @@ func TestSetResyncTimeout(t *testing.T) {
 	assert.Equal(t, timeout, cache.syncStatus.resyncTimeout)
 }
 
+func TestSetResyncTimeoutJitterFactor(t *testing.T) {
+	t.Parallel()
+	cache := NewClusterCache(&rest.Config{})
+	assert.InDelta(t, defaultResyncTimeoutJitterFactor, cache.syncStatus.resyncTimeoutJitterFactor, 0)
+
+	cache.Invalidate(SetResyncTimeoutJitterFactor(0.25))
+	assert.InDelta(t, 0.25, cache.syncStatus.resyncTimeoutJitterFactor, 0)
+}
+
 func TestSetWatchResyncTimeout(t *testing.T) {
 	t.Parallel()
 	cache := NewClusterCache(&rest.Config{})
