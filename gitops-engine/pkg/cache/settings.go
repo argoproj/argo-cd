@@ -123,6 +123,24 @@ func SetWatchResyncTimeout(timeout time.Duration) UpdateSettingsFunc {
 	}
 }
 
+// SetWatchResyncTimeoutJitterFactor sets the random jitter factor applied on top of
+// watchResyncTimeout each time a watch is (re)started. Pass 0 to disable jitter and always use
+// exactly watchResyncTimeout, matching pre-jitter behavior.
+//
+// The effective timeout depends on whether it is the watch's very first start or a subsequent
+// restart:
+//   - First start: chosen uniformly from [0, watchResyncTimeout), so watches started in the same
+//     instant (e.g. right after a controller restart) are spread across the whole period
+//     immediately rather than waiting a full watchResyncTimeout before the first small jitter
+//     has any spreading effect.
+//   - Subsequent restarts: wait.Jitter semantics — chosen uniformly from
+//     [watchResyncTimeout, watchResyncTimeout+watchResyncTimeout*factor).
+func SetWatchResyncTimeoutJitterFactor(factor float64) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.watchResyncTimeoutJitterFactor = factor
+	}
+}
+
 // SetClusterSyncRetryTimeout updates cluster sync retry timeout when sync error happens
 func SetClusterSyncRetryTimeout(timeout time.Duration) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
