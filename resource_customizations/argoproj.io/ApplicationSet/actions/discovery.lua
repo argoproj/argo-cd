@@ -1,3 +1,7 @@
 local actions = {}
-actions["refresh"] = {["disabled"] = false}
+actions["refresh"] = {
+    ["displayName"] = "Refresh ApplicationSet",
+    ["iconClass"] = "fa fa-fw fa-redo",
+    ["disabled"] = false
+}
 return actions

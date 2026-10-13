@@ -460,8 +460,8 @@ the Revision Cache. The ApplicationSet controller removes this
 annotation after reconciliation.
 
 If an Argo CD Application manages the ApplicationSet, you can also set this
-annotation from the UI with the built-in `refresh` resource action on the
-ApplicationSet node of that Application.
+annotation from the UI with the built-in **Refresh ApplicationSet** resource action
+(`refresh`) on the ApplicationSet node of that Application.
 
 ## Webhook Configuration
 

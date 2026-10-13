@@ -2,6 +2,8 @@ discoveryTests:
 - inputPath: testdata/appset.yaml
   result:
   - name: refresh
+    displayName: Refresh ApplicationSet
+    iconClass: fa fa-fw fa-redo
     disabled: false
 actionTests:
 - action: refresh
