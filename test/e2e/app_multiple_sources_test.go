@@ -297,3 +297,45 @@ func TestMultiSourceAppErrorWhenSourceNameAndSourcePosition(t *testing.T) {
 			assert.ErrorContains(t, err, "Only one of source-positions and source-names can be specified.")
 		})
 }
+
+func TestMultiSourceAppSetAppLevelFlagWithoutSourcePosition(t *testing.T) {
+	sources := []ApplicationSource{{
+		RepoURL: RepoURL(RepoURLTypeFile),
+		Path:    guestbookPath,
+	}, {
+		RepoURL: RepoURL(RepoURLTypeFile),
+		Path:    "two-nice-pods",
+	}}
+	ctx := Given(t)
+	ctx.
+		Sources(sources).
+		When().
+		CreateMultiSourceApp().
+		Then().
+		Expect(Event(EventReasonResourceCreated, "create")).
+		And(func(_ *Application) {
+			_, err := RunCli("app", "set", ctx.GetName(), "--sync-policy", "automated")
+			require.NoError(t, err)
+		}).
+		Expect(Success("")).
+		And(func(app *Application) {
+			assert.NotNil(t, app.Spec.SyncPolicy.Automated)
+			require.Len(t, app.Spec.GetSources(), 2)
+			assert.Equal(t, sources[0].Path, app.Spec.GetSources()[0].Path)
+			assert.Equal(t, sources[1].Path, app.Spec.GetSources()[1].Path)
+		}).
+		And(func(_ *Application) {
+			_, err := RunCli("app", "set", ctx.GetName(), "--helm-version", "v2")
+			assert.ErrorContains(t, err, "Source position should be specified and must be greater than 0 for applications with multiple sources")
+		}).
+		And(func(_ *Application) {
+			// An explicit but invalid --source-position is rejected even for an app-level flag.
+			_, err := RunCli("app", "set", ctx.GetName(), "--sync-policy", "automated", "--source-position", "0")
+			assert.ErrorContains(t, err, "Source position should be specified and must be greater than 0 for applications with multiple sources")
+		}).
+		And(func(_ *Application) {
+			// Same for a --source-position that happens to match the flag's unset default.
+			_, err := RunCli("app", "set", ctx.GetName(), "--sync-policy", "automated", "--source-position=-1")
+			assert.ErrorContains(t, err, "Source position should be specified and must be greater than 0 for applications with multiple sources")
+		})
+}
