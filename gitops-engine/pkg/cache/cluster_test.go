@@ -1038,6 +1038,42 @@ func TestWatchCacheUpdated(t *testing.T) {
 	assert.False(t, ok)
 }
 
+func TestStopWatchingClearsCacheForAllNamespaces(t *testing.T) {
+	ns1Pod := testPod1()
+	ns1Pod.SetNamespace("ns1")
+	ns1Pod.SetName("pod1")
+
+	ns2Pod := testPod1()
+	ns2Pod.SetNamespace("ns2")
+	podGroupKind := testPod1().GroupVersionKind().GroupKind()
+
+	cluster := newCluster(t, ns1Pod, ns2Pod)
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	cluster.lock.Lock()
+	_, watched := cluster.apisMeta[podGroupKind]
+	require.True(t, watched, "expected the pod GroupKind to be watched right after sync")
+	cluster.lock.Unlock()
+
+	// A NotFound watch error for this GroupKind in ns1 alone cancels the single
+	// shared watch context for the whole GroupKind (see startMissingWatches),
+	// tearing down ns2's watch too even though only ns1 was reported missing.
+	cluster.stopWatching(podGroupKind, "ns1")
+
+	cluster.lock.Lock()
+	defer cluster.lock.Unlock()
+
+	_, stillWatched := cluster.apisMeta[podGroupKind]
+	require.False(t, stillWatched, "stopWatching should have torn down the shared watch for the whole GroupKind")
+
+	_, ok := cluster.resources[getResourceKey(t, ns1Pod)]
+	assert.False(t, ok, "ns1's resource should be cleared, its watch failure is what triggered this")
+
+	_, ok = cluster.resources[getResourceKey(t, ns2Pod)]
+	assert.False(t, ok, "ns2's resource is no longer being watched either (same cancelled context) and must not be left in the cache looking live")
+}
+
 func TestNamespaceModeReplace(t *testing.T) {
 	t.Parallel()
 	ns1Pod := testPod1()
