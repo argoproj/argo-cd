@@ -1,0 +1,12 @@
+discoveryTests:
+- inputPath: testdata/appset.yaml
+  result:
+  - name: refresh
+    disabled: false
+actionTests:
+- action: refresh
+  inputPath: testdata/appset.yaml
+  expectedOutputPath: testdata/appset_refreshed.yaml
+- action: refresh
+  inputPath: testdata/appset_with_annotations.yaml
+  expectedOutputPath: testdata/appset_with_annotations_refreshed.yaml
