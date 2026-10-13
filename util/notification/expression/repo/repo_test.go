@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestFullNameByRepoURL checks that nested GitLab groups are returned in
+// full and that HTTPS, SSH and scp-style URLs resolve to the same path.
 func TestFullNameByRepoURL(t *testing.T) {
 	tests := []struct {
 		url      string

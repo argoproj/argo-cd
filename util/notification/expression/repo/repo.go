@@ -69,6 +69,12 @@ func getCommitMetadata(commitSHA string, app *unstructured.Unstructured, argocdS
 	return meta, nil
 }
 
+// FullNameByRepoURL returns the repository path of a Git URL without the
+// leading slash and the ".git" suffix. Every path segment is kept, so a
+// GitLab project in nested groups such as
+// https://gitlab.com/group/subgroup/project.git yields
+// "group/subgroup/project". HTTPS, SSH and scp-style URLs give the same
+// result. It panics if rawURL cannot be parsed.
 func FullNameByRepoURL(rawURL string) string {
 	parsed, err := giturls.Parse(rawURL)
 	if err != nil {
@@ -80,6 +86,9 @@ func FullNameByRepoURL(rawURL string) string {
 	return strings.Join(pathParts, "/")
 }
 
+// repoURLToHTTPS rewrites a Git URL to HTTPS and drops its credentials,
+// so git@github.com:owner/repo.git becomes
+// https://github.com/owner/repo.git.
 func repoURLToHTTPS(rawURL string) string {
 	parsed, err := giturls.Parse(rawURL)
 	if err != nil {
