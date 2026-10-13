@@ -327,13 +327,29 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 
 var gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64)
 
+// gitCleanupNoTimeoutGracePeriod is the grace period used when ARGOCD_EXEC_TIMEOUT
+// is 0 and git commands therefore run without a deadline.
+const gitCleanupNoTimeoutGracePeriod = 24 * time.Hour
+
 // gitCleanupGracePeriod is the minimum age a temporary pack file must reach
-// before cleanupOrphanedTempPackfiles will remove it. A fetch is killed at
-// ARGOCD_EXEC_TIMEOUT (plus the fatal-timeout grace), so twice that comfortably
-// exceeds the longest a fetch can be in flight; anything older cannot belong to
-// a live fetch (for example a concurrent fetch from another repo-server replica
-// sharing an RWX cache volume).
-var gitCleanupGracePeriod = 2 * env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64)
+// before cleanupOrphanedTempPackfiles will remove it. git is signalled at
+// ARGOCD_EXEC_TIMEOUT and SIGKILLed ARGOCD_EXEC_FATAL_TIMEOUT after that, so
+// twice the sum comfortably exceeds the longest a fetch can be in flight;
+// anything older cannot belong to a live fetch (for example a concurrent fetch
+// from another repo-server replica sharing an RWX cache volume).
+//
+// ARGOCD_EXEC_TIMEOUT=0 disables the timeout, so a fetch may run for arbitrarily
+// long and no age proves a file was orphaned. Hold on to temp files for a day in
+// that case; leaking one is cheaper than unlinking it from under a live git.
+func gitCleanupGracePeriod() time.Duration {
+	// The quartered ceilings keep the doubled sum inside math.MaxInt64.
+	execTimeout := env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64/4)
+	if execTimeout == 0 {
+		return gitCleanupNoTimeoutGracePeriod
+	}
+	fatalTimeout := env.ParseDurationFromEnv("ARGOCD_EXEC_FATAL_TIMEOUT", 10*time.Second, 0, math.MaxInt64/4)
+	return 2 * (execTimeout + fatalTimeout)
+}
 
 // Returns a HTTP client object suitable for go-git to use using the following
 // pattern:
@@ -622,11 +638,12 @@ func (m *nativeGitClient) IsRevisionPresent(ctx context.Context, revision string
 }
 
 // cleanupOrphanedTempPackfiles removes leftover objects/pack/tmp_{pack,idx,rev,mtimes}_* files
-// produced by a git fetch/index-pack that was killed (for example by the exec
-// timeout) before it could finalize the pack. Git treats these as garbage and
-// never prunes them itself, so without this cleanup they accumulate on every
-// failed fetch into the reused cache directory and can grow the repo-server
-// volume without bound. This is best-effort: failures are logged, not returned.
+// produced by a git fetch/index-pack that was killed (by the exec timeout, or by
+// SIGKILL on an OOMKill) before it could finalize the pack. Git treats these as
+// garbage and never prunes them itself, so without this cleanup they accumulate
+// on every failed fetch into the reused cache directory and can grow the
+// repo-server volume without bound. This is best-effort: failures are logged,
+// not returned.
 //
 // Within a single repo-server the per-repository lock (reposerver/repository/
 // lock.go) already serializes fetch/checkout per cache directory, so no
@@ -649,6 +666,8 @@ func (m *nativeGitClient) cleanupOrphanedTempPackfiles() {
 		}
 		return
 	}
+
+	grace := gitCleanupGracePeriod()
 
 	var removed int
 	var reclaimed int64
@@ -675,7 +694,7 @@ func (m *nativeGitClient) cleanupOrphanedTempPackfiles() {
 			// Can't determine the age, so don't risk deleting a live temp file.
 			continue
 		}
-		if time.Since(info.ModTime()) < gitCleanupGracePeriod {
+		if time.Since(info.ModTime()) < grace {
 			// Still within the grace window: a concurrent fetch may be writing
 			// it. Leave it; a later sweep reclaims it once it is stale.
 			continue
@@ -700,6 +719,9 @@ func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int6
 		done := m.OnFetch(m.repoURL)
 		defer done()
 	}
+
+	// An OOMKilled fetch never reaches the error path below, so sweep on the way in too.
+	m.cleanupOrphanedTempPackfiles()
 
 	err := m.fetch(ctx, revision, depth)
 	if err != nil {
