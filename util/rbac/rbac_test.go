@@ -534,6 +534,7 @@ g, team, role:deployer
 	assert.True(t, enf.Enforce("role:readonly", "applications", "get", "proj/app"))
 	assert.True(t, enf.Enforce("role:readonly", "clusters", "get", "https://kubernetes.default.svc"))
 	assert.False(t, enf.Enforce("role:readonly", "applications", "sync", "proj/app"))
+	assert.True(t, enf.EnforceRuntimePolicy("project", "p, unrelated, applications, get, ^.*/.*$, allow", "role:readonly", "applications", "get", "project/app"))
 
 	assert.True(t, enf.Enforce("admin", "applications", "delete", "proj/app"))
 	assert.True(t, enf.Enforce("admin", "applications", "action/apps/Deployment/restart", "proj/app"))
