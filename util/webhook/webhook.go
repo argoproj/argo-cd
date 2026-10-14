@@ -646,7 +646,7 @@ func newBitbucketClient(_ context.Context, repository *v1alpha1.Repository, apiB
 }
 
 // fetchDiffStatFromBitbucket gets the list of files changed between two commits, by making a diffstat api callback to the
-// bitbucket server from where the webhook orignated.
+// bitbucket server from where the webhook originated.
 func fetchDiffStatFromBitbucket(_ context.Context, bbClient *bb.Client, owner, repoSlug, spec string) ([]string, error) {
 	// Getting the files changed from diff API:
 	// https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get
