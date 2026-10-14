@@ -888,38 +888,27 @@ Disabling certificate verification might make sense if:
 If either of those two applies, then you can disable OIDC provider certificate verification by setting
 `oidc.tls.insecure.skip.verify` to `"true"` in the `argocd-cm` ConfigMap.
 
-### Configurable groups claim
+### Groups claim from the UserInfo endpoint
 
-By default, Argo CD reads user group information from the `groups` claim in the OIDC UserInfo endpoint response.
-
-Some identity providers return group membership using a different claim name such as `roles`, `memberof`, or other custom attributes.
-
-You can configure a custom claim name using the `groupsClaim` field:
+When `enableUserInfoGroups` is `true`, Argo CD copies the claims listed in the `scopes` setting of `argocd-rbac-cm`
+(`groups` by default) from the UserInfo response into the user's claims. If your provider returns groups in a different
+claim, such as `memberof`, set it in `scopes`:
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: argocd-cm
+  name: argocd-rbac-cm
   namespace: argocd
   labels:
-    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/name: argocd-rbac-cm
     app.kubernetes.io/part-of: argocd
 data:
-  oidc.config: |
-    name: example
-    issuer: https://example.com
-    clientID: example-client-id
-    clientSecret: example-secret
-    enableUserInfoGroups: true
-    userInfoPath: /userinfo
-    groupsClaim: roles
+  scopes: '[memberof]'
 ```
 
-`groupsClaim` only applies when `enableUserInfoGroups` is `true`. The value of the
-configured claim is mapped to the `groups` claim of the user, so RBAC policies keep
-referencing groups as usual. If the claim is missing from the UserInfo response, the
-user has no groups.
+Claim names are case-sensitive, and the identity claims `iss`, `sub`, `aud`, `exp`, `iat`, `nbf`, `jti` and
+`federated_claims` are never overwritten. See [RBAC Configuration](../rbac.md#using-ssousersgroups) for more on `scopes`.
 
 ## Dex Storage Backend
 

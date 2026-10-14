@@ -412,6 +412,7 @@ When the `example-user` executes the `extensions/DaemonSet/test` action, the fol
 
 The `scopes` field controls which OIDC scopes to examine during RBAC enforcement (in addition to `sub` scope).
 If omitted, it defaults to `'[groups]'`. The scope value can be a string, or a list of strings.
+When `enableUserInfoGroups` is set in `oidc.config`, the same claims are also read from the UserInfo endpoint.
 
 For more information on `scopes` please review the [User Management Documentation](user-management/index.md).
 

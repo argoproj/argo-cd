@@ -1391,21 +1391,41 @@ func TestSetGroupsClaimFromEndpoint(t *testing.T) {
 		cacheClaims    jwt.MapClaims // userinfo response
 		expectedClaims jwt.MapClaims // function output
 		expectError    bool
-		groupsClaim    string // optional custom groupsClaim in oidc.config
+		scopes         []string // RBAC scopes; defaults to ["groups"] when nil
 	}{
 		{
-			name:           "set groups from custom groupsClaim",
-			groupsClaim:    "roles",
+			name:           "copy only the claims listed in scopes",
+			scopes:         []string{"memberof"},
 			inputClaims:    jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			cacheClaims:    jwt.MapClaims{"sub": "randomUser", "roles": []string{"admins"}, "groups": []string{"ignored"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			expectedClaims: jwt.MapClaims{"sub": "randomUser", "groups": []any{"admins"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			cacheClaims:    jwt.MapClaims{"sub": "randomUser", "memberof": []string{"cn=admins,ou=x"}, "groups": []string{"ignored"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectedClaims: jwt.MapClaims{"sub": "randomUser", "memberof": []any{"cn=admins,ou=x"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 		},
 		{
-			name:           "custom groupsClaim missing from userinfo response yields no groups",
-			groupsClaim:    "roles",
+			name:           "copy multiple scopes",
+			scopes:         []string{"groups", "memberof"},
 			inputClaims:    jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			cacheClaims:    jwt.MapClaims{"sub": "randomUser", "groups": []string{"ignored"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			cacheClaims:    jwt.MapClaims{"sub": "randomUser", "memberof": []string{"a"}, "groups": []string{"b"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectedClaims: jwt.MapClaims{"sub": "randomUser", "memberof": []any{"a"}, "groups": []any{"b"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+		},
+		{
+			name:           "non-groups scope missing from userinfo keeps the existing claim",
+			scopes:         []string{"memberof"},
+			inputClaims:    jwt.MapClaims{"sub": "randomUser", "memberof": []string{"fromjwt"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			cacheClaims:    jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectedClaims: jwt.MapClaims{"sub": "randomUser", "memberof": []string{"fromjwt"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+		},
+		{
+			name:           "groups scope missing from userinfo clears the groups claim",
+			inputClaims:    jwt.MapClaims{"sub": "randomUser", "groups": []string{"fromjwt"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			cacheClaims:    jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			expectedClaims: jwt.MapClaims{"sub": "randomUser", "groups": nil, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+		},
+		{
+			name:           "protected claims are never overwritten by userinfo",
+			scopes:         []string{"iss", "aud", "exp", "federated_claims"},
+			inputClaims:    jwt.MapClaims{"sub": "randomUser", "iss": "https://idp", "aud": "argocd", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			cacheClaims:    jwt.MapClaims{"sub": "randomUser", "iss": "https://evil", "aud": "other", "exp": float64(1), "federated_claims": map[string]any{"user_id": "admin"}},
+			expectedClaims: jwt.MapClaims{"sub": "randomUser", "iss": "https://idp", "aud": "argocd", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 		},
 		{
 			name:           "set correct groups from userinfo endpoint", // enriches the JWT claims with information from the userinfo endpoint, default case
@@ -1450,9 +1470,6 @@ issuer: http://localhost:63231
 enableUserInfoGroups: true
 userInfoPath: /`,
 			}
-			if tt.groupsClaim != "" {
-				cdSettings.OIDCConfigRAW += "\ngroupsClaim: " + tt.groupsClaim
-			}
 			a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", userInfoCache)
 			require.NoError(t, err, "failed creating clientapp")
 
@@ -1482,7 +1499,11 @@ userInfoPath: /`,
 				require.NoError(t, err, "failed setting item to in-memory cache")
 			}
 
-			receivedClaims, err := a.SetGroupsClaimFromEndpoint(t.Context(), tt.inputClaims, "argocd")
+			scopes := tt.scopes
+			if scopes == nil {
+				scopes = []string{"groups"}
+			}
+			receivedClaims, err := a.SetGroupsClaimFromEndpoint(t.Context(), tt.inputClaims, "argocd", scopes)
 			if tt.expectError {
 				require.Error(t, err)
 			} else {
