@@ -50,6 +50,8 @@ The Makefile's `start-e2e` target starts instances of ArgoCD on your local machi
 
 If you have changed the port for `argocd-server`, be sure to also set `ARGOCD_SERVER` environment variable to point to that port, e.g. `export ARGOCD_SERVER=localhost:8888` before running `make test-e2e` so that the test will communicate to the correct server component.
 
+A failed test is not retried. To retry each failed test up to a number of times, set `ARGOCD_E2E_RERUN_FAILS` to that number when you run `make test-e2e` or `make test-e2e-local`.
+
 ## Running a Shard of the Suite
 
 CI splits the e2e suite into shards and runs each shard as its own job. You can run a single shard locally with `make test-e2e` or `make test-e2e-local` by setting both of these environment variables:
