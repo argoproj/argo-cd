@@ -378,6 +378,10 @@ data:
   # Optional override for the SSO login button label.
   # ui.loginButtonText: "SSO Login"
 
+  # Redirect the login page to the SSO provider without waiting for the user to click the SSO login button.
+  # Requires an OIDC provider or Dex connector. Open /login?sso_auto_login=false to reach the local login form.
+  # sso.autoLogin: "false"
+
   # Application reconciliation timeout is the amount of time spent before Argo tries to discover if a new manifests version got
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Two minutes by default with additional jitter.
   # For the argocd-repo-server this setting defines the expiration

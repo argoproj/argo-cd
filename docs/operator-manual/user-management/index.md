@@ -158,6 +158,43 @@ There are two ways that SSO can be configured:
   [Okta](okta.md), [OneLogin](onelogin.md), [Auth0](auth0.md), [Microsoft](microsoft.md), [Keycloak](keycloak.md),
   [Google (G Suite)](google.md)), where you manage your users, groups, and memberships.
 
+### Automatic SSO login
+
+By default, the login page shows an SSO login button that users have to click. To send users to the SSO provider as soon as
+they open the login page, set `sso.autoLogin` to `"true"` in the `argocd-cm` ConfigMap:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  sso.autoLogin: "true"
+```
+
+The setting only takes effect when an OIDC provider or at least one Dex connector is configured. If more than one Dex
+connector is configured and `dex.auth.connectorId` is not set, users land on the Dex connector selection page. If
+anonymous access is enabled with `users.anonymous.enabled`, visitors who open the UI are redirected to the SSO provider too.
+
+The login page does not redirect automatically in the following cases:
+
+* Dex failed with a server error during the previous SSO attempt. The login page shows the error instead of redirecting
+  again, so a broken Dex configuration does not cause a redirect loop. With an OIDC provider configured directly, a failed
+  login stops on an error page and does not return to the login page.
+* The user logged out from the Argo CD UI, or last logged in with a local account such as `admin`. Without this, a user
+  whose session with the identity provider is still active would be signed straight back in, and a local account user
+  whose session expired would be moved to their SSO identity. Auto-login resumes in that browser after the next SSO login.
+* The browser blocks local storage. Argo CD needs it to remember logouts and local account logins, so it does not redirect
+  without it.
+* The login page URL contains `sso_auto_login=false`, for example `https://argocd.example.com/login?sso_auto_login=false`.
+  Use this to reach the username and password form, for instance to log in as the local `admin` user while SSO is broken.
+  If local logins are disabled, the page shows only the SSO login button.
+
+> [!NOTE]
+> Logging out of Argo CD does not end the session with the identity provider. To end both, also configure a
+> [logout URL for your OIDC provider](#configuring-a-custom-logout-url-for-your-oidc-provider).
+
 ## Dex
 
 Argo CD embeds and bundles [Dex](https://github.com/dexidp/dex) as part of its installation, for the
