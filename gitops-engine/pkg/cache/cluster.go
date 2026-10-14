@@ -238,8 +238,11 @@ type clusterCache struct {
 	apisMeta              map[schema.GroupKind]*apiMeta
 	batchEventsProcessing bool
 	eventMetaCh           chan eventMeta
-	serverVersion         string
-	apiResources          []kube.APIResourceInfo
+	// serverVersion, apiResources, openAPISchema and gvkParser are read by their
+	// getters without c.lock, so writers publish a new value and never edit a
+	// published one.
+	serverVersion atomic.Pointer[string]
+	apiResources  atomic.Pointer[[]kube.APIResourceInfo]
 	// namespacedResources maps each watched GroupKind to whether it is namespaced.
 	// IsNamespaced reads it without c.lock, so writers publish a complete map
 	// and never edit a published one.
@@ -281,8 +284,8 @@ type clusterCache struct {
 	resourceUpdatedHandlers     map[uint64]OnResourceUpdatedHandler
 	eventHandlers               map[uint64]OnEventHandler
 	processEventsHandlers       map[uint64]OnProcessEventsHandler
-	openAPISchema               openapi.Resources
-	gvkParser                   *managedfields.GvkParser
+	openAPISchema               atomic.Pointer[openapi.Resources]
+	gvkParser                   atomic.Pointer[managedfields.GvkParser]
 
 	respectRBAC int
 
@@ -395,48 +398,59 @@ func (c *clusterCache) getProcessEventsHandlers() []OnProcessEventsHandler {
 
 // GetServerVersion returns observed cluster version
 func (c *clusterCache) GetServerVersion() string {
-	return c.serverVersion
+	if v := c.serverVersion.Load(); v != nil {
+		return *v
+	}
+	return ""
 }
 
 // GetAPIResources returns information about observed API resources
 // This method is called frequently during reconciliation to pass API resource info to `helm template`
-// NOTE: we do not provide any consistency guarantees about the returned list. The list might be
-// updated in place (anytime new CRDs are introduced or removed). If necessary, a separate method
-// would need to be introduced to return a copy of the list so it can be iterated consistently.
+// The returned list is a snapshot: it is replaced, never edited in place, when CRDs are
+// introduced or removed, so it can be iterated safely but may be stale. Callers must not modify it.
 func (c *clusterCache) GetAPIResources() []kube.APIResourceInfo {
-	return c.apiResources
+	if r := c.apiResources.Load(); r != nil {
+		return *r
+	}
+	return nil
 }
 
 // GetOpenAPISchema returns open API schema of supported API resources
 func (c *clusterCache) GetOpenAPISchema() openapi.Resources {
-	return c.openAPISchema
+	if s := c.openAPISchema.Load(); s != nil {
+		return *s
+	}
+	return nil
 }
 
 // GetGVKParser returns a parser able to build a TypedValue used in
 // structured merge diffs.
 func (c *clusterCache) GetGVKParser() *managedfields.GvkParser {
-	return c.gvkParser
+	return c.gvkParser.Load()
 }
 
+// appendAPIResource publishes a copy of apiResources with info added, unless
+// its GroupKind and version are already present. Callers must hold c.lock.
 func (c *clusterCache) appendAPIResource(info kube.APIResourceInfo) {
-	exists := false
-	for i := range c.apiResources {
-		if c.apiResources[i].GroupKind == info.GroupKind && c.apiResources[i].GroupVersionResource.Version == info.GroupVersionResource.Version {
-			exists = true
-			break
+	current := c.GetAPIResources()
+	for i := range current {
+		if current[i].GroupKind == info.GroupKind && current[i].GroupVersionResource.Version == info.GroupVersionResource.Version {
+			return
 		}
 	}
-	if !exists {
-		c.apiResources = append(c.apiResources, info)
-	}
+	updated := append(slices.Clip(current), info) // Clip forces a copy
+	c.apiResources.Store(&updated)
 }
 
+// deleteAPIResource publishes a copy of apiResources without info's GroupKind
+// and version. Callers must hold c.lock.
 func (c *clusterCache) deleteAPIResource(info kube.APIResourceInfo) {
-	for i := range c.apiResources {
-		if c.apiResources[i].GroupKind == info.GroupKind && c.apiResources[i].GroupVersionResource.Version == info.GroupVersionResource.Version {
-			c.apiResources[i] = c.apiResources[len(c.apiResources)-1]
-			c.apiResources = c.apiResources[:len(c.apiResources)-1]
-			break
+	current := c.GetAPIResources()
+	for i := range current {
+		if current[i].GroupKind == info.GroupKind && current[i].GroupVersionResource.Version == info.GroupVersionResource.Version {
+			updated := slices.Delete(slices.Clone(current), i, i+1)
+			c.apiResources.Store(&updated)
+			return
 		}
 	}
 }
@@ -940,16 +954,20 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 					}
 
 					if event.Type == watch.Deleted {
+						c.lock.Lock()
 						for i := range resources {
 							c.deleteAPIResource(resources[i])
 						}
+						c.lock.Unlock()
 					} else {
 						c.log.Info("Updating Kubernetes APIs, watches, and Open API schemas due to CRD event", "eventType", event.Type, "groupKind", innerGroupKind)
 						// add new CRD's groupkind to c.apigroups
 						if event.Type == watch.Added {
+							c.lock.Lock()
 							for i := range resources {
 								c.appendAPIResource(resources[i])
 							}
+							c.lock.Unlock()
 						}
 						err = runSynced(&c.lock, func() error {
 							return c.startMissingWatches()
@@ -997,9 +1015,9 @@ func (c *clusterCache) reloadOpenAPISchema() error {
 			return fmt.Errorf("failed to load open api schema: %w", err)
 		}
 		if gvkParser != nil {
-			c.gvkParser = gvkParser
+			c.gvkParser.Store(gvkParser)
 		}
-		c.openAPISchema = openAPISchema
+		c.openAPISchema.Store(&openAPISchema)
 		return nil
 	})
 }
@@ -1194,12 +1212,12 @@ func (c *clusterCache) sync() (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to get server version: %w", err)
 	}
-	c.serverVersion = version
+	c.serverVersion.Store(&version)
 	apiResources, err := c.kubectl.GetAPIResources(config, false, NewNoopSettings())
 	if err != nil {
 		return fmt.Errorf("failed to get api resources: %w", err)
 	}
-	c.apiResources = apiResources
+	c.apiResources.Store(&apiResources)
 
 	openAPISchema, gvkParser, err := c.kubectl.LoadOpenAPISchema(config)
 	if err != nil {
@@ -1207,10 +1225,10 @@ func (c *clusterCache) sync() (err error) {
 	}
 
 	if gvkParser != nil {
-		c.gvkParser = gvkParser
+		c.gvkParser.Store(gvkParser)
 	}
 
-	c.openAPISchema = openAPISchema
+	c.openAPISchema.Store(&openAPISchema)
 
 	apis, err := c.kubectl.GetAPIResources(c.config, true, c.settings.ResourcesFilter)
 	if err != nil {
@@ -1886,12 +1904,12 @@ func (c *clusterCache) GetClusterInfo() ClusterInfo {
 
 	return ClusterInfo{
 		APIsCount:         len(c.apisMeta),
-		K8SVersion:        c.serverVersion,
+		K8SVersion:        c.GetServerVersion(),
 		ResourcesCount:    len(c.resources),
 		Server:            c.config.Host,
 		LastCacheSyncTime: c.syncStatus.syncTime,
 		SyncError:         c.syncStatus.syncError,
-		APIResources:      c.apiResources,
+		APIResources:      c.GetAPIResources(),
 	}
 }
 
