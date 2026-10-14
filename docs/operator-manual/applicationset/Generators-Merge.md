@@ -121,7 +121,7 @@ Some generators support additional values and interpolating from generated varia
 > This example uses the default (non-Go) template syntax on purpose. Merging on nested values such as `values.selector`
 > is not supported while `goTemplate: true` is set (see [Restrictions](#restrictions)).
 
-The following example combines discovered clusters and a git repository by cluster labels and the branch name:
+The following example combines discovered clusters and a git repository by cluster labels and the directory name:
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -139,7 +139,7 @@ spec:
           # Set the selector to this location.
           - clusters:
               values:
-                selector: '{{ metadata.labels.location }}'
+                selector: '{{metadata.labels.location}}'
           # The git repo may have different directories which correspond to the
           # cluster locations, using these as a selector.
           - git:
@@ -148,7 +148,7 @@ spec:
               directories:
               - path: '*'
               values:
-                selector: '{{ path }}'
+                selector: '{{path}}'
   template:
     metadata:
       name: '{{name}}'
