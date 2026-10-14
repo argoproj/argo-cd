@@ -897,14 +897,23 @@ Some identity providers return group membership using a different claim name suc
 You can configure a custom claim name using the `groupsClaim` field:
 
 ```yaml
-oidc.config: |
-  name: example
-  issuer: https://example.com
-  clientID: example-client-id
-  clientSecret: example-secret
-  enableUserInfoGroups: true
-  userInfoPath: /userinfo
-  groupsClaim: roles
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  oidc.config: |
+    name: example
+    issuer: https://example.com
+    clientID: example-client-id
+    clientSecret: example-secret
+    enableUserInfoGroups: true
+    userInfoPath: /userinfo
+    groupsClaim: roles
 ```
 
 `groupsClaim` only applies when `enableUserInfoGroups` is `true`. The value of the
