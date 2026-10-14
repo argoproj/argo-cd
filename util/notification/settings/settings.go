@@ -17,7 +17,6 @@ import (
 	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
 )
 
-// GetFactorySettings configures notification context initialization for the controller and server.
 func GetFactorySettings(argocdService service.Service, secretName, configMapName string, selfServiceNotificationEnabled bool) api.Settings {
 	return api.Settings{
 		SecretName:    secretName,
@@ -50,7 +49,6 @@ func GetFactorySettingsForCLI(serviceGetter func() service.Service, secretName, 
 	}
 }
 
-// getContext loads shared context and legacy settings while disabling retired Teams notifications.
 func getContext(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Secret) (map[string]string, error) {
 	context := map[string]string{}
 	if contextYaml, ok := configMap.Data["context"]; ok {
@@ -58,15 +56,8 @@ func getContext(cfg *api.Config, configMap *corev1.ConfigMap, secret *corev1.Sec
 			return nil, err
 		}
 	}
-	if err := removeLegacyTeamsServices(cfg, configMap, secret); err != nil {
-		return nil, err
-	}
 	if err := ApplyLegacyConfig(cfg, context, configMap, secret); err != nil {
 		return nil, err
-	}
-	for name, template := range cfg.Templates {
-		template.Teams = nil
-		cfg.Templates[name] = template
 	}
 	return context, nil
 }
