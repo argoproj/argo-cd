@@ -216,6 +216,26 @@ stringData:
   `100ms`.
   The variable is used only when `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` is set to `true`.
 
+* `ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION` - environment variable controlling the base duration that a
+  per-resource-kind watch runs before the controller relists the resources and restarts the watch. This is a base
+  value rather than a strict upper bound: when `ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_JITTER_FACTOR` is greater than `0`,
+  the effective duration of a watch can exceed it (see below).
+  The valid value is in the format of Go time duration string, e.g. `1m`, `10m`, `1h`. The default value is `10m`.
+  Set to `0` to disable the periodic resync, in which case a watch is only restarted when it fails or is closed.
+
+* `ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_JITTER_FACTOR` - environment variable controlling the random jitter applied on
+  top of `ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION` each time a per-resource-kind watch is (re)started. Without
+  jitter, all watches (re)started around the same time (e.g. right after a controller restart in a deployment
+  managing a large number of clusters) keep relisting in lockstep every resync duration, producing a recurring
+  synchronized spike of concurrent List+Decode calls against the K8s API server instead of a steady, spread-out
+  load. The valid value is a float between `0` and `1`. Jitter is opt-in and disabled (`0`) by default, so existing
+  installs keep the exact pre-jitter behavior; set to a value greater than `0` (e.g. `0.1` for up to +10%) to enable
+  it. The effective resync duration depends on whether the watch is starting for the very first time or being
+  restarted: on a watch's very first start (including right after a controller restart, or after the cluster cache
+  is invalidated), the duration is chosen uniformly from `[0, duration)` so that watches starting together spread
+  out across the whole period immediately; on every later restart, it is chosen uniformly from
+  `[duration, duration + duration * factor)`, which keeps subsequent resyncs close to the configured duration.
+
 * `resource.manifest.storage` - `argocd-cm` setting controlling the serialization format for cached resource
   manifests when manifest compression is enabled. Valid values: `json` (default), `msgpack`.
 

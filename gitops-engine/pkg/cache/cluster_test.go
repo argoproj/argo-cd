@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"sync"
 	"testing"
@@ -1992,6 +1993,100 @@ func TestOrphanedChildrenIndex_OwnerRefLifecycle(t *testing.T) {
 		assert.Empty(t, children, "parent's children list should be empty or cleaned up")
 	}
 	cluster.lock.RUnlock()
+}
+
+// Test_resyncTimer validates the resync timeout selection used by watchEvents. It drives the same
+// resyncTimer type that watchEvents holds for the lifetime of a watch, so the first-call vs.
+// later-call behavior under test is the production state machine rather than a copy of it:
+// jitter disabled must preserve the exact pre-jitter timeout, the first timeout must spread
+// uniformly across the whole period, and every later timeout must stay within the documented
+// wait.Jitter bounds while still producing varying values.
+func Test_resyncTimer(t *testing.T) {
+	t.Parallel()
+
+	t.Run("disabled resync (timeout=0) always returns 0 regardless of jitter factor", func(t *testing.T) {
+		t.Parallel()
+		timer := newResyncTimer(0, 0.5)
+
+		for range 3 {
+			assert.Equal(t, time.Duration(0), timer.next())
+		}
+	})
+
+	t.Run("jitter factor <= 0 returns exactly the input timeout on every call", func(t *testing.T) {
+		t.Parallel()
+		timeout := 10 * time.Minute
+		timer := newResyncTimer(timeout, 0)
+
+		for range 20 {
+			assert.Equal(t, timeout, timer.next())
+		}
+	})
+
+	t.Run("NaN jitter factor is treated as jitter disabled", func(t *testing.T) {
+		t.Parallel()
+		timeout := 10 * time.Minute
+		timer := newResyncTimer(timeout, math.NaN())
+
+		for range 20 {
+			assert.Equal(t, timeout, timer.next())
+		}
+	})
+
+	t.Run("first call spreads across [0, timeout), every later call stays within [timeout, timeout*(1+factor))", func(t *testing.T) {
+		t.Parallel()
+		timeout := 10 * time.Minute
+		jitterFactor := 0.1
+		maxTimeout := time.Duration(float64(timeout) * (1 + jitterFactor))
+
+		// Each new timer models a distinct watch. Only its very first next() call may land below
+		// timeout; if the first-call state were not tracked (or were reset on later calls), the
+		// later-call assertions below would fail.
+		sawBelowTimeout := false
+		for range 50 {
+			timer := newResyncTimer(timeout, jitterFactor)
+
+			first := timer.next()
+			assert.GreaterOrEqual(t, first, time.Duration(0))
+			assert.Less(t, first, timeout)
+			if first < timeout {
+				sawBelowTimeout = true
+			}
+
+			for range 10 {
+				got := timer.next()
+				assert.GreaterOrEqual(t, got, timeout)
+				assert.Less(t, got, maxTimeout)
+			}
+		}
+		assert.True(t, sawBelowTimeout, "expected first-call timeouts to be drawn from [0, timeout)")
+	})
+
+	t.Run("first call and later calls both vary", func(t *testing.T) {
+		t.Parallel()
+		timeout := 10 * time.Minute
+
+		firsts := make(map[time.Duration]bool)
+		laters := make(map[time.Duration]bool)
+		for range 50 {
+			timer := newResyncTimer(timeout, 0.1)
+			firsts[timer.next()] = true
+			laters[timer.next()] = true
+		}
+		// With 50 uniformly random samples in a continuous range, getting the same value every
+		// time is virtually impossible unless jitter is not actually being applied.
+		assert.Greater(t, len(firsts), 1, "expected first-call timeouts to vary across timers")
+		assert.Greater(t, len(laters), 1, "expected later-call timeouts to vary across timers")
+	})
+
+	t.Run("first call with a tiny nonzero timeout never collapses to 0 (resync must not be silently disabled)", func(t *testing.T) {
+		t.Parallel()
+
+		for range 50 {
+			timer := newResyncTimer(time.Nanosecond, 0.1)
+			assert.Positive(t, timer.next(), "a nonzero timeout must never produce a 0 resync timeout, which watchEvents treats as disabled")
+		}
+	})
 }
 
 // Test_watchEvents_Deadlock validates that starting watches will not create a deadlock
