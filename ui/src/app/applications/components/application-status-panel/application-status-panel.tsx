@@ -1,7 +1,7 @@
 import {HelpIcon} from 'argo-ui';
 import * as React from 'react';
-import {from, merge, Observable} from 'rxjs';
-import {filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
+import {from, merge, Observable, ReplaySubject} from 'rxjs';
+import {filter, finalize, map, mergeMap, repeat, retry, share} from 'rxjs/operators';
 import {ARGO_GRAY6_COLOR, DataLoader} from '../../../shared/components';
 import {Revision} from '../../../shared/components/revision';
 import {revisionUrl} from '../../../shared/components/urls';
@@ -96,25 +96,55 @@ const watchApplicationSet = (appSetName: string, appSetNamespace: string): Obser
             const matches = (candidate: models.ApplicationSet) => candidate?.metadata?.name === appSetName && candidate?.metadata?.namespace === appSetNamespace;
             return merge(
                 from([{appSet}]),
-                services.applications
-                    .watch(
-                        'applicationset',
-                        {name: appSetName, appNamespace: appSetNamespace, resourceVersion: appSetList.metadata?.resourceVersion},
-                        {fields: PROGRESSIVE_SYNC_APPSET_WATCH_FIELDS}
-                    )
-                    .pipe(repeat())
-                    .pipe(retry({delay: APPSET_WATCH_RETRY_TIMEOUT}))
-                    .pipe(
-                        filter(appChange => matches(appChange.application as unknown as models.ApplicationSet)),
-                        map(appChange => {
-                            const changedAppSet = appChange.application as unknown as models.ApplicationSet;
-                            appSet = appChange.type === 'DELETED' ? undefined : changedAppSet;
-                            return {appSet};
-                        })
-                    )
+                // Stop the SSE stream while the tab is hidden and restart it on return, like
+                // the application and resource-tree watches. Otherwise background app-details
+                // tabs each hold a /stream/applicationsets connection open, exhausting the
+                // browser's per-host connection pool after a handful of tabs.
+                utils.handlePageVisibility(() =>
+                    services.applications
+                        .watch(
+                            'applicationset',
+                            {name: appSetName, appNamespace: appSetNamespace, resourceVersion: appSetList.metadata?.resourceVersion},
+                            {fields: PROGRESSIVE_SYNC_APPSET_WATCH_FIELDS}
+                        )
+                        .pipe(repeat())
+                        .pipe(retry({delay: APPSET_WATCH_RETRY_TIMEOUT}))
+                        .pipe(
+                            filter(appChange => matches(appChange.application as unknown as models.ApplicationSet)),
+                            map(appChange => {
+                                const changedAppSet = appChange.application as unknown as models.ApplicationSet;
+                                appSet = appChange.type === 'DELETED' ? undefined : changedAppSet;
+                                return {appSet};
+                            })
+                        )
+                )
             );
         })
     );
+
+// The collapsed summary and the (hidden but still-mounted) full panel both render
+// ProgressiveSyncStatus once a panel has been expanded, so without sharing each would
+// open its own ApplicationSet watch for the same owner. Cache one multicast watch per
+// owner identity so the two DataLoaders subscribe to a single underlying connection.
+const sharedAppSetWatches = new Map<string, Observable<{appSet?: models.ApplicationSet}>>();
+
+const getSharedApplicationSetWatch = (appSetName: string, appSetNamespace: string): Observable<{appSet?: models.ApplicationSet}> => {
+    const key = `${appSetNamespace}/${appSetName}`;
+    const existing = sharedAppSetWatches.get(key);
+    if (existing) {
+        return existing;
+    }
+    const shared = watchApplicationSet(appSetName, appSetNamespace).pipe(
+        // drop the cache entry once the last subscriber leaves so a later subscriber
+        // starts a fresh watch instead of replaying stale ApplicationSet data
+        finalize(() => sharedAppSetWatches.delete(key)),
+        // ReplaySubject(1) hands the latest ApplicationSet to the second subscriber
+        // immediately (no reload); resetOnRefCountZero tears the watch down when both leave
+        share({connector: () => new ReplaySubject(1), resetOnRefCountZero: true})
+    );
+    sharedAppSetWatches.set(key, shared);
+    return shared;
+};
 
 const renderSyncStatusRevision = (application: models.Application) => {
     const source = getAppDefaultSource(application);
@@ -199,7 +229,7 @@ const ProgressiveSyncStatus = ({application, collapsed}: {application: models.Ap
                     </div>
                 );
             }}
-            load={() => watchApplicationSet(appSetRef.name, application.metadata.namespace)}>
+            load={() => getSharedApplicationSetWatch(appSetRef.name, application.metadata.namespace)}>
             {({appSet}: {appSet: models.ApplicationSet}) => {
                 // Hide panel if: Progressive Sync disabled, no permission, or not RollingSync strategy
                 if (!appSet || !appSet.status?.applicationStatus || appSet?.spec?.strategy?.type !== 'RollingSync') {
