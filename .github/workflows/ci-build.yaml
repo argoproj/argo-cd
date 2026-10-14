@@ -802,8 +802,8 @@ jobs:
         run: |
           set -x
           make test-e2e-local
-          # With ARGOCD_E2E_RERUN_FAILS > 0, gotestsum retries failures, so a green job can
-          # still hide a flake. Flag it so the server logs below are kept for diagnosis.
+          # gotestsum retries failures (--rerun-fails), so a green job can still hide a
+          # flake. Flag it so the server logs below are kept for diagnosis.
           if [ -s rerunreport.txt ]; then
             echo "reran=true" >> "$GITHUB_OUTPUT"
             echo "::warning::e2e tests were retried; see the e2e-server log artifact"
