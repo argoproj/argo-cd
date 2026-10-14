@@ -153,7 +153,9 @@ type ClusterCache interface {
 	EnsureSynced() error
 	// GetServerVersion returns observed cluster version
 	GetServerVersion() string
-	// GetAPIResources returns information about observed API resources
+	// GetAPIResources returns information about observed API resources.
+	// The returned list is a snapshot: it is replaced, never edited in place, when CRDs are
+	// introduced or removed, so it can be iterated safely but may be stale. Callers must not modify it.
 	GetAPIResources() []kube.APIResourceInfo
 	// GetOpenAPISchema returns open API schema of supported API resources
 	GetOpenAPISchema() openapi.Resources
@@ -954,20 +956,22 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 					}
 
 					if event.Type == watch.Deleted {
-						c.lock.Lock()
-						for i := range resources {
-							c.deleteAPIResource(resources[i])
-						}
-						c.lock.Unlock()
+						_ = runSynced(&c.lock, func() error {
+							for i := range resources {
+								c.deleteAPIResource(resources[i])
+							}
+							return nil
+						})
 					} else {
 						c.log.Info("Updating Kubernetes APIs, watches, and Open API schemas due to CRD event", "eventType", event.Type, "groupKind", innerGroupKind)
 						// add new CRD's groupkind to c.apigroups
 						if event.Type == watch.Added {
-							c.lock.Lock()
-							for i := range resources {
-								c.appendAPIResource(resources[i])
-							}
-							c.lock.Unlock()
+							_ = runSynced(&c.lock, func() error {
+								for i := range resources {
+									c.appendAPIResource(resources[i])
+								}
+								return nil
+							})
 						}
 						err = runSynced(&c.lock, func() error {
 							return c.startMissingWatches()
