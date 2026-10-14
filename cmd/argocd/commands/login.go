@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"html"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -441,21 +440,13 @@ func oauth2Login(
 //
 // Priority:
 //  1. verification_uri_complete — print as-is; the user just opens one URL.
-//  2. verification_uri parseable — append user_code as a query parameter
-//     (properly encoded) and also show the base URI + code for manual entry.
-//  3. Fallback — print the URI and code as plain text.
+//  2. Fallback per RFC 8628 §3.3 — show verification_uri and user_code
+//     separately.
 func buildVerificationPrompt(uriComplete, uri, userCode string) string {
 	if uriComplete != "" {
 		return "  " + uriComplete
 	}
-	u, err := url.Parse(uri)
-	if err != nil {
-		return fmt.Sprintf("  %s\n\n  Enter the code: %s", uri, userCode)
-	}
-	q := u.Query()
-	q.Set("user_code", userCode)
-	u.RawQuery = q.Encode()
-	return fmt.Sprintf("  %s\n\n  Or visit %s and enter the code: %s", u.String(), uri, userCode)
+	return fmt.Sprintf("  %s\n\n  Enter the code: %s", uri, userCode)
 }
 
 // oauth2LoginNoBrowser implements the OAuth 2.0 Device Authorization Grant

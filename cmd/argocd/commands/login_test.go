@@ -153,31 +153,15 @@ func Test_buildVerificationPrompt_completeURI(t *testing.T) {
 	assert.Equal(t, "  https://example.com/device?user_code=ABCD-1234", prompt)
 }
 
-func Test_buildVerificationPrompt_noCompleteURI_plainBase(t *testing.T) {
-	// Base URI has no query string — user_code is appended as the first parameter.
+func Test_buildVerificationPrompt_noCompleteURI(t *testing.T) {
+	// RFC 8628 §3.3: when verification_uri_complete is absent, show the base
+	// URI and the user_code separately. No URL synthesis is performed.
 	prompt := buildVerificationPrompt("", "https://example.com/device", "ABCD-1234")
-	assert.Contains(t, prompt, "https://example.com/device?user_code=ABCD-1234")
-	assert.Contains(t, prompt, "ABCD-1234") // also shown for manual entry
-}
-
-func Test_buildVerificationPrompt_noCompleteURI_baseHasQuery(t *testing.T) {
-	// Base URI already has a query parameter — user_code must be appended with & not ?.
-	prompt := buildVerificationPrompt("", "https://example.com/device?foo=bar", "ABCD-1234")
-	assert.Contains(t, prompt, "foo=bar")
-	assert.Contains(t, prompt, "user_code=ABCD-1234")
-	assert.NotContains(t, prompt, "?user_code") // must not add a second ?
-}
-
-func Test_buildVerificationPrompt_noCompleteURI_userCodeEncoded(t *testing.T) {
-	// user_code with characters that need URL encoding.
-	prompt := buildVerificationPrompt("", "https://example.com/device", "AB CD+12")
-	assert.Contains(t, prompt, "user_code=AB+CD%2B12")
+	assert.Equal(t, "  https://example.com/device\n\n  Enter the code: ABCD-1234", prompt)
 }
 
 func Test_buildVerificationPrompt_invalidBaseURI(t *testing.T) {
-	// Unparseable base URI falls back to plain text.
+	// Even an unparseable URI is shown as-is alongside the code.
 	prompt := buildVerificationPrompt("", "://bad url", "XXXX-YYYY")
-	assert.Contains(t, prompt, "://bad url")
-	assert.Contains(t, prompt, "XXXX-YYYY")
-	assert.NotContains(t, prompt, "user_code=") // no URL synthesis attempted
+	assert.Equal(t, "  ://bad url\n\n  Enter the code: XXXX-YYYY", prompt)
 }
