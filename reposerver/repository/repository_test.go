@@ -3715,6 +3715,28 @@ func TestCleanStaleHelmDependencies(t *testing.T) {
 	assert.NoFileExists(t, markerFile)
 	assert.NoFileExists(t, staleVendoredChartFile)
 	assert.FileExists(t, committedVendoredChartFile)
+
+	// When no charts directory is tracked, the whole (untracked) charts
+	// directory is removed, tracked lock files are preserved.
+	appPath = t.TempDir()
+	runGit(t, appPath, "init")
+	runGit(t, appPath, "config", "user.email", "test@example.com")
+	runGit(t, appPath, "config", "user.name", "test")
+	require.NoError(t, os.WriteFile(filepath.Join(appPath, "Chart.yaml"), []byte("apiVersion: v2\nname: my-chart\nversion: 1.0.0\n"), 0o644))
+	committedRequirementsLockFile := filepath.Join(appPath, "requirements.lock")
+	require.NoError(t, os.WriteFile(committedRequirementsLockFile, []byte("lock"), 0o644))
+	runGit(t, appPath, "add", ".")
+	runGit(t, appPath, "commit", "-m", "chart")
+
+	markerFile = filepath.Join(appPath, helmDepUpMarkerFile)
+	builtChartFile := filepath.Join(appPath, "charts", "subchart-1.0.0.tgz")
+	require.NoError(t, os.MkdirAll(filepath.Dir(builtChartFile), 0o755))
+	require.NoError(t, os.WriteFile(builtChartFile, []byte("chart"), 0o644))
+	require.NoError(t, os.WriteFile(markerFile, []byte("rev1"), 0o644))
+	require.NoError(t, cleanStaleHelmDependencies(t.Context(), appPath, "rev2"))
+	assert.NoDirExists(t, filepath.Join(appPath, "charts"))
+	assert.NoFileExists(t, markerFile)
+	assert.FileExists(t, committedRequirementsLockFile)
 }
 
 func TestFetch(t *testing.T) {
