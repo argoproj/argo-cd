@@ -1280,10 +1280,32 @@ func cleanStaleHelmDependencies(ctx context.Context, appPath string, revision st
 	} else if err != nil {
 		return err
 	}
-	cmd := exec.CommandContext(ctx, "git", "clean", "-ffdx", "--", "charts", "Chart.lock", "requirements.lock", helmDepUpMarkerFile)
+	// git ls-tree only reads the tree objects along these paths, while git clean loads the whole index, which is slow
+	// on large repositories. git clean is only needed for a charts directory mixing committed and built charts.
+	cmd := exec.CommandContext(ctx, "git", "ls-tree", "--name-only", "HEAD", "--", "charts", "Chart.lock", "requirements.lock")
 	cmd.Dir = appPath
-	if _, err := argoexec.Run(cmd); err != nil {
+	out, err := argoexec.Run(cmd)
+	if err != nil {
+		return fmt.Errorf("error listing tracked helm chart dependencies: %w", err)
+	}
+	tracked := strings.Fields(out)
+	if slices.Contains(tracked, "charts") {
+		cmd = exec.CommandContext(ctx, "git", "clean", "-ffdx", "--", "charts")
+		cmd.Dir = appPath
+		if _, err := argoexec.Run(cmd); err != nil {
+			return fmt.Errorf("error removing stale helm chart dependencies: %w", err)
+		}
+	} else if err := os.RemoveAll(path.Join(appPath, "charts")); err != nil {
 		return fmt.Errorf("error removing stale helm chart dependencies: %w", err)
+	}
+	// The marker goes last so that a failed clean is retried.
+	for _, f := range []string{"Chart.lock", "requirements.lock", helmDepUpMarkerFile} {
+		if slices.Contains(tracked, f) {
+			continue
+		}
+		if err := os.Remove(path.Join(appPath, f)); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("error removing stale helm chart dependencies: %w", err)
+		}
 	}
 	return nil
 }
