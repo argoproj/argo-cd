@@ -729,8 +729,9 @@ jobs:
           INSTALL_K3S_VERSION: ${{ matrix.k3s.version }}+k3s1
           # Log the garbage collector's per-object decisions. e2e tests that delete an
           # ApplicationSet wait for it to delete the Applications, and when that is slow
-          # the Argo CD logs do not say why.
-          INSTALL_K3S_EXEC: --kube-controller-manager-arg=vmodule=garbagecollector=5
+          # the Argo CD logs do not say why. Set on k3s itself: its components share one
+          # process, and a per-component logging flag makes the controller-manager exit.
+          INSTALL_K3S_EXEC: --vmodule=garbagecollector=5
         run: |
           set -x
           curl -sfL https://get.k3s.io | sh -
