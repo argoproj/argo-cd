@@ -150,9 +150,10 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 		},
 		"public": true,
 	}
-	// Device code flow: Dex routes the user through the connector (e.g. GitHub)
-	// using /device/callback as the internal redirect URI. This path must be
-	// present in the client's redirectURIs so Dex accepts it during the flow.
+	// Device code flow: after the user authenticates via the connector (e.g.
+	// GitHub), Dex redirects back to its own device callback endpoint. Because
+	// Argo CD proxies Dex under /api/dex, the path seen by Dex—and sent as
+	// redirect_uri to the upstream IdP—is /api/dex/device/callback.
 	argoCDCLIStaticClient := map[string]any{
 		"id":     common.ArgoCDCLIClientAppID,
 		"name":   common.ArgoCDCLIClientAppName,
@@ -160,7 +161,7 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 		"redirectURIs": []string{
 			"http://localhost",
 			"http://localhost:8085/auth/callback",
-			"/device/callback",
+			common.DexDeviceCallbackEndpoint,
 		},
 	}
 

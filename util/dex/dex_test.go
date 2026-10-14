@@ -839,6 +839,51 @@ func Test_GenerateDexConfig(t *testing.T) {
 		customClient := clients[3].(map[string]any)
 		assert.Equal(t, "barfoo", customClient["secret"])
 	})
+	t.Run("argo-cd-cli static client registers /api/dex/device/callback redirect URI", func(t *testing.T) {
+		// Regression test: the redirect_uri Dex uses during the device flow is
+		// /api/dex/device/callback (the Argo CD proxy path), not the bare
+		// /device/callback.  Registering the wrong path triggers a
+		// "Bad Request – Unregistered redirect_uri" from Dex.
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfig,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		require.NotNil(t, config)
+		var dexCfg map[string]any
+		err = yaml.Unmarshal(config, &dexCfg)
+		require.NoError(t, err)
+
+		clients, ok := dexCfg["staticClients"].([]any)
+		require.True(t, ok)
+
+		// argo-cd-cli is always the second client (index 1) in the generated config.
+		var cliClient map[string]any
+		for _, c := range clients {
+			client, ok := c.(map[string]any)
+			if !ok {
+				continue
+			}
+			if client["id"] == common.ArgoCDCLIClientAppID {
+				cliClient = client
+				break
+			}
+		}
+		require.NotNil(t, cliClient, "argo-cd-cli static client not found in generated config")
+
+		redirectURIs, ok := cliClient["redirectURIs"].([]any)
+		require.True(t, ok)
+
+		var uris []string
+		for _, u := range redirectURIs {
+			uris = append(uris, u.(string))
+		}
+		assert.Contains(t, uris, common.DexDeviceCallbackEndpoint,
+			"argo-cd-cli must register %q as a redirect URI for the device flow to work", common.DexDeviceCallbackEndpoint)
+		assert.NotContains(t, uris, "/device/callback",
+			"bare /device/callback must not be registered — Dex uses the full proxy path")
+	})
 	t.Run("Override dex oauth2 configuration", func(t *testing.T) {
 		s := settings.ArgoCDSettings{
 			URL:       "http://localhost",
