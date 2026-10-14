@@ -1391,7 +1391,22 @@ func TestSetGroupsClaimFromEndpoint(t *testing.T) {
 		cacheClaims    jwt.MapClaims // userinfo response
 		expectedClaims jwt.MapClaims // function output
 		expectError    bool
+		groupsClaim    string // optional custom groupsClaim in oidc.config
 	}{
+		{
+			name:           "set groups from custom groupsClaim",
+			groupsClaim:    "roles",
+			inputClaims:    jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			cacheClaims:    jwt.MapClaims{"sub": "randomUser", "roles": []string{"admins"}, "groups": []string{"ignored"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectedClaims: jwt.MapClaims{"sub": "randomUser", "groups": []any{"admins"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+		},
+		{
+			name:           "custom groupsClaim missing from userinfo response yields no groups",
+			groupsClaim:    "roles",
+			inputClaims:    jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			cacheClaims:    jwt.MapClaims{"sub": "randomUser", "groups": []string{"ignored"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectedClaims: jwt.MapClaims{"sub": "randomUser", "groups": nil, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+		},
 		{
 			name:           "set correct groups from userinfo endpoint", // enriches the JWT claims with information from the userinfo endpoint, default case
 			inputClaims:    jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
@@ -1434,6 +1449,9 @@ func TestSetGroupsClaimFromEndpoint(t *testing.T) {
 issuer: http://localhost:63231
 enableUserInfoGroups: true
 userInfoPath: /`,
+			}
+			if tt.groupsClaim != "" {
+				cdSettings.OIDCConfigRAW += "\ngroupsClaim: " + tt.groupsClaim
 			}
 			a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", userInfoCache)
 			require.NoError(t, err, "failed creating clientapp")

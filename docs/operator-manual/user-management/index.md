@@ -888,6 +888,30 @@ Disabling certificate verification might make sense if:
 If either of those two applies, then you can disable OIDC provider certificate verification by setting
 `oidc.tls.insecure.skip.verify` to `"true"` in the `argocd-cm` ConfigMap.
 
+### Configurable groups claim
+
+By default, Argo CD reads user group information from the `groups` claim in the OIDC UserInfo endpoint response.
+
+Some identity providers return group membership using a different claim name such as `roles`, `memberof`, or other custom attributes.
+
+You can configure a custom claim name using the `groupsClaim` field:
+
+```yaml
+oidc.config: |
+  name: example
+  issuer: https://example.com
+  clientID: example-client-id
+  clientSecret: example-secret
+  enableUserInfoGroups: true
+  userInfoPath: /userinfo
+  groupsClaim: roles
+```
+
+`groupsClaim` only applies when `enableUserInfoGroups` is `true`. The value of the
+configured claim is mapped to the `groups` claim of the user, so RBAC policies keep
+referencing groups as usual. If the claim is missing from the UserInfo response, the
+user has no groups.
+
 ## Dex Storage Backend
 
 By default, Dex stores session state (auth requests, refresh tokens, signingkeys) in memory. This means state does not persist across `argocd-dex-server` pod restarts, and it is not safe to run multiple Dex replicas since each replica would have its own independent state.

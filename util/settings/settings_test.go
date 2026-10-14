@@ -2615,6 +2615,59 @@ func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
 	}
 }
 
+func TestUserInfoGroupsClaim(t *testing.T) {
+	t.Run("should return default 'groups' when config is empty", func(t *testing.T) {
+		settings := &ArgoCDSettings{
+			OIDCConfigRAW: "",
+		}
+
+		result := settings.UserInfoGroupsClaim()
+		assert.Equal(t, "groups", result)
+	})
+
+	t.Run("should return default 'groups' when groupsClaim not present", func(t *testing.T) {
+		settings := &ArgoCDSettings{
+			OIDCConfigRAW: `{
+				"name": "test",
+				"issuer": "https://example.com",
+				"clientID": "test-client"
+			}`,
+		}
+
+		result := settings.UserInfoGroupsClaim()
+		assert.Equal(t, "groups", result)
+	})
+
+	t.Run("should return configured groupsClaim", func(t *testing.T) {
+		settings := &ArgoCDSettings{
+			OIDCConfigRAW: `{
+				"name": "test",
+				"issuer": "https://example.com",
+				"clientID": "test-client",
+				"groupsClaim": "roles"
+			}`,
+		}
+
+		assert.Equal(t, "roles", settings.UserInfoGroupsClaim())
+	})
+
+	t.Run("should trim whitespace from groupsClaim", func(t *testing.T) {
+		settings := &ArgoCDSettings{
+			OIDCConfigRAW: `{"issuer": "https://example.com", "groupsClaim": "  roles  "}`,
+		}
+
+		assert.Equal(t, "roles", settings.UserInfoGroupsClaim())
+	})
+
+	t.Run("should fall back to 'groups' when groupsClaim is only whitespace", func(t *testing.T) {
+		settings := &ArgoCDSettings{
+			OIDCConfigRAW: `{"issuer": "https://example.com", "groupsClaim": "   "}`,
+		}
+
+		assert.Equal(t, "groups", settings.UserInfoGroupsClaim())
+	})
+}
+
 func TestGetHydratorReadmeTemplate(t *testing.T) {
 	t.Run("DefaultTemplate", func(t *testing.T) {
 		_, settingsManager := fixtures(t.Context(), map[string]string{})
