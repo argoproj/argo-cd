@@ -1533,7 +1533,7 @@ func TestSyncApplication(t *testing.T) {
 	}
 }
 
-func TestSyncDesiredApplications_PruneIndependentOfAutomated(t *testing.T) {
+func TestSyncDesiredApplications_PrunePrefersAutomatedThenManualDefaults(t *testing.T) {
 	t.Parallel()
 	m := &Manager{dependencies: testDeps{}}
 	logCtx := log.NewEntry(log.New())
@@ -1543,19 +1543,22 @@ func TestSyncDesiredApplications_PruneIndependentOfAutomated(t *testing.T) {
 			ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{Application: "app-manual-prune", Status: v1alpha1.ProgressiveSyncPending},
 				{Application: "app-auto-prune-only", Status: v1alpha1.ProgressiveSyncPending},
+				{Application: "app-auto-wins", Status: v1alpha1.ProgressiveSyncPending},
 			},
 		},
 	}
 	appsToSync := map[string]bool{
 		"app-manual-prune":    true,
 		"app-auto-prune-only": true,
+		"app-auto-wins":       true,
 	}
 	desired := []v1alpha1.Application{
 		{
 			Name: "app-manual-prune",
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
-					Automated:      &v1alpha1.SyncPolicyAutomated{Prune: new(false)},
+					// Automated disabled so progressive sync falls back to ManualDefaults.
+					Automated:      &v1alpha1.SyncPolicyAutomated{Enabled: new(false), Prune: new(false)},
 					ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{Prune: new(true)},
 				},
 			},
@@ -1568,16 +1571,28 @@ func TestSyncDesiredApplications_PruneIndependentOfAutomated(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: "app-auto-wins",
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated:      &v1alpha1.SyncPolicyAutomated{Prune: new(false)},
+					ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{Prune: new(true)},
+				},
+			},
+		},
 	}
 
 	result := m.SyncDesiredApplications(logCtx, appSet, appsToSync, desired)
-	require.Len(t, result, 2)
+	require.Len(t, result, 3)
 	require.NotNil(t, result[0].Operation)
 	require.NotNil(t, result[0].Operation.Sync)
-	assert.True(t, result[0].Operation.Sync.Prune, "progressive sync should honor manualDefaults.prune")
+	assert.True(t, result[0].Operation.Sync.Prune, "when automated sync is disabled, progressive sync should fall back to manualDefaults.prune")
 	require.NotNil(t, result[1].Operation)
 	require.NotNil(t, result[1].Operation.Sync)
-	assert.True(t, result[1].Operation.Sync.Prune, "without manualDefaults, progressive sync keeps legacy automated.prune when automated sync is enabled")
+	assert.True(t, result[1].Operation.Sync.Prune, "when automated sync is enabled, progressive sync keeps legacy automated.prune")
+	require.NotNil(t, result[2].Operation)
+	require.NotNil(t, result[2].Operation.Sync)
+	assert.False(t, result[2].Operation.Sync.Prune, "when automated sync is enabled, automated.prune takes precedence over manualDefaults.prune")
 }
 
 func TestIsRollingSyncDeletionReversed(t *testing.T) {
