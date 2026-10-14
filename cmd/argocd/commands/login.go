@@ -4,11 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"html"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -163,6 +161,9 @@ argocd login cd.argoproj.io --core`,
 			var tokenString string
 			var refreshToken string
 			if !clientOpts.Core {
+				if noBrowser && !sso {
+					log.Fatal("--no-browser requires --sso")
+				}
 				acdClient := headless.NewClientOrDie(&loginOpts, c)
 				setConn, setIf := acdClient.NewSettingsClientOrDieWithContext(ctx)
 				defer utilio.Close(setConn)
@@ -435,116 +436,6 @@ func oauth2Login(
 	return tokenString, refreshToken
 }
 
-// httpDoer is a minimal interface over *http.Client, allowing unit tests to
-// inject a fake transport without spinning up a real network connection.
-type httpDoer interface {
-	Do(*http.Request) (*http.Response, error)
-}
-
-// requestDeviceCode performs Step 1 of RFC 8628: POST to deviceURL and return
-// the device authorization response.
-func requestDeviceCode(ctx context.Context, client httpDoer, deviceURL, clientID, scope string) (*oidcutil.OIDCDeviceCodeResponseBody, error) {
-	data := url.Values{}
-	data.Set("client_id", clientID)
-	data.Set("scope", scope)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, deviceURL, strings.NewReader(data.Encode()))
-	if err != nil {
-		return nil, fmt.Errorf("build device code request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("request device code: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("device code request failed: %s — %s", resp.Status, string(body))
-	}
-
-	var result oidcutil.OIDCDeviceCodeResponseBody
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, fmt.Errorf("decode device code response: %w", err)
-	}
-	return &result, nil
-}
-
-// pollForToken performs Step 3 of RFC 8628: poll tokenURL until the device
-// code is authorized, the deadline is reached, or the context is cancelled.
-// pollInterval is the time to wait between attempts; deadline is the absolute
-// expiry time of the device code.
-func pollForToken(ctx context.Context, client httpDoer, tokenURL, clientID, deviceCode string, pollInterval time.Duration, deadline time.Time) (string, string, error) {
-	tokenData := url.Values{}
-	tokenData.Set("client_id", clientID)
-	tokenData.Set("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
-	tokenData.Set("device_code", deviceCode)
-
-	ctx, cancel := context.WithDeadline(ctx, deadline)
-	defer cancel()
-
-	timer := time.NewTimer(pollInterval)
-	defer timer.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			if stderrors.Is(ctx.Err(), context.DeadlineExceeded) {
-				return "", "", stderrors.New("device code expired before authentication completed")
-			}
-			return "", "", stderrors.New("authentication cancelled")
-		case <-timer.C:
-		}
-
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(tokenData.Encode()))
-		if err != nil {
-			return "", "", fmt.Errorf("build token request: %w", err)
-		}
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
-		resp, err := client.Do(req)
-		if err != nil {
-			return "", "", fmt.Errorf("poll token endpoint: %w", err)
-		}
-		body, _ := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			var errResp struct {
-				Error string `json:"error"`
-			}
-			if jsonErr := json.Unmarshal(body, &errResp); jsonErr == nil {
-				switch errResp.Error {
-				case "authorization_pending":
-					timer.Reset(pollInterval)
-					continue
-				case "slow_down":
-					pollInterval += 5 * time.Second
-					timer.Reset(pollInterval)
-					continue
-				case "expired_token":
-					return "", "", stderrors.New("device code expired before authentication completed")
-				case "access_denied":
-					return "", "", stderrors.New("access denied during device authorization")
-				}
-			}
-			return "", "", fmt.Errorf("token request failed: %s — %s", resp.Status, string(body))
-		}
-
-		var tokenMap map[string]any
-		if err := json.Unmarshal(body, &tokenMap); err != nil {
-			return "", "", fmt.Errorf("decode token response: %w", err)
-		}
-		idToken, _ := tokenMap["id_token"].(string)
-		if idToken == "" {
-			return "", "", stderrors.New("no id_token in token response")
-		}
-		refreshToken, _ := tokenMap["refresh_token"].(string)
-		return idToken, refreshToken, nil
-	}
-}
-
 // buildVerificationPrompt returns the lines to print between the
 // "authenticate" header and the "Waiting" footer.
 //
@@ -568,8 +459,9 @@ func buildVerificationPrompt(uriComplete, uri, userCode string) string {
 }
 
 // oauth2LoginNoBrowser implements the OAuth 2.0 Device Authorization Grant
-// (RFC 8628). It prints a verification URL for the user to open in a browser
-// and polls the token endpoint until authentication completes or is cancelled.
+// (RFC 8628) using golang.org/x/oauth2's built-in DeviceAuth / DeviceAccessToken
+// methods. It prints a verification URL for the user to open in a browser and
+// polls the token endpoint until authentication completes or is cancelled.
 func oauth2LoginNoBrowser(
 	ctx context.Context,
 	oidcSettings *settingspkg.OIDCConfig,
@@ -579,22 +471,24 @@ func oauth2LoginNoBrowser(
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	// Inject the custom Argo CD HTTP client (TLS settings, proxy, etc.) so
+	// that golang.org/x/oauth2 uses it for all token endpoint requests.
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
+
 	// Prefer the device authorization endpoint auto-discovered from the OIDC
 	// discovery document (device_authorization_endpoint). Fall back to the
 	// operator-configured DeviceURL for providers that do not advertise it.
-	deviceURL := oauth2conf.Endpoint.DeviceAuthURL
-	if deviceURL == "" {
-		deviceURL = oidcSettings.GetDeviceURL()
+	if oauth2conf.Endpoint.DeviceAuthURL == "" {
+		oauth2conf.Endpoint.DeviceAuthURL = oidcSettings.GetDeviceURL()
 	}
-	tokenURL := oauth2conf.Endpoint.TokenURL
-	if tokenURL == "" {
-		tokenURL = oidcSettings.GetTokenURL()
+	if oauth2conf.Endpoint.TokenURL == "" {
+		oauth2conf.Endpoint.TokenURL = oidcSettings.GetTokenURL()
 	}
-	if deviceURL == "" || tokenURL == "" {
+	if oauth2conf.Endpoint.DeviceAuthURL == "" || oauth2conf.Endpoint.TokenURL == "" {
 		log.Fatal("OIDC provider does not advertise a device authorization or token endpoint; configure deviceURL/tokenURL in oidc.config")
 	}
 
-	deviceResp, err := requestDeviceCode(ctx, httpClient, deviceURL, oauth2conf.ClientID, strings.Join(oauth2conf.Scopes, " "))
+	da, err := oauth2conf.DeviceAuth(ctx)
 	if err != nil {
 		log.Fatalf("Failed to request device code: %s", err)
 		return "", ""
@@ -606,27 +500,22 @@ func oauth2LoginNoBrowser(
 	// returns a verification_uri with query parameters we still offer a
 	// synthesized URL as a convenience, with user_code properly encoded.
 	fmt.Printf("Open the following URL in your browser to authenticate:\n\n%s\n\nWaiting for authentication...\n",
-		buildVerificationPrompt(deviceResp.VerificationURIComplete, deviceResp.VerificationURI, deviceResp.UserCode))
+		buildVerificationPrompt(da.VerificationURIComplete, da.VerificationURI, da.UserCode))
 
-	interval := deviceResp.Interval
-	if interval <= 0 {
-		interval = 5
-	}
-	expiresIn := deviceResp.ExpiresIn
-	if expiresIn <= 0 {
-		expiresIn = 300
-	}
-	idToken, refreshToken, err := pollForToken(ctx, httpClient, tokenURL, oauth2conf.ClientID, deviceResp.DeviceCode,
-		time.Duration(interval)*time.Second,
-		time.Now().Add(time.Duration(expiresIn)*time.Second),
-	)
+	tok, err := oauth2conf.DeviceAccessToken(ctx, da)
 	if err != nil {
 		log.Fatalf("%s", err)
 		return "", ""
 	}
 
+	idToken, _ := tok.Extra("id_token").(string)
+	if idToken == "" {
+		log.Fatal("OIDC provider did not return an id_token in the device flow token response")
+		return "", ""
+	}
+
 	fmt.Print("Authentication successful\n")
-	return idToken, refreshToken
+	return idToken, tok.RefreshToken
 }
 
 func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username, password string) string {
