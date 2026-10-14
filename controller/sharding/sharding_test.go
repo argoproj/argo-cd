@@ -1052,8 +1052,9 @@ func TestAppDistributionWithDestinationName(t *testing.T) {
 	cluster2 := createCluster("cluster2", "2")
 	duplicate1 := createCluster("duplicate", "3")
 	duplicate2 := createCluster("duplicate", "4")
+	unnamed := createCluster("", "5")
 
-	clusterList := getClusterPointers([]v1alpha1.Cluster{cluster1, cluster2, duplicate1, duplicate2})
+	clusterList := getClusterPointers([]v1alpha1.Cluster{cluster1, cluster2, duplicate1, duplicate2, unnamed})
 	appList := getAppPointers([]v1alpha1.Application{
 		createAppWithDestinationName("app1", "cluster1"),
 		createAppWithDestinationName("app2", "cluster1"),
