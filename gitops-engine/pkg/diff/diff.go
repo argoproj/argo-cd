@@ -15,6 +15,7 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/jsonmergepatch"
@@ -241,20 +242,9 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 		return nil, fmt.Errorf("error converting live state from unstructured to %s: %w", gvk, err)
 	}
 
-	// Initialize an empty fieldpath.Set to aggregate managed fields for the specified manager
-	managerFieldsSet := &fieldpath.Set{}
-
-	// Iterate over all ManagedFields entries in predictedLive
-	for _, mfEntry := range plManagedFields {
-		managedFieldsSet := &fieldpath.Set{}
-		err := managedFieldsSet.FromJSON(bytes.NewReader(mfEntry.FieldsV1.Raw))
-		if err != nil {
-			return nil, fmt.Errorf("error building managedFields set: %w", err)
-		}
-		if mfEntry.Manager == manager {
-			// Union the fields with the aggregated set
-			managerFieldsSet = managerFieldsSet.Union(managedFieldsSet)
-		}
+	managerFieldsSet, err := managerFieldSet(plManagedFields, manager)
+	if err != nil {
+		return nil, err
 	}
 
 	if managerFieldsSet.Empty() {
@@ -286,6 +276,14 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	if comparison.Removed != nil && !comparison.Removed.Empty() {
 		// exclude the removed fields not owned by this manager from the comparison
 		comparison.Removed = comparison.Removed.Difference(nonArgoFieldsSet)
+
+		// SSA only removes fields the applier owned. Anything else missing from predictedLive was
+		// removed by another actor after live was read from the cache, so it is not a diff.
+		liveManagerFieldsSet, err := managerFieldSet(live.GetManagedFields(), manager)
+		if err != nil {
+			return nil, err
+		}
+		comparison.Removed = keepManagerOwned(comparison.Removed, liveManagerFieldsSet)
 	}
 
 	// In case any of the removed fields cause schema violations, we will keep those fields
@@ -323,18 +321,55 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 func excludeManagerOwnedAncestors(toRemove, managerFieldsSet *fieldpath.Set) *fieldpath.Set {
 	filtered := fieldpath.NewSet()
 	toRemove.Iterate(func(path fieldpath.Path) {
-		ownedSubtree := managerFieldsSet
-		for _, pe := range path {
-			ownedSubtree = ownedSubtree.WithPrefix(pe)
-			if ownedSubtree.Empty() {
-				break
-			}
-		}
-		if ownedSubtree.Empty() {
+		if !hasOwnedDescendant(managerFieldsSet, path) {
 			filtered.Insert(path)
 		}
 	})
 	return filtered
+}
+
+// keepManagerOwned returns the paths in removed that the manager owns, either
+// directly or through a descendant. Descendants count because under
+// x-kubernetes-preserve-unknown-fields Kubernetes records only the leaf paths
+// a manager owns, while a removal can be reported on an ancestor container.
+func keepManagerOwned(removed, managerFieldsSet *fieldpath.Set) *fieldpath.Set {
+	kept := fieldpath.NewSet()
+	removed.Iterate(func(path fieldpath.Path) {
+		if managerFieldsSet.Has(path) || hasOwnedDescendant(managerFieldsSet, path) {
+			kept.Insert(path)
+		}
+	})
+	return kept
+}
+
+// hasOwnedDescendant reports whether managerFieldsSet contains a strict
+// descendant of path.
+func hasOwnedDescendant(managerFieldsSet *fieldpath.Set, path fieldpath.Path) bool {
+	ownedSubtree := managerFieldsSet
+	for _, pe := range path {
+		ownedSubtree = ownedSubtree.WithPrefix(pe)
+		if ownedSubtree.Empty() {
+			return false
+		}
+	}
+	return !ownedSubtree.Empty()
+}
+
+// managerFieldSet returns the union of the fields owned by manager across the
+// given managedFields entries.
+func managerFieldSet(entries []metav1.ManagedFieldsEntry, manager string) (*fieldpath.Set, error) {
+	managerFieldsSet := &fieldpath.Set{}
+	for _, mfEntry := range entries {
+		if mfEntry.Manager != manager || mfEntry.FieldsV1 == nil {
+			continue
+		}
+		managedFieldsSet := &fieldpath.Set{}
+		if err := managedFieldsSet.FromJSON(bytes.NewReader(mfEntry.FieldsV1.Raw)); err != nil {
+			return nil, fmt.Errorf("error building managedFields set: %w", err)
+		}
+		managerFieldsSet = managerFieldsSet.Union(managedFieldsSet)
+	}
+	return managerFieldsSet, nil
 }
 
 // filterOutCompositeKeyFields filters out fields that are part of composite keys in associative lists.
