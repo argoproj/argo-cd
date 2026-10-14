@@ -36,6 +36,7 @@ Target GA date: ___. __, ____
  - [ ] Announce RC1 release
    - [ ] Confirm that tweet and blog post are ready
    - [ ] Publish tweet and blog post
+   - [ ] Edit the [GitHub release](https://github.com/argoproj/argo-cd/releases) and add the blog post link at the top of the release notes (see #18280)
    - [ ] Post in #argo-cd and #argo-announcements requesting help testing:
      ```
      :mega: Argo CD v{MAJOR}.{MINOR}.{PATCH}-rc{RC_NUMBER} is OUT NOW! :argocd::tada:
@@ -78,6 +79,7 @@ Target GA date: ___. __, ____
  - [ ] Announce GA release with EOL notice
    - [ ] Confirm that tweet and blog post are ready
    - [ ] Publish tweet and blog post
+   - [ ] Edit the [GitHub release](https://github.com/argoproj/argo-cd/releases) and add the blog post link at the top of the release notes (see #18280)
    - [ ] Post in #argo-cd and #argo-announcements announcing the release and EOL:
      ```
      :mega: Argo CD v{MAJOR}.{MINOR} is OUT NOW! :argocd::tada:
