@@ -2148,9 +2148,9 @@ func TestRedirectURLForRequest(t *testing.T) {
 			result, err := tc.Settings.RedirectURLForRequest(request)
 			assert.Equal(t, tc.ExpectedURL, result)
 			if tc.ExpectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tc.ErrorText != "" {
-					assert.ErrorContains(t, err, tc.ErrorText)
+					require.ErrorContains(t, err, tc.ErrorText)
 				}
 			} else {
 				assert.NoError(t, err)
