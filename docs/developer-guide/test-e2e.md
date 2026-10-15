@@ -50,9 +50,27 @@ The Makefile's `start-e2e` target starts instances of ArgoCD on your local machi
 
 If you have changed the port for `argocd-server`, be sure to also set `ARGOCD_SERVER` environment variable to point to that port, e.g. `export ARGOCD_SERVER=localhost:8888` before running `make test-e2e` so that the test will communicate to the correct server component.
 
-## Shard Weights
+## Running a Shard of the Suite
 
-CI splits the e2e suite into shards by the per-test durations in `test/e2e/shard-weights.txt`. The `Refresh e2e shard weights` workflow keeps that file up to date. It runs every Monday, and maintainers can also start it by hand from the Actions tab.
+CI splits the e2e suite into shards and runs each shard as its own job. You can run a single shard locally with `make test-e2e` or `make test-e2e-local` by setting both of these environment variables:
+
+- `ARGOCD_E2E_SHARD`: The shard to run, starting at `1`
+- `ARGOCD_E2E_SHARD_COUNT`: The total number of shards
+
+When either variable is unset, the whole suite runs. For example, to run the first of four shards:
+
+```bash
+ARGOCD_E2E_SHARD=1 ARGOCD_E2E_SHARD_COUNT=4 make test-e2e-local
+```
+
+`hack/e2e-shard.sh` assigns tests to shards by their measured duration, which it reads from `test/e2e/shard-weights.txt`. Tests missing from that file get the mean duration. When every e2e job of a CI run passes, `hack/e2e-check-shard-coverage.sh` checks that each test in `test/e2e` ran in one of the shards of the latest Kubernetes version. If a test did not run, the required `E2E Tests - Composite result` check fails. To read durations from a different file when you run `make test-e2e-local`, set `ARGOCD_E2E_SHARD_WEIGHTS` to its path.
+
+> [!NOTE]
+> The e2e environment must be running before you run a shard, because listing the tests starts the test binary, and the test binary connects to the API server when it starts.
+
+### Refreshing the Shard Weights
+
+The shards become unbalanced when tests are added or their durations change. Each CI shard of the latest Kubernetes version uploads its test timings as an `e2e-test-timings-shard<N>` artifact. The `Refresh e2e shard weights` workflow uses these artifacts to keep `test/e2e/shard-weights.txt` up to date. It runs every Monday, and maintainers can also start it by hand from the Actions tab.
 
 The workflow reads the test timings of the 10 most recent successful master builds from the last 7 days that ran the e2e tests and takes the median duration of each test. It needs at least 3 builds and does nothing otherwise. It then builds a new weights file:
 
@@ -64,6 +82,13 @@ The workflow opens a PR only if a test was added or removed, or if the slowest s
 
 > [!NOTE]
 > Each run overwrites `test/e2e/shard-weights.txt` on the PR branch, so do not edit that file in the PR.
+
+To regenerate the weights by hand from a green CI run:
+
+```bash
+gh run download <run-id> -p 'e2e-test-timings-shard*'
+./hack/e2e-shard-weights.sh e2e-test-timings-shard*/junit.xml > test/e2e/shard-weights.txt
+```
 
 ## Test Isolation
 

@@ -31,6 +31,7 @@ import (
 	"runtime/debug"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -152,7 +153,9 @@ type ClusterCache interface {
 	EnsureSynced() error
 	// GetServerVersion returns observed cluster version
 	GetServerVersion() string
-	// GetAPIResources returns information about observed API resources
+	// GetAPIResources returns information about observed API resources.
+	// The returned list is a snapshot: it is replaced, never edited in place, when CRDs are
+	// introduced or removed, so it can be iterated safely but may be stale. Callers must not modify it.
 	GetAPIResources() []kube.APIResourceInfo
 	// GetOpenAPISchema returns open API schema of supported API resources
 	GetOpenAPISchema() openapi.Resources
@@ -237,10 +240,15 @@ type clusterCache struct {
 	apisMeta              map[schema.GroupKind]*apiMeta
 	batchEventsProcessing bool
 	eventMetaCh           chan eventMeta
-	serverVersion         string
-	apiResources          []kube.APIResourceInfo
-	// namespacedResources is a simple map which indicates a groupKind is namespaced
-	namespacedResources map[schema.GroupKind]bool
+	// serverVersion, apiResources, openAPISchema and gvkParser are read by their
+	// getters without c.lock, so writers publish a new value and never edit a
+	// published one.
+	serverVersion atomic.Pointer[string]
+	apiResources  atomic.Pointer[[]kube.APIResourceInfo]
+	// namespacedResources maps each watched GroupKind to whether it is namespaced.
+	// IsNamespaced reads it without c.lock, so writers publish a complete map
+	// and never edit a published one.
+	namespacedResources atomic.Pointer[map[schema.GroupKind]bool]
 
 	// maximum time we allow watches to run before relisting the group/kind and restarting the watch
 	watchResyncTimeout time.Duration
@@ -278,8 +286,8 @@ type clusterCache struct {
 	resourceUpdatedHandlers     map[uint64]OnResourceUpdatedHandler
 	eventHandlers               map[uint64]OnEventHandler
 	processEventsHandlers       map[uint64]OnProcessEventsHandler
-	openAPISchema               openapi.Resources
-	gvkParser                   *managedfields.GvkParser
+	openAPISchema               atomic.Pointer[openapi.Resources]
+	gvkParser                   atomic.Pointer[managedfields.GvkParser]
 
 	respectRBAC int
 
@@ -392,48 +400,59 @@ func (c *clusterCache) getProcessEventsHandlers() []OnProcessEventsHandler {
 
 // GetServerVersion returns observed cluster version
 func (c *clusterCache) GetServerVersion() string {
-	return c.serverVersion
+	if v := c.serverVersion.Load(); v != nil {
+		return *v
+	}
+	return ""
 }
 
 // GetAPIResources returns information about observed API resources
 // This method is called frequently during reconciliation to pass API resource info to `helm template`
-// NOTE: we do not provide any consistency guarantees about the returned list. The list might be
-// updated in place (anytime new CRDs are introduced or removed). If necessary, a separate method
-// would need to be introduced to return a copy of the list so it can be iterated consistently.
+// The returned list is a snapshot: it is replaced, never edited in place, when CRDs are
+// introduced or removed, so it can be iterated safely but may be stale. Callers must not modify it.
 func (c *clusterCache) GetAPIResources() []kube.APIResourceInfo {
-	return c.apiResources
+	if r := c.apiResources.Load(); r != nil {
+		return *r
+	}
+	return nil
 }
 
 // GetOpenAPISchema returns open API schema of supported API resources
 func (c *clusterCache) GetOpenAPISchema() openapi.Resources {
-	return c.openAPISchema
+	if s := c.openAPISchema.Load(); s != nil {
+		return *s
+	}
+	return nil
 }
 
 // GetGVKParser returns a parser able to build a TypedValue used in
 // structured merge diffs.
 func (c *clusterCache) GetGVKParser() *managedfields.GvkParser {
-	return c.gvkParser
+	return c.gvkParser.Load()
 }
 
+// appendAPIResource publishes a copy of apiResources with info added, unless
+// its GroupKind and version are already present. Callers must hold c.lock.
 func (c *clusterCache) appendAPIResource(info kube.APIResourceInfo) {
-	exists := false
-	for i := range c.apiResources {
-		if c.apiResources[i].GroupKind == info.GroupKind && c.apiResources[i].GroupVersionResource.Version == info.GroupVersionResource.Version {
-			exists = true
-			break
+	current := c.GetAPIResources()
+	for i := range current {
+		if current[i].GroupKind == info.GroupKind && current[i].GroupVersionResource.Version == info.GroupVersionResource.Version {
+			return
 		}
 	}
-	if !exists {
-		c.apiResources = append(c.apiResources, info)
-	}
+	updated := append(slices.Clip(current), info) // Clip forces a copy
+	c.apiResources.Store(&updated)
 }
 
+// deleteAPIResource publishes a copy of apiResources without info's GroupKind
+// and version. Callers must hold c.lock.
 func (c *clusterCache) deleteAPIResource(info kube.APIResourceInfo) {
-	for i := range c.apiResources {
-		if c.apiResources[i].GroupKind == info.GroupKind && c.apiResources[i].GroupVersionResource.Version == info.GroupVersionResource.Version {
-			c.apiResources[i] = c.apiResources[len(c.apiResources)-1]
-			c.apiResources = c.apiResources[:len(c.apiResources)-1]
-			break
+	current := c.GetAPIResources()
+	for i := range current {
+		if current[i].GroupKind == info.GroupKind && current[i].GroupVersionResource.Version == info.GroupVersionResource.Version {
+			updated := slices.Delete(slices.Clone(current), i, i+1)
+			c.apiResources.Store(&updated)
+			return
 		}
 	}
 }
@@ -674,7 +693,7 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 		c.invalidateEventMeta()
 	}
 	c.apisMeta = nil
-	c.namespacedResources = nil
+	c.namespacedResources.Store(nil)
 	c.log.Info("Invalidated cluster")
 }
 
@@ -701,11 +720,10 @@ func (c *clusterCache) stopWatching(gk schema.GroupKind, ns string) {
 	if info, ok := c.apisMeta[gk]; ok {
 		info.watchCancel()
 		delete(c.apisMeta, gk)
-		// Keep in step with apisMeta. IsNamespaced reads this map without the
-		// lock, so replace it rather than editing it in place.
-		namespacedResources := maps.Clone(c.namespacedResources)
+		// Keep in step with apisMeta.
+		namespacedResources := maps.Clone(c.loadNamespacedResources())
 		delete(namespacedResources, gk)
-		c.namespacedResources = namespacedResources
+		c.namespacedResources.Store(&namespacedResources)
 		c.replaceResourceCache(gk, nil, ns)
 		c.log.Info(fmt.Sprintf("Stop watching: %s not found", gk))
 	}
@@ -766,7 +784,7 @@ func (c *clusterCache) startMissingWatches() error {
 			}
 		}
 	}
-	c.namespacedResources = namespacedResources
+	c.namespacedResources.Store(&namespacedResources)
 	return nil
 }
 
@@ -938,16 +956,22 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 					}
 
 					if event.Type == watch.Deleted {
-						for i := range resources {
-							c.deleteAPIResource(resources[i])
-						}
+						_ = runSynced(&c.lock, func() error {
+							for i := range resources {
+								c.deleteAPIResource(resources[i])
+							}
+							return nil
+						})
 					} else {
 						c.log.Info("Updating Kubernetes APIs, watches, and Open API schemas due to CRD event", "eventType", event.Type, "groupKind", innerGroupKind)
 						// add new CRD's groupkind to c.apigroups
 						if event.Type == watch.Added {
-							for i := range resources {
-								c.appendAPIResource(resources[i])
-							}
+							_ = runSynced(&c.lock, func() error {
+								for i := range resources {
+									c.appendAPIResource(resources[i])
+								}
+								return nil
+							})
 						}
 						err = runSynced(&c.lock, func() error {
 							return c.startMissingWatches()
@@ -995,9 +1019,9 @@ func (c *clusterCache) reloadOpenAPISchema() error {
 			return fmt.Errorf("failed to load open api schema: %w", err)
 		}
 		if gvkParser != nil {
-			c.gvkParser = gvkParser
+			c.gvkParser.Store(gvkParser)
 		}
-		c.openAPISchema = openAPISchema
+		c.openAPISchema.Store(&openAPISchema)
 		return nil
 	})
 }
@@ -1182,7 +1206,9 @@ func (c *clusterCache) sync() (err error) {
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.resources = make(map[kube.ResourceKey]*Resource)
 	c.nsIndex = make(map[string]map[kube.ResourceKey]*Resource)
-	c.namespacedResources = make(map[schema.GroupKind]bool)
+	// Filled by the workers below and published once they finish.
+	namespacedResources := make(map[schema.GroupKind]bool)
+	defer c.namespacedResources.Store(&namespacedResources)
 	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
 	syncLock.Unlock()
 	config := c.config
@@ -1190,12 +1216,12 @@ func (c *clusterCache) sync() (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to get server version: %w", err)
 	}
-	c.serverVersion = version
+	c.serverVersion.Store(&version)
 	apiResources, err := c.kubectl.GetAPIResources(config, false, NewNoopSettings())
 	if err != nil {
 		return fmt.Errorf("failed to get api resources: %w", err)
 	}
-	c.apiResources = apiResources
+	c.apiResources.Store(&apiResources)
 
 	openAPISchema, gvkParser, err := c.kubectl.LoadOpenAPISchema(config)
 	if err != nil {
@@ -1203,10 +1229,10 @@ func (c *clusterCache) sync() (err error) {
 	}
 
 	if gvkParser != nil {
-		c.gvkParser = gvkParser
+		c.gvkParser.Store(gvkParser)
 	}
 
-	c.openAPISchema = openAPISchema
+	c.openAPISchema.Store(&openAPISchema)
 
 	apis, err := c.kubectl.GetAPIResources(c.config, true, c.settings.ResourcesFilter)
 	if err != nil {
@@ -1233,7 +1259,7 @@ func (c *clusterCache) sync() (err error) {
 		info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
 		syncLock.Lock()
 		c.apisMeta[api.GroupKind] = info
-		c.namespacedResources[api.GroupKind] = api.Meta.Namespaced
+		namespacedResources[api.GroupKind] = api.Meta.Namespaced
 		syncLock.Unlock()
 
 		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
@@ -1267,7 +1293,7 @@ func (c *clusterCache) sync() (err error) {
 					if !keep {
 						syncLock.Lock()
 						delete(c.apisMeta, api.GroupKind)
-						delete(c.namespacedResources, api.GroupKind)
+						delete(namespacedResources, api.GroupKind)
 						syncLock.Unlock()
 						return nil
 					}
@@ -1593,9 +1619,18 @@ func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map
 	return graph
 }
 
+// loadNamespacedResources returns the published namespacedResources map, which
+// callers must not modify.
+func (c *clusterCache) loadNamespacedResources() map[schema.GroupKind]bool {
+	if m := c.namespacedResources.Load(); m != nil {
+		return *m
+	}
+	return nil
+}
+
 // IsNamespaced answers if specified group/kind is a namespaced resource API or not
 func (c *clusterCache) IsNamespaced(gk schema.GroupKind) (bool, error) {
-	if isNamespaced, ok := c.namespacedResources[gk]; ok {
+	if isNamespaced, ok := c.loadNamespacedResources()[gk]; ok {
 		return isNamespaced, nil
 	}
 	return false, apierrors.NewNotFound(schema.GroupResource{Group: gk.Group}, "")
@@ -1873,12 +1908,12 @@ func (c *clusterCache) GetClusterInfo() ClusterInfo {
 
 	return ClusterInfo{
 		APIsCount:         len(c.apisMeta),
-		K8SVersion:        c.serverVersion,
+		K8SVersion:        c.GetServerVersion(),
 		ResourcesCount:    len(c.resources),
 		Server:            c.config.Host,
 		LastCacheSyncTime: c.syncStatus.syncTime,
 		SyncError:         c.syncStatus.syncError,
-		APIResources:      c.apiResources,
+		APIResources:      c.GetAPIResources(),
 	}
 }
 
