@@ -807,7 +807,8 @@ jobs:
           path: /tmp/coverage
         if: ${{ matrix.k3s.latest }}
       - name: Upload e2e test timings
-        # Feeds hack/e2e-shard-weights.sh, which regenerates test/e2e/shard-weights.txt.
+        # Feeds hack/e2e-shard-weights.sh and the e2e-shard-weights.yaml workflow, which
+        # regenerate test/e2e/shard-weights.txt; keep the artifact name in sync with both.
         # Only the "latest" k3s version is needed: one full pass over the suite.
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

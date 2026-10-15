@@ -72,7 +72,7 @@ func (s) TestMethod(t *testing.T) {}
 
 	tests, err := listTests(dir)
 	require.NoError(t, err)
-	assert.Equal(t, set("TestOne", "TestTwo", "Testlower"), tests)
+	assert.Equal(t, set("TestOne", "TestTwo"), tests)
 }
 
 func TestListTestsFailsWithoutTests(t *testing.T) {
@@ -106,11 +106,11 @@ func TestReadRunFailsWithoutTimings(t *testing.T) {
 
 func TestMedian(t *testing.T) {
 	runs := []map[string]float64{
-		{"TestOdd": 5, "TestEven": 1, "TestOnce": 7},
-		{"TestOdd": 1, "TestEven": 4},
+		{"TestOdd": 5, "TestEven": 1, "TestOnce": 7, "TestRounded": 1.001},
+		{"TestOdd": 1, "TestEven": 4, "TestRounded": 1.002},
 		{"TestOdd": 3},
 	}
-	assert.Equal(t, map[string]float64{"TestOdd": 3, "TestEven": 2.5, "TestOnce": 7}, median(runs))
+	assert.Equal(t, map[string]float64{"TestOdd": 3, "TestEven": 2.5, "TestOnce": 7, "TestRounded": 1.002}, median(runs))
 }
 
 func TestSignificant(t *testing.T) {

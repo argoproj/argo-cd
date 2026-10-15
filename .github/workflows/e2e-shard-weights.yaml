@@ -53,14 +53,22 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "count=$(hack/e2e-shard-weights-download.sh "${RUNNER_TEMP}/runs" "${MAX_RUNS}" "${DAYS}")" >> "$GITHUB_OUTPUT"
+          set -eu
+          shards=$(yq '.jobs.changes.steps[] | select(.id == "shards") | .env.SHARD_COUNT' .github/workflows/ci-build.yaml)
+          count=$(hack/e2e-shard-weights-download.sh "${RUNNER_TEMP}/runs" "${shards}" "${MAX_RUNS}" "${DAYS}")
+          if [ "${count}" -lt "${MIN_RUNS}" ]; then
+            echo "::warning::Only ${count} builds with e2e timings in the last ${DAYS} days, need ${MIN_RUNS}; the shard weights are left unchanged."
+          fi
+          echo "shards=${shards}" >> "$GITHUB_OUTPUT"
+          echo "count=${count}" >> "$GITHUB_OUTPUT"
 
       - name: Compute refreshed weights
         if: ${{ fromJSON(steps.download.outputs.count) >= fromJSON(env.MIN_RUNS) }}
+        env:
+          SHARDS: ${{ steps.download.outputs.shards }}
         run: |
-          shards=$(yq '.jobs.changes.steps[] | select(.id == "shards") | .env.SHARD_COUNT' .github/workflows/ci-build.yaml)
           go run ./hack/e2e-shard-weights-refresh \
-            -shards "${shards}" \
+            -shards "${SHARDS}" \
             -report "${RUNNER_TEMP}/report.md" \
             -repo "${GITHUB_REPOSITORY}" \
             "${RUNNER_TEMP}"/runs/*
@@ -94,15 +102,23 @@ jobs:
             exit 0
           fi
 
+          weights=test/e2e/shard-weights.txt
+          cp "${weights}" "${RUNNER_TEMP}/weights.txt"
           remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          if [ -n "${pr}" ] && git fetch --quiet "${remote}" "${BRANCH}" \
-            && git diff --quiet FETCH_HEAD -- test/e2e/shard-weights.txt; then
+          if [ -n "${pr}" ]; then
+            git fetch --quiet --depth=1 "${remote}" "${BRANCH}"
+            git checkout --quiet --force -B "${BRANCH}" FETCH_HEAD
+            cp "${RUNNER_TEMP}/weights.txt" "${weights}"
+          else
+            git checkout --quiet -B "${BRANCH}"
+          fi
+
+          if git diff --quiet -- "${weights}"; then
             echo "PR #${pr} already has these weights"
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git checkout -b "${BRANCH}"
-            git add test/e2e/shard-weights.txt
+            git add "${weights}"
             git commit --signoff -m "chore: refresh e2e shard weights"
             git push --force "${remote}" "HEAD:refs/heads/${BRANCH}"
           fi

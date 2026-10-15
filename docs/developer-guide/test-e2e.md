@@ -54,16 +54,16 @@ If you have changed the port for `argocd-server`, be sure to also set `ARGOCD_SE
 
 CI splits the e2e suite into shards by the per-test durations in `test/e2e/shard-weights.txt`. The `Refresh e2e shard weights` workflow keeps that file up to date. It runs every Monday, and maintainers can also start it by hand from the Actions tab.
 
-The workflow reads the test timings of the 10 most recent successful master builds from the last 7 days and takes the median duration of each test. It needs at least 3 builds and does nothing otherwise. It then builds a new weights file:
+The workflow reads the test timings of the 10 most recent successful master builds from the last 7 days that ran the e2e tests and takes the median duration of each test. It needs at least 3 builds and does nothing otherwise. It then builds a new weights file:
 
 - A test that is missing from the file is added with its median.
 - A test that no longer exists in `test/e2e` is removed.
 - A test gets its median only if the median differs from its current duration by at least 2 seconds and at least 20%. Every other test keeps its current duration.
 
-The workflow opens a PR only if a test was added or removed, or if the slowest shard would finish at least 30 seconds sooner. The PR description lists every change and the estimated slowest shard before and after. Later runs update the same PR, or close it if the change is no longer justified.
+The workflow opens a PR only if a test was added or removed, or if the slowest shard would finish at least 30 seconds sooner. The PR description lists every change and the estimated slowest shard before and after. Later runs add a commit to the same PR, or close it if the change is no longer justified.
 
 > [!NOTE]
-> The workflow force-pushes the PR branch on every run that changes the weights, so do not push commits to it.
+> Each run overwrites `test/e2e/shard-weights.txt` on the PR branch, so do not edit that file in the PR.
 
 ## Test Isolation
 

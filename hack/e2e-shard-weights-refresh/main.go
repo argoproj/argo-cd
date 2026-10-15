@@ -28,7 +28,7 @@ const (
 	minGainSeconds   = 30.0
 )
 
-var testName = regexp.MustCompile(`^Test[A-Za-z0-9_]*$`)
+var testName = regexp.MustCompile(`^Test([A-Z0-9_][A-Za-z0-9_]*)?$`)
 
 type weights struct {
 	header []string
@@ -225,9 +225,9 @@ func median(runs []map[string]float64) map[string]float64 {
 		slices.Sort(s)
 		mid := len(s) / 2
 		if len(s)%2 == 1 {
-			medians[name] = s[mid]
+			medians[name] = round3(s[mid])
 		} else {
-			medians[name] = (s[mid-1] + s[mid]) / 2
+			medians[name] = round3((s[mid-1] + s[mid]) / 2)
 		}
 	}
 	return medians
@@ -263,6 +263,11 @@ func compute(current map[string]float64, tests map[string]bool, medians map[stri
 	return next, r
 }
 
+func round3(v float64) float64 {
+	r, _ := strconv.ParseFloat(strconv.FormatFloat(v, 'f', 3, 64), 64)
+	return r
+}
+
 func significant(old, m float64) bool {
 	d := math.Abs(m - old)
 	return d >= minChangeSeconds && d >= minChangeRatio*old
@@ -290,7 +295,7 @@ func pack(w map[string]float64, tests map[string]bool, shards int) [][]assignmen
 		if !ok {
 			v = mean
 		}
-		items = append(items, assignment{name: name, weight: math.Round(v*1000) / 1000})
+		items = append(items, assignment{name: name, weight: round3(v)})
 	}
 	slices.SortFunc(items, func(a, b assignment) int {
 		return cmp.Or(cmp.Compare(b.weight, a.weight), strings.Compare(a.name, b.name))
@@ -363,6 +368,6 @@ func (r refresh) report(repo string) string {
 		return fmt.Sprintf("| %s | %.3f | %.3f |", c.name, c.old, c.new)
 	})
 
-	b.WriteString("\nThis PR is opened by the `e2e-shard-weights` workflow. Push no commits to it: the next run replaces them.\n")
+	b.WriteString("\nThis PR is opened by the `Refresh e2e shard weights` workflow. Its next run overwrites `test/e2e/shard-weights.txt` on this branch, so edit that file elsewhere.\n")
 	return b.String()
 }
