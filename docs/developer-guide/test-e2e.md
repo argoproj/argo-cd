@@ -50,6 +50,21 @@ The Makefile's `start-e2e` target starts instances of ArgoCD on your local machi
 
 If you have changed the port for `argocd-server`, be sure to also set `ARGOCD_SERVER` environment variable to point to that port, e.g. `export ARGOCD_SERVER=localhost:8888` before running `make test-e2e` so that the test will communicate to the correct server component.
 
+## Shard Weights
+
+CI splits the e2e suite into shards by the per-test durations in `test/e2e/shard-weights.txt`. The `Refresh e2e shard weights` workflow keeps that file up to date. It runs every Monday, and maintainers can also start it by hand from the Actions tab.
+
+The workflow reads the test timings of the 10 most recent successful master builds from the last 7 days and takes the median duration of each test. It needs at least 3 builds and does nothing otherwise. It then builds a new weights file:
+
+- A test that is missing from the file is added with its median.
+- A test that no longer exists in `test/e2e` is removed.
+- A test gets its median only if the median differs from its current duration by at least 2 seconds and at least 20%. Every other test keeps its current duration.
+
+The workflow opens a PR only if a test was added or removed, or if the slowest shard would finish at least 30 seconds sooner. The PR description lists every change and the estimated slowest shard before and after. Later runs update the same PR, or close it if the change is no longer justified.
+
+> [!NOTE]
+> The workflow force-pushes the PR branch on every run that changes the weights, so do not push commits to it.
+
 ## Test Isolation
 
 Some effort has been made to balance test isolation with speed. Tests are isolated as follows as each test gets:
