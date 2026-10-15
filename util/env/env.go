@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	timeutil "github.com/argoproj/pkg/v2/time"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -125,8 +127,13 @@ func ParseDurationFromEnv(env string, defaultValue, minimum, maximum time.Durati
 	}
 	dur, err := time.ParseDuration(str)
 	if err != nil {
-		log.Warnf("Could not parse '%s' as a duration string from environment %s", str, env)
-		return defaultValue
+		// provides backwards compatibility for durations defined in days, see: https://github.com/argoproj/argo-cd/issues/24740
+		durPtr, err2 := timeutil.ParseDuration(str)
+		if err2 != nil {
+			log.Warnf("Could not parse '%s' as a duration from environment %s", str, env)
+			return defaultValue
+		}
+		dur = *durPtr
 	}
 
 	if dur < minimum {
@@ -157,7 +164,7 @@ func StringFromEnv(env string, defaultValue string, opts ...StringFromEnvOpts) s
 }
 
 // StringsFromEnv parses given value from the environment as a list of strings,
-// using separator as the delimeter, and returns them as a slice. The strings
+// using separator as the delimiter, and returns them as a slice. The strings
 // in the returned slice will have leading and trailing white space removed.
 func StringsFromEnv(env string, defaultValue []string, separator string) []string {
 	if str := os.Getenv(env); str != "" {
@@ -195,7 +202,7 @@ func ParseStringToStringFromEnv(envVar string, defaultValue map[string]string, s
 	}
 
 	parsed := make(map[string]string)
-	for _, pair := range strings.Split(str, separator) {
+	for pair := range strings.SplitSeq(str, separator) {
 		keyvalue := strings.Split(pair, "=")
 		if len(keyvalue) != 2 {
 			log.Warnf("Invalid key-value pair when parsing environment '%s' as a string map", str)

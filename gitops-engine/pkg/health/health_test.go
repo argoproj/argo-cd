@@ -1,0 +1,372 @@
+/*
+Package provides functionality that allows assessing the health state of a Kubernetes resource.
+*/
+
+package health
+
+import (
+	"os"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/yaml"
+)
+
+func assertAppHealth(t *testing.T, yamlPath string, expectedStatus HealthStatusCode) {
+	t.Helper()
+	health := getHealthStatus(t, yamlPath)
+	assert.NotNil(t, health)
+	assert.Equal(t, expectedStatus, health.Status)
+}
+
+func getHealthStatus(t *testing.T, yamlPath string) *HealthStatus {
+	t.Helper()
+	yamlBytes, err := os.ReadFile(yamlPath)
+	require.NoError(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	require.NoError(t, err)
+	health, err := GetResourceHealth(&obj, nil)
+	require.NoError(t, err)
+	return health
+}
+
+func TestDeploymentHealth(t *testing.T) {
+	assertAppHealth(t, "../utils/kube/testdata/nginx.yaml", HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/deployment-progressing.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/deployment-suspended.yaml", HealthStatusSuspended)
+	assertAppHealth(t, "./testdata/deployment-degraded.yaml", HealthStatusDegraded)
+}
+
+func TestStatefulSetHealth(t *testing.T) {
+	assertAppHealth(t, "./testdata/statefulset.yaml", HealthStatusHealthy)
+}
+
+func TestStatefulSetOnDeleteHealth(t *testing.T) {
+	assertAppHealth(t, "./testdata/statefulset-ondelete.yaml", HealthStatusHealthy)
+}
+
+func TestDaemonSetOnDeleteHealth(t *testing.T) {
+	assertAppHealth(t, "./testdata/daemonset-ondelete.yaml", HealthStatusHealthy)
+}
+
+func TestPVCHealth(t *testing.T) {
+	assertAppHealth(t, "./testdata/pvc-bound.yaml", HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/pvc-pending.yaml", HealthStatusProgressing)
+}
+
+func TestServiceHealth(t *testing.T) {
+	assertAppHealth(t, "./testdata/svc-clusterip.yaml", HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/svc-loadbalancer.yaml", HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/svc-loadbalancer-unassigned.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/svc-loadbalancer-nonemptylist.yaml", HealthStatusHealthy)
+}
+
+func TestIngressHealth(t *testing.T) {
+	assertAppHealth(t, "./testdata/ingress.yaml", HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/ingress-unassigned.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/ingress-nonemptylist.yaml", HealthStatusHealthy)
+}
+
+func TestCRD(t *testing.T) {
+	assert.Nil(t, getHealthStatus(t, "./testdata/knative-service.yaml"))
+}
+
+func TestJob(t *testing.T) {
+	assertAppHealth(t, "./testdata/job-running.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/job-failed.yaml", HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/job-succeeded.yaml", HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/job-suspended.yaml", HealthStatusSuspended)
+	// A suspended Job should surface its Suspended condition message, not an empty string.
+	assert.Equal(t, "Job suspended", getHealthStatus(t, "./testdata/job-suspended.yaml").Message)
+}
+
+func TestHPA(t *testing.T) {
+	assertAppHealth(t, "./testdata/hpa-v2-healthy.yaml", HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/hpa-v2-degraded.yaml", HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/hpa-v2-progressing.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/hpa-v1-degraded.yaml", HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/hpa-v1-degraded-failedgetobjectmetric.yaml", HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/hpa-v1-healthy.yaml", HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/hpa-v1-healthy-toofew.yaml", HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/hpa-v1-progressing.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/hpa-v1-progressing-with-no-annotations.yaml", HealthStatusProgressing)
+}
+
+func TestPod(t *testing.T) {
+	assertAppHealth(t, "./testdata/pod-pending.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/pod-running-not-ready.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/pod-crashloop.yaml", HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/pod-imagepullbackoff.yaml", HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/pod-error.yaml", HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/pod-running-restart-always.yaml", HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/pod-running-restart-never.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/pod-running-restart-never-with-ignore-annotation.yaml", HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/pod-running-restart-never-hook-with-ignore-annotation.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/pod-running-restart-never-with-ignore-annotation-backoff.yaml", HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/pod-running-restart-onfailure.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/pod-failed.yaml", HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/pod-succeeded.yaml", HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/pod-deletion.yaml", HealthStatusProgressing)
+}
+
+func TestApplication(t *testing.T) {
+	assert.Nil(t, getHealthStatus(t, "./testdata/application-healthy.yaml"))
+	assert.Nil(t, getHealthStatus(t, "./testdata/application-degraded.yaml"))
+}
+
+func TestAPIService(t *testing.T) {
+	assertAppHealth(t, "./testdata/apiservice-v1-true.yaml", HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/apiservice-v1-false.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/apiservice-v1beta1-true.yaml", HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/apiservice-v1beta1-false.yaml", HealthStatusProgressing)
+}
+
+func TestGetArgoWorkflowHealth(t *testing.T) {
+	sampleWorkflow := unstructured.Unstructured{
+		Object: map[string]any{
+			"spec": map[string]any{
+				"entrypoint":    "sampleEntryPoint",
+				"extraneousKey": "we are agnostic to extraneous keys",
+			},
+			"status": map[string]any{
+				"phase":   "Running",
+				"message": "This node is running",
+			},
+		},
+	}
+
+	health, err := getArgoWorkflowHealth(&sampleWorkflow)
+	require.NoError(t, err)
+	assert.Equal(t, HealthStatusProgressing, health.Status)
+	assert.Equal(t, "This node is running", health.Message)
+
+	sampleWorkflow = unstructured.Unstructured{
+		Object: map[string]any{
+			"spec": map[string]any{
+				"entrypoint":    "sampleEntryPoint",
+				"extraneousKey": "we are agnostic to extraneous keys",
+			},
+			"status": map[string]any{
+				"phase":   "Succeeded",
+				"message": "This node is has succeeded",
+			},
+		},
+	}
+
+	health, err = getArgoWorkflowHealth(&sampleWorkflow)
+	require.NoError(t, err)
+	assert.Equal(t, HealthStatusHealthy, health.Status)
+	assert.Equal(t, "This node is has succeeded", health.Message)
+
+	sampleWorkflow = unstructured.Unstructured{
+		Object: map[string]any{
+			"spec": map[string]any{
+				"entrypoint":    "sampleEntryPoint",
+				"extraneousKey": "we are agnostic to extraneous keys",
+			},
+		},
+	}
+
+	health, err = getArgoWorkflowHealth(&sampleWorkflow)
+	require.NoError(t, err)
+	assert.Equal(t, HealthStatusProgressing, health.Status)
+	assert.Empty(t, health.Message)
+}
+
+func TestPendingDeletionHealth(t *testing.T) {
+	t.Run("not terminating", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.SetName("pod")
+		assert.Nil(t, pendingDeletionHealth(&obj, nil))
+	})
+
+	t.Run("terminating with finalizers", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.Object = map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Pod",
+			"metadata": map[string]any{
+				"name":              "pod",
+				"namespace":         "ns",
+				"deletionTimestamp": "2024-01-01T00:00:00Z",
+				"finalizers":        []any{"example.com/finalizer"},
+			},
+		}
+		h := pendingDeletionHealth(&obj, nil)
+		require.NotNil(t, h)
+		assert.Equal(t, HealthStatusProgressing, h.Status)
+		assert.Equal(t, "Pending deletion; blocked by finalizers: example.com/finalizer", h.Message)
+	})
+
+	t.Run("uses custom deletionMessage from health check", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.Object = map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Pod",
+			"metadata": map[string]any{
+				"name":              "pod",
+				"namespace":         "ns",
+				"deletionTimestamp": "2024-01-01T00:00:00Z",
+			},
+		}
+		h := pendingDeletionHealth(&obj, &HealthStatus{
+			Status:          HealthStatusHealthy,
+			DeletionMessage: "Commit status is being deleted",
+		})
+		require.NotNil(t, h)
+		assert.Equal(t, HealthStatusHealthy, h.Status)
+		assert.Equal(t, "Commit status is being deleted", h.Message)
+	})
+
+	t.Run("hook finalizer skips pending deletion", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.Object = map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Pod",
+			"metadata": map[string]any{
+				"name":              "pod",
+				"namespace":         "ns",
+				"deletionTimestamp": "2024-01-01T00:00:00Z",
+				"finalizers":        []any{"argocd.argoproj.io/hook-finalizer"},
+			},
+		}
+		assert.Nil(t, pendingDeletionHealth(&obj, nil))
+	})
+}
+
+func TestGetResourceHealthPendingDeletion(t *testing.T) {
+	terminating := func() *unstructured.Unstructured {
+		obj := unstructured.Unstructured{}
+		obj.Object = map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Pod",
+			"metadata": map[string]any{
+				"name":              "pod",
+				"namespace":         "ns",
+				"deletionTimestamp": "2024-01-01T00:00:00Z",
+			},
+		}
+		return &obj
+	}
+
+	t.Run("built-in check applies overlay for terminating ingress", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.Object = map[string]any{
+			"apiVersion": "networking.k8s.io/v1",
+			"kind":       "Ingress",
+			"metadata": map[string]any{
+				"name":              "ing",
+				"namespace":         "ns",
+				"deletionTimestamp": "2024-01-01T00:00:00Z",
+			},
+			"status": map[string]any{
+				"loadBalancer": map[string]any{
+					"ingress": []any{map[string]any{"hostname": "x.example.com"}},
+				},
+			},
+		}
+		h, err := GetResourceHealth(&obj, nil)
+		require.NoError(t, err)
+		require.NotNil(t, h)
+		assert.Equal(t, HealthStatusProgressing, h.Status)
+		assert.Equal(t, "Pending deletion", h.Message)
+	})
+
+	t.Run("built-in check passes through when not terminating", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.Object = map[string]any{
+			"apiVersion": "networking.k8s.io/v1",
+			"kind":       "Ingress",
+			"metadata": map[string]any{
+				"name":      "ing",
+				"namespace": "ns",
+			},
+			"status": map[string]any{
+				"loadBalancer": map[string]any{
+					"ingress": []any{map[string]any{"hostname": "x.example.com"}},
+				},
+			},
+		}
+		h, err := GetResourceHealth(&obj, nil)
+		require.NoError(t, err)
+		require.NotNil(t, h)
+		assert.Equal(t, HealthStatusHealthy, h.Status)
+	})
+
+	t.Run("health override uses default pending deletion when terminating without deletionMessage", func(t *testing.T) {
+		h, err := GetResourceHealth(terminating(), staticHealthOverride{
+			health: &HealthStatus{Status: HealthStatusProgressing, Message: "Initializing"},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, h)
+		assert.Equal(t, HealthStatusProgressing, h.Status)
+		assert.Equal(t, "Pending deletion", h.Message)
+	})
+
+	t.Run("health override uses custom deletionMessage", func(t *testing.T) {
+		h, err := GetResourceHealth(terminating(), staticHealthOverride{
+			health: &HealthStatus{
+				Status:          HealthStatusHealthy,
+				Message:         "All good",
+				DeletionMessage: "Commit status is being deleted",
+			},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, h)
+		assert.Equal(t, HealthStatusHealthy, h.Status)
+		assert.Equal(t, "Commit status is being deleted", h.Message)
+	})
+
+	t.Run("health override passes through when not terminating", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.SetName("pod")
+		input := &HealthStatus{Status: HealthStatusHealthy, Message: "All good", DeletionMessage: "ignored"}
+		h, err := GetResourceHealth(&obj, staticHealthOverride{health: input})
+		require.NoError(t, err)
+		assert.Equal(t, input, h)
+	})
+
+	t.Run("no health check uses default pending deletion", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.Object = map[string]any{
+			"apiVersion": "widgets.example.com/v1",
+			"kind":       "Widget",
+			"metadata": map[string]any{
+				"name":              "widget",
+				"namespace":         "ns",
+				"deletionTimestamp": "2024-01-01T00:00:00Z",
+			},
+		}
+		h, err := GetResourceHealth(&obj, nil)
+		require.NoError(t, err)
+		require.NotNil(t, h)
+		assert.Equal(t, HealthStatusProgressing, h.Status)
+		assert.Equal(t, "Pending deletion", h.Message)
+	})
+
+	t.Run("no health check returns nil when not terminating", func(t *testing.T) {
+		obj := unstructured.Unstructured{}
+		obj.Object = map[string]any{
+			"apiVersion": "widgets.example.com/v1",
+			"kind":       "Widget",
+			"metadata": map[string]any{
+				"name":      "widget",
+				"namespace": "ns",
+			},
+		}
+		h, err := GetResourceHealth(&obj, nil)
+		require.NoError(t, err)
+		assert.Nil(t, h)
+	})
+}
+
+type staticHealthOverride struct {
+	health *HealthStatus
+}
+
+func (o staticHealthOverride) GetResourceHealth(_ *unstructured.Unstructured) (*HealthStatus, error) {
+	return o.health, nil
+}

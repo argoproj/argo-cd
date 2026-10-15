@@ -7,5 +7,6 @@ type HydrationQueueKey struct {
 	// operation because two apps have different URL formats.
 	SourceRepoURL        string
 	SourceTargetRevision string
+	DestinationRepoURL   string
 	DestinationBranch    string
 }

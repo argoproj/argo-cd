@@ -5,7 +5,7 @@ tests:
   inputPath: testdata/no-status.yaml
 - healthStatus:
     status: Progressing
-    message: Argo CD commit status is being deleted
+    deletionMessage: Argo CD commit status is being deleted
   inputPath: testdata/deleting.yaml
 - healthStatus:
     status: Progressing
@@ -15,6 +15,10 @@ tests:
     status: Degraded
     message: "Argo CD commit status reconciliation failed: Something went wrong"
   inputPath: testdata/reconcile-error.yaml
+- healthStatus:
+    status: Degraded
+    message: "Argo CD commit status reconciliation failed: Failed to query Argo CD applications: connection timeout"
+  inputPath: testdata/non-reconciliation-error.yaml
 - healthStatus:
     status: Progressing
     message: Argo CD commit status is not ready yet

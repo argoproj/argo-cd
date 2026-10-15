@@ -18,10 +18,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache/mocks"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -40,24 +40,20 @@ func (n netError) Error() string   { return string(n) }
 func (n netError) Timeout() bool   { return false }
 func (n netError) Temporary() bool { return false }
 
-func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *argosettings.SettingsManager) {
+func fixtures(ctx context.Context, data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *argosettings.SettingsManager) {
 	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: "default",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: "default",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: data,
 	}
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDSecretName,
-			Namespace: "default",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDSecretName,
+		Namespace: "default",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string][]byte{},
 	}
@@ -65,17 +61,17 @@ func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fak
 		opts[i](secret)
 	}
 	kubeClient := fake.NewClientset(cm, secret)
-	settingsManager := argosettings.NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := argosettings.NewSettingsManager(ctx, kubeClient, "default")
 
 	return kubeClient, settingsManager
 }
 
 func TestHandleModEvent_HasChanges(_ *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
-	clusterCache.On("Invalidate", mock.Anything, mock.Anything).Return(nil).Once()
-	clusterCache.On("EnsureSynced").Return(nil).Once()
+	clusterCache.EXPECT().Invalidate(mock.Anything, mock.Anything).Return().Once()
+	clusterCache.EXPECT().EnsureSynced().Return(nil).Once()
 	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+	db.EXPECT().GetApplicationControllerReplicas().Return(1)
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
 			"https://mycluster": clusterCache,
@@ -94,11 +90,12 @@ func TestHandleModEvent_HasChanges(_ *testing.T) {
 }
 
 func TestHandleModEvent_ClusterExcluded(t *testing.T) {
+	t.Parallel()
 	clusterCache := &mocks.ClusterCache{}
-	clusterCache.On("Invalidate", mock.Anything, mock.Anything).Return(nil).Once()
-	clusterCache.On("EnsureSynced").Return(nil).Once()
+	clusterCache.EXPECT().Invalidate(mock.Anything, mock.Anything).Return().Once()
+	clusterCache.EXPECT().EnsureSynced().Return(nil).Once()
 	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
 	clustersCache := liveStateCache{
 		db:          nil,
 		appInformer: nil,
@@ -128,10 +125,10 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 
 func TestHandleModEvent_NoChanges(_ *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
-	clusterCache.On("Invalidate", mock.Anything).Panic("should not invalidate")
-	clusterCache.On("EnsureSynced").Return(nil).Panic("should not re-sync")
+	clusterCache.EXPECT().Invalidate(mock.Anything).Panic("should not invalidate").Maybe()
+	clusterCache.EXPECT().EnsureSynced().Return(nil).Panic("should not re-sync").Maybe()
 	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
 			"https://mycluster": clusterCache,
@@ -149,8 +146,9 @@ func TestHandleModEvent_NoChanges(_ *testing.T) {
 }
 
 func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
+	t.Parallel()
 	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
 	clustersCache := liveStateCache{
 		clusters:        map[string]cache.ClusterCache{},
 		clusterSharding: sharding.NewClusterSharding(db, 0, 2, common.DefaultShardingAlgorithm),
@@ -164,15 +162,15 @@ func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
 }
 
 func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
+	t.Parallel()
 	testCluster := &appv1.Cluster{
 		Server: "https://mycluster",
 		Config: appv1.ClusterConfig{Username: "bar"},
 	}
 	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+	db.EXPECT().GetApplicationControllerReplicas().Return(1)
 	fakeClient := fake.NewClientset()
 	settingsMgr := argosettings.NewSettingsManager(t.Context(), fakeClient, "argocd")
-	liveStateCacheLock := sync.RWMutex{}
 	gitopsEngineClusterCache := &mocks.ClusterCache{}
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
@@ -180,9 +178,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		},
 		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 		settingsMgr:     settingsMgr,
-		// Set the lock here so we can reference it later
-		//nolint:govet // We need to overwrite here to have access to the lock
-		lock: liveStateCacheLock,
+		lock:            sync.RWMutex{},
 	}
 	channel := make(chan string)
 	// Mocked lock held by the gitops-engine cluster cache
@@ -203,7 +199,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	handleDeleteWasCalled.Lock()
 	engineHoldsEngineLock.Lock()
 
-	gitopsEngineClusterCache.On("EnsureSynced").Run(func(_ mock.Arguments) {
+	gitopsEngineClusterCache.EXPECT().EnsureSynced().Run(func() {
 		gitopsEngineClusterCacheLock.Lock()
 		t.Log("EnsureSynced: Engine has engine lock")
 		engineHoldsEngineLock.Unlock()
@@ -217,7 +213,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		ensureSyncedCompleted.Unlock()
 	}).Return(nil).Once()
 
-	gitopsEngineClusterCache.On("Invalidate").Run(func(_ mock.Arguments) {
+	gitopsEngineClusterCache.EXPECT().Invalidate().Run(func(_ ...cache.UpdateSettingsFunc) {
 		// Allow EnsureSynced to continue now that we're in the deadlock condition
 		handleDeleteWasCalled.Unlock()
 		// Wait until gitops engine holds the gitops lock
@@ -230,7 +226,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		t.Log("Invalidate: Invalidate has engine lock")
 		gitopsEngineClusterCacheLock.Unlock()
 		invalidateCompleted.Unlock()
-	}).Return()
+	}).Return().Maybe()
 	go func() {
 		// Start the gitops-engine lock holds
 		go func() {
@@ -258,6 +254,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 }
 
 func TestIsRetryableError(t *testing.T) {
+	t.Parallel()
 	var (
 		tlsHandshakeTimeoutErr net.Error = netError("net/http: TLS handshake timeout")
 		ioTimeoutErr           net.Error = netError("i/o timeout")
@@ -265,42 +262,54 @@ func TestIsRetryableError(t *testing.T) {
 		connectionReset        net.Error = netError("connection reset by peer")
 	)
 	t.Run("Nil", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, isRetryableError(nil))
 	})
 	t.Run("ResourceQuotaConflictErr", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, isRetryableError(apierrors.NewConflict(schema.GroupResource{}, "", nil)))
 		assert.True(t, isRetryableError(apierrors.NewConflict(schema.GroupResource{Group: "v1", Resource: "resourcequotas"}, "", nil)))
 	})
 	t.Run("ExceededQuotaErr", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, isRetryableError(apierrors.NewForbidden(schema.GroupResource{}, "", nil)))
 		assert.True(t, isRetryableError(apierrors.NewForbidden(schema.GroupResource{Group: "v1", Resource: "pods"}, "", errors.New("exceeded quota"))))
 	})
 	t.Run("TooManyRequestsDNS", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isRetryableError(apierrors.NewTooManyRequests("", 0)))
 	})
 	t.Run("DNSError", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isRetryableError(&net.DNSError{}))
 	})
 	t.Run("OpError", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isRetryableError(&net.OpError{}))
 	})
 	t.Run("UnknownNetworkError", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isRetryableError(net.UnknownNetworkError("")))
 	})
 	t.Run("ConnectionClosedErr", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, isRetryableError(&url.Error{Err: errors.New("")}))
 		assert.True(t, isRetryableError(&url.Error{Err: errors.New("Connection closed by foreign host")}))
 	})
 	t.Run("TLSHandshakeTimeout", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isRetryableError(tlsHandshakeTimeoutErr))
 	})
 	t.Run("IOHandshakeTimeout", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isRetryableError(ioTimeoutErr))
 	})
 	t.Run("ConnectionTimeout", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isRetryableError(connectionTimedout))
 	})
 	t.Run("ConnectionReset", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isRetryableError(connectionReset))
 	})
 }
@@ -326,11 +335,9 @@ func Test_asResourceNode_owner_refs(t *testing.T) {
 		CreationTimestamp: nil,
 		Info:              nil,
 		Resource:          nil,
-	})
+	}, nil)
 	expected := appv1.ResourceNode{
-		ResourceRef: appv1.ResourceRef{
-			Version: "v1",
-		},
+		Version: "v1",
 		ParentRefs: []appv1.ResourceRef{
 			{
 				Group:   "",
@@ -566,6 +573,7 @@ func Test_getAppRecursive(t *testing.T) {
 }
 
 func TestSkipResourceUpdate(t *testing.T) {
+	t.Parallel()
 	var (
 		hash1X = "x"
 		hash2Y = "y"
@@ -579,18 +587,23 @@ func TestSkipResourceUpdate(t *testing.T) {
 		},
 	}
 	t.Run("Nil", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, skipResourceUpdate(nil, nil))
 	})
 	t.Run("From Nil", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, skipResourceUpdate(nil, info))
 	})
 	t.Run("To Nil", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, skipResourceUpdate(info, nil))
 	})
 	t.Run("No hash", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, skipResourceUpdate(&ResourceInfo{}, &ResourceInfo{}))
 	})
 	t.Run("Same hash", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 		}, &ResourceInfo{
@@ -598,6 +611,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		}))
 	})
 	t.Run("Same hash value", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 		}, &ResourceInfo{
@@ -605,6 +619,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		}))
 	})
 	t.Run("Different hash value", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 		}, &ResourceInfo{
@@ -612,6 +627,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		}))
 	})
 	t.Run("Same hash, empty health", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 			Health:       &health.HealthStatus{},
@@ -621,6 +637,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		}))
 	})
 	t.Run("Same hash, old health", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 			Health: &health.HealthStatus{
@@ -632,6 +649,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		}))
 	})
 	t.Run("Same hash, new health", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 			Health:       &health.HealthStatus{},
@@ -643,6 +661,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		}))
 	})
 	t.Run("Same hash, same health", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 			Health: &health.HealthStatus{
@@ -658,6 +677,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		}))
 	})
 	t.Run("Same hash, different health status", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 			Health: &health.HealthStatus{
@@ -673,6 +693,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		}))
 	})
 	t.Run("Same hash, different health message", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 			Health: &health.HealthStatus{
@@ -690,6 +711,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 }
 
 func TestShouldHashManifest(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		appName     string
@@ -754,6 +776,7 @@ func TestShouldHashManifest(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			if test.annotations != nil {
 				test.un.SetAnnotations(test.annotations)
 			}
@@ -778,7 +801,8 @@ func Test_GetVersionsInfo_error_redacted(t *testing.T) {
 }
 
 func TestLoadCacheSettings(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
+	t.Parallel()
+	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"application.instanceLabelKey":       "testLabel",
 		"application.resourceTrackingMethod": string(appv1.TrackingMethodLabel),
 		"installationID":                     "123456789",
@@ -804,6 +828,7 @@ func TestLoadCacheSettings(t *testing.T) {
 }
 
 func Test_ownerRefGV(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    metav1.OwnerReference
@@ -840,8 +865,119 @@ func Test_ownerRefGV(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			res := ownerRefGV(tt.input)
 			assert.Equal(t, tt.expected, res)
 		})
 	}
+}
+
+func Test_asResourceNode_cross_namespace_parent(t *testing.T) {
+	// Test that a namespaced resource with a cluster-scoped parent
+	// correctly sets the parent namespace to empty string
+
+	// Create a Role (namespaced) with an owner reference to a ClusterRole (cluster-scoped)
+	roleResource := &cache.Resource{
+		Ref: corev1.ObjectReference{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "Role",
+			Namespace:  "my-namespace",
+			Name:       "my-role",
+		},
+		OwnerRefs: []metav1.OwnerReference{
+			{
+				APIVersion: "rbac.authorization.k8s.io/v1",
+				Kind:       "ClusterRole",
+				Name:       "my-cluster-role",
+				UID:        "cluster-role-uid",
+			},
+		},
+	}
+
+	// Create namespace resources map (ClusterRole won't be in here since it's cluster-scoped)
+	namespaceResources := map[kube.ResourceKey]*cache.Resource{
+		// Add some other namespace resources but not the ClusterRole
+		{
+			Group:     "rbac.authorization.k8s.io",
+			Kind:      "Role",
+			Namespace: "my-namespace",
+			Name:      "other-role",
+		}: {
+			Ref: corev1.ObjectReference{
+				APIVersion: "rbac.authorization.k8s.io/v1",
+				Kind:       "Role",
+				Namespace:  "my-namespace",
+				Name:       "other-role",
+			},
+		},
+	}
+
+	resNode := asResourceNode(roleResource, namespaceResources)
+
+	// The parent reference should have empty namespace since ClusterRole is cluster-scoped
+	assert.Len(t, resNode.ParentRefs, 1)
+	assert.Equal(t, "ClusterRole", resNode.ParentRefs[0].Kind)
+	assert.Equal(t, "my-cluster-role", resNode.ParentRefs[0].Name)
+	assert.Empty(t, resNode.ParentRefs[0].Namespace, "ClusterRole parent should have empty namespace")
+}
+
+func Test_asResourceNode_same_namespace_parent(t *testing.T) {
+	// Test that a namespaced resource with a namespaced parent in the same namespace
+	// correctly sets the parent namespace
+
+	// Create a ReplicaSet with an owner reference to a Deployment (both namespaced)
+	rsResource := &cache.Resource{
+		Ref: corev1.ObjectReference{
+			APIVersion: "apps/v1",
+			Kind:       "ReplicaSet",
+			Namespace:  "my-namespace",
+			Name:       "my-rs",
+		},
+		OwnerRefs: []metav1.OwnerReference{
+			{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Name:       "my-deployment",
+				UID:        "deployment-uid",
+			},
+		},
+	}
+
+	// Create namespace resources map with the Deployment
+	deploymentKey := kube.ResourceKey{
+		Group:     "apps",
+		Kind:      "Deployment",
+		Namespace: "my-namespace",
+		Name:      "my-deployment",
+	}
+	namespaceResources := map[kube.ResourceKey]*cache.Resource{
+		deploymentKey: {
+			Ref: corev1.ObjectReference{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Namespace:  "my-namespace",
+				Name:       "my-deployment",
+				UID:        "deployment-uid",
+			},
+			Resource: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]any{
+						"name":      "my-deployment",
+						"namespace": "my-namespace",
+						"uid":       "deployment-uid",
+					},
+				},
+			},
+		},
+	}
+
+	resNode := asResourceNode(rsResource, namespaceResources)
+
+	// The parent reference should have the same namespace
+	assert.Len(t, resNode.ParentRefs, 1)
+	assert.Equal(t, "Deployment", resNode.ParentRefs[0].Kind)
+	assert.Equal(t, "my-deployment", resNode.ParentRefs[0].Name)
+	assert.Equal(t, "my-namespace", resNode.ParentRefs[0].Namespace, "Deployment parent should have same namespace")
 }

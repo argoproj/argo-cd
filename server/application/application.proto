@@ -7,10 +7,10 @@ option go_package = "github.com/argoproj/argo-cd/v3/pkg/apiclient/application";
 package application;
 
 import "google/api/annotations.proto";
-import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
 import "github.com/argoproj/argo-cd/v3/reposerver/repository/repository.proto";
+import "github.com/argoproj/argo-cd/v3/server/events/events.proto";
 
 
 // ApplicationQuery is a query for application resources. When getting multiple applications, the "projects" field acts
@@ -35,6 +35,8 @@ message ApplicationQuery {
 	optional string appNamespace = 7;
 	// the project names to restrict returned list applications (legacy name for backwards-compatibility)
 	repeated string project = 8;
+	// the application names to restrict returned list applications (used by the UI favorites filter). An entry may be qualified as 'namespace/name' to match only the application in that namespace
+	repeated string names = 9;
 }
 
 message NodeQuery {
@@ -75,6 +77,7 @@ message ApplicationManifestQuery {
 	optional string project = 4;
 	repeated int64 sourcePositions = 5;
 	repeated string revisions = 6;
+	optional bool noCache = 7;
 }
 
 message FileChunk {
@@ -358,7 +361,7 @@ service ApplicationService {
 	}
 
 	// ListResourceEvents returns a list of event resources
-	rpc ListResourceEvents(ApplicationResourceEventsQuery) returns (k8s.io.api.core.v1.EventList) {
+	rpc ListResourceEvents(ApplicationResourceEventsQuery) returns (events.EventList) {
 		option (google.api.http).get = "/api/v1/applications/{name}/events";
 	}
 

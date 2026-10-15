@@ -33,15 +33,15 @@ func Test_deepCopyAppProjectClient_Get(t *testing.T) {
 		{name: "Get an app project", fields: fields{AppProjectInterface: setupAppProjects("appproject")}, args: args{
 			name: "appproject",
 		}, want: &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "appproject", Namespace: "deep-copy-ns"},
+			Name: "appproject", Namespace: "deep-copy-ns",
 		}, wantErr: assert.NoError},
 		{
 			name: "Error getting an app project",
 			fields: fields{
 				AppProjectInterface: func() clientset.AppProjectInterface {
-					appProject := mocks.AppProjectInterface{}
-					appProject.On("Get", t.Context(), "appproject2", metav1.GetOptions{}).Return(nil, errors.New("error"))
-					return &appProject
+					appProject := &mocks.AppProjectInterface{}
+					appProject.EXPECT().Get(t.Context(), "appproject2", metav1.GetOptions{}).Return(nil, errors.New("error"))
+					return appProject
 				}(),
 			},
 			args: args{
@@ -84,9 +84,9 @@ func Test_deepCopyAppProjectClient_List(t *testing.T) {
 		},
 		{name: "Error listing app project", fields: fields{
 			AppProjectInterface: func() clientset.AppProjectInterface {
-				appProject := mocks.AppProjectInterface{}
-				appProject.On("List", t.Context(), metav1.ListOptions{}).Return(nil, errors.New("error"))
-				return &appProject
+				appProject := &mocks.AppProjectInterface{}
+				appProject.EXPECT().List(t.Context(), metav1.ListOptions{}).Return(nil, errors.New("error"))
+				return appProject
 			}(),
 		}, want: nil, wantErr: assert.Error},
 	}
@@ -112,7 +112,7 @@ func Test_deepCopyAppProjectClient_List(t *testing.T) {
 func createAppProject(projects ...string) []v1alpha1.AppProject {
 	appProjects := make([]v1alpha1.AppProject, len(projects))
 	for i, p := range projects {
-		appProjects[i] = v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: p, Namespace: "deep-copy-ns"}}
+		appProjects[i] = v1alpha1.AppProject{Name: p, Namespace: "deep-copy-ns"}
 	}
 	return appProjects
 }

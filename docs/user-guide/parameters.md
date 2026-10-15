@@ -6,11 +6,11 @@ for *some* parts of the  k8s manifests determined dynamically, or outside of Git
 redeploying an application by changing application parameters via Argo CD, instead of making the 
 changes to the manifests in Git.
 
-!!! tip
-    Many consider this mode of operation as an anti-pattern to GitOps, since the source of
-    truth becomes a union of the Git repository, and the application overrides. The Argo CD parameter
-    overrides feature is provided mainly as a convenience to developers and is intended to be used in
-    dev/test environments, vs. production environments.
+> [!TIP]
+> Many consider this mode of operation as an anti-pattern to GitOps, since the source of
+> truth becomes a union of the Git repository, and the application overrides. The Argo CD parameter
+> overrides feature is provided mainly as a convenience to developers and is intended to be used in
+> dev/test environments, vs. production environments.
 
 To use parameter overrides, run the `argocd app set -p (COMPONENT=)PARAM=VALUE` command:
 
@@ -28,6 +28,17 @@ argocd app set guestbook -p ingress.hosts[0]=guestbook.myclusterurl
 
 The `argocd app set` [command](./commands/argocd_app_set.md) supports more tool-specific flags such as `--kustomize-image`, `--jsonnet-ext-var-str`, etc.
 You can also specify overrides directly in the source field on the application spec. Read more about supported options in the corresponding tool [documentation](./application_sources.md).
+
+## Overrides in Multi-Source Applications
+
+For multi-source applications, Argo CD allows you to override parameters for a specific source using the `--source-position` flag.
+Each source in the application spec is indexed starting from `0`.
+
+For example, to override a parameter in the **second source (index 1)** of a multi-source app:
+
+```bash
+argocd app set my-app --source-position 1 -p replicaCount=2
+```
 
 ## When To Use Overrides?
 

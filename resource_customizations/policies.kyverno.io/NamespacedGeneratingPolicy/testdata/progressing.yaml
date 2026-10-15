@@ -1,0 +1,6 @@
+apiVersion: policies.kyverno.io/v1alpha1
+kind: NamespacedGeneratingPolicy
+metadata:
+  name: sample-namespaced-generating-policy
+  namespace: test-namespace
+spec: {}

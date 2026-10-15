@@ -13,6 +13,8 @@ import (
 
 // Add a custom CA certificate to the test and also create the certificate file
 // on the file system, so argocd-server and argocd-repo-server can use it.
+// TODO: Should be moved to the EnsureCleanState since this acts on the controller
+// globally https://github.com/argoproj/argo-cd/issues/24307
 func AddCustomCACert(t *testing.T) {
 	t.Helper()
 	caCertPath, err := filepath.Abs("../fixture/certs/argocd-test-ca.crt")
@@ -21,18 +23,18 @@ func AddCustomCACert(t *testing.T) {
 	// against a local workload (repositories available as localhost) and
 	// against remote workloads (repositories available as argocd-e2e-server)
 	if fixture.IsLocal() {
-		args := []string{"cert", "add-tls", "localhost", "--from", caCertPath}
+		args := []string{"cert", "add-tls", "localhost", "--upsert", "--from", caCertPath}
 		errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
-		args = []string{"cert", "add-tls", "127.0.0.1", "--from", caCertPath}
+		args = []string{"cert", "add-tls", "127.0.0.1", "--upsert", "--from", caCertPath}
 		errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 		certData, err := os.ReadFile(caCertPath)
 		require.NoError(t, err)
-		err = os.WriteFile(fixture.TmpDir+"/app/config/tls/localhost", certData, 0o644)
+		err = os.WriteFile(fixture.TmpDir()+"/app/config/tls/localhost", certData, 0o644)
 		require.NoError(t, err)
-		err = os.WriteFile(fixture.TmpDir+"/app/config/tls/127.0.0.1", certData, 0o644)
+		err = os.WriteFile(fixture.TmpDir()+"/app/config/tls/127.0.0.1", certData, 0o644)
 		require.NoError(t, err)
 	} else {
-		args := []string{"cert", "add-tls", "argocd-e2e-server", "--from", caCertPath}
+		args := []string{"cert", "add-tls", "argocd-e2e-server", "--upsert", "--from", caCertPath}
 		errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 		fixture.RestartAPIServer(t)
 		fixture.RestartRepoServer(t)
@@ -56,7 +58,7 @@ func AddCustomSSHKnownHostsKeys(t *testing.T) {
 	if fixture.IsLocal() {
 		knownHostsData, err := os.ReadFile(knownHostsPath)
 		require.NoError(t, err)
-		err = os.WriteFile(fixture.TmpDir+"/app/config/ssh/ssh_known_hosts", knownHostsData, 0o644)
+		err = os.WriteFile(fixture.TmpDir()+"/app/config/ssh/ssh_known_hosts", knownHostsData, 0o644)
 		require.NoError(t, err)
 	} else {
 		fixture.RestartAPIServer(t)

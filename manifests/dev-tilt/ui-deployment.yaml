@@ -17,7 +17,7 @@ spec:
           env:
             - name: ARGOCD_API_URL
               value: https://argocd-server
-            - name: ARGOCD_E2E_YARN_HOST
+            - name: ARGOCD_E2E_JS_HOST
               value: "0.0.0.0"
           ports:
             - containerPort: 4000

@@ -39,7 +39,7 @@ The triage process could be as follows:
 1. A new bug issue is created by someone on the tracker
 
 1. The first person of the core team to see it will start the triage by classifying
-   the issue (see below). This will indicate the creator that we have noticed the
+   the issue (see below). This will indicate to the creator that we have noticed the
    issue, and that it's not "fire & forget" tracker.
 
 1. Initial classification should be possible even when much of the information is
@@ -62,12 +62,12 @@ applied to all new issues in our tracker.
 
 If it is not yet possible to classify the bug, i.e. because more information is
 required to correctly classify the bug, you should always set the label
-`bug/in-triage` to make it clear that triage process has started but could not
+`triage/pending` to make it clear that triage process has started but could not
 yet be completed.
 
 ### Issue type
 
-If it's clear that a bug issue is not a bug, but a question or reach for support,
+If it's clear that a bug issue is not a bug, but a request for support,
 it should be marked as such:
 
 * Remove any of the labels prefixed `bug/` that might be attached to the issue
@@ -93,7 +93,7 @@ these categories:
 
 * Remove any of the labels prefixed `bug/` that might be attached to the issue
 * Add the label `invalid` to the issue
-* Retain the `bug` label to the issue
+* Retain the `bug` label on the issue
 * Close the issue
 
 When closing the issue, it is important to let requester know why the issue
@@ -117,7 +117,7 @@ in our tracker:
 
 * `bug/severity:minor`: Bug has limited impact and maybe affects only an
   edge-case. Core functionality is not affected, and there is no data loss
-  involved. Something might not work as expected. Example of these kind of
+  involved. Something might not work as expected. Example of these kinds of
   bugs could be a CLI command that is not working as expected, a glitch in
   the UI, wrong documentation, etc.
 
@@ -127,7 +127,7 @@ in our tracker:
   in ArgoCD (and not due to user error), manifests fail to render, etc.
 
 * `bug/severity:critical`: A critical bug in ArgoCD, possibly resulting in
-  data loss, integrity breach or severe degraded overall functionality.
+  data loss, integrity breach or severely degraded overall functionality.
 
 ### Priority
 
@@ -147,27 +147,27 @@ following labels can be used to classify bugs into their priority:
   dedicated patch release.
 
 The priority should be set according to the value of the fix and the attached
-severity. This means. a bug with a severity of `minor` could still be classified
+severity. This means, a bug with a severity of `minor` could still be classified
 with priority `high`, when it is a *low hanging fruit* (i.e. the bug is easy to
 fix with low effort) and contributes to overall user experience of ArgoCD.
 
 Likewise, a bug classified with a severity of `major` could still have a
 priority of `medium`, if there is a workaround available for the bug which
-mitigates the effects of the bug to a bearable extend.
+mitigates the effects of the bug to a bearable extent.
 
 Bugs classified with a severity of `critical` most likely belong to either
 the `urgent` priority, or to the `high` category when there is a workaround
 available.
 
-Bugs that have a `regression`label attached (see Regression above) should
-usually be handled with higher priority, so those kind of issues will most
+Bugs that have a `regression` label attached (see Regression above) should
+usually be handled with higher priority, so those kinds of issues will most
 likely have a priority of `high` or `urgent` attached to it.
 
 ## Summary
 
 Applying a little discipline when working with our issue tracker could greatly
-help us in making informed decision about which bugs to fix when. Also, it
-would help us to get a clear view whether we can do for example a new minor
+help us in making informed decisions about which bugs to fix when. Also, it
+would help us to get a clear view of whether we can, for example, do a new minor
 release without having forgot any outstanding issues that should make it into
 that release.
 

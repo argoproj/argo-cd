@@ -1,12 +1,13 @@
--- Health check copied from here: https://github.com/crossplane/docs/blob/bd701357e9d5eecf529a0b42f23a78850a6d1d87/content/master/guides/crossplane-with-argo-cd.md
+-- Health check for Crossplane resources, adapted from
+-- https://github.com/crossplane/docs/blob/9fe744889fc150ca71e5298d90b4133f79ea20f2/content/master/guides/crossplane-with-argo-cd.md
 
 health_status = {
   status = "Progressing",
   message = "Provisioning ..."
 }
 
-local function contains (table, val)
-  for i, v in ipairs(table) do
+local function contains(list, val)
+  for _, v in ipairs(list) do
     if v == val then
       return true
     end
@@ -14,52 +15,50 @@ local function contains (table, val)
   return false
 end
 
-local has_no_status = {
+-- Kinds that never get status.conditions, so would sit at Progressing forever.
+-- Only consulted when there are none, so a kind that gains them can stay.
+local has_no_conditions = {
+  -- v1 and v2
   "Composition",
-  "CompositionRevision",
+  "CompositionRevision",      -- conditions only on releases that set ValidPipeline
   "DeploymentRuntimeConfig",
-  "ControllerConfig",
+  "EnvironmentConfig",
+  "ImageConfig",
   "ProviderConfig",
-  "ProviderConfigUsage"
+  "ProviderConfigUsage",
+
+  -- v1 only
+  "ControllerConfig",
+  "StoreConfig",
+
+  -- v2 only
+  "ClusterProviderConfig",
+  "ClusterProviderConfigUsage"
 }
-if obj.status == nil or next(obj.status) == nil and contains(has_no_status, obj.kind) then
+
+if obj.status == nil or obj.status.conditions == nil or next(obj.status.conditions) == nil then
+  if contains(has_no_conditions, obj.kind) then
     health_status.status = "Healthy"
-    health_status.message = "Resource is up-to-date."
+    -- status.users affects the message, not the health status.
+    if obj.status ~= nil and obj.status.users ~= nil then
+      health_status.message = "Resource is in use."
+    else
+      health_status.message = "Resource is up-to-date."
+    end
+  end
   return health_status
 end
 
-if obj.status == nil or next(obj.status) == nil or obj.status.conditions == nil then
-  if obj.kind == "ProviderConfig" and obj.status.users ~= nil then
-    health_status.status = "Healthy"
-    health_status.message = "Resource is in use."
+for _, condition in ipairs(obj.status.conditions) do
+  if contains({"LastAsyncOperation", "Synced"}, condition.type) and condition.status == "False" then
+    health_status.status = "Degraded"
+    health_status.message = condition.message
     return health_status
   end
-  return health_status
-end
 
-for i, condition in ipairs(obj.status.conditions) do
-  if condition.type == "LastAsyncOperation" then
-    if condition.status == "False" then
-      health_status.status = "Degraded"
-      health_status.message = condition.message
-      return health_status
-    end
-  end
-
-  if condition.type == "Synced" then
-    if condition.status == "False" then
-      health_status.status = "Degraded"
-      health_status.message = condition.message
-      return health_status
-    end
-  end
-
-  if contains({"Ready", "Healthy", "Offered", "Established"}, condition.type) then
-    if condition.status == "True" then
-      health_status.status = "Healthy"
-      health_status.message = "Resource is up-to-date."
-      return health_status
-    end
+  if contains({"Ready", "Healthy", "Offered", "Established", "ValidPipeline", "RevisionHealthy"}, condition.type) and condition.status == "True" then
+    health_status.status = "Healthy"
+    health_status.message = "Resource is up-to-date."
   end
 end
 

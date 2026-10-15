@@ -2,7 +2,7 @@
 
 ## argocd completion
 
-output shell completion code for the specified shell (bash, zsh or fish)
+Output shell completion code for the specified shell (bash, zsh or fish)
 
 ### Synopsis
 
@@ -40,6 +40,19 @@ $ source _argocd
 $ argocd completion fish > ~/.config/fish/completions/argocd.fish
 $ source ~/.config/fish/completions/argocd.fish
 
+# For powershell
+$ mkdir -Force "$HOME\Documents\PowerShell" | Out-Null
+$ argocd completion powershell > $HOME\Documents\PowerShell\argocd_completion.ps1
+
+Add the following lines to your powershell profile
+
+$ # ArgoCD tab completion
+if (Test-Path "$HOME\Documents\PowerShell\argocd_completion.ps1") {
+    . "$HOME\Documents\PowerShell\argocd_completion.ps1"
+}
+
+Then reload your profile
+$ . $PROFILE
 
 ```
 
@@ -82,5 +95,5 @@ $ source ~/.config/fish/completions/argocd.fish
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
+* [argocd](argocd.md)	 - argocd controls an Argo CD server
 

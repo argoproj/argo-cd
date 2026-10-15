@@ -1,6 +1,7 @@
 import {FormField} from 'argo-ui';
-import React, {useContext, useEffect, useState} from 'react';
-import {Form, Text} from 'react-form';
+import * as React from 'react';
+import {useContext, useEffect, useState} from 'react';
+import {Form, Text} from 'argo-ui';
 import {RouteComponentProps} from 'react-router';
 import {AuthSettings} from '../../shared/models';
 import {services} from '../../shared/services';
@@ -36,26 +37,46 @@ export function Login(props: RouteComponentProps<{}>) {
             setLoginError('');
             setLoginInProgress(true);
             appContext.navigation.goto('.', {sso_error: null});
+
             await services.users.login(username, password);
-            setLoginInProgress(false);
+
+            let redirectPath = '/applications';
+
             if (returnURL) {
-                const url = new URL(returnURL);
-                let redirectURL = url.pathname + url.search;
-                // return url already contains baseHref, so we need to remove it
-                if (appContext.baseHref != '/' && redirectURL.startsWith(appContext.baseHref)) {
-                    redirectURL = redirectURL.substring(appContext.baseHref.length);
+                try {
+                    let url: URL;
+                    if (returnURL.startsWith('http://') || returnURL.startsWith('https://')) {
+                        url = new URL(returnURL);
+                    } else {
+                        url = new URL(returnURL, window.location.origin);
+                    }
+                    redirectPath = url.pathname + url.search;
+                    if (appContext.baseHref != '/' && redirectPath.startsWith(appContext.baseHref)) {
+                        redirectPath = redirectPath.substring(appContext.baseHref.length);
+                    }
+                } catch (e) {
+                    console.error('Failed to parse return URL:', e, 'returnURL:', returnURL);
                 }
-                appContext.navigation.goto(redirectURL);
-            } else {
-                appContext.navigation.goto('/applications');
             }
-        } catch (e) {
-            setLoginError(e.response.body.error);
+
+            appContext.navigation.goto(redirectPath, undefined, {replace: true});
+        } catch (e: any) {
+            const errorMessage = e?.response?.body?.error || e?.response?.data?.error || e?.message || 'Login failed';
+            setLoginError(errorMessage);
+        } finally {
             setLoginInProgress(false);
         }
     };
 
     const ssoConfigured = authSettings && ((authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0) || authSettings.oidcConfig);
+
+    // When dex.auth.connectorId is configured, the backend redirects straight to that connector,
+    // so surface its name on the login button instead of a generic "SSO Login".
+    const forcedConnector =
+        authSettings &&
+        authSettings.dexConfig &&
+        authSettings.dexConfig.dexAuthConnectorID &&
+        (authSettings.dexConfig.connectors || []).find(connector => connector.id === authSettings.dexConfig.dexAuthConnectorID);
 
     return (
         <div className='login'>
@@ -71,8 +92,10 @@ export function Login(props: RouteComponentProps<{}>) {
                     <div className='login__box_saml width-control'>
                         <a href={`auth/login?return_url=${encodeURIComponent(returnUrl)}`}>
                             <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
-                                {(authSettings.oidcConfig && <span>Log in via {authSettings.oidcConfig.name}</span>) ||
-                                    (authSettings.dexConfig.connectors.length === 1 && <span>Log in via {authSettings.dexConfig.connectors[0].name}</span>) || (
+                                {(authSettings.uiLoginButtonText && <span>{authSettings.uiLoginButtonText}</span>) ||
+                                    (authSettings.oidcConfig && <span>Log in via {authSettings.oidcConfig.name}</span>) ||
+                                    (forcedConnector && <span>Log in via {forcedConnector.name}</span>) ||
+                                    ((authSettings.dexConfig.connectors || []).length === 1 && <span>Log in via {authSettings.dexConfig.connectors[0].name}</span>) || (
                                         <span>SSO Login</span>
                                     )}
                             </button>
@@ -88,6 +111,7 @@ export function Login(props: RouteComponentProps<{}>) {
                 {authSettings && !authSettings.userLoginsDisabled && (
                     <Form
                         onSubmit={(params: LoginForm) => login(params.username, params.password, returnUrl)}
+                        onSubmitFailure={() => {}}
                         validateError={(params: LoginForm) => ({
                             username: !params.username && 'Username is required',
                             password: !params.password && 'Password is required'

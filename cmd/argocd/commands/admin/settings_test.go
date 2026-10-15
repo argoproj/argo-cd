@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -13,11 +14,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
+var captureStdoutMutex sync.Mutex
+
 func captureStdout(callback func()) (string, error) {
+	captureStdoutMutex.Lock()
+	defer captureStdoutMutex.Unlock()
+
 	oldStdout := os.Stdout
 	oldStderr := os.Stderr
 	r, w, err := os.Pipe()
@@ -40,23 +45,17 @@ func captureStdout(callback func()) (string, error) {
 	return string(data), err
 }
 
-func newSettingsManager(data map[string]string) *settings.SettingsManager {
-	ctx := context.Background()
-
+func newSettingsManager(ctx context.Context, data map[string]string) *settings.SettingsManager {
 	clientset := fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "default",
-			Name:      common.ArgoCDConfigMapName,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Namespace: "default",
+		Name:      common.ArgoCDConfigMapName,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: data,
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "default",
-			Name:      common.ArgoCDSecretName,
-		},
+		Namespace: "default",
+		Name:      common.ArgoCDSecretName,
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),
@@ -69,8 +68,8 @@ type fakeCmdContext struct {
 	mgr *settings.SettingsManager
 }
 
-func newCmdContext(data map[string]string) *fakeCmdContext {
-	return &fakeCmdContext{mgr: newSettingsManager(data)}
+func newCmdContext(ctx context.Context, data map[string]string) *fakeCmdContext {
+	return &fakeCmdContext{mgr: newSettingsManager(ctx, data)}
 }
 
 func (ctx *fakeCmdContext) createSettingsManager(context.Context) (*settings.SettingsManager, error) {
@@ -182,7 +181,7 @@ admissionregistration.k8s.io/MutatingWebhookConfiguration:
 			if !assert.True(t, ok) {
 				return
 			}
-			summary, err := validator(newSettingsManager(tc.data))
+			summary, err := validator(newSettingsManager(t.Context(), tc.data))
 			if tc.containsSummary != "" {
 				require.NoError(t, err)
 				assert.Contains(t, summary, tc.containsSummary)
@@ -249,7 +248,7 @@ func tempFile(content string) (string, io.Closer, error) {
 }
 
 func TestValidateSettingsCommand_NoErrors(t *testing.T) {
-	cmd := NewValidateSettingsCommand(newCmdContext(map[string]string{}))
+	cmd := NewValidateSettingsCommand(newCmdContext(t.Context(), map[string]string{}))
 	out, err := captureStdout(func() {
 		err := cmd.Execute()
 		require.NoError(t, err)
@@ -267,7 +266,7 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 	defer utilio.Close(closer)
 
 	t.Run("NoOverridesConfigured", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{}))
+		cmd := NewResourceOverridesCommand(newCmdContext(t.Context(), map[string]string{}))
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"ignore-differences", f})
 			err := cmd.Execute()
@@ -278,7 +277,7 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 	})
 
 	t.Run("DataIgnored", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+		cmd := NewResourceOverridesCommand(newCmdContext(t.Context(), map[string]string{
 			"resource.customizations": `apps/Deployment:
   ignoreDifferences: |
     jsonPointers:
@@ -300,7 +299,7 @@ func TestResourceOverrideHealth(t *testing.T) {
 	defer utilio.Close(closer)
 
 	t.Run("NoHealthAssessment", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+		cmd := NewResourceOverridesCommand(newCmdContext(t.Context(), map[string]string{
 			"resource.customizations": `example.com/ExampleResource: {}`,
 		}))
 		out, err := captureStdout(func() {
@@ -313,7 +312,7 @@ func TestResourceOverrideHealth(t *testing.T) {
 	})
 
 	t.Run("HealthAssessmentConfigured", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+		cmd := NewResourceOverridesCommand(newCmdContext(t.Context(), map[string]string{
 			"resource.customizations": `example.com/ExampleResource:
   health.lua: |
     return { status = "Progressing" }
@@ -329,7 +328,7 @@ func TestResourceOverrideHealth(t *testing.T) {
 	})
 
 	t.Run("HealthAssessmentConfiguredWildcard", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+		cmd := NewResourceOverridesCommand(newCmdContext(t.Context(), map[string]string{
 			"resource.customizations": `example.com/*:
   health.lua: |
     return { status = "Progressing" }
@@ -355,7 +354,7 @@ func TestResourceOverrideAction(t *testing.T) {
 	defer utilio.Close(closer)
 
 	t.Run("NoActions", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+		cmd := NewResourceOverridesCommand(newCmdContext(t.Context(), map[string]string{
 			"resource.customizations": `apps/Deployment: {}`,
 		}))
 		out, err := captureStdout(func() {
@@ -368,7 +367,7 @@ func TestResourceOverrideAction(t *testing.T) {
 	})
 
 	t.Run("OldStyleActionConfigured", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+		cmd := NewResourceOverridesCommand(newCmdContext(t.Context(), map[string]string{
 			"resource.customizations": `apps/Deployment:
   actions: |
     discovery.lua: |
@@ -404,7 +403,7 @@ resume   false
 	})
 
 	t.Run("NewStyleActionConfigured", func(t *testing.T) {
-		cmd := NewResourceOverridesCommand(newCmdContext(map[string]string{
+		cmd := NewResourceOverridesCommand(newCmdContext(t.Context(), map[string]string{
 			"resource.customizations": `batch/CronJob:
   actions: |
     discovery.lua: |

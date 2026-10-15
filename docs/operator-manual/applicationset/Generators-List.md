@@ -30,7 +30,7 @@ spec:
         server: '{{.url}}'
         namespace: guestbook
 ```
-(*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/list-generator).*)
+(*The [full example](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/list-generator).*)
 
 In this example, the List generator passes the `url` and `cluster` fields as parameters into the template. If we wanted to add a second environment, we could uncomment the second element and the ApplicationSet controller would automatically target it with the defined application.
 
@@ -52,8 +52,10 @@ spec:
 # (...)
 ```
 
-!!! note "Clusters must be predefined in Argo CD"
-    These clusters *must* already be defined within Argo CD, in order to generate applications for these values. The ApplicationSet controller does not create clusters within Argo CD (for instance, it does not have the credentials to do so).
+> [!NOTE]
+> **Clusters must be predefined in Argo CD**
+>
+> These clusters *must* already be defined within Argo CD, in order to generate applications for these values. The ApplicationSet controller does not create clusters within Argo CD (for instance, it does not have the credentials to do so).
 
 ## Dynamically generated elements
 The List generator can also dynamically generate its elements based on a yaml/json it gets from a previous generator like git by combining the two with a matrix generator. In this example we are using the matrix generator with a git followed by a list generator and pass the content of a file in git as input to the `elementsYaml` field of the list generator:

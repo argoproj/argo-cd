@@ -85,12 +85,11 @@ func TestBlockingDial_ProxyEnvironmentHandling(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			clearProxyEnv(t)
 			applyProxyEnv(t, tt.proxyEnv)
 
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 			defer cancel()
 
 			conn, err := BlockingNewClient(ctx, "tcp", tt.address, nil)
@@ -105,4 +104,12 @@ func TestBlockingDial_ProxyEnvironmentHandling(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBlockingNewClient_CancelledContextAbortsDial(t *testing.T) {
+	clearProxyEnv(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err := BlockingNewClient(ctx, "tcp", "10.255.255.1:443", nil)
+	require.ErrorIs(t, err, context.Canceled)
 }

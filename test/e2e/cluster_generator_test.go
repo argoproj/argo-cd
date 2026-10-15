@@ -17,15 +17,11 @@ func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
 	externalNamespace := string(utils.ArgoCDExternalNamespace)
 
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "cluster1-guestbook",
-			Namespace:  externalNamespace,
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       "Application",
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "cluster1-guestbook",
+		Namespace:  externalNamespace,
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -48,11 +44,7 @@ func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
 		When().
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
-		CreateNamespace(externalNamespace).
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -112,20 +104,16 @@ func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func TestSimpleClusterGenerator(t *testing.T) {
 	expectedApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "cluster1-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "cluster1-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -148,9 +136,6 @@ func TestSimpleClusterGenerator(t *testing.T) {
 		When().
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -206,20 +191,16 @@ func TestSimpleClusterGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 	expectedAppTemplate := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "in-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "in-cluster-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -273,9 +254,6 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 				// Create a ClusterGenerator-based ApplicationSet
 				When().
 				Create(v1alpha1.ApplicationSet{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "in-cluster-generator",
-					},
 					Spec: v1alpha1.ApplicationSetSpec{
 						Template: v1alpha1.ApplicationSetTemplate{
 							ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -321,22 +299,18 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 
 				// Delete the ApplicationSet, and verify it deletes the Applications
 				When().
-				Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
+				Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
 		})
 	}
 }
 
 func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 	expectedAppTemplate := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "{{name}}-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "{{name}}-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -364,9 +338,6 @@ func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 		When().
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -405,20 +376,16 @@ func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1, expectedAppCluster2}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1, expectedAppCluster2}))
 }
 
 func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
 	expectedAppTemplate := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "{{name}}-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "{{name}}-guestbook",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -447,9 +414,6 @@ func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
 		CreateClusterSecret("my-secret2", "cluster2", "https://kubernetes.default.svc").
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -489,20 +453,16 @@ func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1}))
 }
 
 func TestClusterGeneratorWithFlatListMode(t *testing.T) {
 	expectedAppTemplate := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "flat-clusters",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "flat-clusters",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -540,9 +500,6 @@ func TestClusterGeneratorWithFlatListMode(t *testing.T) {
 		When().
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
@@ -593,5 +550,5 @@ func TestClusterGeneratorWithFlatListMode(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster2}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster2}))
 }

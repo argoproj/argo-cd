@@ -1,0 +1,52 @@
+{
+  "apiVersion": "admissionregistration.k8s.io/v1beta1",
+  "kind": "MutatingWebhookConfiguration",
+  "metadata": {
+    "annotations": {
+      "cert-manager.io/inject-apiserver-ca": "true"
+    },
+    "labels": {
+      "app": "webhook",
+      "app.kubernetes.io/instance": "cert-manager",
+      "app.kubernetes.io/managed-by": "Tiller",
+      "app.kubernetes.io/name": "webhook",
+      "helm.sh/chart": "cert-manager-v0.11.0"
+    },
+    "name": "cert-manager-webhook"
+  },
+  "webhooks": [
+    {
+      "clientConfig": {
+        "service": {
+          "name": "kubernetes",
+          "namespace": "default",
+          "path": "/apis/webhook.cert-manager.io/v1beta1/mutations"
+        }
+      },
+      "failurePolicy": "Fail",
+      "name": "webhook.cert-manager.io",
+      "rules": [
+        {
+          "apiGroups": [
+            "cert-manager.io"
+          ],
+          "apiVersions": [
+            "v1alpha2"
+          ],
+          "operations": [
+            "CREATE",
+            "UPDATE"
+          ],
+          "resources": [
+            "certificates",
+            "issuers",
+            "clusterissuers",
+            "orders",
+            "challenges",
+            "certificaterequests"
+          ]
+        }
+      ]
+    }
+  ]
+}

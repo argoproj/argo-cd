@@ -33,6 +33,12 @@ var (
 	//go:embed additional-image-replicas-deployment.yaml
 	AdditionalImageReplicaDeploymentYaml string
 
+	//go:embed live-pdb.yaml
+	LivePDBYaml string
+
+	//go:embed target-pdb.yaml
+	TargetPDBYaml string
+
 	//go:embed simple-app-live.yaml
 	SimpleAppLiveYaml string
 
@@ -44,4 +50,10 @@ var (
 
 	//go:embed live-rollout.yaml
 	LiveRolloutYaml string
+
+	//go:embed live-child-application.yaml
+	LiveChildApplicationYaml string
+
+	//go:embed target-child-application.yaml
+	TargetChildApplicationYaml string
 )

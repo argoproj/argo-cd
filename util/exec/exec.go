@@ -2,8 +2,10 @@ package exec
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -12,7 +14,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/tracing"
 	"github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/util/log"
@@ -34,6 +36,8 @@ type ExecRunOpts struct {
 	SkipErrorLogging bool
 	// CaptureStderr determines whether to capture stderr in addition to stdout
 	CaptureStderr bool
+	// StderrWriter receives stderr without adding it to the returned output
+	StderrWriter io.Writer
 }
 
 func init() {
@@ -62,7 +66,15 @@ func RunWithRedactor(cmd *exec.Cmd, redactor func(text string) string) (string, 
 }
 
 func RunWithExecRunOpts(cmd *exec.Cmd, opts ExecRunOpts) (string, error) {
-	cmdOpts := CmdOpts{Timeout: timeout, FatalTimeout: fatalTimeout, Redactor: opts.Redactor, TimeoutBehavior: opts.TimeoutBehavior, SkipErrorLogging: opts.SkipErrorLogging}
+	cmdOpts := CmdOpts{
+		Timeout:          timeout,
+		FatalTimeout:     fatalTimeout,
+		Redactor:         opts.Redactor,
+		TimeoutBehavior:  opts.TimeoutBehavior,
+		SkipErrorLogging: opts.SkipErrorLogging,
+		CaptureStderr:    opts.CaptureStderr,
+		StderrWriter:     opts.StderrWriter,
+	}
 	span := tracing.NewLoggingTracer(log.NewLogrusLogger(log.NewWithCurrentConfig())).StartSpan(fmt.Sprintf("exec %v", cmd.Args[0]))
 	span.SetBaggageItem("dir", cmd.Dir)
 	if cmdOpts.Redactor != nil {
@@ -145,6 +157,8 @@ type CmdOpts struct {
 	SkipErrorLogging bool
 	// CaptureStderr defines whether to capture stderr in addition to stdout
 	CaptureStderr bool
+	// StderrWriter receives stderr without adding it to the returned output
+	StderrWriter io.Writer
 }
 
 var DefaultCmdOpts = CmdOpts{
@@ -187,6 +201,9 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	if opts.StderrWriter != nil {
+		cmd.Stderr = io.MultiWriter(&stderr, opts.StderrWriter)
+	}
 
 	start := time.Now()
 	err = cmd.Start()
@@ -283,5 +300,5 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 }
 
 func RunCommand(name string, opts CmdOpts, arg ...string) (string, error) {
-	return RunCommandExt(exec.Command(name, arg...), opts)
+	return RunCommandExt(exec.CommandContext(context.Background(), name, arg...), opts)
 }

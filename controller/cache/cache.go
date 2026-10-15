@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"net"
 	"net/url"
@@ -15,9 +16,9 @@ import (
 	"syscall"
 	"time"
 
-	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	clustercache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
@@ -216,6 +217,10 @@ type cacheSettings struct {
 
 	// ignoreResourceUpdates is a flag to enable resource-ignore rules.
 	ignoreResourceUpdatesEnabled bool
+	// manifestCompressionEnabled controls whether resource manifests are stored gzip-compressed in memory.
+	manifestCompressionEnabled bool
+	manifestStorageType        clustercache.ManifestStorageType
+	manifestCompressionType    clustercache.ManifestCompressionType
 }
 
 type liveStateCache struct {
@@ -254,6 +259,18 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	if err != nil {
 		return nil, err
 	}
+	manifestCompressionEnabled, err := c.settingsMgr.GetIsManifestCompressionEnabled()
+	if err != nil {
+		return nil, err
+	}
+	manifestStorage, err := c.settingsMgr.GetManifestStorage()
+	if err != nil {
+		return nil, err
+	}
+	manifestCompression, err := c.settingsMgr.GetManifestCompression()
+	if err != nil {
+		return nil, err
+	}
 	resourcesFilter, err := c.settingsMgr.GetResourcesFilter()
 	if err != nil {
 		return nil, err
@@ -267,10 +284,10 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 		ResourcesFilter:        resourcesFilter,
 	}
 
-	return &cacheSettings{clusterSettings, appInstanceLabelKey, appv1.TrackingMethod(trackingMethod), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
+	return &cacheSettings{clusterSettings, appInstanceLabelKey, appv1.TrackingMethod(trackingMethod), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled, manifestCompressionEnabled, clustercache.ManifestStorageType(manifestStorage), clustercache.ManifestCompressionType(manifestCompression)}, nil
 }
 
-func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
+func asResourceNode(r *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) appv1.ResourceNode {
 	gv, err := schema.ParseGroupVersion(r.Ref.APIVersion)
 	if err != nil {
 		gv = schema.GroupVersion{}
@@ -278,14 +295,30 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 	parentRefs := make([]appv1.ResourceRef, len(r.OwnerRefs))
 	for i, ownerRef := range r.OwnerRefs {
 		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
-		parentRefs[i] = appv1.ResourceRef{
-			Group:     ownerGvk.Group,
-			Kind:      ownerGvk.Kind,
-			Version:   ownerGvk.Version,
-			Namespace: r.Ref.Namespace,
-			Name:      ownerRef.Name,
-			UID:       string(ownerRef.UID),
+		parentRef := appv1.ResourceRef{
+			Group:   ownerGvk.Group,
+			Kind:    ownerGvk.Kind,
+			Version: ownerGvk.Version,
+			Name:    ownerRef.Name,
+			UID:     string(ownerRef.UID),
 		}
+
+		// Look up the parent in namespace resources
+		// If found, it's namespaced and we use its namespace
+		// If not found, it must be cluster-scoped (namespace = "")
+		parentKey := kube.NewResourceKey(ownerGvk.Group, ownerGvk.Kind, r.Ref.Namespace, ownerRef.Name)
+		if parent, ok := namespaceResources[parentKey]; ok {
+			parentRef.Namespace = parent.Ref.Namespace
+		} else {
+			// Not in namespace => must be cluster-scoped
+			parentRef.Namespace = ""
+			// Debug logging for cross-namespace relationships
+			if r.Ref.Namespace != "" {
+				log.Debugf("Cross-namespace ref: %s/%s in namespace %s has parent %s/%s (cluster-scoped)",
+					r.Ref.Kind, r.Ref.Name, r.Ref.Namespace, ownerGvk.Kind, ownerRef.Name)
+			}
+		}
+		parentRefs[i] = parentRef
 	}
 	var resHealth *appv1.HealthStatus
 	resourceInfo := resInfo(r)
@@ -293,14 +326,12 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 		resHealth = &appv1.HealthStatus{Status: resourceInfo.Health.Status, Message: resourceInfo.Health.Message}
 	}
 	return appv1.ResourceNode{
-		ResourceRef: appv1.ResourceRef{
-			UID:       string(r.Ref.UID),
-			Name:      r.Ref.Name,
-			Group:     gv.Group,
-			Version:   gv.Version,
-			Kind:      r.Ref.Kind,
-			Namespace: r.Ref.Namespace,
-		},
+		UID:             string(r.Ref.UID),
+		Name:            r.Ref.Name,
+		Group:           gv.Group,
+		Version:         gv.Version,
+		Kind:            r.Ref.Kind,
+		Namespace:       r.Ref.Namespace,
 		ParentRefs:      parentRefs,
 		Info:            resourceInfo.Info,
 		ResourceVersion: r.ResourceVersion,
@@ -350,9 +381,7 @@ func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clusterc
 		gv := ownerRefGV(ownerRef)
 		if parent, ok := ns[kube.NewResourceKey(gv.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)]; ok {
 			visitedBranch := make(map[kube.ResourceKey]bool, len(visited))
-			for k, v := range visited {
-				visitedBranch[k] = v
-			}
+			maps.Copy(visitedBranch, visited)
 			app, ok := getAppRecursive(parent, ns, visitedBranch)
 			if app != "" || !ok {
 				return app, ok
@@ -444,8 +473,7 @@ func isResourceQuotaConflictErr(err error) bool {
 }
 
 func isTransientNetworkErr(err error) bool {
-	var netErr net.Error
-	if errors.As(err, &netErr) {
+	if _, ok := errors.AsType[net.Error](err); ok {
 		var dnsErr *net.DNSError
 		var opErr *net.OpError
 		var unknownNetworkErr net.UnknownNetworkError
@@ -461,8 +489,7 @@ func isTransientNetworkErr(err error) bool {
 	}
 
 	errorString := err.Error()
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		errorString = fmt.Sprintf("%s %s", errorString, exitErr.Stderr)
 	}
 	if strings.Contains(errorString, "net/http: TLS handshake timeout") ||
@@ -564,13 +591,17 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 
 			// edge case. we do not label CRDs, so they miss the tracking label we inject. But we still
 			// want the full resource to be available in our cache (to diff), so we store all CRDs
-			return res, res.AppName != "" || gvk.Kind == kube.CustomResourceDefinitionKind
+			shouldCacheManifest := res.AppName != "" || gvk.Kind == kube.CustomResourceDefinitionKind
+			return res, shouldCacheManifest
 		}),
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
 		clustercache.SetRespectRBAC(respectRBAC),
 		clustercache.SetBatchEventsProcessing(clusterCacheBatchEventsProcessing),
 		clustercache.SetEventProcessingInterval(clusterCacheEventsProcessingInterval),
+		clustercache.SetManifestCompressionEnabled(cacheSettings.manifestCompressionEnabled),
+		clustercache.SetManifestStorageType(cacheSettings.manifestStorageType),
+		clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
@@ -654,7 +685,12 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 	c.lock.Unlock()
 
 	for _, clust := range clusters {
-		clust.Invalidate(clustercache.SetSettings(cacheSettings.clusterSettings))
+		clust.Invalidate(
+			clustercache.SetSettings(cacheSettings.clusterSettings),
+			clustercache.SetManifestCompressionEnabled(cacheSettings.manifestCompressionEnabled),
+			clustercache.SetManifestStorageType(cacheSettings.manifestStorageType),
+			clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
+		)
 	}
 	log.Info("live state cache invalidated")
 }
@@ -673,7 +709,7 @@ func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.R
 		return err
 	}
 	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
-		return action(asResourceNode(resource), getApp(resource, namespaceResources))
+		return action(asResourceNode(resource, namespaceResources), getApp(resource, namespaceResources))
 	})
 	return nil
 }
@@ -698,9 +734,15 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server *appv1.Cluster, na
 		return nil, err
 	}
 	resources := clusterInfo.FindResources(namespace, clustercache.TopLevelResource)
+
+	// Get all namespace resources for parent lookups
+	namespaceResources := clusterInfo.FindResources(namespace, func(_ *clustercache.Resource) bool {
+		return true
+	})
+
 	res := make(map[kube.ResourceKey]appv1.ResourceNode)
 	for k, r := range resources {
-		res[k] = asResourceNode(r)
+		res[k] = asResourceNode(r, namespaceResources)
 	}
 	return res, nil
 }

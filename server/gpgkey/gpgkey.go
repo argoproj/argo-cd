@@ -9,8 +9,8 @@ import (
 	gpgkeypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/gpg"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 )
 
 // Server provides a service of type GPGKeyService
@@ -27,7 +27,7 @@ func NewServer(db db.ArgoDB, enf *rbac.Enforcer) *Server {
 	}
 }
 
-// ListGnuPGPublicKeys returns a list of GnuPG public keys in the configuration
+// List a list of GnuPG public keys in the configuration
 func (s *Server) List(ctx context.Context, _ *gpgkeypkg.GnuPGPublicKeyQuery) (*appsv1.GnuPGPublicKeyList, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceGPGKeys, rbac.ActionGet, ""); err != nil {
 		return nil, err
@@ -45,15 +45,15 @@ func (s *Server) List(ctx context.Context, _ *gpgkeypkg.GnuPGPublicKeyQuery) (*a
 	return keyList, nil
 }
 
-// GetGnuPGPublicKey retrieves a single GPG public key from the configuration
+// Get retrieves a single GPG public key from the configuration
 func (s *Server) Get(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*appsv1.GnuPGPublicKey, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceGPGKeys, rbac.ActionGet, ""); err != nil {
 		return nil, err
 	}
 
-	keyID := gpg.KeyID(q.KeyID)
-	if keyID == "" {
-		return nil, errors.New("KeyID is malformed or empty")
+	keyID, err := sourceintegrity.KeyID(q.KeyID)
+	if err != nil {
+		return nil, err
 	}
 
 	keys, err := s.db.ListConfiguredGPGPublicKeys(ctx)
@@ -97,7 +97,7 @@ func (s *Server) Create(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyCreateRe
 	return response, nil
 }
 
-// DeleteGnuPGPublicKey removes a single GPG public key from the server's configuration
+// Delete removes a single GPG public key from the server's configuration
 func (s *Server) Delete(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*gpgkeypkg.GnuPGPublicKeyResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceGPGKeys, rbac.ActionDelete, ""); err != nil {
 		return nil, err

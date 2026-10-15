@@ -1,0 +1,168 @@
+import {Tooltip} from 'argo-ui';
+import * as React from 'react';
+import Moment from 'react-moment';
+import {ActionMenu, Cluster} from '../../../shared/components';
+import {AuthSettingsCtx, ContextApis} from '../../../shared/context';
+import * as models from '../../../shared/models';
+import {NoticeIcon} from '../application-notice/notice-icon';
+import {ApplicationURLs} from '../application-urls';
+import * as AppUtils from '../utils';
+import {getAppDefaultSource, OperationState} from '../utils';
+import {ApplicationsLabels} from './applications-labels';
+import {ApplicationsSource} from './applications-source';
+import {CellLink} from '../../../shared/components';
+import {services} from '../../../shared/services';
+import {ViewPreferences} from '../../../shared/services';
+
+export interface ApplicationTableRowProps {
+    app: models.Application;
+    selected: boolean;
+    pref: ViewPreferences;
+    ctx: ContextApis;
+    syncApplication: (appName: string, appNamespace: string) => void;
+    refreshApplication: (appName: string, appNamespace: string) => void;
+    deleteApplication: (appName: string, appNamespace: string) => void;
+}
+
+export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, refreshApplication, deleteApplication}: ApplicationTableRowProps) => {
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
+    const favList = pref.appList.favoritesAppList || [];
+    const isFav = AppUtils.isFavorite(favList, app);
+    const healthStatus = app.status.health.status;
+    const source = getAppDefaultSource(app);
+
+    const view = pref.appDetails.view;
+    const appLink = AppUtils.getAppListLink(ctx, app, view);
+
+    const handleFavoriteToggle = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: AppUtils.toggleFavorite(favList, app)}});
+    };
+
+    return (
+        <div className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
+            <div className={`row applications-list__table-row ${app.status.sourceHydrator?.currentOperation ? 'applications-table-row--with-hydrator' : ''}`}>
+                {/* The overlay anchor is the row's accessible link: a real link in tab order with an
+                    aria-label so screen readers announce the application name once per row. It sits
+                    behind the row's interactive children (lifted via z-index in the SCSS) so the
+                    visible buttons, dropdowns, status icons, etc. still receive their own clicks. */}
+                <a
+                    className='applications-list__table-row__overlay-link'
+                    href={appLink.href}
+                    onClick={appLink.onClick}
+                    aria-label={AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
+                />
+                {/* First column: Favorite, Project, Name, URLs */}
+                <div className='columns small-4'>
+                    <div className='applications-list__meta-column'>
+                        <div className='applications-list__fav-col'>
+                            <Tooltip content={isFav ? 'Remove Favorite' : 'Add Favorite'}>
+                                <button type='button' onClick={handleFavoriteToggle}>
+                                    <i
+                                        className={isFav ? 'fas fa-star' : 'far fa-star'}
+                                        style={{
+                                            cursor: 'pointer',
+                                            color: isFav ? '#FFCE25' : '#8fa4b1'
+                                        }}
+                                    />
+                                </button>
+                            </Tooltip>
+                        </div>
+                        <div className='applications-list__meta-rows'>
+                            <div className='applications-list__meta-row'>
+                                <div className='show-for-xxlarge applications-list__meta-label'>Project:</div>
+                                <div className='applications-list__meta-value'>{app.spec.project}</div>
+                            </div>
+                            <div className='applications-list__meta-row'>
+                                <div className='show-for-xxlarge applications-list__meta-label'>Name:</div>
+                                <div className='applications-list__meta-value applications-list__name-value'>
+                                    {/* Keep the notice before the truncatable name and the link actions after it. */}
+                                    <NoticeIcon annotations={app.metadata.annotations} />
+                                    <Tooltip
+                                        content={
+                                            <>
+                                                {app.metadata.name}
+                                                <br />
+                                                <Moment fromNow={true} ago={true}>
+                                                    {app.metadata.creationTimestamp}
+                                                </Moment>
+                                            </>
+                                        }>
+                                        <a className='applications-list__table-row-name' href={appLink.href} onClick={appLink.onClick} tabIndex={-1}>
+                                            {app.metadata.name}
+                                        </a>
+                                    </Tooltip>
+                                    <ApplicationURLs urls={app.status.summary?.externalURLs} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Second column: Source and Destination — wrapped in CellLink so each cell
+                    behaves as a real link (middle-click / right-click / status-bar URL preview).
+                    Keyboard users tab to the overlay anchor instead (CellLink uses tabIndex=-1). */}
+                <div className='columns small-6'>
+                    <div className='applications-list__meta-rows'>
+                        <div className='applications-list__meta-row'>
+                            <div className='show-for-xxlarge applications-list__meta-label'>Source:</div>
+                            <div className='applications-list__meta-value applications-table-source'>
+                                <CellLink href={appLink.href} onClick={appLink.onClick} className='applications-table-source__link'>
+                                    <ApplicationsSource source={source} />
+                                </CellLink>
+                                <CellLink href={appLink.href} onClick={appLink.onClick} className='applications-table-source__labels'>
+                                    <ApplicationsLabels app={app} />
+                                </CellLink>
+                            </div>
+                        </div>
+                        <div className='applications-list__meta-row'>
+                            <div className='show-for-xxlarge applications-list__meta-label'>Destination:</div>
+                            <div className='applications-list__meta-value'>
+                                <CellLink href={appLink.href} onClick={appLink.onClick}>
+                                    <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />/{app.spec.destination.namespace}
+                                </CellLink>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Third column: Status and Actions */}
+                <div className='columns small-2'>
+                    {/* Status text/icons wrapped in CellLink so clicking the cell navigates (the icons
+                        carry a `title` and would otherwise sit above the overlay as click dead-zones).
+                        The `…` ActionMenu below stays OUTSIDE — a <button> nested in an <a> is invalid. */}
+                    <CellLink href={appLink.href} onClick={appLink.onClick}>
+                        <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
+                        {app.status.sourceHydrator?.currentOperation && (
+                            <>
+                                <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
+                                <span>{app.status.sourceHydrator.currentOperation.phase}</span> <br />
+                            </>
+                        )}
+                        <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
+                        <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
+                    </CellLink>
+                    <ActionMenu
+                        items={[
+                            {
+                                title: 'Sync',
+                                iconClassName: 'fa fa-fw fa-sync',
+                                action: () => syncApplication(app.metadata.name, app.metadata.namespace)
+                            },
+                            {
+                                title: 'Refresh',
+                                iconClassName: 'fa fa-fw fa-redo',
+                                action: () => refreshApplication(app.metadata.name, app.metadata.namespace)
+                            },
+                            {
+                                title: 'Delete',
+                                iconClassName: 'fa fa-fw fa-times-circle',
+                                action: () => deleteApplication(app.metadata.name, app.metadata.namespace)
+                            }
+                        ]}
+                    />
+                </div>
+            </div>
+        </div>
+    );
+};

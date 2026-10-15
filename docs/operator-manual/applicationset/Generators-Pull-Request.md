@@ -19,11 +19,11 @@ spec:
         # ...
 ```
 
-!!! note
-    Know the security implications of PR generators in ApplicationSets.
-    [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets) to avoid
-    leaking Secrets, and [only admins may create PRs](./Security.md#templated-project-field) if the `project` field of
-    an ApplicationSet with a PR generator is templated, to avoid granting management of out-of-bounds resources.
+> [!NOTE]
+> Know the security implications of PR generators in ApplicationSets.
+> [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets) to avoid
+> leaking Secrets, and [only admins may create PRs](./Security.md#templated-project-field) if the `project` field of
+> an ApplicationSet with a PR generator is templated, to avoid granting management of out-of-bounds resources.
 
 ## GitHub
 
@@ -217,7 +217,7 @@ If you want to access a private repository, you must also provide the credential
 In case of Bitbucket App Token, go with `bearerToken` section.
 * `tokenRef`: A `Secret` name and key containing the app token to use for requests.
 
-In case self-signed BitBucket Server certificates, the following options can be usefully:
+In case of self-signed BitBucket Server certificates, the following options can be useful:
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 * `caRef`: Optional `ConfigMap` name and key containing the BitBucket server certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
@@ -282,7 +282,8 @@ You can use branch `filters` like
 - `branchMatch`: Optional regexp filter which should match the source branch name.
 - `targetBranchMatch`: Optional regexp filter which should match destination branch name.
 
-> Note: Labels are not supported by Bitbucket.
+> [!NOTE]
+> Labels are not supported by Bitbucket.
 
 If you want to access a private repository, Argo CD will need credentials to access repository in Bitbucket Cloud. You can use Bitbucket App Password (generated per user, with access to whole workspace), or Bitbucket App Token (generated per repository, with access limited to repository scope only). If both App Password and App Token are defined, App Token will be used.
 
@@ -452,8 +453,8 @@ When using a Pull Request generator, the ApplicationSet controller polls every `
 
 The configuration is almost the same as the one described [in the Git generator](Generators-Git.md), but there is one difference: if you want to use the Pull Request Generator as well, additionally configure the following settings.
 
-!!! note
-    The ApplicationSet controller webhook does not use the same webhook as the API server as defined [here](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
+> [!NOTE]
+> The ApplicationSet controller webhook does not use the same [API server webhook](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
 
 ### Github webhook configuration
 
@@ -528,7 +529,7 @@ spec:
         namespace: default
 ```
 
-!!! note
-    The `values.` prefix is always prepended to values provided via `generators.pullRequest.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
+> [!NOTE]
+> The `values.` prefix is always prepended to values provided via `generators.pullRequest.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
 
 In `values` we can also interpolate all fields set by the Pull Request generator as mentioned above.

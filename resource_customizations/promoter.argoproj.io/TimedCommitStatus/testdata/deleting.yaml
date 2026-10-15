@@ -1,0 +1,12 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: TimedCommitStatus
+metadata:
+  name: soak-gate
+  namespace: gitops-promoter
+  deletionTimestamp: "2025-07-04T12:00:00Z"
+spec:
+  promotionStrategyRef:
+    name: demo
+  environments:
+    - branch: env/dev
+      duration: 10m

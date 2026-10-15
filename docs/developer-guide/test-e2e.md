@@ -3,27 +3,33 @@
 The test [directory](https://github.com/argoproj/argo-cd/tree/master/test) contains E2E tests and test applications. The tests assume that Argo CD services are installed into `argocd-e2e` namespace or cluster in current context. A throw-away
 namespace `argocd-e2e***` is created prior to the execution of the tests. The throw-away namespace is used as a target namespace for test applications.
 
-The [/test/e2e/testdata](https://github.com/argoproj/argo-cd/tree/master/test/e2e/testdata) directory contains various Argo CD applications. Before test execution, the directory is copied into `/tmp/argo-e2e***` temp directory and used in tests as a
+The [/test/e2e/testdata](https://github.com/argoproj/argo-cd/tree/master/test/e2e/testdata) directory contains various Argo CD applications. Before test execution, the directory is copied into `/tmp/argo-e2e***` temp directory (configurable by `ARGOCD_E2E_DIR`) and used in tests as a
 Git repository via file url: `file:///tmp/argo-e2e***`.
 
-!!! note "Rancher Desktop Volume Sharing"
-    The e2e git server runs in a container. If you are using Rancher Desktop, you will need to enable volume sharing for
-    the e2e container to access the testdata directory. To do this, add the following to 
-    `~/Library/Application\ Support/rancher-desktop/lima/_config/override.yaml` and restart Rancher Desktop:
-
-    ```yaml
-    mounts:
-    - location: /private/tmp
-      writable: true
-    ```
+> [!NOTE]
+> You might get an error such as `unable to ls-remote HEAD on repository: failed to list refs: repository not found` when querying the local repository exposed through the e2e server running in a container.
+> This is often caused by `/tmp` directoring sharing protection. You can configure a different directory with `ARGOCD_E2E_DIR`, or disable the directory sharing protection.
+>
+> **Rancher Desktop Volume Sharing**
+>
+> To do enable `/tmp` sharing, add the following to
+> `~/Library/Application\ Support/rancher-desktop/lima/_config/override.yaml` and restart Rancher Desktop:
+>
+> ```yaml
+> mounts:
+>   - location: /private/tmp
+>     writable: true
+> ```
 
 ## Running Tests Locally
 
 ### With virtualized chain
+
 1. Start the e2e version `make start-e2e`
 2. Run the tests: `make test-e2e`
 
 ### With local chain
+
 1. Start the e2e version `make start-e2e-local`
 2. Run the tests: `make test-e2e-local`
 
@@ -35,23 +41,58 @@ You can observe the tests by using the UI [http://localhost:4000/applications](h
 
 The Makefile's `start-e2e` target starts instances of ArgoCD on your local machine, of which the most will require a network listener. If, for any reason, your machine already has network services listening on the same ports, then the e2e tests will not run. You can derive from the defaults by setting the following environment variables before you run `make start-e2e`:
 
-* `ARGOCD_E2E_APISERVER_PORT`: Listener port for `argocd-server` (default: `8080`)
-* `ARGOCD_E2E_REPOSERVER_PORT`: Listener port for `argocd-reposerver` (default: `8081`)
-* `ARGOCD_E2E_DEX_PORT`: Listener port for `dex` (default: `5556`)
-* `ARGOCD_E2E_REDIS_PORT`: Listener port for `redis` (default: `6379`)
-* `ARGOCD_E2E_YARN_CMD`: Command to use for starting the UI via Yarn (default: `yarn`)
+- `ARGOCD_E2E_APISERVER_PORT`: Listener port for `argocd-server` (default: `8080`)
+- `ARGOCD_E2E_REPOSERVER_PORT`: Listener port for `argocd-reposerver` (default: `8081`)
+- `ARGOCD_E2E_DEX_PORT`: Listener port for `dex` (default: `5556`)
+- `ARGOCD_E2E_REDIS_PORT`: Listener port for `redis` (default: `6379`)
+- `ARGOCD_E2E_PNPM_CMD`: Command to use for starting the UI via pnpm (default: `pnpm`)
+- `ARGOCD_E2E_DIR`: Local path to the repository to use for ephemeral test data
 
 If you have changed the port for `argocd-server`, be sure to also set `ARGOCD_SERVER` environment variable to point to that port, e.g. `export ARGOCD_SERVER=localhost:8888` before running `make test-e2e` so that the test will communicate to the correct server component.
 
+## Running a Shard of the Suite
+
+CI splits the e2e suite into shards and runs each shard as its own job. You can run a single shard locally with `make test-e2e` or `make test-e2e-local` by setting both of these environment variables:
+
+- `ARGOCD_E2E_SHARD`: The shard to run, starting at `1`
+- `ARGOCD_E2E_SHARD_COUNT`: The total number of shards
+
+When either variable is unset, the whole suite runs. For example, to run the first of four shards:
+
+```bash
+ARGOCD_E2E_SHARD=1 ARGOCD_E2E_SHARD_COUNT=4 make test-e2e-local
+```
+
+`hack/e2e-shard.sh` assigns tests to shards by their measured duration, which it reads from `test/e2e/shard-weights.txt`. Tests missing from that file get the mean duration. When every e2e job of a CI run passes, `hack/e2e-check-shard-coverage.sh` checks that each test in `test/e2e` ran in one of the shards of the latest Kubernetes version. If a test did not run, the required `E2E Tests - Composite result` check fails. To read durations from a different file when you run `make test-e2e-local`, set `ARGOCD_E2E_SHARD_WEIGHTS` to its path.
+
+> [!NOTE]
+> The e2e environment must be running before you run a shard, because listing the tests starts the test binary, and the test binary connects to the API server when it starts.
+
+### Refreshing the Shard Weights
+
+The shards become unbalanced when tests are added or their durations change. Each CI shard of the latest Kubernetes version uploads its test timings as an `e2e-test-timings-shard<N>` artifact. To regenerate the weights from a green CI run:
+
+```bash
+gh run download <run-id> -p 'e2e-test-timings-shard*'
+./hack/e2e-shard-weights.sh e2e-test-timings-shard*/junit.xml > test/e2e/shard-weights.txt
+```
 
 ## Test Isolation
 
 Some effort has been made to balance test isolation with speed. Tests are isolated as follows as each test gets:
 
-* A random 5 character ID.
-* A unique Git repository containing the `testdata` in `/tmp/argo-e2e/${id}`.
-* A namespace `argocd-e2e-ns-${id}`.
-* A primary name for the app `argocd-e2e-${id}`.
+- A random 5 character ID.
+- A unique Git repository containing the `testdata` in `/tmp/argo-e2e/${id}`.
+- A namespace `argocd-e2e-ns-${id}`.
+- A primary name for the app `argocd-e2e-${id}`.
+
+## Run only a subset of tests
+
+Running all tests locally is a time-consuming process. To run only a subset of tests, you can set the `TEST_MODULE` environment variable.
+For example, to run only the OCI tests, you can set the variable as follows: `make TEST_MODULE=./test/e2e/oci_test.go test-e2e-local`
+
+If you want to get a more fine-grained control over which tests to run, you can also try `make TEST_FLAGS="-run <TEST_METHOD_NAME_REGEXP>" test-e2e-local`
+For individual tests you can run them using the IDE run test feature
 
 ## Troubleshooting
 

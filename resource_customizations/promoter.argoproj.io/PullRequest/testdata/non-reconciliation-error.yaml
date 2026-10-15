@@ -1,0 +1,22 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: PullRequest
+metadata:
+  name: test-pr
+  namespace: test
+  generation: 1
+spec:
+  sourceBranch: app-next
+  targetBranch: app
+  gitRepositoryRef:
+    name: repo
+  title: Test Pull Request
+  state: open
+status:
+  conditions:
+    - lastTransitionTime: '2025-10-15T16:00:00Z'
+      message: 'Failed to create pull request: authentication failed'
+      observedGeneration: 1
+      reason: ReconciliationError
+      status: 'False'
+      type: Ready
+

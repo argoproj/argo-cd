@@ -1,0 +1,2503 @@
+package diff
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	openapi_v2 "github.com/google/gnostic-models/openapiv2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/managedfields"
+	"k8s.io/klog/v2/textlogger"
+	openapiproto "k8s.io/kube-openapi/pkg/util/proto"
+	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
+	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff/mocks"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff/testdata"
+)
+
+func printDiff(ctx context.Context, result *DiffResult) (string, error) {
+	var live unstructured.Unstructured
+	if err := json.Unmarshal(result.NormalizedLive, &live); err != nil {
+		return "", fmt.Errorf("failed to unmarshal live object: %w", err)
+	}
+	var target unstructured.Unstructured
+	if err := json.Unmarshal(result.PredictedLive, &target); err != nil {
+		return "", fmt.Errorf("failed to unmarshal target object: %w", err)
+	}
+	out, _ := printDiffInternal(ctx, "diff", &live, &target)
+	return string(out), nil
+}
+
+// printDiffInternal prints a diff between two unstructured objects using an external diff utility and returns the output.
+func printDiffInternal(ctx context.Context, name string, live *unstructured.Unstructured, target *unstructured.Unstructured) ([]byte, error) {
+	tempDir, err := os.MkdirTemp("", "argocd-diff")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	targetFile := filepath.Join(tempDir, name)
+	var targetData []byte
+	if target != nil {
+		targetData, err = yaml.Marshal(target)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal target object: %w", err)
+		}
+	}
+	err = os.WriteFile(targetFile, targetData, 0o644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write target object: %w", err)
+	}
+	liveFile := filepath.Join(tempDir, name+"-live.yaml")
+	liveData := []byte("")
+	if live != nil {
+		liveData, err = yaml.Marshal(live)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal live object: %w", err)
+		}
+	}
+	err = os.WriteFile(liveFile, liveData, 0o644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to write live object: %w", err)
+	}
+	cmd := exec.CommandContext(ctx, "diff", liveFile, targetFile)
+	out, err := cmd.Output()
+	if err != nil {
+		// return output even if there's an error
+		return out, fmt.Errorf("failed to diff live object: %w", err)
+	}
+	return out, nil
+}
+
+func toUnstructured(obj any) (*unstructured.Unstructured, error) {
+	uObj, err := runtime.NewTestUnstructuredConverter(equality.Semantic).ToUnstructured(obj)
+	if err != nil {
+		//nolint:wrapcheck // don't wrap, trivial function
+		return nil, err
+	}
+	return &unstructured.Unstructured{Object: uObj}, nil
+}
+
+func mustToUnstructured(obj any) *unstructured.Unstructured {
+	un, err := toUnstructured(obj)
+	if err != nil {
+		panic(err)
+	}
+	return un
+}
+
+func unmarshalFile(path string) *unstructured.Unstructured {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		panic(err)
+	}
+	var un unstructured.Unstructured
+	err = json.Unmarshal(data, &un.Object)
+	if err != nil {
+		panic(err)
+	}
+	return &un
+}
+
+func newDeployment() *appsv1.Deployment {
+	var two int32 = 2
+	return &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1beta1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo",
+			Namespace: "test",
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &two,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "demo",
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "demo",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "demo",
+							Image: "gcr.io/kuar-demo/kuard-amd64:1",
+							Ports: []corev1.ContainerPort{
+								{
+									ContainerPort: 80,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func diff(t *testing.T, config, live *unstructured.Unstructured, options ...Option) *DiffResult {
+	t.Helper()
+	res, err := Diff(t.Context(), config, live, options...)
+	assert.NoError(t, err)
+	return res
+}
+
+func TestDiff(t *testing.T) {
+	leftDep := newDeployment()
+	leftUn := mustToUnstructured(leftDep)
+
+	diffRes := diff(t, leftUn, leftUn, diffOptionsForTest()...)
+	assert.False(t, diffRes.Modified)
+	ascii, err := printDiff(t.Context(), diffRes)
+	require.NoError(t, err)
+	if ascii != "" {
+		t.Log(ascii)
+	}
+}
+
+func TestDiffServerSideApplyAnnotation(t *testing.T) {
+	// The ServerSideApply=true sync-options annotation on the desired state
+	// resource requests Server-Side Diff. It used to select the (now
+	// discontinued) structured-merge-diff strategy.
+	withSSAAnnotation := func(un *unstructured.Unstructured) *unstructured.Unstructured {
+		un = un.DeepCopy()
+		annotations := un.GetAnnotations()
+		if annotations == nil {
+			annotations = map[string]string{}
+		}
+		annotations["argocd.argoproj.io/sync-options"] = "ServerSideApply=true"
+		un.SetAnnotations(annotations)
+		return un
+	}
+
+	t.Run("uses ServerSideDiff when a dry-run runner is configured", func(t *testing.T) {
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ServiceLiveYAMLSSD)
+		desiredState := withSSAAnnotation(StrToUnstructured(testdata.ServiceConfigYAMLSSD))
+
+		dryRunner := mocks.NewServerSideDryRunner(t)
+		// The runner being invoked proves the ServerSideDiff path was taken.
+		dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), "argocd-controller").
+			Return(testdata.ServicePredictedLiveJSONSSD, nil)
+		opts := []Option{
+			WithGVKParser(buildGVKParser(t)),
+			WithManager("argocd-controller"),
+			WithServerSideDryRunner(dryRunner),
+		}
+
+		result, err := Diff(t.Context(), desiredState, liveState, opts...)
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+
+	t.Run("annotation only falls through to client-side diff when no dry-run runner is configured", func(t *testing.T) {
+		t.Parallel()
+		annotated := withSSAAnnotation(mustToUnstructured(newDeployment()))
+
+		// The annotation alone (without the serverSideDiff option) must not cause
+		// an error when no runner is configured: the caller may be a client-side
+		// consumer, so it falls through to the regular three-way / two-way diff.
+		// Diffing an identical config and live confirms the fall-through path
+		// completes successfully rather than erroring on the missing runner.
+		result, err := Diff(t.Context(), annotated, annotated, diffOptionsForTest()...)
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.Modified)
+	})
+
+	t.Run("annotation only still applies full normalization on the client-side fallback", func(t *testing.T) {
+		t.Parallel()
+		// The SSA annotation implies server-side diff, but with no runner configured
+		// the diff falls back to the client-side path. Full normalization (including
+		// the ignore-differences normalizer) must still be applied there; otherwise a
+		// field the user asked to ignore would surface as a spurious diff.
+		config := withSSAAnnotation(mustToUnstructured(newDeployment()))
+		live := config.DeepCopy()
+		// Introduce a difference only in a field that the normalizer removes.
+		require.NoError(t, unstructured.SetNestedField(live.Object, int64(99), "spec", "replicas"))
+
+		normalizer := &testIgnoreDifferencesNormalizer{
+			fieldsToRemove: [][]string{{"spec", "replicas"}},
+		}
+		opts := append(diffOptionsForTest(), WithNormalizer(normalizer))
+
+		result, err := Diff(t.Context(), config, live, opts...)
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		// If normalization were skipped on the fallback path (the bug), the differing
+		// replicas field would remain and the diff would be Modified.
+		assert.False(t, result.Modified,
+			"ignore-differences normalization must be applied on the client-side fallback path")
+	})
+
+	t.Run("explicit serverSideDiff option errors when no dry-run runner is configured", func(t *testing.T) {
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ServiceLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ServiceConfigYAMLSSD)
+
+		// When Server-Side Diff is explicitly requested but no runner is available,
+		// it must error rather than silently degrade to a client-side diff.
+		opts := append(diffOptionsForTest(), WithServerSideDiff(true))
+		_, err := Diff(t.Context(), desiredState, liveState, opts...)
+
+		require.Error(t, err)
+	})
+}
+
+func TestDiff_KnownTypeInvalidValue(t *testing.T) {
+	leftDep := newDeployment()
+	leftUn := mustToUnstructured(leftDep)
+	require.NoError(t, unstructured.SetNestedField(leftUn.Object, "badValue", "spec", "revisionHistoryLimit"))
+
+	t.Run("NoDifference", func(t *testing.T) {
+		diffRes := diff(t, leftUn, leftUn, diffOptionsForTest()...)
+		assert.False(t, diffRes.Modified)
+		ascii, err := printDiff(t.Context(), diffRes)
+		require.NoError(t, err)
+		if ascii != "" {
+			t.Log(ascii)
+		}
+	})
+
+	t.Run("HasDifference", func(t *testing.T) {
+		rightUn := leftUn.DeepCopy()
+		require.NoError(t, unstructured.SetNestedField(rightUn.Object, "3", "spec", "revisionHistoryLimit"))
+
+		diffRes := diff(t, leftUn, rightUn, diffOptionsForTest()...)
+		assert.True(t, diffRes.Modified)
+	})
+}
+
+func TestDiffWithNils(t *testing.T) {
+	dep := newDeployment()
+	resource := mustToUnstructured(dep)
+
+	diffRes := diff(t, nil, resource, diffOptionsForTest()...)
+	// NOTE: if live is non-nil, and config is nil, this is not considered difference
+	// This "difference" is checked at the comparator.
+	assert.False(t, diffRes.Modified)
+	diffRes, err := TwoWayDiff(nil, resource)
+	require.NoError(t, err)
+	assert.False(t, diffRes.Modified)
+
+	diffRes = diff(t, resource, nil, diffOptionsForTest()...)
+	assert.True(t, diffRes.Modified)
+	diffRes, err = TwoWayDiff(resource, nil)
+	require.NoError(t, err)
+	assert.True(t, diffRes.Modified)
+}
+
+func TestDiffNilFieldInLive(t *testing.T) {
+	leftDep := newDeployment()
+	rightDep := leftDep.DeepCopy()
+
+	leftUn := mustToUnstructured(leftDep)
+	rightUn := mustToUnstructured(rightDep)
+	err := unstructured.SetNestedField(rightUn.Object, nil, "spec")
+	require.NoError(t, err)
+
+	diffRes := diff(t, leftUn, rightUn, diffOptionsForTest()...)
+	assert.True(t, diffRes.Modified)
+}
+
+func TestDiffArraySame(t *testing.T) {
+	leftDep := newDeployment()
+	rightDep := leftDep.DeepCopy()
+
+	leftUn := mustToUnstructured(leftDep)
+	rightUn := mustToUnstructured(rightDep)
+
+	left := []*unstructured.Unstructured{leftUn}
+	right := []*unstructured.Unstructured{rightUn}
+	diffResList, err := DiffArray(t.Context(), left, right, diffOptionsForTest()...)
+	require.NoError(t, err)
+	assert.False(t, diffResList.Modified)
+}
+
+func TestDiffArrayAdditions(t *testing.T) {
+	leftDep := newDeployment()
+	rightDep := leftDep.DeepCopy()
+	rightDep.Status.Replicas = 1
+
+	leftUn := mustToUnstructured(leftDep)
+	rightUn := mustToUnstructured(rightDep)
+
+	left := []*unstructured.Unstructured{leftUn}
+	right := []*unstructured.Unstructured{rightUn}
+	diffResList, err := DiffArray(t.Context(), left, right, diffOptionsForTest()...)
+	require.NoError(t, err)
+	assert.False(t, diffResList.Modified)
+}
+
+func TestDiffArrayModification(t *testing.T) {
+	leftDep := newDeployment()
+	rightDep := leftDep.DeepCopy()
+	ten := int32(10)
+	rightDep.Spec.Replicas = &ten
+
+	leftUn := mustToUnstructured(leftDep)
+	rightUn := mustToUnstructured(rightDep)
+
+	left := []*unstructured.Unstructured{leftUn}
+	right := []*unstructured.Unstructured{rightUn}
+	diffResList, err := DiffArray(t.Context(), left, right, diffOptionsForTest()...)
+	require.NoError(t, err)
+	assert.True(t, diffResList.Modified)
+}
+
+// TestThreeWayDiff will perform a diff when there is a kubectl.kubernetes.io/last-applied-configuration
+// present in the live object.
+func TestThreeWayDiff(t *testing.T) {
+	// 1. get config and live to be the same. Both have a foo annotation.
+	configDep := newDeployment()
+	configDep.Namespace = ""
+	configDep.Annotations = map[string]string{
+		"foo": "bar",
+	}
+	liveDep := configDep.DeepCopy()
+
+	// 2. add a extra field to the live. this simulates kubernetes adding default values in the
+	// object. We should not consider defaulted values as a difference
+	liveDep.SetNamespace("default")
+	configUn := mustToUnstructured(configDep)
+	liveUn := mustToUnstructured(liveDep)
+	res := diff(t, configUn, liveUn, diffOptionsForTest()...)
+	if !assert.False(t, res.Modified) {
+		ascii, err := printDiff(t.Context(), res)
+		require.NoError(t, err)
+		t.Log(ascii)
+	}
+
+	// 3. Add a last-applied-configuration annotation in the live. There should still not be any
+	// difference
+	configBytes, err := json.Marshal(configDep)
+	require.NoError(t, err)
+	liveDep.Annotations[corev1.LastAppliedConfigAnnotation] = string(configBytes)
+	configUn = mustToUnstructured(configDep)
+	liveUn = mustToUnstructured(liveDep)
+	res = diff(t, configUn, liveUn, diffOptionsForTest()...)
+	if !assert.False(t, res.Modified) {
+		ascii, err := printDiff(t.Context(), res)
+		require.NoError(t, err)
+		t.Log(ascii)
+	}
+
+	// 4. Remove the foo annotation from config and perform the diff again. We should detect a
+	// difference since three-way diff detects the removal of a managed field
+	delete(configDep.Annotations, "foo")
+	configUn = mustToUnstructured(configDep)
+	liveUn = mustToUnstructured(liveDep)
+	res = diff(t, configUn, liveUn, diffOptionsForTest()...)
+	assert.True(t, res.Modified)
+
+	// 5. Just to prove three way diff incorporates last-applied-configuration, remove the
+	// last-applied-configuration annotation from the live object, and redo the diff. This time,
+	// the diff will report not modified (because we have no way of knowing what was a defaulted
+	// field without this annotation)
+	delete(liveDep.Annotations, corev1.LastAppliedConfigAnnotation)
+	configUn = mustToUnstructured(configDep)
+	liveUn = mustToUnstructured(liveDep)
+	res = diff(t, configUn, liveUn, diffOptionsForTest()...)
+	ascii, err := printDiff(t.Context(), res)
+	require.NoError(t, err)
+	if ascii != "" {
+		t.Log(ascii)
+	}
+	assert.False(t, res.Modified)
+}
+
+var demoConfig = `
+{
+  "apiVersion": "v1",
+  "kind": "ServiceAccount",
+  "metadata": {
+    "labels": {
+      "app.kubernetes.io/instance": "argocd-demo"
+    },
+    "name": "argocd-application-controller"
+  }
+}
+`
+
+var demoLive = `
+{
+  "apiVersion": "v1",
+  "kind": "ServiceAccount",
+  "metadata": {
+    "annotations": {
+      "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"annotations\":{},\"labels\":{\"app.kubernetes.io/instance\":\"argocd-demo\"},\"name\":\"argocd-application-controller\",\"namespace\":\"argocd-demo\"}}\n"
+    },
+    "creationTimestamp": "2018-04-16T22:08:57Z",
+    "labels": {
+      "app.kubernetes.io/instance": "argocd-demo"
+    },
+    "name": "argocd-application-controller",
+    "namespace": "argocd-demo",
+    "resourceVersion": "7584502",
+    "selfLink": "/api/v1/namespaces/argocd-demo/serviceaccounts/argocd-application-controller",
+    "uid": "c22bb2b4-41c2-11e8-978a-028445d52ec8"
+  },
+  "secrets": [
+    {
+      "name": "argocd-application-controller-token-kfxct"
+    }
+  ]
+}
+`
+
+// Tests a real world example
+func TestThreeWayDiffExample1(t *testing.T) {
+	var configUn, liveUn unstructured.Unstructured
+	// NOTE: it is intentional to unmarshal to Unstructured.Object instead of just Unstructured
+	// since it catches a case when we comparison fails due to subtle differences in types
+	// (e.g. float vs. int)
+	err := json.Unmarshal([]byte(demoConfig), &configUn.Object)
+	require.NoError(t, err)
+	err = json.Unmarshal([]byte(demoLive), &liveUn.Object)
+	require.NoError(t, err)
+	dr := diff(t, &configUn, &liveUn, diffOptionsForTest()...)
+	assert.False(t, dr.Modified)
+	ascii, err := printDiff(t.Context(), dr)
+	require.NoError(t, err)
+	if ascii != "" {
+		t.Log(ascii)
+	}
+}
+
+// Test for ignoring aggregated cluster roles
+func TestDiffOptionIgnoreAggregateRoles(t *testing.T) {
+	// Test case 1: Ignore option is true, the rules in the role should be ignored
+	{
+		configUn := unmarshalFile("testdata/aggr-clusterrole-config.json")
+		liveUn := unmarshalFile("testdata/aggr-clusterrole-live.json")
+		dr := diff(t, configUn, liveUn, IgnoreAggregatedRoles(true))
+		assert.False(t, dr.Modified)
+		ascii, err := printDiff(t.Context(), dr)
+		require.NoError(t, err)
+		t.Log(ascii)
+	}
+	// Test case 2: Ignore option is false, the aggregation should produce a diff
+	{
+		configUn := unmarshalFile("testdata/aggr-clusterrole-config.json")
+		liveUn := unmarshalFile("testdata/aggr-clusterrole-live.json")
+		dr := diff(t, configUn, liveUn, IgnoreAggregatedRoles(false))
+		assert.True(t, dr.Modified)
+		ascii, err := printDiff(t.Context(), dr)
+		require.NoError(t, err)
+		t.Log(ascii)
+	}
+}
+
+func TestThreeWayDiffExample2(t *testing.T) {
+	configUn := unmarshalFile("testdata/elasticsearch-config.json")
+	liveUn := unmarshalFile("testdata/elasticsearch-live.json")
+	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
+	assert.False(t, dr.Modified)
+	ascii, err := printDiff(t.Context(), dr)
+	require.NoError(t, err)
+	t.Log(ascii)
+}
+
+// Tests a real world example
+func TestThreeWayDiffExample3(t *testing.T) {
+	configUn := unmarshalFile("testdata/deployment-config.json")
+	liveUn := unmarshalFile("testdata/deployment-live.json")
+
+	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
+	assert.False(t, dr.Modified)
+	ascii, err := printDiff(t.Context(), dr)
+	require.NoError(t, err)
+	if ascii != "" {
+		t.Log(ascii)
+	}
+}
+
+func TestThreeWayDiffExample4(t *testing.T) {
+	configUn := unmarshalFile("testdata/mutatingwebhookconfig-config.json")
+	liveUn := unmarshalFile("testdata/mutatingwebhookconfig-live.json")
+
+	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
+	assert.False(t, dr.Modified)
+	ascii, err := printDiff(t.Context(), dr)
+	require.NoError(t, err)
+	if ascii != "" {
+		t.Log(ascii)
+	}
+}
+
+// TestThreeWayDiffExample2WithDifference is same as TestThreeWayDiffExample2 but with differences
+func TestThreeWayDiffExample2WithDifference(t *testing.T) {
+	configUn := unmarshalFile("testdata/elasticsearch-config.json")
+	liveUn := unmarshalFile("testdata/elasticsearch-live.json")
+	labels := configUn.GetLabels()
+	// add a new label
+	labels["foo"] = "bar"
+	// modify a label
+	labels["chart"] = "elasticsearch-1.7.1"
+	// remove an existing label
+	delete(labels, "release")
+	configUn.SetLabels(labels)
+
+	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
+	assert.True(t, dr.Modified)
+	ascii, err := printDiff(t.Context(), dr)
+	require.NoError(t, err, ascii)
+	t.Log(ascii)
+
+	// Check that we indicate missing/extra/changed correctly
+	showsMissing := 0
+	showsExtra := 0
+	showsChanged := 0
+	for line := range strings.SplitSeq(ascii, "\n") {
+		if strings.HasPrefix(line, `>     foo: bar`) {
+			showsMissing++
+		}
+		if strings.HasPrefix(line, `<     release: elasticsearch4`) {
+			showsExtra++
+		}
+		if strings.HasPrefix(line, `>     chart: elasticsearch-1.7.1`) {
+			showsChanged++
+		}
+		if strings.HasPrefix(line, `<     chart: elasticsearch-1.7.0`) {
+			showsChanged++
+		}
+	}
+	assert.Equal(t, 1, showsMissing)
+	assert.Equal(t, 1, showsExtra)
+	assert.Equal(t, 2, showsChanged)
+}
+
+func TestThreeWayDiffExplicitNamespace(t *testing.T) {
+	configUn := unmarshalFile("testdata/spinnaker-sa-config.json")
+	liveUn := unmarshalFile("testdata/spinnaker-sa-live.json")
+	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
+	assert.False(t, dr.Modified)
+	ascii, err := printDiff(t.Context(), dr)
+	require.NoError(t, err)
+	t.Log(ascii)
+}
+
+func TestDiffResourceWithInvalidField(t *testing.T) {
+	// Diff(...) should not silently discard invalid fields (fields that are not present in the underlying k8s resource).
+
+	leftDep := `{
+			"apiVersion": "v1",
+			"kind": "ConfigMap",
+			"metadata": {
+			  "name": "invalid-cm"
+			},
+			"invalidKey": "asdf"
+		  }`
+	var leftUn unstructured.Unstructured
+	err := json.Unmarshal([]byte(leftDep), &leftUn.Object)
+	if err != nil {
+		panic(err)
+	}
+
+	rightUn := leftUn.DeepCopy()
+	unstructured.RemoveNestedField(rightUn.Object, "invalidKey")
+
+	diffRes := diff(t, &leftUn, rightUn, diffOptionsForTest()...)
+	assert.True(t, diffRes.Modified)
+	ascii, err := printDiff(t.Context(), diffRes)
+	require.NoError(t, err)
+
+	assert.Contains(t, ascii, "invalidKey")
+	if ascii != "" {
+		t.Log(ascii)
+	}
+}
+
+func TestRemoveNamespaceAnnotation(t *testing.T) {
+	obj := removeNamespaceAnnotation(&unstructured.Unstructured{Object: map[string]any{
+		"metadata": map[string]any{
+			"name":      "test",
+			"namespace": "default",
+		},
+	}})
+	assert.Empty(t, obj.GetNamespace())
+
+	obj = removeNamespaceAnnotation(&unstructured.Unstructured{Object: map[string]any{
+		"metadata": map[string]any{
+			"name":        "test",
+			"namespace":   "default",
+			"annotations": make(map[string]any),
+		},
+	}})
+	assert.Empty(t, obj.GetNamespace())
+	assert.Nil(t, obj.GetAnnotations())
+
+	obj = removeNamespaceAnnotation(&unstructured.Unstructured{Object: map[string]any{
+		"metadata": map[string]any{
+			"name":        "test",
+			"namespace":   "default",
+			"annotations": "wrong value",
+		},
+	}})
+	assert.Empty(t, obj.GetNamespace())
+	val, _, _ := unstructured.NestedString(obj.Object, "metadata", "annotations")
+	assert.Equal(t, "wrong value", val)
+}
+
+const customObjConfig = `
+apiVersion: foo.io/v1
+kind: Foo
+metadata:
+  name: my-foo
+  namespace: kube-system
+spec:
+  foo: bar
+`
+
+const customObjLive = `
+apiVersion: foo.io/v1
+kind: Foo
+metadata:
+  creationTimestamp: 2018-07-17 09:17:05 UTC
+  name: my-foo
+  resourceVersion: '10308211'
+  selfLink: "/apis/rbac.authorization.k8s.io/v1/clusterroles/argocd-manager-role"
+  uid: 2c3d5405-89a2-11e8-aff0-42010a8a0fc6
+spec:
+  foo: bar
+`
+
+func TestIgnoreNamespaceForClusterScopedResources(t *testing.T) {
+	var configUn unstructured.Unstructured
+	var liveUn unstructured.Unstructured
+	err := yaml.Unmarshal([]byte(customObjLive), &liveUn)
+	require.NoError(t, err)
+	err = yaml.Unmarshal([]byte(customObjConfig), &configUn)
+	require.NoError(t, err)
+	dr := diff(t, &configUn, &liveUn, diffOptionsForTest()...)
+	assert.False(t, dr.Modified)
+}
+
+const secretConfig = `
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+type: Opaque
+stringData:
+  foo: bar
+  bar: "1234"
+data:
+  baz: cXV4
+`
+
+const secretLive = `
+apiVersion: v1
+kind: Secret
+metadata:
+  creationTimestamp: 2018-11-19T11:30:40Z
+  name: my-secret
+  namespace: argocd
+  resourceVersion: "25848035"
+  selfLink: /api/v1/namespaces/argocd/secrets/my-secret
+  uid: 8b4a2766-ebee-11e8-93c0-42010a8a0013
+type: Opaque
+data:
+  foo: YmFy
+  bar: MTIzNA==
+  baz: cXV4
+`
+
+func TestSecretStringData(t *testing.T) {
+	var err error
+	var configUn unstructured.Unstructured
+	err = yaml.Unmarshal([]byte(secretConfig), &configUn)
+	require.NoError(t, err)
+
+	var liveUn unstructured.Unstructured
+	err = yaml.Unmarshal([]byte(secretLive), &liveUn)
+	require.NoError(t, err)
+
+	dr := diff(t, &configUn, &liveUn, diffOptionsForTest()...)
+	if !assert.False(t, dr.Modified) {
+		ascii, err := printDiff(t.Context(), dr)
+		require.NoError(t, err)
+		t.Log(ascii)
+	}
+}
+
+// This is invalid because foo is a number, not a string
+const secretInvalidConfig = `
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+type: Opaque
+stringData:
+  foo: 1234
+`
+
+const secretInvalidLive = `
+apiVersion: v1
+kind: Secret
+metadata:
+  creationTimestamp: 2018-11-19T11:30:40Z
+  name: my-secret
+  namespace: argocd
+  resourceVersion: "25848035"
+  selfLink: /api/v1/namespaces/argocd/secrets/my-secret
+  uid: 8b4a2766-ebee-11e8-93c0-42010a8a0013
+type: Opaque
+data:
+  foo: MTIzNA==
+`
+
+func TestInvalidSecretStringData(t *testing.T) {
+	var err error
+	var configUn unstructured.Unstructured
+	err = yaml.Unmarshal([]byte(secretInvalidConfig), &configUn)
+	require.NoError(t, err)
+
+	var liveUn unstructured.Unstructured
+	err = yaml.Unmarshal([]byte(secretInvalidLive), &liveUn)
+	require.NoError(t, err)
+
+	dr := diff(t, &configUn, nil, diffOptionsForTest()...)
+	assert.True(t, dr.Modified)
+}
+
+func TestNullSecretData(t *testing.T) {
+	configUn := unmarshalFile("testdata/wordpress-config.json")
+	liveUn := unmarshalFile("testdata/wordpress-live.json")
+	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
+	if !assert.False(t, dr.Modified) {
+		ascii, err := printDiff(t.Context(), dr)
+		require.NoError(t, err)
+		t.Log(ascii)
+	}
+}
+
+// TestRedactedSecretData tests we are able to perform diff on redacted secret data, which has
+// invalid characters (*) for the data byte array field.
+func TestRedactedSecretData(t *testing.T) {
+	configUn := unmarshalFile("testdata/wordpress-config.json")
+	liveUn := unmarshalFile("testdata/wordpress-live.json")
+	configData := configUn.Object["data"].(map[string]any)
+	liveData := liveUn.Object["data"].(map[string]any)
+	configData["wordpress-password"] = "++++++++"
+	configData["smtp-password"] = "++++++++"
+	liveData["wordpress-password"] = "++++++++++++"
+	liveData["smtp-password"] = "++++++++++++"
+	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
+	if !assert.True(t, dr.Modified) {
+		ascii, err := printDiff(t.Context(), dr)
+		require.NoError(t, err)
+		t.Log(ascii)
+	}
+}
+
+func TestNullRoleRule(t *testing.T) {
+	configUn := unmarshalFile("testdata/grafana-clusterrole-config.json")
+	liveUn := unmarshalFile("testdata/grafana-clusterrole-live.json")
+	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
+	if !assert.False(t, dr.Modified) {
+		ascii, err := printDiff(t.Context(), dr)
+		require.NoError(t, err)
+		t.Log(ascii)
+	}
+}
+
+func TestNullCreationTimestamp(t *testing.T) {
+	configUn := unmarshalFile("testdata/sealedsecret-config.json")
+	liveUn := unmarshalFile("testdata/sealedsecret-live.json")
+	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
+	if !assert.False(t, dr.Modified) {
+		ascii, err := printDiff(t.Context(), dr)
+		require.NoError(t, err)
+		t.Log(ascii)
+	}
+}
+
+func TestUnsortedEndpoints(t *testing.T) {
+	configUn := unmarshalFile("testdata/endpoints-config.json")
+	liveUn := unmarshalFile("testdata/endpoints-live.json")
+	dr := diff(t, configUn, liveUn, diffOptionsForTest()...)
+	if !assert.False(t, dr.Modified) {
+		ascii, err := printDiff(t.Context(), dr)
+		require.NoError(t, err)
+		t.Log(ascii)
+	}
+}
+
+func buildGVKParser(t *testing.T) *managedfields.GvkParser {
+	t.Helper()
+	document := &openapi_v2.Document{}
+	require.NoErrorf(t, proto.Unmarshal(testdata.OpenAPIV2Doc, document), "error unmarshaling openapi doc")
+	models, err := openapiproto.NewOpenAPIData(document)
+	require.NoErrorf(t, err, "error building openapi data: %s", err)
+
+	gvkParser, err := managedfields.NewGVKParser(models, false)
+	require.NoErrorf(t, err, "error building gvkParser: %s", err)
+	return gvkParser
+}
+
+func TestServerSideDiff(t *testing.T) {
+	buildOpts := func(predictedLive string) []Option {
+		gvkParser := buildGVKParser(t)
+		manager := "argocd-controller"
+		dryRunner := mocks.NewServerSideDryRunner(t)
+
+		dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+			Return(predictedLive, nil)
+		opts := []Option{
+			WithGVKParser(gvkParser),
+			WithManager(manager),
+			WithServerSideDryRunner(dryRunner),
+		}
+
+		return opts
+	}
+
+	buildOptsWithNormalizer := func(predictedLive string, normalizer Normalizer) []Option {
+		opts := buildOpts(predictedLive)
+		return append(opts, WithNormalizer(normalizer))
+	}
+
+	t.Run("will ignore modifications done by mutation webhook by default", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ServiceLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ServiceConfigYAMLSSD)
+		opts := buildOpts(testdata.ServicePredictedLiveJSONSSD)
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+		predictedSVC := YamlToSvc(t, result.PredictedLive)
+		liveSVC := YamlToSvc(t, result.NormalizedLive)
+		require.NotNil(t, predictedSVC.Spec.InternalTrafficPolicy)
+		require.NotNil(t, liveSVC.Spec.InternalTrafficPolicy)
+		assert.Equal(t, "Cluster", string(*predictedSVC.Spec.InternalTrafficPolicy))
+		assert.Equal(t, "Cluster", string(*liveSVC.Spec.InternalTrafficPolicy))
+		assert.Empty(t, predictedSVC.Annotations[AnnotationLastAppliedConfig])
+		assert.Empty(t, liveSVC.Annotations[AnnotationLastAppliedConfig])
+		assert.Empty(t, predictedSVC.Labels["event"])
+	})
+
+	t.Run("will test removing some field with undoing changes done by webhook", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.Deployment2LiveYAML)
+		desiredState := StrToUnstructured(testdata.Deployment2ConfigYAML)
+		opts := buildOpts(testdata.Deployment2PredictedLiveJSONSSD)
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+		predictedDeploy := YamlToDeploy(t, result.PredictedLive)
+		liveDeploy := YamlToDeploy(t, result.NormalizedLive)
+		assert.Len(t, predictedDeploy.Spec.Template.Spec.Containers, 1)
+		assert.Len(t, liveDeploy.Spec.Template.Spec.Containers, 1)
+		assert.Equal(t, "500m", predictedDeploy.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().String())
+		assert.Equal(t, "512Mi", predictedDeploy.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().String())
+		assert.Equal(t, "500m", liveDeploy.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().String())
+		assert.Equal(t, "512Mi", liveDeploy.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().String())
+	})
+
+	t.Run("will include mutation webhook modifications", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ServiceLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ServiceConfigYAMLSSD)
+		opts := buildOpts(testdata.ServicePredictedLiveJSONSSD)
+		opts = append(opts, WithIgnoreMutationWebhook(false))
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+		predictedSVC := YamlToSvc(t, result.PredictedLive)
+		liveSVC := YamlToSvc(t, result.NormalizedLive)
+		require.NotNil(t, predictedSVC.Spec.InternalTrafficPolicy)
+		require.NotNil(t, liveSVC.Spec.InternalTrafficPolicy)
+		assert.Equal(t, "Cluster", string(*predictedSVC.Spec.InternalTrafficPolicy))
+		assert.Equal(t, "Cluster", string(*liveSVC.Spec.InternalTrafficPolicy))
+		assert.Empty(t, predictedSVC.Annotations[AnnotationLastAppliedConfig])
+		assert.Empty(t, liveSVC.Annotations[AnnotationLastAppliedConfig])
+		assert.NotEmpty(t, predictedSVC.Labels["event"])
+	})
+
+	t.Run("will include nested fields like ports and env", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.DeploymentNestedLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.DeploymentNestedConfigYAMLSSD)
+		opts := buildOpts(testdata.DeploymentNestedPredictedLiveJSONSSD)
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+
+		predictedDeploy := YamlToDeploy(t, result.PredictedLive)
+		liveDeploy := YamlToDeploy(t, result.NormalizedLive)
+
+		// Check ports
+		assert.Len(t, predictedDeploy.Spec.Template.Spec.Containers[0].Ports, 2)
+		assert.Len(t, liveDeploy.Spec.Template.Spec.Containers[0].Ports, 1)
+		assert.Equal(t, int32(80), predictedDeploy.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort)
+		assert.Equal(t, int32(443), predictedDeploy.Spec.Template.Spec.Containers[0].Ports[1].ContainerPort)
+
+		// Check env
+		assert.Len(t, predictedDeploy.Spec.Template.Spec.Containers[0].Env, 2)
+		assert.Len(t, liveDeploy.Spec.Template.Spec.Containers[0].Env, 1)
+		assert.Equal(t, "ENV_VAR1", predictedDeploy.Spec.Template.Spec.Containers[0].Env[0].Name)
+		assert.Equal(t, "ENV_VAR2", predictedDeploy.Spec.Template.Spec.Containers[0].Env[1].Name)
+	})
+
+	t.Run("will add an extra container using kubectl apply and include mutation webhook", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.DeploymentApplyLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.DeploymentApplyConfigYAMLSSD)
+		opts := buildOpts(testdata.DeploymentApplyPredictedLiveJSONSSD)
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+
+		predictedDeploy := YamlToDeploy(t, result.PredictedLive)
+		liveDeploy := YamlToDeploy(t, result.NormalizedLive)
+
+		// Check ports are shown in diff and ensure mutation webhook is not shown
+		assert.Len(t, predictedDeploy.Spec.Template.Spec.Containers[0].Ports, 2)
+		assert.Len(t, liveDeploy.Spec.Template.Spec.Containers[0].Ports, 1)
+		assert.Equal(t, int32(80), predictedDeploy.Spec.Template.Spec.Containers[0].Ports[0].ContainerPort)
+		assert.Equal(t, int32(40), predictedDeploy.Spec.Template.Spec.Containers[0].Ports[1].ContainerPort)
+		assert.Empty(t, predictedDeploy.Annotations[AnnotationLastAppliedConfig])
+		assert.Empty(t, liveDeploy.Annotations[AnnotationLastAppliedConfig])
+	})
+
+	t.Run("will reflect deletion of labels in predicted live", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ServiceLiveLabelYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ServiceConfigNoLabelYAMLSSD)
+		opts := buildOpts(testdata.ServicePredictedLiveNoLabelJSONSSD)
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+
+		predictedSvc := YamlToSvc(t, result.PredictedLive)
+		liveSvc := YamlToSvc(t, result.NormalizedLive)
+
+		// Ensure that the deleted label is not present in predicted and exists in live
+		_, predictedLabelExists := predictedSvc.Labels["delete-me"]
+		_, liveLabelExists := liveSvc.Labels["delete-me"]
+		assert.False(t, predictedLabelExists)
+		assert.True(t, liveLabelExists)
+	})
+
+	t.Run("will respect ignoreDifferences when full normalization is not skipped", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ServiceLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ServiceConfigYAMLSSD)
+
+		// Normalizer that ignores sessionAffinity (auto-assigned field that's commonly ignored)
+		normalizer := &testIgnoreDifferencesNormalizer{
+			fieldsToRemove: [][]string{
+				{"spec", "sessionAffinity"},
+			},
+		}
+
+		opts := buildOptsWithNormalizer(testdata.ServicePredictedLiveJSONSSD, normalizer)
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+
+		// Should show diff for other fields but not the ignored sessionAffinity
+		assert.True(t, result.Modified, "Should show diff for non-ignored fields")
+
+		// Convert results to strings for verification
+		predictedLiveStr := string(result.PredictedLive)
+		normalizedLiveStr := string(result.NormalizedLive)
+
+		// Ports should appear in diff (not ignored)
+		assert.Contains(t, predictedLiveStr, "port", "Port differences should be visible")
+
+		// The ignored sessionAffinity should NOT appear in final result
+		assert.NotContains(t, predictedLiveStr, "sessionAffinity", "sessionAffinity should be removed by normalization")
+		assert.NotContains(t, normalizedLiveStr, "sessionAffinity", "sessionAffinity should be removed by normalization")
+
+		// Other fields should still be visible (not ignored)
+		assert.Contains(t, predictedLiveStr, "selector", "Other fields should remain visible")
+	})
+
+	t.Run("will preserve composite key fields during diff", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.DeploymentCompositeKeyLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.DeploymentCompositeKeyConfigYAMLSSD)
+		opts := buildOpts(testdata.DeploymentCompositeKeyPredictedLiveJSONSSD)
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+
+		predictedDeploy := YamlToDeploy(t, result.PredictedLive)
+		liveDeploy := YamlToDeploy(t, result.NormalizedLive)
+
+		// Verify the nginx container has all 3 ports in predicted live
+		assert.Len(t, predictedDeploy.Spec.Template.Spec.Containers, 2, "Should have 2 containers")
+		nginxContainer := predictedDeploy.Spec.Template.Spec.Containers[0]
+		assert.Equal(t, "nginx", nginxContainer.Name)
+		assert.Len(t, nginxContainer.Ports, 3, "nginx should have 3 ports in predicted")
+
+		// Verify live still has only 2 ports for nginx
+		liveNginxContainer := liveDeploy.Spec.Template.Spec.Containers[0]
+		assert.Len(t, liveNginxContainer.Ports, 2, "nginx should have 2 ports in live")
+
+		// Check that the new port 8080 has protocol field preserved (composite key field)
+		port8080Found := false
+		for _, port := range nginxContainer.Ports {
+			if port.ContainerPort == 8080 {
+				port8080Found = true
+				assert.Equal(t, "metrics", port.Name, "Port 8080 should have name 'metrics'")
+				assert.Equal(t, corev1.ProtocolTCP, port.Protocol, "Port 8080 protocol (composite key field) must be preserved from webhook")
+			}
+		}
+		assert.True(t, port8080Found, "Port 8080 should be present in predicted live")
+
+		// Verify existing ports still have their protocol (also composite key fields)
+		port80Found := false
+		port443Found := false
+		for _, port := range nginxContainer.Ports {
+			if port.ContainerPort == 80 {
+				port80Found = true
+				assert.Equal(t, corev1.ProtocolTCP, port.Protocol)
+			}
+			if port.ContainerPort == 443 {
+				port443Found = true
+				assert.Equal(t, corev1.ProtocolTCP, port.Protocol)
+			}
+		}
+		assert.True(t, port80Found, "Port 80 should be present")
+		assert.True(t, port443Found, "Port 443 should be present")
+
+		// Verify that mutation webhook changes are still filtered out from diff
+		assert.Empty(t, predictedDeploy.Annotations[AnnotationLastAppliedConfig])
+		assert.Empty(t, liveDeploy.Annotations[AnnotationLastAppliedConfig])
+	})
+
+	t.Run("will not report diff for mismatched resourceVersion", func(t *testing.T) {
+		// given
+		t.Parallel()
+		predictedLiveJSON := `{
+			"apiVersion": "apps/v1",
+			"kind": "Deployment",
+			"metadata": {
+				"name": "my-deploy",
+				"namespace": "default",
+				"resourceVersion": "99999",
+				"managedFields": [{"manager":"argocd-controller","operation":"Apply","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{"f:replicas":{}}}}]
+			},
+			"spec": {"replicas": 1}
+		}`
+		liveState := StrToUnstructured(`{
+			"apiVersion": "apps/v1",
+			"kind": "Deployment",
+			"metadata": {
+				"name": "my-deploy",
+				"namespace": "default",
+				"resourceVersion": "12345",
+				"managedFields": [{"manager":"argocd-controller","operation":"Apply","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{"f:replicas":{}}}}]
+			},
+			"spec": {"replicas": 1}
+		}`)
+		desiredState := StrToUnstructured(`{
+			"apiVersion": "apps/v1",
+			"kind": "Deployment",
+			"metadata": {
+				"name": "my-deploy",
+				"namespace": "default"
+			},
+			"spec": {"replicas": 1}
+		}`)
+		opts := buildOpts(predictedLiveJSON)
+		opts = append(opts, WithIgnoreMutationWebhook(false))
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.Modified, "mismatched resourceVersion should not cause a diff")
+		assert.NotContains(t, string(result.PredictedLive), "resourceVersion")
+		assert.NotContains(t, string(result.NormalizedLive), "resourceVersion")
+	})
+
+	t.Run("will detect ConfigMap data key removal", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ConfigMapLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ConfigMapConfigYAMLSSD)
+		opts := buildOpts(testdata.ConfigMapPredictedLiveJSONSSD)
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified, "Diff should detect key removal as a modification")
+
+		// Parse the results
+		var predictedCM map[string]any
+		err = json.Unmarshal(result.PredictedLive, &predictedCM)
+		require.NoError(t, err)
+
+		var liveCM map[string]any
+		err = json.Unmarshal(result.NormalizedLive, &liveCM)
+		require.NoError(t, err)
+
+		// Verify predicted live has only key1 and key2 (key3 removed)
+		predictedData, ok := predictedCM["data"].(map[string]any)
+		require.True(t, ok, "Predicted ConfigMap should have data field")
+		assert.Len(t, predictedData, 2, "Predicted data should have 2 keys")
+		assert.Contains(t, predictedData, "key1")
+		assert.Contains(t, predictedData, "key2")
+		assert.NotContains(t, predictedData, "key3", "key3 should be removed from predicted live")
+
+		// Verify live still has all 3 keys
+		liveData, ok := liveCM["data"].(map[string]any)
+		require.True(t, ok, "Live ConfigMap should have data field")
+		assert.Len(t, liveData, 3, "Live data should still have 3 keys")
+		assert.Contains(t, liveData, "key1")
+		assert.Contains(t, liveData, "key2")
+		assert.Contains(t, liveData, "key3", "key3 should still be in live state")
+	})
+
+	t.Run("will not report removal of a field another manager deleted after live was cached", func(t *testing.T) {
+		// given
+		t.Parallel()
+		// The cached live still has an annotation written by another manager, but
+		// it was removed before the dry-run reached the API server.
+		liveState := StrToUnstructured(`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-cm
+  namespace: default
+  annotations:
+    argocd.argoproj.io/hydrate: normal
+  managedFields:
+  - manager: argocd-controller
+    operation: Apply
+    apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1: {"f:data": {"f:key1": {}}}
+  - manager: argocd-server
+    operation: Update
+    apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1: {"f:metadata": {"f:annotations": {"f:argocd.argoproj.io/hydrate": {}}}}
+data:
+  key1: value1
+`)
+		desiredState := StrToUnstructured(`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-cm
+  namespace: default
+data:
+  key1: value1
+`)
+		predictedLiveJSON := `{
+			"apiVersion": "v1",
+			"kind": "ConfigMap",
+			"metadata": {
+				"name": "my-cm",
+				"namespace": "default",
+				"managedFields": [{"manager":"argocd-controller","operation":"Apply","apiVersion":"v1","fieldsType":"FieldsV1","fieldsV1":{"f:data":{"f:key1":{}}}}]
+			},
+			"data": {"key1": "value1"}
+		}`
+		opts := buildOpts(predictedLiveJSON)
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.False(t, result.Modified, "a field removed by another manager must not show as a diff")
+	})
+
+	t.Run("will strip last-applied-configuration annotation from a non-Secret resource on both sides", func(t *testing.T) {
+		// given
+		t.Parallel()
+		const lastApplied = `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"my-cm","namespace":"default"},"data":{"key1":"value1"}}`
+		liveState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "ConfigMap",
+			"metadata": {"name": "my-cm", "namespace": "default"}
+		}`)
+		liveState.SetAnnotations(map[string]string{AnnotationLastAppliedConfig: lastApplied})
+		desiredState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "ConfigMap",
+			"metadata": {"name": "my-cm", "namespace": "default"},
+			"data": {"key1": "value1"}
+		}`)
+		predictedLiveObj := desiredState.DeepCopy()
+		predictedLiveObj.SetAnnotations(map[string]string{AnnotationLastAppliedConfig: lastApplied})
+		predictedLiveJSON := mustMarshalUnstructured(t, predictedLiveObj)
+		opts := buildOpts(predictedLiveJSON)
+		opts = append(opts, WithIgnoreMutationWebhook(false))
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotContains(t, string(result.PredictedLive), AnnotationLastAppliedConfig,
+			"PredictedLive must not contain the last-applied-configuration annotation")
+		assert.NotContains(t, string(result.NormalizedLive), AnnotationLastAppliedConfig,
+			"NormalizedLive must not contain the last-applied-configuration annotation")
+	})
+
+	t.Run("will strip last-applied-configuration annotation from a Secret resource on both sides", func(t *testing.T) {
+		// given
+		t.Parallel()
+		// The annotation embeds a secret value that does not otherwise appear in the object,
+		// so we can assert the annotation (and its contents) is stripped. Masking of the Secret
+		// data field itself is the caller's responsibility and is covered by TestHideSecretData.
+		const annotationOnlySecret = "QU5OT1RBVElPTk9OTFk="
+		lastApplied := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"my-secret","namespace":"default"},"data":{"password":"` + annotationOnlySecret + `"}}`
+		liveState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {"name": "my-secret", "namespace": "default"},
+			"type": "Opaque",
+			"data": {"password": "U0VDUkVUVkFM"}
+		}`)
+		liveState.SetAnnotations(map[string]string{AnnotationLastAppliedConfig: lastApplied})
+		desiredState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {"name": "my-secret", "namespace": "default"},
+			"type": "Opaque",
+			"data": {"password": "U0VDUkVUVkFM"}
+		}`)
+		predictedLiveObj := desiredState.DeepCopy()
+		predictedLiveObj.SetAnnotations(map[string]string{AnnotationLastAppliedConfig: lastApplied})
+		predictedLiveJSON := mustMarshalUnstructured(t, predictedLiveObj)
+		opts := buildOpts(predictedLiveJSON)
+		opts = append(opts, WithIgnoreMutationWebhook(false))
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotContains(t, string(result.PredictedLive), AnnotationLastAppliedConfig,
+			"PredictedLive must not contain the last-applied-configuration annotation")
+		assert.NotContains(t, string(result.NormalizedLive), AnnotationLastAppliedConfig,
+			"NormalizedLive must not contain the last-applied-configuration annotation")
+		assert.NotContains(t, string(result.PredictedLive), annotationOnlySecret,
+			"PredictedLive must not contain secret values embedded only in last-applied-configuration")
+		assert.NotContains(t, string(result.NormalizedLive), annotationOnlySecret,
+			"NormalizedLive must not contain secret values embedded only in last-applied-configuration")
+	})
+}
+
+// mustMarshalUnstructured marshals an unstructured object to a JSON string, failing the test on error.
+func mustMarshalUnstructured(t *testing.T, obj *unstructured.Unstructured) string {
+	t.Helper()
+	data, err := json.Marshal(obj)
+	require.NoError(t, err)
+	return string(data)
+}
+
+// testIgnoreDifferencesNormalizer implements a simple normalizer that removes specified fields
+type testIgnoreDifferencesNormalizer struct {
+	fieldsToRemove [][]string
+}
+
+func (n *testIgnoreDifferencesNormalizer) Normalize(un *unstructured.Unstructured) error {
+	if un == nil {
+		return nil
+	}
+	for _, fieldPath := range n.fieldsToRemove {
+		unstructured.RemoveNestedField(un.Object, fieldPath...)
+	}
+	return nil
+}
+
+func createSecret(data map[string]string) *unstructured.Unstructured {
+	secret := corev1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret"}}
+	if data != nil {
+		secret.Data = make(map[string][]byte)
+		for k, v := range data {
+			secret.Data[k] = []byte(v)
+		}
+	}
+
+	return mustToUnstructured(&secret)
+}
+
+func secretData(obj *unstructured.Unstructured) map[string]any {
+	data, _, _ := unstructured.NestedMap(obj.Object, "data")
+	return data
+}
+
+var (
+	replacement1 = strings.Repeat("+", 8)
+	replacement2 = strings.Repeat("+", 12)
+	replacement3 = strings.Repeat("+", 16)
+)
+
+// TestExcludeManagerOwnedAncestors covers a CRD field with
+// x-kubernetes-preserve-unknown-fields that can produce a predicted field set
+// where a manager-owned leaf (e.g. .spec.configuration.value) is a distinct
+// member from its ancestor containers (.spec, .spec.configuration), because
+// Kubernetes only records the leaf path in managedFields. Removing those
+// ancestors wholesale would also remove the manager-owned leaf.
+func TestExcludeManagerOwnedAncestors(t *testing.T) {
+	t.Run("excludes ancestors of a manager-owned descendant", func(t *testing.T) {
+		toRemove := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec"),
+			fieldpath.MakePathOrDie("spec", "configuration"),
+		)
+		managerFieldsSet := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec", "configuration", "value"),
+		)
+
+		result := excludeManagerOwnedAncestors(toRemove, managerFieldsSet)
+
+		assert.True(t, result.Empty(), "expected ancestors of a manager-owned field to be excluded from removal, got: %s", result.String())
+	})
+
+	t.Run("keeps paths with no manager-owned descendants", func(t *testing.T) {
+		toRemove := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec"),
+			fieldpath.MakePathOrDie("spec", "configuration"),
+			fieldpath.MakePathOrDie("spec", "configuration", "other"),
+		)
+		managerFieldsSet := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec", "configuration", "value"),
+		)
+
+		result := excludeManagerOwnedAncestors(toRemove, managerFieldsSet)
+
+		assert.False(t, result.Has(fieldpath.MakePathOrDie("spec")))
+		assert.False(t, result.Has(fieldpath.MakePathOrDie("spec", "configuration")))
+		assert.True(t, result.Has(fieldpath.MakePathOrDie("spec", "configuration", "other")))
+	})
+
+	t.Run("strips a genuinely non-owned sibling while sparing the owned subtree in the same call", func(t *testing.T) {
+		// Mirrors the real webhook scenario: a webhook injects .spec.unrelated,
+		// while argocd owns .spec.configuration.value. Both the ancestor
+		// protection and the removal of unrelated webhook mutations must hold
+		// at once.
+		toRemove := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec"),
+			fieldpath.MakePathOrDie("spec", "configuration"),
+			fieldpath.MakePathOrDie("spec", "unrelated"),
+		)
+		managerFieldsSet := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec", "configuration", "value"),
+		)
+
+		result := excludeManagerOwnedAncestors(toRemove, managerFieldsSet)
+
+		assert.False(t, result.Has(fieldpath.MakePathOrDie("spec")), "ancestor of owned descendant must stay excluded")
+		assert.False(t, result.Has(fieldpath.MakePathOrDie("spec", "configuration")), "ancestor of owned descendant must stay excluded")
+		assert.True(t, result.Has(fieldpath.MakePathOrDie("spec", "unrelated")), "unrelated webhook-injected sibling must still be removed")
+	})
+}
+
+// preserveUnknownFieldsWidgetSwagger defines a CRD whose .spec is
+// x-kubernetes-preserve-unknown-fields. Under such a schema the merge field set
+// represents .spec and .spec.configuration as granular members, distinct from
+// the manager-owned leaf .spec.configuration.value — the exact shape that lets a
+// wholesale ancestor removal drop the owned descendant.
+const preserveUnknownFieldsWidgetSwagger = `{
+  "swagger": "2.0",
+  "info": {"title": "test", "version": "v1.0"},
+  "paths": {},
+  "definitions": {
+    "com.example.v1.Widget": {
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {"group": "example.com", "version": "v1", "kind": "Widget"}
+      ],
+      "properties": {
+        "apiVersion": {"type": "string"},
+        "kind": {"type": "string"},
+        "metadata": {"type": "object", "x-kubernetes-preserve-unknown-fields": true},
+        "spec": {"type": "object", "x-kubernetes-preserve-unknown-fields": true}
+      }
+    }
+  }
+}`
+
+func buildPreserveUnknownFieldsGVKParser(t *testing.T) *managedfields.GvkParser {
+	t.Helper()
+	doc, err := openapi_v2.ParseDocument([]byte(preserveUnknownFieldsWidgetSwagger))
+	require.NoError(t, err, "error parsing widget swagger")
+	models, err := openapiproto.NewOpenAPIData(doc)
+	require.NoErrorf(t, err, "error building openapi data: %s", err)
+	gvkParser, err := managedfields.NewGVKParser(models, false)
+	require.NoErrorf(t, err, "error building gvkParser: %s", err)
+	return gvkParser
+}
+
+// TestServerSideDiffPreservesManagerOwnedFieldUnderWebhookMutation drives the
+// full serverSideDiff path (not just the excludeManagerOwnedAncestors unit) for
+// the real webhook scenario: a manager owns a deep leaf under a
+// preserve-unknown-fields subtree (.spec.configuration.value) while a mutation
+// webhook injects a sibling (.spec.unrelated). The desired value must survive
+// the diff while the webhook mutation is stripped. Without the ancestor
+// protection the owned value is reverted to its live state, so this guards
+// against a refactor of removeWebhookMutation silently reintroducing the bug.
+func TestServerSideDiffPreservesManagerOwnedFieldUnderWebhookMutation(t *testing.T) {
+	manager := "argocd-controller"
+	gvkParser := buildPreserveUnknownFieldsGVKParser(t)
+
+	live := StrToUnstructured(`
+apiVersion: example.com/v1
+kind: Widget
+metadata:
+  name: test-widget
+spec:
+  configuration:
+    value: old
+`)
+	config := StrToUnstructured(`
+apiVersion: example.com/v1
+kind: Widget
+metadata:
+  name: test-widget
+spec:
+  configuration:
+    value: new
+`)
+	// Dry-run apply result: argocd's desired value plus a webhook-injected
+	// sibling. managedFields records ONLY the owned leaf, mirroring how
+	// Kubernetes records leaf paths under x-kubernetes-preserve-unknown-fields.
+	predictedLive := `{
+  "apiVersion": "example.com/v1",
+  "kind": "Widget",
+  "metadata": {
+    "name": "test-widget",
+    "managedFields": [
+      {"manager": "argocd-controller", "operation": "Apply", "apiVersion": "example.com/v1",
+       "fieldsType": "FieldsV1",
+       "fieldsV1": {"f:spec": {"f:configuration": {"f:value": {}}}}}
+    ]
+  },
+  "spec": {
+    "configuration": {"value": "new"},
+    "unrelated": "injected-by-webhook"
+  }
+}`
+
+	dryRunner := mocks.NewServerSideDryRunner(t)
+	dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+		Return(predictedLive, nil)
+
+	opts := []Option{
+		WithGVKParser(gvkParser),
+		WithManager(manager),
+		WithServerSideDryRunner(dryRunner),
+	}
+
+	// when
+	result, err := serverSideDiff(t.Context(), config, live, opts...)
+
+	// then
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	var predicted map[string]any
+	require.NoError(t, json.Unmarshal(result.PredictedLive, &predicted))
+
+	value, found, err := unstructured.NestedString(predicted, "spec", "configuration", "value")
+	require.NoError(t, err)
+	assert.True(t, found, "manager-owned .spec.configuration.value must survive the diff")
+	assert.Equal(t, "new", value, "owned value must be the desired value, not reverted to the live state")
+
+	_, unrelatedFound, err := unstructured.NestedFieldNoCopy(predicted, "spec", "unrelated")
+	require.NoError(t, err)
+	assert.False(t, unrelatedFound, "webhook-injected .spec.unrelated must be stripped from the diff")
+
+	assert.True(t, result.Modified, "the desired value change must be reflected in the diff")
+}
+
+// TestServerSideDiffDetectsRemovalOfManagerOwnedPreserveUnknownSubtree covers
+// a removal reported on a container (.spec.configuration) whose ownership is
+// recorded only on its leaf (.spec.configuration.value). The removal must still
+// show up as a diff even though the container path itself is not owned.
+func TestServerSideDiffDetectsRemovalOfManagerOwnedPreserveUnknownSubtree(t *testing.T) {
+	manager := "argocd-controller"
+
+	live := StrToUnstructured(`
+apiVersion: example.com/v1
+kind: Widget
+metadata:
+  name: test-widget
+  managedFields:
+  - manager: argocd-controller
+    operation: Apply
+    apiVersion: example.com/v1
+    fieldsType: FieldsV1
+    fieldsV1: {"f:spec": {"f:configuration": {"f:value": {}}, "f:replicas": {}}}
+spec:
+  replicas: 1
+  configuration:
+    value: old
+`)
+	config := StrToUnstructured(`
+apiVersion: example.com/v1
+kind: Widget
+metadata:
+  name: test-widget
+spec:
+  replicas: 1
+`)
+	predictedLive := `{
+  "apiVersion": "example.com/v1",
+  "kind": "Widget",
+  "metadata": {
+    "name": "test-widget",
+    "managedFields": [
+      {"manager": "argocd-controller", "operation": "Apply", "apiVersion": "example.com/v1",
+       "fieldsType": "FieldsV1",
+       "fieldsV1": {"f:spec": {"f:replicas": {}}}}
+    ]
+  },
+  "spec": {"replicas": 1}
+}`
+
+	dryRunner := mocks.NewServerSideDryRunner(t)
+	dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+		Return(predictedLive, nil)
+	opts := []Option{
+		WithGVKParser(buildPreserveUnknownFieldsGVKParser(t)),
+		WithManager(manager),
+		WithServerSideDryRunner(dryRunner),
+	}
+
+	// when
+	result, err := serverSideDiff(t.Context(), config, live, opts...)
+
+	// then
+	require.NoError(t, err)
+	var predicted map[string]any
+	require.NoError(t, json.Unmarshal(result.PredictedLive, &predicted))
+	_, found, err := unstructured.NestedFieldNoCopy(predicted, "spec", "configuration")
+	require.NoError(t, err)
+	assert.False(t, found, "removed manager-owned .spec.configuration must be absent from predicted live")
+	assert.True(t, result.Modified)
+}
+
+func TestHideSecretData(t *testing.T) {
+	t.Run("same keys different values", func(t *testing.T) {
+		target, live, err := HideSecretData(
+			createSecret(map[string]string{"key1": "test", "key2": "test"}),
+			createSecret(map[string]string{"key1": "test-1", "key2": "test-1"}),
+			nil,
+		)
+		require.NoError(t, err)
+
+		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(target))
+		assert.Equal(t, map[string]any{"key1": replacement2, "key2": replacement2}, secretData(live))
+	})
+
+	t.Run("same keys same values", func(t *testing.T) {
+		target, live, err := HideSecretData(
+			createSecret(map[string]string{"key1": "test", "key2": "test"}),
+			createSecret(map[string]string{"key1": "test", "key2": "test"}),
+			nil,
+		)
+		require.NoError(t, err)
+
+		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(target))
+		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(live))
+	})
+
+	t.Run("different keys different values", func(t *testing.T) {
+		target, live, err := HideSecretData(
+			createSecret(map[string]string{"key1": "test", "key2": "test"}),
+			createSecret(map[string]string{"key2": "test-1", "key3": "test-1"}),
+			nil,
+		)
+		require.NoError(t, err)
+
+		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(target))
+		assert.Equal(t, map[string]any{"key2": replacement2, "key3": replacement1}, secretData(live))
+	})
+
+	t.Run("handle empty target secret", func(t *testing.T) {
+		// given
+		targetSecret := bytesToUnstructured(t, getTargetSecretJsonBytes())
+		liveSecret := bytesToUnstructured(t, getLiveSecretJsonBytes())
+
+		// when
+		target, live, err := HideSecretData(targetSecret, liveSecret, nil)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, target)
+		assert.NotNil(t, live)
+		assert.Nil(t, target.Object["data"])
+		assert.Equal(t, map[string]any{"namespace": replacement1, "token": replacement1}, secretData(live))
+	})
+
+	t.Run("handle empty live secret", func(t *testing.T) {
+		// given
+		targetSecret := bytesToUnstructured(t, getTargetSecretJsonBytes())
+		liveSecret := bytesToUnstructured(t, getLiveSecretJsonBytes())
+		targetSecret.Object["data"] = liveSecret.Object["data"]
+		liveSecret.Object["data"] = nil
+
+		// when
+		target, live, err := HideSecretData(targetSecret, liveSecret, nil)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, target)
+		assert.NotNil(t, live)
+		assert.Nil(t, live.Object["data"])
+		assert.Equal(t, map[string]any{"namespace": replacement1, "token": replacement1}, secretData(target))
+	})
+
+	t.Run("live last applied config", func(t *testing.T) {
+		lastAppliedSecret := createSecret(map[string]string{"key1": "test1"})
+		targetSecret := createSecret(map[string]string{"key1": "test2"})
+		liveSecret := createSecret(map[string]string{"key1": "test3"})
+		lastAppliedStr, err := json.Marshal(lastAppliedSecret)
+		require.NoError(t, err)
+		liveSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: string(lastAppliedStr)})
+
+		target, live, err := HideSecretData(targetSecret, liveSecret, nil)
+		require.NoError(t, err)
+		err = json.Unmarshal([]byte(live.GetAnnotations()[corev1.LastAppliedConfigAnnotation]), &lastAppliedSecret)
+		require.NoError(t, err)
+
+		assert.Equal(t, map[string]any{"key1": replacement1}, secretData(target))
+		assert.Equal(t, map[string]any{"key1": replacement2}, secretData(live))
+		assert.Equal(t, map[string]any{"key1": replacement3}, secretData(lastAppliedSecret))
+	})
+
+	t.Run("target last applied config", func(t *testing.T) {
+		// Test case where target also has a last-applied-configuration annotation with secret data
+		// This can happen during server-side diff when the dry-run returns a predictedLive with this annotation
+		targetLastAppliedSecret := createSecret(map[string]string{"key1": "test1"})
+		targetLastAppliedStr, err := json.Marshal(targetLastAppliedSecret)
+		require.NoError(t, err)
+
+		targetSecret := createSecret(map[string]string{"key1": "test1"}) // Same value as in last-applied
+		targetSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: string(targetLastAppliedStr)})
+
+		liveSecret := createSecret(map[string]string{"key1": "test2"})
+
+		target, live, err := HideSecretData(targetSecret, liveSecret, nil)
+		require.NoError(t, err)
+
+		// Verify target's last-applied-config is masked
+		targetLastAppliedAnnotation := target.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+		require.NotEmpty(t, targetLastAppliedAnnotation)
+		err = json.Unmarshal([]byte(targetLastAppliedAnnotation), &targetLastAppliedSecret)
+		require.NoError(t, err)
+
+		// target.key1 and targetLastApplied.key1 have the same value "test1", so they should get the same replacement
+		// live.key1 has a different value "test2", so it should get a different replacement
+		assert.Equal(t, map[string]any{"key1": replacement1}, secretData(target))
+		assert.Equal(t, map[string]any{"key1": replacement2}, secretData(live))
+		assert.Equal(t, map[string]any{"key1": replacement1}, secretData(targetLastAppliedSecret))
+	})
+
+	t.Run("both target and live last applied config", func(t *testing.T) {
+		// Test case where both target and live have last-applied-configuration annotations
+		// Use the same value "test1" in targetLastApplied.key1 and target.key1
+		// Use the same value "test2" in both target.key2 and targetLastApplied.key2
+		// Use a different value "test3" in live.key1 and liveLastApplied.key1
+		targetLastAppliedSecret := createSecret(map[string]string{"key1": "test1", "key2": "test2"})
+		targetLastAppliedStr, err := json.Marshal(targetLastAppliedSecret)
+		require.NoError(t, err)
+
+		liveLastAppliedSecret := createSecret(map[string]string{"key1": "test3"})
+		liveLastAppliedStr, err := json.Marshal(liveLastAppliedSecret)
+		require.NoError(t, err)
+
+		targetSecret := createSecret(map[string]string{"key1": "test1", "key2": "test2"})
+		targetSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: string(targetLastAppliedStr)})
+
+		liveSecret := createSecret(map[string]string{"key1": "test3"})
+		liveSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: string(liveLastAppliedStr)})
+
+		target, live, err := HideSecretData(targetSecret, liveSecret, nil)
+		require.NoError(t, err)
+
+		// Verify target's last-applied-config is masked
+		targetLastAppliedAnnotation := target.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+		require.NotEmpty(t, targetLastAppliedAnnotation)
+		err = json.Unmarshal([]byte(targetLastAppliedAnnotation), &targetLastAppliedSecret)
+		require.NoError(t, err)
+
+		// Verify live's last-applied-config is masked
+		liveLastAppliedAnnotation := live.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+		require.NotEmpty(t, liveLastAppliedAnnotation)
+		err = json.Unmarshal([]byte(liveLastAppliedAnnotation), &liveLastAppliedSecret)
+		require.NoError(t, err)
+
+		// The algorithm processes keys separately and resets valToReplacement for each key
+		// For key1: "test1" (in target and targetLastApplied) gets replacement1, "test3" (in live and liveLastApplied) gets replacement2
+		// For key2: "test2" (in target and targetLastApplied) gets replacement1 (per-key valToReplacement)
+		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(target))
+		assert.Equal(t, map[string]any{"key1": replacement2}, secretData(live))
+		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(targetLastAppliedSecret))
+		assert.Equal(t, map[string]any{"key1": replacement2}, secretData(liveLastAppliedSecret))
+	})
+
+	t.Run("malformed live last applied config is masked (fail closed)", func(t *testing.T) {
+		// A last-applied-configuration annotation that is not valid JSON may still embed raw
+		// Secret material. It must be replaced with the placeholder rather than left untouched.
+		const malformed = `{"data":{"password":"U0VDUkVUVkFM"` // truncated JSON, unparseable
+		targetSecret := createSecret(map[string]string{"key1": "test1"})
+		liveSecret := createSecret(map[string]string{"key1": "test1"})
+		liveSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: malformed})
+
+		_, live, err := HideSecretData(targetSecret, liveSecret, nil)
+		require.NoError(t, err)
+
+		annotation := live.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+		assert.Equal(t, replacement, annotation, "malformed live annotation must be fully masked")
+		assert.NotContains(t, annotation, "U0VDUkVUVkFM", "raw secret material must not survive")
+	})
+
+	t.Run("malformed target last applied config is masked (fail closed)", func(t *testing.T) {
+		// Same as above, but for the target object (e.g. a predictedLive from a server-side dry-run).
+		const malformed = `{"data":{"password":"U0VDUkVUVkFM"` // truncated JSON, unparseable
+		targetSecret := createSecret(map[string]string{"key1": "test1"})
+		targetSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: malformed})
+		liveSecret := createSecret(map[string]string{"key1": "test1"})
+
+		target, _, err := HideSecretData(targetSecret, liveSecret, nil)
+		require.NoError(t, err)
+
+		annotation := target.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+		assert.Equal(t, replacement, annotation, "malformed target annotation must be fully masked")
+		assert.NotContains(t, annotation, "U0VDUkVUVkFM", "raw secret material must not survive")
+	})
+
+	t.Run("invalid secret", func(t *testing.T) {
+		liveUn := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "v1",
+				"kind":       "Secret",
+				"metadata": map[string]any{
+					"name": "test-secret",
+				},
+				"type": "Opaque",
+				"data": map[string]any{
+					"key1": "a2V5MQ==",
+					"key2": "a2V5MQ==",
+				},
+			},
+		}
+		targetUn := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "v1",
+				"kind":       "Secret",
+				"metadata": map[string]any{
+					"name": "test-secret",
+				},
+				"type": "Opaque",
+				"data": map[string]any{
+					"key1": "a2V5MQ==",
+					"key2": "a2V5Mg==",
+					"key3": false,
+				},
+				"stringData": map[string]any{
+					"key4": "key4",
+					"key5": 5,
+				},
+			},
+		}
+
+		liveUn = remarshal(liveUn, applyOptions(diffOptionsForTest()))
+		targetUn = remarshal(targetUn, applyOptions(diffOptionsForTest()))
+
+		target, live, err := HideSecretData(targetUn, liveUn, nil)
+		require.NoError(t, err)
+
+		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement2}, secretData(live))
+		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1, "key3": replacement1, "key4": replacement1, "key5": replacement1}, secretData(target))
+	})
+}
+
+// stringData in secrets should be normalized even if it is invalid
+func TestNormalizeSecret(t *testing.T) {
+	tests := []struct {
+		testname   string
+		data       map[string]any
+		stringData map[string]any
+	}{
+		{
+			testname: "Valid secret",
+			data: map[string]any{
+				"key1": "key1",
+			},
+			stringData: map[string]any{
+				"key2": "a2V5Mg==",
+			},
+		},
+		{
+			testname: "Invalid secret",
+			data: map[string]any{
+				"key1": "key1",
+				"key2": 2,
+			},
+			stringData: map[string]any{
+				"key3": "key3",
+				"key4": nil,
+			},
+		},
+		{
+			testname: "Invalid secret with stringData only",
+			data:     nil,
+			stringData: map[string]any{
+				"key3": "key3",
+				"key4": true,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.testname, func(t *testing.T) {
+			un := &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "Secret",
+					"metadata": map[string]any{
+						"name": "test-secret",
+					},
+					"type":       "Opaque",
+					"data":       tt.data,
+					"stringData": tt.stringData,
+				},
+			}
+			un = remarshal(un, applyOptions(diffOptionsForTest()))
+
+			NormalizeSecret(un)
+
+			_, found, _ := unstructured.NestedMap(un.Object, "stringData")
+			assert.False(t, found)
+
+			data, found, _ := unstructured.NestedMap(un.Object, "data")
+			assert.True(t, found)
+
+			// check all secret keys are found under data in normalized secret
+			for _, obj := range []map[string]any{tt.data, tt.stringData} {
+				if obj == nil {
+					continue
+				}
+				for k := range obj {
+					_, ok := data[k]
+					assert.True(t, ok)
+				}
+			}
+		})
+	}
+}
+
+func TestHideSecretData_HideAnnotations(t *testing.T) {
+	tests := []struct {
+		name           string
+		hideAnnots     map[string]bool
+		annots         map[string]any
+		expectedAnnots map[string]any
+		targetNil      bool
+	}{
+		{
+			name:           "no hidden annotations",
+			hideAnnots:     nil,
+			annots:         map[string]any{"token/value": "secret", "key": "secret-key", "app": "test"},
+			expectedAnnots: map[string]any{"token/value": "secret", "key": "secret-key", "app": "test"},
+		},
+		{
+			name:           "hide annotations",
+			hideAnnots:     map[string]bool{"token/value": true, "key": true},
+			annots:         map[string]any{"token/value": "secret", "key": "secret-key", "app": "test"},
+			expectedAnnots: map[string]any{"token/value": replacement1, "key": replacement1, "app": "test"},
+		},
+		{
+			name:       "hide annotations in last-applied-config",
+			hideAnnots: map[string]bool{"token/value": true, "key": true},
+			annots: map[string]any{
+				"token/value": "secret",
+				"app":         "test",
+				"kubectl.kubernetes.io/last-applied-configuration": `{"apiVersion":"v1","kind":"Secret","metadata":{"annotations":{"app":"test","token/value":"secret","key":"secret-key"},"labels":{"app.kubernetes.io/instance":"test"},"name":"my-secret","namespace":"default"},"type":"Opaque"}`,
+			},
+			expectedAnnots: map[string]any{
+				"token/value": replacement1,
+				"app":         "test",
+				"kubectl.kubernetes.io/last-applied-configuration": `{"apiVersion":"v1","kind":"Secret","metadata":{"annotations":{"app":"test","key":"++++++++","token/value":"++++++++"},"labels":{"app.kubernetes.io/instance":"test"},"name":"my-secret","namespace":"default"},"type":"Opaque"}`,
+			},
+			targetNil: true,
+		},
+		{
+			name:       "special case: hide last-applied-config annotation",
+			hideAnnots: map[string]bool{"kubectl.kubernetes.io/last-applied-configuration": true},
+			annots: map[string]any{
+				"token/value": replacement1,
+				"app":         "test",
+				"kubectl.kubernetes.io/last-applied-configuration": `{"apiVersion":"v1","kind":"Secret","metadata":{"annotations":{"app":"test","token/value":"secret","key":"secret-key"},"labels":{"app.kubernetes.io/instance":"test"},"name":"my-secret","namespace":"default"},"type":"Opaque"}`,
+			},
+			expectedAnnots: map[string]any{
+				"app": "test",
+				"kubectl.kubernetes.io/last-applied-configuration": replacement1,
+			},
+			targetNil: true,
+		},
+		{
+			name:           "hide annotations for malformed annotations",
+			hideAnnots:     map[string]bool{"token/value": true, "key": true},
+			annots:         map[string]any{"token/value": 0, "key": "secret", "app": true},
+			expectedAnnots: map[string]any{"token/value": replacement1, "key": replacement1, "app": true},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			unSecret := &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "v1",
+					"kind":       "Secret",
+					"metadata": map[string]any{
+						"name":        "test-secret",
+						"annotations": tt.annots,
+					},
+					"type": "Opaque",
+				},
+			}
+
+			liveUn := remarshal(unSecret, applyOptions(diffOptionsForTest()))
+			targetUn := remarshal(unSecret, applyOptions(diffOptionsForTest()))
+
+			if tt.targetNil {
+				targetUn = nil
+			}
+
+			target, live, err := HideSecretData(targetUn, liveUn, tt.hideAnnots)
+			require.NoError(t, err)
+
+			// verify configured annotations are hidden
+			for _, obj := range []*unstructured.Unstructured{target, live} {
+				if obj != nil {
+					annots, _, _ := unstructured.NestedMap(obj.Object, "metadata", "annotations")
+					for ek, ev := range tt.expectedAnnots {
+						v, found := annots[ek]
+						assert.True(t, found)
+						assert.Equal(t, ev, v)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestHideSecretData_HideAnnotations_PreserveDifference(t *testing.T) {
+	hideAnnots := map[string]bool{"token/value": true}
+
+	liveUn := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata": map[string]any{
+				"name":        "test-secret",
+				"annotations": map[string]any{"token/value": "secret", "app": "test"},
+			},
+			"type": "Opaque",
+		},
+	}
+	targetUn := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Secret",
+			"metadata": map[string]any{
+				"name":        "test-secret",
+				"annotations": map[string]any{"token/value": "new-secret", "app": "test"},
+			},
+			"type": "Opaque",
+		},
+	}
+
+	liveUn = remarshal(liveUn, applyOptions(diffOptionsForTest()))
+	targetUn = remarshal(targetUn, applyOptions(diffOptionsForTest()))
+
+	target, live, err := HideSecretData(targetUn, liveUn, hideAnnots)
+	require.NoError(t, err)
+
+	liveAnnots := live.GetAnnotations()
+	v, found := liveAnnots["token/value"]
+	assert.True(t, found)
+	assert.Equal(t, replacement2, v)
+
+	targetAnnots := target.GetAnnotations()
+	v, found = targetAnnots["token/value"]
+	assert.True(t, found)
+	assert.Equal(t, replacement1, v)
+}
+
+func getTargetSecretJsonBytes() []byte {
+	return []byte(`
+{
+    "apiVersion": "v1",
+    "kind": "Secret",
+    "type": "kubernetes.io/service-account-token",
+    "metadata": {
+        "annotations": {
+            "kubernetes.io/service-account.name": "default"
+        },
+        "labels": {
+            "app.kubernetes.io/instance": "empty-secret"
+        },
+        "name": "an-empty-secret",
+        "namespace": "default"
+    },
+	"data": {}
+}`)
+}
+
+func getLiveSecretJsonBytes() []byte {
+	return []byte(`
+{
+    "kind": "Secret",
+    "apiVersion": "v1",
+    "type": "kubernetes.io/service-account-token",
+    "metadata": {
+        "annotations": {
+            "kubernetes.io/service-account.name": "default",
+            "kubernetes.io/service-account.uid": "78688180-d432-4ee8-939d-382b015a6b13"
+        },
+        "creationTimestamp": "2021-10-27T19:09:22Z",
+        "labels": {
+            "app.kubernetes.io/instance": "empty-secret"
+        },
+        "name": "an-empty-secret",
+        "namespace": "default",
+        "resourceVersion": "2329692",
+        "uid": "2e98590d-a699-4281-89d5-aa94dfc1d7d7"
+    },
+    "data": {
+        "namespace": "ZGVmYXVsdA==",
+        "token": "ZGVmYXVsdAcb=="
+    }
+}`)
+}
+
+func bytesToUnstructured(t *testing.T, jsonBytes []byte) *unstructured.Unstructured {
+	t.Helper()
+	var jsonMap map[string]any
+	require.NoError(t, json.Unmarshal(jsonBytes, &jsonMap))
+	return &unstructured.Unstructured{
+		Object: jsonMap,
+	}
+}
+
+func TestRemarshal(t *testing.T) {
+	manifest := []byte(`
+apiVersion: v1
+kind: ServiceAccount
+imagePullSecrets: []
+metadata:
+  name: my-sa
+`)
+	var un unstructured.Unstructured
+	require.NoError(t, yaml.Unmarshal(manifest, &un))
+	newUn := remarshal(&un, applyOptions(diffOptionsForTest()))
+	_, ok := newUn.Object["imagePullSecrets"]
+	assert.False(t, ok)
+	metadata := newUn.Object["metadata"].(map[string]any)
+	_, ok = metadata["creationTimestamp"]
+	assert.False(t, ok)
+}
+
+func TestRemarshalStatefulSetCreationTimestamp(t *testing.T) {
+	manifest := []byte(`
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: test-sts
+  creationTimestamp: "2025-11-06T19:35:31Z"
+spec:
+  serviceName: test
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: test
+    spec:
+      containers:
+      - name: test
+        image: nginx
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      creationTimestamp: null
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+`)
+	var un unstructured.Unstructured
+	require.NoError(t, yaml.Unmarshal(manifest, &un))
+
+	// Verify creationTimestamp exists in nested metadata before remarshal
+	spec := un.Object["spec"].(map[string]any)
+	templateMetadata := spec["template"].(map[string]any)["metadata"].(map[string]any)
+	_, ok := templateMetadata["creationTimestamp"]
+	assert.True(t, ok, "creationTimestamp should exist in template.metadata before remarshal")
+
+	volumeClaimTemplates := spec["volumeClaimTemplates"].([]any)
+	vctMetadata := volumeClaimTemplates[0].(map[string]any)["metadata"].(map[string]any)
+	_, ok = vctMetadata["creationTimestamp"]
+	assert.True(t, ok, "creationTimestamp should exist in volumeClaimTemplates[0].metadata before remarshal")
+
+	// Remarshal
+	newUn := remarshal(&un, applyOptions(diffOptionsForTest()))
+
+	// Verify creationTimestamp is removed from nested metadata after remarshal
+	// (top-level metadata.creationTimestamp is preserved as it's part of the resource identity)
+	spec = newUn.Object["spec"].(map[string]any)
+	templateMetadata = spec["template"].(map[string]any)["metadata"].(map[string]any)
+	_, ok = templateMetadata["creationTimestamp"]
+	assert.False(t, ok, "creationTimestamp should be removed from template.metadata after remarshal")
+
+	volumeClaimTemplates = spec["volumeClaimTemplates"].([]any)
+	vctMetadata = volumeClaimTemplates[0].(map[string]any)["metadata"].(map[string]any)
+	_, ok = vctMetadata["creationTimestamp"]
+	assert.False(t, ok, "creationTimestamp should be removed from volumeClaimTemplates[0].metadata after remarshal")
+}
+
+func TestRemarshalResources(t *testing.T) {
+	getRequests := func(un *unstructured.Unstructured) map[string]any {
+		return un.Object["spec"].(map[string]any)["containers"].([]any)[0].(map[string]any)["resources"].(map[string]any)["requests"].(map[string]any)
+	}
+
+	setRequests := func(un *unstructured.Unstructured, requests map[string]any) {
+		un.Object["spec"].(map[string]any)["containers"].([]any)[0].(map[string]any)["resources"].(map[string]any)["requests"] = requests
+	}
+
+	manifest := []byte(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  containers:
+  - image: nginx:1.7.9
+    name: nginx
+    resources:
+      requests:
+        cpu: 0.2
+`)
+	un := unstructured.Unstructured{}
+	require.NoError(t, yaml.Unmarshal(manifest, &un))
+
+	testCases := []struct {
+		name        string
+		cpu         any
+		expectedCPU any
+	}{
+		{"from float", 0.2, "200m"},
+		{"from float64", float64(0.2), "200m"},
+		{"from string", "0.2", "200m"},
+		{"from invalid", "invalid", "invalid"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			setRequests(&un, map[string]any{"cpu": tc.cpu})
+			newUn := remarshal(&un, applyOptions(diffOptionsForTest()))
+			requestsAfter := getRequests(newUn)
+			assert.Equal(t, tc.expectedCPU, requestsAfter["cpu"])
+		})
+	}
+}
+
+func ExampleDiff() {
+	expectedResource := unstructured.Unstructured{}
+	if err := yaml.Unmarshal([]byte(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  containers:
+  - image: nginx:1.7.9
+    name: nginx
+    resources:
+      requests:
+        cpu: 0.2
+`), &expectedResource); err != nil {
+		panic(err)
+	}
+
+	liveResource := unstructured.Unstructured{}
+	if err := yaml.Unmarshal([]byte(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod-123
+  creationTimestamp: "2020-03-30T21:34:59Z"
+  labels:
+    pod-template-hash: 84bf9649fd
+  name: argo-cd-cli-84bf9649fd-tm59q
+  resourceVersion: "233081332"
+  uid: 9a5ae31a-eed2-4f82-81fe-833799c54f99
+spec:
+  containers:
+  - image: nginx:1.7.9
+    name: nginx
+    resources:
+      requests:
+        cpu: 0.1
+`), &liveResource); err != nil {
+		panic(err)
+	}
+	diff, err := Diff(context.Background(), &expectedResource, &liveResource, diffOptionsForTest()...)
+	if err != nil {
+		panic(err)
+	}
+	if diff.Modified {
+		fmt.Println("Resources are different")
+	}
+}
+
+func diffOptionsForTest() []Option {
+	return []Option{
+		WithLogr(textlogger.NewLogger(textlogger.NewConfig())),
+		IgnoreAggregatedRoles(false),
+	}
+}
+
+func YamlToSvc(t *testing.T, y []byte) *corev1.Service {
+	t.Helper()
+	svc := corev1.Service{}
+	require.NoErrorf(t, yaml.Unmarshal(y, &svc), "error unmarshaling service bytes")
+	return &svc
+}
+
+func YamlToDeploy(t *testing.T, y []byte) *appsv1.Deployment {
+	t.Helper()
+	deploy := appsv1.Deployment{}
+	require.NoErrorf(t, yaml.Unmarshal(y, &deploy), "error unmarshaling deployment bytes")
+	return &deploy
+}
+
+func StrToUnstructured(yamlStr string) *unstructured.Unstructured {
+	obj := make(map[string]any)
+	err := yaml.Unmarshal([]byte(yamlStr), &obj)
+	if err != nil {
+		panic(err)
+	}
+	return &unstructured.Unstructured{Object: obj}
+}
+
+func TestDiffWithIgnoreDifferences(t *testing.T) {
+	t.Run("TwoWayDiff will respect ignoreDifferences for comparison but not output normalization", func(t *testing.T) {
+		// given
+		t.Parallel()
+
+		// Create a simple service with sessionAffinity that should be ignored
+		liveService := StrToUnstructured(`
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  selector:
+    app: my-app
+  ports:
+  - port: 80
+  sessionAffinity: None
+  type: ClusterIP
+`)
+
+		desiredService := StrToUnstructured(`
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  selector:
+    app: my-app
+  ports:
+  - port: 80
+  sessionAffinity: ClientIP
+  type: ClusterIP
+`)
+
+		// Normalizer that ignores sessionAffinity
+		normalizer := &testIgnoreDifferencesNormalizer{
+			fieldsToRemove: [][]string{
+				{"spec", "sessionAffinity"},
+			},
+		}
+
+		opts := []Option{
+			WithNormalizer(normalizer),
+			WithLogr(textlogger.NewLogger(textlogger.NewConfig())),
+		}
+
+		// when
+		result, err := Diff(t.Context(), desiredService, liveService, opts...)
+		require.NoError(t, err)
+
+		// then
+		assert.NotNil(t, result)
+
+		// Since sessionAffinity is ignored in input normalization, there should be no modification
+		assert.False(t, result.Modified, "Should not show diff for ignored fields")
+
+		predictedLiveStr := string(result.PredictedLive)
+		normalizedLiveStr := string(result.NormalizedLive)
+
+		// NOTE: Unlike server-side diff, TwoWayDiff/ThreeWayDiff don't normalize outputs
+		// So sessionAffinity WILL still appear in the output bytes, but Modified should be false
+		// because input normalization removed the differences during comparison
+		assert.Contains(t, predictedLiveStr, "sessionAffinity", "sessionAffinity should still appear in output (no output normalization)")
+		assert.Contains(t, normalizedLiveStr, "sessionAffinity", "sessionAffinity should still appear in output (no output normalization)")
+	})
+
+	t.Run("ThreeWayDiff will respect ignoreDifferences for comparison but not output normalization", func(t *testing.T) {
+		// given
+		t.Parallel()
+
+		// Create config and live with sessionAffinity differences that should be ignored
+		configService := StrToUnstructured(`
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  selector:
+    app: my-app
+  ports:
+  - port: 80
+  sessionAffinity: ClientIP
+  type: ClusterIP
+`)
+
+		liveService := StrToUnstructured(`
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","kind":"Service","metadata":{"name":"my-service"},"spec":{"selector":{"app":"my-app"},"ports":[{"port":80}],"sessionAffinity":"None","type":"ClusterIP"}}
+spec:
+  selector:
+    app: my-app
+  ports:
+  - port: 80
+  sessionAffinity: None
+  type: ClusterIP
+`)
+
+		// Normalizer that ignores sessionAffinity
+		normalizer := &testIgnoreDifferencesNormalizer{
+			fieldsToRemove: [][]string{
+				{"spec", "sessionAffinity"},
+			},
+		}
+
+		opts := []Option{
+			WithNormalizer(normalizer),
+			WithLogr(textlogger.NewLogger(textlogger.NewConfig())),
+		}
+
+		// when
+		result, err := Diff(t.Context(), configService, liveService, opts...)
+		require.NoError(t, err)
+
+		// then
+		assert.NotNil(t, result)
+
+		// Since sessionAffinity is ignored in input normalization, there should be no modification
+		assert.False(t, result.Modified, "Should not show diff for ignored fields")
+
+		predictedLiveStr := string(result.PredictedLive)
+		normalizedLiveStr := string(result.NormalizedLive)
+
+		// NOTE: Unlike server-side diff, TwoWayDiff/ThreeWayDiff don't normalize outputs
+		// So sessionAffinity WILL still appear in the output bytes, but Modified should be false
+		// because input normalization removed the differences during comparison
+		assert.Contains(t, predictedLiveStr, "sessionAffinity", "sessionAffinity should still appear in output (no output normalization)")
+		assert.Contains(t, normalizedLiveStr, "sessionAffinity", "sessionAffinity should still appear in output (no output normalization)")
+	})
+}

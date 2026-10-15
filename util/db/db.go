@@ -3,9 +3,7 @@ package db
 import (
 	"context"
 	"math"
-	"strings"
 
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -141,22 +139,6 @@ func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientse
 	}
 }
 
-func (db *db) getSecret(name string, cache map[string]*corev1.Secret) (*corev1.Secret, error) {
-	if _, ok := cache[name]; !ok {
-		secret, err := db.settingsMgr.GetSecretByName(name)
-		if err != nil {
-			return nil, err
-		}
-		cache[name] = secret
-	}
-	return cache[name], nil
-}
-
-// StripCRLFCharacter strips the trailing CRLF characters
-func StripCRLFCharacter(input string) string {
-	return strings.TrimSpace(input)
-}
-
 // GetApplicationControllerReplicas gets the replicas of application controller
 func (db *db) GetApplicationControllerReplicas() int {
 	// get the replicas from application controller deployment, if the application controller deployment does not exist, check for environment variable
@@ -165,7 +147,7 @@ func (db *db) GetApplicationControllerReplicas() int {
 	if err != nil {
 		appControllerDeployment = nil
 		if !apierrors.IsNotFound(err) {
-			log.Warnf("error retrieveing Argo CD controller deployment: %s", err)
+			log.Warnf("error retrieving Argo CD controller deployment: %s", err)
 		}
 	}
 	if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {

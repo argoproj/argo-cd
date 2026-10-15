@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: managed-by-url-test
+  labels:
+    test: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: managed-by-url-test
+  template:
+    metadata:
+      labels:
+        app: managed-by-url-test
+    spec:
+      containers:
+      - name: managed-by-url-test
+        image: quay.io/argoprojlabs/argocd-e2e-container:0.2
+        ports:
+        - containerPort: 80

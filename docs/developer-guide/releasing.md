@@ -71,17 +71,19 @@ Example:
 ./hack/trigger-release.sh v2.7.2 upstream
 ```
 
-!!! tip
-    The tag must be in one of the following formats to trigger the GH workflow:<br>
-    * GA: `v<MAJOR>.<MINOR>.<PATCH>`<br>
-    * Pre-release: `v<MAJOR>.<MINOR>.<PATCH>-rc<RC#>`
+The script will ask for confirmation, type `y` to proceed. If no confirmation is received within 30 seconds, the script will abort.
+
+> [!TIP]
+> The tag must be in one of the following formats to trigger the GH workflow:<br>
+> * GA: `v<MAJOR>.<MINOR>.<PATCH>`<br>
+> * Pre-release: `v<MAJOR>.<MINOR>.<PATCH>-rc<RC#>`
 
 Once the script is executed successfully, a GitHub workflow will start
 execution. You can follow its progress under the [Actions](https://github.com/argoproj/argo-cd/actions/workflows/release.yaml) tab, the name of the action is `Publish ArgoCD Release`. 
 
-!!! warning
-    You cannot perform more than one release on the same release branch at the
-    same time.
+> [!WARNING]
+> You cannot perform more than one release on the same release branch at the
+> same time.
 
 ### Verifying automated release
 
@@ -96,11 +98,15 @@ checks to see if the release came out correctly:
 
 ### If something went wrong
 
-If something went wrong, damage should be limited. Depending on the steps that
-have been performed, you will need to manually clean up.
+A new Argo CD release results in:
+- A new GitHub release created
+- Stable Git tag pointing to the release (if the release is the latest release)
+- The release Go packages are published for using Argo CD code as dependency
+- Docker images and SBOM artifacts are published
 
-* If the container image has been pushed to Quay.io, delete it
-* Delete the release (if created) from the `Releases` page on GitHub
+Because of all the above dependencies, in a case of a release that failed, it is not safe to delete and recreate it.
+Instead, create the next patch release (for example, if `3.2.4` failed, create `3.2.5` after fixing the problem, but don't recreate `3.2.4`).
+Upon successful publishing of the fixed release (3.2.5 in our example), copy the full release notes manually from the failed release (3.2.4 in our example) and then update the failed release (3.2.4 in our example) release notes to state this release is invalid and should not be used.
 
 ### Manual releasing
 

@@ -7,11 +7,8 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-
-	kubefake "k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -35,21 +32,17 @@ func (p *possiblyErroringFakeCtrlRuntimeClient) List(ctx context.Context, secret
 func TestGenerateParams(t *testing.T) {
 	clusters := []client.Object{
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "staging-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "staging",
+				"org":                            "foo",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "staging-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "staging",
-					"org":                            "foo",
-				},
-				Annotations: map[string]string{
-					"foo.argoproj.io": "staging",
-				},
+			Annotations: map[string]string{
+				"foo.argoproj.io": "staging",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -59,21 +52,17 @@ func TestGenerateParams(t *testing.T) {
 			Type: corev1.SecretType("Opaque"),
 		},
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "production-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "production",
+				"org":                            "bar",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "production-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "production",
-					"org":                            "bar",
-				},
-				Annotations: map[string]string{
-					"foo.argoproj.io": "production",
-				},
+			Annotations: map[string]string{
+				"foo.argoproj.io": "production",
 			},
 			Data: map[string][]byte{
 				"config":  []byte("{}"),
@@ -299,28 +288,18 @@ func TestGenerateParams(t *testing.T) {
 		},
 	}
 
-	// convert []client.Object to []runtime.Object, for use by kubefake package
-	runtimeClusters := []runtime.Object{}
-	for _, clientCluster := range clusters {
-		runtimeClusters = append(runtimeClusters, clientCluster)
-	}
-
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
-
 			fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
 			cl := &possiblyErroringFakeCtrlRuntimeClient{
 				fakeClient,
 				testCase.clientError,
 			}
 
-			clusterGenerator := NewClusterGenerator(t.Context(), cl, appClientset, "namespace")
+			clusterGenerator := NewClusterGenerator(cl, "namespace")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{},
 			}
 
@@ -336,30 +315,39 @@ func TestGenerateParams(t *testing.T) {
 				require.EqualError(t, err, testCase.expectedError.Error())
 			} else {
 				require.NoError(t, err)
-				assert.ElementsMatch(t, testCase.expected, got)
+				assertEqualParamsFlat(t, testCase.expected, got, testCase.isFlatMode)
 			}
 		})
 	}
 }
 
+func assertEqualParamsFlat(t *testing.T, expected, got []map[string]any, isFlatMode bool) {
+	t.Helper()
+	if isFlatMode && len(expected) == 1 && len(got) == 1 {
+		expectedClusters, ok1 := expected[0]["clusters"].([]map[string]any)
+		gotClusters, ok2 := got[0]["clusters"].([]map[string]any)
+		if ok1 && ok2 {
+			assert.ElementsMatch(t, expectedClusters, gotClusters)
+			return
+		}
+	}
+	assert.ElementsMatch(t, expected, got)
+}
+
 func TestGenerateParamsGoTemplate(t *testing.T) {
 	clusters := []client.Object{
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "staging-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "staging",
+				"org":                            "foo",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "staging-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "staging",
-					"org":                            "foo",
-				},
-				Annotations: map[string]string{
-					"foo.argoproj.io": "staging",
-				},
+			Annotations: map[string]string{
+				"foo.argoproj.io": "staging",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -369,21 +357,17 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 			Type: corev1.SecretType("Opaque"),
 		},
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "production-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "production",
+				"org":                            "bar",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "production-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "production",
-					"org":                            "bar",
-				},
-				Annotations: map[string]string{
-					"foo.argoproj.io": "production",
-				},
+			Annotations: map[string]string{
+				"foo.argoproj.io": "production",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -837,28 +821,18 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 		},
 	}
 
-	// convert []client.Object to []runtime.Object, for use by kubefake package
-	runtimeClusters := []runtime.Object{}
-	for _, clientCluster := range clusters {
-		runtimeClusters = append(runtimeClusters, clientCluster)
-	}
-
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
-
 			fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
 			cl := &possiblyErroringFakeCtrlRuntimeClient{
 				fakeClient,
 				testCase.clientError,
 			}
 
-			clusterGenerator := NewClusterGenerator(t.Context(), cl, appClientset, "namespace")
+			clusterGenerator := NewClusterGenerator(cl, "namespace")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 				},
@@ -876,7 +850,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 				require.EqualError(t, err, testCase.expectedError.Error())
 			} else {
 				require.NoError(t, err)
-				assert.ElementsMatch(t, testCase.expected, got)
+				assertEqualParamsFlat(t, testCase.expected, got, testCase.isFlatMode)
 			}
 		})
 	}

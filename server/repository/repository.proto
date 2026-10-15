@@ -95,6 +95,14 @@ message RepoAccessQuery {
 	string bearerToken = 21;
 	// Whether https should be disabled for an OCI repo
 	bool insecureOciForceHttp = 22;
+	// Azure Service Principal Client ID
+	string azureServicePrincipalClientId = 23;
+	// Azure Service Principal Client Secret
+	string azureServicePrincipalClientSecret = 24;
+	// Azure Service Principal Tenant ID
+	string azureServicePrincipalTenantId = 25;
+	// Azure Active Directory Endpoint
+	string azureActiveDirectoryEndpoint = 26;
 }
 
 message RepoResponse {}

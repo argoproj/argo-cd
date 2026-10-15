@@ -18,7 +18,7 @@
 To remove all deployed resources in your local cluster including CRDs, run `tilt down` from the root of the repo. 
 
 ### Port Forwarding
-Port forwarding is automatically setup from the cluster to localhost host for the folling ports:
+Port forwarding is automatically setup from the cluster to localhost host for the following ports:
 
 | Deployment | API | Metrics | Webhook | Debug |
 |------------|-----|---------|---------|-------|

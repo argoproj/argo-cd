@@ -1,13 +1,11 @@
 import * as React from 'react';
 
-import * as monacoEditor from 'monaco-editor';
+import type * as monacoEditor from 'monaco-editor';
+import {applyEditorInput, EditorInput} from './monaco-apply-input';
 import {services} from '../services';
-import {getTheme, useSystemTheme} from '../utils';
+import {getTheme, createSystemThemeListener} from '../utils';
 
-export interface EditorInput {
-    text: string;
-    language?: string;
-}
+export type {EditorInput};
 
 export interface MonacoProps {
     minHeight?: number;
@@ -19,20 +17,23 @@ export interface MonacoProps {
     };
 }
 
-function IsEqualInput(first?: EditorInput, second?: EditorInput) {
-    return first && second && first.text === second.text && (first.language || '') === (second.language || '');
-}
-
 const DEFAULT_LINE_HEIGHT = 18;
+
+function heightForLineCount(lineCount: number, minHeight?: number) {
+    const newHeight = lineCount * DEFAULT_LINE_HEIGHT + 50;
+    return Math.max(minHeight || 0, newHeight > window.innerHeight * 0.95 ? window.innerHeight * 0.95 : newHeight);
+}
 
 const MonacoEditorLazy = React.lazy(() =>
     import('monaco-editor').then(monaco => {
         const Component = (props: MonacoProps) => {
             const [height, setHeight] = React.useState(0);
             const [theme, setTheme] = React.useState('dark');
+            const editorApiRef = React.useRef<monacoEditor.editor.IStandaloneCodeEditor | null>(null);
+            const containerRef = React.useRef<HTMLElement | null>(null);
 
             React.useEffect(() => {
-                const destroySystemThemeListener = useSystemTheme(systemTheme => {
+                const destroySystemThemeListener = createSystemThemeListener(systemTheme => {
                     if (theme === 'auto') {
                         monaco.editor.setTheme(systemTheme === 'dark' ? 'vs-dark' : 'vs');
                     }
@@ -55,40 +56,66 @@ const MonacoEditorLazy = React.lazy(() =>
                 };
             }, []);
 
+            React.useEffect(() => {
+                const onResize = () => {
+                    editorApiRef.current?.layout();
+                };
+                window.addEventListener('resize', onResize);
+                return () => {
+                    window.removeEventListener('resize', onResize);
+                };
+            }, []);
+
+            // Re-layout on container resize so the editor isn't left collapsed until a later re-render.
+            React.useEffect(() => {
+                if (typeof ResizeObserver === 'undefined' || !containerRef.current) {
+                    return undefined;
+                }
+                const observer = new ResizeObserver(() => {
+                    editorApiRef.current?.layout();
+                });
+                observer.observe(containerRef.current);
+                return () => {
+                    observer.disconnect();
+                };
+            }, []);
+
             return (
                 <div
                     style={{
-                        height: `${Math.max(props.minHeight || 0, height + 100)}px`,
+                        height: `${Math.max(props.minHeight || 0, height)}px`,
                         overflowY: 'hidden'
                     }}
                     ref={el => {
                         if (el) {
+                            containerRef.current = el;
                             const container = el as {
-                                editorApi?: monacoEditor.editor.IEditor;
+                                editorApi?: monacoEditor.editor.IStandaloneCodeEditor;
                                 prevEditorInput?: EditorInput;
                             };
                             if (props.editor) {
                                 if (!container.editorApi) {
                                     const editor = monaco.editor.create(el, {
                                         ...props.editor.options,
+                                        value: props.editor.input.text,
+                                        language: props.editor.input.language,
                                         scrollBeyondLastLine: props.vScrollBar,
                                         scrollbar: {
                                             alwaysConsumeMouseWheel: false,
-                                            vertical: props.vScrollBar ? 'visible' : 'hidden'
+                                            vertical: props.vScrollBar ? 'auto' : 'hidden'
                                         }
                                     });
 
                                     container.editorApi = editor;
-                                }
-
-                                const model = monaco.editor.createModel(props.editor.input.text, props.editor.input.language);
-                                const lineCount = model.getLineCount();
-                                setHeight(lineCount * DEFAULT_LINE_HEIGHT);
-
-                                if (!IsEqualInput(container.prevEditorInput, props.editor.input)) {
                                     container.prevEditorInput = props.editor.input;
-                                    container.editorApi.setModel(model);
+                                    editorApiRef.current = editor;
+                                } else {
+                                    applyEditorInput(monaco, container.editorApi, container.prevEditorInput, props.editor.input);
+                                    container.prevEditorInput = props.editor.input;
                                 }
+
+                                const lineCount = container.editorApi.getModel()?.getLineCount() ?? 0;
+                                setHeight(heightForLineCount(lineCount, props.minHeight));
                                 container.editorApi.updateOptions(props.editor.options);
                                 container.editorApi.layout();
                                 if (props.editor.getApi) {

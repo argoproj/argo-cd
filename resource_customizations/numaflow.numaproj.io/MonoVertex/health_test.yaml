@@ -15,3 +15,7 @@ tests:
     status: Healthy
     message: "MonoVertex is paused"
   inputPath: testdata/paused.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed progressive upgrade"
+  inputPath: testdata/degraded-progressive.yaml

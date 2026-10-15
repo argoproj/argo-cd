@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "Object bucket claim phase is Bound"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Object bucket claim phase is Pending"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "Object bucket claim phase is Failed"
+  inputPath: testdata/degraded.yaml
