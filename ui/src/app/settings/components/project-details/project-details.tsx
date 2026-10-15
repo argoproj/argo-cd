@@ -10,7 +10,7 @@ import {Context, ContextApis, AuthSettingsCtx} from '../../../shared/context';
 import {ClusterResourceRestrictionItem, GroupKind, Groups, Project, DetailedProjectsResponse, ProjectSpec, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
 
-import {SyncWindowStatusIcon} from '../../../applications/components/utils';
+import {SyncWindowStatusIcon} from '../../../shared/components/app-utils';
 import {ProjectSyncWindowsParams} from '../../../shared/services/projects-service';
 import {ProjectEvents} from '../project-events/project-events';
 import {ProjectRoleEditPanel} from '../project-role-edit-panel/project-role-edit-panel';

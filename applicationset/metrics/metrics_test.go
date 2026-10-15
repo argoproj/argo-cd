@@ -551,6 +551,26 @@ argocd_appset_reconcile_count{name="test1",namespace="argocd"} 1
 `)
 }
 
+func TestIncRefreshTriggeredCount(t *testing.T) {
+	appsetList := newFakeAppsets(fakeAppsetList)
+	client := initializeClient(appsetList)
+	metrics.Registry = prometheus.NewRegistry()
+
+	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
+
+	appsetMetrics.IncRefreshTriggeredCount(&appsetList[0])
+	appsetMetrics.IncRefreshTriggeredCount(&appsetList[0])
+	appsetMetrics.IncRefreshTriggeredCount(&appsetList[0])
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
+	handler.ServeHTTP(rr, req)
+
+	assert.Contains(t, rr.Body.String(), `argocd_appset_app_refresh_total{name="test1",namespace="argocd"} 3`)
+}
+
 func initializeClient(appsets []argoappv1.ApplicationSet) ctrlclient.WithWatch {
 	scheme := runtime.NewScheme()
 	err := argoappv1.AddToScheme(scheme)

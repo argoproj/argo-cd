@@ -1,5 +1,5 @@
 import {useData} from 'argo-ui/v2';
-import * as minimatch from 'minimatch';
+import {minimatch} from 'minimatch';
 import * as React from 'react';
 import {HealthStatusCode, HealthStatuses, Resource, SyncStatusCode, SyncStatuses} from '../../../shared/models';
 import {ResourcesListPreferences, services} from '../../../shared/services';

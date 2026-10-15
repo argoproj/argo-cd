@@ -3,7 +3,7 @@ declare const test: any;
 declare const expect: any;
 declare const describe: any;
 import {concatMaps} from './utils';
-import {isValidManagedByURL, isValidURL} from './utils';
+import {isValidManagedByURL, isValidURL, queryParamsChanged} from './utils';
 
 test('map concatenation', () => {
     const map1 = {
@@ -56,5 +56,33 @@ describe('isValidManagedByURL', () => {
     test('rejects invalid URL strings', () => {
         expect(isValidManagedByURL('not-a-url')).toBe(false);
         expect(isValidManagedByURL('')).toBe(false);
+    });
+});
+
+describe('queryParamsChanged', () => {
+    test('returns false when every parameter already has that value', () => {
+        expect(queryParamsChanged('?proj=default&health=Healthy', {proj: 'default', health: 'Healthy'})).toBe(false);
+    });
+
+    test('returns true when a value changes', () => {
+        expect(queryParamsChanged('?proj=default', {proj: 'other'})).toBe(true);
+    });
+
+    test('returns true when a parameter is added', () => {
+        expect(queryParamsChanged('?proj=default', {proj: 'default', showFavorites: 'true'})).toBe(true);
+    });
+
+    test('treats null as removing the parameter', () => {
+        expect(queryParamsChanged('?showFavorites=true', {showFavorites: null})).toBe(true);
+        expect(queryParamsChanged('?proj=default', {showFavorites: null})).toBe(false);
+    });
+
+    test('ignores parameters it was not given', () => {
+        expect(queryParamsChanged('?proj=default&view=tiles', {proj: 'default'})).toBe(false);
+    });
+
+    test('handles an empty search string', () => {
+        expect(queryParamsChanged('', {proj: ''})).toBe(true);
+        expect(queryParamsChanged('', {proj: null})).toBe(false);
     });
 });

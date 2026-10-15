@@ -351,17 +351,24 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 					return nil, nil, nil, fmt.Errorf("failed to open the repo folder: %w", err)
 				}
 
+				kustomizationFileValidNames := []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}
+			component:
 				for _, c := range opts.Components {
-					resolvedPath, err := filepath.Rel(k.repoRoot, filepath.Join(k.path, c))
+					componentDir, err := filepath.Rel(k.repoRoot, filepath.Join(k.path, c))
 					if err != nil {
 						return nil, nil, nil, fmt.Errorf("kustomize components path failed: %w", err)
 					}
-					_, err = root.Stat(resolvedPath)
-					if err != nil {
-						log.Debugf("%s component directory does not exist", resolvedPath)
-						continue
+					for _, kustomizationFile := range kustomizationFileValidNames {
+						kustomization, err := root.Stat(filepath.Join(componentDir, kustomizationFile))
+						if err == nil && kustomization.Mode().IsRegular() {
+							foundComponents = append(foundComponents, c)
+							log.Infof("Adding component '%s' to kustomization.yaml", c)
+							break component
+						}
 					}
-					foundComponents = append(foundComponents, c)
+					log.Infof("Ignoring component '%s': directory does not exist or unable to find one of %s",
+						componentDir,
+						strings.Join(kustomizationFileValidNames, ", "))
 				}
 			}
 
@@ -389,6 +396,19 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 	cmd.Env = env
 	cmd.Env = proxy.UpsertEnv(cmd, k.proxy, k.noProxy)
+	// Install a git wrapper ahead of the real git on the subprocess PATH so that any `git fetch`
+	// kustomize runs to resolve a remote base cannot be tricked into interpreting an
+	// attacker-controlled ref (e.g. `?ref=--upload-pack=<cmd>`) as a git option. This protects
+	// trusted, Git-backed Applications without disabling remote bases entirely. See
+	// GHSA-9v9p-x54c-58gc.
+	cmd.Env, err = withGitWrapper(cmd.Env)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to install git wrapper for kustomize build: %w", err)
+	}
+	cmd.Env, err = withHelmWrapper(cmd.Env)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to install helm wrapper for kustomize build: %w", err)
+	}
 	cmd.Dir = k.repoRoot
 	commands = append(commands, executil.GetCommandArgsToLog(cmd))
 	out, err := executil.Run(cmd)

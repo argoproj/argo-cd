@@ -35,6 +35,7 @@ import (
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/resourceversion"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
@@ -182,6 +183,7 @@ func NewApplicationController(
 	metricsCacheExpiration time.Duration,
 	metricsApplicationLabels []string,
 	metricsApplicationConditions []string,
+	metricsSyncWindows bool,
 	metricsClusterLabels []string,
 	kubectlParallelismLimit int64,
 	persistResourceHealth bool,
@@ -267,7 +269,7 @@ func NewApplicationController(
 			}
 			if appControllerDeployment != nil {
 				if appControllerDeployment.Spec.Replicas != nil && int(*appControllerDeployment.Spec.Replicas) <= 0 {
-					return fmt.Errorf("application controller deployment replicas is not set or is less than 0, replicas: %d", appControllerDeployment.Spec.Replicas)
+					return fmt.Errorf("application controller deployment replicas is not set or is less than 0, replicas: %d", *appControllerDeployment.Spec.Replicas)
 				}
 				shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
 				shard, err := sharding.GetOrUpdateShardFromConfigMap(kubeClientset.(*kubernetes.Clientset), settingsMgr, int(*appControllerDeployment.Spec.Replicas), shard)
@@ -303,7 +305,7 @@ func NewApplicationController(
 
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 
-	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessAppWithDestination, readinessHealthCheck, metricsApplicationLabels, metricsApplicationConditions)
+	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessAppWithDestination, readinessHealthCheck, metricsApplicationLabels, metricsApplicationConditions, ctrl.getAppProj, metricsSyncWindows)
 	if err != nil {
 		return nil, err
 	}
@@ -999,7 +1001,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	}, time.Second, ctx.Done())
 
 	go wait.Until(func() {
-		for ctrl.processProjectQueueItem() {
+		for ctrl.processProjectQueueItem(ctx) {
 		}
 	}, time.Second, ctx.Done())
 
@@ -1115,7 +1117,11 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		// We cannot rely on informer since applications might be updated by both application controller and api server.
 		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 		if err != nil {
-			logCtx.WithError(err).Error("Failed to retrieve latest application state")
+			if apierrors.IsNotFound(err) {
+				ctrl.evictDeletedApp(app)
+			} else {
+				logCtx.WithError(err).Error("Failed to retrieve latest application state")
+			}
 			return processNext
 		}
 		app = freshApp
@@ -1181,7 +1187,7 @@ func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processN
 	return processNext
 }
 
-func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) {
+func (ctrl *ApplicationController) processProjectQueueItem(ctx context.Context) (processNext bool) {
 	key, shutdown := ctrl.projectRefreshQueue.Get()
 	processNext = true
 
@@ -1211,32 +1217,108 @@ func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) 
 	}
 
 	if origProj.DeletionTimestamp != nil && origProj.HasFinalizer() {
-		if err := ctrl.finalizeProjectDeletion(origProj.DeepCopy()); err != nil {
+		if err := ctrl.finalizeProjectDeletion(ctx, origProj.DeepCopy()); err != nil {
 			log.WithError(err).Warn("Failed to finalize project deletion")
+			// A fixed delay rather than AddRateLimited: the controller's default rate limiter has no
+			// per-item backoff (WORKQUEUE_FAILURE_COOLDOWN is 0), so AddRateLimited would retry within a
+			// millisecond and the single project worker would spin against an unreachable API server.
+			ctrl.projectRefreshQueue.AddAfter(key, projectFinalizeRetryDelay)
+			return processNext
 		}
 	}
+	ctrl.projectRefreshQueue.Forget(key)
 	return processNext
 }
 
-func (ctrl *ApplicationController) finalizeProjectDeletion(proj *appv1.AppProject) error {
+func (ctrl *ApplicationController) finalizeProjectDeletion(ctx context.Context, proj *appv1.AppProject) error {
 	apps, err := ctrl.appLister.List(labels.Everything())
 	if err != nil {
 		return fmt.Errorf("error listing applications: %w", err)
 	}
-	appsCount := 0
-	for i := range apps {
-		if apps[i].Spec.GetProject() == proj.Name && ctrl.isAppNamespaceAllowed(apps[i]) && proj.IsAppNamespacePermitted(apps[i], ctrl.namespace) {
-			appsCount++
+	var cached []*appv1.Application
+	for _, app := range apps {
+		if ctrl.appReferencesProject(app, proj) {
+			cached = append(cached, app)
 		}
 	}
-	if appsCount == 0 {
-		return ctrl.removeProjectFinalizer(proj)
+	if len(cached) == 0 {
+		return ctrl.removeProjectFinalizer(ctx, proj)
 	}
-	log.Infof("Cannot remove project '%s' finalizer as is referenced by %d applications", proj.Name, appsCount)
+	// A cached Application can outlive the real one (see writeBackToInformer), so confirm the references
+	// against the API server before refusing to release the finalizer.
+	lookupCtx, cancel := context.WithTimeout(ctx, liveAppLookupTimeout)
+	defer cancel()
+	live, err := ctrl.firstLiveApp(lookupCtx, proj, cached)
+	if err != nil {
+		// Fail closed: the finalizer stays and the caller requeues.
+		return fmt.Errorf("cannot confirm the %d applications referencing project %q: %w", len(cached), proj.Name, err)
+	}
+	if live == nil {
+		log.Warnf("Removing project '%s' finalizer: none of its %d cached references exist on the API server", proj.Name, len(cached))
+		return ctrl.removeProjectFinalizer(ctx, proj)
+	}
+	log.Infof("Cannot remove project '%s' finalizer as it is still referenced by application %s", proj.Name, live.QualifiedName())
 	return nil
 }
 
-func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject) error {
+// liveAppLookupTimeout bounds firstLiveApp, which runs on the single project worker. It does not cover the
+// finalizer patch that may follow, which runs on the worker's own context.
+const liveAppLookupTimeout = 30 * time.Second
+
+// projectFinalizeRetryDelay is how long processProjectQueueItem waits before retrying a project whose
+// finalization failed. The project informer's resync re-drives the project independently of this.
+const projectFinalizeRetryDelay = 10 * time.Second
+
+// firstLiveApp returns the first of apps that still exists on the API server and still references proj, or
+// nil when none do. Per-Application Gets rather than a list: the first candidate usually answers. A Get
+// without a ResourceVersion is a quorum read, so it cannot be served by the watch cache holding the very
+// copies being checked. NotFound copies are evicted; any other error is returned, so an unreachable API
+// server is never read as "gone".
+func (ctrl *ApplicationController) firstLiveApp(ctx context.Context, proj *appv1.AppProject, apps []*appv1.Application) (*appv1.Application, error) {
+	for _, app := range apps {
+		live, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
+		switch {
+		case apierrors.IsNotFound(err):
+			ctrl.evictDeletedApp(app)
+		case err != nil:
+			return nil, fmt.Errorf("error getting application %q: %w", app.QualifiedName(), err)
+		case ctrl.appReferencesProject(live, proj):
+			return live, nil
+		}
+	}
+	return nil, nil
+}
+
+// appReferencesProject reports whether app references proj and is permitted to do so.
+func (ctrl *ApplicationController) appReferencesProject(app *appv1.Application, proj *appv1.AppProject) bool {
+	return app.Spec.GetProject() == proj.Name && ctrl.isAppNamespaceAllowed(app) && proj.IsAppNamespacePermitted(app, ctrl.namespace)
+}
+
+// evictDeletedApp drops an Application the API server reported NotFound from the informer store and cluster
+// sharding. Nothing else prunes such a copy (see writeBackToInformer): it would be reconciled on every
+// resync and counted as a project reference until the next relist.
+//
+// The UID check guards a same-name replacement but cannot guarantee it: Get and Delete are separate store
+// operations and Delete matches by key, so a replacement inserted in that window is evicted too and returns
+// only on relist.
+func (ctrl *ApplicationController) evictDeletedApp(app *appv1.Application) {
+	obj, exists, err := ctrl.appInformer.GetStore().Get(app)
+	if err != nil || !exists {
+		return
+	}
+	if cached, ok := obj.(*appv1.Application); !ok || cached.UID != app.UID {
+		return
+	}
+	logCtx := log.WithFields(applog.GetAppLogFields(app))
+	if err := ctrl.appInformer.GetStore().Delete(app); err != nil {
+		logCtx.WithError(err).Warn("Failed to evict deleted application from informer store")
+		return
+	}
+	ctrl.clusterSharding.DeleteApp(app)
+	logCtx.Info("Evicted application from informer store: it no longer exists on the API server")
+}
+
+func (ctrl *ApplicationController) removeProjectFinalizer(ctx context.Context, proj *appv1.AppProject) error {
 	proj.RemoveFinalizer()
 	var patch []byte
 	patch, _ = json.Marshal(map[string]any{
@@ -1244,7 +1326,7 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 			"finalizers": proj.Finalizers,
 		},
 	})
-	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().AppProjects(ctrl.namespace).Patch(context.Background(), proj.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().AppProjects(ctrl.namespace).Patch(ctx, proj.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	return err
 }
 
@@ -1285,9 +1367,12 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(ctx context.Conte
 	defer func() { traceutil.EndSpan(span, retErr) }()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	// Get refreshed application info, since informer app copy might be stale
+	cachedApp := app
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
 	if err != nil {
-		if !apierrors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
+			ctrl.evictDeletedApp(cachedApp)
+		} else {
 			logCtx.WithError(err).Error("Unable to get refreshed application info prior deleting resources")
 		}
 		return nil
@@ -1329,7 +1414,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(ctx context.Conte
 			return fmt.Errorf("error getting permitted app live objects: %w", err)
 		}
 
-		done, err := ctrl.executePreDeleteHooks(ctx, app, proj, objsMap, config, logCtx)
+		done, err := ctrl.executePreDeleteHooks(ctx, app, proj, destCluster, objsMap, config, logCtx)
 		if err != nil {
 			return fmt.Errorf("error executing pre-delete hooks: %w", err)
 		}
@@ -1411,7 +1496,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(ctx context.Conte
 			return err
 		}
 
-		done, err := ctrl.executePostDeleteHooks(ctx, app, proj, objsMap, config, logCtx)
+		done, err := ctrl.executePostDeleteHooks(ctx, app, proj, destCluster, objsMap, config, logCtx)
 		if err != nil {
 			return err
 		}
@@ -1754,6 +1839,7 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierrors.IsNotFound(err) {
+				ctrl.evictDeletedApp(app)
 				return nil
 			}
 			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
@@ -1798,12 +1884,37 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	}
 }
 
-// writeBackToInformer writes a just recently updated App back into the informer cache.
-// This prevents the situation where the controller operates on a stale app and repeats work
+// writeBackToInformer writes a just recently updated App back into the informer cache, so the controller
+// does not operate on a stale app and repeat work.
+//
+// The store is shared with the reflector, so an unconditional Update resurrects an Application whose
+// DELETED event the reflector already processed, and nothing prunes that copy. Skipping the write when the
+// Application is gone narrows the window but cannot close it: Get and Update are separate store operations.
+// So any path that learns an Application is NotFound must evictDeletedApp, and a store hit is not proof of
+// existence.
 func (ctrl *ApplicationController) writeBackToInformer(app *appv1.Application) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app)).WithField("informer-writeBack", true)
-	err := ctrl.appInformer.GetStore().Update(app)
+	obj, exists, err := ctrl.appInformer.GetStore().Get(app)
 	if err != nil {
+		logCtx.WithError(err).Error("failed to read informer store")
+		return
+	}
+	if !exists {
+		logCtx.Info("Skipping informer write-back: application no longer in informer store")
+		return
+	}
+	cached, ok := obj.(*appv1.Application)
+	if ok && cached.UID != app.UID {
+		logCtx.Info("Skipping informer write-back: application was replaced under the same name")
+		return
+	}
+	if ok {
+		if cmp, err := resourceversion.CompareResourceVersion(cached.ResourceVersion, app.ResourceVersion); err == nil && cmp > 0 {
+			logCtx.Info("Skipping informer write-back: informer store already has a newer version")
+			return
+		}
+	}
+	if err := ctrl.appInformer.GetStore().Update(app); err != nil {
 		logCtx.WithError(err).Error("failed to update informer store")
 		return
 	}
@@ -2508,12 +2619,15 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 			if !modified {
 				return patchDuration
 			}
-			if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{}); fbErr != nil {
-				logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
+			if _, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{}); err != nil {
+				logCtx.WithError(err).Error("Error persisting fallback status with error condition")
 			}
-			return patchDuration
+		} else {
+			logCtx.WithError(err).Warn("Error updating application")
 		}
-		logCtx.WithError(err).Warn("Error updating application")
+		if apierrors.IsNotFound(err) {
+			ctrl.evictDeletedApp(orig)
+		}
 	} else {
 		logCtx.Infof("Update successful")
 	}
