@@ -106,6 +106,7 @@ func NewCommand() *cobra.Command {
 		Short:             "Run ArgoCD Application Controller",
 		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
+		SilenceUsage:      true,
 		RunE: cli.WithSignalContextE(func(c *cobra.Command, _ []string, _ context.CancelFunc) error {
 			if err := clusterCacheConfig.Validate(); err != nil {
 				return fmt.Errorf("invalid cluster cache configuration: %w", err)

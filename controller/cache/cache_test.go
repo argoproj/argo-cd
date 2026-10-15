@@ -1070,15 +1070,19 @@ func TestClusterCacheConfigValidate(t *testing.T) {
 		{name: "zero values within range", modify: func(c *ClusterCacheConfig) {
 			c.ResyncDuration = 0
 			c.ListPageSize = 0
-			c.ListSemaphoreSize = 0
 		}},
+		{name: "zero events processing interval without batch processing", modify: func(c *ClusterCacheConfig) {
+			c.BatchEventsProcessing = false
+			c.EventsProcessingInterval = 0
+		}},
+		{name: "zero events processing interval with batch processing", modify: func(c *ClusterCacheConfig) { c.EventsProcessingInterval = 0 }, wantErr: "events processing interval must be greater than 0"},
 		{name: "negative resync duration", modify: func(c *ClusterCacheConfig) { c.ResyncDuration = -time.Second }, wantErr: "resync duration must not be negative"},
 		{name: "negative watch resync duration", modify: func(c *ClusterCacheConfig) { c.WatchResyncDuration = -time.Second }, wantErr: "watch resync duration must not be negative"},
 		{name: "negative sync retry timeout", modify: func(c *ClusterCacheConfig) { c.SyncRetryTimeout = -time.Second }, wantErr: "sync retry timeout must not be negative"},
 		{name: "negative events processing interval", modify: func(c *ClusterCacheConfig) { c.EventsProcessingInterval = -time.Second }, wantErr: "events processing interval must not be negative"},
 		{name: "negative list page size", modify: func(c *ClusterCacheConfig) { c.ListPageSize = -1 }, wantErr: "list page size must not be negative"},
 		{name: "list page buffer size below 1", modify: func(c *ClusterCacheConfig) { c.ListPageBufferSize = 0 }, wantErr: "list page buffer size must be at least 1"},
-		{name: "negative list semaphore size", modify: func(c *ClusterCacheConfig) { c.ListSemaphoreSize = -1 }, wantErr: "list semaphore size must not be negative"},
+		{name: "list semaphore size below 1", modify: func(c *ClusterCacheConfig) { c.ListSemaphoreSize = 0 }, wantErr: "list semaphore size must be at least 1"},
 		{name: "attempt limit below 1", modify: func(c *ClusterCacheConfig) { c.AttemptLimit = 0 }, wantErr: "attempt limit must be at least 1"},
 	}
 	for _, tt := range tests {

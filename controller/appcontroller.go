@@ -197,6 +197,9 @@ func NewApplicationController(
 	clusterCacheConfig statecache.ClusterCacheConfig,
 ) (*ApplicationController, error) {
 	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v, appResyncJitter=%v", appResyncPeriod, appHardResyncPeriod, appResyncJitter)
+	if err := clusterCacheConfig.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid cluster cache configuration: %w", err)
+	}
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
 	if rateLimiterConfig == nil {
 		rateLimiterConfig = ratelimiter.GetDefaultAppRateLimiterConfig()

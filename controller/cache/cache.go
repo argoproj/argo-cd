@@ -121,8 +121,8 @@ type ClusterCacheConfig struct {
 	EventsProcessingInterval time.Duration
 }
 
-// ClusterCacheConfigFromEnv returns the cluster cache configuration read from the ARGOCD_CLUSTER_CACHE_* environment
-// variables, falling back to the defaults for unset or out-of-range values.
+// ClusterCacheConfigFromEnv returns the cluster cache configuration read from the Env* environment variables above,
+// falling back to the defaults for unset or out-of-range values.
 func ClusterCacheConfigFromEnv() ClusterCacheConfig {
 	return ClusterCacheConfig{
 		ResyncDuration:           env.ParseDurationFromEnv(EnvClusterCacheResyncDuration, defaultClusterCacheResyncDuration, 0, math.MaxInt64),
@@ -138,7 +138,8 @@ func ClusterCacheConfigFromEnv() ClusterCacheConfig {
 	}
 }
 
-// Validate returns an error if any value is outside the range accepted from the environment variables.
+// Validate returns an error if any value would make the cluster cache fail: a negative duration or size, a list
+// semaphore or attempt limit below 1, or a zero events processing interval while batch events processing is enabled.
 func (c ClusterCacheConfig) Validate() error {
 	var errs []error
 	for _, d := range []struct {
@@ -160,11 +161,14 @@ func (c ClusterCacheConfig) Validate() error {
 	if c.ListPageBufferSize < 1 {
 		errs = append(errs, fmt.Errorf("cluster cache list page buffer size must be at least 1, got %d", c.ListPageBufferSize))
 	}
-	if c.ListSemaphoreSize < 0 {
-		errs = append(errs, fmt.Errorf("cluster cache list semaphore size must not be negative, got %d", c.ListSemaphoreSize))
+	if c.ListSemaphoreSize < 1 {
+		errs = append(errs, fmt.Errorf("cluster cache list semaphore size must be at least 1, got %d", c.ListSemaphoreSize))
 	}
 	if c.AttemptLimit < 1 {
 		errs = append(errs, fmt.Errorf("cluster cache attempt limit must be at least 1, got %d", c.AttemptLimit))
+	}
+	if c.BatchEventsProcessing && c.EventsProcessingInterval == 0 {
+		errs = append(errs, errors.New("cluster cache events processing interval must be greater than 0 when batch events processing is enabled"))
 	}
 	return errors.Join(errs...)
 }
