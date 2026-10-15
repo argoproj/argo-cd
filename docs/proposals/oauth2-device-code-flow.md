@@ -67,8 +67,9 @@ browser, approve the request, and the CLI stores the token automatically.
 **Dex configuration (`util/dex/config.go`)**
 
 The Dex configuration is updated as follows:
-- The `argo-cd-cli` static client's `redirectURIs` now includes `/device/callback` (required by Dex internally during the device flow).
-- If the operator has explicitly configured `oauth2.grantTypes`, the device code grant (`urn:ietf:params:oauth:grant-type:device_code`) is appended to ensure Dex accepts device code requests.
+- The `argo-cd-cli` static client's `redirectURIs` now includes `/api/dex/device/callback` (required by Dex internally during the device flow).
+- If the operator has explicitly configured `oauth2.grantTypes` without the device code grant, Argo CD leaves the list unchanged
+and logs a warning; the operator must add the grant to enable the device flow.
 
 ### Security Considerations
 
@@ -81,10 +82,10 @@ The Dex configuration is updated as follows:
 
 ### Risks and Mitigations
 
-| Risk                                             | Mitigation                                                                              |
-|--------------------------------------------------|-----------------------------------------------------------------------------------------|
-| OIDC provider does not support device code grant | CLI exits with a clear error from `requestDeviceCode`; operator can check provider docs |
-| User cancels on the provider side but CLI hangs  | CLI exits when `expired_token` is returned or `Ctrl+C` cancels the context              |
+| Risk                                             | Mitigation                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+|--------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| OIDC provider does not support device code grant | If the provider rejects the device code request, the CLI exits with `Failed to request device code: <provider error>`. If the provider issues a device code but does not allow the grant (for example, Dex with `oauth2.grantTypes` set without `urn:ietf:params:oauth:grant-type:device_code`), the CLI prints the verification URL and then exits on the first poll with `oauth2: "unsupported_grant_type"`; Argo CD logs a warning when it generates such a Dex configuration. |
+| User cancels on the provider side but CLI hangs  | CLI exits when `expired_token` is returned or `Ctrl+C` cancels the context                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ### Upgrade / Downgrade Strategy
 

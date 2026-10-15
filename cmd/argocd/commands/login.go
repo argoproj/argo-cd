@@ -487,9 +487,7 @@ func oauth2LoginNoBrowser(
 
 	// RFC 8628: prefer verification_uri_complete when present. Otherwise print
 	// verification_uri and user_code separately so the user can enter the code
-	// manually — which is the correct fallback per the spec. If the provider
-	// returns a verification_uri with query parameters we still offer a
-	// synthesized URL as a convenience, with user_code properly encoded.
+	// manually — which is the correct fallback per the spec.
 	fmt.Printf("Open the following URL in your browser to authenticate:\n\n%s\n\nWaiting for authentication...\n",
 		buildVerificationPrompt(da.VerificationURIComplete, da.VerificationURI, da.UserCode))
 
