@@ -499,7 +499,17 @@ func oauth2LoginNoBrowser(
 	codeVerifier, codeChallenge, err := generatePKCECodeVerifierAndChallenge()
 	errors.CheckError(err)
 
-	da, err := oauth2conf.DeviceAuth(ctx,
+	// golang.org/x/oauth2's retrieveDeviceAuth creates its HTTP request via
+	// http.NewRequest (not http.NewRequestWithContext), so context cancellation
+	// (e.g. Ctrl+C) cannot abort the in-flight HTTP call. Work around this by
+	// shallow-copying the HTTP client and setting a bounded Timeout; http.Client
+	// always honours Timeout in Do() regardless of the request's own context.
+	// 30 s is generous: a device-authorization endpoint must respond quickly.
+	deviceAuthHTTPClient := *httpClient
+	deviceAuthHTTPClient.Timeout = 30 * time.Second
+	deviceAuthCtx := context.WithValue(ctx, oauth2.HTTPClient, &deviceAuthHTTPClient)
+
+	da, err := oauth2conf.DeviceAuth(deviceAuthCtx,
 		oauth2.SetAuthURLParam("code_challenge", codeChallenge),
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 	)
