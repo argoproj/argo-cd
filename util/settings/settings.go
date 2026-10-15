@@ -2053,19 +2053,27 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 }
 
 func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
+	requestURL := r.URL
+	if r.RequestURI != "" {
+		var err error
+		requestURL, err = url.ParseRequestURI(r.RequestURI)
+		if err != nil {
+			return "", err
+		}
+	}
 	for _, candidateURL := range append([]string{a.URL}, a.AdditionalURLs...) {
 		u, err := url.Parse(candidateURL)
 		if err != nil {
 			return "", err
 		}
-		if u.Host == r.Host && strings.HasPrefix(r.URL.RequestURI(), u.RequestURI()) {
+		if u.Host == r.Host && strings.HasPrefix(requestURL.RequestURI(), u.RequestURI()) {
 			return candidateURL, nil
 		}
 	}
 	return a.URL, nil
 }
 
-func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request, baseHRef string) (string, error) {
+func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request) (string, error) {
 	if r == nil {
 		return "", errors.New("request is nil")
 	}
@@ -2073,7 +2081,7 @@ func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request, baseHRef string)
 	if err != nil {
 		return "", err
 	}
-	return appendURLPath(base, path.Join(baseHRef, common.CallbackEndpoint))
+	return appendURLPath(base, common.CallbackEndpoint)
 }
 
 func (a *ArgoCDSettings) RedirectAdditionalURLs() ([]string, error) {

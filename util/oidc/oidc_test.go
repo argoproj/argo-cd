@@ -318,8 +318,8 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 	t.Run("with additional base URL", func(t *testing.T) {
 		cdSettings := &settings.ArgoCDSettings{
-			URL:                       "https://argocd.example.com",
-			AdditionalURLs:            []string{"https://localhost:8080", "https://other.argocd.example.com"},
+			URL:                       "https://argocd.example.com/argocd",
+			AdditionalURLs:            []string{"https://localhost:8080/argocd", "https://other.argocd.example.com/argocd"},
 			OIDCTLSInsecureSkipVerify: true,
 			DexConfig: `connectors:
 			- type: github
@@ -341,10 +341,10 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 
 		t.Run("should accept login redirecting on the main domain", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
+			req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/argocd/auth/login", http.NoBody)
 
 			req.URL.RawQuery = url.Values{
-				"return_url": []string{"https://argocd.example.com/applications"},
+				"return_url": []string{"https://argocd.example.com/argocd/applications"},
 			}.Encode()
 
 			w := httptest.NewRecorder()
@@ -360,10 +360,10 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		})
 
 		t.Run("should accept login redirecting on the alternative domains", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "https://localhost:8080/auth/login", http.NoBody)
+			req := httptest.NewRequest(http.MethodGet, "https://localhost:8080/argocd/auth/login", http.NoBody)
 
 			req.URL.RawQuery = url.Values{
-				"return_url": []string{"https://localhost:8080/applications"},
+				"return_url": []string{"https://localhost:8080/argocd/applications"},
 			}.Encode()
 
 			w := httptest.NewRecorder()
@@ -379,10 +379,10 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		})
 
 		t.Run("should accept login redirecting on the alternative domains", func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "https://other.argocd.example.com/auth/login", http.NoBody)
+			req := httptest.NewRequest(http.MethodGet, "https://other.argocd.example.com/argocd/auth/login", http.NoBody)
 
 			req.URL.RawQuery = url.Values{
-				"return_url": []string{"https://other.argocd.example.com/applications"},
+				"return_url": []string{"https://other.argocd.example.com/argocd/applications"},
 			}.Encode()
 
 			w := httptest.NewRecorder()
@@ -1561,7 +1561,7 @@ func TestClientApp_getRedirectURIForRequest(t *testing.T) {
 			if tt.req == nil {
 				return
 			}
-			expectedRedirectURI, err := app.settings.RedirectURLForRequest(tt.req, app.baseHRef)
+			expectedRedirectURI, err := app.settings.RedirectURLForRequest(tt.req)
 			if tt.expectError {
 				assert.Error(t, err)
 				return

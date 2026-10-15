@@ -1976,7 +1976,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 		Name        string
 		Settings    *ArgoCDSettings
 		RequestURL  string
-		BaseHRef    string
+		RequestURI  string
 		ExpectedURL string
 		ExpectError bool
 	}{
@@ -1986,7 +1986,6 @@ func TestRedirectURLForRequest(t *testing.T) {
 				URL: "https://example.org",
 			},
 			RequestURL:  "https://example.org/login",
-			BaseHRef:    "",
 			ExpectedURL: "https://example.org/auth/callback",
 			ExpectError: false,
 		},
@@ -1996,7 +1995,6 @@ func TestRedirectURLForRequest(t *testing.T) {
 				URL: "https://otherhost.org",
 			},
 			RequestURL:  "https://example.org/login",
-			BaseHRef:    "",
 			ExpectedURL: "https://otherhost.org/auth/callback",
 			ExpectError: false,
 		},
@@ -2006,7 +2004,6 @@ func TestRedirectURLForRequest(t *testing.T) {
 				URL: ":httpsotherhostorg",
 			},
 			RequestURL:  "https://example.org/login",
-			BaseHRef:    "",
 			ExpectedURL: "",
 			ExpectError: true,
 		},
@@ -2017,30 +2014,66 @@ func TestRedirectURLForRequest(t *testing.T) {
 				AdditionalURLs: []string{"https://anotherhost.org"},
 			},
 			RequestURL:  "https://anotherhost.org/login",
-			BaseHRef:    "",
 			ExpectedURL: "https://anotherhost.org/auth/callback",
 			ExpectError: false,
 		},
 		{
-			Name: "With baseHRef root path",
+			Name: "With configured root path",
 			Settings: &ArgoCDSettings{
-				URL: "https://example.org",
+				URL: "https://example.org/argocd",
 			},
 			RequestURL:  "https://example.org/argocd/login",
-			BaseHRef:    "/argocd",
 			ExpectedURL: "https://example.org/argocd/auth/callback",
 			ExpectError: false,
 		},
 		{
-			Name: "With baseHRef root path and additional URL",
+			Name: "With configured root path and additional URL",
 			Settings: &ArgoCDSettings{
-				URL:            "https://otherhost.org",
-				AdditionalURLs: []string{"https://anotherhost.org"},
+				URL:            "https://otherhost.org/argocd",
+				AdditionalURLs: []string{"https://anotherhost.org/argocd"},
 			},
 			RequestURL:  "https://anotherhost.org/argocd/login",
-			BaseHRef:    "/argocd",
 			ExpectedURL: "https://anotherhost.org/argocd/auth/callback",
 			ExpectError: false,
+		},
+		{
+			Name: "Additional URL after root path stripping",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org/argocd",
+				AdditionalURLs: []string{"https://anotherhost.org/argocd"},
+			},
+			RequestURL:  "https://anotherhost.org/auth/login",
+			RequestURI:  "/argocd/auth/login?return_url=%2Fargocd%2Fapplications",
+			ExpectedURL: "https://anotherhost.org/argocd/auth/callback",
+		},
+		{
+			Name: "Absolute request URI after root path stripping",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org/argocd",
+				AdditionalURLs: []string{"https://anotherhost.org/argocd"},
+			},
+			RequestURL:  "https://anotherhost.org/auth/login",
+			RequestURI:  "https://anotherhost.org/argocd/auth/login",
+			ExpectedURL: "https://anotherhost.org/argocd/auth/callback",
+		},
+		{
+			Name: "Additional URL with a different path does not match",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org/argocd",
+				AdditionalURLs: []string{"https://anotherhost.org/other"},
+			},
+			RequestURL:  "https://anotherhost.org/auth/login",
+			RequestURI:  "/argocd/auth/login",
+			ExpectedURL: "https://example.org/argocd/auth/callback",
+		},
+		{
+			Name: "Invalid request URI",
+			Settings: &ArgoCDSettings{
+				URL: "https://example.org",
+			},
+			RequestURL:  "https://example.org/auth/login",
+			RequestURI:  "/%invalid",
+			ExpectError: true,
 		},
 	}
 
@@ -2048,7 +2081,8 @@ func TestRedirectURLForRequest(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, tc.RequestURL, http.NoBody)
 			require.NoError(t, err)
-			result, err := tc.Settings.RedirectURLForRequest(request, tc.BaseHRef)
+			request.RequestURI = tc.RequestURI
+			result, err := tc.Settings.RedirectURLForRequest(request)
 			assert.Equal(t, tc.ExpectedURL, result)
 			if tc.ExpectError {
 				assert.Error(t, err)
