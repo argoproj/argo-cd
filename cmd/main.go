@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/common"
 	argoerrors "github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/log"
 )
 
@@ -68,6 +69,9 @@ var selectCommand = func(binaryName string) (command *cobra.Command, isArgocdCLI
 }
 
 func main() {
+	// Enable the workaround for the SRV GRPC bug
+	grpc.DisableSRVLookups()
+
 	binaryName := filepath.Base(os.Args[0])
 	if val := os.Getenv(binaryNameEnv); val != "" {
 		binaryName = val
