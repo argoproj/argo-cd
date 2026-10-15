@@ -71,6 +71,20 @@ func TestExitErrorHandling(t *testing.T) {
 			expectedOutput:      "",
 			expectedStderrRegex: ".*fatal.*test error.*",
 		},
+		{
+			name:                "exit error 42 with message and plain text",
+			cmdError:            util.NewPlainExitError(42, "test error"),
+			expectedExitCode:    42,
+			expectedOutput:      "test error\n",
+			expectedStderrRegex: emptyRegex,
+		},
+		{
+			name:                "exit error 42 with empty message and plain text",
+			cmdError:            util.NewPlainExitError(42, ""),
+			expectedExitCode:    42,
+			expectedOutput:      "",
+			expectedStderrRegex: emptyRegex,
+		},
 	}
 
 	for _, test := range tests {
@@ -225,6 +239,20 @@ func TestExitErrorHandlingNotIsArgocdCLI(t *testing.T) {
 			expectedExitCode:    42,
 			expectedOutput:      "",
 			expectedStderrRegex: `(?s)Error: exit error with code 42 and message 'test error'\nUsage:.*fatal.*test error.*`,
+		},
+		{
+			name:                "exit error 42 with message and plain text",
+			cmdError:            util.NewPlainExitError(42, "test error"),
+			expectedExitCode:    42,
+			expectedOutput:      "test error\n",
+			expectedStderrRegex: `(?s)Error: exit error with code 42 and message 'test error'\nUsage:`,
+		},
+		{
+			name:                "exit error 42 with empty message and plain text",
+			cmdError:            util.NewPlainExitError(42, ""),
+			expectedExitCode:    42,
+			expectedOutput:      "",
+			expectedStderrRegex: `(?s)Error: exit error with code 42 and message ''\nUsage:`,
 		},
 	}
 

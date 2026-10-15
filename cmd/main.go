@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -93,9 +94,14 @@ func main() {
 	// unknown command error or any other.
 	if err != nil {
 		if e, ok := errors.AsType[*util.ExitError](err); ok {
-			if e.Message() != "" {
-				argoerrors.Fatal(e.ExitCode(), e.Message())
+			if msg := e.Message(); msg != "" {
+				if e.IsPlainText() {
+					fmt.Println(msg)
+				} else {
+					argoerrors.Fatal(e.ExitCode(), msg)
+				}
 			}
+
 			os.Exit(e.ExitCode())
 		}
 
