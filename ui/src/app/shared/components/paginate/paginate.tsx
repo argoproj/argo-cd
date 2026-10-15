@@ -144,9 +144,29 @@ export interface PaginateProps<T> {
     focusItemKey?: string;
     /** Maps each list item to the same key format as `focusItemKey`. */
     getItemKey?: (item: T) => string;
+    /** Keeps items with the same key together, ahead of the selected sort. */
+    groupBy?: (item: T) => string;
 }
 
-export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, header, showHeader, sortOptions, focusItemKey, getItemKey}: PaginateProps<T>) {
+/** Stable: groups ordered A-Z, incoming order kept inside each group. */
+export function groupItems<T>(items: T[], groupBy: (item: T) => string): T[] {
+    return [...items].sort((a, b) => groupBy(a).localeCompare(groupBy(b)));
+}
+
+export function Paginate<T>({
+    page,
+    onPageChange,
+    children,
+    data,
+    emptyState,
+    preferencesKey,
+    header,
+    showHeader,
+    sortOptions,
+    focusItemKey,
+    getItemKey,
+    groupBy
+}: PaginateProps<T>) {
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => (
@@ -161,6 +181,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                     sortOptions={sortOptions}
                     focusItemKey={focusItemKey}
                     getItemKey={getItemKey}
+                    groupBy={groupBy}
                     pref={pref}>
                     {children}
                 </PaginateContent>
@@ -181,6 +202,7 @@ function PaginateContent<T>({
     sortOptions,
     focusItemKey,
     getItemKey,
+    groupBy,
     pref
 }: PaginateProps<T> & {pref: ViewPreferences}) {
     const pageSize = pref.pageSizes[preferencesKey] || 10;
@@ -200,8 +222,8 @@ function PaginateContent<T>({
                 });
             }
         }
-        return next;
-    }, [data, sortOption, sortOptions, pref.sortDirections, preferencesKey]);
+        return groupBy ? groupItems(next, groupBy) : next;
+    }, [data, sortOption, sortOptions, pref.sortDirections, preferencesKey, groupBy]);
 
     // Deep-link highlight: when `focusItemKey` is set (e.g. opening an Application from the
     // Resources page with `?highlight=group/kind/namespace/name`), keep the displayed page in
