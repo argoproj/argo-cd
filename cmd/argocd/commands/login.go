@@ -513,7 +513,6 @@ func oauth2LoginNoBrowser(
 		oauth2.SetAuthURLParam("code_challenge", codeChallenge),
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
 	)
-
 	if err != nil {
 		log.Fatalf("Failed to request device code: %s", err)
 		return "", ""
