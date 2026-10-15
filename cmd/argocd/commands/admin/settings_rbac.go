@@ -16,9 +16,9 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v3/util/assets"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 type actionTraitMap map[string]rbacTrait
@@ -126,16 +126,17 @@ func NewRBACCommand() *cobra.Command {
 // NewRBACCanCommand is the command for 'rbac can'
 func NewRBACCanCommand() *cobra.Command {
 	var (
-		policyFile   string
-		defaultRole  string
-		useBuiltin   bool
-		strict       bool
-		quiet        bool
-		subject      string
-		action       string
-		resource     string
-		subResource  string
-		clientConfig clientcmd.ClientConfig
+		policyFile          string
+		defaultRole         string
+		useBuiltin          bool
+		strict              bool
+		localUserStrictMode bool
+		quiet               bool
+		subject             string
+		action              string
+		resource            string
+		subResource         string
+		clientConfig        clientcmd.ClientConfig
 	)
 	command := &cobra.Command{
 		Use:   "can ROLE/SUBJECT ACTION RESOURCE [SUB-RESOURCE]",
@@ -160,6 +161,11 @@ argocd admin settings rbac can some:role create application 'default/app' --name
 
 # You can override a possibly configured default role
 argocd admin settings rbac can someuser create application 'default/app' --default-role role:readonly
+
+# When local-user strict mode is enabled, local accounts are enforced with an '@local' suffix and the built-in
+# policy only binds 'admin@local' (not 'admin') to role:admin. With --namespace the mode is read from argocd-cm;
+# with --policy-file set it explicitly
+argocd admin settings rbac can admin@local create application 'default/app' --policy-file policy.csv --local-user-strict-mode
 
 `,
 		Run: func(c *cobra.Command, args []string) {
@@ -198,10 +204,15 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 
 			userPolicy, newDefaultRole, matchMode := getPolicy(ctx, policyFile, realClientset, namespace)
 
+			// Mirror the server: read strict mode from argocd-cm unless overridden on the command line.
+			if nsOverride && !c.Flags().Changed("local-user-strict-mode") {
+				localUserStrictMode = getLocalUserStrictMode(ctx, realClientset, namespace)
+			}
+
 			// Use built-in policy as augmentation if requested
 			builtinPolicy := ""
 			if useBuiltin {
-				builtinPolicy = assets.BuiltinPolicyCSV
+				builtinPolicy = rbacpolicy.BuiltinPolicyCSV(localUserStrictMode)
 			}
 
 			// If no explicit default role was given, but we have one defined from
@@ -234,6 +245,7 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 	command.Flags().StringVar(&defaultRole, "default-role", "", "name of the default role to use")
 	command.Flags().BoolVar(&useBuiltin, "use-builtin-policy", true, "whether to also use builtin-policy")
 	command.Flags().BoolVar(&strict, "strict", true, "whether to perform strict check on action and resource names")
+	command.Flags().BoolVar(&localUserStrictMode, "local-user-strict-mode", false, "evaluate the built-in policy as if rbac.local.user.strictmode were enabled (auto-detected from argocd-cm when --namespace is used)")
 	command.Flags().BoolVarP(&quiet, "quiet", "q", false, "quiet mode - do not print results to stdout")
 	return command
 }
@@ -375,6 +387,17 @@ func getPolicyConfigMap(ctx context.Context, client kubernetes.Interface, namesp
 		return nil, err
 	}
 	return cm, nil
+}
+
+// getLocalUserStrictMode reads rbac.local.user.strictmode from argocd-cm, defaulting to false if the
+// config map cannot be read.
+func getLocalUserStrictMode(ctx context.Context, client kubernetes.Interface, namespace string) bool {
+	cm, err := client.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		log.Warnf("could not read %s to determine local-user strict mode, assuming disabled: %v", common.ArgoCDConfigMapName, err)
+		return false
+	}
+	return cm.Data[settings.RBACLocalUserStrictModeKey] == "true"
 }
 
 // checkPolicy checks whether given subject is allowed to execute specified
