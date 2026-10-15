@@ -131,13 +131,21 @@ func ClusterCacheConfigFromEnv() ClusterCacheConfig {
 		WatchResyncDuration:      env.ParseDurationFromEnv(EnvClusterCacheWatchResyncDuration, defaultClusterCacheWatchResyncDuration, 0, math.MaxInt64),
 		SyncRetryTimeout:         env.ParseDurationFromEnv(EnvClusterSyncRetryTimeoutDuration, defaultClusterSyncRetryTimeoutDuration, 0, math.MaxInt64),
 		ListPageSize:             env.ParseInt64FromEnv(EnvClusterCacheListPageSize, defaultClusterCacheListPageSize, 0, math.MaxInt64),
-		ListPageBufferSize:       int32(env.ParseNumFromEnv(EnvClusterCacheListPageBufferSize, defaultClusterCacheListPageBufferSize, 1, math.MaxInt32)),
+		ListPageBufferSize:       parseInt32FromEnv(EnvClusterCacheListPageBufferSize, defaultClusterCacheListPageBufferSize, 1),
 		ListSemaphoreSize:        env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, defaultClusterCacheListSemaphoreSize, 1, math.MaxInt64),
-		AttemptLimit:             int32(env.ParseNumFromEnv(EnvClusterCacheAttemptLimit, defaultClusterCacheAttemptLimit, 1, math.MaxInt32)),
+		AttemptLimit:             parseInt32FromEnv(EnvClusterCacheAttemptLimit, defaultClusterCacheAttemptLimit, 1),
 		RetryUseBackoff:          env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, defaultClusterCacheRetryUseBackoff),
 		BatchEventsProcessing:    env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, defaultClusterCacheBatchEventsProcessing),
 		EventsProcessingInterval: env.ParseDurationFromEnv(EnvClusterCacheEventsProcessingInterval, defaultClusterCacheEventsProcessingInterval, time.Nanosecond, math.MaxInt64),
 	}
+}
+
+func parseInt32FromEnv(name string, defaultValue, minimum int32) int32 {
+	v := env.ParseNumFromEnv(name, int(defaultValue), int(minimum), math.MaxInt32)
+	if v < math.MinInt32 || v > math.MaxInt32 {
+		return defaultValue
+	}
+	return int32(v)
 }
 
 // Validate returns an error if any value would make the cluster cache fail: a negative duration or size, a list
