@@ -153,10 +153,10 @@ func TestNewConfigureCommand_Outputs(t *testing.T) {
 			name:                          "non-existent config file",
 			args:                          []string{"--prompts-enabled=true"},
 			createConfigFile:              false,
-			expectedStdout:                "No local configuration found\n",
+			expectedStdout:                "",
 			expectedStderrRegex:           emptyRegex,
 			expectedExitCode:              1,
-			expectedExitErrorMessageRegex: emptyRegex,
+			expectedExitErrorMessageRegex: "^No local configuration found$",
 		},
 		{
 			name:                          "read-only config file",

@@ -32,8 +32,7 @@ argocd configure --prompts-enabled=false`,
 			}
 
 			if localCfg == nil {
-				fmt.Fprintln(c.OutOrStdout(), "No local configuration found")
-				return util.NewExitError(1, "")
+				return util.NewPlainExitError(1, "No local configuration found")
 			}
 
 			localCfg.PromptsEnabled = promptsEnabled
