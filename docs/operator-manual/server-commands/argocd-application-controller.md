@@ -35,7 +35,7 @@ argocd-application-controller [flags]
       --cluster-cache-list-semaphore int                          Maximum number of concurrent list operations per cluster during a cluster cache sync (default 50)
       --cluster-cache-resync-duration duration                    Time period after which the cluster cache is fully resynced from the cluster. 0 disables the periodic full resync (default 12h0m0s)
       --cluster-cache-retry-use-backoff                           Use exponential backoff between retries of failed list requests during a cluster cache sync
-      --cluster-cache-sync-retry-timeout duration                 Time to wait before retrying a cluster cache sync that failed. 0 retries on the next request without waiting (default 10s)
+      --cluster-cache-sync-retry-timeout duration                 Time to wait before retrying a cluster cache sync that failed. 0 retries on the next request without waiting, so a failing cluster is relisted on every request (default 10s)
       --cluster-cache-watch-resync-duration duration              Maximum time a resource watch runs before the controller relists the resources and restarts the watch. 0 keeps watches running until they fail (default 10m0s)
       --commit-server string                                      Commit server address. (default "argocd-commit-server:8086")
       --context string                                            The name of the kubeconfig context to use

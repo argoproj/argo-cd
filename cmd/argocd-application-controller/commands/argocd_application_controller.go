@@ -327,7 +327,7 @@ func addClusterCacheFlags(flags *pflag.FlagSet, cfg *statecache.ClusterCacheConf
 	defaults := statecache.ClusterCacheConfigFromEnv()
 	flags.DurationVar(&cfg.ResyncDuration, "cluster-cache-resync-duration", defaults.ResyncDuration, "Time period after which the cluster cache is fully resynced from the cluster. 0 disables the periodic full resync")
 	flags.DurationVar(&cfg.WatchResyncDuration, "cluster-cache-watch-resync-duration", defaults.WatchResyncDuration, "Maximum time a resource watch runs before the controller relists the resources and restarts the watch. 0 keeps watches running until they fail")
-	flags.DurationVar(&cfg.SyncRetryTimeout, "cluster-cache-sync-retry-timeout", defaults.SyncRetryTimeout, "Time to wait before retrying a cluster cache sync that failed. 0 retries on the next request without waiting")
+	flags.DurationVar(&cfg.SyncRetryTimeout, "cluster-cache-sync-retry-timeout", defaults.SyncRetryTimeout, "Time to wait before retrying a cluster cache sync that failed. 0 retries on the next request without waiting, so a failing cluster is relisted on every request")
 	flags.Int64Var(&cfg.ListPageSize, "cluster-cache-list-page-size", defaults.ListPageSize, "Number of resources requested per page when listing resources during a cluster cache sync. 0 lists each resource type in a single request without pagination")
 	flags.Int32Var(&cfg.ListPageBufferSize, "cluster-cache-list-page-buffer-size", defaults.ListPageBufferSize, "Number of list pages buffered in memory during a cluster cache sync")
 	flags.Int64Var(&cfg.ListSemaphoreSize, "cluster-cache-list-semaphore", defaults.ListSemaphoreSize, "Maximum number of concurrent list operations per cluster during a cluster cache sync")

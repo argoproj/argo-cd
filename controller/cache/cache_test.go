@@ -1070,10 +1070,18 @@ func TestClusterCacheConfigFromEnv(t *testing.T) {
 		require.NoError(t, cfg.Validate())
 	})
 
-	t.Run("every value set to zero still produces a valid config", func(t *testing.T) {
+	t.Run("every value set to zero keeps the zero values that are allowed", func(t *testing.T) {
 		setClusterCacheEnv(t, "0")
 
-		require.NoError(t, ClusterCacheConfigFromEnv().Validate())
+		cfg := ClusterCacheConfigFromEnv()
+
+		want := defaultClusterCacheConfig()
+		want.ResyncDuration = 0
+		want.WatchResyncDuration = 0
+		want.SyncRetryTimeout = 0
+		want.ListPageSize = 0
+		assert.Equal(t, want, cfg)
+		require.NoError(t, cfg.Validate())
 	})
 }
 

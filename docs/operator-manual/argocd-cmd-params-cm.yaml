@@ -124,8 +124,8 @@ data:
   # watches running until they fail (default "10m")
   # Can also be set via ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION environment variable
   controller.cluster.cache.watch.resync.duration: "10m"
-  # Time to wait before retrying a cluster cache sync that failed. "0" retries on the next request without waiting
-  # (default "10s")
+  # Time to wait before retrying a cluster cache sync that failed. "0" retries on the next request without waiting,
+  # so a failing cluster is relisted on every request (default "10s")
   # Can also be set via ARGOCD_CLUSTER_SYNC_RETRY_TIMEOUT_DURATION environment variable
   controller.cluster.cache.sync.retry.timeout: "10s"
   # Number of resources requested per page when listing resources during a cluster cache sync. "0" lists each resource
