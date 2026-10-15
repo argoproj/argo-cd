@@ -58,7 +58,7 @@ function handleSort(ctx: ContextApis, key: ResourceSortKey) {
 }
 
 function resourceRowKey(resource: models.Resource): string {
-    return `${resource.appProject}/${resource.appName}/${resource.name}/${resource.namespace}/${resource.kind}/${resource.group}/${resource.version}`;
+    return `${resource.appProject}/${resource.appNamespace}/${resource.appName}/${resource.name}/${resource.namespace}/${resource.kind}/${resource.group}/${resource.version}`;
 }
 
 export const ResourcesTable = (props: {
