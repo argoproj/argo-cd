@@ -371,7 +371,14 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                         )}
                                                                         data={sortedResources}
                                                                         onPageChange={page => ctx.navigation.goto('.', {page})}>
-                                                                        {data => <ResourcesTable resources={data} onOpenDetails={resource => openResourceDetails(ctx, resource)} />}
+                                                                        {(data, useVirtualScrolling) => (
+                                                                            <ResourcesTable
+                                                                                resources={data}
+                                                                                onOpenDetails={resource => openResourceDetails(ctx, resource)}
+                                                                                useVirtualScrolling={useVirtualScrolling}
+                                                                                statusBarVisible={healthBarPrefs.showHealthStatusBar}
+                                                                            />
+                                                                        )}
                                                                     </Paginate>
                                                                 )}
                                                             </>
