@@ -1469,14 +1469,28 @@ func (l *listThenPublishLister) List(selector labels.Selector) ([]*v1alpha1.Appl
 	return apps, nil
 }
 
+// publishThenReturnLister publishes while Watch is inside List, then returns a
+// fixed snapshot. Events published here are already buffered when the snapshot
+// resource versions are recorded.
+type publishThenReturnLister struct {
+	applisters.ApplicationLister
+	publish func()
+	apps    []*v1alpha1.Application
+}
+
+func (l *publishThenReturnLister) List(labels.Selector) ([]*v1alpha1.Application, error) {
+	l.publish()
+	return l.apps, nil
+}
+
 type recordingWatchServer struct {
 	googlegrpc.ServerStream
 	ctx context.Context
-	got chan v1alpha1.SyncStatusCode
+	got chan *v1alpha1.ApplicationWatchEvent
 }
 
 func (s *recordingWatchServer) Send(event *v1alpha1.ApplicationWatchEvent) error {
-	s.got <- event.Application.Status.Sync.Status
+	s.got <- event
 	return nil
 }
 
@@ -1515,7 +1529,7 @@ func TestWatchDeliversUpdatePublishedDuringInitialList(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(t.Context())
-	ws := &recordingWatchServer{ctx: ctx, got: make(chan v1alpha1.SyncStatusCode, 8)}
+	ws := &recordingWatchServer{ctx: ctx, got: make(chan *v1alpha1.ApplicationWatchEvent, 8)}
 	watchDone := make(chan error, 1)
 	go func() {
 		name := app.Name
@@ -1534,8 +1548,8 @@ func TestWatchDeliversUpdatePublishedDuringInitialList(t *testing.T) {
 	deadline := time.Now().Add(time.Second)
 	for {
 		select {
-		case status := <-ws.got:
-			seen = append(seen, status)
+		case event := <-ws.got:
+			seen = append(seen, event.Application.Status.Sync.Status)
 			if slices.Contains(seen, v1alpha1.SyncStatusCodeSynced) {
 				return
 			}
@@ -1544,6 +1558,77 @@ func TestWatchDeliversUpdatePublishedDuringInitialList(t *testing.T) {
 				t.Fatalf("watch missed the sync completion published while the initial application list was in progress; got %v", seen)
 			}
 			time.Sleep(10 * time.Millisecond)
+		}
+	}
+}
+
+// TestWatchSuppressesEventsBufferedBeforeNewerSnapshot covers the resource-version
+// guard. List observes version 3 while versions 2 and 3 are already buffered, and
+// version 4 follows them. The watch must send the snapshot and version 4, and must
+// not move the client back to version 2 or repeat version 3.
+func TestWatchSuppressesEventsBufferedBeforeNewerSnapshot(t *testing.T) {
+	app := newTestApp(func(app *v1alpha1.Application) {
+		app.ResourceVersion = "1"
+	})
+	appServer := newTestAppServer(t, app)
+
+	broadcaster := broadcast.NewHandler[v1alpha1.Application, v1alpha1.ApplicationWatchEvent](
+		func(app *v1alpha1.Application, eventType watch.EventType) *v1alpha1.ApplicationWatchEvent {
+			return &v1alpha1.ApplicationWatchEvent{Application: *app, Type: eventType}
+		},
+		applog.GetAppLogFields,
+	)
+	appServer.appBroadcaster = broadcaster
+	snapshot := app.DeepCopy()
+	snapshot.ResourceVersion = "3"
+	appServer.appLister = &publishThenReturnLister{
+		ApplicationLister: appServer.appLister,
+		publish: func() {
+			for _, rv := range []string{"2", "3", "4"} {
+				updated := app.DeepCopy()
+				updated.ResourceVersion = rv
+				broadcaster.OnUpdate(app, updated)
+			}
+		},
+		apps: []*v1alpha1.Application{snapshot},
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	ws := &recordingWatchServer{ctx: ctx, got: make(chan *v1alpha1.ApplicationWatchEvent, 8)}
+	watchDone := make(chan error, 1)
+	go func() {
+		name := app.Name
+		resourceVersion := "1"
+		watchDone <- appServer.Watch(&application.ApplicationQuery{
+			Name:            &name,
+			ResourceVersion: &resourceVersion,
+		}, ws)
+	}()
+	defer func() {
+		cancel()
+		require.NoError(t, <-watchDone)
+	}()
+
+	var seen []string
+	deadline := time.Now().Add(time.Second)
+	for len(seen) < 2 {
+		select {
+		case event := <-ws.got:
+			seen = append(seen, event.Application.ResourceVersion)
+		default:
+			if time.Now().After(deadline) {
+				t.Fatalf("watch did not deliver the snapshot and the newer event; got %v", seen)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	for {
+		select {
+		case event := <-ws.got:
+			seen = append(seen, event.Application.ResourceVersion)
+		default:
+			require.Equal(t, []string{"3", "4"}, seen)
+			return
 		}
 	}
 }
