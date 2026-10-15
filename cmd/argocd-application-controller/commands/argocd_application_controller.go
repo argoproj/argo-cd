@@ -20,6 +20,7 @@ import (
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller"
+	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
@@ -92,6 +93,7 @@ func NewCommand() *cobra.Command {
 		enableDynamicClusterDistribution bool
 		serverSideDiff                   bool
 		ignoreNormalizerOpts             normalizers.IgnoreNormalizerOpts
+		clusterCacheConfig               statecache.ClusterCacheConfig
 
 		// argocd k8s event logging flag
 		enableK8sEvent []string
@@ -105,6 +107,10 @@ func NewCommand() *cobra.Command {
 		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
 		RunE: cli.WithSignalContextE(func(c *cobra.Command, _ []string, _ context.CancelFunc) error {
+			if err := clusterCacheConfig.Validate(); err != nil {
+				return fmt.Errorf("invalid cluster cache configuration: %w", err)
+			}
+
 			ctx, cancel := context.WithCancel(c.Context())
 			defer cancel()
 
@@ -221,6 +227,7 @@ func NewCommand() *cobra.Command {
 				ignoreNormalizerOpts,
 				enableK8sEvent,
 				hydratorEnabled,
+				clusterCacheConfig,
 			)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer(), nil)
@@ -304,6 +311,17 @@ func NewCommand() *cobra.Command {
 	// argocd k8s event logging flag
 	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
 	command.Flags().BoolVar(&hydratorEnabled, "hydrator-enabled", env.ParseBoolFromEnv("ARGOCD_HYDRATOR_ENABLED", false), "Feature flag to enable Hydrator. Default (\"false\")")
+	clusterCacheDefaults := statecache.ClusterCacheConfigFromEnv()
+	command.Flags().DurationVar(&clusterCacheConfig.ResyncDuration, "cluster-cache-resync-duration", clusterCacheDefaults.ResyncDuration, "Time period after which the cluster cache is fully resynced from the cluster")
+	command.Flags().DurationVar(&clusterCacheConfig.WatchResyncDuration, "cluster-cache-watch-resync-duration", clusterCacheDefaults.WatchResyncDuration, "Maximum time a resource watch runs before the controller relists the resources and restarts the watch")
+	command.Flags().DurationVar(&clusterCacheConfig.SyncRetryTimeout, "cluster-cache-sync-retry-timeout", clusterCacheDefaults.SyncRetryTimeout, "Time to wait before retrying a cluster cache sync that failed")
+	command.Flags().Int64Var(&clusterCacheConfig.ListPageSize, "cluster-cache-list-page-size", clusterCacheDefaults.ListPageSize, "Number of resources requested per page when listing resources during a cluster cache sync")
+	command.Flags().Int32Var(&clusterCacheConfig.ListPageBufferSize, "cluster-cache-list-page-buffer-size", clusterCacheDefaults.ListPageBufferSize, "Number of list pages buffered in memory during a cluster cache sync")
+	command.Flags().Int64Var(&clusterCacheConfig.ListSemaphoreSize, "cluster-cache-list-semaphore", clusterCacheDefaults.ListSemaphoreSize, "Maximum number of concurrent list operations per cluster during a cluster cache sync")
+	command.Flags().Int32Var(&clusterCacheConfig.AttemptLimit, "cluster-cache-attempt-limit", clusterCacheDefaults.AttemptLimit, "Number of attempts for a failed list request during a cluster cache sync. 1 disables retries")
+	command.Flags().BoolVar(&clusterCacheConfig.RetryUseBackoff, "cluster-cache-retry-use-backoff", clusterCacheDefaults.RetryUseBackoff, "Use exponential backoff between retries of failed list requests during a cluster cache sync")
+	command.Flags().BoolVar(&clusterCacheConfig.BatchEventsProcessing, "cluster-cache-batch-events-processing", clusterCacheDefaults.BatchEventsProcessing, "Process resource events from the cluster in batches instead of one by one")
+	command.Flags().DurationVar(&clusterCacheConfig.EventsProcessingInterval, "cluster-cache-events-processing-interval", clusterCacheDefaults.EventsProcessingInterval, "Interval between processing batches of resource events. Only used when --cluster-cache-batch-events-processing is enabled")
 	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmdWithPrefix(&command, "APPLICATION_CONTROLLER")
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

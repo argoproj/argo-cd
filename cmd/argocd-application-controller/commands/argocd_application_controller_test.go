@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -54,4 +55,45 @@ func TestNewCommand_MetricsFlagHelpUsesActualMetricNames(t *testing.T) {
 	require.NotNil(t, conditionsFlag)
 	assert.Contains(t, conditionsFlag.Usage, "argocd_app_condition")
 	assert.NotContains(t, conditionsFlag.Usage, "argocd_application_conditions")
+}
+
+func TestNewCommand_ClusterCacheFlagsFromEnv(t *testing.T) {
+	tests := []struct {
+		env      string
+		flag     string
+		value    string
+		expected string
+	}{
+		{env: "ARGOCD_CLUSTER_CACHE_RESYNC_DURATION", flag: "cluster-cache-resync-duration", value: "6h", expected: "6h0m0s"},
+		{env: "ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION", flag: "cluster-cache-watch-resync-duration", value: "5m", expected: "5m0s"},
+		{env: "ARGOCD_CLUSTER_SYNC_RETRY_TIMEOUT_DURATION", flag: "cluster-cache-sync-retry-timeout", value: "30s", expected: "30s"},
+		{env: "ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE", flag: "cluster-cache-list-page-size", value: "250", expected: "250"},
+		{env: "ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE", flag: "cluster-cache-list-page-buffer-size", value: "4", expected: "4"},
+		{env: "ARGOCD_CLUSTER_CACHE_LIST_SEMAPHORE", flag: "cluster-cache-list-semaphore", value: "10", expected: "10"},
+		{env: "ARGOCD_CLUSTER_CACHE_ATTEMPT_LIMIT", flag: "cluster-cache-attempt-limit", value: "3", expected: "3"},
+		{env: "ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF", flag: "cluster-cache-retry-use-backoff", value: "true", expected: "true"},
+		{env: "ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING", flag: "cluster-cache-batch-events-processing", value: "false", expected: "false"},
+		{env: "ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL", flag: "cluster-cache-events-processing-interval", value: "1s", expected: "1s"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.flag, func(t *testing.T) {
+			t.Setenv(tt.env, tt.value)
+
+			f := NewCommand().Flags().Lookup(tt.flag)
+			require.NotNil(t, f, "expected --%s flag to be registered", tt.flag)
+			assert.Equal(t, tt.expected, f.DefValue)
+		})
+	}
+}
+
+func TestNewCommand_InvalidClusterCacheFlag(t *testing.T) {
+	cmd := NewCommand()
+	cmd.SetArgs([]string{"--cluster-cache-attempt-limit=0"})
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+
+	err := cmd.Execute()
+
+	require.ErrorContains(t, err, "invalid cluster cache configuration")
+	require.ErrorContains(t, err, "attempt limit must be at least 1")
 }

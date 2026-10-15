@@ -61,7 +61,7 @@ const (
 
 	// EnvClusterCacheListSemaphore is the env variable to control size of the list semaphore
 	// This is used to limit the number of concurrent memory consuming operations on the
-	// k8s list queries results across all clusters to avoid memory spikes during cache initialization.
+	// k8s list queries results of each cluster to avoid memory spikes during cache initialization.
 	EnvClusterCacheListSemaphore = "ARGOCD_CLUSTER_CACHE_LIST_SEMAPHORE"
 
 	// EnvClusterCacheAttemptLimit is the env variable to control the retry limit for listing resources during cluster cache sync
@@ -81,54 +81,92 @@ const (
 	AnnotationIgnoreResourceUpdates = "argocd.argoproj.io/ignore-resource-updates"
 )
 
-// GitOps engine cluster cache tuning options
-var (
-	// clusterCacheResyncDuration controls the duration of cluster cache refresh.
-	// NOTE: this differs from gitops-engine default of 24h
-	clusterCacheResyncDuration = 12 * time.Hour
-
-	// clusterCacheWatchResyncDuration controls the maximum duration that group/kind watches are allowed to run
-	// for before relisting & restarting the watch
-	clusterCacheWatchResyncDuration = 10 * time.Minute
-
-	// clusterSyncRetryTimeoutDuration controls the sync retry duration when cluster sync error happens
-	clusterSyncRetryTimeoutDuration = 10 * time.Second
-
-	// The default limit of 50 is chosen based on experiments.
-	clusterCacheListSemaphoreSize int64 = 50
-
-	// clusterCacheListPageSize is the page size when performing K8s list requests.
-	// 500 is equal to kubectl's size
-	clusterCacheListPageSize int64 = 500
-
-	// clusterCacheListPageBufferSize is the number of pages to buffer when performing K8s list requests
-	clusterCacheListPageBufferSize int32 = 1
-
-	// clusterCacheRetryLimit sets a retry limit for failed requests during cluster cache sync
-	// If set to 1, retries are disabled.
-	clusterCacheAttemptLimit int32 = 1
-
-	// clusterCacheRetryUseBackoff specifies whether to use a backoff strategy on cluster cache sync, if retry is enabled
-	clusterCacheRetryUseBackoff = false
-
-	// clusterCacheBatchEventsProcessing specifies whether to enable batch events processing
-	clusterCacheBatchEventsProcessing = false
-
-	// clusterCacheEventsProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
-	clusterCacheEventsProcessingInterval = 100 * time.Millisecond
+const (
+	defaultClusterCacheResyncDuration           = 12 * time.Hour
+	defaultClusterCacheWatchResyncDuration      = 10 * time.Minute
+	defaultClusterSyncRetryTimeout              = 10 * time.Second
+	defaultClusterCacheListPageSize             = 500
+	defaultClusterCacheListPageBufferSize       = 1
+	defaultClusterCacheListSemaphoreSize        = 50
+	defaultClusterCacheAttemptLimit             = 1
+	defaultClusterCacheEventsProcessingInterval = 100 * time.Millisecond
 )
 
-func init() {
-	clusterCacheResyncDuration = env.ParseDurationFromEnv(EnvClusterCacheResyncDuration, clusterCacheResyncDuration, 0, math.MaxInt64)
-	clusterCacheWatchResyncDuration = env.ParseDurationFromEnv(EnvClusterCacheWatchResyncDuration, clusterCacheWatchResyncDuration, 0, math.MaxInt64)
-	clusterSyncRetryTimeoutDuration = env.ParseDurationFromEnv(EnvClusterSyncRetryTimeoutDuration, clusterSyncRetryTimeoutDuration, 0, math.MaxInt64)
-	clusterCacheListPageSize = env.ParseInt64FromEnv(EnvClusterCacheListPageSize, clusterCacheListPageSize, 0, math.MaxInt64)
-	clusterCacheListPageBufferSize = int32(env.ParseNumFromEnv(EnvClusterCacheListPageBufferSize, int(clusterCacheListPageBufferSize), 1, math.MaxInt32))
-	clusterCacheListSemaphoreSize = env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, clusterCacheListSemaphoreSize, 0, math.MaxInt64)
-	clusterCacheAttemptLimit = int32(env.ParseNumFromEnv(EnvClusterCacheAttemptLimit, int(clusterCacheAttemptLimit), 1, math.MaxInt32))
-	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
-	clusterCacheBatchEventsProcessing = env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, true)
-	clusterCacheEventsProcessingInterval = env.ParseDurationFromEnv(EnvClusterCacheEventsProcessingInterval, clusterCacheEventsProcessingInterval, 0, math.MaxInt64)
+// ClusterCacheConfig holds the GitOps engine cluster cache tuning options that the controller applies to every
+// cluster cache it creates.
+type ClusterCacheConfig struct {
+	// ResyncDuration controls the duration of cluster cache refresh.
+	// NOTE: the default differs from gitops-engine default of 24h
+	ResyncDuration time.Duration
+	// WatchResyncDuration controls the maximum duration that group/kind watches are allowed to run
+	// for before relisting & restarting the watch
+	WatchResyncDuration time.Duration
+	// SyncRetryTimeout controls the sync retry duration when cluster sync error happens
+	SyncRetryTimeout time.Duration
+	// ListPageSize is the page size when performing K8s list requests. The default of 500 is equal to kubectl's size.
+	ListPageSize int64
+	// ListPageBufferSize is the number of pages to buffer when performing K8s list requests
+	ListPageBufferSize int32
+	// ListSemaphoreSize limits the number of concurrent memory consuming operations on the k8s list queries results
+	// to avoid memory spikes during cache initialization. The default of 50 is chosen based on experiments.
+	ListSemaphoreSize int64
+	// AttemptLimit sets a retry limit for failed requests during cluster cache sync.
+	// If set to 1, retries are disabled.
+	AttemptLimit int32
+	// RetryUseBackoff specifies whether to use a backoff strategy on cluster cache sync, if retry is enabled
+	RetryUseBackoff bool
+	// BatchEventsProcessing specifies whether to enable batch events processing
+	BatchEventsProcessing bool
+	// EventsProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
+	EventsProcessingInterval time.Duration
+}
+
+// ClusterCacheConfigFromEnv returns the cluster cache configuration read from the ARGOCD_CLUSTER_CACHE_* environment
+// variables, falling back to the defaults for unset or out-of-range values.
+func ClusterCacheConfigFromEnv() ClusterCacheConfig {
+	return ClusterCacheConfig{
+		ResyncDuration:           env.ParseDurationFromEnv(EnvClusterCacheResyncDuration, defaultClusterCacheResyncDuration, 0, math.MaxInt64),
+		WatchResyncDuration:      env.ParseDurationFromEnv(EnvClusterCacheWatchResyncDuration, defaultClusterCacheWatchResyncDuration, 0, math.MaxInt64),
+		SyncRetryTimeout:         env.ParseDurationFromEnv(EnvClusterSyncRetryTimeoutDuration, defaultClusterSyncRetryTimeout, 0, math.MaxInt64),
+		ListPageSize:             env.ParseInt64FromEnv(EnvClusterCacheListPageSize, defaultClusterCacheListPageSize, 0, math.MaxInt64),
+		ListPageBufferSize:       int32(env.ParseNumFromEnv(EnvClusterCacheListPageBufferSize, defaultClusterCacheListPageBufferSize, 1, math.MaxInt32)),
+		ListSemaphoreSize:        env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, defaultClusterCacheListSemaphoreSize, 0, math.MaxInt64),
+		AttemptLimit:             int32(env.ParseNumFromEnv(EnvClusterCacheAttemptLimit, defaultClusterCacheAttemptLimit, 1, math.MaxInt32)),
+		RetryUseBackoff:          env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false),
+		BatchEventsProcessing:    env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, true),
+		EventsProcessingInterval: env.ParseDurationFromEnv(EnvClusterCacheEventsProcessingInterval, defaultClusterCacheEventsProcessingInterval, 0, math.MaxInt64),
+	}
+}
+
+// Validate returns an error if any value is outside the range accepted from the environment variables.
+func (c ClusterCacheConfig) Validate() error {
+	var errs []error
+	for _, d := range []struct {
+		name  string
+		value time.Duration
+	}{
+		{"resync duration", c.ResyncDuration},
+		{"watch resync duration", c.WatchResyncDuration},
+		{"sync retry timeout", c.SyncRetryTimeout},
+		{"events processing interval", c.EventsProcessingInterval},
+	} {
+		if d.value < 0 {
+			errs = append(errs, fmt.Errorf("cluster cache %s must not be negative, got %s", d.name, d.value))
+		}
+	}
+	if c.ListPageSize < 0 {
+		errs = append(errs, fmt.Errorf("cluster cache list page size must not be negative, got %d", c.ListPageSize))
+	}
+	if c.ListPageBufferSize < 1 {
+		errs = append(errs, fmt.Errorf("cluster cache list page buffer size must be at least 1, got %d", c.ListPageBufferSize))
+	}
+	if c.ListSemaphoreSize < 0 {
+		errs = append(errs, fmt.Errorf("cluster cache list semaphore size must not be negative, got %d", c.ListSemaphoreSize))
+	}
+	if c.AttemptLimit < 1 {
+		errs = append(errs, fmt.Errorf("cluster cache attempt limit must be at least 1, got %d", c.AttemptLimit))
+	}
+	return errors.Join(errs...)
 }
 
 type LiveStateCache interface {
@@ -194,16 +232,18 @@ func NewLiveStateCache(
 	onObjectUpdated ObjectUpdatedHandler,
 	clusterSharding sharding.ClusterShardingCache,
 	resourceTracking argo.ResourceTracking,
+	clusterCacheConfig ClusterCacheConfig,
 ) LiveStateCache {
 	return &liveStateCache{
-		appInformer:      appInformer,
-		db:               db,
-		clusters:         make(map[string]clustercache.ClusterCache),
-		onObjectUpdated:  onObjectUpdated,
-		settingsMgr:      settingsMgr,
-		metricsServer:    metricsServer,
-		clusterSharding:  clusterSharding,
-		resourceTracking: resourceTracking,
+		appInformer:        appInformer,
+		db:                 db,
+		clusters:           make(map[string]clustercache.ClusterCache),
+		onObjectUpdated:    onObjectUpdated,
+		settingsMgr:        settingsMgr,
+		metricsServer:      metricsServer,
+		clusterSharding:    clusterSharding,
+		resourceTracking:   resourceTracking,
+		clusterCacheConfig: clusterCacheConfig,
 	}
 }
 
@@ -232,6 +272,7 @@ type liveStateCache struct {
 	clusterSharding      sharding.ClusterShardingCache
 	resourceTracking     argo.ResourceTracking
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
+	clusterCacheConfig   ClusterCacheConfig
 
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
@@ -555,12 +596,12 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 	}
 
 	clusterCacheOpts := []clustercache.UpdateSettingsFunc{
-		clustercache.SetListSemaphore(semaphore.NewWeighted(clusterCacheListSemaphoreSize)),
-		clustercache.SetListPageSize(clusterCacheListPageSize),
-		clustercache.SetListPageBufferSize(clusterCacheListPageBufferSize),
-		clustercache.SetWatchResyncTimeout(clusterCacheWatchResyncDuration),
-		clustercache.SetClusterSyncRetryTimeout(clusterSyncRetryTimeoutDuration),
-		clustercache.SetResyncTimeout(clusterCacheResyncDuration),
+		clustercache.SetListSemaphore(semaphore.NewWeighted(c.clusterCacheConfig.ListSemaphoreSize)),
+		clustercache.SetListPageSize(c.clusterCacheConfig.ListPageSize),
+		clustercache.SetListPageBufferSize(c.clusterCacheConfig.ListPageBufferSize),
+		clustercache.SetWatchResyncTimeout(c.clusterCacheConfig.WatchResyncDuration),
+		clustercache.SetClusterSyncRetryTimeout(c.clusterCacheConfig.SyncRetryTimeout),
+		clustercache.SetResyncTimeout(c.clusterCacheConfig.ResyncDuration),
 		clustercache.SetSettings(cacheSettings.clusterSettings),
 		clustercache.SetNamespaces(cluster.Namespaces),
 		clustercache.SetClusterResources(cluster.ClusterResources),
@@ -595,10 +636,10 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 			return res, shouldCacheManifest
 		}),
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
-		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
+		clustercache.SetRetryOptions(c.clusterCacheConfig.AttemptLimit, c.clusterCacheConfig.RetryUseBackoff, isRetryableError),
 		clustercache.SetRespectRBAC(respectRBAC),
-		clustercache.SetBatchEventsProcessing(clusterCacheBatchEventsProcessing),
-		clustercache.SetEventProcessingInterval(clusterCacheEventsProcessingInterval),
+		clustercache.SetBatchEventsProcessing(c.clusterCacheConfig.BatchEventsProcessing),
+		clustercache.SetEventProcessingInterval(c.clusterCacheConfig.EventsProcessingInterval),
 		clustercache.SetManifestCompressionEnabled(cacheSettings.manifestCompressionEnabled),
 		clustercache.SetManifestStorageType(cacheSettings.manifestStorageType),
 		clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),

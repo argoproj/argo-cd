@@ -260,6 +260,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		normalizers.IgnoreNormalizerOpts{},
 		testEnableEventList,
 		false,
+		statecache.ClusterCacheConfigFromEnv(),
 	)
 	db := &dbmocks.ArgoDB{}
 	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
@@ -3003,6 +3004,7 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 		[]string{}, []string{}, false, []string{},
 		0, true, nil, nil, nil, false, false,
 		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+		statecache.ClusterCacheConfigFromEnv(),
 	)
 	require.NoError(t, err)
 
@@ -3066,6 +3068,7 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 		[]string{}, []string{}, false, []string{},
 		0, true, nil, nil, nil, false, false,
 		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+		statecache.ClusterCacheConfigFromEnv(),
 	)
 	require.NoError(t, err)
 

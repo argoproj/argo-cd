@@ -191,30 +191,30 @@ stringData:
 * `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM` - environment variable that enables collecting RPC performance metrics. Enable it
   if you need to troubleshoot performance issues. Note: This metric is expensive to both query and store!
 
-* `ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` - environment variable controlling the number of pages the controller
-  buffers in memory when performing a list operation against the K8s Api server while syncing the cluster cache. This
-  is useful when the cluster contains a large number of resources and cluster sync times exceed the default etcd
-  compaction interval timeout. In this scenario, when attempting to sync the cluster cache, the application controller
-  may throw an error that the `continue parameter is too old to display a consistent list result`. Setting a higher
-  value for this environment variable configures the controller with a larger buffer in which to store pre-fetched
-  pages which are processed asynchronously, increasing the likelihood that all pages have been pulled before the etcd
-  compaction interval timeout expires. In the most extreme case, operators can set this value such that
-  `ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE * ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` exceeds the largest resource
-  count (grouped by k8s api version, the granule of parallelism for list operations). In this case, all resources will
-  be buffered in memory -- no api server request will be blocked by processing.
+* `controller.cluster.cache.list.page.buffer.size` - `argocd-cmd-params-cm` key (`--cluster-cache-list-page-buffer-size`
+  flag, `ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` environment variable) controlling the number of pages the
+  controller buffers in memory when performing a list operation against the K8s Api server while syncing the cluster
+  cache. This is useful when the cluster contains a large number of resources and cluster sync times exceed the default
+  etcd compaction interval timeout. In this scenario, when attempting to sync the cluster cache, the application
+  controller may throw an error that the `continue parameter is too old to display a consistent list result`. Setting a
+  higher value configures the controller with a larger buffer in which to store pre-fetched pages which are processed
+  asynchronously, increasing the likelihood that all pages have been pulled before the etcd compaction interval timeout
+  expires. In the most extreme case, operators can set this value such that
+  `controller.cluster.cache.list.page.size * controller.cluster.cache.list.page.buffer.size` exceeds the largest
+  resource count (grouped by k8s api version, the granule of parallelism for list operations). In this case, all
+  resources will be buffered in memory -- no api server request will be blocked by processing. The default value is `1`.
 
-* `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` - environment variable that enables the controller to collect events
-  for Kubernetes resources and process them in a batch. This is useful when the cluster contains a large number of
-  resources,
-  and the controller is overwhelmed by the number of events. The default value is `true`. `false` would mean that the
-  controller
-  would process events one by one.
+* `controller.cluster.cache.batch.events.processing` - `argocd-cmd-params-cm` key
+  (`--cluster-cache-batch-events-processing` flag, `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` environment variable)
+  that enables the controller to collect events for Kubernetes resources and process them in a batch. This is useful
+  when the cluster contains a large number of resources, and the controller is overwhelmed by the number of events. The
+  default value is `true`. `false` would mean that the controller would process events one by one.
 
-* `ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL` - environment variable controlling the interval for processing
-  events in a batch.
-  The valid value is in the format of Go time duration string, e.g. `1ms`, `1s`, `1m`, `1h`. The default value is
-  `100ms`.
-  The variable is used only when `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` is set to `true`.
+* `controller.cluster.cache.events.processing.interval` - `argocd-cmd-params-cm` key
+  (`--cluster-cache-events-processing-interval` flag, `ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL` environment
+  variable) controlling the interval for processing events in a batch. The valid value is in the format of Go time
+  duration string, e.g. `1ms`, `1s`, `1m`, `1h`. The default value is `100ms`. The setting is used only when
+  `controller.cluster.cache.batch.events.processing` is set to `true`.
 
 * `resource.manifest.storage` - `argocd-cm` setting controlling the serialization format for cached resource
   manifests when manifest compression is enabled. Valid values: `json` (default), `msgpack`.
