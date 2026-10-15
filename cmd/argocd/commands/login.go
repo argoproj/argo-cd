@@ -270,6 +270,23 @@ func userDisplayName(claims jwt.MapClaims) string {
 	return jwtutil.GetUserIdentifier(claims)
 }
 
+// generatePKCECodeVerifierAndChallenge generates a PKCE code verifier and its
+// corresponding S256 code challenge as defined in RFC 7636.
+// The verifier is sent in the token request; the challenge is sent in the
+// authorization / device-authorization request.
+func generatePKCECodeVerifierAndChallenge() (verifier, challenge string, err error) {
+	verifier, err = rand.StringFromCharset(
+		43,
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~",
+	)
+	if err != nil {
+		return "", "", err
+	}
+	h := sha256.Sum256([]byte(verifier))
+	challenge = base64.RawURLEncoding.EncodeToString(h[:])
+	return verifier, challenge, nil
+}
+
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
 // returns the JWT token and a refresh token (if supported)
 func oauth2Login(
@@ -312,13 +329,8 @@ func oauth2Login(
 	}
 
 	// PKCE implementation of https://tools.ietf.org/html/rfc7636
-	codeVerifier, err := rand.StringFromCharset(
-		43,
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~",
-	)
+	codeVerifier, codeChallenge, err := generatePKCECodeVerifierAndChallenge()
 	errors.CheckError(err)
-	codeChallengeHash := sha256.Sum256([]byte(codeVerifier))
-	codeChallenge := base64.RawURLEncoding.EncodeToString(codeChallengeHash[:])
 
 	// Authorization redirect callback from OAuth2 auth flow.
 	// Handles both implicit and authorization code flow
@@ -479,7 +491,19 @@ func oauth2LoginNoBrowser(
 		log.Fatal("OIDC provider does not advertise a device authorization or token endpoint; configure deviceURL/tokenURL in oidc.config")
 	}
 
-	da, err := oauth2conf.DeviceAuth(ctx)
+	// PKCE (RFC 7636): always include code_challenge in the device authorization
+	// request. Providers that enforce PKCE globally (e.g. Keycloak with
+	// "Require PKCE = S256") reject the device auth request without it.
+	// Sending PKCE unconditionally is safe: compliant providers that do not
+	// require it simply ignore the extra parameters.
+	codeVerifier, codeChallenge, err := generatePKCECodeVerifierAndChallenge()
+	errors.CheckError(err)
+
+	da, err := oauth2conf.DeviceAuth(ctx,
+		oauth2.SetAuthURLParam("code_challenge", codeChallenge),
+		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+	)
+
 	if err != nil {
 		log.Fatalf("Failed to request device code: %s", err)
 		return "", ""
@@ -491,7 +515,9 @@ func oauth2LoginNoBrowser(
 	fmt.Printf("Open the following URL in your browser to authenticate:\n\n%s\n\nWaiting for authentication...\n",
 		buildVerificationPrompt(da.VerificationURIComplete, da.VerificationURI, da.UserCode))
 
-	tok, err := oauth2conf.DeviceAccessToken(ctx, da)
+	tok, err := oauth2conf.DeviceAccessToken(ctx, da,
+		oauth2.SetAuthURLParam("code_verifier", codeVerifier),
+	)
 	if err != nil {
 		log.Fatalf("%s", err)
 		return "", ""
