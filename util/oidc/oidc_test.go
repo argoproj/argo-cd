@@ -1408,11 +1408,18 @@ func TestSetGroupsClaimFromEndpoint(t *testing.T) {
 			expectedClaims: jwt.MapClaims{"sub": "randomUser", "memberof": []any{"a"}, "groups": []any{"b"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 		},
 		{
-			name:           "non-groups scope missing from userinfo keeps the existing claim",
+			name:           "non-groups scope missing from userinfo clears the stale ID token claim",
 			scopes:         []string{"memberof"},
 			inputClaims:    jwt.MapClaims{"sub": "randomUser", "memberof": []string{"fromjwt"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			cacheClaims:    jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
-			expectedClaims: jwt.MapClaims{"sub": "randomUser", "memberof": []string{"fromjwt"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectedClaims: jwt.MapClaims{"sub": "randomUser", "memberof": nil, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+		},
+		{
+			name:           "removed membership in userinfo overrides the ID token",
+			scopes:         []string{"memberof"},
+			inputClaims:    jwt.MapClaims{"sub": "randomUser", "memberof": []string{"admins", "devs"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			cacheClaims:    jwt.MapClaims{"sub": "randomUser", "memberof": []string{"devs"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectedClaims: jwt.MapClaims{"sub": "randomUser", "memberof": []any{"devs"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 		},
 		{
 			name:           "groups scope missing from userinfo clears the groups claim",

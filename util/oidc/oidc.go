@@ -969,11 +969,8 @@ func (a *ClientApp) SetGroupsClaimFromEndpoint(ctx context.Context, claims jwt.C
 				if _, protected := protectedClaims[scope]; protected {
 					continue
 				}
-				value, found := userInfo[scope]
-				// `groups` is always overwritten, even when missing, so stale ID token groups are not kept.
-				if found || scope == "groups" {
-					groupClaims[scope] = value
-				}
+				// Overwrite even when absent so revoked memberships in a still-valid ID token are not kept.
+				groupClaims[scope] = userInfo[scope]
 			}
 			return groupClaims, nil
 		}

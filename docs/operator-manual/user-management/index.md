@@ -907,6 +907,10 @@ data:
   scopes: '[memberof]'
 ```
 
+UserInfo is authoritative for these claims: a claim listed in `scopes` that is missing from the UserInfo response is
+cleared, even if the ID token still contains it, so revoked memberships take effect without waiting for the ID token
+to expire. Make sure your provider returns every claim listed in `scopes` (for example `email`) in the UserInfo response.
+
 Claim names are case-sensitive, and the identity claims `iss`, `sub`, `aud`, `exp`, `iat`, `nbf`, `jti` and
 `federated_claims` are never overwritten. See [RBAC Configuration](../rbac.md#using-ssousersgroups) for more on `scopes`.
 
