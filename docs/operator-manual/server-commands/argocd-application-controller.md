@@ -31,12 +31,12 @@ argocd-application-controller [flags]
       --cluster-cache-batch-events-processing                     Process resource events from the cluster in batches instead of one by one (default true)
       --cluster-cache-events-processing-interval duration         Interval between processing batches of resource events. Only used when --cluster-cache-batch-events-processing is enabled (default 100ms)
       --cluster-cache-list-page-buffer-size int32                 Number of list pages buffered in memory during a cluster cache sync (default 1)
-      --cluster-cache-list-page-size int                          Number of resources requested per page when listing resources during a cluster cache sync (default 500)
+      --cluster-cache-list-page-size int                          Number of resources requested per page when listing resources during a cluster cache sync. 0 lists each resource type in a single request without pagination (default 500)
       --cluster-cache-list-semaphore int                          Maximum number of concurrent list operations per cluster during a cluster cache sync (default 50)
-      --cluster-cache-resync-duration duration                    Time period after which the cluster cache is fully resynced from the cluster (default 12h0m0s)
+      --cluster-cache-resync-duration duration                    Time period after which the cluster cache is fully resynced from the cluster. 0 disables the periodic full resync (default 12h0m0s)
       --cluster-cache-retry-use-backoff                           Use exponential backoff between retries of failed list requests during a cluster cache sync
-      --cluster-cache-sync-retry-timeout duration                 Time to wait before retrying a cluster cache sync that failed (default 10s)
-      --cluster-cache-watch-resync-duration duration              Maximum time a resource watch runs before the controller relists the resources and restarts the watch (default 10m0s)
+      --cluster-cache-sync-retry-timeout duration                 Time to wait before retrying a cluster cache sync that failed. 0 retries on the next request without waiting (default 10s)
+      --cluster-cache-watch-resync-duration duration              Maximum time a resource watch runs before the controller relists the resources and restarts the watch. 0 keeps watches running until they fail (default 10m0s)
       --commit-server string                                      Commit server address. (default "argocd-commit-server:8086")
       --context string                                            The name of the kubeconfig context to use
       --default-cache-expiration duration                         Cache expiration default (default 24h0m0s)

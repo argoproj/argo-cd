@@ -1058,6 +1058,23 @@ func TestClusterCacheConfigFromEnv(t *testing.T) {
 
 		assert.Equal(t, defaultClusterCacheConfig(), ClusterCacheConfigFromEnv())
 	})
+
+	t.Run("zero values that would break the cluster cache fall back to defaults", func(t *testing.T) {
+		setClusterCacheEnv(t, "")
+		t.Setenv(EnvClusterCacheListSemaphore, "0")
+		t.Setenv(EnvClusterCacheEventsProcessingInterval, "0s")
+
+		cfg := ClusterCacheConfigFromEnv()
+
+		assert.Equal(t, defaultClusterCacheConfig(), cfg)
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("every value set to zero still produces a valid config", func(t *testing.T) {
+		setClusterCacheEnv(t, "0")
+
+		require.NoError(t, ClusterCacheConfigFromEnv().Validate())
+	})
 }
 
 func TestClusterCacheConfigValidate(t *testing.T) {

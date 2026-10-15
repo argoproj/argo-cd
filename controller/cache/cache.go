@@ -124,7 +124,7 @@ type ClusterCacheConfig struct {
 }
 
 // ClusterCacheConfigFromEnv returns the cluster cache configuration read from the Env* environment variables above,
-// falling back to the defaults for unset or out-of-range values.
+// falling back to the defaults for unset or out-of-range values. The result always passes Validate.
 func ClusterCacheConfigFromEnv() ClusterCacheConfig {
 	return ClusterCacheConfig{
 		ResyncDuration:           env.ParseDurationFromEnv(EnvClusterCacheResyncDuration, defaultClusterCacheResyncDuration, 0, math.MaxInt64),
@@ -132,11 +132,11 @@ func ClusterCacheConfigFromEnv() ClusterCacheConfig {
 		SyncRetryTimeout:         env.ParseDurationFromEnv(EnvClusterSyncRetryTimeoutDuration, defaultClusterSyncRetryTimeoutDuration, 0, math.MaxInt64),
 		ListPageSize:             env.ParseInt64FromEnv(EnvClusterCacheListPageSize, defaultClusterCacheListPageSize, 0, math.MaxInt64),
 		ListPageBufferSize:       int32(env.ParseNumFromEnv(EnvClusterCacheListPageBufferSize, defaultClusterCacheListPageBufferSize, 1, math.MaxInt32)),
-		ListSemaphoreSize:        env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, defaultClusterCacheListSemaphoreSize, 0, math.MaxInt64),
+		ListSemaphoreSize:        env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, defaultClusterCacheListSemaphoreSize, 1, math.MaxInt64),
 		AttemptLimit:             int32(env.ParseNumFromEnv(EnvClusterCacheAttemptLimit, defaultClusterCacheAttemptLimit, 1, math.MaxInt32)),
 		RetryUseBackoff:          env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, defaultClusterCacheRetryUseBackoff),
 		BatchEventsProcessing:    env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, defaultClusterCacheBatchEventsProcessing),
-		EventsProcessingInterval: env.ParseDurationFromEnv(EnvClusterCacheEventsProcessingInterval, defaultClusterCacheEventsProcessingInterval, 0, math.MaxInt64),
+		EventsProcessingInterval: env.ParseDurationFromEnv(EnvClusterCacheEventsProcessingInterval, defaultClusterCacheEventsProcessingInterval, time.Nanosecond, math.MaxInt64),
 	}
 }
 

@@ -116,25 +116,31 @@ data:
   controller.diff.server.side: "false"
   # Enables profile endpoint on the internal metrics port
   controller.profile.enabled: "false"
-  # Time period after which the controller's cluster cache is fully resynced from the cluster (default "12h")
+  # Time period after which the controller's cluster cache is fully resynced from the cluster. "0" disables the periodic
+  # full resync (default "12h")
   # Can also be set via ARGOCD_CLUSTER_CACHE_RESYNC_DURATION environment variable
   controller.cluster.cache.resync.duration: "12h"
-  # Maximum time a resource watch runs before the controller relists the resources and restarts the watch (default "10m")
+  # Maximum time a resource watch runs before the controller relists the resources and restarts the watch. "0" keeps
+  # watches running until they fail (default "10m")
   # Can also be set via ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION environment variable
   controller.cluster.cache.watch.resync.duration: "10m"
-  # Time to wait before retrying a cluster cache sync that failed (default "10s")
+  # Time to wait before retrying a cluster cache sync that failed. "0" retries on the next request without waiting
+  # (default "10s")
   # Can also be set via ARGOCD_CLUSTER_SYNC_RETRY_TIMEOUT_DURATION environment variable
   controller.cluster.cache.sync.retry.timeout: "10s"
-  # Number of resources requested per page when listing resources during a cluster cache sync (default "500")
+  # Number of resources requested per page when listing resources during a cluster cache sync. "0" lists each resource
+  # type in a single request without pagination (default "500")
   # Can also be set via ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE environment variable
   controller.cluster.cache.list.page.size: "500"
-  # Number of list pages buffered in memory during a cluster cache sync (default "1")
+  # Number of list pages buffered in memory during a cluster cache sync. Values below "1" use the default (default "1")
   # Can also be set via ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE environment variable
   controller.cluster.cache.list.page.buffer.size: "1"
-  # Maximum number of concurrent list operations per cluster during a cluster cache sync (default "50")
+  # Maximum number of concurrent list operations per cluster during a cluster cache sync. Values below "1" use the
+  # default (default "50")
   # Can also be set via ARGOCD_CLUSTER_CACHE_LIST_SEMAPHORE environment variable
   controller.cluster.cache.list.semaphore: "50"
-  # Number of attempts for a failed list request during a cluster cache sync. "1" disables retries (default "1")
+  # Number of attempts for a failed list request during a cluster cache sync. "1" disables retries, and values below "1"
+  # use the default (default "1")
   # Can also be set via ARGOCD_CLUSTER_CACHE_ATTEMPT_LIMIT environment variable
   controller.cluster.cache.attempt.limit: "1"
   # Use exponential backoff between retries of failed list requests during a cluster cache sync (default "false")
@@ -146,7 +152,7 @@ data:
   controller.cluster.cache.batch.events.processing: "true"
   # This sets the interval at which the controller's cluster cache processes a batch of cluster events. A lower value
   # will increase the speed at which Argo CD becomes aware of external cluster state. A higher value will reduce cluster
-  # cache lock contention and better handle high-churn clusters. (default "100ms")
+  # cache lock contention and better handle high-churn clusters. "0" uses the default (default "100ms")
   # Can also be set via ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL environment variable
   controller.cluster.cache.events.processing.interval: "100ms"
   # QPS (Queries Per Second) limit for K8s API client requests (default "50")

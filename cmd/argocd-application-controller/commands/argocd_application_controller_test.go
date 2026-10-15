@@ -3,9 +3,13 @@ package commands
 import (
 	"io"
 	"testing"
+	"time"
 
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
 )
 
 // TestNewCommand_HydrationProcessorsFlag pins down the contract for the manifest hydration concurrency
@@ -96,4 +100,36 @@ func TestNewCommand_InvalidClusterCacheFlag(t *testing.T) {
 
 	require.ErrorContains(t, err, "invalid cluster cache configuration")
 	require.ErrorContains(t, err, "attempt limit must be at least 1")
+}
+
+func TestAddClusterCacheFlags_BindsEachFlagToItsField(t *testing.T) {
+	var cfg statecache.ClusterCacheConfig
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	addClusterCacheFlags(flags, &cfg)
+
+	require.NoError(t, flags.Parse([]string{
+		"--cluster-cache-resync-duration=1h",
+		"--cluster-cache-watch-resync-duration=2m",
+		"--cluster-cache-sync-retry-timeout=3s",
+		"--cluster-cache-list-page-size=40",
+		"--cluster-cache-list-page-buffer-size=5",
+		"--cluster-cache-list-semaphore=6",
+		"--cluster-cache-attempt-limit=7",
+		"--cluster-cache-retry-use-backoff=true",
+		"--cluster-cache-batch-events-processing=false",
+		"--cluster-cache-events-processing-interval=8ms",
+	}))
+
+	assert.Equal(t, statecache.ClusterCacheConfig{
+		ResyncDuration:           time.Hour,
+		WatchResyncDuration:      2 * time.Minute,
+		SyncRetryTimeout:         3 * time.Second,
+		ListPageSize:             40,
+		ListPageBufferSize:       5,
+		ListSemaphoreSize:        6,
+		AttemptLimit:             7,
+		RetryUseBackoff:          true,
+		BatchEventsProcessing:    false,
+		EventsProcessingInterval: 8 * time.Millisecond,
+	}, cfg)
 }
