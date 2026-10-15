@@ -1337,13 +1337,13 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		case event := <-events:
 			// The list can observe a newer version than an event already buffered
 			// from the subscription. Sending that older event would move the
-			// client backward.
+			// client backward. Later events are not recorded: the informer
+			// delivers them in order, and storing every name would grow for the
+			// life of the watch.
 			if rv, err := strconv.Atoi(event.Application.ResourceVersion); err == nil {
-				key := event.Application.QualifiedName()
-				if sent, ok := sentVersion[key]; ok && rv <= sent {
+				if sent, ok := sentVersion[event.Application.QualifiedName()]; ok && rv <= sent {
 					continue
 				}
-				sentVersion[key] = rv
 			}
 			sendIfPermitted(event.Application, event.Type)
 		case <-ws.Context().Done():
