@@ -1304,7 +1304,7 @@ data:
 		opts := buildOpts(predictedLiveJSON)
 
 		// when
-		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+		result, err := serverSideDiff(desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1670,7 +1670,7 @@ spec:
 	}
 
 	// when
-	result, err := serverSideDiff(t.Context(), config, live, opts...)
+	result, err := serverSideDiff(config, live, opts...)
 
 	// then
 	require.NoError(t, err)
