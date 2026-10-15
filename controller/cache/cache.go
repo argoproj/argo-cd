@@ -84,11 +84,13 @@ const (
 const (
 	defaultClusterCacheResyncDuration           = 12 * time.Hour
 	defaultClusterCacheWatchResyncDuration      = 10 * time.Minute
-	defaultClusterSyncRetryTimeout              = 10 * time.Second
+	defaultClusterSyncRetryTimeoutDuration      = 10 * time.Second
+	defaultClusterCacheListSemaphoreSize        = 50
 	defaultClusterCacheListPageSize             = 500
 	defaultClusterCacheListPageBufferSize       = 1
-	defaultClusterCacheListSemaphoreSize        = 50
 	defaultClusterCacheAttemptLimit             = 1
+	defaultClusterCacheRetryUseBackoff          = false
+	defaultClusterCacheBatchEventsProcessing    = true
 	defaultClusterCacheEventsProcessingInterval = 100 * time.Millisecond
 )
 
@@ -127,13 +129,13 @@ func ClusterCacheConfigFromEnv() ClusterCacheConfig {
 	return ClusterCacheConfig{
 		ResyncDuration:           env.ParseDurationFromEnv(EnvClusterCacheResyncDuration, defaultClusterCacheResyncDuration, 0, math.MaxInt64),
 		WatchResyncDuration:      env.ParseDurationFromEnv(EnvClusterCacheWatchResyncDuration, defaultClusterCacheWatchResyncDuration, 0, math.MaxInt64),
-		SyncRetryTimeout:         env.ParseDurationFromEnv(EnvClusterSyncRetryTimeoutDuration, defaultClusterSyncRetryTimeout, 0, math.MaxInt64),
+		SyncRetryTimeout:         env.ParseDurationFromEnv(EnvClusterSyncRetryTimeoutDuration, defaultClusterSyncRetryTimeoutDuration, 0, math.MaxInt64),
 		ListPageSize:             env.ParseInt64FromEnv(EnvClusterCacheListPageSize, defaultClusterCacheListPageSize, 0, math.MaxInt64),
 		ListPageBufferSize:       int32(env.ParseNumFromEnv(EnvClusterCacheListPageBufferSize, defaultClusterCacheListPageBufferSize, 1, math.MaxInt32)),
 		ListSemaphoreSize:        env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, defaultClusterCacheListSemaphoreSize, 0, math.MaxInt64),
 		AttemptLimit:             int32(env.ParseNumFromEnv(EnvClusterCacheAttemptLimit, defaultClusterCacheAttemptLimit, 1, math.MaxInt32)),
-		RetryUseBackoff:          env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false),
-		BatchEventsProcessing:    env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, true),
+		RetryUseBackoff:          env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, defaultClusterCacheRetryUseBackoff),
+		BatchEventsProcessing:    env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, defaultClusterCacheBatchEventsProcessing),
 		EventsProcessingInterval: env.ParseDurationFromEnv(EnvClusterCacheEventsProcessingInterval, defaultClusterCacheEventsProcessingInterval, 0, math.MaxInt64),
 	}
 }
