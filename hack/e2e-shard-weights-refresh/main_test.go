@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"io/fs"
 	"maps"
 	"os"
 	"os/exec"
@@ -220,4 +222,62 @@ func TestReport(t *testing.T) {
 	assert.NotContains(t, out, "Removed tests")
 
 	assert.Contains(t, r.report(""), "builds: 111 222\n")
+}
+
+func setupRun(t *testing.T, weights string) (dir string, args []string) {
+	t.Helper()
+	dir = t.TempDir()
+	writeFile(t, filepath.Join(dir, "weights.txt"), weights)
+	writeFile(t, filepath.Join(dir, "e2e", "a_test.go"), "package e2e\n\nimport \"testing\"\n\nfunc TestA(t *testing.T) {}\nfunc TestB(t *testing.T) {}\n")
+	args = []string{
+		"-weights", filepath.Join(dir, "weights.txt"),
+		"-tests", filepath.Join(dir, "e2e"),
+		"-shards", "2",
+		"-report", filepath.Join(dir, "report.md"),
+		"-repo", "argoproj/argo-cd",
+	}
+	for _, id := range []string{"101", "102", "103"} {
+		writeFile(t, filepath.Join(dir, "runs", id, "shard1", "junit.xml"),
+			`<testsuites><testsuite><testcase name="TestA" time="10"></testcase><testcase name="TestB" time="4"></testcase></testsuite></testsuites>`)
+		args = append(args, filepath.Join(dir, "runs", id))
+	}
+	return dir, args
+}
+
+func TestRunWritesWeightsAndReportWhenJustified(t *testing.T) {
+	dir, args := setupRun(t, "# header\nTestA 10.000\nTestGone 3.000\n")
+	var out bytes.Buffer
+
+	require.NoError(t, run(args, &out))
+
+	assert.Contains(t, out.String(), "1 added, 1 removed, 0 changed")
+	weights, err := os.ReadFile(filepath.Join(dir, "weights.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, "# header\nTestA 10.000\nTestB 4.000\n", string(weights))
+	report, err := os.ReadFile(filepath.Join(dir, "report.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(report), "[103](https://github.com/argoproj/argo-cd/actions/runs/103)")
+	assert.Contains(t, string(report), "| TestGone | 3.000 |")
+}
+
+func TestRunLeavesFilesAloneWhenNotJustified(t *testing.T) {
+	const current = "# header\nTestB 4.5\nTestA 11\n"
+	dir, args := setupRun(t, current)
+	var out bytes.Buffer
+
+	require.NoError(t, run(args, &out))
+
+	assert.Contains(t, out.String(), "refresh not justified")
+	weights, err := os.ReadFile(filepath.Join(dir, "weights.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, current, string(weights))
+	assert.NoFileExists(t, filepath.Join(dir, "report.md"))
+}
+
+func TestRunRejectsBadInput(t *testing.T) {
+	_, args := setupRun(t, "TestA 10.000\n")
+	var out bytes.Buffer
+
+	require.ErrorContains(t, run(args[:len(args)-3], &out), "usage")
+	require.ErrorIs(t, run(slices.Concat(args, []string{filepath.Join(t.TempDir(), "missing")}), &out), fs.ErrNotExist)
 }

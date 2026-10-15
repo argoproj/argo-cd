@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"io/fs"
 	"log"
 	"maps"
@@ -49,53 +50,58 @@ type refresh struct {
 }
 
 func main() {
-	weightsPath := flag.String("weights", "test/e2e/shard-weights.txt", "weights file to read and, when a refresh is justified, rewrite")
-	testsDir := flag.String("tests", "test/e2e", "directory with the e2e test sources")
-	shards := flag.Int("shards", 0, "number of e2e shards")
-	reportPath := flag.String("report", "", "file to write the PR description to, only when a refresh is justified")
-	repo := flag.String("repo", "", "owner/name used to link the runs in the report")
-	flag.Parse()
+	if err := run(os.Args[1:], os.Stdout); err != nil && !errors.Is(err, flag.ErrHelp) {
+		log.Fatal(err)
+	}
+}
 
-	if *shards < 1 || *reportPath == "" || flag.NArg() == 0 {
-		log.Fatal("usage: e2e-shard-weights-refresh -shards N -report FILE [flags] <run-dir>...")
+func run(args []string, out io.Writer) error {
+	flags := flag.NewFlagSet("e2e-shard-weights-refresh", flag.ContinueOnError)
+	weightsPath := flags.String("weights", "test/e2e/shard-weights.txt", "weights file to read and, when a refresh is justified, rewrite")
+	testsDir := flags.String("tests", "test/e2e", "directory with the e2e test sources")
+	shards := flags.Int("shards", 0, "number of e2e shards")
+	reportPath := flags.String("report", "", "file to write the PR description to, only when a refresh is justified")
+	repo := flags.String("repo", "", "owner/name used to link the runs in the report")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if *shards < 1 || *reportPath == "" || flags.NArg() == 0 {
+		return errors.New("usage: e2e-shard-weights-refresh -shards N -report FILE [flags] RUN-DIR [RUN-DIR...]")
 	}
 
 	current, err := readWeights(*weightsPath)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	tests, err := listTests(*testsDir)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	var runs []map[string]float64
-	for _, dir := range flag.Args() {
-		run, err := readRun(dir)
+	for _, dir := range flags.Args() {
+		timings, err := readRun(dir)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-		runs = append(runs, run)
+		runs = append(runs, timings)
 	}
 
-	medians := median(runs)
-	next, r := compute(current.values, tests, medians, *shards)
-	for _, dir := range flag.Args() {
+	next, r := compute(current.values, tests, median(runs), *shards)
+	for _, dir := range flags.Args() {
 		r.runs = append(r.runs, filepath.Base(dir))
 	}
 
-	fmt.Printf("slowest of %d shards: %.0fs now, %.0fs refreshed; %d added, %d removed, %d changed\n",
+	fmt.Fprintf(out, "slowest of %d shards: %.0fs now, %.0fs refreshed; %d added, %d removed, %d changed\n",
 		r.shards, r.before, r.after, len(r.added), len(r.removed), len(r.changed))
 	if !r.justified() {
-		fmt.Println("refresh not justified; nothing to do")
-		return
+		fmt.Fprintln(out, "refresh not justified; nothing to do")
+		return nil
 	}
 
 	if err := writeWeights(*weightsPath, weights{header: current.header, values: next}); err != nil {
-		log.Fatal(err)
+		return err
 	}
-	if err := os.WriteFile(*reportPath, []byte(r.report(*repo)), 0o644); err != nil {
-		log.Fatal(err)
-	}
+	return os.WriteFile(*reportPath, []byte(r.report(*repo)), 0o644)
 }
 
 func readWeights(path string) (weights, error) {
