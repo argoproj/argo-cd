@@ -24,7 +24,8 @@ module.exports = {
         "github>argoproj/argo-cd//renovate-presets/redis.json5",
         "github>argoproj/argo-cd//renovate-presets/docs.json5",
         "group:aws-sdk-go-v2Monorepo",
-        "github>argoproj/argo-cd//renovate-presets/fix/ignore-paths.json5"
+        "github>argoproj/argo-cd//renovate-presets/fix/ignore-paths.json5",
+        "github>argoproj/argo-cd//renovate-presets/release-branches.json5"
     ],
     ignoreDeps: [
         'github.com/argoproj/argo-cd/gitops-engine/v3'
