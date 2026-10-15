@@ -53,6 +53,8 @@ const (
 	SyncOptionClientSideApplyMigration = "ClientSideApplyMigration=true"
 	// Sync option that disables client-side apply migration
 	SyncOptionDisableClientSideApplyMigration = "ClientSideApplyMigration=false"
+	// Sync option that enables running sync hooks during a partial sync (when only specific resources are synced)
+	SyncOptionRunHooksOnPartialSync = "RunHooksOnPartialSync=true"
 
 	// Default field manager for client-side apply migration
 	DefaultClientSideApplyMigrationManager = "kubectl-client-side-apply"

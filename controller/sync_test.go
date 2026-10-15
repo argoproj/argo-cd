@@ -2294,6 +2294,71 @@ func dig(obj any, path ...any) any {
 	return i
 }
 
+func TestSkipHooks(t *testing.T) {
+	t.Parallel()
+
+	partialSync := []v1alpha1.SyncOperationResource{{Kind: "ConfigMap", Name: "my-config"}}
+	runHooksOnPartialSync := v1alpha1.SyncOptions{synccommon.SyncOptionRunHooksOnPartialSync}
+	applyStrategy := &v1alpha1.SyncStrategy{Apply: &v1alpha1.SyncStrategyApply{}}
+
+	tests := []struct {
+		name      string
+		syncOp    v1alpha1.SyncOperation
+		automated bool
+		expected  bool
+	}{
+		{
+			name:     "full sync runs hooks",
+			syncOp:   v1alpha1.SyncOperation{},
+			expected: false,
+		},
+		{
+			name:     "full sync runs hooks when RunHooksOnPartialSync is enabled",
+			syncOp:   v1alpha1.SyncOperation{SyncOptions: runHooksOnPartialSync},
+			expected: false,
+		},
+		{
+			name:      "automated full sync runs hooks",
+			syncOp:    v1alpha1.SyncOperation{SyncOptions: runHooksOnPartialSync},
+			automated: true,
+			expected:  false,
+		},
+		{
+			name:     "partial sync skips hooks by default",
+			syncOp:   v1alpha1.SyncOperation{Resources: partialSync},
+			expected: true,
+		},
+		{
+			name:     "partial sync runs hooks when RunHooksOnPartialSync is enabled",
+			syncOp:   v1alpha1.SyncOperation{Resources: partialSync, SyncOptions: runHooksOnPartialSync},
+			expected: false,
+		},
+		{
+			name:      "automated partial sync skips hooks even when RunHooksOnPartialSync is enabled",
+			syncOp:    v1alpha1.SyncOperation{Resources: partialSync, SyncOptions: runHooksOnPartialSync},
+			automated: true,
+			expected:  true,
+		},
+		{
+			name:     "apply strategy skips hooks on full sync",
+			syncOp:   v1alpha1.SyncOperation{SyncStrategy: applyStrategy},
+			expected: true,
+		},
+		{
+			name:     "apply strategy skips hooks on partial sync even when RunHooksOnPartialSync is enabled",
+			syncOp:   v1alpha1.SyncOperation{Resources: partialSync, SyncOptions: runHooksOnPartialSync, SyncStrategy: applyStrategy},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.expected, skipHooks(&tt.syncOp, v1alpha1.OperationInitiator{Automated: tt.automated}))
+		})
+	}
+}
+
 func TestValidateSyncPermissions(t *testing.T) {
 	t.Parallel()
 
