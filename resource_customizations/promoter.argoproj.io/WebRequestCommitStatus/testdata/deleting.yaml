@@ -1,0 +1,19 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: WebRequestCommitStatus
+metadata:
+  name: external-check
+  namespace: gitops-promoter
+  deletionTimestamp: "2025-07-04T12:00:00Z"
+spec:
+  promotionStrategyRef:
+    name: demo
+  key: ext-approval
+  httpRequest:
+    urlTemplate: "https://example.com/health"
+    method: GET
+  success:
+    when:
+      expression: "Response.StatusCode == 200"
+  mode:
+    polling:
+      interval: 1m

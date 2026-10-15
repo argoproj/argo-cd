@@ -3,6 +3,22 @@ local hs = {
   message = "Update in progress"
 }
 if obj.status ~= nil then
+  -- ConfigConnector and ConfigConnectorContext use status.healthy instead of conditions
+  if (obj.kind == "ConfigConnector" or obj.kind == "ConfigConnectorContext") and obj.status.healthy ~= nil then
+    -- Check if status is stale
+    if obj.status.observedGeneration == nil or obj.status.observedGeneration == obj.metadata.generation then
+      if obj.status.healthy == true then
+        hs.status = "Healthy"
+        hs.message = obj.kind .. " is healthy"
+        return hs
+      else
+        hs.status = "Degraded"
+        hs.message = obj.kind .. " is not healthy"
+        return hs
+      end
+    end
+  end
+
   if obj.status.conditions ~= nil then
     
     -- Progressing health while the resource status is stale, skip if observedGeneration is not set

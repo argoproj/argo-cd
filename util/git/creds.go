@@ -13,11 +13,17 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	giturls "github.com/chainguard-dev/git-urls"
 	"github.com/google/go-github/v69/github"
 
@@ -26,8 +32,8 @@ import (
 
 	gocache "github.com/patrickmn/go-cache"
 
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	argoio "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/io"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	log "github.com/sirupsen/logrus"
 
@@ -50,6 +56,11 @@ var (
 	// installationIdCache caches installation IDs for organizations to avoid redundant API calls.
 	githubInstallationIdCache      *gocache.Cache
 	githubInstallationIdCacheMutex sync.RWMutex // For bulk API call coordination
+	// In memory cache for storing Azure Service Principal tokens
+	azureServicePrincipalTokenCache *gocache.Cache
+
+	// validProxyHostRegexp matches only safe hostname characters: alphanumeric, hyphen, dot, and brackets (for IPv6).
+	validProxyHostRegexp = regexp.MustCompile(`^[a-zA-Z0-9.\-]+$`)
 )
 
 const (
@@ -64,8 +75,21 @@ const (
 func init() {
 	githubAppCredsExp := common.GithubAppCredsExpirationDuration
 	if exp := os.Getenv(common.EnvGithubAppCredsExpirationDuration); exp != "" {
-		if qps, err := strconv.Atoi(exp); err != nil {
+		if qps, err := strconv.Atoi(exp); err == nil {
 			githubAppCredsExp = time.Duration(qps) * time.Minute
+		}
+	}
+	azureServicePrincipalCredsExp := common.AzureServicePrincipalCredsExpirationDuration
+	if exp := os.Getenv(common.EnvAzureServicePrincipalCredsExpirationDuration); exp != "" {
+		if qps, err := strconv.Atoi(exp); err == nil {
+			// Azure service principal tokens are valid for 60 minutes
+			// the cache has a cleanup interval of 1 minute
+			// cap the expiration duration to 59 minutes to avoid issues with token expiration
+			if qps > 59 {
+				log.Warnf("Value in %s is %d, which is greater than maximum 59 minutes allowed. Setting to 59 minutes", common.EnvAzureServicePrincipalCredsExpirationDuration, qps)
+				qps = 59
+			}
+			azureServicePrincipalCredsExp = time.Duration(qps) * time.Minute
 		}
 	}
 
@@ -74,6 +98,58 @@ func init() {
 	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
 	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 	githubInstallationIdCache = gocache.New(60*time.Minute, 60*time.Minute)
+	azureServicePrincipalTokenCache = gocache.New(azureServicePrincipalCredsExp, 1*time.Minute)
+}
+
+func validateProxyURL(rawURL string) error {
+	return validateProxyURLWithSchemes(rawURL, "socks5", "socks5h")
+}
+
+// ValidateHTTPProxyURL validates a proxy URL for HTTP/HTTPS creds (GitHub App,
+// Azure Service Principal, HTTPS creds). It accepts http, https, socks5 and
+// socks5h schemes.
+func ValidateHTTPProxyURL(rawURL string) error {
+	return validateProxyURLWithSchemes(rawURL, "http", "https", "socks5", "socks5h")
+}
+
+func validateProxyURLWithSchemes(rawURL string, allowedSchemes ...string) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid proxy URL: %w", err)
+	}
+
+	schemeOK := slices.Contains(allowedSchemes, parsed.Scheme)
+	if !schemeOK {
+		return fmt.Errorf("invalid proxy scheme %q: only %v are supported", parsed.Scheme, allowedSchemes)
+	}
+
+	host := parsed.Hostname()
+	if host == "" {
+		return errors.New("proxy URL has empty hostname")
+	}
+	if strings.Contains(host, ":") {
+		// Treat as IPv6 — validate with net.ParseIP which understands all
+		// valid IPv6 formats and rejects anything containing shell metacharacters.
+		if net.ParseIP(host) == nil {
+			return fmt.Errorf("proxy hostname %q is not a valid IPv6 address", host)
+		}
+	} else {
+		// DNS name or IPv4 — allow only alphanumerics, hyphens, and dots.
+		if !validProxyHostRegexp.MatchString(host) {
+			return fmt.Errorf("proxy hostname %q contains unsafe characters: only alphanumerics, hyphens, and dots are allowed", host)
+		}
+	}
+
+	portStr := parsed.Port()
+	if portStr == "" {
+		return errors.New("proxy URL has no port")
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port < 1 || port > 65535 {
+		return fmt.Errorf("proxy port %q is not a valid TCP port (must be 1-65535)", portStr)
+	}
+
+	return nil
 }
 
 type NoopCredsStore struct{}
@@ -225,7 +301,7 @@ func (creds HTTPSCreds) Environ() (io.Closer, []string, error) {
 		defer keyFile.Close()
 
 		// We should have both temp files by now
-		httpCloser = authFilePaths([]string{certFile.Name(), keyFile.Name()})
+		httpCloser = []string{certFile.Name(), keyFile.Name()}
 
 		_, err = certFile.WriteString(creds.clientCertData)
 		if err != nil {
@@ -283,6 +359,15 @@ type SSHCreds struct {
 }
 
 func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, proxy string) SSHCreds {
+	if proxy != "" {
+		if err := validateProxyURL(proxy); err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityHigh,
+				common.SecurityCWEField: 78,
+			}).Warnf("NewSSHCreds: rejecting unsafe proxy URL: %v", err)
+			proxy = ""
+		}
+	}
 	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, proxy}
 }
 
@@ -353,17 +438,56 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		knownHostsFile := certutil.GetSSHKnownHostsDataPath()
 		args = append(args, "-o", "StrictHostKeyChecking=yes", "-o", "UserKnownHostsFile="+knownHostsFile)
 	}
+
 	// Handle SSH socks5 proxy settings
-	proxyEnv := []string{}
+	var proxyEnv []string
+	var proxyScriptPath string
+
 	if c.proxy != "" {
+		if err := validateProxyURL(c.proxy); err != nil {
+			sshCloser.Close()
+			return nil, nil, fmt.Errorf("unsafe proxy URL rejected: %w", err)
+		}
+
 		parsedProxyURL, err := url.Parse(c.proxy)
 		if err != nil {
 			sshCloser.Close()
 			return nil, nil, fmt.Errorf("failed to set environment variables related to socks5 proxy, could not parse proxy URL '%s': %w", c.proxy, err)
 		}
-		args = append(args, "-o", fmt.Sprintf("ProxyCommand='connect-proxy -S %s:%s -5 %%h %%p'",
+
+		// Write a temporary wrapper script instead of embedding the hostname and port directly into the
+		// shell-interpreted GIT_SSH_COMMAND string.
+		proxyScriptContent := fmt.Sprintf(
+			"#!/bin/sh\nexec connect-proxy -5 -S %s:%s \"$@\"\n",
 			parsedProxyURL.Hostname(),
-			parsedProxyURL.Port()))
+			parsedProxyURL.Port(),
+		)
+
+		proxyScript, err := os.CreateTemp(argoio.TempDir, "argocd-proxy-cmd-*")
+		if err != nil {
+			sshCloser.Close()
+			return nil, nil, fmt.Errorf("failed to create proxy command script: %w", err)
+		}
+		proxyScriptPath = proxyScript.Name()
+
+		if _, err := proxyScript.WriteString(proxyScriptContent); err != nil {
+			_ = os.Remove(proxyScriptPath)
+			sshCloser.Close()
+			return nil, nil, fmt.Errorf("failed to write proxy command script: %w", err)
+		}
+		if err := proxyScript.Close(); err != nil {
+			_ = os.Remove(proxyScriptPath)
+			sshCloser.Close()
+			return nil, nil, fmt.Errorf("failed to close proxy command script: %w", err)
+		}
+		if err := os.Chmod(proxyScriptPath, 0o700); err != nil {
+			_ = os.Remove(proxyScriptPath)
+			sshCloser.Close()
+			return nil, nil, fmt.Errorf("failed to chmod proxy command script: %w", err)
+		}
+
+		args = append(args, "-o", "ProxyCommand="+proxyScriptPath+" %h %p")
+
 		if parsedProxyURL.User != nil {
 			proxyEnv = append(proxyEnv, "SOCKS5_USER="+parsedProxyURL.User.Username())
 			if socks5Passwd, isPasswdSet := parsedProxyURL.User.Password(); isPasswdSet {
@@ -371,9 +495,28 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 			}
 		}
 	}
+
 	env = append(env, []string{"GIT_SSH_COMMAND=" + strings.Join(args, " ")}...)
 	env = append(env, proxyEnv...)
-	return sshCloser, env, nil
+
+	// We need a combined closer that removes both the SSH private key tempfile
+	// and the proxy script tempfile (if one was created).
+	combinedCloser := utilio.NewCloser(func() error {
+		keyErr := sshCloser.Close()
+		var proxyErr error
+		if proxyScriptPath != "" {
+			proxyErr = os.Remove(proxyScriptPath)
+			if os.IsNotExist(proxyErr) {
+				proxyErr = nil
+			}
+		}
+		if keyErr != nil {
+			return keyErr
+		}
+		return proxyErr
+	})
+
+	return combinedCloser, env, nil
 }
 
 // GitHubAppCreds to authenticate as GitHub application
@@ -388,11 +531,23 @@ type GitHubAppCreds struct {
 	proxy          string
 	noProxy        string
 	store          CredsStore
+	// repoURL is the full repository URL, used for extracting org for auto-discovery
+	repoURL string
 }
 
 // NewGitHubAppCreds provide github app credentials
-func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore) GenericHTTPSCreds {
-	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store}
+// repoURL is required for automatic installation ID discovery when appInstallId is 0
+func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore, repoURL string) GenericHTTPSCreds {
+	if proxy != "" {
+		if err := ValidateHTTPProxyURL(proxy); err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityHigh,
+				common.SecurityCWEField: 78,
+			}).Warnf("NewGitHubAppCreds: rejecting unsafe proxy URL: %v", err)
+			proxy = ""
+		}
+	}
+	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store, repoURL: repoURL}
 }
 
 func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
@@ -434,7 +589,7 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 		defer keyFile.Close()
 
 		// We should have both temp files by now
-		httpCloser = authFilePaths([]string{certFile.Name(), keyFile.Name()})
+		httpCloser = []string{certFile.Name(), keyFile.Name()}
 
 		_, err = certFile.WriteString(g.clientCertData)
 		if err != nil {
@@ -495,7 +650,7 @@ func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error)
 // the token is then cached for re-use.
 func (g GitHubAppCreds) getAccessToken() (string, error) {
 	// Timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
 	defer cancel()
 
 	itr, err := g.getInstallationTransport()
@@ -531,9 +686,32 @@ func (g GitHubAppCreds) getAppTransport() (*ghinstallation.AppsTransport, error)
 
 // getInstallationTransport creates a new GitHub transport for the app installation
 func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, error) {
+	installationID := g.appInstallId
+
+	// Auto-discover installation ID if not provided
+	if installationID == 0 {
+		org, err := ExtractOrgFromRepoURL(g.repoURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract organization from repository URL %s for GitHub App installation discovery: %w", SanitizeRepoURL(g.repoURL), err)
+		}
+		if org == "" {
+			return nil, fmt.Errorf("could not extract organization from repository URL %s: the URL does not contain an organization/owner", SanitizeRepoURL(g.repoURL))
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+
+		discoveredID, err := DiscoverGitHubAppInstallationID(ctx, g.appID, g.privateKey, g.baseURL, org)
+		if err != nil {
+			return nil, fmt.Errorf("failed to discover GitHub App installation ID for organization %s: ensure the GitHub App (ID: %d) is installed for this organization: %w", org, g.appID, err)
+		}
+		log.Infof("Auto-discovered GitHub App installation ID %d for org %s", discoveredID, org)
+		installationID = discoveredID
+	}
+
 	// Compute hash of creds for lookup in cache
 	h := sha256.New()
-	_, err := fmt.Fprintf(h, "%s %d %d %s", g.privateKey, g.appID, g.appInstallId, g.baseURL)
+	_, err := fmt.Fprintf(h, "%s %d %d %s", g.privateKey, g.appID, installationID, g.baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get SHA256 hash for GitHub app credentials: %w", err)
 	}
@@ -557,7 +735,7 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 	c := GetRepoHTTPClient(baseURL, g.insecure, g, g.proxy, g.noProxy)
 	itr, err := ghinstallation.New(c.Transport,
 		g.appID,
-		g.appInstallId,
+		installationID,
 		[]byte(g.privateKey),
 	)
 	if err != nil {
@@ -659,10 +837,11 @@ func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKe
 		opts.Page = resp.NextPage
 	}
 
-	// Cache all installation IDs
+	// Cache each installation under its account's key so multiple orgs do not overwrite each other.
 	for _, installation := range allInstallations {
 		if installation.Account != nil && installation.Account.Login != nil && installation.ID != nil {
-			githubInstallationIdCache.Set(cacheKey, *installation.ID, gocache.DefaultExpiration)
+			instKey := fmt.Sprintf("%s:%s:%d", strings.ToLower(*installation.Account.Login), domain, appId)
+			githubInstallationIdCache.Set(instKey, *installation.ID, gocache.DefaultExpiration)
 		}
 	}
 
@@ -684,8 +863,8 @@ func domainFromBaseURL(baseURL string) (string, error) {
 	// --- 1. SSH-style Git URL: git@github.com:org/repo.git ---
 	if strings.Contains(baseURL, "@") && strings.Contains(baseURL, ":") && !strings.Contains(baseURL, "://") {
 		parts := strings.SplitN(baseURL, "@", 2)
-		right := parts[len(parts)-1]             // github.com:org/repo
-		host := strings.SplitN(right, ":", 2)[0] // github.com
+		right := parts[len(parts)-1]          // github.com:org/repo
+		host, _, _ := strings.Cut(right, ":") // github.com
 		if host != "" {
 			return host, nil
 		}
@@ -731,8 +910,8 @@ func ExtractOrgFromRepoURL(repoURL string) (string, error) {
 	// We distinguish this from the valid ssh://git@host:22/org/repo (with port number).
 	if strings.HasPrefix(repoURL, "ssh://git@") {
 		remainder := strings.TrimPrefix(repoURL, "ssh://")
-		if colonIdx := strings.Index(remainder, ":"); colonIdx != -1 {
-			afterColon := remainder[colonIdx+1:]
+		if _, after, ok := strings.Cut(remainder, ":"); ok {
+			afterColon := after
 			slashIdx := strings.Index(afterColon, "/")
 
 			// Check if what follows the colon is a port number
@@ -753,7 +932,7 @@ func ExtractOrgFromRepoURL(repoURL string) (string, error) {
 	// Use git-urls library to parse all Git URL formats
 	parsed, err := giturls.Parse(repoURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse repository URL %q: %w", repoURL, err)
+		return "", fmt.Errorf("failed to parse repository URL %q: %w", SanitizeRepoURL(repoURL), err)
 	}
 
 	// Clean the path: remove leading/trailing slashes and .git suffix
@@ -761,7 +940,7 @@ func ExtractOrgFromRepoURL(repoURL string) (string, error) {
 	path = strings.TrimSuffix(path, ".git")
 
 	if path == "" {
-		return "", fmt.Errorf("repository URL %q does not contain a path", repoURL)
+		return "", fmt.Errorf("repository URL %q does not contain a path", SanitizeRepoURL(repoURL))
 	}
 
 	// Extract the first path component (organization/owner)
@@ -774,7 +953,7 @@ func ExtractOrgFromRepoURL(repoURL string) (string, error) {
 
 	// If there's no slash, the entire path might be just the org (unusual but handle it)
 	// This would fail validation later, but let's return it
-	return "", fmt.Errorf("could not extract organization from repository URL %q: path %q does not contain org/repo format", repoURL, path)
+	return "", fmt.Errorf("could not extract organization from repository URL %q: path %q does not contain org/repo format", SanitizeRepoURL(repoURL), path)
 }
 
 var _ Creds = GoogleCloudCreds{}
@@ -786,9 +965,14 @@ type GoogleCloudCreds struct {
 }
 
 func NewGoogleCloudCreds(jsonData string, store CredsStore) GoogleCloudCreds {
-	creds, err := google.CredentialsFromJSON(context.Background(), []byte(jsonData), "https://www.googleapis.com/auth/cloud-platform")
+	credType := credentialTypeFromJSON([]byte(jsonData))
+	creds, err := google.CredentialsFromJSONWithType(
+		context.Background(),
+		[]byte(jsonData),
+		credType,
+		"https://www.googleapis.com/auth/cloud-platform",
+	)
 	if err != nil {
-		// Invalid JSON
 		log.Errorf("Failed reading credentials from JSON: %+v", err)
 	}
 	return GoogleCloudCreds{creds, store}
@@ -946,4 +1130,164 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 func (creds AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {
 	accessToken, err := creds.getAccessToken(azureDevopsEntraResourceId) // wellknown resourceid of Azure DevOps
 	return accessToken, err
+}
+
+var _ Creds = AzureServicePrincipalCreds{}
+
+// AzureServicePrincipalCreds to authenticate to Azure DevOps using a Service Principal
+type AzureServicePrincipalCreds struct {
+	tenantID                string
+	clientID                string
+	clientSecret            string
+	activeDirectoryEndpoint string
+	clientCertData          string
+	clientCertKey           string
+	proxy                   string
+	noProxy                 string
+	store                   CredsStore
+}
+
+// NewAzureServicePrincipalCreds creates new Azure Service Principal credentials
+func NewAzureServicePrincipalCreds(tenantID string, clientID string, clientSecret string, store CredsStore) AzureServicePrincipalCreds {
+	return AzureServicePrincipalCreds{tenantID: tenantID, clientID: clientID, clientSecret: clientSecret, store: store}
+}
+
+// WithActiveDirectoryEndpoint sets a custom Active Directory endpoint. When not set, the default Azure public cloud is used.
+func (a AzureServicePrincipalCreds) WithActiveDirectoryEndpoint(activeDirectoryEndpoint string) AzureServicePrincipalCreds {
+	if activeDirectoryEndpoint != "" {
+		a.activeDirectoryEndpoint = activeDirectoryEndpoint
+	}
+	return a
+}
+
+// WithClientCert sets the client certificate data and key
+func (a AzureServicePrincipalCreds) WithClientCert(data string, key string) AzureServicePrincipalCreds {
+	if data != "" && key != "" {
+		a.clientCertData = data
+		a.clientCertKey = key
+	}
+	return a
+}
+
+// WithProxy sets the HTTP/HTTPS proxy used to access the repo.
+// Unsafe proxy values are rejected at this boundary so they cannot
+// flow further (e.g. into net/http transports via GetRepoHTTPClient).
+func (a AzureServicePrincipalCreds) WithProxy(proxy string) AzureServicePrincipalCreds {
+	if proxy != "" {
+		if err := ValidateHTTPProxyURL(proxy); err != nil {
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityHigh,
+				common.SecurityCWEField: 78,
+			}).Warnf("AzureServicePrincipalCreds.WithProxy: rejecting unsafe proxy URL: %v", err)
+			return a
+		}
+		a.proxy = proxy
+	}
+	return a
+}
+
+// WithNoProxy sets a comma separated list of IPs/hostnames that should not use the proxy
+func (a AzureServicePrincipalCreds) WithNoProxy(noProxy string) AzureServicePrincipalCreds {
+	if noProxy != "" {
+		a.noProxy = noProxy
+	}
+	return a
+}
+
+// GetUserInfo doesn't return any user info as they are not present for Azure Service Principals.
+func (a AzureServicePrincipalCreds) GetUserInfo(_ context.Context) (string, string, error) {
+	return workloadidentity.EmptyGuid, "", nil
+}
+
+func (a AzureServicePrincipalCreds) Environ() (io.Closer, []string, error) {
+	token, err := a.getAccessToken()
+	if err != nil {
+		return NopCloser{}, nil, err
+	}
+	nonce := a.store.Add("", token)
+	env := a.store.Environ(nonce)
+	env = append(env, fmt.Sprintf("%s=Authorization: Bearer %s", bearerAuthHeaderEnv, token))
+
+	return utilio.NewCloser(func() error {
+		a.store.Remove(nonce)
+		return nil
+	}), env, nil
+}
+
+func (a AzureServicePrincipalCreds) getAccessToken() (string, error) {
+	// Override the default active directory endpoint if present
+	activeDirectoryEndpoint := "https://login.microsoftonline.com"
+	disableInstanceDiscovery := false
+	if a.activeDirectoryEndpoint != "" {
+		activeDirectoryEndpoint = a.activeDirectoryEndpoint
+		disableInstanceDiscovery = true
+	}
+
+	// Generate cache key for creds
+	key, err := argoutils.GenerateCacheKey("%s %s %s %s", a.tenantID, a.clientID, a.clientSecret, activeDirectoryEndpoint)
+	if err != nil {
+		return "", fmt.Errorf("failed to get SHA256 hash for Azure Service Principal credentials: %w", err)
+	}
+
+	t, found := azureServicePrincipalTokenCache.Get(key)
+	if found {
+		return t.(string), nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	opts := azcore.ClientOptions{}
+	opts.Cloud = cloud.Configuration{
+		ActiveDirectoryAuthorityHost: activeDirectoryEndpoint,
+	}
+	// Configure HTTP client with proxy if proxy is set
+	if a.proxy != "" {
+		opts.Transport = GetRepoHTTPClient(activeDirectoryEndpoint, false, a, a.proxy, a.noProxy)
+	}
+	cred, err := azidentity.NewClientSecretCredential(a.tenantID, a.clientID, a.clientSecret, &azidentity.ClientSecretCredentialOptions{ClientOptions: opts, DisableInstanceDiscovery: disableInstanceDiscovery})
+	if err != nil {
+		return "", fmt.Errorf("failed to create Azure client secret credential: %w", err)
+	}
+	token, err := cred.GetToken(ctx, policy.TokenRequestOptions{
+		Scopes: []string{azureDevopsEntraResourceId},
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to get Azure access token: %w", err)
+	}
+	azureServicePrincipalTokenCache.Set(key, token.Token, 0)
+	return token.Token, nil
+}
+
+func (a AzureServicePrincipalCreds) HasClientCert() bool {
+	return a.clientCertData != "" && a.clientCertKey != ""
+}
+
+func (a AzureServicePrincipalCreds) GetClientCertData() string {
+	return a.clientCertData
+}
+
+func (a AzureServicePrincipalCreds) GetClientCertKey() string {
+	return a.clientCertKey
+}
+
+// credentialTypeFromJSON peeks at the "type" field and returns the matching google.CredentialsType.
+// Defaults to google.ServiceAccount if the type is unrecognized or missing.
+func credentialTypeFromJSON(jsonData []byte) google.CredentialsType {
+	var f struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(jsonData, &f); err != nil {
+		return google.ServiceAccount
+	}
+	switch f.Type {
+	case "external_account":
+		return google.ExternalAccount
+	case "impersonated_service_account":
+		return google.ImpersonatedServiceAccount
+	case "authorized_user":
+		return google.AuthorizedUser
+	default:
+		return google.ServiceAccount
+	}
 }

@@ -8,6 +8,11 @@ Log in to Argo CD
 
 Log in to Argo CD
 
+A client certificate given with --client-crt and --client-crt-key is recorded in the context, so that
+subsequent commands reuse it without having to specify the flags again. The certificate is referenced
+by path and read on every invocation, which means certificates rotated by an external tool are picked
+up automatically.
+
 ```
 argocd login SERVER [flags]
 ```
@@ -20,6 +25,9 @@ argocd login cd.argoproj.io
 
 # Login to Argo CD using SSO
 argocd login cd.argoproj.io --sso
+
+# Login to an Argo CD instance behind a proxy requiring a client certificate
+argocd login cd.argoproj.io --client-crt ~/certs/argocd.crt --client-crt-key ~/certs/argocd.key
 
 # Configure direct access using Kubernetes API server
 argocd login cd.argoproj.io --core
@@ -72,5 +80,5 @@ argocd login cd.argoproj.io --core
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
+* [argocd](argocd.md)	 - argocd controls an Argo CD server
 

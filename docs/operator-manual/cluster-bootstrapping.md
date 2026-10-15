@@ -170,7 +170,8 @@ The parent app will appear as in-sync but the child apps will be out of sync:
 
 ![New App Of Apps](../assets/new-app-of-apps.png)
 
-> NOTE: You may want to modify this behavior to bootstrap your cluster in waves; see [the health assessment of Applications](./health.md#argocd-app) for information on changing this.
+> [!NOTE]
+> You may want to modify this behavior to bootstrap your cluster in waves; see [the health assessment of Applications](./health.md#argocd-app) for information on changing this.
 
 You can either sync via the UI, firstly filter by the correct label:
 

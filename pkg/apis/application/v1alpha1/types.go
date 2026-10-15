@@ -1,8 +1,6 @@
 package v1alpha1
 
 import (
-	"bytes"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,16 +13,18 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/cespare/xxhash/v2"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -40,8 +40,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/client-go/transport"
+	kutil "sigs.k8s.io/kustomize/api/pkg/util"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v3/util/hash"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -215,6 +218,11 @@ type ApplicationSource struct {
 	Ref string `json:"ref,omitempty" protobuf:"bytes,13,opt,name=ref"`
 	// Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.
 	Name string `json:"name,omitempty" protobuf:"bytes,14,opt,name=name"`
+	// TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+	// The prefix is stripped from tag names before comparison and re-added to the resolved version.
+	// For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+	// "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+	TagPrefix string `json:"tagPrefix,omitempty" protobuf:"bytes,15,opt,name=tagPrefix"`
 }
 
 // ApplicationSources contains list of required information about the sources of an application
@@ -252,14 +260,19 @@ func (spec *ApplicationSpec) GetSource() ApplicationSource {
 }
 
 // GetHydrateToSource returns the hydrateTo source if it exists, otherwise returns the sync source.
+// HydrateTo only specifies a different branch; it inherits repo and path from syncSource.
 func (spec *ApplicationSpec) GetHydrateToSource() ApplicationSource {
 	if spec.SourceHydrator != nil {
 		targetRevision := spec.SourceHydrator.SyncSource.TargetBranch
+		repoURL := spec.SourceHydrator.SyncSource.RepoURL
+		if repoURL == "" {
+			repoURL = spec.SourceHydrator.DrySource.RepoURL
+		}
 		if spec.SourceHydrator.HydrateTo != nil {
 			targetRevision = spec.SourceHydrator.HydrateTo.TargetBranch
 		}
 		return ApplicationSource{
-			RepoURL:        spec.SourceHydrator.DrySource.RepoURL,
+			RepoURL:        repoURL,
 			Path:           spec.SourceHydrator.SyncSource.Path,
 			TargetRevision: targetRevision,
 		}
@@ -284,13 +297,23 @@ func (spec *ApplicationSpec) HasMultipleSources() bool {
 	return spec.SourceHydrator == nil && len(spec.Sources) > 0
 }
 
+// GetSourcePtrByPosition returns the source pointer by position.
+// The position is 1-based index.
+// If the source is using hydrator, use 0 to return the dry source or 1 for the sync source.
 func (spec *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
 	return spec.GetSourcePtrByIndex(sourcePosition - 1)
 }
 
+// GetSourcePtrByIndex returns the source pointer by index.
+// If the source is using hydrator, use -1 to return the dry source or 0 for the sync source.
 func (spec *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSource {
 	if spec.SourceHydrator != nil {
+		if sourceIndex < 0 {
+			// If the index is -1, return the dry source.
+			source := spec.SourceHydrator.GetDrySource()
+			return &source
+		}
 		source := spec.SourceHydrator.GetSyncSource()
 		return &source
 	}
@@ -416,9 +439,12 @@ type SourceHydrator struct {
 
 // GetSyncSource gets the source from which we should sync when a source hydrator is configured.
 func (s SourceHydrator) GetSyncSource() ApplicationSource {
+	repoURL := s.SyncSource.RepoURL
+	if repoURL == "" {
+		repoURL = s.DrySource.RepoURL
+	}
 	return ApplicationSource{
-		// Pull the RepoURL from the dry source. The SyncSource's RepoURL is assumed to be the same.
-		RepoURL:        s.DrySource.RepoURL,
+		RepoURL:        repoURL,
 		Path:           s.SyncSource.Path,
 		TargetRevision: s.SyncSource.TargetBranch,
 	}
@@ -430,6 +456,10 @@ func (s SourceHydrator) GetDrySource() ApplicationSource {
 		RepoURL:        s.DrySource.RepoURL,
 		Path:           s.DrySource.Path,
 		TargetRevision: s.DrySource.TargetRevision,
+		Helm:           s.DrySource.Helm,
+		Kustomize:      s.DrySource.Kustomize,
+		Directory:      s.DrySource.Directory,
+		Plugin:         s.DrySource.Plugin,
 	}
 }
 
@@ -470,8 +500,8 @@ func (in DrySource) Equals(other DrySource) bool {
 	return reflect.DeepEqual(sourceCopy, otherCopy)
 }
 
-// SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
-// associated DrySource config in the SourceHydrator.
+// SyncSource specifies a location from which hydrated manifests may be synced. If RepoURL is not set, it is assumed
+// to be the same as the associated DrySource config in the SourceHydrator.
 type SyncSource struct {
 	// TargetBranch is the branch from which hydrated manifests will be synced.
 	// If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
@@ -484,10 +514,13 @@ type SyncSource struct {
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
 	Path string `json:"path" protobuf:"bytes,2,name=path"`
+	// RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
+	// the DrySource.RepoURL.
+	RepoURL string `json:"repoURL,omitempty" protobuf:"bytes,3,opt,name=repoURL"`
 }
 
-// HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to
-// the SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.
+// HydrateTo specifies a branch to which hydrated manifests should be pushed as a "staging area" before being moved to
+// the SyncSource. The repository and path are inherited from SyncSource.
 type HydrateTo struct {
 	// TargetBranch is the branch to which hydrated manifests should be committed
 	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
@@ -517,8 +550,10 @@ const (
 type HydrateType string
 
 const (
-	// HydrateTypeNormal is a normal hydration
+	// HydrateTypeNormal forces reevaluation of whether the dry requires hydration
 	HydrateTypeNormal HydrateType = "normal"
+	// HydrateTypeHard forces an app hydration of the dry source
+	HydrateTypeHard HydrateType = "hard"
 )
 
 type RefTarget struct {
@@ -530,6 +565,7 @@ type RefTarget struct {
 type RefTargetRevisionMapping map[string]*RefTarget
 
 // ApplicationSourceHelm holds helm specific options
+// +protobuf.options.(gogoproto.goproto_stringer)=false
 type ApplicationSourceHelm struct {
 	// ValuesFiles is a list of Helm value files to use when generating a template
 	ValueFiles []string `json:"valueFiles,omitempty" protobuf:"bytes,1,opt,name=valueFiles"`
@@ -652,21 +688,21 @@ func (ash *ApplicationSourceHelm) IsZero() bool {
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
 type KustomizeImage string
 
-func (i KustomizeImage) delim() string {
-	for _, d := range []string{"=", ":", "@"} {
-		if strings.Contains(string(i), d) {
-			return d
-		}
+// imageName returns the target image name being defined or overridden.
+// If an old image name is specified via '=', it returns the part before '='.
+// Otherwise, it returns the image name without tag and digest.
+func (i KustomizeImage) imageName() string {
+	s := string(i)
+	if name, _, ok := strings.Cut(s, "="); ok {
+		return name
 	}
-	return ":"
+	name, _, _ := kutil.SplitImageName(s)
+	return name
 }
 
-// Match returns true if the image name matches (i.e. up to the first delimiter)
+// Match returns true if the image name matches
 func (i KustomizeImage) Match(j KustomizeImage) bool {
-	delim := j.delim()
-	imageName, _, _ := strings.Cut(string(i), delim)
-	otherImageName, _, _ := strings.Cut(string(j), delim)
-	return imageName == otherImageName
+	return i.imageName() == j.imageName()
 }
 
 // KustomizeImages is a list of Kustomize images
@@ -684,9 +720,9 @@ func (images KustomizeImages) Find(image KustomizeImage) int {
 
 // ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
 type ApplicationSourceKustomize struct {
-	// NamePrefix is a prefix appended to resources for Kustomize apps
+	// NamePrefix overrides the namePrefix in the kustomization.yaml for Kustomize apps
 	NamePrefix string `json:"namePrefix,omitempty" protobuf:"bytes,1,opt,name=namePrefix"`
-	// NameSuffix is a suffix appended to resources for Kustomize apps
+	// NameSuffix overrides the nameSuffix in the kustomization.yaml for Kustomize apps
 	NameSuffix string `json:"nameSuffix,omitempty" protobuf:"bytes,2,opt,name=nameSuffix"`
 	// Images is a list of Kustomize image override specifications
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
@@ -903,11 +939,17 @@ type ApplicationSourceDirectory struct {
 	Exclude string `json:"exclude,omitempty" protobuf:"bytes,3,opt,name=exclude"`
 	// Include contains a glob pattern to match paths against that should be explicitly included during manifest generation
 	Include string `json:"include,omitempty" protobuf:"bytes,4,opt,name=include"`
+	// DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+	// manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+	// .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+	// so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+	// glob patterns instead.
+	DisableExtensionFilter bool `json:"disableExtensionFilter,omitempty" protobuf:"bytes,5,opt,name=disableExtensionFilter"`
 }
 
 // IsZero returns true if the ApplicationSourceDirectory is considered empty
 func (d *ApplicationSourceDirectory) IsZero() bool {
-	return d == nil || !d.Recurse && d.Jsonnet.IsZero()
+	return d == nil || !d.Recurse && d.Jsonnet.IsZero() && !d.DisableExtensionFilter
 }
 
 type OptionalMap struct {
@@ -1192,6 +1234,7 @@ type ApplicationStatus struct {
 	// OperationState contains information about any ongoing operations, such as a sync
 	OperationState *OperationState `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
 	// ObservedAt indicates when the application state was updated without querying latest git state
+	//
 	// Deprecated: controller no longer updates ObservedAt field
 	ObservedAt *metav1.Time `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
 	// SourceType specifies the type of this application
@@ -1214,6 +1257,9 @@ type SourceHydratorStatus struct {
 	LastSuccessfulOperation *SuccessfulHydrateOperation `json:"lastSuccessfulOperation,omitempty" protobuf:"bytes,1,opt,name=lastSuccessfulOperation"`
 	// CurrentOperation holds the status of the hydrate operation
 	CurrentOperation *HydrateOperation `json:"currentOperation,omitempty" protobuf:"bytes,2,opt,name=currentOperation"`
+	// LastComparedDryRevision holds the resolved revision from the most recent dry source comparison.
+	// This is updated on every evaluation, even when hydration is skipped due to no changes.
+	LastComparedDryRevision string `json:"lastComparedDryRevision,omitempty" protobuf:"bytes,3,opt,name=lastComparedDryRevision"`
 }
 
 func (status *ApplicationStatus) FindResource(key kube.ResourceKey) (*ResourceStatus, bool) {
@@ -1259,6 +1305,9 @@ type SuccessfulHydrateOperation struct {
 type HydrateOperationPhase string
 
 const (
+	// HydrateOperationPhaseUnknown indicates that the hydration phase could not be reliably determined.
+	// For now this is only used in metrics, not in the CR status.
+	HydrateOperationPhaseUnknown   HydrateOperationPhase = "Unknown"
 	HydrateOperationPhaseHydrating HydrateOperationPhase = "Hydrating"
 	HydrateOperationPhaseFailed    HydrateOperationPhase = "Failed"
 	HydrateOperationPhaseHydrated  HydrateOperationPhase = "Hydrated"
@@ -1437,10 +1486,8 @@ type SyncOptions []string
 // AddOption adds a sync option to the list of sync options and returns the modified list.
 // If option was already set, returns the unmodified list of sync options.
 func (o SyncOptions) AddOption(option string) SyncOptions {
-	for _, j := range o {
-		if j == option {
-			return o
-		}
+	if slices.Contains(o, option) {
+		return o
 	}
 	return append(o, option)
 }
@@ -1458,12 +1505,19 @@ func (o SyncOptions) RemoveOption(option string) SyncOptions {
 
 // HasOption returns true if the list of sync options contains given option
 func (o SyncOptions) HasOption(option string) bool {
+	return slices.Contains(o, option)
+}
+
+// GetOptionValue returns true if the list of sync options contains given option
+// This function only support options that are defined as key=value and not standalone.
+func (o SyncOptions) GetOptionValue(optionKey string) *string {
+	prefix := optionKey + "="
 	for _, i := range o {
-		if option == i {
-			return true
+		if val, found := strings.CutPrefix(i, prefix); found {
+			return new(val)
 		}
 	}
-	return false
+	return nil
 }
 
 type ManagedNamespaceMetadata struct {
@@ -1544,7 +1598,7 @@ func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (t
 	// Formula: timeToWait = duration * factor^retry_number
 	// Note that timeToWait should equal to duration for the first retry attempt.
 	// When timeToWait is more than maxDuration retry should be performed at maxDuration.
-	timeToWait := float64(duration) * (math.Pow(float64(factor), float64(retryCounts)))
+	timeToWait := float64(duration) * math.Pow(float64(factor), float64(retryCounts))
 	if maxDuration > 0 {
 		timeToWait = math.Min(float64(maxDuration), timeToWait)
 	}
@@ -1564,13 +1618,37 @@ type Backoff struct {
 // SyncPolicyAutomated controls the behavior of an automated sync
 type SyncPolicyAutomated struct {
 	// Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
-	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
+	Prune *bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
 	// SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)
-	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
+	SelfHeal *bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 	// AllowEmpty allows apps have zero live resources (default: false)
-	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
+	AllowEmpty *bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 	// Enable allows apps to explicitly control automated sync
 	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enabled"`
+}
+
+// GetPrune returns the value of Prune, defaulting to false if nil.
+func (a *SyncPolicyAutomated) GetPrune() bool {
+	if a == nil || a.Prune == nil {
+		return false
+	}
+	return *a.Prune
+}
+
+// GetSelfHeal returns the value of SelfHeal, defaulting to false if nil.
+func (a *SyncPolicyAutomated) GetSelfHeal() bool {
+	if a == nil || a.SelfHeal == nil {
+		return false
+	}
+	return *a.SelfHeal
+}
+
+// GetAllowEmpty returns the value of AllowEmpty, defaulting to false if nil.
+func (a *SyncPolicyAutomated) GetAllowEmpty() bool {
+	if a == nil || a.AllowEmpty == nil {
+		return false
+	}
+	return *a.AllowEmpty
 }
 
 // SyncStrategy controls the manner in which a sync is performed
@@ -1658,9 +1736,12 @@ type RevisionMetadata struct {
 	// Message contains the message associated with the revision, most likely the commit message.
 	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
 	// SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
-	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
+	//
+	// Deprecated: Use SourceIntegrityResult for more detailed information. SignatureInfo will be removed with the next major version.
+	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"` // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 	// References contains references to information that's related to this commit in some way.
-	References []RevisionReference `json:"references,omitempty" protobuf:"bytes,6,opt,name=references"`
+	References            []RevisionReference         `json:"references,omitempty" protobuf:"bytes,6,opt,name=references"`
+	SourceIntegrityResult *SourceIntegrityCheckResult `json:"sourceIntegrityResult,omitempty" protobuf:"bytes,7,opt,name=sourceIntegrityResult"`
 }
 
 // OCIMetadata contains metadata for a specific revision in an OCI repository
@@ -1820,9 +1901,9 @@ const (
 )
 
 // ApplicationConditionType represents type of application condition. Type name has following convention:
-// prefix "Error" means error condition
-// prefix "Warning" means warning condition
-// prefix "Info" means informational condition
+// suffix "Error" means error condition
+// suffix "Warning" means warning condition
+// suffix "Info" means informational condition
 type ApplicationConditionType = string
 
 const (
@@ -1885,8 +1966,6 @@ type AppHealthStatus struct {
 	// Status holds the status code of the application
 	Status health.HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
 	// Message is a human-readable informational message describing the health status
-	//
-	// Deprecated: this field is not used and will be removed in a future release.
 	Message string `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
 	// LastTransitionTime is the time the HealthStatus was set or updated
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
@@ -2039,6 +2118,8 @@ type ApplicationSummary struct {
 	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,1,opt,name=externalURLs"`
 	// Images holds all images of application child resources.
 	Images []string `json:"images,omitempty" protobuf:"bytes,2,opt,name=images"`
+	// IsAppOfApps holds true if the application has any application for child resource.
+	IsAppOfApps bool `json:"isAppOfApps,omitempty" protobuf:"bytes,3,opt,name=isAppOfApps"`
 }
 
 // FindNode searches for a resource node in the application tree.
@@ -2061,11 +2142,14 @@ func (t *ApplicationTree) FindNode(group string, kind string, namespace string, 
 // - It extracts container images referenced in the application's resources.
 // - Additionally, it includes links from application annotations that start with `common.AnnotationKeyLinkPrefix`.
 // - The collected URLs and images are sorted alphabetically before being returned.
+// - It also determines if the Application is managing other Applications (App of Apps pattern)
 //
-// Returns an `ApplicationSummary` containing a list of unique external URLs and container images.
+// Returns an `ApplicationSummary` containing a list of unique external URLs, container images,
+// and metadata such as app of apps pattern.
 func (t *ApplicationTree) GetSummary(app *Application) ApplicationSummary {
 	urlsSet := make(map[string]bool)
 	imagesSet := make(map[string]bool)
+	appOfApps := false
 
 	// Collect external URLs and container images from application nodes
 	for _, node := range t.Nodes {
@@ -2076,6 +2160,9 @@ func (t *ApplicationTree) GetSummary(app *Application) ApplicationSummary {
 		}
 		for _, image := range node.Images {
 			imagesSet[image] = true
+		}
+		if node.Group == "argoproj.io" && node.Kind == "Application" {
+			appOfApps = true
 		}
 	}
 
@@ -2098,7 +2185,7 @@ func (t *ApplicationTree) GetSummary(app *Application) ApplicationSummary {
 	}
 	sort.Strings(images)
 
-	return ApplicationSummary{ExternalURLs: urls, Images: images}
+	return ApplicationSummary{ExternalURLs: urls, Images: images, IsAppOfApps: appOfApps}
 }
 
 // ResourceRef includes fields which uniquely identify a resource
@@ -2197,6 +2284,7 @@ type ResourceDiff struct {
 	// LiveState contains the JSON-serialized resource manifest of the resource currently running in the cluster.
 	LiveState string `json:"liveState,omitempty" protobuf:"bytes,6,opt,name=liveState"`
 	// Diff contains the JSON patch representing the difference between the live and target resource.
+	//
 	// Deprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.
 	Diff string `json:"diff,omitempty" protobuf:"bytes,7,opt,name=diff"`
 	// Hook indicates whether this resource is a hook resource (e.g., pre-sync or post-sync hooks).
@@ -2273,11 +2361,13 @@ type Cluster struct {
 	Labels map[string]string `json:"labels,omitempty" protobuf:"bytes,12,opt,name=labels"`
 	// Annotations for cluster secret metadata
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,13,opt,name=annotations"`
+	// ConfigHash is an opaque value which tracks changes to the desired configuration of a Cluster
+	ConfigHash *uint64 `json:"configHash,omitempty" protobuf:"bytes,14,opt,name=configHash"`
 
 	// The embedded metav1.ObjectMeta field is purely here to please the informer when converting from a v1.Secret to a Cluster.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
-	metav1.ObjectMeta `json:"-,omitempty"`
+	metav1.ObjectMeta `json:"-"`
 }
 
 func (c *Cluster) Sanitized() *Cluster {
@@ -2293,10 +2383,13 @@ func (c *Cluster) Sanitized() *Cluster {
 		ClusterResources:   c.ClusterResources,
 		Info:               c.Info,
 		RefreshRequestedAt: c.RefreshRequestedAt,
+		ConfigHash:         c.ConfigHash,
 		Config: ClusterConfig{
 			AWSAuthConfig:      c.Config.AWSAuthConfig,
 			ProxyUrl:           c.Config.ProxyUrl,
 			DisableCompression: c.Config.DisableCompression,
+			QPS:                c.Config.QPS,
+			Burst:              c.Config.Burst,
 			TLSClientConfig: TLSClientConfig{
 				Insecure:   c.Config.Insecure,
 				ServerName: c.Config.ServerName,
@@ -2346,6 +2439,25 @@ func (c *Cluster) Equals(other *Cluster) bool {
 	}
 
 	return reflect.DeepEqual(c.Config, other.Config)
+}
+
+func (c *Cluster) HashIdentity(defaultValue uint64) uint64 {
+	// Include only fields which are static identifiers or represent the desired state of the Cluster
+	// Note: ID is excluded as it has json:"-" tag and is not marshaled
+
+	cluster := Cluster{
+		Server: c.Server,
+		Name:   c.Name,
+		Config: c.Config,
+	}
+
+	result, err := hash.JsonObjectHash(cluster)
+	if err != nil {
+		log.Warnf("failed to encode cluster %s for hashing. returning default value: %d", c.Server, defaultValue)
+		return defaultValue
+	}
+
+	return result
 }
 
 // ClusterInfo contains information about the cluster
@@ -2415,6 +2527,21 @@ type ExecProviderConfig struct {
 
 	// This text is shown to the user when the executable doesn't seem to be present
 	InstallHint string `json:"installHint,omitempty" protobuf:"bytes,5,opt,name=installHint"`
+
+	// ProvideClusterInfo determines whether or not to provide cluster information,
+	// which could potentially contain very large CA data, to this exec plugin as a
+	// part of the KUBERNETES_EXEC_INFO environment variable.
+	// Comment mirrored from k8s.io/client-go/tools/clientcmd/api.ExecConfig.ProvideClusterInfo
+	ProvideClusterInfo bool `json:"provideClusterInfo,omitempty" protobuf:"bytes,6,opt,name=provideClusterInfo"`
+
+	// Config holds cluster-specific configuration data that will be passed to the exec plugin
+	// via ExecCredential.Spec.Cluster.Config. This is typically used to pass information like
+	// the cluster name to credential plugins that need it for multi-cluster authentication.
+	//
+	// This data is sourced from the kubeconfig cluster's extensions field with the reserved key
+	// "client.authentication.k8s.io/exec", as defined by the Kubernetes client authentication API.
+	// Reference: https://kubernetes.io/docs/reference/config-api/kubeconfig.v1/#ExecConfig
+	Config *runtime.RawExtension `json:"config,omitempty" protobuf:"bytes,7,opt,name=config"`
 }
 
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client
@@ -2443,6 +2570,12 @@ type ClusterConfig struct {
 
 	// ProxyURL is the URL to the proxy to be used for all requests send to the server
 	ProxyUrl string `json:"proxyUrl,omitempty" protobuf:"bytes,8,opt,name=proxyUrl"` //nolint:revive //FIXME(var-naming)
+
+	// QPS controls the number of queries per second allowed for this cluster.
+	QPS float32 `json:"qps,omitempty" protobuf:"fixed32,9,opt,name=qps"`
+
+	// Burst allows extra queries to accumulate for a rapid burst of requests to this cluster.
+	Burst int64 `json:"burst,omitempty" protobuf:"varint,10,opt,name=burst"`
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -2612,6 +2745,7 @@ var validActions = map[string]bool{
 	rbac.ActionDelete:   true,
 	rbac.ActionSync:     true,
 	rbac.ActionOverride: true,
+	rbac.ActionRollback: true,
 	"*":                 true,
 }
 
@@ -2729,7 +2863,9 @@ func (s *OrphanedResourcesMonitorSettings) IsWarn() bool {
 }
 
 // SignatureKey is the specification of a key required to verify commit signatures with
-type SignatureKey struct {
+//
+// Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.
+type SignatureKey struct { // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 	// The ID of the key in hexadecimal notation
 	KeyID string `json:"keyID" protobuf:"bytes,1,name=keyID"`
 }
@@ -2756,7 +2892,9 @@ type AppProjectSpec struct {
 	// NamespaceResourceWhitelist contains list of whitelisted namespace level resources
 	NamespaceResourceWhitelist []metav1.GroupKind `json:"namespaceResourceWhitelist,omitempty" protobuf:"bytes,9,opt,name=namespaceResourceWhitelist"`
 	// SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync
-	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"`
+	//
+	// Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.
+	SignatureKeys []SignatureKey `json:"signatureKeys,omitempty" protobuf:"bytes,10,opt,name=signatureKeys"` // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 	// ClusterResourceBlacklist contains list of blacklisted cluster level resources
 	ClusterResourceBlacklist []ClusterResourceRestrictionItem `json:"clusterResourceBlacklist,omitempty" protobuf:"bytes,11,opt,name=clusterResourceBlacklist"`
 	// SourceNamespaces defines the namespaces application resources are allowed to be created in
@@ -2765,6 +2903,50 @@ type AppProjectSpec struct {
 	PermitOnlyProjectScopedClusters bool `json:"permitOnlyProjectScopedClusters,omitempty" protobuf:"bytes,13,opt,name=permitOnlyProjectScopedClusters"`
 	// DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
 	DestinationServiceAccounts []ApplicationDestinationServiceAccount `json:"destinationServiceAccounts,omitempty" protobuf:"bytes,14,name=destinationServiceAccounts"`
+	// SourceIntegrity represents a constraint on manifest sources integrity to be met before they can be used.
+	// Do not access directly, use EffectiveSourceIntegrity() for correct backwards compatibility handling.
+	SourceIntegrity *SourceIntegrity `json:"sourceIntegrity,omitempty" protobuf:"bytes,15,name=sourceIntegrity"`
+}
+
+// EffectiveSourceIntegrity incorporates the legacy SignatureKeys into SourceIntegrity, if possible
+// SignatureKeys are added as a Git GPG policy for repos specified with `*`. If such a policy exists, the SignatureKeys
+// are ignored with warning.
+func (proj *AppProject) EffectiveSourceIntegrity() *SourceIntegrity {
+	var legacyKeys []string
+	for _, k := range proj.Spec.SignatureKeys {
+		legacyKeys = append(legacyKeys, k.KeyID)
+	}
+
+	if len(legacyKeys) == 0 {
+		// Already using the modern version
+		return proj.Spec.SourceIntegrity
+	}
+
+	migratedGit := &SourceIntegrityGit{
+		Policies: []*SourceIntegrityGitPolicy{{
+			Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
+			GPG: &SourceIntegrityGitPolicyGPG{
+				Mode: SourceIntegrityGitPolicyGPGModeHead,
+				Keys: legacyKeys,
+			},
+		}},
+	}
+
+	if proj.Spec.SourceIntegrity == nil {
+		log.Warnf("Creating project SourceIntegrity from legacy SignatureKeys specified in %s AppProject. Migrate them to SourceIntegrity.", proj.Name)
+		return &SourceIntegrity{Git: migratedGit}
+	}
+
+	if proj.Spec.SourceIntegrity.Git != nil {
+		log.Errorf("Both SourceIntegrity and SignatureKeys specified in %s AppProject. Ignoring SignatureKeys. Migrate them to SourceIntegrity.", proj.Name)
+		return proj.Spec.SourceIntegrity
+	}
+
+	log.Warnf("Merging SourceIntegrity with legacy SignatureKeys specified in %s AppProject. Migrate them to SourceIntegrity.", proj.Name)
+	// Merge with non-git checks without modifying the AppProject - use deep-copy and amend
+	deepCopy := proj.Spec.SourceIntegrity.DeepCopy()
+	deepCopy.Git = migratedGit
+	return deepCopy
 }
 
 // ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist
@@ -2777,10 +2959,10 @@ type ClusterResourceRestrictionItem struct {
 }
 
 // SyncWindows is a collection of sync windows in this project
-type SyncWindows []*SyncWindow
+type SyncWindows []*InlineSyncWindow
 
-// SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
-type SyncWindow struct {
+// InlineSyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
+type InlineSyncWindow struct {
 	// Kind defines if the window allows or blocks syncs
 	Kind string `json:"kind,omitempty" protobuf:"bytes,1,opt,name=kind"`
 	// Schedule is the time the window will begin, specified in cron format
@@ -2801,11 +2983,126 @@ type SyncWindow struct {
 	UseAndOperator bool `json:"andOperator,omitempty" protobuf:"bytes,9,opt,name=andOperator"`
 	// Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
 	Description string `json:"description,omitempty" protobuf:"bytes,10,opt,name=description"`
+	// SyncOverrun allows ongoing syncs to continue in two scenarios:
+	// For deny windows: allows syncs that started before the deny window became active to continue running
+	// For allow windows: allows syncs that started during the allow window to continue after the window ends
+	SyncOverrun bool `json:"syncOverrun,omitempty" protobuf:"bytes,11,opt,name=syncOverrun"`
 }
 
-// HasWindows returns true if SyncWindows has one or more SyncWindow
+// HasWindows returns true if SyncWindows has one or more InlineSyncWindow
 func (w *SyncWindows) HasWindows() bool {
 	return w != nil && len(*w) > 0
+}
+
+// syncWindowScheduleParser parses the cron specs of sync windows. cron.Parser
+// is stateless, so one package-level instance is reused.
+var syncWindowScheduleParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
+
+// The caches below are keyed by strings from AppProject.spec.syncWindows, which
+// Validate does not constrain to a fixed set, so each is bounded: past its limit
+// it stops growing and falls back to parsing, which is slower but never wrong.
+
+// Parsed schedules are immutable and safe to share. Parse failures are not
+// cached, so callers keep seeing the error. An entry is 64 bytes, so the limit
+// is set well above the number of distinct schedules any fleet is likely to
+// write; a full cache costs ~512KB.
+const syncWindowScheduleCacheLimit = 8192
+
+var (
+	syncWindowScheduleCache sync.Map // string -> cron.Schedule
+	syncWindowScheduleCount atomic.Int64
+)
+
+// LoadLocation re-reads and re-parses the zoneinfo file on every call (~15us),
+// which dominates sync window evaluation: the controller evaluates once per
+// window per application on every scrape and reconciliation.
+//
+// An entry is ~1.5KB, but the key space of valid names is the ~600 zones in the
+// IANA database, so the limit only bounds invalid ones. Those share the UTC
+// fallback and cost just the key.
+const syncWindowLocationCacheLimit = 1024
+
+var (
+	syncWindowLocationCache sync.Map // string -> *time.Location
+	syncWindowLocationCount atomic.Int64
+)
+
+// count tracks the size, since sync.Map does not. The slot is reserved before
+// the store, so concurrent callers cannot each see room under the limit and
+// then all insert.
+func cacheSyncWindowValue(cache *sync.Map, count *atomic.Int64, limit int64, key string, value any) {
+	for {
+		n := count.Load()
+		if n >= limit {
+			return
+		}
+		if count.CompareAndSwap(n, n+1) {
+			break
+		}
+	}
+	if _, loaded := cache.LoadOrStore(key, value); loaded {
+		// Another caller cached this key first; release the reservation.
+		count.Add(-1)
+	}
+}
+
+// parseSyncWindowSchedule parses spec without caching it, for callers on the API
+// server write path: they see each string once, and caching there would let
+// project writes fill the cache with schedules that are never evaluated.
+func parseSyncWindowSchedule(spec string) (cron.Schedule, error) {
+	schedule, err := syncWindowScheduleParser.Parse(spec)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse schedule '%s': %w", spec, err)
+	}
+	return schedule, nil
+}
+
+func syncWindowSchedule(spec string) (cron.Schedule, error) {
+	if cached, ok := syncWindowScheduleCache.Load(spec); ok {
+		return cached.(cron.Schedule), nil
+	}
+	schedule, err := parseSyncWindowSchedule(spec)
+	if err != nil {
+		return nil, err
+	}
+	cacheSyncWindowValue(&syncWindowScheduleCache, &syncWindowScheduleCount, syncWindowScheduleCacheLimit, spec, schedule)
+	return schedule, nil
+}
+
+func syncWindowLocation(name string) *time.Location {
+	if name == "" || name == "UTC" {
+		return time.UTC
+	}
+	if cached, ok := syncWindowLocationCache.Load(name); ok {
+		return cached.(*time.Location)
+	}
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		// Caching the fallback warns once per bad name instead of per
+		// evaluation, and is what makes the key space unbounded.
+		log.Warnf("Invalid time zone %s specified. Using UTC as default time zone", name)
+		loc = time.UTC
+	}
+	cacheSyncWindowValue(&syncWindowLocationCache, &syncWindowLocationCount, syncWindowLocationCacheLimit, name, loc)
+	return loc
+}
+
+// isActiveAt reports whether the window is active at currentTime, which the
+// caller must already have converted to UTC.
+func (w *InlineSyncWindow) isActiveAt(currentTime time.Time) (bool, error) {
+	schedule, err := syncWindowSchedule(w.Schedule)
+	if err != nil {
+		return false, err
+	}
+	duration, err := time.ParseDuration(w.Duration)
+	if err != nil {
+		return false, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, err)
+	}
+
+	// Offset the nextWindow time to consider the timeZone of the sync window
+	timeZoneOffsetDuration := w.scheduleOffsetByTimeZone(currentTime)
+	nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
+	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)), nil
 }
 
 // Active returns a list of sync windows that are currently active
@@ -2820,21 +3117,12 @@ func (w *SyncWindows) active(currentTime time.Time) (*SyncWindows, error) {
 
 	if w.HasWindows() {
 		var active SyncWindows
-		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *w {
-			schedule, sErr := specParser.Parse(w.Schedule)
-			if sErr != nil {
-				return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+			isActive, err := w.isActiveAt(currentTime)
+			if err != nil {
+				return nil, err
 			}
-			duration, dErr := time.ParseDuration(w.Duration)
-			if dErr != nil {
-				return nil, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
-			}
-
-			// Offset the nextWindow time to consider the timeZone of the sync window
-			timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
-			nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
-			if nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) {
+			if isActive {
 				active = append(active, w)
 			}
 		}
@@ -2859,24 +3147,15 @@ func (w *SyncWindows) inactiveAllows(currentTime time.Time) (*SyncWindows, error
 
 	if w.HasWindows() {
 		var inactive SyncWindows
-		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *w {
 			if w.Kind != "allow" {
 				continue
 			}
-			schedule, sErr := specParser.Parse(w.Schedule)
-			if sErr != nil {
-				return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+			isActive, err := w.isActiveAt(currentTime)
+			if err != nil {
+				return nil, err
 			}
-			duration, dErr := time.ParseDuration(w.Duration)
-			if dErr != nil {
-				return nil, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
-			}
-			// Offset the nextWindow time to consider the timeZone of the sync window
-			timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
-			nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
-
-			if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) {
+			if !isActive {
 				inactive = append(inactive, w)
 			}
 		}
@@ -2887,23 +3166,55 @@ func (w *SyncWindows) inactiveAllows(currentTime time.Time) (*SyncWindows, error
 	return nil, nil
 }
 
-func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
-	loc, err := time.LoadLocation(w.TimeZone)
-	if err != nil {
-		log.Warnf("Invalid time zone %s specified. Using UTC as default time zone", w.TimeZone)
-		loc = time.Now().UTC().Location()
+// partition classifies every window once at currentTime, returning the active
+// windows and the inactive allow windows. CanSync needs both; one pass resolves
+// each window's schedule, duration and time zone once rather than twice.
+func (w *SyncWindows) partition(currentTime time.Time) (*SyncWindows, *SyncWindows, error) {
+	if !w.HasWindows() {
+		return nil, nil, nil
 	}
-	_, tzOffset := time.Now().In(loc).Zone()
+	currentTime = currentTime.In(time.UTC)
+
+	var active, inactiveAllows SyncWindows
+	for _, window := range *w {
+		isActive, err := window.isActiveAt(currentTime)
+		if err != nil {
+			return nil, nil, err
+		}
+		switch {
+		case isActive:
+			active = append(active, window)
+		case window.Kind == "allow":
+			inactiveAllows = append(inactiveAllows, window)
+		}
+	}
+
+	var activeWindows, inactiveAllowWindows *SyncWindows
+	if len(active) > 0 {
+		activeWindows = &active
+	}
+	if len(inactiveAllows) > 0 {
+		inactiveAllowWindows = &inactiveAllows
+	}
+	return activeWindows, inactiveAllowWindows, nil
+}
+
+// scheduleOffsetByTimeZone returns the window's time zone offset at currentTime.
+// It is read at that instant rather than at time.Now() because callers evaluate
+// instants other than the present one, and a DST transition between the two
+// would shift the window by an hour.
+func (w *InlineSyncWindow) scheduleOffsetByTimeZone(currentTime time.Time) time.Duration {
+	_, tzOffset := currentTime.In(syncWindowLocation(w.TimeZone)).Zone()
 	return time.Duration(tzOffset) * time.Second
 }
 
 // AddWindow adds a sync window with the given parameters to the AppProject
-func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool, description string) error {
+func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool, description string, syncOverrun bool) error {
 	if knd == "" || sch == "" || dur == "" {
 		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
 
-	window := &SyncWindow{
+	window := &InlineSyncWindow{
 		Kind:           knd,
 		Schedule:       sch,
 		Duration:       dur,
@@ -2911,6 +3222,7 @@ func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []
 		TimeZone:       timeZone,
 		UseAndOperator: andOperator,
 		Description:    description,
+		SyncOverrun:    syncOverrun,
 	}
 
 	if len(app) > 0 {
@@ -3026,21 +3338,171 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 }
 
 // CanSync returns true if a sync window currently allows a sync. isManual indicates whether the sync has been triggered manually.
-func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
+// The operationStartTime parameter supports sync overrun functionality, which allows ongoing syncs to continue in two scenarios:
+//  1. When a deny window becomes active: If the operation started when sync was allowed and the deny window has syncOverrun enabled,
+//     the sync can continue even though a deny window is now active.
+//  2. When an allow window ends: If the operation started during an allow window with syncOverrun enabled, the sync can continue
+//     even after the allow window has ended (and no other allow windows are active).
+func (w *SyncWindows) CanSync(isManual bool, operationStartTime *time.Time) (bool, error) {
+	canSync, _, _, err := w.canSyncWithActiveKinds(isManual, operationStartTime)
+	return canSync, err
+}
+
+// canSyncWithActiveKinds behaves like CanSync, and also reports whether an allow
+// and/or deny window is currently active. All three come from one evaluation, so
+// a boundary crossed between separate calls cannot make them disagree.
+func (w *SyncWindows) canSyncWithActiveKinds(isManual bool, operationStartTime *time.Time) (canSync, allowActive, denyActive bool, err error) {
 	if !w.HasWindows() {
-		return true, nil
+		return true, false, false, nil
 	}
 
-	active, err := w.Active()
+	active, inactiveAllows, err := w.partition(time.Now())
 	if err != nil {
-		return false, fmt.Errorf("invalid sync windows: %w", err)
+		return false, false, false, fmt.Errorf("invalid sync windows: %w", err)
 	}
+	if active.HasWindows() {
+		for _, window := range *active {
+			switch window.Kind {
+			case "allow":
+				allowActive = true
+			case "deny":
+				denyActive = true
+			}
+		}
+	}
+
+	canSync, err = w.canSyncFrom(isManual, operationStartTime, active, inactiveAllows)
+	return canSync, allowActive, denyActive, err
+}
+
+// SyncWindowEvaluator answers canSyncWithActiveKinds for many applications of
+// one project at a single instant. Every window is classified once up front, so
+// N applications sharing a project cost one schedule evaluation between them
+// rather than one each, and all of them see the same instant: a window boundary
+// crossed midway through a scrape cannot split them.
+//
+// It is only valid for the SyncWindows it was built from, and only for the
+// instant it was built at. Build a new one per scrape.
+//
+// It is scratch state rather than API surface: it lives here only to reach the
+// unexported window evaluation this package owns, and its maps are not
+// representable as a deepcopy.
+//
+// +k8s:deepcopy-gen=false
+// +k8s:openapi-gen=false
+// +protobuf=false
+type SyncWindowEvaluator struct {
+	windows SyncWindows
+	// Both are keyed by pointer, and Matches returns the same pointers, so a
+	// matched window is always found.
+	active map[*InlineSyncWindow]bool
+	// Windows that could not be resolved. Kept per window rather than failing
+	// the whole project, so a malformed window blocks the applications it
+	// matches and no others, which is what resolving windows per application
+	// did.
+	failed map[*InlineSyncWindow]error
+}
+
+// Evaluator classifies every window at currentTime. The error reports every
+// malformed window once, for callers that log per project; the evaluator is
+// still usable, and answers for the applications none of those windows match.
+func (w *SyncWindows) Evaluator(currentTime time.Time) (*SyncWindowEvaluator, error) {
+	if !w.HasWindows() {
+		return &SyncWindowEvaluator{}, nil
+	}
+	currentTime = currentTime.In(time.UTC)
+
+	evaluator := &SyncWindowEvaluator{windows: *w, active: make(map[*InlineSyncWindow]bool, len(*w))}
+	var errs []error
+	for _, window := range *w {
+		isActive, err := window.isActiveAt(currentTime)
+		if err != nil {
+			if evaluator.failed == nil {
+				evaluator.failed = map[*InlineSyncWindow]error{}
+			}
+			evaluator.failed[window] = err
+			errs = append(errs, err)
+			continue
+		}
+		evaluator.active[window] = isActive
+	}
+	if len(errs) > 0 {
+		return evaluator, fmt.Errorf("invalid sync windows: %w", errors.Join(errs...))
+	}
+	return evaluator, nil
+}
+
+// CanSyncWithActiveKinds reports the same three values as
+// SyncWindows.canSyncWithActiveKinds does for the windows matching app, read
+// from the instant the evaluator was built at. It takes no operation start
+// time: overrun depends on when a specific operation began, which is not a
+// property the evaluator shares between applications.
+func (e *SyncWindowEvaluator) CanSyncWithActiveKinds(app *Application) (canSync, allowActive, denyActive bool, err error) {
+	matched := e.windows.Matches(app)
+	if !matched.HasWindows() {
+		return true, false, false, nil
+	}
+
+	// Fail closed on a window this application matches but the evaluator could
+	// not resolve, exactly as resolving it here would have. A window the
+	// application does not match cannot block it.
+	for _, window := range *matched {
+		if err := e.failed[window]; err != nil {
+			return false, false, false, fmt.Errorf("invalid sync windows: %w", err)
+		}
+	}
+
+	// The same partition SyncWindows.partition builds, without re-resolving any
+	// schedule, duration or time zone.
+	var active, inactiveAllows SyncWindows
+	for _, window := range *matched {
+		switch {
+		case e.active[window]:
+			active = append(active, window)
+			switch window.Kind {
+			case "allow":
+				allowActive = true
+			case "deny":
+				denyActive = true
+			}
+		case window.Kind == "allow":
+			inactiveAllows = append(inactiveAllows, window)
+		}
+	}
+
+	var activeWindows, inactiveAllowWindows *SyncWindows
+	if len(active) > 0 {
+		activeWindows = &active
+	}
+	if len(inactiveAllows) > 0 {
+		inactiveAllowWindows = &inactiveAllows
+	}
+
+	canSync, err = matched.canSyncFrom(false, nil, activeWindows, inactiveAllowWindows)
+	return canSync, allowActive, denyActive, err
+}
+
+// canSyncFrom decides from an already-partitioned set, so callers that need the
+// partition too do not evaluate the schedules twice.
+func (w *SyncWindows) canSyncFrom(isManual bool, operationStartTime *time.Time, active, inactiveAllows *SyncWindows) (bool, error) {
 	hasActiveDeny, manualEnabled := active.hasDeny()
 
 	if hasActiveDeny {
 		if isManual && manualEnabled {
 			return true, nil
 		}
+
+		// Check if operation started before deny window and overrun is allowed
+		if operationStartTime != nil && !operationStartTime.IsZero() && active.denyAllowsOverrun() {
+			wasAllowed, err := w.canSyncAtTime(isManual, *operationStartTime)
+			if err != nil {
+				return false, err
+			}
+			if wasAllowed {
+				return true, nil // Allow sync to continue (overrun into deny window)
+			}
+		}
+
 		return false, nil
 	}
 
@@ -3048,14 +3510,22 @@ func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
 		return true, nil
 	}
 
-	inactiveAllows, err := w.InactiveAllows()
-	if err != nil {
-		return false, fmt.Errorf("invalid sync windows: %w", err)
-	}
 	if inactiveAllows.HasWindows() {
 		if isManual && inactiveAllows.manualEnabled() {
 			return true, nil
 		}
+
+		// Check if operation started during an allow window and overrun is allowed
+		if operationStartTime != nil && !operationStartTime.IsZero() && inactiveAllows.inactiveAllowsAllowOverrun() {
+			wasAllowed, err := w.canSyncAtTime(isManual, *operationStartTime)
+			if err != nil {
+				return false, err
+			}
+			if wasAllowed {
+				return true, nil // Allow sync to continue (overrun out of allow window)
+			}
+		}
+
 		return false, nil
 	}
 
@@ -3113,35 +3583,91 @@ func (w *SyncWindows) manualEnabled() bool {
 	return true
 }
 
+// denyAllowsOverrun will iterate over the deny SyncWindows and return true if all deny windows have
+// SyncOverrun set to true. Returns false if it finds at least one deny window with
+// SyncOverrun set to false. This is used to determine if a sync can continue when a deny
+// window becomes active after the operation started.
+func (w *SyncWindows) denyAllowsOverrun() bool {
+	if !w.HasWindows() {
+		return false
+	}
+	hasDeny := false
+	for _, s := range *w {
+		if s.Kind == "deny" {
+			hasDeny = true
+			if !s.SyncOverrun {
+				return false
+			}
+		}
+	}
+	return hasDeny
+}
+
+// inactiveAllowsAllowOverrun checks if all inactive allow windows have SyncOverrun enabled.
+// This is used to determine if a sync can continue after an allow window has ended.
+// Similar to allowsOverrun() for deny windows, ALL allow windows must have SyncOverrun enabled.
+func (w *SyncWindows) inactiveAllowsAllowOverrun() bool {
+	if !w.HasWindows() {
+		return false
+	}
+	hasAllow := false
+	for _, s := range *w {
+		if s.Kind == "allow" {
+			hasAllow = true
+			if !s.SyncOverrun {
+				return false
+			}
+		}
+	}
+	return hasAllow
+}
+
+// canSyncAtTime checks if a sync would have been allowed at a specific time
+func (w *SyncWindows) canSyncAtTime(isManual bool, checkTime time.Time) (bool, error) {
+	if !w.HasWindows() {
+		return true, nil
+	}
+
+	active, inactiveAllows, err := w.partition(checkTime)
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
+	hasActiveDeny, manualEnabled := active.hasDeny()
+
+	if hasActiveDeny {
+		if isManual && manualEnabled {
+			return true, nil
+		}
+		return false, nil
+	}
+
+	if active.hasAllow() {
+		return true, nil
+	}
+
+	if inactiveAllows.HasWindows() {
+		if isManual && inactiveAllows.manualEnabled() {
+			return true, nil
+		}
+		return false, nil
+	}
+
+	return true, nil
+}
+
 // Active returns true if the sync window is currently active
-func (w SyncWindow) Active() (bool, error) {
+func (w InlineSyncWindow) Active() (bool, error) {
 	return w.active(time.Now())
 }
 
-func (w SyncWindow) active(currentTime time.Time) (bool, error) {
-	// If SyncWindow.Active() is called outside of a UTC locale, it should be
+func (w *InlineSyncWindow) active(currentTime time.Time) (bool, error) {
+	// If InlineSyncWindow.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before search
-	currentTime = currentTime.UTC()
-
-	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	schedule, sErr := specParser.Parse(w.Schedule)
-	if sErr != nil {
-		return false, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
-	}
-	duration, dErr := time.ParseDuration(w.Duration)
-	if dErr != nil {
-		return false, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
-	}
-
-	// Offset the nextWindow time to consider the timeZone of the sync window
-	timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
-	nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
-
-	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)), nil
+	return w.isActiveAt(currentTime.UTC())
 }
 
 // Update updates a sync window's settings with the given parameter
-func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string, description string) error {
+func (w *InlineSyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string, description string) error {
 	if s == "" && d == "" && len(a) == 0 && len(n) == 0 && len(c) == 0 && description == "" {
 		return errors.New("cannot update: require one or more of schedule, duration, application, namespace, cluster or description")
 	}
@@ -3178,7 +3704,7 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 }
 
 // Validate checks whether a sync window has valid configuration. The error returned indicates any problems that has been found.
-func (w *SyncWindow) Validate() error {
+func (w *InlineSyncWindow) Validate() error {
 	// Default timeZone to UTC if timeZone is not specified
 	if w.TimeZone == "" {
 		w.TimeZone = "UTC"
@@ -3191,13 +3717,10 @@ func (w *SyncWindow) Validate() error {
 	if w.Kind != "allow" && w.Kind != "deny" {
 		return fmt.Errorf("kind '%s' mismatch: can only be allow or deny", w.Kind)
 	}
-	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	_, err := specParser.Parse(w.Schedule)
-	if err != nil {
-		return fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, err)
+	if _, err := parseSyncWindowSchedule(w.Schedule); err != nil {
+		return err
 	}
-	_, err = time.ParseDuration(w.Duration)
-	if err != nil {
+	if _, err := time.ParseDuration(w.Duration); err != nil {
 		return fmt.Errorf("cannot parse duration '%s': %w", w.Duration, err)
 	}
 
@@ -3208,10 +3731,10 @@ func (w *SyncWindow) Validate() error {
 	return nil
 }
 
-func (w *SyncWindow) HashIdentity() (uint64, error) {
+func (w *InlineSyncWindow) HashIdentity() (uint64, error) {
 	// Create a copy of the window with only the core identity fields
 	// Excluding ManualSync and Description as they are behavioral/metadata fields
-	identityWindow := SyncWindow{
+	identityWindow := InlineSyncWindow{
 		Kind:           w.Kind,
 		Schedule:       w.Schedule,
 		Duration:       w.Duration,
@@ -3223,13 +3746,12 @@ func (w *SyncWindow) HashIdentity() (uint64, error) {
 		// ManualSync and Description are excluded as they don't affect window identity
 	}
 
-	var windowBuffer bytes.Buffer
-	enc := gob.NewEncoder(&windowBuffer)
-	err := enc.Encode(identityWindow)
+	result, err := hash.GobObjectHash(identityWindow)
 	if err != nil {
 		return 0, fmt.Errorf("failed to encode sync window for hashing: %w", err)
 	}
-	return xxhash.Sum64(windowBuffer.Bytes()), nil
+
+	return result, nil
 }
 
 // DestinationClusters returns a list of cluster URLs allowed as destination in an AppProject
@@ -3321,12 +3843,7 @@ type ApplicationDestinationServiceAccount struct {
 
 // CascadedDeletion indicates if the deletion finalizer is set and controller should delete the application and it's cascaded resources
 func (app *Application) CascadedDeletion() bool {
-	for _, finalizer := range app.Finalizers {
-		if isPropagationPolicyFinalizer(finalizer) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(app.Finalizers, isPropagationPolicyFinalizer)
 }
 
 // IsRefreshRequested returns whether a refresh has been requested for an application, and if yes, the type of refresh that should be executed.
@@ -3347,20 +3864,21 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 	return refreshType, true
 }
 
-// IsHydrateRequested returns whether hydration has been requested for an application
-func (app *Application) IsHydrateRequested() bool {
+// IsHydrateRequested returns whether hydration has been requested for an application and the type of hydration
+func (app *Application) IsHydrateRequested() (bool, HydrateType) {
 	annotations := app.GetAnnotations()
 	if annotations == nil {
-		return false
+		return false, ""
 	}
 	typeStr, ok := annotations[AnnotationKeyHydrate]
 	if !ok {
-		return false
+		return false, ""
 	}
-	if typeStr == string(HydrateTypeNormal) {
-		return true
+	hydrateType := HydrateTypeNormal
+	if typeStr == string(HydrateTypeHard) {
+		hydrateType = HydrateTypeHard
 	}
-	return false
+	return true, hydrateType
 }
 
 func (app *Application) HasPreDeleteFinalizer(stage ...string) bool {
@@ -3535,10 +4053,15 @@ func (source *ApplicationSource) Equals(other *ApplicationSource) bool {
 	}
 	// reflect.DeepEqual works fine for the other fields. Since the plugin fields are equal, set them to null so they're
 	// not considered in the DeepEqual comparison.
+	if !source.Helm.Equals(other.Helm) {
+		return false
+	}
 	sourceCopy := source.DeepCopy()
 	otherCopy := other.DeepCopy()
 	sourceCopy.Plugin = nil
 	otherCopy.Plugin = nil
+	sourceCopy.Helm = nil
+	otherCopy.Helm = nil
 	return reflect.DeepEqual(sourceCopy, otherCopy)
 }
 
@@ -3647,8 +4170,12 @@ func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
 
 // SetK8SConfigDefaults sets Kubernetes REST config default settings
 func SetK8SConfigDefaults(config *rest.Config) error {
-	config.QPS = K8sClientConfigQPS
-	config.Burst = K8sClientConfigBurst
+	if config.QPS <= 0 {
+		config.QPS = K8sClientConfigQPS
+	}
+	if config.Burst <= 0 {
+		config.Burst = K8sClientConfigBurst
+	}
 	tlsConfig, err := rest.TLSConfigFor(config)
 	if err != nil {
 		return err
@@ -3682,17 +4209,38 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	config.AuthProvider = nil
 	config.ExecProvider = nil
 
-	// Set server-side timeout
-	config.Timeout = K8sServerSideTimeout
-
+	// config.Timeout sets both the client-side HTTP timeout and the server-side timeout.
+	// We keep config.Timeout as 0 and use a transport wrapper to explicitly pass the timeout parameters to the API server to honor it.
+	config.Timeout = 0
 	config.Transport = tr
+	// HTTPWrappersForConfig already applied the existing wrapper to tr. Clear it
+	// before adding Argo CD wrappers so client-go does not apply it a second time.
+	config.WrapTransport = nil
+	if K8sServerSideTimeout > 0 {
+		appendTransportWrapper(config, utilhttp.WithServerSideTimeout(K8sServerSideTimeout))
+	}
 	maxRetries := env.ParseInt64FromEnv(utilhttp.EnvRetryMax, 0, 1, math.MaxInt64)
 	if maxRetries > 0 {
 		backoffDurationMS := env.ParseInt64FromEnv(utilhttp.EnvRetryBaseBackoff, 100, 1, math.MaxInt64)
 		backoffDuration := time.Duration(backoffDurationMS) * time.Millisecond
-		config.WrapTransport = utilhttp.WithRetry(maxRetries, backoffDuration)
+		// Retry is intentionally the outer wrapper so each attempt receives the
+		// server-side timeout query parameter.
+		appendTransportWrapper(config, utilhttp.WithRetry(maxRetries, backoffDuration))
 	}
 	return nil
+}
+
+func appendTransportWrapper(config *rest.Config, wrapper transport.WrapperFunc) {
+	if wrapper == nil {
+		return
+	}
+	previous := config.WrapTransport
+	config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
+		if previous != nil {
+			rt = previous(rt)
+		}
+		return wrapper(rt)
+	}
 }
 
 // ParseProxyUrl returns a parsed url and verifies that schema is correct
@@ -3709,8 +4257,33 @@ func ParseProxyUrl(proxyUrl string) (*url.URL, error) { //nolint:revive //FIXME(
 	return u, nil
 }
 
-// RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
-func (c *Cluster) RawRestConfig() (*rest.Config, error) {
+func resolveRateLimits(config ClusterConfig) (float32, int) {
+	qps := K8sClientConfigQPS
+	if config.QPS > 0 {
+		qps = config.QPS
+	}
+	burst := K8sClientConfigBurst
+	if config.Burst > 0 {
+		if config.Burst > math.MaxInt32 {
+			burst = math.MaxInt32
+		} else {
+			burst = int(config.Burst)
+		}
+	} else if config.QPS > 0 {
+		derived := float64(2 * config.QPS)
+		if derived > math.MaxInt32 {
+			burst = math.MaxInt32
+		} else {
+			burst = int(derived)
+		}
+		if burst < 1 {
+			burst = 1
+		}
+	}
+	return qps, burst
+}
+
+func (c *Cluster) rawRestConfig() (*rest.Config, error) {
 	var config *rest.Config
 	var err error
 
@@ -3774,17 +4347,28 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 					})
 				}
 			}
+			execConfig := &api.ExecConfig{
+				APIVersion:         c.Config.ExecProviderConfig.APIVersion,
+				Command:            c.Config.ExecProviderConfig.Command,
+				Args:               c.Config.ExecProviderConfig.Args,
+				Env:                env,
+				InstallHint:        c.Config.ExecProviderConfig.InstallHint,
+				ProvideClusterInfo: c.Config.ExecProviderConfig.ProvideClusterInfo,
+				InteractiveMode:    api.NeverExecInteractiveMode,
+			}
+			// If Config is set, pass cluster-specific data (like clusterName) to the exec plugin.
+			// This data flows through to ExecCredential.Spec.Cluster.Config when ProvideClusterInfo is true.
+			// Reference: https://kubernetes.io/docs/reference/config-api/kubeconfig.v1/#ExecConfig
+			if c.Config.ExecProviderConfig.Config != nil && len(c.Config.ExecProviderConfig.Config.Raw) > 0 {
+				execConfig.Config = &runtime.Unknown{
+					Raw:         c.Config.ExecProviderConfig.Config.Raw,
+					ContentType: runtime.ContentTypeJSON,
+				}
+			}
 			config = &rest.Config{
 				Host:            c.Server,
 				TLSClientConfig: tlsClientConfig,
-				ExecProvider: &api.ExecConfig{
-					APIVersion:      c.Config.ExecProviderConfig.APIVersion,
-					Command:         c.Config.ExecProviderConfig.Command,
-					Args:            c.Config.ExecProviderConfig.Args,
-					Env:             env,
-					InstallHint:     c.Config.ExecProviderConfig.InstallHint,
-					InteractiveMode: api.NeverExecInteractiveMode,
-				},
+				ExecProvider:    execConfig,
 			}
 		default:
 			config = &rest.Config{
@@ -3807,15 +4391,26 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 		config.Proxy = http.ProxyURL(u)
 	}
 	config.DisableCompression = c.Config.DisableCompression
-	config.Timeout = K8sServerSideTimeout
-	config.QPS = K8sClientConfigQPS
-	config.Burst = K8sClientConfigBurst
+	config.Timeout = 0
+	config.QPS, config.Burst = resolveRateLimits(c.Config)
+	return config, nil
+}
+
+// RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
+func (c *Cluster) RawRestConfig() (*rest.Config, error) {
+	config, err := c.rawRestConfig()
+	if err != nil {
+		return nil, err
+	}
+	if K8sServerSideTimeout > 0 {
+		appendTransportWrapper(config, utilhttp.WithServerSideTimeout(K8sServerSideTimeout))
+	}
 	return config, nil
 }
 
 // RESTConfig returns a go-client REST config from cluster with tuned throttling and HTTP client settings.
 func (c *Cluster) RESTConfig() (*rest.Config, error) {
-	config, err := c.RawRestConfig()
+	config, err := c.rawRestConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
 	}

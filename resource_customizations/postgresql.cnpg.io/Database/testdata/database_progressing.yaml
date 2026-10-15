@@ -1,0 +1,23 @@
+# A new spec generation (2) that CloudNativePG has not observed yet: the
+# previous successful reconcile still shows applied=true with the old
+# observedGeneration (1), so the Database must report Progressing until the
+# current generation is applied.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  creationTimestamp: "2026-09-02T12:00:00Z"
+  finalizers:
+  - cnpg.io/deleteDatabase
+  generation: 2
+  name: database-example
+  namespace: default
+spec:
+  cluster:
+    name: cluster-example
+  databaseReclaimPolicy: retain
+  ensure: present
+  name: app
+  owner: app
+status:
+  applied: true
+  observedGeneration: 1

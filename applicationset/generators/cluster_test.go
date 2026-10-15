@@ -32,21 +32,17 @@ func (p *possiblyErroringFakeCtrlRuntimeClient) List(ctx context.Context, secret
 func TestGenerateParams(t *testing.T) {
 	clusters := []client.Object{
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "staging-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "staging",
+				"org":                            "foo",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "staging-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "staging",
-					"org":                            "foo",
-				},
-				Annotations: map[string]string{
-					"foo.argoproj.io": "staging",
-				},
+			Annotations: map[string]string{
+				"foo.argoproj.io": "staging",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -56,21 +52,17 @@ func TestGenerateParams(t *testing.T) {
 			Type: corev1.SecretType("Opaque"),
 		},
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "production-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "production",
+				"org":                            "bar",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "production-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "production",
-					"org":                            "bar",
-				},
-				Annotations: map[string]string{
-					"foo.argoproj.io": "production",
-				},
+			Annotations: map[string]string{
+				"foo.argoproj.io": "production",
 			},
 			Data: map[string][]byte{
 				"config":  []byte("{}"),
@@ -307,9 +299,7 @@ func TestGenerateParams(t *testing.T) {
 			clusterGenerator := NewClusterGenerator(cl, "namespace")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{},
 			}
 
@@ -347,21 +337,17 @@ func assertEqualParamsFlat(t *testing.T, expected, got []map[string]any, isFlatM
 func TestGenerateParamsGoTemplate(t *testing.T) {
 	clusters := []client.Object{
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "staging-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "staging",
+				"org":                            "foo",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "staging-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "staging",
-					"org":                            "foo",
-				},
-				Annotations: map[string]string{
-					"foo.argoproj.io": "staging",
-				},
+			Annotations: map[string]string{
+				"foo.argoproj.io": "staging",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -371,21 +357,17 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 			Type: corev1.SecretType("Opaque"),
 		},
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "production-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "production",
+				"org":                            "bar",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "production-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "production",
-					"org":                            "bar",
-				},
-				Annotations: map[string]string{
-					"foo.argoproj.io": "production",
-				},
+			Annotations: map[string]string{
+				"foo.argoproj.io": "production",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -850,9 +832,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 			clusterGenerator := NewClusterGenerator(cl, "namespace")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 				},

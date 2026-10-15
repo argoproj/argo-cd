@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // this implements the "when" part of given/when/then
@@ -43,9 +45,25 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 	return a
 }
 
+func (a *Actions) GetLastOutput() string {
+	return a.lastOutput
+}
+
 func (a *Actions) PatchFile(file string, jsonPatch string) *Actions {
 	a.context.T().Helper()
 	fixture.Patch(a.context.T(), a.context.path+"/"+file, jsonPatch)
+	return a
+}
+
+func (a *Actions) PatchDrySourceFile(file string, jsonPatch string) *Actions {
+	a.context.T().Helper()
+	fixture.Patch(a.context.T(), a.context.drySourcePath+"/"+file, jsonPatch)
+	return a
+}
+
+func (a *Actions) GitRevList(args ...string) *Actions {
+	a.context.T().Helper()
+	a.lastOutput = fixture.GitRevList(a.context.T(), args)
 	return a
 }
 
@@ -129,10 +147,8 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 func (a *Actions) CreateFromFile(handler func(app *v1alpha1.Application), flags ...string) *Actions {
 	a.context.T().Helper()
 	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      a.context.AppName(),
-			Namespace: a.context.AppNamespace(),
-		},
+		Name:      a.context.AppName(),
+		Namespace: a.context.AppNamespace(),
 		Spec: v1alpha1.ApplicationSpec{
 			Project: a.context.project,
 			Source: &v1alpha1.ApplicationSource{
@@ -183,13 +199,18 @@ func (a *Actions) CreateFromFile(handler func(app *v1alpha1.Application), flags 
 	return a
 }
 
-func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
+func (a *Actions) CreateMultiSourceApp(flags ...string) *Actions {
 	a.context.T().Helper()
+
+	return a.CreateMultiSourceAppFromFile(func(_ *v1alpha1.Application) {}, flags...)
+}
+
+func (a *Actions) CreateMultiSourceAppFromFile(handler func(app *v1alpha1.Application), flags ...string) *Actions {
+	a.context.T().Helper()
+
 	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      a.context.AppName(),
-			Namespace: a.context.AppNamespace(),
-		},
+		Name:      a.context.AppName(),
+		Namespace: a.context.AppNamespace(),
 		Spec: v1alpha1.ApplicationSpec{
 			Project: a.context.project,
 			Sources: a.context.sources,
@@ -199,11 +220,13 @@ func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 			},
 			SyncPolicy: &v1alpha1.SyncPolicy{
 				Automated: &v1alpha1.SyncPolicyAutomated{
-					SelfHeal: true,
+					SelfHeal: new(true),
 				},
 			},
 		},
 	}
+
+	handler(app)
 
 	data := grpc.MustMarshal(app)
 	tmpFile, err := os.CreateTemp("", "")
@@ -312,6 +335,9 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 
 	if a.context.revision != "" {
 		args = append(args, "--revision", a.context.revision)
+	}
+	if a.context.tagPrefix != "" {
+		args = append(args, "--tag-prefix", a.context.tagPrefix)
 	}
 	if a.context.helmPassCredentials {
 		args = append(args, "--helm-pass-credentials")
@@ -443,9 +469,10 @@ func (a *Actions) ConfirmDeletion() *Actions {
 
 	a.runCli("app", "confirm-deletion", a.context.AppQualifiedName())
 
-	// Always sleep more than a second after the confirmation so the timestamp
-	// is not valid for immediate subsequent operations
-	time.Sleep(1500 * time.Millisecond)
+	// Always sleep a few seconds after the confirmation so the timestamp
+	// is not valid for immediate subsequent operations.
+	// Kubernetes containers may have clocks with a few seconds difference, and we want to avoid race conditions.
+	time.Sleep(3 * time.Second)
 
 	return a
 }
@@ -509,6 +536,12 @@ func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
 	return a
 }
 
+func (a *Actions) SetResourceFilter(filter settings.ResourcesFilter) *Actions {
+	a.context.T().Helper()
+	require.NoError(a.context.T(), fixture.SetResourceFilter(filter))
+	return a
+}
+
 func (a *Actions) And(block func()) *Actions {
 	a.context.T().Helper()
 	block()
@@ -517,7 +550,12 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.T().Helper()
-	return &Consequences{a.context, a, 15}
+	return &Consequences{a.context, a, 25}
+}
+
+func (a *Actions) ThenWithTimeout(timeout int) *Consequences {
+	a.context.T().Helper()
+	return &Consequences{a.context, a, timeout}
 }
 
 func (a *Actions) runCli(args ...string) {
@@ -567,22 +605,43 @@ func (a *Actions) WithImpersonationDisabled() *Actions {
 	return a
 }
 
+func (a *Actions) WithImpersonationEnforcementDisabled() *Actions {
+	a.context.T().Helper()
+	require.NoError(a.context.T(), fixture.SetImpersonationEnforcement("false"))
+	return a
+}
+
+func (a *Actions) GetHelmTemplateProcess() *Actions {
+	a.context.T().Helper()
+	cwd, err := os.Getwd()
+	require.NoError(a.context.T(), err)
+
+	// use BSD style ps(1) options and field names so it can be run
+	// on both linux and MacOS: the first column will be PID,
+	// the rest - commandline starting with the executable name
+	output, err := fixture.Run(cwd, "ps", "xao", "pid=,command=")
+	require.NoError(a.context.T(), err)
+
+	appName := regexp.QuoteMeta(a.context.AppName())
+	regexStr := "(?m)^.* helm template \\. --name-template " + appName + " .*$"
+	regex := regexp.MustCompile(regexStr)
+	a.lastOutput = regex.FindString(output)
+	a.lastError = nil
+	return a
+}
+
 // TODO: Ensure service account name and other resources have unique names based on the test context
 // TODO: This function should be moved to the project context since impersonation is a project concept, not application.
 func createRBACResourcesForImpersonation(namespace string, serviceAccountName string, policyRules []rbacv1.PolicyRule) error {
 	sa := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: serviceAccountName,
-		},
+		Name: serviceAccountName,
 	}
 	_, err := fixture.KubeClientset.CoreV1().ServiceAccounts(namespace).Create(context.Background(), sa, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
 	role := &rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", serviceAccountName, "role"),
-		},
+		Name:  fmt.Sprintf("%s-%s", serviceAccountName, "role"),
 		Rules: policyRules,
 	}
 	_, err = fixture.KubeClientset.RbacV1().Roles(namespace).Create(context.Background(), role, metav1.CreateOptions{})
@@ -590,9 +649,7 @@ func createRBACResourcesForImpersonation(namespace string, serviceAccountName st
 		return err
 	}
 	rolebinding := &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", serviceAccountName, "rolebinding"),
-		},
+		Name: fmt.Sprintf("%s-%s", serviceAccountName, "rolebinding"),
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "Role",

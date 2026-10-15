@@ -1,0 +1,66 @@
+apiVersion: numaflow.numaproj.io/v1alpha1
+kind: MonoVertex
+metadata:
+  creationTimestamp: "2024-10-09T21:18:37Z"
+  generation: 1
+  name: simple-mono-vertex
+  namespace: numaflow-system
+  resourceVersion: "1382"
+  uid: b7b9e4f8-cd4b-4771-9e4b-2880cc50467a
+  labels:
+    numaplane.numaproj.io/upgrade-state: "in-progress"
+  annotations:
+    numaflow.numaproj.io/allowed-resume-strategies: "slow, fast"
+  ownerReferences:
+  - apiVersion: numaplane.numaproj.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: MonoVertexRollout
+    name: simple-mono-vertex
+    uid: 93458d04-d27b-4095-b0cc-c166d90bdab2
+spec:
+  lifecycle:
+    desiredPhase: Running
+  replicas: 1
+  sink:
+    udsink:
+      container:
+        image: quay.io/numaio/numaflow-java/simple-sink:stable
+  source:
+    transformer:
+      container:
+        image: quay.io/numaio/numaflow-rs/source-transformer-now:stable
+    udsource:
+      container:
+        image: quay.io/numaio/numaflow-java/source-simple-source:stable
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 25%
+    type: RollingUpdate
+status:
+  conditions:
+  - lastTransitionTime: "2024-10-09T21:18:41Z"
+    message: Successful
+    reason: Successful
+    status: "True"
+    type: DaemonHealthy
+  - lastTransitionTime: "2024-10-09T21:18:37Z"
+    message: Successful
+    reason: Successful
+    status: "True"
+    type: Deployed
+  - lastTransitionTime: "2024-10-09T21:18:37Z"
+    message: All pods are healthy
+    reason: Running
+    status: "True"
+    type: PodsHealthy
+  currentHash: 8ed34d9058faa60997ee13083ccb3d80691df37b45a34eaa347af99f237e8df6
+  desiredReplicas: 1
+  lastScaledAt: "2024-10-09T21:18:37Z"
+  lastUpdated: "2024-10-09T21:18:41Z"
+  observedGeneration: 1
+  phase: Running
+  replicas: 1
+  selector: app.kubernetes.io/component=mono-vertex,numaflow.numaproj.io/mono-vertex-name=simple-mono-vertex
+  updateHash: 8ed34d9058faa60997ee13083ccb3d80691df37b45a34eaa347af99f237e8df6
+  updatedReplicas: 1

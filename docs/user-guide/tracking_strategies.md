@@ -37,11 +37,11 @@ For Git, all versions are Git references but tags [Semantic Versions](https://se
 | Pin to a version (e.g. in production) | Either (a) tag the commit with (e.g. `v1.2.0`) and use that tag, or (b) using commit SHA. | See [commit pinning](#commit-pinning). |
 | Track patches (e.g. in pre-production) | Use a range (e.g. `1.2.*` or `>=1.2.0 <1.3.0`)                                           | See [tag tracking](#tag-tracking) |
 | Track minor releases (e.g. in QA) | Use a range (e.g. `1.*` or `>=1.0.0 <2.0.0`)                                             | See [tag tracking](#tag-tracking) |
-| Use the latest (e.g. in local development) | Use `HEAD` or `master` (assuming `master` is your master branch).                        | See [HEAD / Branch Tracking](#head-branch-tracking) |
+| Use the latest (e.g. in local development) | Use `HEAD` or `master` (assuming `master` is your master branch).                        | See [HEAD or branch tracking](#head-or-branch-tracking) |
 | Use the latest including pre-releases | Use star range with `-0` suffix | `*-0` or `>=0.0.0-0` |
 
 
-### HEAD / Branch Tracking
+### HEAD or branch tracking
 
 If a branch name or a symbolic reference (like HEAD) is specified, Argo CD will continually compare
 live state against the resource manifests defined at the tip of the specified branch or the
@@ -61,6 +61,49 @@ comparison/sync.
 
 But if you're using semantic versioning you can set the constraint in your service revision
 and Argo CD will get the latest version following the constraint rules.
+
+> [!NOTE]
+> Semver constraints (those containing `*`, `>`, `<`, `>=`, `<=`, `~`, `^`, or range expressions like `>=1.0.0 <2.0.0`) are **only matched against tags**, never branches. This is by design - semver resolution uses the list of Git tags exclusively.
+
+#### Prefixed Tags
+
+Argo CD supports hierarchical tag prefixes, allowing you to organize tags by application, environment, cluster, or any other criteria. This is particularly useful for:
+
+- **Monorepos** - Tag each application separately (e.g., `app1/v1.0.0`, `app2/v2.0.0`)
+- **Multi-cluster deployments** - Organize by application, cluster, and environment for use with ApplicationSet generators
+
+Set `tagPrefix` to the prefix string. Argo CD will filter tags to only those with that prefix, strip the prefix before evaluating `targetRevision` as a semver constraint, and re-add it to the resolved version.
+
+| Tags in repo | `tagPrefix` | `targetRevision` | Resolves to |
+|-|-|-|-|
+| `app1/v1.0.0`, `app1/v1.0.1` | `app1/` | `v1.0.*` | `app1/v1.0.1` |
+| `app2/v1.0.0`, `app2/v2.0.0` | `app2/` | `v1.*` | `app2/v1.0.0` |
+| `app1/cluster1/prod/v1.0.0` | `app1/cluster1/prod/` | `v1.*` | `app1/cluster1/prod/v1.0.0` |
+
+**Examples:**
+
+```yaml
+# Monorepo: Track patch releases for a specific application
+spec:
+  source:
+    targetRevision: v1.0.*
+    tagPrefix: app1/
+
+# Multi-cluster: Track versions for a specific app/cluster/environment
+spec:
+  source:
+    targetRevision: v1.*
+    tagPrefix: app1/cluster1/prod/
+
+# ApplicationSet generator example - use template variables in the prefix
+spec:
+  source:
+    targetRevision: v1.*
+    tagPrefix: "{{.app}}/{{.cluster}}/{{.env}}/"
+```
+
+> [!NOTE]
+> For prerelease versions, use the `-0` suffix: `tagPrefix: app1/` with `targetRevision: ">=v1.0.0-0"` will match prerelease tags like `app1/v1.0.0-rc.1`.
 
 ### Commit Pinning
 

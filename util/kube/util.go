@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"maps"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -44,12 +45,10 @@ func (ku *kubeUtil) CreateOrUpdateSecret(ns string, name string, update updateFn
 
 	if create {
 		s = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:        name,
-				Namespace:   ns,
-				Labels:      ku.labels,
-				Annotations: ku.annotations,
-			},
+			Name:        name,
+			Namespace:   ns,
+			Labels:      ku.labels,
+			Annotations: ku.annotations,
 		}
 		s.Data = make(map[string][]byte)
 	}
@@ -84,9 +83,7 @@ func (ku *kubeUtil) CreateOrUpdateSecretData(ns string, name string, data map[st
 		if !merge || new {
 			s.Data = data
 		} else {
-			for key, val := range data {
-				s.Data[key] = val
-			}
+			maps.Copy(s.Data, data)
 		}
 		return nil
 	})

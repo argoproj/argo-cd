@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	timeutil "github.com/argoproj/pkg/time"
+	timeutil "github.com/argoproj/pkg/v2/time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -164,7 +164,7 @@ func StringFromEnv(env string, defaultValue string, opts ...StringFromEnvOpts) s
 }
 
 // StringsFromEnv parses given value from the environment as a list of strings,
-// using separator as the delimeter, and returns them as a slice. The strings
+// using separator as the delimiter, and returns them as a slice. The strings
 // in the returned slice will have leading and trailing white space removed.
 func StringsFromEnv(env string, defaultValue []string, separator string) []string {
 	if str := os.Getenv(env); str != "" {
@@ -202,7 +202,7 @@ func ParseStringToStringFromEnv(envVar string, defaultValue map[string]string, s
 	}
 
 	parsed := make(map[string]string)
-	for _, pair := range strings.Split(str, separator) {
+	for pair := range strings.SplitSeq(str, separator) {
 		keyvalue := strings.Split(pair, "=")
 		if len(keyvalue) != 2 {
 			log.Warnf("Invalid key-value pair when parsing environment '%s' as a string map", str)

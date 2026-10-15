@@ -1,22 +1,22 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:25.10@sha256:4a9232cc47bf99defcc8860ef6222c99773330367fcecbf21ba2edb0b810a31e
+ARG BASE_IMAGE=docker.io/library/ubuntu:26.04@sha256:2260313b31c8c011cd2eebe728008efac1b3982be73eb71348ea2648d2c0e09b
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM docker.io/library/golang:1.25.6@sha256:ce63a16e0f7063787ebb4eb28e72d477b00b4726f79874b3205a965ffd797ab2 AS builder
+FROM docker.io/library/golang:1.27.2@sha256:5bc7f572bbaa98885a3a1fd9c0aa76b59e3e14e8628bfc316bbfd0c701e4818c AS builder
 
 WORKDIR /tmp
 
-RUN echo 'deb http://archive.debian.org/debian buster-backports main' >> /etc/apt/sources.list
+# renovate: datasource=deb depName=git registryUrl=https://deb.debian.org/debian?suite=trixie&components=main,security&binaryArch=amd64
+ARG GIT_APT_VERSION=1:2.47.3-0+deb13u1
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     openssh-server \
     nginx \
     unzip \
     fcgiwrap \
-    git \
-    git-lfs \
+    git=${GIT_APT_VERSION} \
     make \
     wget \
     gcc \
@@ -29,7 +29,8 @@ COPY hack/install.sh hack/tool-versions.sh ./
 COPY hack/installers installers
 
 RUN ./install.sh helm && \
-    INSTALL_PATH=/usr/local/bin ./install.sh kustomize
+    INSTALL_PATH=/usr/local/bin ./install.sh kustomize && \
+    ./install.sh git-lfs
 
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
@@ -43,6 +44,9 @@ USER root
 ENV ARGOCD_USER_ID=999 \
     DEBIAN_FRONTEND=noninteractive
 
+# renovate: datasource=deb depName=git registryUrl=https://archive.ubuntu.com/ubuntu?suite=resolute&components=main,security&binaryArch=amd64
+ARG GIT_APT_VERSION=1:2.53.0-1ubuntu1
+
 RUN groupadd -g $ARGOCD_USER_ID argocd && \
     useradd -r -u $ARGOCD_USER_ID -g argocd argocd && \
     mkdir -p /home/argocd && \
@@ -51,7 +55,7 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get install --no-install-recommends -y \
-    git git-lfs tini ca-certificates gpg gpg-agent tzdata connect-proxy openssh-client && \
+    git=${GIT_APT_VERSION} tini ca-certificates gpg gpg-agent tzdata connect-proxy openssh-client && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 
@@ -61,6 +65,12 @@ COPY hack/gpg-wrapper.sh \
     /usr/local/bin/
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
+COPY --from=builder /usr/local/bin/git-lfs /usr/local/bin/git-lfs
+
+# Initialize git-lfs system configuration (/etc/gitconfig) so LFS filters are active
+# The --skip-repo option prevents failure if / is a Git repository with existing
+# non-git-lfs hooks.
+RUN git lfs install --skip-repo --system
 
 # keep uid_entrypoint.sh for backward compatibility
 RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh
@@ -91,25 +101,27 @@ WORKDIR /home/argocd
 ####################################################################################################
 # Argo CD UI stage
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/node:23.0.0@sha256:9d09fa506f5b8465c5221cbd6f980e29ae0ce9a3119e2b9bc0842e6a3f37bb59 AS argocd-ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:24.22.0@sha256:14078204b6bb268c107ceff6d3c43f45a888105e5c2b18b14c32b3409d93a1b0 AS argocd-ui
 
 WORKDIR /src
-COPY ["ui/package.json", "ui/yarn.lock", "./"]
+COPY ["ui/package.json", "ui/pnpm-lock.yaml", "ui/pnpm-workspace.yaml", "./"]
 
-RUN yarn install --network-timeout 200000 && \
-    yarn cache clean
+RUN npm install -g corepack@0.34.6 && corepack enable && pnpm install --frozen-lockfile
 
 COPY ["ui/", "."]
 
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
-ARG TARGETARCH
-RUN HOST_ARCH=$TARGETARCH NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_size=8192 yarn build
+# Note: the UI bundle is architecture-independent. Keep this stage free of any
+# per-target-arch inputs (e.g. TARGETARCH) so buildx builds it once and copies an
+# identical dist into every per-arch image. Otherwise the bundle's contenthash
+# diverges across archs and mixed-arch clusters serve mismatched asset filenames.
+RUN NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_size=8192 pnpm build
 
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.25.6@sha256:ce63a16e0f7063787ebb4eb28e72d477b00b4726f79874b3205a965ffd797ab2 AS argocd-build
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.27.2@sha256:5bc7f572bbaa98885a3a1fd9c0aa76b59e3e14e8628bfc316bbfd0c701e4818c AS argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 

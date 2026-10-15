@@ -3,3 +3,5 @@ kind: ChangeTransferPolicy
 metadata:
   name: test
   deletionTimestamp: "2025-07-04T12:00:00Z"
+  finalizers:
+    - changetransferpolicy.promoter.argoproj.io/finalizer

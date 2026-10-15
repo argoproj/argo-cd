@@ -25,7 +25,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/versions"
 
-	"github.com/argoproj/pkg/sync"
+	"github.com/argoproj/pkg/v2/sync"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/util/cache"
@@ -43,6 +43,12 @@ var (
 	globalLock = sync.NewKeyLock()
 	indexLock  = sync.NewKeyLock()
 )
+
+// maxOCIManifestSize bounds how many bytes we read when decoding an OCI manifest
+// returned by a registry. This matches oras-go's MaxMetadataBytes default (4 MiB)
+// and protects the repo-server from unbounded memory consumption if a registry
+// returns an excessively large manifest.
+const maxOCIManifestSize = 4 * 1024 * 1024 // 4 MiB
 
 const (
 	helmOCIConfigType = "application/vnd.cncf.helm.config.v1+json"
@@ -143,6 +149,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 			Proxy:             proxy.GetCallback(proxyURL, noProxy),
 			TLSClientConfig:   tlsConf,
 			DisableKeepAlives: true,
+			ForceAttemptHTTP2: true,
 		},
 		/*
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -348,6 +355,10 @@ func (c *nativeOCIClient) CleanCache(revision string) error {
 	if err != nil {
 		return fmt.Errorf("error cleaning oci path for revision %s: %w", revision, err)
 	}
+	// ORAS reopens this archive for each blob during extraction.
+	c.repoLock.Lock(cachePath)
+	defer c.repoLock.Unlock(cachePath)
+
 	return os.RemoveAll(cachePath)
 }
 
@@ -365,11 +376,7 @@ func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*i
 }
 
 func (c *nativeOCIClient) digestMetadata(ctx context.Context, digest string) (*imagev1.Manifest, error) {
-	path, err := c.getCachedPath(digest)
-	if err != nil {
-		return nil, fmt.Errorf("error fetching oci metadata path for digest %s: %w", digest, err)
-	}
-	return getOCIManifestFromCache(ctx, path, digest)
+	return getOCIManifest(ctx, digest, c.repo)
 }
 
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
@@ -398,7 +405,7 @@ func (c *nativeOCIClient) resolveRevision(ctx context.Context, revision string, 
 		}
 
 		// Look to see if revision is a semver constraint
-		version, err := versions.MaxVersion(revision, tags)
+		version, err := versions.MaxVersion(revision, tags, "")
 		if err != nil {
 			return "", fmt.Errorf("no version for constraints: %w", err)
 		}
@@ -428,7 +435,7 @@ func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) ([]string, 
 	var data []byte
 	if !noCache && c.tagsCache != nil {
 		if err := c.tagsCache.GetOCITags(c.repoURL, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
-			log.Warnf("Failed to load index cache for repo: %s: %s", c.repoLock, err)
+			log.Warnf("Failed to load index cache for repo: %s: %s", c.repoURL, err)
 		}
 	}
 
@@ -451,7 +458,11 @@ func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) ([]string, 
 		).Info("took to get tags")
 
 		if c.tagsCache != nil {
-			if err := c.tagsCache.SetOCITags(c.repoURL, data); err != nil {
+			cacheData, err := json.Marshal(tags)
+			if err != nil {
+				return nil, fmt.Errorf("failed to encode tags: %w", err)
+			}
+			if err := c.tagsCache.SetOCITags(c.repoURL, cacheData); err != nil {
 				log.Warnf("Failed to store tags list cache for repo: %s: %s", c.repoURL, err)
 			}
 		}
@@ -518,7 +529,7 @@ func isContentLayer(mediaType string) bool {
 
 func isCompressedLayer(mediaType string) bool {
 	// TODO: Is zstd something which is used in the wild? For now let's stick to these suffixes
-	return strings.HasSuffix(mediaType, "tar+gzip") || strings.HasSuffix(mediaType, "tar")
+	return strings.HasSuffix(mediaType, "tar+gzip") || strings.HasSuffix(mediaType, "tar.gzip") || strings.HasSuffix(mediaType, "tar")
 }
 
 func createTarFile(from, to string) error {
@@ -625,7 +636,7 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc imagev1.D
 		}
 		defer os.RemoveAll(srcDir)
 
-		if strings.HasSuffix(desc.MediaType, "tar+gzip") {
+		if strings.HasSuffix(desc.MediaType, "tar+gzip") || strings.HasSuffix(desc.MediaType, "tar.gzip") {
 			err = files.Untgz(srcDir, content, s.maxSize, false)
 		} else {
 			err = files.Untar(srcDir, content, s.maxSize, false)
@@ -689,16 +700,20 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc imagev1.D
 func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyTarget) (*imagev1.Manifest, error) {
 	desc, err := repo.Resolve(ctx, digest)
 	if err != nil {
-		return nil, fmt.Errorf("error resolving oci repo from digest, %w", err)
+		return nil, fmt.Errorf("error resolving oci manifest for digest %s: %w", digest, err)
 	}
 
 	rc, err := repo.Fetch(ctx, desc)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching oci manifest for digest %s: %w", digest, err)
 	}
+	defer rc.Close()
 
 	manifest := imagev1.Manifest{}
-	decoder := json.NewDecoder(rc)
+	// Limit how much we read while decoding the manifest to protect against a
+	// malicious or misbehaving registry returning an arbitrarily large response,
+	// which would otherwise be buffered into memory and could exhaust the repo-server.
+	decoder := json.NewDecoder(io.LimitReader(rc, maxOCIManifestSize))
 	if err = decoder.Decode(&manifest); err != nil {
 		return nil, fmt.Errorf("error decoding oci manifest for digest %s: %w", digest, err)
 	}

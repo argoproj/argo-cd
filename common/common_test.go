@@ -62,8 +62,8 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 			expectedPassword: "password123",
 			expectedErr:      "",
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{Name: RedisInitialCredentials},
-				Data:       map[string][]byte{RedisInitialCredentialsKey: []byte("password123")},
+				Name: RedisInitialCredentials,
+				Data: map[string][]byte{RedisInitialCredentialsKey: []byte("password123")},
 			},
 		},
 		{
@@ -79,13 +79,12 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 			expectedPassword: "",
 			expectedErr:      fmt.Sprintf("secret default/%s does not contain key %s", RedisInitialCredentials, RedisInitialCredentialsKey),
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{Name: RedisInitialCredentials},
-				Data:       map[string][]byte{},
+				Name: RedisInitialCredentials,
+				Data: map[string][]byte{},
 			},
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var (
