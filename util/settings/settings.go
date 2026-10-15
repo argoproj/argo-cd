@@ -2494,7 +2494,7 @@ func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
 		var err error
 		requestURL, err = url.ParseRequestURI(r.RequestURI)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("error parsing request URI: %w", err)
 		}
 	}
 	for _, candidateURL := range append([]string{a.URL}, a.AdditionalURLs...) {

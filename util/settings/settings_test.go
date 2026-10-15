@@ -2040,6 +2040,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 		RequestURI  string
 		ExpectedURL string
 		ExpectError bool
+		ErrorText   string
 	}{
 		{
 			Name: "Single URL",
@@ -2135,6 +2136,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 			RequestURL:  "https://example.org/auth/login",
 			RequestURI:  "/%invalid",
 			ExpectError: true,
+			ErrorText:   "error parsing request URI:",
 		},
 	}
 
@@ -2147,6 +2149,9 @@ func TestRedirectURLForRequest(t *testing.T) {
 			assert.Equal(t, tc.ExpectedURL, result)
 			if tc.ExpectError {
 				assert.Error(t, err)
+				if tc.ErrorText != "" {
+					assert.ErrorContains(t, err, tc.ErrorText)
+				}
 			} else {
 				assert.NoError(t, err)
 			}
