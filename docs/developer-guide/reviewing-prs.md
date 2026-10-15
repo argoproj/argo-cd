@@ -1,6 +1,6 @@
 # Reviewing PRs
 
-This guide is for anyone who reviews pull requests to Argo CD. It defines when a review may block a PR, what a blocking review must contain, and when the reviewer needs to re-review.
+This guide is for anyone who reviews pull requests to Argo CD. It defines when a review may block a PR, what a blocking review must contain, and what a reviewer who blocks a PR commits to afterwards.
 If you are submitting a PR, read [Submit Your PR](submit-your-pr.md) first; the sections below on blocking reviews tell you what to expect from reviewers.
 
 ## Summary
@@ -13,7 +13,7 @@ If you are submitting a PR, read [Submit Your PR](submit-your-pr.md) first; the 
 | Anything else: style, naming, refactoring ideas, questions, optional work | Comment (or Approve with comments)   | Prefix with `nit:`, `suggestion:` or `question:`                          |
 
 The above table doesn't mean that all bugs or all cases should request a change. The reviewer should use their best judgement to decide whether a change is necessary or not.
-A reviewer who requests changes must re-review within 5 business days of the author asking for it. After that, any approver may dismiss the review.
+A reviewer who requests changes commits to coming back: they respond to a re-review request within 2 business days. If they go quiet, an approver who can own that area may take the review over.
 
 ## Who can review
 
@@ -113,24 +113,24 @@ Unless you are merging the PR now, end your review with one line telling the aut
 
 Submitting a Request changes review is a commitment to come back.
 
-* When the author has addressed your blocking threads, they re-request your review using GitHub's Re-request review button, or by mentioning you in a comment. You then have 5 business days to re-review.
-* If you can't get to it straight away, acknowledge the request with a 👀 reaction or a one-line comment with a rough ETA, so the author knows it hasn't been forgotten. Acknowledging does not extend the 5 business days.
+* When the author has addressed your blocking threads, they re-request your review using GitHub's Re-request review button, or by mentioning you in a comment.
+* Respond within 2 business days. Either re-review the PR, or acknowledge the request with a 👀 reaction or a one-line comment with a rough ETA, so the author knows it hasn't been forgotten.
 * Check your existing blocking threads against their exit conditions. You may raise a new blocking issue only if it is in code changed since your last review, or if it falls under the first [allowed reason](#allowed-reasons) and you missed it the first time. Do not move the goalposts.
-* If you cannot make it, say so on the PR before the window ends, and either hand the review to another reviewer by name or ask an approver to dismiss your review.
+* If you can't get back to it, for example because you are going on leave, say so on the PR, and either hand the review to another reviewer by name or ask an approver to dismiss your review.
 * When your comments and your concerns are addressed, you are encouraged to approve the PR. If someone else will approve it instead, say in a comment that your concerns are resolved, and an approver can dismiss your review.
 
-### When the re-review is not done within 5 business days
+### When the reviewer goes quiet
 
-If 5 business days have passed since the author re-requested review and the reviewer has not re-reviewed:
+If the reviewer has not responded within 2 business days, or has gone well past the ETA they gave:
 
 1. The author mentions any approver on the PR, or asks in the `#argo-cd-contributors` channel on [Slack](https://argoproj.github.io/community/join-slack).
-2. The approver checks that the author responded to every blocking thread, then dismisses the stale review with a comment that links the author's response and notes that the re-review window has passed.
-3. The PR then follows the normal review and approval process.
+2. If the approver knows the area well enough to own the change if something goes wrong later, they take the review over. They check the author's response against each blocking thread's exit condition. If the conditions are met, they dismiss the original review with a comment that says they have taken it over and links the author's response.
+3. If the approver cannot own that area, they say so on the PR, so the author knows the PR is waiting for the original reviewer or another owner of that area. If they know who that is, they name them.
 
-Dismissing a review because the window passed is not a decision on its content. The original reviewer may submit a new Request changes review later, following the same rules.
+Taking over a review does not stop the original reviewer from raising a new blocking issue when they are back, following the same rules.
 
 > [!WARNING]
-> Approvers must not merge a PR while a Request changes review is still in place. It clears when the reviewer approves, or when an approver dismisses it for one of the reasons in this guide: the review is malformed, the reviewer hands off or says their concerns are resolved, the re-review window has passed, or the contributor meeting decided against the block.
+> Approvers must not merge a PR while a Request changes review is still in place. It clears when the reviewer approves, or when an approver dismisses it for one of the reasons in this guide: the review is malformed, the reviewer hands off or says their concerns are resolved, another approver has taken the review over, or the contributor meeting decided against the block.
 
 ## Reviewer checklist for Argo CD
 
