@@ -847,6 +847,14 @@ func TestUnsortedEndpoints(t *testing.T) {
 	}
 }
 
+func configMapData(t *testing.T, raw []byte) map[string]any {
+	t.Helper()
+	var obj map[string]any
+	require.NoError(t, json.Unmarshal(raw, &obj))
+	data, _ := obj["data"].(map[string]any)
+	return data
+}
+
 func buildGVKParser(t *testing.T) *managedfields.GvkParser {
 	t.Helper()
 	document := &openapi_v2.Document{}
@@ -1226,6 +1234,58 @@ func TestServerSideDiff(t *testing.T) {
 		assert.Contains(t, liveData, "key1")
 		assert.Contains(t, liveData, "key2")
 		assert.Contains(t, liveData, "key3", "key3 should still be in live state")
+	})
+
+	// Client-side apply owns the key as operation Update and records it in
+	// last-applied-configuration. The legacy diff sees the removal. Server-side
+	// diff compares against an SSA dry-run, and that dry-run keeps an
+	// Update-owned key, so the removal is reported as unmodified.
+	t.Run("will miss ConfigMap data key removal owned by client-side apply", func(t *testing.T) {
+		t.Parallel()
+		desired := StrToUnstructured(`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sample
+  namespace: default
+data:
+  keep: keep-value
+`)
+		live := StrToUnstructured(`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sample
+  namespace: default
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","kind":"ConfigMap","metadata":{"annotations":{},"name":"sample","namespace":"default"},"data":{"drop":"drop-value","keep":"keep-value"}}
+  managedFields:
+  - manager: argocd-controller
+    operation: Update
+    apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:data:
+        f:drop: {}
+        f:keep: {}
+data:
+  drop: drop-value
+  keep: keep-value
+`)
+
+		legacy, err := Diff(t.Context(), desired.DeepCopy(), live.DeepCopy())
+		require.NoError(t, err)
+		assert.True(t, legacy.Modified, "legacy diff should detect a key still listed in last-applied-configuration")
+		assert.NotContains(t, configMapData(t, legacy.PredictedLive), "drop")
+
+		predicted, err := json.Marshal(live)
+		require.NoError(t, err)
+		result, err := serverSideDiff(t.Context(), desired.DeepCopy(), live.DeepCopy(), buildOpts(string(predicted))...)
+		require.NoError(t, err)
+		assert.False(t, result.Modified, "server-side diff should miss a key the dry-run kept")
+		assert.Contains(t, configMapData(t, result.PredictedLive), "drop")
+		assert.Contains(t, configMapData(t, result.NormalizedLive), "drop")
 	})
 
 	t.Run("will strip last-applied-configuration annotation from a non-Secret resource on both sides", func(t *testing.T) {
