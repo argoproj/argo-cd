@@ -1,0 +1,56 @@
+name: PR Issue Policy
+
+on:
+  # pull_request_target is required so the token can label, comment on and
+  # convert PRs opened from forks to drafts. The checkout below is the base
+  # branch; this workflow never checks out or executes code from the PR.
+  pull_request_target:
+    types: [opened, reopened, edited, synchronize, ready_for_review, labeled, unlabeled]
+    branches:
+      - master
+
+permissions: {}
+
+env:
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+
+# Only the most recent event for a PR matters.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check-linked-issue:
+    permissions:
+      # convertPullRequestToDraft is rejected with "Resource not accessible by
+      # integration" unless the token can also write contents. The job only
+      # checks out the base branch without persisting credentials, and never
+      # runs code from the PR.
+      contents: write # to convert the PR to a draft
+      issues: read # to read the labels of linked issues
+      pull-requests: write # to label, comment on and convert the PR to a draft
+    name: Check linked issue
+    # Bot accounts (Renovate, Dependabot, GitHub Apps) are exempt from the policy.
+    if: github.event.pull_request.user.type != 'Bot'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout the policy script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Root files such as .gitattributes are always included.
+          sparse-checkout: .github/scripts
+
+      - name: Enforce the issue policy
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const run = require('./.github/scripts/pr-issue-policy.js');
+            await run({ github, context, core });
