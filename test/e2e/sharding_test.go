@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apitypes "k8s.io/apimachinery/pkg/types"
@@ -19,12 +18,10 @@ import (
 	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 
 	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/controller/sharding"
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/v3/util/clusterauth"
-	"github.com/argoproj/argo-cd/v3/util/db"
 )
 
 // TestShardReconcilesAssignedApps tests to see if a shard only reconciles apps deploying to the clusters
@@ -87,15 +84,14 @@ func TestShardsReconcileAssignedApps(t *testing.T) {
 		Expect(ResourceHealthIs("ConfigMap", "app-2-cm", health.HealthStatusHealthy))
 }
 
-// createClusterSecretWithShard creates a cluster secret and assigns it to a shard
 // TestShardsReconcileClusterFirstSeenOnUpdate covers a cluster that reaches the
 // sharding cache through an update event instead of an add. A cluster secret
 // that cannot be parsed when it is created is dropped by the add handler, and
 // the update that fixes it is dropped too, because its old object cannot be
 // parsed either. The next update, here a label change, is the first event the
 // sharding cache sees for that cluster. It must be assigned a shard, or the
-// replica that owns it never reconciles its applications and every other
-// cluster keeps the index it had without it.
+// replica that owns it never reconciles its applications. The secret requests
+// its shard explicitly, so the test does not depend on the sharding algorithm.
 func TestShardsReconcileClusterFirstSeenOnUpdate(t *testing.T) {
 	if remote := IsRemote(); remote {
 		t.Skip("At the moment this test only works when not in cluster")
@@ -116,21 +112,12 @@ func TestShardsReconcileClusterFirstSeenOnUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create the secret with a config that does not parse, so that the add
-	// event is dropped. Recreate it until round-robin puts the cluster on the
-	// shard under test: the order depends on the secret UID.
+	// event is dropped.
 	secrets := KubeClientset.CoreV1().Secrets(ArgoCDNamespace)
-	var secret *corev1.Secret
-	for range 10 {
-		s := buildArgoCDClusterSecret(clusterName, ArgoCDNamespace, clusterName, server, "{not json", "", "")
-		secret, err = secrets.Create(t.Context(), &s, metav1.CreateOptions{})
-		require.NoError(t, err)
-		if expectedClusterShard(t, server, secret.UID) == shard {
-			break
-		}
-		require.NoError(t, secrets.Delete(t.Context(), secret.Name, metav1.DeleteOptions{}))
-		secret = nil
-	}
-	require.NotNil(t, secret, "could not place the cluster on shard %d", shard)
+	secret := buildArgoCDClusterSecret(clusterName, ArgoCDNamespace, clusterName, server, "{not json", "", "")
+	secret.Data["shard"] = []byte(strconv.Itoa(shard))
+	_, err = secrets.Create(t.Context(), &secret, metav1.CreateOptions{})
+	require.NoError(t, err)
 	t.Cleanup(func() {
 		_ = secrets.Delete(context.Background(), clusterName, metav1.DeleteOptions{})
 	})
@@ -138,9 +125,8 @@ func TestShardsReconcileClusterFirstSeenOnUpdate(t *testing.T) {
 	// Start the controller only now, so that it sees the secret while it does
 	// not parse, whether through its initial list or through the add event.
 	env := map[string]string{
-		common.EnvControllerShard:             strconv.Itoa(shard),
-		common.EnvControllerReplicas:          "2",
-		common.EnvControllerShardingAlgorithm: common.RoundRobinShardingAlgorithm,
+		common.EnvControllerShard:    strconv.Itoa(shard),
+		common.EnvControllerReplicas: "2",
 	}
 	require.NoError(t, RestartProcess(ApplicationControllerProcName, env))
 	waitForControllerReady(t)
@@ -193,33 +179,6 @@ func waitForControllerReady(t *testing.T) {
 	})
 	require.NoError(t, err)
 	time.Sleep(5 * time.Second)
-}
-
-// expectedClusterShard returns the round-robin shard a freshly started
-// controller with two replicas would assign to server, if the cluster secret
-// for it had the given UID.
-func expectedClusterShard(t *testing.T, server string, uid apitypes.UID) int {
-	t.Helper()
-	list, err := KubeClientset.CoreV1().Secrets(ArgoCDNamespace).List(t.Context(), metav1.ListOptions{
-		LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster,
-	})
-	require.NoError(t, err)
-	clusters := []Cluster{{Server: KubernetesInternalAPIServerAddr}}
-	for i := range list.Items {
-		c, err := db.SecretToCluster(&list.Items[i])
-		if err != nil || c.Server == server {
-			continue
-		}
-		if c.Server == KubernetesInternalAPIServerAddr {
-			clusters[0] = *c
-			continue
-		}
-		clusters = append(clusters, *c)
-	}
-	clusters = append(clusters, Cluster{ID: string(uid), Server: server})
-	distribution := sharding.NewClusterSharding(nil, 0, 2, common.RoundRobinShardingAlgorithm)
-	distribution.Init(&ClusterList{Items: clusters}, &ApplicationList{})
-	return distribution.GetDistribution()[server]
 }
 
 // createClusterBearerToken creates a cluster-admin ServiceAccount in ns and
@@ -275,6 +234,7 @@ func createClusterBearerToken(ctx *Context, suffix string, ns string) string {
 	return token
 }
 
+// createClusterSecretWithShard creates a cluster secret and assigns it to a shard
 func createClusterSecretWithShard(ctx *Context, shard int, ns string) string {
 	token := createClusterBearerToken(ctx, "shard-"+strconv.Itoa(shard), ns)
 
