@@ -51,6 +51,42 @@ describe('EditableSection – noReadonlyMode', () => {
         expect(save).toHaveBeenCalledTimes(1);
     });
 
+    test('preserves pending edits when the parent rerenders with unchanged values', async () => {
+        const save = jest.fn().mockImplementation(() => new Promise(() => undefined));
+        let capturedFormApi: FormApi | null = null;
+        const items: EditablePanelItem[] = [
+            {
+                title: 'Path',
+                view: <span />,
+                edit: (api: FormApi) => {
+                    capturedFormApi = api;
+                    return <span data-testid='form-value'>{api.values.path}</span>;
+                }
+            }
+        ];
+        const {rerender} = render(<EditableSection uniqueId='source' values={{path: 'apps'}} items={items} save={save} noReadonlyMode ctx={ctx} />);
+
+        await act(async () => {
+            capturedFormApi?.setValue('path', 'apps/demo');
+        });
+        expect(save).toHaveBeenCalledTimes(1);
+        expect(save).toHaveBeenLastCalledWith({path: 'apps/demo'}, {});
+
+        rerender(<EditableSection uniqueId='source' values={{path: 'apps'}} items={items} save={save} noReadonlyMode ctx={ctx} />);
+        expect(screen.getByTestId('form-value')).toHaveTextContent('apps/demo');
+
+        await act(async () => {
+            capturedFormApi?.setError('path', 'Invalid path');
+        });
+        expect(save).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            capturedFormApi?.setValue('path', 'apps/other');
+        });
+        expect(save).toHaveBeenCalledTimes(2);
+        expect(save).toHaveBeenLastCalledWith({path: 'apps/other'}, {});
+    });
+
     test('does not save values synchronized from the parent', async () => {
         const save = jest.fn().mockResolvedValue(undefined);
         const items: EditablePanelItem[] = [
@@ -69,6 +105,10 @@ describe('EditableSection – noReadonlyMode', () => {
         rerender(<EditableSection uniqueId='source' values={{path: 'v2'}} items={items} save={save} noReadonlyMode ctx={ctx} />);
 
         await waitFor(() => expect(screen.getByTestId('form-value')).toHaveTextContent('v2'));
+        expect(save).not.toHaveBeenCalled();
+
+        rerender(<EditableSection uniqueId='source' values={{path: 'v1'}} items={items} save={save} noReadonlyMode ctx={ctx} />);
+        await waitFor(() => expect(screen.getByTestId('form-value')).toHaveTextContent('v1'));
         expect(save).not.toHaveBeenCalled();
     });
 });

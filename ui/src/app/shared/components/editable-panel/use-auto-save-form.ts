@@ -9,6 +9,7 @@ function serializeValues(values: unknown): string {
 
 export function useAutoSaveForm<T extends {}>(values: T, noReadonlyMode?: boolean, save?: Save<T>) {
     const formApiRef = useRef<FormApi | null>(null);
+    const lastInboundValuesRef = useRef(serializeValues(values));
     // Form.formDidUpdate also runs after programmatic value synchronization and
     // touched/error updates. Track the last inbound or saved value snapshot so
     // only a new user value is propagated to the parent form.
@@ -16,6 +17,12 @@ export function useAutoSaveForm<T extends {}>(values: T, noReadonlyMode?: boolea
 
     useEffect(() => {
         const valuesString = serializeValues(values);
+        // A fresh parent object with unchanged values must not reset a pending edit.
+        if (valuesString === lastInboundValuesRef.current) {
+            return;
+        }
+
+        lastInboundValuesRef.current = valuesString;
         lastHandledValuesRef.current = valuesString;
 
         if (noReadonlyMode && formApiRef.current && serializeValues(formApiRef.current.values) !== valuesString) {

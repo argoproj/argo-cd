@@ -256,6 +256,14 @@ describe('EditablePanel – noReadonlyMode', () => {
 
         await waitFor(() => expect(screen.getByTestId('form-value')).toHaveTextContent('v2'));
         expect(save).not.toHaveBeenCalled();
+
+        rerender(
+            <Wrapper>
+                <EditablePanel values={{name: 'v1'}} items={editItems} save={save} noReadonlyMode />
+            </Wrapper>
+        );
+        await waitFor(() => expect(screen.getByTestId('form-value')).toHaveTextContent('v1'));
+        expect(save).not.toHaveBeenCalled();
     });
 
     test('does not save touched or error-only form updates', async () => {
@@ -285,6 +293,46 @@ describe('EditablePanel – noReadonlyMode', () => {
         });
 
         expect(save).not.toHaveBeenCalled();
+    });
+
+    test('preserves pending edits when the parent rerenders with unchanged values', async () => {
+        const save = jest.fn().mockImplementation(() => new Promise(() => undefined));
+        let capturedFormApi: FormApi | null = null;
+        const editItems: EditablePanelItem[] = [
+            {
+                title: 'Name',
+                view: <span />,
+                edit: (api: FormApi) => {
+                    capturedFormApi = api;
+                    return <span data-testid='form-value'>{api.values.name}</span>;
+                }
+            }
+        ];
+        const {rerender} = renderPanel(<EditablePanel values={{name: 'alice'}} items={editItems} save={save} noReadonlyMode />);
+
+        await act(async () => {
+            capturedFormApi?.setValue('name', 'bob');
+        });
+        expect(save).toHaveBeenCalledTimes(1);
+        expect(save).toHaveBeenLastCalledWith({name: 'bob'}, {});
+
+        rerender(
+            <Wrapper>
+                <EditablePanel values={{name: 'alice'}} items={editItems} save={save} noReadonlyMode />
+            </Wrapper>
+        );
+        expect(screen.getByTestId('form-value')).toHaveTextContent('bob');
+
+        await act(async () => {
+            capturedFormApi?.setTouched('name', true);
+        });
+        expect(save).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            capturedFormApi?.setValue('name', 'carol');
+        });
+        expect(save).toHaveBeenCalledTimes(2);
+        expect(save).toHaveBeenLastCalledWith({name: 'carol'}, {});
     });
 
     test('saves every distinct user value while earlier saves are pending', async () => {
