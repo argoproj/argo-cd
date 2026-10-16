@@ -36,6 +36,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"golang.org/x/sync/semaphore"
+	"golang.org/x/sync/singleflight"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -227,6 +228,7 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		manifestStorageType:     ManifestStorageJSON,
 		manifestCompressionType: ManifestCompressionGZipBestSpeed,
 		parentUIDToChildren:     make(map[types.UID]map[kube.ResourceKey]struct{}),
+		apiServicesAvailability: make(map[string]bool),
 	}
 	for i := range opts {
 		opts[i](cache)
@@ -303,6 +305,10 @@ type clusterCache struct {
 	// Using a set eliminates O(k) duplicate checking on insertions
 	// Used for cross-namespace hierarchy traversal; namespaced traversal still builds a graph
 	parentUIDToChildren map[types.UID]map[kube.ResourceKey]struct{}
+
+	apiServicesLock         sync.Mutex
+	apiServicesAvailability map[string]bool
+	apiServiceSingleflight  singleflight.Group
 }
 
 type clusterCacheSync struct {
@@ -692,6 +698,9 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 	if c.batchEventsProcessing {
 		c.invalidateEventMeta()
 	}
+	c.apiServicesLock.Lock()
+	c.apiServicesAvailability = make(map[string]bool)
+	c.apiServicesLock.Unlock()
 	c.apisMeta = nil
 	c.namespacedResources.Store(nil)
 	c.log.Info("Invalidated cluster")
@@ -852,10 +861,14 @@ func (c *clusterCache) loadInitialState(ctx context.Context, api kube.APIResourc
 		// Use the WithAlloc variant: newResource may retain the object (as Resource.Resource, or via the
 		// Info returned by the OnPopulateResourceInfoHandler). Plain EachListItem yields &list.Items[i],
 		// so retaining one item keeps the page's whole backing array, and every manifest in it, reachable.
+		isAPIService := kube.IsAPIServiceGroupKind(api.GroupKind)
 		return listPager.EachListItemWithAlloc(ctx, metav1.ListOptions{LabelSelector: api.LabelSelector}, func(obj runtime.Object) error {
 			if un, ok := obj.(*unstructured.Unstructured); !ok {
 				return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
 			} else {
+				if isAPIService {
+					c.setAPIServiceAvailable(un.GetName(), isAPIServiceAvailable(un))
+				}
 				items = append(items, c.newResource(un))
 			}
 			return nil
@@ -991,16 +1004,25 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 					// watched, mirroring how CRD events are handled above. Otherwise the
 					// new kinds remain invisible until the next manual cache invalidation
 					// or full resync.
-					deleted := event.Type == watch.Deleted
-					if deleted || isAPIServiceAvailable(obj) {
-						// The kube-apiserver's aggregated discovery can lag behind an
-						// APIService reporting Available, so the group may not be served yet
-						// when we first re-run discovery. Reconcile watches with a bounded
-						// retry (in a goroutine to avoid blocking this watch) until the
-						// APIService's own group is served or we exhaust our attempts.
-						group, _, _ := unstructured.NestedString(obj.Object, "spec", "group")
-						c.log.Info("Reconciling Kubernetes APIs, watches, and Open API schemas due to APIService event", "eventType", event.Type, "name", obj.GetName(), "group", group)
-						go c.reconcileAPIServiceWatches(group, !deleted)
+					name := obj.GetName()
+					group, _, _ := unstructured.NestedString(obj.Object, "spec", "group")
+					available := isAPIServiceAvailable(obj)
+					switch event.Type {
+					case watch.Deleted:
+						c.deleteAPIService(name)
+						c.log.Info("Reconciling Kubernetes APIs, watches, and Open API schemas due to APIService event", "eventType", event.Type, "name", name, "group", group)
+						go c.reconcileAPIServiceWatches(group, false)
+					case watch.Added:
+						c.setAPIServiceAvailable(name, available)
+						if available {
+							c.log.Info("Reconciling Kubernetes APIs, watches, and Open API schemas due to APIService event", "eventType", event.Type, "name", name, "group", group)
+							go c.reconcileAPIServiceWatches(group, true)
+						}
+					case watch.Modified:
+						if c.updateAPIServiceAvailability(name, available) {
+							c.log.Info("Reconciling Kubernetes APIs, watches, and Open API schemas due to APIService event", "eventType", event.Type, "name", name, "group", group)
+							go c.reconcileAPIServiceWatches(group, true)
+						}
 					}
 				}
 			}
@@ -1031,27 +1053,71 @@ func (c *clusterCache) reloadOpenAPISchema() error {
 // APIService reporting Available, so when waitForGroup is true (Added/Modified
 // while Available) it retries with exponential backoff (9 attempts, intervals
 // growing 500ms -> ~8.5s for a ~25s total budget) until the APIService's group
-// is served by the cluster (i.e. a watch for it has been started) or the attempts
-// are exhausted. For deletions it reconciles once.
+// is watched, or was already served before the attempt's watch pass (a group
+// with no watchable kinds), or the attempts are exhausted. Concurrent calls for
+// the same group are deduplicated via singleflight. For deletions it reconciles once.
 func (c *clusterCache) reconcileAPIServiceWatches(group string, waitForGroup bool) {
-	err := wait.ExponentialBackoff(wait.Backoff{
-		Duration: 500 * time.Millisecond,
-		Factor:   1.5,
-		Steps:    9,
-	}, func() (bool, error) {
-		if err := runSynced(&c.lock, func() error {
-			return c.startMissingWatches()
-		}); err != nil {
-			c.log.Error(err, "Failed to start missing watches after APIService event")
+	key := fmt.Sprintf("%s:%t", group, waitForGroup)
+	_, _, _ = c.apiServiceSingleflight.Do(key, func() (any, error) {
+		err := wait.ExponentialBackoff(wait.Backoff{
+			Duration: 500 * time.Millisecond,
+			Factor:   1.5,
+			Steps:    9,
+		}, func() (bool, error) {
+			// Read before the watch pass, else a group served after it ends the loop unwatched.
+			discovered := waitForGroup && group != "" && c.isGroupDiscovered(group)
+			if err := runSynced(&c.lock, func() error {
+				return c.startMissingWatches()
+			}); err != nil {
+				c.log.Error(err, "Failed to start missing watches after APIService event")
+			}
+			if err := c.reloadOpenAPISchema(); err != nil {
+				c.log.Error(err, "Failed to reload open api schema after APIService event")
+			}
+			return !waitForGroup || group == "" || discovered || c.isGroupWatched(group), nil
+		})
+		if err != nil {
+			c.log.Info("Aggregated API group is not served by discovery yet after retries; it will be picked up on the next resync", "group", group)
 		}
-		if err := c.reloadOpenAPISchema(); err != nil {
-			c.log.Error(err, "Failed to reload open api schema after APIService event")
-		}
-		return !waitForGroup || group == "" || c.isGroupWatched(group), nil
+		return nil, nil
 	})
+}
+
+func (c *clusterCache) updateAPIServiceAvailability(name string, available bool) bool {
+	c.apiServicesLock.Lock()
+	defer c.apiServicesLock.Unlock()
+	prev := c.apiServicesAvailability[name]
+	c.apiServicesAvailability[name] = available
+	return !prev && available
+}
+
+func (c *clusterCache) setAPIServiceAvailable(name string, available bool) {
+	c.apiServicesLock.Lock()
+	defer c.apiServicesLock.Unlock()
+	c.apiServicesAvailability[name] = available
+}
+
+func (c *clusterCache) deleteAPIService(name string) {
+	c.apiServicesLock.Lock()
+	defer c.apiServicesLock.Unlock()
+	delete(c.apiServicesAvailability, name)
+}
+
+func (c *clusterCache) isGroupDiscovered(group string) bool {
+	serverResources, err := c.kubectl.GetServerResources(c.config, true)
 	if err != nil {
-		c.log.Info("Aggregated API group is not served by discovery yet after retries; it will be picked up on the next resync", "group", group)
+		return false
 	}
+	for _, list := range serverResources {
+		gv, err := schema.ParseGroupVersion(list.GroupVersion)
+		if err != nil {
+			continue
+		}
+		if gv.Group == group {
+			return true
+		}
+	}
+	return false
 }
 
 // isGroupWatched reports whether the cache has started watching any resource in
@@ -1262,6 +1328,7 @@ func (c *clusterCache) sync() (err error) {
 		namespacedResources[api.GroupKind] = api.Meta.Namespaced
 		syncLock.Unlock()
 
+		isAPIService := kube.IsAPIServiceGroupKind(api.GroupKind)
 		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
 			resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
 				// Use the WithAlloc variant: newResource may retain the object (as Resource.Resource, or via the
@@ -1271,6 +1338,9 @@ func (c *clusterCache) sync() (err error) {
 					if un, ok := obj.(*unstructured.Unstructured); !ok {
 						return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
 					} else {
+						if isAPIService {
+							c.setAPIServiceAvailable(un.GetName(), isAPIServiceAvailable(un))
+						}
 						newRes := c.newResource(un)
 						syncLock.Lock()
 						c.setNode(newRes)

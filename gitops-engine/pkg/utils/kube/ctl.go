@@ -40,6 +40,7 @@ type Kubectl interface {
 	CreateResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, obj *unstructured.Unstructured, createOptions metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error)
 	PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte, subresources ...string) (*unstructured.Unstructured, error)
 	GetAPIResources(config *rest.Config, preferred bool, resourceFilter ResourceFilter) ([]APIResourceInfo, error)
+	GetServerResources(config *rest.Config, preferred bool) ([]*metav1.APIResourceList, error)
 	GetServerVersion(config *rest.Config) (string, error)
 	NewDynamicClient(config *rest.Config) (dynamic.Interface, error)
 	SetOnKubectlRun(onKubectlRun OnKubectlRunFunc)
@@ -62,7 +63,9 @@ type APIResourceInfo struct {
 
 type filterFunc func(apiResource *metav1.APIResource) bool
 
-func (k *KubectlCmd) filterAPIResources(config *rest.Config, preferred bool, resourceFilter ResourceFilter, filter filterFunc) ([]APIResourceInfo, error) {
+func (k *KubectlCmd) GetServerResources(config *rest.Config, preferred bool) ([]*metav1.APIResourceList, error) {
+	span := k.Tracer.StartSpan("GetServerResources")
+	defer span.Finish()
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create discovery client: %w", err)
@@ -80,6 +83,14 @@ func (k *KubectlCmd) filterAPIResources(config *rest.Config, preferred bool, res
 			return nil, fmt.Errorf("failed to discover server resources, zero resources returned: %w", err)
 		}
 		k.Log.Error(err, "Partial success when performing preferred resource discovery")
+	}
+	return serverResources, nil
+}
+
+func (k *KubectlCmd) filterAPIResources(config *rest.Config, preferred bool, resourceFilter ResourceFilter, filter filterFunc) ([]APIResourceInfo, error) {
+	serverResources, err := k.GetServerResources(config, preferred)
+	if err != nil {
+		return nil, err
 	}
 	apiResIfs := make([]APIResourceInfo, 0)
 	for _, apiResourcesList := range serverResources {
