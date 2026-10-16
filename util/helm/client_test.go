@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -87,6 +88,51 @@ func TestIndex(t *testing.T) {
 
 		assert.ErrorContains(t, err, "unexpected end of stream")
 	})
+}
+
+func TestGetIndexCanceledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	client := NewClient("https://charts.example.test", HelmCreds{}, false, "", "",
+		WithIndexCache(&fakeIndexCache{data: []byte("apiVersion: v1\nentries: {}\n")}))
+	_, err := client.GetIndex(ctx, false, 1024)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestGetIndexCancelsHTTPRequest(t *testing.T) {
+	started := make(chan struct{})
+	canceled := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		close(started)
+		<-r.Context().Done()
+		close(canceled)
+	}))
+	t.Cleanup(server.Close)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	t.Cleanup(cancel)
+	client := NewClient(server.URL, HelmCreds{}, false, "", "")
+	result := make(chan error, 1)
+	go func() {
+		_, err := client.GetIndex(ctx, false, 1024)
+		result <- err
+	}()
+	select {
+	case <-started:
+	case <-ctx.Done():
+		t.Fatal("repository index request did not start")
+	}
+	cancel()
+	select {
+	case err := <-result:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(5 * time.Second):
+		t.Fatal("GetIndex did not return after cancellation")
+	}
+	select {
+	case <-canceled:
+	case <-time.After(5 * time.Second):
+		t.Fatal("HTTP request was not canceled")
+	}
 }
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {

@@ -308,8 +308,14 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 }
 
 func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSize int64) (*Index, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	indexLock.Lock(c.repoURL)
 	defer indexLock.Unlock(c.repoURL)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	var data []byte
 	if !noCache && c.indexCache != nil {
