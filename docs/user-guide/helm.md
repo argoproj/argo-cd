@@ -457,6 +457,11 @@ source:
               - mydomain.example.com
 ```
 
+> [!NOTE]
+> **Values Validation**
+>
+> Helm values provided via `values` or `valuesObject` must be valid YAML and must represent a YAML map/object (rather than an array, scalar, or null). If invalid YAML is supplied via the UI, it is rejected by validation rather than being saved.
+
 ## Helm Parameters
 
 Helm has the ability to set parameter values, which override any values in

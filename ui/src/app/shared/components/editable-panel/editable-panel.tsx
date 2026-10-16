@@ -233,7 +233,11 @@ function EditablePanel<T extends {} = {}>({
                                 getApi={api => (formApiRef.current = api)}
                                 formDidUpdate={async form => {
                                     if (noReadonlyMode && save) {
-                                        await save(form.values as any, {});
+                                        const errors = validate?.(form.values as any) || {};
+                                        const hasErrors = Object.keys(errors).some(k => !!(errors as any)[k]);
+                                        if (!hasErrors) {
+                                            await save(form.values as any, {});
+                                        }
                                     }
                                 }}
                                 onSubmit={handleSubmit}
