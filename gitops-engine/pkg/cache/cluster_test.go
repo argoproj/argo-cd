@@ -2176,7 +2176,7 @@ func TestDiscoveryGetters_ConcurrentWithResync(t *testing.T) {
 			})
 			cluster.Invalidate()
 			require.NoError(t, cluster.EnsureSynced())
-			require.NoError(t, cluster.reloadOpenAPISchema())
+			require.NoError(t, runSynced(&cluster.lock, cluster.reloadOpenAPISchema))
 			// As the CRD watch does.
 			require.NoError(t, runSynced(&cluster.lock, func() error {
 				cluster.appendAPIResource(crdInfo)
@@ -2222,6 +2222,61 @@ func TestCRDVersionsToAPIResources(t *testing.T) {
 	resources, err = cluster.crdVersionsToAPIResources(crd(map[string]any{"preserveUnknownFields": "not-a-bool"}))
 	require.Error(t, err)
 	assert.Nil(t, resources)
+}
+
+// TestHandleCRDEvent_LockContract checks that handleCRDEvent, called without
+// c.lock, takes the lock itself around startMissingWatches and
+// reloadOpenAPISchema. If either callee took it too, the non-reentrant lock
+// would deadlock and the test would time out.
+func TestHandleCRDEvent_LockContract(t *testing.T) {
+	t.Parallel()
+	// Not newCluster: its cleanup calls Invalidate, which would wait forever on
+	// the lock a deadlocked handleCRDEvent still holds.
+	cluster := newClusterWithOptions(t, nil)
+	deadlocked := false
+	t.Cleanup(func() {
+		if !deadlocked {
+			cluster.Invalidate()
+		}
+	})
+	require.NoError(t, cluster.EnsureSynced())
+
+	crd := strToUnstructured(`
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: dummies.example.com
+spec:
+  group: example.com
+  scope: Namespaced
+  names:
+    kind: Dummy
+    plural: dummies
+    singular: dummy
+  versions:
+  - name: v1`)
+	require.True(t, kube.IsCRD(crd), "sanity: the fixture must be recognised as a CRD")
+
+	// All three event types take the same locking path as the watch loop.
+	for _, event := range []watch.EventType{watch.Added, watch.Modified, watch.Deleted} {
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			cluster.handleCRDEvent(legacyEngineOf(cluster), event, crd)
+		}()
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			deadlocked = true
+			t.Fatalf("handleCRDEvent(%s) did not return; store.lock is likely acquired twice", event)
+		}
+	}
+
+	cluster.lock.RLock()
+	defer cluster.lock.RUnlock()
+	for _, api := range cluster.GetAPIResources() {
+		assert.NotEqual(t, "Dummy", api.GroupKind.Kind, "the deleted CRD must not remain in apiResources")
+	}
 }
 
 func buildTestResourceMap() map[kube.ResourceKey]*Resource {
