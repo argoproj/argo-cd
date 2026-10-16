@@ -97,7 +97,7 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 }
 
 func verifyWithSignedTags(policy *v1alpha1.SourceIntegrityGitPolicy, check gitFunc) gitFunc {
-	const signedTagsCheckName = "GIT/SIGNED-TAGS"
+	const signedTagsCheckName = "GIT"
 
 	return func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
 		if policy.SignedTagsOnly && !gitClient.IsAnnotatedTag(ctx, verifiedRevision) {

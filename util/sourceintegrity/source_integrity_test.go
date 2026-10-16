@@ -747,7 +747,7 @@ func TestSignedTagsOnly(t *testing.T) {
 
 			if tc.expectedProblem != "" {
 				assert.False(t, result.IsValid())
-				require.EqualError(t, result.AsError(), "GIT/SIGNED-TAGS: "+tc.expectedProblem)
+				require.EqualError(t, result.AsError(), "GIT: "+tc.expectedProblem)
 				assert.Empty(t, result.PassedChecks())
 				assert.Equal(t, tc.expectedProblem, legacy)
 				gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)

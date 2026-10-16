@@ -492,7 +492,7 @@ func TestSignedTagsOnlyRejectsLightweightTag(t *testing.T) {
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(HealthIs(health.HealthStatusMissing)).
-		Expect(Condition(ApplicationConditionComparisonError, "GIT/SIGNED-TAGS: SignedTagsOnly is enabled, lightweight-tag is not annotated"))
+		Expect(Condition(ApplicationConditionComparisonError, "GIT: SignedTagsOnly is enabled, lightweight-tag is not annotated"))
 }
 
 func TestSignedTagsOnlyRejectsBranch(t *testing.T) {
@@ -513,7 +513,7 @@ func TestSignedTagsOnlyRejectsBranch(t *testing.T) {
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(HealthIs(health.HealthStatusMissing)).
-		Expect(Condition(ApplicationConditionComparisonError, "GIT/SIGNED-TAGS: SignedTagsOnly is enabled"))
+		Expect(Condition(ApplicationConditionComparisonError, "GIT: SignedTagsOnly is enabled"))
 }
 
 func TestSignedTagsOnlyAcceptsSignedAnnotatedTag(t *testing.T) {
