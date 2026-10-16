@@ -52,7 +52,7 @@ export const Filters = (props: FiltersProps) => {
         props.onClearFilter();
     };
 
-    const resourceFilter = pref.resourceFilter || [];
+    const resourceFilter = React.useMemo(() => pref.resourceFilter || [], [pref.resourceFilter]);
     const removePrefix = (prefix: string) => (v: string) => v.replace(prefix + ':', '');
 
     const [loading, setLoading] = React.useState(true);

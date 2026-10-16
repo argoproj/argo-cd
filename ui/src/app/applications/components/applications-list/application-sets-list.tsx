@@ -242,9 +242,7 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
                 const itemWidth = itemRef.current ? itemRef.current.offsetWidth : -1;
                 const containerWidth = containerRef.current ? containerRef.current.offsetWidth : -1;
                 const curItemsPer = containerWidth > 0 && itemWidth > 0 ? Math.floor(containerWidth / itemWidth) : 1;
-                if (curItemsPer !== itemsPer) {
-                    setItemsPer(curItemsPer);
-                }
+                setItemsPer(prev => (curItemsPer !== prev ? curItemsPer : prev));
             }, 1000);
         };
         window.addEventListener('resize', handleResize);
@@ -253,7 +251,7 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
             clearTimeout(timeoutId);
             window.removeEventListener('resize', handleResize);
         };
-    }, []);
+    }, [itemRef, containerRef]);
 
     return itemsPer || 1;
 };
