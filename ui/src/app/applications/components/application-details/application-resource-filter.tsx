@@ -31,6 +31,70 @@ export function getEffectiveResourceFilter(isApplicationSet: boolean, resourceFi
     return (resourceFilter || []).filter(f => !APPLICATION_SET_HIDDEN_FILTERS.some(prefix => f.startsWith(prefix)));
 }
 
+// Structural stand-in for the resource fields this filter reads.
+type ResourceFilterNode = {
+    name: string;
+    kind: string;
+    namespace?: string;
+    health?: {status?: string} | null;
+    root?: {
+        hook?: boolean;
+        status?: string;
+        health?: {status?: string} | null;
+    } | null;
+};
+
+type ResourceFilterInput = {
+    name: string[];
+    kind: string[];
+    health: string[];
+    sync: string[];
+    namespace: string[];
+};
+
+function escapeRegex(input: string): string {
+    return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function nodeNameMatchesWildcardFilters(nodeName: string, filterInputNames: string[]): boolean {
+    const regularExpression = new RegExp(
+        filterInputNames
+            // Escape any regex input to ensure only * can be used
+            .map(pattern => '^' + escapeRegex(pattern) + '$')
+            // Replace any escaped * with proper regex
+            .map(pattern => pattern.replace(/\\\*/g, '.*'))
+            // Join all filterInputs to a single regular expression
+            .join('|'),
+        'gi'
+    );
+    return regularExpression.test(nodeName);
+}
+
+// Predicate for the flat resource list and the resource tree. An active health filter matches
+// root.health.status or node.health.status, the same field the sidebar count uses.
+// The sync clause matches root.hook because hooks have no persisted sync status.
+export function resourceNodeMatchesFilter(node: ResourceFilterNode, filterInput: ResourceFilterInput): boolean {
+    const syncStatuses = filterInput.sync.map(item => (item === 'OutOfSync' ? ['OutOfSync', 'Unknown'] : [item])).reduce((first, second) => first.concat(second), []);
+
+    const root = node.root || {};
+    const hook = root && root.hook;
+    if (
+        (filterInput.name.length === 0 || nodeNameMatchesWildcardFilters(node.name, filterInput.name)) &&
+        (filterInput.kind.length === 0 || filterInput.kind.indexOf(node.kind) > -1) &&
+        // include if node's root sync matches filter
+        (syncStatuses.length === 0 || hook || (root.status && syncStatuses.indexOf(root.status) > -1)) &&
+        // include if node or node's root health matches filter
+        (filterInput.health.length === 0 ||
+            (root.health && filterInput.health.indexOf(root.health.status) > -1) ||
+            (node.health && filterInput.health.indexOf(node.health.status) > -1)) &&
+        (filterInput.namespace.length === 0 || filterInput.namespace.includes(node.namespace))
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
 export interface FiltersProps {
     children?: React.ReactNode;
     pref: AppDetailsPreferences;
