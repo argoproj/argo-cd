@@ -56,7 +56,7 @@ go install golang.org/x/tools/cmd/goimports@v0.35.0
 
 # mockery is used to generate mock
 # renovate: datasource=go packageName=github.com/vektra/mockery/v3
-MOCKERY_VERSION=3.8.0
+MOCKERY_VERSION=3.8.1
 # mockery v3.8.0 pins golang.org/x/tools v0.49.0, which cannot read the export data written by Go 1.27.2.
 # Build it against a newer x/tools until https://github.com/vektra/mockery/issues/1187 is fixed.
 MOCKERY_BUILD_DIR="$(mktemp -d)"
