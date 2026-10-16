@@ -981,3 +981,164 @@ func Test_asResourceNode_same_namespace_parent(t *testing.T) {
 	assert.Equal(t, "my-deployment", resNode.ParentRefs[0].Name)
 	assert.Equal(t, "my-namespace", resNode.ParentRefs[0].Namespace, "Deployment parent should have same namespace")
 }
+
+func setClusterCacheEnv(t *testing.T, value string) {
+	t.Helper()
+	for _, name := range []string{
+		EnvClusterCacheResyncDuration,
+		EnvClusterCacheWatchResyncDuration,
+		EnvClusterSyncRetryTimeoutDuration,
+		EnvClusterCacheListPageSize,
+		EnvClusterCacheListPageBufferSize,
+		EnvClusterCacheListSemaphore,
+		EnvClusterCacheAttemptLimit,
+		EnvClusterCacheRetryUseBackoff,
+		EnvClusterCacheBatchEventsProcessing,
+		EnvClusterCacheEventsProcessingInterval,
+	} {
+		t.Setenv(name, value)
+	}
+}
+
+func defaultClusterCacheConfig() ClusterCacheConfig {
+	return ClusterCacheConfig{
+		ResyncDuration:           12 * time.Hour,
+		WatchResyncDuration:      10 * time.Minute,
+		SyncRetryTimeout:         10 * time.Second,
+		ListPageSize:             500,
+		ListPageBufferSize:       1,
+		ListSemaphoreSize:        50,
+		AttemptLimit:             1,
+		RetryUseBackoff:          false,
+		BatchEventsProcessing:    true,
+		EventsProcessingInterval: 100 * time.Millisecond,
+	}
+}
+
+func TestClusterCacheConfigFromEnv(t *testing.T) {
+	t.Run("defaults", func(t *testing.T) {
+		setClusterCacheEnv(t, "")
+		assert.Equal(t, defaultClusterCacheConfig(), ClusterCacheConfigFromEnv())
+	})
+
+	t.Run("overrides", func(t *testing.T) {
+		setClusterCacheEnv(t, "")
+		t.Setenv(EnvClusterCacheResyncDuration, "6h")
+		t.Setenv(EnvClusterCacheWatchResyncDuration, "5m")
+		t.Setenv(EnvClusterSyncRetryTimeoutDuration, "30s")
+		t.Setenv(EnvClusterCacheListPageSize, "250")
+		t.Setenv(EnvClusterCacheListPageBufferSize, "4")
+		t.Setenv(EnvClusterCacheListSemaphore, "10")
+		t.Setenv(EnvClusterCacheAttemptLimit, "3")
+		t.Setenv(EnvClusterCacheRetryUseBackoff, "true")
+		t.Setenv(EnvClusterCacheBatchEventsProcessing, "false")
+		t.Setenv(EnvClusterCacheEventsProcessingInterval, "1s")
+
+		assert.Equal(t, ClusterCacheConfig{
+			ResyncDuration:           6 * time.Hour,
+			WatchResyncDuration:      5 * time.Minute,
+			SyncRetryTimeout:         30 * time.Second,
+			ListPageSize:             250,
+			ListPageBufferSize:       4,
+			ListSemaphoreSize:        10,
+			AttemptLimit:             3,
+			RetryUseBackoff:          true,
+			BatchEventsProcessing:    false,
+			EventsProcessingInterval: time.Second,
+		}, ClusterCacheConfigFromEnv())
+	})
+
+	t.Run("out of range values fall back to defaults", func(t *testing.T) {
+		setClusterCacheEnv(t, "")
+		t.Setenv(EnvClusterCacheResyncDuration, "-1s")
+		t.Setenv(EnvClusterCacheListPageSize, "-1")
+		t.Setenv(EnvClusterCacheListPageBufferSize, "0")
+		t.Setenv(EnvClusterCacheAttemptLimit, "0")
+		t.Setenv(EnvClusterCacheEventsProcessingInterval, "invalid")
+
+		assert.Equal(t, defaultClusterCacheConfig(), ClusterCacheConfigFromEnv())
+	})
+
+	t.Run("zero values that would break the cluster cache fall back to defaults", func(t *testing.T) {
+		setClusterCacheEnv(t, "")
+		t.Setenv(EnvClusterCacheListSemaphore, "0")
+		t.Setenv(EnvClusterCacheEventsProcessingInterval, "0s")
+
+		cfg := ClusterCacheConfigFromEnv()
+
+		assert.Equal(t, defaultClusterCacheConfig(), cfg)
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("every value set to zero keeps the zero values that are allowed", func(t *testing.T) {
+		setClusterCacheEnv(t, "0")
+
+		cfg := ClusterCacheConfigFromEnv()
+
+		want := defaultClusterCacheConfig()
+		want.ResyncDuration = 0
+		want.WatchResyncDuration = 0
+		want.SyncRetryTimeout = 0
+		want.ListPageSize = 0
+		assert.Equal(t, want, cfg)
+		require.NoError(t, cfg.Validate())
+	})
+}
+
+func TestClusterCacheConfigValidate(t *testing.T) {
+	tests := []struct {
+		name    string
+		modify  func(*ClusterCacheConfig)
+		wantErr string
+	}{
+		{name: "defaults", modify: func(*ClusterCacheConfig) {}},
+		{name: "zero values within range", modify: func(c *ClusterCacheConfig) {
+			c.ResyncDuration = 0
+			c.ListPageSize = 0
+		}},
+		{name: "zero events processing interval without batch processing", modify: func(c *ClusterCacheConfig) {
+			c.BatchEventsProcessing = false
+			c.EventsProcessingInterval = 0
+		}},
+		{name: "zero events processing interval with batch processing", modify: func(c *ClusterCacheConfig) { c.EventsProcessingInterval = 0 }, wantErr: "events processing interval must be greater than 0"},
+		{name: "negative resync duration", modify: func(c *ClusterCacheConfig) { c.ResyncDuration = -time.Second }, wantErr: "resync duration must not be negative"},
+		{name: "negative watch resync duration", modify: func(c *ClusterCacheConfig) { c.WatchResyncDuration = -time.Second }, wantErr: "watch resync duration must not be negative"},
+		{name: "negative sync retry timeout", modify: func(c *ClusterCacheConfig) { c.SyncRetryTimeout = -time.Second }, wantErr: "sync retry timeout must not be negative"},
+		{name: "negative events processing interval", modify: func(c *ClusterCacheConfig) { c.EventsProcessingInterval = -time.Second }, wantErr: "events processing interval must not be negative"},
+		{name: "negative list page size", modify: func(c *ClusterCacheConfig) { c.ListPageSize = -1 }, wantErr: "list page size must not be negative"},
+		{name: "list page buffer size below 1", modify: func(c *ClusterCacheConfig) { c.ListPageBufferSize = 0 }, wantErr: "list page buffer size must be at least 1"},
+		{name: "list semaphore size below 1", modify: func(c *ClusterCacheConfig) { c.ListSemaphoreSize = 0 }, wantErr: "list semaphore size must be at least 1"},
+		{name: "attempt limit below 1", modify: func(c *ClusterCacheConfig) { c.AttemptLimit = 0 }, wantErr: "attempt limit must be at least 1"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := defaultClusterCacheConfig()
+			tt.modify(&cfg)
+			err := cfg.Validate()
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+
+	t.Run("reports every invalid value", func(t *testing.T) {
+		cfg := defaultClusterCacheConfig()
+		cfg.ListPageBufferSize = 0
+		cfg.AttemptLimit = 0
+		err := cfg.Validate()
+		require.ErrorContains(t, err, "list page buffer size must be at least 1")
+		require.ErrorContains(t, err, "attempt limit must be at least 1")
+	})
+}
+
+func TestNewLiveStateCache_UsesClusterCacheConfig(t *testing.T) {
+	cfg := defaultClusterCacheConfig()
+	cfg.ListPageSize = 42
+	cfg.AttemptLimit = 3
+
+	c := NewLiveStateCache(nil, nil, nil, nil, nil, nil, nil, cfg)
+
+	assert.Equal(t, cfg, c.(*liveStateCache).clusterCacheConfig)
+}

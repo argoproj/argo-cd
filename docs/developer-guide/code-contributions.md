@@ -98,6 +98,35 @@ For some enhancement proposals (especially those that will change behavior of Ar
 
 Design documents are usually submitted as PR and use [this template](https://github.com/argoproj/argo-cd/blob/master/docs/proposals/001-proposal-template.md) as a guide what kind of information we're looking for. Discussion will take place in the review process. When a design document gets merged, we consider it as approved and code can be written and submitted to implement this specific design.
 
+## Adding a configuration option
+
+When you add a setting to an Argo CD component, expose it the same way as the existing settings of that component so
+that operators can find and set it in one place:
+
+1. Add a CLI flag to the component's command and read the flag's default from an `ARGOCD_*` environment variable through
+   the helpers in `util/env`. Pass the value into the code that uses it. Do not read environment variables in `init()`
+   functions or store them in package-level variables.
+2. Add an `argocd-cmd-params-cm` key for the setting and wire it to the environment variable with an `optional: true`
+   `configMapKeyRef` in every manifest under `manifests/base` that runs the component. The application controller, for
+   example, has both a StatefulSet and a Deployment.
+3. Document the key and its default in `docs/operator-manual/argocd-cmd-params-cm.yaml`.
+4. Run `make codegen` to regenerate the install manifests and the command reference docs.
+
+The `--status-processors` flag of the application controller follows this pattern:
+
+```go
+command.Flags().IntVar(&statusProcessors, "status-processors", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_STATUS_PROCESSORS", 20, 0, math.MaxInt32), "Number of application status processors")
+```
+
+```yaml
+- name: ARGOCD_APPLICATION_CONTROLLER_STATUS_PROCESSORS
+  valueFrom:
+    configMapKeyRef:
+      name: argocd-cmd-params-cm
+      key: controller.status.processors
+      optional: true
+```
+
 ## Regular contributor meeting
 
 Our community regularly meets virtually to discuss issues, ideas and enhancements around Argo CD. We do invite you to join this virtual meetings if you want to bring up certain things (including your enhancement proposals), participate in our triage, or just want to get to know other contributors.
