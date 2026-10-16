@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
+	"github.com/argoproj/argo-cd/v3/util/security"
 )
 
 // TestInformerFilterDoesNotCacheDisallowedNamespaces drives the full
@@ -30,7 +31,7 @@ func TestInformerFilterDoesNotCacheDisallowedNamespaces(t *testing.T) {
 	factory := appinformer.NewSharedInformerFactoryWithOptions(client, 0)
 
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
-	require.NoError(t, appInformer.SetTransform(newNamespaceFilterTransform("argocd", []string{"team-a"})))
+	require.NoError(t, appInformer.SetTransform(newNamespaceFilterTransform("argocd", security.NewApplicationNamespaceSet([]string{"team-a"}))))
 
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()

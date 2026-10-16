@@ -31,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/assets"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -202,7 +203,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		nil,
 		testNamespace,
 		sync.NewKeyLock(),
-		[]string{testNamespace, "external-namespace"},
+		security.NewApplicationNamespaceSet([]string{testNamespace, "external-namespace"}),
 		true,
 		true,
 		"",
@@ -330,7 +331,7 @@ func TestListAppSetsInNamespaceWithLabels(t *testing.T) {
 		appset.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value3"})
 	}))
-	appSetServer.enabledNamespaces = []string{testNamespace}
+	appSetServer.enabledNamespaces = security.NewApplicationNamespaceSet([]string{testNamespace})
 	appsetQuery := applicationset.ApplicationSetListQuery{AppsetNamespace: testNamespace}
 
 	testListAppsetsWithLabels(t, appsetQuery, appSetServer)
@@ -370,7 +371,7 @@ func TestListAppSetsWithoutNamespace(t *testing.T) {
 		appset.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value3"})
 	}))
-	appSetServer.enabledNamespaces = []string{testNamespace}
+	appSetServer.enabledNamespaces = security.NewApplicationNamespaceSet([]string{testNamespace})
 	appsetQuery := applicationset.ApplicationSetListQuery{}
 
 	res, err := appSetServer.List(t.Context(), &appsetQuery)

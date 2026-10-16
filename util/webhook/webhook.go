@@ -42,6 +42,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	"github.com/argoproj/argo-cd/v3/util/guard"
+	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -92,7 +93,7 @@ type ArgoCDWebhookHandler struct {
 	serverCache                   *servercache.Cache
 	db                            db.ArgoDB
 	ns                            string
-	appNs                         []string
+	appNs                         *security.ApplicationNamespaceSet
 	appClientset                  appclientset.Interface
 	appsLister                    alpha1.ApplicationLister
 	appProjectsLister             alpha1.AppProjectNamespaceLister
@@ -124,8 +125,9 @@ func ArgoCDParserOptions() ParserOptions {
 	}
 }
 
-func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, webhookRefreshWorkers int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64, webhookRefreshJitter time.Duration, webhookRefreshJitterThreshold int, appProjectsLister alpha1.AppProjectNamespaceLister) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, applicationNamespaces *security.ApplicationNamespaceSet, webhookParallelism int, webhookRefreshWorkers int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64, webhookRefreshJitter time.Duration, webhookRefreshJitterThreshold int, appProjectsLister alpha1.AppProjectNamespaceLister) *ArgoCDWebhookHandler {
 	parsers := NewParsers(set, ArgoCDParserOptions())
+
 	log.Debugf("webhookRefreshJitter=%v", webhookRefreshJitter)
 	log.Debugf("webhookRefreshJitterThreshold=%d", webhookRefreshJitterThreshold)
 
@@ -302,7 +304,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	}
 
 	nsFilter := a.ns
-	if len(a.appNs) > 0 {
+	if len(a.appNs.List()) > 0 {
 		// Retrieve app from all namespaces
 		nsFilter = ""
 	}
@@ -334,7 +336,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	// nor in the list of enabled namespaces.
 	var filteredApps []v1alpha1.Application
 	for _, app := range apps {
-		if app.Namespace == a.ns || glob.MatchStringInList(a.appNs, app.Namespace, glob.REGEXP) {
+		if app.Namespace == a.ns || glob.MatchStringInList(a.appNs.List(), app.Namespace, glob.REGEXP) {
 			filteredApps = append(filteredApps, *app)
 		}
 	}

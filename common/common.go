@@ -260,6 +260,9 @@ const (
 	LabelKeyComponentRepoServer = "app.kubernetes.io/component"
 	// LabelValueComponentRepoServer is the label value for the repo-server component
 	LabelValueComponentRepoServer = "repo-server"
+
+	// LabelKeyReconcileBy is a label for namespaces that indicates that it is a source namespace for applications
+	LabelKeyReconcileBy = "argocd.argoproj.io/reconcile-by"
 )
 
 // Environment variables for tuning and debugging Argo CD

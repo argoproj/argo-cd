@@ -70,7 +70,7 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 
 	// Determine namespaces to search
 	nsFilter := a.ns
-	if len(a.appNs) > 0 {
+	if len(a.appNs.List()) > 0 {
 		nsFilter = ""
 	}
 	appIf := a.appsLister.Applications(nsFilter)
@@ -82,7 +82,7 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 
 	var filteredApps []v1alpha1.Application
 	for _, app := range apps {
-		if app.Namespace == a.ns || glob.MatchStringInList(a.appNs, app.Namespace, glob.REGEXP) {
+		if app.Namespace == a.ns || glob.MatchStringInList(a.appNs.List(), app.Namespace, glob.REGEXP) {
 			filteredApps = append(filteredApps, *app)
 		}
 	}
