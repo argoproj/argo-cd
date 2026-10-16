@@ -323,6 +323,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 		verifiedClaims       *jwt.MapClaims
 		verifyTokenErr       error
 		userInfoCacheClaims  *jwt.MapClaims
+		scopes               []string
 		expectedStatusCode   int
 		expectedResponseBody *string
 	}
@@ -405,6 +406,18 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			expectedStatusCode:   http.StatusOK,
 			expectedResponseBody: new("\"groups\":[\"superusers\"]"),
 		},
+		{
+			name:                 "will copy custom RBAC scope claims from userinfo response",
+			authDisabled:         false,
+			ssoEnabled:           true,
+			cookieHeader:         true,
+			verifiedClaims:       &jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			verifyTokenErr:       nil,
+			userInfoCacheClaims:  &jwt.MapClaims{"sub": "randomUser", "memberof": []string{"cn=admins,ou=role"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			scopes:               []string{"memberof"},
+			expectedStatusCode:   http.StatusOK,
+			expectedResponseBody: new("\"memberof\":[\"cn=admins,ou=role\"]"),
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -455,7 +468,11 @@ userInfoPath: /`,
 					require.NoError(t, err, "failed setting item to in-memory cache")
 				}
 			}
-			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, tc.ssoEnabled, clientApp, tm, mux))
+			scopes := tc.scopes
+			if scopes == nil {
+				scopes = []string{"groups"}
+			}
+			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, tc.ssoEnabled, clientApp, tm, func() []string { return scopes }, mux))
 			defer ts.Close()
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL, http.NoBody)
 			require.NoErrorf(t, err, "error creating request: %s", err)
