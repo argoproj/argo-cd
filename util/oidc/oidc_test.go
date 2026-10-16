@@ -484,6 +484,24 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			assert.Equal(t, "https://other.argocd.example.com/argocd/auth/callback", location.Query().Get("redirect_uri"))
 		})
 
+		t.Run("should preserve alternative domain after root path stripping", func(t *testing.T) {
+			requestURL := "https://localhost:8080/argocd/auth/login?" + url.Values{
+				"return_url": []string{"https://localhost:8080/argocd/applications"},
+			}.Encode()
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, requestURL, http.NoBody)
+			w := httptest.NewRecorder()
+			handler := http.StripPrefix("/argocd", http.HandlerFunc(app.HandleLogin))
+
+			handler.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusSeeOther, w.Code)
+			location, err := url.Parse(w.Header().Get("Location"))
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
+			assert.Equal(t, "/auth", location.Path)
+			assert.Equal(t, "https://localhost:8080/argocd/auth/callback", location.Query().Get("redirect_uri"))
+		})
+
 		t.Run("should deny login redirecting on the alternative domains", func(t *testing.T) {
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://not-argocd.example.com/auth/login", http.NoBody)
 

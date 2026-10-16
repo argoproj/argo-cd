@@ -2080,25 +2080,6 @@ func TestRedirectURLForRequest(t *testing.T) {
 			ExpectError: false,
 		},
 		{
-			Name: "With configured root path",
-			Settings: &ArgoCDSettings{
-				URL: "https://example.org/argocd",
-			},
-			RequestURL:  "https://example.org/argocd/login",
-			ExpectedURL: "https://example.org/argocd/auth/callback",
-			ExpectError: false,
-		},
-		{
-			Name: "With configured root path and additional URL",
-			Settings: &ArgoCDSettings{
-				URL:            "https://otherhost.org/argocd",
-				AdditionalURLs: []string{"https://anotherhost.org/argocd"},
-			},
-			RequestURL:  "https://anotherhost.org/argocd/login",
-			ExpectedURL: "https://anotherhost.org/argocd/auth/callback",
-			ExpectError: false,
-		},
-		{
 			Name: "Additional URL after root path stripping",
 			Settings: &ArgoCDSettings{
 				URL:            "https://example.org/argocd",
@@ -2127,6 +2108,61 @@ func TestRedirectURLForRequest(t *testing.T) {
 			RequestURL:  "https://anotherhost.org/auth/login",
 			RequestURI:  "/argocd/auth/login",
 			ExpectedURL: "https://example.org/argocd/auth/callback",
+		},
+		{
+			Name: "Additional URL with a shared path prefix does not match",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo"},
+			},
+			RequestURL:  "https://anotherhost.org/argocd/login",
+			ExpectedURL: "https://example.org/auth/callback",
+		},
+		{
+			Name: "Shared path prefix after root path stripping does not match",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo"},
+			},
+			RequestURL:  "https://anotherhost.org/auth/login",
+			RequestURI:  "/argocd/auth/login",
+			ExpectedURL: "https://example.org/auth/callback",
+		},
+		{
+			Name: "Exact additional URL path with query matches",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo"},
+			},
+			RequestURL:  "https://anotherhost.org/argo?return_url=%2Fapplications",
+			ExpectedURL: "https://anotherhost.org/argo/auth/callback",
+		},
+		{
+			Name: "Additional URL with trailing slash matches child path",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo/"},
+			},
+			RequestURL:  "https://anotherhost.org/argo/login",
+			ExpectedURL: "https://anotherhost.org/argo/auth/callback",
+		},
+		{
+			Name: "Additional URL with trailing slash matches exact path",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo/"},
+			},
+			RequestURL:  "https://anotherhost.org/argo",
+			ExpectedURL: "https://anotherhost.org/argo/auth/callback",
+		},
+		{
+			Name: "Encoded separator does not create a path boundary",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo"},
+			},
+			RequestURL:  "https://anotherhost.org/argo%2Flogin",
+			ExpectedURL: "https://example.org/auth/callback",
 		},
 		{
 			Name: "Invalid request URI",

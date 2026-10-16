@@ -2490,6 +2490,8 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 
 func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
 	requestURL := r.URL
+	// withRootPath uses http.StripPrefix to remove the root path from r.URL.Path.
+	// Prefered r.RequestURI so URL matching still includes the original root path.
 	if r.RequestURI != "" {
 		var err error
 		requestURL, err = url.ParseRequestURI(r.RequestURI)
@@ -2497,12 +2499,14 @@ func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
 			return "", fmt.Errorf("error parsing request URI: %w", err)
 		}
 	}
+	requestPath := requestURL.EscapedPath()
 	for _, candidateURL := range append([]string{a.URL}, a.AdditionalURLs...) {
 		u, err := url.Parse(candidateURL)
 		if err != nil {
 			return "", err
 		}
-		if u.Host == r.Host && strings.HasPrefix(requestURL.RequestURI(), u.RequestURI()) {
+		basePath := strings.TrimSuffix(u.EscapedPath(), "/")
+		if u.Host == r.Host && (requestPath == basePath || strings.HasPrefix(requestPath, basePath+"/")) {
 			return candidateURL, nil
 		}
 	}
