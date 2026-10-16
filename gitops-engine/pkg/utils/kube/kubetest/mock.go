@@ -28,10 +28,10 @@ type KubectlOutput struct {
 type MockKubectlCmd struct {
 	APIResources    []kube.APIResourceInfo
 	ServerResources []*metav1.APIResourceList
-	Commands      map[string]KubectlOutput
-	Events        chan watch.Event
-	Version       string
-	DynamicClient dynamic.Interface
+	Commands        map[string]KubectlOutput
+	Events          chan watch.Event
+	Version         string
+	DynamicClient   dynamic.Interface
 
 	convertToVersionFunc           *func(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	getResourceFunc                *func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)

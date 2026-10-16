@@ -983,17 +983,18 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 					name := obj.GetName()
 					group, _, _ := unstructured.NestedString(obj.Object, "spec", "group")
 					available := isAPIServiceAvailable(obj)
-					if event.Type == watch.Deleted {
+					switch event.Type {
+					case watch.Deleted:
 						c.deleteAPIService(name)
 						c.log.Info("Reconciling Kubernetes APIs, watches, and Open API schemas due to APIService event", "eventType", event.Type, "name", name, "group", group)
 						go c.reconcileAPIServiceWatches(group, false)
-					} else if event.Type == watch.Added {
+					case watch.Added:
 						c.setAPIServiceAvailable(name, available)
 						if available {
 							c.log.Info("Reconciling Kubernetes APIs, watches, and Open API schemas due to APIService event", "eventType", event.Type, "name", name, "group", group)
 							go c.reconcileAPIServiceWatches(group, true)
 						}
-					} else if event.Type == watch.Modified {
+					case watch.Modified:
 						if c.updateAPIServiceAvailability(name, available) {
 							c.log.Info("Reconciling Kubernetes APIs, watches, and Open API schemas due to APIService event", "eventType", event.Type, "name", name, "group", group)
 							go c.reconcileAPIServiceWatches(group, true)
@@ -1041,7 +1042,7 @@ func (c *clusterCache) reconcileAPIServiceWatches(group string, waitForGroup boo
 			if err := runSynced(&c.lock, func() error {
 				return c.startMissingWatches()
 			}); err != nil {
-			c.log.Error(err, "Failed to start missing watches after APIService event")
+				c.log.Error(err, "Failed to start missing watches after APIService event")
 			}
 			if err := c.reloadOpenAPISchema(); err != nil {
 				c.log.Error(err, "Failed to reload open api schema after APIService event")

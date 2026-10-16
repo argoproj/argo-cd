@@ -7,6 +7,7 @@ import (
 	"maps"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -28,11 +29,13 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
+	"k8s.io/kubectl/pkg/util/openapi"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
@@ -1291,15 +1294,37 @@ func TestReconcileAPIServiceWatches_Singleflight(t *testing.T) {
 		}},
 	})
 
-	var wg sync.WaitGroup
-	for i := 0; i < 5; i++ {
-		wg.Add(1)
+	// Hold the first run open so the other callers overlap it; without
+	// singleflight each of them would reach LoadOpenAPISchema too.
+	var calls atomic.Int32
+	firstCall := make(chan struct{})
+	release := make(chan struct{})
+	mockKube.WithLoadOpenAPISchemaFunc(func(_ *rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
+		if calls.Add(1) == 1 {
+			close(firstCall)
+		}
+		<-release
+		return nil, nil, nil
+	})
+
+	const callers = 5
+	var started, done sync.WaitGroup
+	started.Add(callers)
+	done.Add(callers)
+	for range callers {
 		go func() {
-			defer wg.Done()
+			defer done.Done()
+			started.Done()
 			cluster.reconcileAPIServiceWatches("metrics.k8s.io", true)
 		}()
 	}
-	wg.Wait()
+	<-firstCall
+	started.Wait()
+	time.Sleep(100 * time.Millisecond) // let the other callers join the in-flight call
+	close(release)
+	done.Wait()
+
+	assert.Less(t, calls.Load(), int32(callers), "concurrent reconciles of one group should share one run")
 }
 
 func ExampleNewClusterCache_resourceUpdatedEvents() {
