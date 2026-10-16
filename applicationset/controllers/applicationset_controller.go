@@ -483,6 +483,7 @@ func getParametersGeneratedCondition(parametersGenerated bool, message string) a
 	return parametersGeneratedCondition
 }
 
+// ONE
 func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, conditions []argov1alpha1.ApplicationSetCondition, parametersGenerated bool) error {
 	// Initialize the default condition types that this method evaluates
 	evaluatedTypes := map[argov1alpha1.ApplicationSetConditionType]bool{
@@ -1080,6 +1081,7 @@ func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx conte
 
 // migrateStatus run migrations on the status subresource of ApplicationSet early during the run of ApplicationSetReconciler.Reconcile
 // this handles any defaulting of values - which would otherwise cause the references to r.Client.Status().Update to fail given missing required fields.
+// FOUR
 func (r *ApplicationSetReconciler) migrateStatus(ctx context.Context, appset *argov1alpha1.ApplicationSet) error {
 	update := false
 	if statusList := appset.Status.ApplicationStatus; statusList != nil {
@@ -1120,6 +1122,7 @@ func (r *ApplicationSetReconciler) migrateStatus(ctx context.Context, appset *ar
 	return nil
 }
 
+// THREE
 func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, apps []argov1alpha1.Application) error {
 	statusMap := status.GetResourceStatusMap(appset)
 	statusMap = status.BuildResourceStatus(statusMap, apps)
@@ -1169,6 +1172,7 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 
 // setAppSetApplicationStatus updates the ApplicationSet's status field
 // with any new/changed Application statuses.
+// TWO
 func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applicationStatuses []argov1alpha1.ApplicationSetApplicationStatus) error {
 	needToUpdateStatus := false
 
