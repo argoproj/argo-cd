@@ -889,6 +889,76 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 		assert.Equal(t, "main-container:v1", mainImage)
 	})
 
+	// https://github.com/argoproj/argo-cd/issues/23283#issuecomment-5785077631
+	// No ignore rule applies, but the knownTypes normalizer canonicalizes CPU
+	// quantities on both sides. The live patch then rewrites the atomic
+	// containers list from live, and because the target's own quantity was
+	// rewritten too, the whole-list restore sees the list as "touched" and
+	// leaves the live image in place. Only the first case fails on master.
+	t.Run("rollout-obj-non-canonical-quantity-without-ignores", func(t *testing.T) {
+		doc := loadCRDSchema(t, "testdata/schemas/rollout-schema.yaml")
+		disco := &fakeDiscovery{schema: doc}
+		oapiGetter := openapi.NewOpenAPIGetter(disco)
+		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+		require.NoError(t, err)
+
+		rollout := func(image, cpu string) *unstructured.Unstructured {
+			return test.YamlToUnstructured(`
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-sample
+spec:
+  replicas: 2
+  strategy:
+    canary:
+      steps:
+        - setWeight: 20
+  selector:
+    matchLabels:
+      app: rollout-sample
+  template:
+    metadata:
+      labels:
+        app: rollout-sample
+    spec:
+      containers:
+        - name: main
+          image: ` + image + `
+          resources:
+            requests:
+              cpu: "` + cpu + `"
+`)
+		}
+
+		for _, tc := range []struct {
+			name        string
+			liveCPU     string
+			targetCPU   string
+			expectedCPU string
+		}{
+			{name: "live and target both non-canonical", liveCPU: "0.001", targetCPU: "0.001", expectedCPU: "0.001"},
+			{name: "only live non-canonical", liveCPU: "0.001", targetCPU: "1m", expectedCPU: "1m"},
+			{name: "whole core as millicores", liveCPU: "1000m", targetCPU: "1", expectedCPU: "1"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				f := setupHTTPProxy(t, nil)
+				f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{rollout("main-container:v1", tc.liveCPU)}
+				f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{rollout("main-container:v2", tc.targetCPU)}
+
+				targets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+				require.NoError(t, err)
+				require.Len(t, targets, 1)
+
+				containers := dig(targets[0].Object, "spec", "template", "spec", "containers").([]any)
+				require.Len(t, containers, 1)
+				main := containers[0].(map[string]any)
+				assert.Equal(t, "main-container:v2", dig(main, "image"), "target image bump was dropped by the live-derived atomic containers patch")
+				assert.Equal(t, tc.expectedCPU, dig(main, "resources", "requests", "cpu"))
+			})
+		}
+	})
+
 	t.Run("app-of-apps-child-application-chart-version-update-panic", func(t *testing.T) {
 		// This test reproduces the EXACT panic from https://github.com/blakepettersson/broken-app-of-apps
 		// Scenario:
