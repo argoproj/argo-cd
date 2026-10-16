@@ -162,8 +162,8 @@ importers:
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@testing-library/user-event':
-        specifier: ^14.5.0
-        version: 14.6.1(@testing-library/dom@10.4.1)
+        specifier: ^14.6.7
+        version: 14.6.7(@testing-library/dom@10.4.1)
       '@tippy.js/react':
         specifier: ^3.1.1
         version: 3.1.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -255,8 +255,8 @@ importers:
         specifier: ^4.2.3
         version: 4.2.3(eslint@9.39.4(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3)
       globals:
-        specifier: ^17.12.0
-        version: 17.12.0
+        specifier: ^17.13.0
+        version: 17.13.0
       html-webpack-plugin:
         specifier: ^5.6.8
         version: 5.6.8(webpack@5.111.1)
@@ -1825,8 +1825,8 @@ packages:
       '@types/react-dom':
         optional: true
 
-  '@testing-library/user-event@14.6.1':
-    resolution: {integrity: sha512-vq7fv0rnt+QTXgPxr5Hjc210p6YKq2kmdziLgnsZGgLJ9e6VAShx1pACLuRjd/AS/sr7phAR58OIIpf0LlmQNw==}
+  '@testing-library/user-event@14.6.7':
+    resolution: {integrity: sha512-MPCpX8bxe8zS+JmmTwLp8jd0dy1rAm60Te/SL8JrQM3qvQJcBOs1d7IefJMyZzqM3EWBrDn/LWDt1BCGu4ASfg==}
     engines: {node: '>=12', npm: '>=6'}
     peerDependencies:
       '@testing-library/dom': '>=7.21.4'
@@ -3309,8 +3309,8 @@ packages:
     resolution: {integrity: sha512-oahGvuMGQlPw/ivIYBjVSrWAfWLBeku5tpPE2fOPLi+WHffIWbuh2tCjhyQhTBPMf5E9jDEH4FOmTYgYwbKwtQ==}
     engines: {node: '>=18'}
 
-  globals@17.12.0:
-    resolution: {integrity: sha512-cezEd/DTyyht9cvSSURyygXPfy04GtWO/5e6ZPvH7fCtjKz9PYOmuawphw1Ctd1f6C+5JypXfGD7ahNMXvevBA==}
+  globals@17.13.0:
+    resolution: {integrity: sha512-RwMTC61u7hrG3ZJMkZQOK4JLJrKS8QtoTii63EmWvFXHqycY9FObBJQCbsLxSO8kjKhWE5kV1GC+Vb1g3RI0Zg==}
     engines: {node: '>=18'}
 
   globalthis@1.0.4:
@@ -7526,7 +7526,7 @@ snapshots:
       '@types/react': 19.3.0
       '@types/react-dom': 19.3.0(@types/react@19.3.0)
 
-  '@testing-library/user-event@14.6.1(@testing-library/dom@10.4.1)':
+  '@testing-library/user-event@14.6.7(@testing-library/dom@10.4.1)':
     dependencies:
       '@testing-library/dom': 10.4.1
 
@@ -9354,7 +9354,7 @@ snapshots:
 
   globals@14.0.0: {}
 
-  globals@17.12.0: {}
+  globals@17.13.0: {}
 
   globalthis@1.0.4:
     dependencies:
