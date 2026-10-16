@@ -1,10 +1,13 @@
 package scm_provider
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,7 +27,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
-		case "/api/v1/orgs/test-argocd/repos?limit=0&page=1":
+		case "/api/v1/orgs/test-argocd/repos?limit=50&page=1":
 			_, err := io.WriteString(w, `[{
 					"id": 21618,
 					"owner": {
@@ -344,7 +347,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
-		case "/api/v1/repos/test-argocd/another-repo/branches?limit=0&page=1":
+		case "/api/v1/repos/test-argocd/another-repo/branches?limit=50&page=1":
 			_, err := io.WriteString(w, `[{
 				"name": "main",
 				"commit": {
@@ -420,7 +423,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
-		case "/api/v1/repos/test-argocd/pr-test/branches?limit=0&page=1":
+		case "/api/v1/repos/test-argocd/pr-test/branches?limit=50&page=1":
 			_, err := io.WriteString(w, `[{
 				"name": "main",
 				"commit": {
@@ -916,4 +919,190 @@ func TestNewGiteaProvider_Proxy(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Positive(t, proxyCalled, "Proxy should have been called")
+}
+
+// giteaPaginatedListHandler serves org repositories, repository labels and
+// branches from a fake Gitea API. It mimics a server whose MAX_RESPONSE_ITEMS is
+// smaller than the requested page size, so a short page is not the last page.
+// The repositories it serves are named repo-1..repoCount; labels and branches
+// are served for repo-1 only.
+func giteaPaginatedListHandler(t *testing.T, repoCount, labelCount, branchCount, serverMaxPageSize int, sendTotalCount bool) http.Handler {
+	t.Helper()
+
+	// page reads the paging parameters and returns the half-open range of item
+	// indexes to serve, clamping the limit the way Gitea clamps it to
+	// MAX_RESPONSE_ITEMS. It reports false when the request is malformed, in
+	// which case the response has already been written.
+	page := func(w http.ResponseWriter, r *http.Request, total int) (int, int, bool) {
+		pageNum, err := strconv.Atoi(r.URL.Query().Get("page"))
+		if err != nil {
+			t.Errorf("bad page parameter in %q: %v", r.RequestURI, err)
+			http.Error(w, "bad page", http.StatusBadRequest)
+			return 0, 0, false
+		}
+		limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+		if err != nil {
+			t.Errorf("bad limit parameter in %q: %v", r.RequestURI, err)
+			http.Error(w, "bad limit", http.StatusBadRequest)
+			return 0, 0, false
+		}
+		if limit <= 0 || limit > serverMaxPageSize {
+			limit = serverMaxPageSize
+		}
+		start := min((pageNum-1)*limit, total)
+		return start, min(start+limit, total), true
+	}
+
+	write := func(w http.ResponseWriter, items []string, total int) {
+		w.Header().Set("Content-Type", "application/json")
+		if sendTotalCount {
+			w.Header().Set("X-Total-Count", strconv.Itoa(total))
+		}
+		_, _ = io.WriteString(w, "["+strings.Join(items, ",")+"]")
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/version", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"version":"1.17.0+dev-452-g1f0541780"}`)
+	})
+	mux.HandleFunc("/api/v1/orgs/test-argocd/repos", func(w http.ResponseWriter, r *http.Request) {
+		start, end, ok := page(w, r, repoCount)
+		if !ok {
+			return
+		}
+		repos := make([]string, 0, end-start)
+		for i := start; i < end; i++ {
+			repos = append(repos, fmt.Sprintf(`{
+				"id": %d,
+				"name": "repo-%d",
+				"default_branch": "main",
+				"ssh_url": "git@gitea.com:test-argocd/repo-%d.git",
+				"clone_url": "https://gitea.com/test-argocd/repo-%d.git"
+			}`, i+1, i+1, i+1, i+1))
+		}
+		write(w, repos, repoCount)
+	})
+	mux.HandleFunc("/api/v1/repos/test-argocd/repo-1/labels", func(w http.ResponseWriter, r *http.Request) {
+		start, end, ok := page(w, r, labelCount)
+		if !ok {
+			return
+		}
+		labels := make([]string, 0, end-start)
+		for i := start; i < end; i++ {
+			labels = append(labels, fmt.Sprintf(`{"id": %d, "name": "label-%d"}`, i+1, i+1))
+		}
+		write(w, labels, labelCount)
+	})
+	mux.HandleFunc("/api/v1/repos/test-argocd/repo-1/branches", func(w http.ResponseWriter, r *http.Request) {
+		start, end, ok := page(w, r, branchCount)
+		if !ok {
+			return
+		}
+		branches := make([]string, 0, end-start)
+		for i := start; i < end; i++ {
+			branches = append(branches, fmt.Sprintf(`{
+				"name": "branch-%d",
+				"commit": {"id": "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f"}
+			}`, i+1))
+		}
+		write(w, branches, branchCount)
+	})
+	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		// Repositories other than repo-1 have no labels.
+		write(w, nil, 0)
+	})
+	return mux
+}
+
+func TestGiteaListReposPaginates(t *testing.T) {
+	t.Parallel()
+	// The stub caps every response at 20 items while the client asks for
+	// services.GiteaPageSize, so a short page is not the last page.
+	const (
+		repoCount         = 45
+		labelCount        = 45
+		serverMaxPageSize = 20
+	)
+
+	for _, sendTotalCount := range []bool{true, false} {
+		t.Run(fmt.Sprintf("X-Total-Count=%t", sendTotalCount), func(t *testing.T) {
+			t.Parallel()
+			ts := httptest.NewServer(giteaPaginatedListHandler(t, repoCount, labelCount, 0, serverMaxPageSize, sendTotalCount))
+			defer ts.Close()
+
+			provider, err := NewGiteaProvider("test-argocd", "", ts.URL, false, false, false, "", "")
+			require.NoError(t, err)
+
+			repos, err := provider.ListRepos(t.Context(), "ssh")
+			require.NoError(t, err)
+			require.Len(t, repos, repoCount)
+			assert.Equal(t, "repo-1", repos[0].Repository)
+			assert.Equal(t, "repo-45", repos[repoCount-1].Repository)
+			// Labels are paginated per repository as well.
+			assert.Len(t, repos[0].Labels, labelCount)
+			assert.Equal(t, "label-45", repos[0].Labels[labelCount-1])
+			assert.Empty(t, repos[1].Labels)
+		})
+	}
+}
+
+func TestGiteaGetBranchesPaginates(t *testing.T) {
+	t.Parallel()
+	const (
+		branchCount       = 45
+		serverMaxPageSize = 20
+	)
+
+	for _, sendTotalCount := range []bool{true, false} {
+		t.Run(fmt.Sprintf("X-Total-Count=%t", sendTotalCount), func(t *testing.T) {
+			t.Parallel()
+			ts := httptest.NewServer(giteaPaginatedListHandler(t, 0, 0, branchCount, serverMaxPageSize, sendTotalCount))
+			defer ts.Close()
+
+			provider, err := NewGiteaProvider("test-argocd", "", ts.URL, true, false, false, "", "")
+			require.NoError(t, err)
+
+			branches, err := provider.GetBranches(t.Context(), &Repository{
+				Organization: "test-argocd",
+				Repository:   "repo-1",
+			})
+			require.NoError(t, err)
+			require.Len(t, branches, branchCount)
+			assert.Equal(t, "branch-1", branches[0].Branch)
+			assert.Equal(t, "branch-45", branches[branchCount-1].Branch)
+		})
+	}
+}
+
+func TestGiteaListReposRejectsRepeatedPage(t *testing.T) {
+	t.Parallel()
+	// A server that ignores the page parameter serves the first page forever.
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/version", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"version":"1.17.0+dev-452-g1f0541780"}`)
+	})
+	mux.HandleFunc("/api/v1/orgs/test-argocd/repos", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `[{
+			"id": 1,
+			"name": "repo-1",
+			"default_branch": "main",
+			"ssh_url": "git@gitea.com:test-argocd/repo-1.git"
+		}]`)
+	})
+	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `[]`)
+	})
+	ts := httptest.NewServer(mux)
+	defer ts.Close()
+
+	provider, err := NewGiteaProvider("test-argocd", "", ts.URL, false, false, false, "", "")
+	require.NoError(t, err)
+
+	_, err = provider.ListRepos(t.Context(), "ssh")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not honouring the page parameter")
 }
