@@ -1278,6 +1278,28 @@ func TestReconcileAPIServiceWatches_UnwatchableGroupStopsImmediately(t *testing.
 	assert.True(t, cluster.isGroupDiscovered("metrics.k8s.io"))
 }
 
+func TestReconcileAPIServiceWatches_GroupServedAfterWatchPassIsWatched(t *testing.T) {
+	cluster := newCluster(t)
+	require.NoError(t, cluster.EnsureSynced())
+
+	// LoadOpenAPISchema runs after the watch pass, so the group is served mid-attempt.
+	mockKube := cluster.kubectl.(*kubetest.MockKubectlCmd)
+	var served atomic.Bool
+	mockKube.WithLoadOpenAPISchemaFunc(func(_ *rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
+		if served.CompareAndSwap(false, true) {
+			cluster.WithAPIResources([]kube.APIResourceInfo{{
+				GroupKind:            schema.GroupKind{Group: "batch", Kind: "Job"},
+				GroupVersionResource: schema.GroupVersionResource{Group: "batch", Version: "v1", Resource: "jobs"},
+				Meta:                 metav1.APIResource{Name: "jobs", Kind: "Job", Namespaced: true, Verbs: []string{"list", "watch"}},
+			}})
+		}
+		return nil, nil, nil
+	})
+
+	cluster.reconcileAPIServiceWatches("batch", true)
+	assert.True(t, cluster.isGroupWatched("batch"), "a group served after the watch pass should be watched on the next attempt")
+}
+
 func TestReconcileAPIServiceWatches_Singleflight(t *testing.T) {
 	cluster := newCluster(t)
 	require.NoError(t, cluster.EnsureSynced())

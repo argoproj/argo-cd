@@ -1029,7 +1029,8 @@ func (c *clusterCache) reloadOpenAPISchema() error {
 // APIService reporting Available, so when waitForGroup is true (Added/Modified
 // while Available) it retries with exponential backoff (9 attempts, intervals
 // growing 500ms -> ~8.5s for a ~25s total budget) until the APIService's group
-// is served by the cluster or the attempts are exhausted. Concurrent calls for
+// is watched, or was already served before the attempt's watch pass (a group
+// with no watchable kinds), or the attempts are exhausted. Concurrent calls for
 // the same group are deduplicated via singleflight. For deletions it reconciles once.
 func (c *clusterCache) reconcileAPIServiceWatches(group string, waitForGroup bool) {
 	key := fmt.Sprintf("%s:%t", group, waitForGroup)
@@ -1039,6 +1040,8 @@ func (c *clusterCache) reconcileAPIServiceWatches(group string, waitForGroup boo
 			Factor:   1.5,
 			Steps:    9,
 		}, func() (bool, error) {
+			// Read before the watch pass, else a group served after it ends the loop unwatched.
+			discovered := waitForGroup && group != "" && c.isGroupDiscovered(group)
 			if err := runSynced(&c.lock, func() error {
 				return c.startMissingWatches()
 			}); err != nil {
@@ -1047,7 +1050,7 @@ func (c *clusterCache) reconcileAPIServiceWatches(group string, waitForGroup boo
 			if err := c.reloadOpenAPISchema(); err != nil {
 				c.log.Error(err, "Failed to reload open api schema after APIService event")
 			}
-			return !waitForGroup || group == "" || c.isGroupWatched(group) || c.isGroupDiscovered(group), nil
+			return !waitForGroup || group == "" || discovered || c.isGroupWatched(group), nil
 		})
 		if err != nil {
 			c.log.Info("Aggregated API group is not served by discovery yet after retries; it will be picked up on the next resync", "group", group)
