@@ -59,6 +59,26 @@ describe('ApplicationParameters ref-only sources', () => {
         appDetails.mockReset();
     });
 
+    test.each([
+        [{ref: 'values'}, 'REF=values, REVISION=main'],
+        [{ref: 'values', path: 'manifests'}, 'PATH=manifests, REF=values, REVISION=main'],
+        [{path: 'manifests'}, 'PATH=manifests, REVISION=main']
+    ])('summarizes the collapsed source %j', async (source, summary) => {
+        const app = applicationWithValuesSource({
+            repoURL: 'https://git.example.com/org/value-files.git',
+            targetRevision: 'main',
+            ...source
+        } as models.ApplicationSource);
+
+        renderWithContext(
+            <ApplicationParameters application={app} pageNumber={0} setPageNumber={jest.fn()} collapsedSources={[true, true]} handleCollapse={jest.fn()} />
+        );
+
+        expect(await screen.findByText(summary)).toBeInTheDocument();
+        expect(screen.getByText('CHART=prometheus, REVISION=15.7.1')).toBeInTheDocument();
+        expect(appDetails).not.toHaveBeenCalled();
+    });
+
     test('shows only core fields without running source discovery', async () => {
         renderParameters(
             applicationWithValuesSource({
