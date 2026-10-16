@@ -2491,7 +2491,7 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
 	requestURL := r.URL
 	// withRootPath uses http.StripPrefix to remove the root path from r.URL.Path.
-	// Prefered r.RequestURI so URL matching still includes the original root path.
+	// Prefer r.RequestURI so URL matching still includes the original root path.
 	if r.RequestURI != "" {
 		var err error
 		requestURL, err = url.ParseRequestURI(r.RequestURI)
