@@ -1106,6 +1106,126 @@ func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
 	})
 }
 
+// TestNormalizeTargetResourcesLiveOnlyIgnoredListItems reproduces https://github.com/argoproj/argo-cd/issues/29944
+// Ignored list items that exist only in the live object (e.g. Ingress paths
+// injected by Argo Rollouts managedRoutes) must survive RespectIgnoreDifferences.
+func TestNormalizeTargetResourcesLiveOnlyIgnoredListItems(t *testing.T) {
+	ingressWithPaths := func(paths ...string) string {
+		y := `
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app
+  namespace: default
+spec:
+  ingressClassName: alb
+  rules:
+  - http:
+      paths:`
+		for _, p := range paths {
+			y += `
+      - path: /*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: ` + p + `
+            port:
+              name: use-annotation`
+		}
+		return y + "\n"
+	}
+	backendNames := func(t *testing.T, u *unstructured.Unstructured) []string {
+		t.Helper()
+		var names []string
+		rules, _, err := unstructured.NestedSlice(u.Object, "spec", "rules")
+		require.NoError(t, err)
+		for _, r := range rules {
+			paths, _, _ := unstructured.NestedSlice(r.(map[string]any), "http", "paths")
+			for _, p := range paths {
+				n, _, _ := unstructured.NestedString(p.(map[string]any), "backend", "service", "name")
+				names = append(names, n)
+			}
+		}
+		return names
+	}
+	normalize := func(t *testing.T, ignore v1alpha1.ResourceIgnoreDifferences, live, target string) *unstructured.Unstructured {
+		t.Helper()
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings([]v1alpha1.ResourceIgnoreDifferences{ignore}, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		cr := &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{test.YamlToUnstructured(live)},
+				Target: []*unstructured.Unstructured{test.YamlToUnstructured(target)},
+			},
+			diffConfig: dc,
+		}
+		targets, err := normalizeTargetResources(nil, cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+		return targets[0]
+	}
+	ignoreManagedRoute := v1alpha1.ResourceIgnoreDifferences{
+		Group:             "networking.k8s.io",
+		Kind:              "Ingress",
+		JQPathExpressions: []string{`.spec.rules[].http.paths[] | select(.backend.service.name == "canary-header-route")`},
+	}
+
+	t.Run("ignored live-only item is kept in its live position", func(t *testing.T) {
+		// ALB rule priority follows path order, so the position matters.
+		patched := normalize(t, ignoreManagedRoute,
+			ingressWithPaths("canary-header-route", "app-stable"),
+			ingressWithPaths("app-stable"))
+		assert.Equal(t, []string{"canary-header-route", "app-stable"}, backendNames(t, patched))
+	})
+
+	t.Run("git change to the list is applied when live has no ignored items", func(t *testing.T) {
+		patched := normalize(t, ignoreManagedRoute,
+			ingressWithPaths("app-stable"),
+			ingressWithPaths("app-health", "app-stable"))
+		assert.Equal(t, []string{"app-health", "app-stable"}, backendNames(t, patched))
+	})
+
+	t.Run("git change to an atomic list waits while live has ignored items", func(t *testing.T) {
+		// Lists without a merge key are applied atomically. While live holds
+		// ignored items, the live list is kept as a whole (as before #27136).
+		patched := normalize(t, ignoreManagedRoute,
+			ingressWithPaths("canary-header-route", "app-stable"),
+			ingressWithPaths("app-health", "app-stable"))
+		assert.Equal(t, []string{"canary-header-route", "app-stable"}, backendNames(t, patched))
+	})
+
+	t.Run("live-only ignored matchExpressions item is kept on a PDB", func(t *testing.T) {
+		pdb := func(exprs string) string {
+			return `
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: pdb
+  namespace: default
+spec:
+  minAvailable: 1
+  selector:
+    matchExpressions:` + exprs + "\n"
+		}
+		patched := normalize(t,
+			v1alpha1.ResourceIgnoreDifferences{
+				Group:             "policy",
+				Kind:              "PodDisruptionBudget",
+				JQPathExpressions: []string{`.spec.selector.matchExpressions[] | select(.key == "injected")`},
+			},
+			pdb("\n    - {key: injected, operator: Exists}\n    - {key: tier, operator: In, values: [frontend]}"),
+			pdb("\n    - {key: tier, operator: In, values: [frontend]}"))
+		exprs, _, err := unstructured.NestedSlice(patched.Object, "spec", "selector", "matchExpressions")
+		require.NoError(t, err)
+		require.Len(t, exprs, 2)
+		assert.Equal(t, "injected", exprs[0].(map[string]any)["key"])
+		assert.Equal(t, "tier", exprs[1].(map[string]any)["key"])
+	})
+}
+
 func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 	t.Parallel()
 
