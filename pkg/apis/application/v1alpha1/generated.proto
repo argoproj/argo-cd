@@ -774,6 +774,14 @@ message ApplicationStatus {
 
   // SourceHydrator stores information about the current state of source hydration
   optional SourceHydratorStatus sourceHydrator = 14;
+
+  // RolledBackRevision is the revision that was deployed before the most recent rollback. When rollback-aware
+  // automated sync is enabled, automated sync skips this revision until a different revision is available.
+  // It is cleared when any other revision is successfully synced.
+  optional string rolledBackRevision = 15;
+
+  // RolledBackRevisions is the multi-source equivalent of RolledBackRevision
+  repeated string rolledBackRevisions = 16;
 }
 
 // ApplicationSummary contains information about URLs and container images used by an application
@@ -2847,6 +2855,14 @@ message SyncOperation {
 
   // SelfHealAttemptsCount contains the number of auto-heal attempts
   optional int64 autoHealAttemptsCount = 12;
+
+  // RolledBackFromRevision is the revision that was deployed when a rollback operation was initiated.
+  // It is only set by rollback operations when rollback-aware automated sync is enabled, and is recorded in
+  // the application status once the rollback succeeds so that automated sync can skip that revision.
+  optional string rolledBackFromRevision = 13;
+
+  // RolledBackFromRevisions is the multi-source equivalent of RolledBackFromRevision
+  repeated string rolledBackFromRevisions = 14;
 }
 
 // SyncOperationResource contains resources to sync.
@@ -2909,6 +2925,11 @@ message SyncPolicyAutomated {
 
   // Enable allows apps to explicitly control automated sync
   optional bool enabled = 4;
+
+  // RollbackAware allows rollbacks while automated sync is enabled. After a rollback, automated sync skips the
+  // rolled-back revision until a different revision is available. When unset, the value of the
+  // `application.rollbackAwareAutoSyncEnabled` key in the argocd-cm ConfigMap applies (default: false).
+  optional bool rollbackAware = 5;
 }
 
 // SyncSource specifies a location from which hydrated manifests may be synced. If RepoURL is not set, it is assumed
