@@ -48,7 +48,7 @@ func (t *syncTask) isPrune() bool {
 }
 
 func (t *syncTask) resultKey() string {
-	return resourceResultKey(kube.GetResourceKey(t.obj()), t.phase)
+	return resourceResultKey(kube.GetResourceKey(t.obj()), t.phase, t.hookType())
 }
 
 // return the target object (if this exists) otherwise the live object
