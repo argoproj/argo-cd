@@ -292,6 +292,24 @@ func TestSkipTests(t *testing.T) {
 	require.Empty(t, objs)
 }
 
+func TestEnableDNS(t *testing.T) {
+	t.Parallel()
+	h, err := NewHelmApp("./testdata/dns", nil, false, "", "", "", false, false)
+	require.NoError(t, err)
+
+	objs, err := template(h, &TemplateOpts{EnableDNS: false})
+	require.NoError(t, err)
+	require.Empty(t, objs)
+
+	objs, err = template(h, &TemplateOpts{})
+	require.NoError(t, err)
+	require.Empty(t, objs)
+
+	objs, err = template(h, &TemplateOpts{EnableDNS: true})
+	require.NoError(t, err)
+	require.Len(t, objs, 1)
+}
+
 func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {
 	// dependency build has no per-repo --plain-http; if ANY dependency repo is
 	// plain-http, the whole build must use --plain-http (see helm.DependencyBuild).

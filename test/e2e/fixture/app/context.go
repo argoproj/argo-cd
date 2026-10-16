@@ -56,6 +56,7 @@ type Context struct {
 	helmSkipCrds             bool
 	helmSkipSchemaValidation bool
 	helmSkipTests            bool
+	helmEnableDNS            bool
 	trackingMethod           v1alpha1.TrackingMethod
 	sources                  []v1alpha1.ApplicationSource
 	drySourceRevision        string
@@ -457,6 +458,11 @@ func (c *Context) HelmSkipCrds() *Context {
 
 func (c *Context) HelmSkipSchemaValidation() *Context {
 	c.helmSkipSchemaValidation = true
+	return c
+}
+
+func (c *Context) HelmEnableDNS() *Context {
+	c.helmEnableDNS = true
 	return c
 }
 
