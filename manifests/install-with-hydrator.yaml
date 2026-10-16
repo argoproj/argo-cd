@@ -33796,13 +33796,12 @@ spec:
                                 type: object
                               type: array
                             signedTagsOnly:
-                              description: Verify if tag is annotated, un-annotated
-                                tags cannot be signed
+                              description: Only permit syncing from annotated tags,
+                                un-annotated tags cannot be signed
                               type: boolean
                           required:
                           - gpg
                           - repos
-                          - signedTagsOnly
                           type: object
                         type: array
                     required:

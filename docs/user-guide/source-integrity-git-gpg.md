@@ -150,6 +150,8 @@ The policies are configured as illustrated:
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
+metadata:
+  name: "foo"
 spec:
   sourceIntegrity:
     git:
@@ -180,6 +182,8 @@ Set `signedTagsOnly: true` on a policy to require that the target revision resol
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
+metadata:
+  name: "foo"
 spec:
   sourceIntegrity:
     git:

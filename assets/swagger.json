@@ -10935,7 +10935,7 @@
         },
         "signedTagsOnly": {
           "type": "boolean",
-          "title": "Verify if tag is annotated, un-annotated tags cannot be signed"
+          "title": "Only permit syncing from annotated tags, un-annotated tags cannot be signed"
         }
       }
     },
