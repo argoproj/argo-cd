@@ -57,7 +57,7 @@ metadata:
 ![](https://user-images.githubusercontent.com/18019529/111502636-5fa74880-8789-11eb-97c5-5eac22c00a37.png)
 
 You can reuse the template of slack.  
-Mattermost is compatible with attachments of Slack. See [Mattermost Integration Guide](https://docs.mattermost.com/developer/message-attachments.html).
+Mattermost supports Slack-compatible attachments. See [Mattermost Integration Guide](https://docs.mattermost.com/developers/integrate/reference/message-attachments).
 
 ```yaml
 template.app-deployed: |
