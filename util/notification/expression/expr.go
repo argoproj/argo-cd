@@ -7,6 +7,7 @@ import (
 
 	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
 
+	"github.com/argoproj/argo-cd/v3/util/notification/expression/argo"
 	"github.com/argoproj/argo-cd/v3/util/notification/expression/repo"
 	"github.com/argoproj/argo-cd/v3/util/notification/expression/strings"
 	"github.com/argoproj/argo-cd/v3/util/notification/expression/time"
@@ -30,6 +31,7 @@ func Spawn(app *unstructured.Unstructured, argocdService service.Service, vars m
 		clone[k] = vars[k]
 	}
 	maps.Copy(clone, helpers)
+	clone["argo"] = argo.NewExprs(app)
 	clone["repo"] = repo.NewExprs(argocdService, app)
 
 	return clone
