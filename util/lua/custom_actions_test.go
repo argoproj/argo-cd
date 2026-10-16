@@ -2,6 +2,7 @@ package lua
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -337,6 +338,57 @@ func TestLuaResourceActionsScript(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+}
+
+// The generic action test ignores extra output fields, so compare the complete
+// resource to verify stale analysis references are removed and other state is retained.
+func TestRolloutRetryAnalysis(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"blue-green", "aborted_bg_analysis_rollout.yaml", "retried_bg_analysis_rollout.yaml"},
+		{"canary", "aborted_canary_analysis_rollout.yaml", "retried_canary_analysis_rollout.yaml"},
+		{"running", "running_canary_analysis_rollout.yaml", "running_canary_analysis_rollout.yaml"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			const dir = "../../resource_customizations/argoproj.io/Rollout/actions/testdata"
+			vm := VM{}
+			obj := getObj(t, filepath.Join(dir, tt.input))
+			action, err := vm.GetResourceAction(obj, "retry")
+			require.NoError(t, err)
+			resources, err := vm.ExecuteResourceAction(obj, action.ActionLua, nil)
+			require.NoError(t, err)
+			require.Len(t, resources, 1)
+			actualObj := resources[0].UnstructuredObj
+			abort, _, err := unstructured.NestedFieldNoCopy(actualObj.Object, "status", "abort")
+			require.NoError(t, err)
+			if abort != nil {
+				assert.Equal(t, false, abort, "retry must clear the abort flag")
+			}
+			// An absent, null, or false abort flag has the same retry behavior.
+			unstructured.RemoveNestedField(actualObj.Object, "status", "abort")
+			for _, path := range [][]string{
+				{"status", "blueGreen", "prePromotionAnalysisRunStatus"},
+				{"status", "blueGreen", "postPromotionAnalysisRunStatus"},
+				{"status", "canary", "currentStepAnalysisRunStatus"},
+				{"status", "canary", "currentBackgroundAnalysisRunStatus"},
+			} {
+				value, _, err := unstructured.NestedFieldNoCopy(actualObj.Object, path...)
+				require.NoError(t, err)
+				// Treat a null reference the same as an absent reference.
+				if value == nil {
+					unstructured.RemoveNestedField(actualObj.Object, path...)
+				}
+			}
+			expected, err := json.Marshal(getObj(t, filepath.Join(dir, tt.expected)))
+			require.NoError(t, err)
+			actual, err := json.Marshal(actualObj)
+			require.NoError(t, err)
+			assert.JSONEq(t, string(expected), string(actual))
+		})
+	}
 }
 
 // The generic action test normalizes scheduled-time away, so its format is verified here.

@@ -168,6 +168,15 @@ actionTests:
 - action: retry
   inputPath: testdata/v0.9_aborted_rollout.yaml
   expectedOutputPath: testdata/retried_rollout.yaml
+- action: retry
+  inputPath: testdata/aborted_bg_analysis_rollout.yaml
+  expectedOutputPath: testdata/retried_bg_analysis_rollout.yaml
+- action: retry
+  inputPath: testdata/aborted_canary_analysis_rollout.yaml
+  expectedOutputPath: testdata/retried_canary_analysis_rollout.yaml
+- action: retry
+  inputPath: testdata/running_canary_analysis_rollout.yaml
+  expectedOutputPath: testdata/running_canary_analysis_rollout.yaml
 - action: promote-full
   inputPath: testdata/v0.9_aborted_rollout.yaml
   expectedOutputPath: testdata/v0.9_promote-full_rollout.yaml
