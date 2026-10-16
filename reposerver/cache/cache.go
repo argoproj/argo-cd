@@ -20,7 +20,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/hash"
 )
 
@@ -108,9 +107,15 @@ func getRefTargetRevisionMappingForCacheKey(refTargetRevisionMapping appv1.RefTa
 	res := make(refTargetRevisionMappingForCacheKey)
 
 	for k, v := range refTargetRevisionMapping {
-		// forcefully update TargetRevision based on refSourceCommitSHAs so that the resolved revision is always stored in the cache
-		v.TargetRevision = refSourceCommitSHAs[git.NormalizeGitURL(v.Repo.Repo)]
-		res[k] = refTargetForCacheKeyFromRefTarget(v)
+		// Use the resolved revision from refSourceCommitSHAs so that the resolved revision is always stored in the
+		// cache key. NormalizeRepoURL (OCI-aware) must match how refSourceCommitSHAs is keyed when populated.
+		//
+		// Work on a copy: the mapping holds pointers shared with the caller's request, and overwriting
+		// TargetRevision in place would make later ref resolution (e.g. GetAppDetails, which passes no resolved
+		// revisions) operate on a blank or already-resolved revision instead of the one the user configured.
+		target := *v
+		target.TargetRevision = refSourceCommitSHAs[v.Repo.NormalizeRepoURL()]
+		res[k] = refTargetForCacheKeyFromRefTarget(&target)
 	}
 	return res
 }
@@ -119,7 +124,8 @@ func appSourceKey(appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisi
 	return hash.FNVa(appSourceKeyJSON(appSrc, srcRefs, refSourceCommitSHAs))
 }
 
-// ResolvedRevisions is a map of "normalized git URL" -> "git commit SHA". When one source references another source,
+// ResolvedRevisions is a map of "normalized repository URL" -> "resolved revision" (a Git commit SHA, or an OCI
+// digest for OCI referenced sources; see Repository.NormalizeRepoURL). When one source references another source,
 // the referenced source revision may change, for example, when someone pushes a commit to the referenced branch. This
 // map lets us keep track of the current revision for each referenced source.
 type ResolvedRevisions map[string]string
