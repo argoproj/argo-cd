@@ -139,7 +139,7 @@ func NewProjectSourceIntegrityGitPoliciesListCommand(clientOpts *argocdclient.Cl
 
 func listGitGpgPolicies(out io.Writer, proj *v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintln(w, "ID\tGPG-MODE\tGPG-KEYS\tREPO-URLS")
+	_, _ = fmt.Fprintln(w, "ID\tGPG-MODE\tGPG-KEYS\tREPO-URLS\tSIGNED-TAGS-ONLY")
 	for i, policy := range proj.Spec.SourceIntegrity.Git.Policies {
 		gpgMode := "<none>"
 		gpgKeys := "<none>"
@@ -158,8 +158,9 @@ func listGitGpgPolicies(out io.Writer, proj *v1alpha1.AppProject) {
 			}
 			repoURLs = strings.Join(urls, ", ")
 		}
+		signedTagOnly := policy.SignedTagsOnly
 
-		_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\n", i, gpgMode, gpgKeys, repoURLs)
+		_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%t\n", i, gpgMode, gpgKeys, repoURLs, signedTagOnly)
 	}
 	_ = w.Flush()
 }
@@ -257,9 +258,10 @@ func cleanupSourceIntegrityIfEmpty(proj *v1alpha1.AppProject) {
 // NewProjectSourceIntegrityGitPoliciesAddCommand returns a new instance of an `argocd proj source-integrity git policies add` command
 func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		repoURLs []string
-		gpgMode  string
-		gpgKeys  []string
+		repoURLs      []string
+		signedTagOnly bool
+		gpgMode       string
+		gpgKeys       []string
 	)
 	command := &cobra.Command{
 		Use:   "add PROJECT",
@@ -268,6 +270,7 @@ func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.Cli
 			# Add a new git policy with repo URLs and GPG settings
 			argocd proj source-integrity git policies add PROJECT \
 				--repo-url 'https://github.com/foo/*' \
+				--signed-tags-only \
 				--gpg-mode strict \
 				--gpg-key D56C4FCA57A46444
 		`),
@@ -291,7 +294,7 @@ func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.Cli
 			if err != nil {
 				return err
 			}
-			newPolicy := v1alpha1.SourceIntegrityGitPolicy{GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: mode}}
+			newPolicy := v1alpha1.SourceIntegrityGitPolicy{SignedTagsOnly: signedTagOnly, GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: mode}}
 			for _, url := range repoURLs {
 				newPolicy.Repos = append(newPolicy.Repos, v1alpha1.SourceIntegrityGitPolicyRepo{URL: url})
 			}
@@ -328,6 +331,7 @@ func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.Cli
 		}),
 	}
 	command.Flags().StringSliceVar(&repoURLs, "repo-url", []string{}, "Repository URL pattern (can be repeated)")
+	command.Flags().BoolVar(&signedTagOnly, "signed-tags-only", false, "Only permit syncing from annotated tags")
 	command.Flags().StringVar(&gpgMode, "gpg-mode", "", "GPG verification mode (strict, head, or none)")
 	command.Flags().StringSliceVar(&gpgKeys, "gpg-key", []string{}, "GPG key ID (can be repeated)")
 	return command
@@ -352,6 +356,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 		repoURLs       []string
 		deleteRepoURLs []string
 		addRepoURLs    []string
+		signedTagsOnly bool
 		gpgMode        string
 		gpgKeys        []string
 		deleteGPGKeys  []string
@@ -375,6 +380,10 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 			argocd proj source-integrity git policies update PROJECT POLICY_ID \
 				--gpg-mode strict \
 				--add-gpg-key D56C4FCA57A46444
+
+			# Stop requiring annotated tags for a policy
+			argocd proj source-integrity git policies update PROJECT POLICY_ID \
+				--signed-tags-only=false
 		`),
 		RunE: cli.WithSignalContextE(func(c *cobra.Command, args []string, _ context.CancelFunc) error {
 			ctx := c.Context()
@@ -441,6 +450,10 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 				if !found {
 					policy.Repos = append(policy.Repos, v1alpha1.SourceIntegrityGitPolicyRepo{URL: url})
 				}
+			}
+
+			if c.Flags().Changed("signed-tags-only") {
+				policy.SignedTagsOnly = signedTagsOnly
 			}
 
 			// There are no other types for now, so turning GPG on is the only sensible thing
@@ -523,6 +536,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 	command.Flags().StringSliceVar(&repoURLs, "repo-url", []string{}, "Set repository URL pattern (replaces existing)")
 	command.Flags().StringSliceVar(&addRepoURLs, "add-repo-url", []string{}, "Add repository URL pattern")
 	command.Flags().StringSliceVar(&deleteRepoURLs, "delete-repo-url", []string{}, "Delete repository URL pattern")
+	command.Flags().BoolVar(&signedTagsOnly, "signed-tags-only", false, "Only permit syncing from annotated tags")
 	command.Flags().StringSliceVar(&gpgKeys, "gpg-key", []string{}, "Set GPG key ID (replaces existing)")
 	command.Flags().StringSliceVar(&addGPGKeys, "add-gpg-key", []string{}, "Add GPG key ID")
 	command.Flags().StringSliceVar(&deleteGPGKeys, "delete-gpg-key", []string{}, "Delete GPG key ID")

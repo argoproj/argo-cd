@@ -67,7 +67,10 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 		}
 	}
 
+	var check gitFunc
+
 	policy := policies[0]
+
 	if policy.GPG != nil {
 		if policy.GPG.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeNone {
 			// Declare missing check because there is no verification performed
@@ -80,13 +83,33 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 			return nil
 		}
 
-		return func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
-			return verify(ctx, policy.GPG, gitClient, verifiedRevision)
+		check = func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+			return verifyGPG(ctx, policy.GPG, gitClient, verifiedRevision)
 		}
 	}
 
-	log.Warnf("No verification configured for SourceIntegrity policy for %+v", policy.Repos)
-	return nil
+	if check == nil {
+		log.Warnf("No verification configured for SourceIntegrity policy for %+v", policy.Repos)
+		return nil
+	}
+
+	return verifyWithSignedTags(policy, check)
+}
+
+func verifyWithSignedTags(policy *v1alpha1.SourceIntegrityGitPolicy, check gitFunc) gitFunc {
+	const signedTagsCheckName = "GIT"
+
+	return func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+		if policy.SignedTagsOnly && !gitClient.IsAnnotatedTag(ctx, verifiedRevision) {
+			msg := fmt.Sprintf("SignedTagsOnly is enabled, %s is not annotated. Un-annotated tags cannot be signed", verifiedRevision)
+			log.Warn(msg)
+			return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+				Name:     signedTagsCheckName,
+				Problems: []string{msg},
+			}}}, msg, nil
+		}
+		return check(ctx, gitClient, verifiedRevision)
+	}
 }
 
 func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (policies []*v1alpha1.SourceIntegrityGitPolicy) {
@@ -122,7 +145,7 @@ func repoMatches(urlGlob string, repoURL string) int {
 	return 0
 }
 
-func verify(ctx context.Context, g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+func verifyGPG(ctx context.Context, g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
 	const checkName = "GIT/GPG"
 
 	var deep bool

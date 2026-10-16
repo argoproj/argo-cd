@@ -24,6 +24,10 @@ argocd proj source-integrity git policies update PROJECT POLICY_ID [flags]
   argocd proj source-integrity git policies update PROJECT POLICY_ID \
   --gpg-mode strict \
   --add-gpg-key D56C4FCA57A46444
+  
+  # Stop requiring annotated tags for a policy
+  argocd proj source-integrity git policies update PROJECT POLICY_ID \
+  --signed-tags-only=false
 ```
 
 ### Options
@@ -37,6 +41,7 @@ argocd proj source-integrity git policies update PROJECT POLICY_ID [flags]
       --gpg-mode string           Set GPG verification mode (strict, head, or none)
   -h, --help                      help for update
       --repo-url strings          Set repository URL pattern (replaces existing)
+      --signed-tags-only          Only permit syncing from annotated tags
   -y, --yes                       Skip explicit confirmation
 ```
 

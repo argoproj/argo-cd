@@ -33795,6 +33795,10 @@ spec:
                                 - url
                                 type: object
                               type: array
+                            signedTagsOnly:
+                              description: Only permit syncing from annotated tags,
+                                un-annotated tags cannot be signed
+                              type: boolean
                           required:
                           - gpg
                           - repos
