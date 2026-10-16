@@ -12,6 +12,12 @@ on:
         required: true
         type: string
 
+      RELEASE_BLOG_POST_URL:
+        description: 'Optional: release blog post URL (e.g. https://blog.argoproj.io/...). Stored on the release branch and used for all later releases from it.'
+        required: false
+        type: string
+        default: ''
+
 permissions: {}
 
 env:
@@ -64,6 +70,18 @@ jobs:
           echo "${INPUTS_TARGET_VERSION}" > VERSION
         env:
           INPUTS_TARGET_VERSION: ${{ inputs.TARGET_VERSION }}
+
+      - name: Store release blog post URL
+        if: ${{ inputs.RELEASE_BLOG_POST_URL != '' }}
+        run: |
+          set -ue
+          if ! echo "${INPUTS_RELEASE_BLOG_POST_URL}" | grep -Eq '^https://[^[:space:]]+$'; then
+            echo "::error::RELEASE_BLOG_POST_URL must be an https URL without spaces, refusing to continue." >&2
+            exit 1
+          fi
+          echo "${INPUTS_RELEASE_BLOG_POST_URL}" > RELEASE_BLOG_POST_URL
+        env:
+          INPUTS_RELEASE_BLOG_POST_URL: ${{ inputs.RELEASE_BLOG_POST_URL }}
 
       - name: Update go.mod gitops-engine version to release tag
         run: |
