@@ -1845,6 +1845,160 @@ func TestSync_FailedSyncWithSyncFailHook_ApplyFailed(t *testing.T) {
 	assert.Equal(t, synccommon.ResultCodeSynced, successfulSyncFailHookResult.Status)
 }
 
+func TestSync_ApplyFailed_DoesNotWaitForNonHookResources(t *testing.T) {
+	// Tests that when a resource fails to apply, the sync fails immediately instead of
+	// waiting for the other (non-hook) resources that were applied successfully in the same wave.
+	failedPod := testingutils.NewPod()
+	failedPod.SetName("failed-pod")
+	failedPod.SetNamespace(testingutils.FakeArgoCDNamespace)
+	appliedPod := testingutils.NewPod()
+	appliedPod.SetName("applied-pod")
+	appliedPod.SetNamespace(testingutils.FakeArgoCDNamespace)
+
+	syncCtx := newTestSyncCtx(nil, WithHealthOverride(resourceNameHealthOverride{
+		appliedPod.GetName(): health.HealthStatusProgressing,
+	}))
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil, nil},
+		Target: []*unstructured.Unstructured{failedPod, appliedPod},
+	})
+	syncCtx.dynamicIf = fake.NewSimpleDynamicClient(runtime.NewScheme())
+	syncCtx.resourceOps = &kubetest.MockResourceOps{
+		Commands: map[string]kubetest.KubectlOutput{
+			failedPod.GetName(): {Err: errors.New("fake pod failure")},
+		},
+	}
+
+	syncCtx.Sync(context.Background())
+	phase, message, resources := syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationFailed, phase)
+	assert.Equal(t, "one or more objects failed to apply, reason: fake pod failure", message)
+	assert.Len(t, resources, 2)
+
+	failedPodResult := getResourceResult(resources, kube.GetResourceKey(failedPod))
+	require.NotNil(t, failedPodResult, "%s not found", kube.GetResourceKey(failedPod))
+	assert.Equal(t, synccommon.OperationFailed, failedPodResult.HookPhase)
+	assert.Equal(t, synccommon.ResultCodeSyncFailed, failedPodResult.Status)
+
+	appliedPodResult := getResourceResult(resources, kube.GetResourceKey(appliedPod))
+	require.NotNil(t, appliedPodResult, "%s not found", kube.GetResourceKey(appliedPod))
+	assert.Equal(t, synccommon.OperationRunning, appliedPodResult.HookPhase)
+	assert.Equal(t, synccommon.ResultCodeSynced, appliedPodResult.Status)
+}
+
+func TestSync_ApplyFailed_WaitsForRunningHooks(t *testing.T) {
+	// Tests that when a resource fails to apply, the sync keeps running while hooks
+	// started in the same wave are still in progress.
+	failedPod := testingutils.NewPod()
+	failedPod.SetName("failed-pod")
+	failedPod.SetNamespace(testingutils.FakeArgoCDNamespace)
+	appliedPod := testingutils.NewPod()
+	appliedPod.SetName("applied-pod")
+	appliedPod.SetNamespace(testingutils.FakeArgoCDNamespace)
+	hook := newHook("hook-1", synccommon.HookTypeSync, synccommon.HookDeletePolicyBeforeHookCreation)
+
+	syncCtx := newTestSyncCtx(nil, WithHealthOverride(resourceNameHealthOverride{
+		appliedPod.GetName(): health.HealthStatusProgressing,
+		hook.GetName():       health.HealthStatusProgressing,
+	}))
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil, nil},
+		Target: []*unstructured.Unstructured{failedPod, appliedPod},
+	})
+	syncCtx.hooks = []*unstructured.Unstructured{hook}
+	syncCtx.dynamicIf = fake.NewSimpleDynamicClient(runtime.NewScheme())
+	syncCtx.resourceOps = &kubetest.MockResourceOps{
+		Commands: map[string]kubetest.KubectlOutput{
+			failedPod.GetName(): {Err: errors.New("fake pod failure")},
+		},
+	}
+
+	syncCtx.Sync(context.Background())
+	phase, message, resources := syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	assert.Equal(t, "waiting for completion of hook /Pod/hook-1", message)
+	assert.Len(t, resources, 3)
+
+	failedPodResult := getResourceResult(resources, kube.GetResourceKey(failedPod))
+	require.NotNil(t, failedPodResult, "%s not found", kube.GetResourceKey(failedPod))
+	assert.Equal(t, synccommon.OperationFailed, failedPodResult.HookPhase)
+	assert.Equal(t, synccommon.ResultCodeSyncFailed, failedPodResult.Status)
+
+	appliedPodResult := getResourceResult(resources, kube.GetResourceKey(appliedPod))
+	require.NotNil(t, appliedPodResult, "%s not found", kube.GetResourceKey(appliedPod))
+	assert.Equal(t, synccommon.OperationRunning, appliedPodResult.HookPhase)
+	assert.Equal(t, synccommon.ResultCodeSynced, appliedPodResult.Status)
+
+	hookResult := getResourceResult(resources, kube.GetResourceKey(hook))
+	require.NotNil(t, hookResult, "%s not found", kube.GetResourceKey(hook))
+	assert.Equal(t, synccommon.OperationRunning, hookResult.HookPhase)
+	assert.Equal(t, synccommon.ResultCodeSynced, hookResult.Status)
+}
+
+func TestSync_ApplyFailed_SyncFailHookCompleted_DoesNotWaitForNonHookResources(t *testing.T) {
+	// Tests that once a resource has failed to apply and the SyncFail hooks have completed, the sync
+	// fails on the next run instead of waiting for the other (non-hook) resources that were applied
+	// successfully in the same wave to become healthy.
+	failedPod := testingutils.NewPod()
+	failedPod.SetName("failed-pod")
+	failedPod.SetNamespace(testingutils.FakeArgoCDNamespace)
+	appliedPod := testingutils.NewPod()
+	appliedPod.SetName("applied-pod")
+	appliedPod.SetNamespace(testingutils.FakeArgoCDNamespace)
+	syncFailHook := newHook("sync-fail-hook", synccommon.HookTypeSyncFail, synccommon.HookDeletePolicyBeforeHookCreation)
+
+	syncCtx := newTestSyncCtx(nil, WithHealthOverride(resourceNameHealthOverride{
+		appliedPod.GetName():   health.HealthStatusProgressing,
+		syncFailHook.GetName(): health.HealthStatusHealthy,
+	}))
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil, nil},
+		Target: []*unstructured.Unstructured{failedPod, appliedPod},
+	})
+	syncCtx.hooks = []*unstructured.Unstructured{syncFailHook}
+	syncCtx.dynamicIf = fake.NewSimpleDynamicClient(runtime.NewScheme())
+	syncCtx.resourceOps = &kubetest.MockResourceOps{
+		Commands: map[string]kubetest.KubectlOutput{
+			failedPod.GetName(): {Err: errors.New("fake pod failure")},
+		},
+	}
+
+	// First sync triggers the SyncFail hook on failure
+	syncCtx.Sync(context.Background())
+	phase, message, resources := syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	assert.Equal(t, "waiting for completion of hook /Pod/sync-fail-hook", message)
+	assert.Len(t, resources, 3)
+
+	// Update the live state for the next run: the applied pod is still progressing, the SyncFail hook is done
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil, appliedPod, syncFailHook},
+		Target: []*unstructured.Unstructured{failedPod, appliedPod, nil},
+	})
+
+	// Second sync fails as soon as the SyncFail hook is done, without waiting for the applied pod
+	syncCtx.Sync(context.Background())
+	phase, message, resources = syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationFailed, phase)
+	assert.Equal(t, "one or more synchronization tasks completed unsuccessfully, reason: fake pod failure", message)
+	assert.Len(t, resources, 3)
+
+	failedPodResult := getResourceResult(resources, kube.GetResourceKey(failedPod))
+	require.NotNil(t, failedPodResult, "%s not found", kube.GetResourceKey(failedPod))
+	assert.Equal(t, synccommon.OperationFailed, failedPodResult.HookPhase)
+	assert.Equal(t, synccommon.ResultCodeSyncFailed, failedPodResult.Status)
+
+	appliedPodResult := getResourceResult(resources, kube.GetResourceKey(appliedPod))
+	require.NotNil(t, appliedPodResult, "%s not found", kube.GetResourceKey(appliedPod))
+	assert.Equal(t, synccommon.OperationRunning, appliedPodResult.HookPhase)
+	assert.Equal(t, synccommon.ResultCodeSynced, appliedPodResult.Status)
+
+	syncFailHookResult := getResourceResult(resources, kube.GetResourceKey(syncFailHook))
+	require.NotNil(t, syncFailHookResult, "%s not found", kube.GetResourceKey(syncFailHook))
+	assert.Equal(t, synccommon.OperationSucceeded, syncFailHookResult.HookPhase)
+	assert.Equal(t, synccommon.ResultCodeSynced, syncFailHookResult.Status)
+}
+
 func TestSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
 	hook1 := newHook("hook-1", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook2 := newHook("hook-2", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookFailed)
