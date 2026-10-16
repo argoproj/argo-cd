@@ -295,6 +295,20 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NotNil(t, f.spec.SyncPolicy.Automated.Prune)
 		assert.False(t, *f.spec.SyncPolicy.Automated.Prune)
 	})
+	t.Run("SyncPruneFlag", func(t *testing.T) {
+		f := newAppOptionsFixture()
+
+		require.NoError(t, f.SetFlag("sync-prune", "true"))
+		require.NotNil(t, f.spec.SyncPolicy)
+		require.NotNil(t, f.spec.SyncPolicy.ManualDefaults)
+		require.NotNil(t, f.spec.SyncPolicy.ManualDefaults.Prune)
+		assert.True(t, *f.spec.SyncPolicy.ManualDefaults.Prune)
+		assert.Nil(t, f.spec.SyncPolicy.Automated)
+
+		require.NoError(t, f.SetFlag("sync-prune", "false"))
+		require.NotNil(t, f.spec.SyncPolicy.ManualDefaults.Prune)
+		assert.False(t, *f.spec.SyncPolicy.ManualDefaults.Prune)
+	})
 	t.Run("SelfHealFlag", func(t *testing.T) {
 		f := newAppOptionsFixture()
 

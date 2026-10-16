@@ -46,7 +46,19 @@ export const ApplicationSyncPanelBody = ({
                         revision: new URLSearchParams(ctx.history.location.search).get('revision') || source.targetRevision || 'HEAD',
                         resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
                         syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : [],
-                        message: ''
+                        message: '',
+                        // Only pre-fill from manualDefaults when that field is set; otherwise keep
+                        // legacy unchecked defaults so behavior matches apps without the field.
+                        ...(application.spec.syncPolicy?.manualDefaults
+                            ? {
+                                  syncFlags: {
+                                      Prune: application.spec.syncPolicy.manualDefaults.prune ?? true,
+                                      DryRun: !!application.spec.syncPolicy.manualDefaults.dryRun,
+                                      ApplyOnly: !!application.spec.syncPolicy.manualDefaults.applyOnly,
+                                      Force: !!application.spec.syncPolicy.manualDefaults.force
+                                  } as SyncFlags
+                              }
+                            : {})
                     }}
                     validateError={values => ({
                         resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource'

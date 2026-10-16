@@ -1983,25 +1983,35 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				syncReq := application.ApplicationSyncRequest{
 					Name:            &appName,
 					AppNamespace:    &appNs,
-					DryRun:          &dryRun,
 					Revision:        &revision,
 					Resources:       filteredResources,
-					Prune:           &prune,
 					Manifests:       localObjsStrings,
 					Infos:           getInfos(infos),
 					SyncOptions:     syncOptionsFactory(),
 					Revisions:       revisions,
 					SourcePositions: sourcePositions,
 				}
+				// Only set request overrides when flags are explicitly provided. Leaving them nil
+				// lets the API server apply syncPolicy.manualDefaults defaults for manual syncs.
+				if c.Flags().Changed("prune") {
+					syncReq.Prune = &prune
+				}
+				if c.Flags().Changed("dry-run") {
+					syncReq.DryRun = &dryRun
+				}
 
-				switch strategy {
-				case "apply":
-					syncReq.Strategy = &argoappv1.SyncStrategy{Apply: &argoappv1.SyncStrategyApply{}}
-					syncReq.Strategy.Apply.Force = force
-				case "", "hook":
-					syncReq.Strategy = &argoappv1.SyncStrategy{Hook: &argoappv1.SyncStrategyHook{}}
-					syncReq.Strategy.Hook.Force = force
-				default:
+				if c.Flags().Changed("strategy") || c.Flags().Changed("force") {
+					switch strategy {
+					case "apply":
+						syncReq.Strategy = &argoappv1.SyncStrategy{Apply: &argoappv1.SyncStrategyApply{}}
+						syncReq.Strategy.Apply.Force = force
+					case "", "hook":
+						syncReq.Strategy = &argoappv1.SyncStrategy{Hook: &argoappv1.SyncStrategyHook{}}
+						syncReq.Strategy.Hook.Force = force
+					default:
+						log.Fatalf("Unknown sync strategy: '%s'", strategy)
+					}
+				} else if strategy != "" {
 					log.Fatalf("Unknown sync strategy: '%s'", strategy)
 				}
 				if retryLimit != 0 {
@@ -2063,8 +2073,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 		}),
 	}
-	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
-	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
+	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster. If omitted, syncPolicy.manualDefaults.dryRun is used")
+	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources. If omitted, syncPolicy.manualDefaults.prune is used (default true)")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%[1]sKIND%[1]sNAME or %[2]sGROUP%[1]sKIND%[1]sNAME. Fields may be blank and '*' can be used. This option may be specified repeatedly", resourceFieldDelimiter, resourceExcludeIndicator))
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Sync apps that match this label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.")
@@ -2075,8 +2085,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().DurationVar(&retryBackoffDuration, "retry-backoff-duration", argoappv1.DefaultSyncRetryDuration, "Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().DurationVar(&retryBackoffMaxDuration, "retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&retryBackoffFactor, "retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed retry")
-	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
-	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
+	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook). If omitted with --force unset, syncPolicy.manualDefaults.applyOnly is used")
+	command.Flags().BoolVar(&force, "force", false, "Use a force apply. If omitted with --strategy unset, syncPolicy.manualDefaults.force is used")
 	command.Flags().BoolVar(&replace, "replace", false, "Use a kubectl create/replace instead apply")
 	command.Flags().BoolVar(&serverSideApply, "server-side", false, "Use server-side apply while syncing the application")
 	command.Flags().BoolVar(&applyOutOfSyncOnly, "apply-out-of-sync-only", false, "Sync only out-of-sync resources")

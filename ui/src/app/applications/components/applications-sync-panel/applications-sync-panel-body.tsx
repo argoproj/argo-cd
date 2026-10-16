@@ -6,9 +6,10 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
-import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags} from '../application-sync-options/application-sync-options';
+import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING} from '../application-sync-options/application-sync-options';
 import {ApplicationSelector} from '../../../shared/components';
 import {getAppDefaultSource} from '../utils';
+import {resolveBulkSyncFlags, SyncFlagValues} from './resolve-bulk-sync-flags';
 
 interface Progress {
     percentage: number;
@@ -26,9 +27,20 @@ export const ApplicationsSyncPanelBody = ({apps, getApi, setPending}: {apps: mod
                     onSubmit={async (params: any) => {
                         setPending(true);
                         const selectedApps = getSelectedApps(params);
-                        const syncFlags = {...params.syncFlags} as SyncFlags;
-                        const force = syncFlags.Force || false;
-                        if (force) {
+                        if (selectedApps.length === 0) {
+                            ctx.notifications.show({content: `No apps selected`, type: NotificationType.Error});
+                            setPending(false);
+                            return;
+                        }
+
+                        const syncFlags = {...params.syncFlags} as SyncFlagValues;
+                        const resolvedByApp = selectedApps.map(app => ({
+                            app,
+                            flags: resolveBulkSyncFlags(syncFlags, app)
+                        }));
+
+                        // Confirm force based on per-app resolved values (checkbox or manualDefaults).
+                        if (resolvedByApp.some(({flags}) => flags.force)) {
                             const confirmed = await ctx.popup.confirm('Synchronize with force?', () => (
                                 <div>
                                     <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> {FORCE_WARNING} Are you sure you want to continue?
@@ -39,24 +51,21 @@ export const ApplicationsSyncPanelBody = ({apps, getApi, setPending}: {apps: mod
                                 return;
                             }
                         }
-                        if (selectedApps.length === 0) {
-                            ctx.notifications.show({content: `No apps selected`, type: NotificationType.Error});
-                            setPending(false);
-                            return;
-                        }
-
-                        const syncStrategy: models.SyncStrategy = syncFlags.ApplyOnly || false ? {apply: {force}} : {hook: {force}};
 
                         setProgress({percentage: 0, title: 'Starting...'});
                         let i = 0;
-                        for (const app of selectedApps) {
+                        for (const {app, flags} of resolvedByApp) {
+                            // Always send an explicit prune boolean. Omitting prune when unchecked
+                            // would let apps with manualDefaults.prune fall back to true, so the
+                            // UI checkbox could not disable pruning for a single sync.
+                            const syncStrategy: models.SyncStrategy = flags.applyOnly ? {apply: {force: flags.force}} : {hook: {force: flags.force}};
                             await services.applications
                                 .sync(
                                     app.metadata.name,
                                     app.metadata.namespace,
                                     getAppDefaultSource(app).targetRevision,
-                                    syncFlags.Prune || false,
-                                    syncFlags.DryRun || false,
+                                    flags.prune,
+                                    flags.dryRun,
                                     syncStrategy,
                                     null,
                                     params.syncOptions,
