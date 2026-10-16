@@ -874,3 +874,22 @@ spec:
     helm:
       skipTests: true # or false
 ```
+
+## Helm `--enable-dns`
+
+By default, Helm 3.11.1+ disables DNS lookups when rendering templates to reduce potential information disclosure from untrusted charts.
+
+If DNS lookup functionallity is needed, you can re-enable it with the `helm-enable-dns` flag on the cli:
+
+```bash
+argocd app set helm-guestbook --helm-enable-dns
+```
+
+Or using declarative syntax:
+
+```yaml
+spec:
+  source:
+    helm:
+      enableDNS: true
+```

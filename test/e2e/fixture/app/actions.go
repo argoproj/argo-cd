@@ -351,6 +351,9 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	if a.context.helmSkipTests {
 		args = append(args, "--helm-skip-tests")
 	}
+	if a.context.helmEnableDNS {
+		args = append(args, "--helm-enable-dns")
+	}
 	return args
 }
 

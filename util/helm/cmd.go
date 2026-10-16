@@ -394,6 +394,7 @@ type TemplateOpts struct {
 	SkipCrds             bool
 	SkipSchemaValidation bool
 	SkipTests            bool
+	EnableDNS            bool
 }
 
 func cleanSetParameters(val string) string {
@@ -467,6 +468,9 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, er
 	}
 	if opts.SkipTests {
 		args = append(args, "--skip-tests")
+	}
+	if opts.EnableDNS {
+		args = append(args, "--enable-dns")
 	}
 
 	out, command, err := c.run(context.Background(), args...)

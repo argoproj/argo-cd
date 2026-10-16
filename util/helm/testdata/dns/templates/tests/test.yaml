@@ -1,0 +1,9 @@
+{{ $googleIp := getHostByName "google.com" }}
+{{ if $googleIp }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test
+data:
+  googleIpAddress: {{ $googleIp }}
+{{ end }}

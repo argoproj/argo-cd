@@ -7737,6 +7737,10 @@
             "type": "string"
           }
         },
+        "enableDNS": {
+          "type": "boolean",
+          "title": "EnableDNS enables DNS lookups when rendering templates (Helm's --enable-dns)"
+        },
         "fileParameters": {
           "type": "array",
           "title": "FileParameters are file parameters to the helm template",

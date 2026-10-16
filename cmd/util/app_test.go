@@ -70,6 +70,11 @@ func Test_setHelmOpt(t *testing.T) {
 		setHelmOpt(&src, helmOpts{skipSchemaValidation: true})
 		assert.True(t, src.Helm.SkipSchemaValidation)
 	})
+	t.Run("HelmEnableDNS", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{enableDNS: true})
+		assert.True(t, src.Helm.EnableDNS)
+	})
 	t.Run("HelmSkipTests", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{skipTests: true})
