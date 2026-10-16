@@ -354,6 +354,9 @@ func Test_SSHCreds_Environ_ProxyCommandPassesTargetToConnectProxy(t *testing.T) 
 	if _, err := exec.LookPath("ssh"); err != nil {
 		t.Skip("ssh is not installed")
 	}
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
+	}
 
 	binDir := t.TempDir()
 	argsFile := path.Join(t.TempDir(), "connect-proxy-args")
