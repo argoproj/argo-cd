@@ -34,6 +34,43 @@ func TestNewCommand_DisableTLSAndClientCAPathAreMutuallyExclusive(t *testing.T) 
 	assert.Contains(t, err.Error(), "--client-ca-path cannot be used when --disable-tls is enabled")
 }
 
+func TestResolveClientCAPath(t *testing.T) {
+	t.Run("disable-tls with no client CA path resolves empty without error", func(t *testing.T) {
+		for _, explicit := range []bool{false, true} {
+			got, err := resolveClientCAPath("", true, explicit)
+			require.NoError(t, err)
+			assert.Empty(t, got)
+		}
+	})
+
+	t.Run("disable-tls with a client CA path is an error", func(t *testing.T) {
+		for _, explicit := range []bool{false, true} {
+			got, err := resolveClientCAPath("/tmp/client-ca.crt", true, explicit)
+			require.Error(t, err)
+			assert.Empty(t, got)
+			assert.Contains(t, err.Error(), "--client-ca-path cannot be used when --disable-tls is enabled")
+		}
+	})
+
+	t.Run("TLS enabled with unset client CA path defaults to the auto-mounted Secret path", func(t *testing.T) {
+		got, err := resolveClientCAPath("", false, false)
+		require.NoError(t, err)
+		assert.Equal(t, defaultClientCAPath, got)
+	})
+
+	t.Run("TLS enabled with an explicit empty client CA path disables mTLS", func(t *testing.T) {
+		got, err := resolveClientCAPath("", false, true)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+
+	t.Run("TLS enabled with an explicit client CA path is preserved", func(t *testing.T) {
+		got, err := resolveClientCAPath("/custom/client-ca.crt", false, true)
+		require.NoError(t, err)
+		assert.Equal(t, "/custom/client-ca.crt", got)
+	})
+}
+
 func TestBuildHealthCheckTLSConfig_NilCert(t *testing.T) {
 	cfg := buildHealthCheckTLSConfig(nil, false)
 
