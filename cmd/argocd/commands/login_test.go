@@ -147,3 +147,21 @@ func Test_applyCertConfig(t *testing.T) {
 		require.ErrorContains(t, applyCertConfig(&serverCfg, nil, "", keyPath), "must always be specified together")
 	})
 }
+
+func Test_buildVerificationPrompt_completeURI(t *testing.T) {
+	prompt := buildVerificationPrompt("https://example.com/device?user_code=ABCD-1234", "https://example.com/device", "ABCD-1234")
+	assert.Equal(t, "  https://example.com/device?user_code=ABCD-1234", prompt)
+}
+
+func Test_buildVerificationPrompt_noCompleteURI(t *testing.T) {
+	// RFC 8628 §3.3: when verification_uri_complete is absent, show the base
+	// URI and the user_code separately. No URL synthesis is performed.
+	prompt := buildVerificationPrompt("", "https://example.com/device", "ABCD-1234")
+	assert.Equal(t, "  https://example.com/device\n\n  Enter the code: ABCD-1234", prompt)
+}
+
+func Test_buildVerificationPrompt_invalidBaseURI(t *testing.T) {
+	// Even an unparseable URI is shown as-is alongside the code.
+	prompt := buildVerificationPrompt("", "://bad url", "XXXX-YYYY")
+	assert.Equal(t, "  ://bad url\n\n  Enter the code: XXXX-YYYY", prompt)
+}
