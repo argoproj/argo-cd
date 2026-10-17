@@ -51,7 +51,7 @@ controller will remove this annotation at the end of reconciliation.
 ### `argocd.argoproj.io/client-side-apply-migration-manager` { #client-side-apply-migration-manager }
 
 - **Target resource(s):** Application
-- **Possible values:** a field manager name (default `kubectl-client-side-apply`)
+- **Possible values:** a field manager name, or a comma-separated list of names (default `kubectl-client-side-apply`)
 
 Specifies a custom field manager to use for client-side apply migration during a server-side apply
 sync. Useful when another operator owns fields that Argo CD should take over. Must be set on the
