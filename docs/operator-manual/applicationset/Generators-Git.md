@@ -459,6 +459,10 @@ forces the Git provider to resolve Git references directly, bypassing
 the Revision Cache. The ApplicationSet controller removes this
 annotation after reconciliation.
 
+If an Argo CD Application manages the ApplicationSet, you can also set this
+annotation from the UI with the built-in **Refresh ApplicationSet** resource action
+(`refresh`) on the ApplicationSet node of that Application.
+
 ## Webhook Configuration
 
 To eliminate the polling delay, the ApplicationSet webhook

@@ -864,6 +864,12 @@ spec:
         - /argo-cd
 ```
 NOTE: The flag `--rootpath` changes both API Server and UI base URL.
+
+> [!NOTE]
+> For SSO, include the root path in `url` and every `additionalUrls` entry in `argocd-cm`.
+> For example, with `--rootpath=/argo-cd`, use `https://anotherhost.org/argo-cd`,
+> not `https://anotherhost.org`. The root path is not automatically appended to SSO callback URLs.
+
 Example nginx.conf:
 
 ```
