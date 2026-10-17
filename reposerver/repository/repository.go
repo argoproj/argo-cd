@@ -3590,6 +3590,8 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 
 	// Only SyncedRefSources that refer to a specific source should be compared
 	refsToCompare := v1alpha1.RefTargetRevisionMapping{}
+	// Track which value file paths are referenced for each ref source
+	refSourcePaths := make(map[string][]string)
 
 	refCandidates := make([]string, 0)
 	if request.HasMultipleSources && request.ApplicationSource.Helm != nil {
@@ -3604,7 +3606,14 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 		if !strings.HasPrefix(valueFile, "$") {
 			continue
 		}
-		refName, _, _ := strings.Cut(valueFile, "/")
+		refName, refPath, found := strings.Cut(valueFile, "/")
+		if !found {
+			continue
+		}
+		// Track the actual file path in the ref source (e.g., "app/values.yaml" from "$values/app/values.yaml")
+		// Normalize the path to handle cases like "./values.yaml"
+		refSourcePaths[refName] = append(refSourcePaths[refName], path.Clean(refPath))
+
 		if _, ok := refsToCompare[refName]; ok {
 			continue
 		}
@@ -3622,7 +3631,9 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 		var err error
 
 		if sRefSource.TargetRevision != request.RefSources[refName].TargetRevision {
-			resolvedRevision, syncedRevision, sourceHasChanges, err = s.gitSourceHasChanges(ctx, &sRefSource.Repo, request.RefSources[refName].TargetRevision, sRefSource.TargetRevision, refreshPaths, gitClientOpts)
+			// Use the actual referenced value file paths for this ref source, not refreshPaths from main source
+			refPaths := refSourcePaths[refName]
+			resolvedRevision, syncedRevision, sourceHasChanges, err = s.gitSourceHasChanges(ctx, &sRefSource.Repo, request.RefSources[refName].TargetRevision, sRefSource.TargetRevision, refPaths, gitClientOpts)
 			if err != nil {
 				return nil, err
 			}
@@ -3632,7 +3643,8 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 			}
 
 			if sourceHasChanges {
-				logCtx.Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, sRefSource.Repo.Repo, syncedRevision, resolvedRevision)
+				// Referenced value files changed - manifests must be regenerated (fixes #30245)
+				logCtx.Debugf("referenced value files changed for application %s in repo %s from revision %s to revision %s", request.AppName, sRefSource.Repo.Repo, syncedRevision, resolvedRevision)
 				return &apiclient.UpdateRevisionForPathsResponse{
 					Revision: rRevision,
 					Changes:  true,
