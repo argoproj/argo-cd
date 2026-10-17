@@ -1,143 +1,59 @@
 # Reviewing PRs
 
-This guide is for anyone who reviews pull requests to Argo CD. It defines when a review may block a PR, what a blocking review must contain, and what a reviewer who blocks a PR commits to afterwards.
-If you are submitting a PR, read [Submit Your PR](submit-your-pr.md) first; the sections below on blocking reviews tell you what to expect from reviewers.
+This guide is for anyone who reviews pull requests to Argo CD. It is built around three principles that make reviews easier for contributors to follow and that fit into the way most of us already review, so following them should not cost reviewers extra time. None of them comes with a deadline, because maintainers review in whatever time they have available, and that time changes from week to week.
 
-## Summary
+If you are submitting a PR, read [Submit Your PR](submit-your-pr.md) first, and then use this guide to understand what to expect from the people reviewing it.
 
-| Situation                                                                 | Review type                                  | Required from the reviewer                                                |
-|---------------------------------------------------------------------------|----------------------------------------------|---------------------------------------------------------------------------|
-| Bug, regression, security issue, data loss, wrong docs, or undocumented breaking change | Request changes                          | Reason and exit condition on each blocking thread                         |
-| Design disagreement                                                       | Request changes                          | Reason, exit condition, and a concrete alternative or violated constraint |
-| Missing tests, or missing docs for a non-breaking change                  | Comment                                  | Flag it; approvers do not merge until it is addressed (see [Missing tests and docs](#missing-tests-and-docs)) |
-| Anything else: style, naming, refactoring ideas, questions, optional work | Comment (or Approve with comments)   | Prefix with `nit:`, `suggestion:` or `question:`                          |
+## Who reviews
 
-The above table doesn't mean that all bugs or all cases should request a change. The reviewer should use their best judgement to decide whether a change is necessary or not.
-A reviewer who requests changes commits to coming back: they respond to a re-review request within 2 business days. If they go quiet, an approver who can own that area may take the review over.
+Anyone can review a PR, and reviews from the community are welcome. Approvers (the `@argoproj/argocd-approvers` team and the scoped teams in [`CODEOWNERS`](https://github.com/argoproj/argo-cd/blob/master/CODEOWNERS)) merge PRs, and every PR needs at least one approval from one of them, with the roles themselves defined in the [Argo community membership guide](https://github.com/argoproj/argoproj/blob/main/community/membership.md).
 
-## Who can review
+## 1. Be clear about what is a blocker and what is not
 
-Anyone can review a PR, and reviews from the community are welcome. The roles below are defined in the [Argo community membership guide](https://github.com/argoproj/argoproj/blob/main/community/membership.md).
+When something must be fixed before the PR can merge, say so in the comment, and when something is only a nit, say that as well. That way the contributor knows what to work on first, and anyone who reviews the PR later can tell which of the earlier requests were optional.
 
-* Members and other contributors may leave Comment reviews. If you find a problem that meets the blocking criteria below, say so in your comment and a reviewer or approver can turn it into a blocking review.
-* Reviewers and approvers may submit Request changes reviews, following the rules in this guide. If your status is scoped to part of the codebase, meaning the paths your team owns in [`CODEOWNERS`](https://github.com/argoproj/argo-cd/blob/master/CODEOWNERS), your blocking threads must be about files in those paths. Elsewhere, comment instead; a reviewer or approver who owns those files can turn it into a block.
-* Approvers (the `@argoproj/argocd-approvers` team and the scoped teams in [`CODEOWNERS`](https://github.com/argoproj/argo-cd/blob/master/CODEOWNERS)) merge PRs. Every PR needs at least one approver.
+These are the kinds of problems that usually block a PR:
 
-## Review in order
+* A bug, a regression, a security problem, or anything that could lose or corrupt user data
+* A user-visible change without docs or upgrade notes
+* Missing tests, or docs that are missing, wrong, or misleading
+* An approach you disagree with on design grounds, in which case name the alternative you have in mind or the constraint the change breaks, so the author has a concrete direction to work from
 
-Check a PR in this order and stop at the first level that fails.
+Mark everything else with one of these prefixes, so the author knows it is optional:
 
-1. Is the change wanted? Bug fixes need a reproducible bug. Features need an accepted enhancement proposal (see the [code contribution guide](code-contributions.md)).
-2. Is the design right? Does it fit the architecture, respect existing APIs and behavior, and match the accepted proposal?
-3. Is the code right? Correctness, error handling, concurrency, security, performance, tests and docs.
-4. Is it polished? Naming, readability, comments, small simplifications.
+| Prefix        | Meaning                                                |
+|---------------|--------------------------------------------------------|
+| `nit:`        | A minor issue such as a typo, naming, or formatting    |
+| `suggestion:` | An improvement the author can take or leave            |
+| `question:`   | You want to understand something; no change is implied |
 
-## When to request changes
+If none of your comments are blockers, submit your review as Comment or Approve, not Request changes.
 
-A Request changes review blocks a PR. Use it only for the three reasons below. Everything else is a comment.
+## 2. Trust your judgment when dismissing reviews
 
-### Allowed reasons
+An earlier Request changes review sometimes stays on a PR after the author has responded to it, and if you are the approver looking at that PR, use your judgment along these lines:
 
-1. Bug, security issue, or data loss. The change is incorrect, introduces a regression, opens a security hole, could lose or corrupt user state (Applications, clusters, repositories, secrets, settings), or adds documentation that is wrong or misleading.
-2. Undocumented breaking change. The change alters user-visible behavior, an API, a CLI flag, a manifest, or a default, and the PR does not document it in the relevant docs and in the upgrade notes under [`docs/operator-manual/upgrading/`](../operator-manual/upgrading/overview.md).
-3. Design disagreement. The approach conflicts with Argo CD's architecture or with an accepted proposal, even if the code works. This reason has extra conditions, described in [Design disagreements](#design-disagreements).
+* If the open comments read as nits, or the author has already addressed them, treat them as non-blocking and dismiss the review with a comment that explains why.
+* If an open comment raises something important, such as a security concern or a design disagreement, try to resolve it with the original reviewer first.
+* If you can't reach a resolution with them, ask the other maintainers to decide whether the review can be dismissed, in the `#argo-cd-contributors` channel on [Slack](https://argoproj.github.io/community/join-slack) or at the [contributor meeting](code-contributions.md#regular-contributor-meeting).
 
-### Not reasons to block
+If you blocked a PR and know you won't get back to it, say so on the PR so someone else can pick it up.
 
-These are always comments, never blocking reviews:
+## 3. Always communicate expectations and next steps
 
-* Style or formatting that the linters do not enforce
-* Naming preferences
-* Refactoring outside the scope of the PR
-* "I would have done it differently" when the PR's approach is not wrong
-* Follow-up work that can go in a separate PR
-* Missing tests or docs, unless the missing docs are for a breaking change (see [Missing tests and docs](#missing-tests-and-docs))
+Before you post a comment or submit a review, check that the contributor will be able to tell what happens next, as in these examples:
 
-> [!NOTE]
-> If you are not sure, just leave a comment instead. Another reviewer or approver can still block on it if they disagree.
+* You approve but are not an approver: "Looks good to me. It still needs a review from an approver." If you are an Argo member or reviewer, also add the `ready-for-review` label and add the PR to the Argo CD Review project (see the [FAQ](faq.md#how-do-i-get-my-pr-labeled-ready-for-review)).
+* You are an approver waiting on another maintainer: "Approved from my side. This now waits for @name to finish their review."
+* You requested changes: your blocking comments already say what needs to change.
 
-### What a blocking thread must contain
-
-Every thread that blocks the PR must state:
-
-* The reason, as a prefix: `blocking (bug):`, `blocking (breaking):` or `blocking (design):`.
-* The exit condition: what the author must change, concretely enough that both of you will agree when it is done.
-
-For example:
-
-```text
-blocking (bug): when `spec.source` is nil this dereferences it and panics the
-controller. Exit condition: return an error for a nil source, and add a test case
-for it in TestReconcile.
-```
-
-Approvers treat a Request changes review as a comment review if it has no blocking threads, or if its threads do not follow this format. GitHub still shows such a review as blocking, so an approver may dismiss it straight away. The dismissal comment says what the review is missing and links to this section. This is not a decision on the content: the reviewer may submit a corrected review at any time.
-
-### Design disagreements
-
-Design is the reason most open to judgement, so a design block also needs:
-
-* A concrete alternative, or the constraint the PR violates, such as a section of an accepted proposal, an API compatibility rule, or a documented architecture decision. "I don't like this approach" is not enough.
-* Escalation after one round. If the author responds and you still disagree, do not keep going back and forth. Either side adds the PR to the agenda of the next [contributor meeting](code-contributions.md#regular-contributor-meeting). The meeting's decision is recorded as a comment on the PR, and both sides follow it.
-
-Design concerns are cheapest to raise before code is written, while an enhancement proposal is being discussed.
-
-## Missing tests and docs
-
-Tests and docs are a merge requirement, not a reason to block. The exception is missing docs for a breaking change, which may block under [allowed reason 2](#allowed-reasons). Every fix needs a test that fails without it, and every feature needs tests and docs. If tests are not feasible, the PR description must explain why.
-
-* Reviewers flag what is missing in a comment.
-* Approvers do not merge a PR until these requirements are met.
-
-## Non-blocking feedback
-
-Submit non-blocking feedback as a Comment review, or as Approve if nothing in your review blocks the PR. Prefix each thread so the author knows what you expect:
-
-| Prefix        | Meaning                                                       | Author may resolve without changing code |
-|---------------|---------------------------------------------------------------|------------------------------------------|
-| `nit:`        | A minor issue such as a typo, naming, or formatting           | Yes                                      |
-| `suggestion:` | An improvement the author can take or leave                   | Yes, ideally with a short reply          |
-| `question:`   | You want to understand something; no change is implied        | After answering it                       |
-
-Approving with `nit:` or `suggestion:` comments is encouraged. It tells the author that the PR can merge as is and that the comments are optional.
-
-## Say what happens next
-
-Unless you are merging the PR now, end your review with one line telling the author what happens next. For example:
-
-* You're an approver and another reviewer still has a Request changes review in place: "Approved from my side. This now waits for @name to finish their review."
-* You approve but don't have merge rights: "Looks good to me. It still needs a review from an approver." If you are an Argo member or reviewer, also add the `ready-for-review` label and add the PR to the Argo CD Review project (see the [FAQ](faq.md#how-do-i-get-my-pr-labeled-ready-for-review)).
-* You requested changes: your blocking threads and their exit conditions already tell the author what's next.
-
-## Re-review commitment
-
-Submitting a Request changes review is a commitment to come back.
-
-* When the author has addressed your blocking threads, they re-request your review using GitHub's Re-request review button, or by mentioning you in a comment.
-* Respond within 2 business days. Either re-review the PR, or acknowledge the request with a 👀 reaction or a one-line comment with a rough ETA, so the author knows it hasn't been forgotten.
-* Check your existing blocking threads against their exit conditions. You may raise a new blocking issue only if it is in code changed since your last review, or if it falls under the first [allowed reason](#allowed-reasons) and you missed it the first time. Do not move the goalposts.
-* If you can't get back to it, for example because you are going on leave, say so on the PR, and either hand the review to another reviewer by name or ask an approver to dismiss your review.
-* When your comments and your concerns are addressed, you are encouraged to approve the PR. If someone else will approve it instead, say in a comment that your concerns are resolved, and an approver can dismiss your review.
-
-### When the reviewer goes quiet
-
-If the reviewer has not responded within 2 business days, or has gone well past the ETA they gave:
-
-1. The author mentions any approver on the PR, or asks in the `#argo-cd-contributors` channel on [Slack](https://argoproj.github.io/community/join-slack).
-2. If the approver knows the area well enough to own the change if something goes wrong later, they take the review over. They check the author's response against each blocking thread's exit condition. If the conditions are met, they dismiss the original review with a comment that says they have taken it over and links the author's response.
-3. If the approver cannot own that area, they say so on the PR, so the author knows the PR is waiting for the original reviewer or another owner of that area. If they know who that is, they name them.
-
-Taking over a review does not stop the original reviewer from raising a new blocking issue when they are back, following the same rules.
-
-> [!WARNING]
-> Approvers must not merge a PR while a Request changes review is still in place. It clears when the reviewer approves, or when an approver dismisses it for one of the reasons in this guide: the review is malformed, the reviewer hands off or says their concerns are resolved, another approver has taken the review over, or the contributor meeting decided against the block.
+If the author asks for another look and you can't get to it soon, a 👀 reaction or a short reply lets them know you've seen it.
 
 ## Reviewer checklist for Argo CD
 
 Besides general code quality, check the following for every PR:
 
-* Upgrade impact. Changed defaults, removed fields, renamed flags, and changed behavior are documented in the upgrade notes for the next release.
-* RBAC and security. New API endpoints enforce RBAC. New settings that touch credentials, TLS, or network access are secure by default.
-* Backports. Bug fixes that should go to supported release branches get a `cherry-pick/x.y` label (see [Backport Your Fix](backporting-fixes.md)).
-* Docs. User-facing changes are documented under `docs/`.
-* Next step. If you are not merging, your review tells the author what to expect (see [Say what happens next](#say-what-happens-next)).
+* Upgrade impact: changed defaults, removed fields, renamed flags, and changed behavior are documented in the upgrade notes for the next release.
+* RBAC and security: new API endpoints enforce RBAC, and new settings that touch credentials, TLS, or network access are secure by default.
+* Backports: bug fixes that should go to supported release branches get a `cherry-pick/x.y` label (see [Backport Your Fix](backporting-fixes.md)).
+* Docs: user-facing changes are documented under `docs/`.
