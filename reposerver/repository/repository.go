@@ -3576,6 +3576,14 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 
 			if resolvedRevision != syncedRevision {
 				revisionsAreDifferent = true
+				// For multi-source apps, when ref source revisions change, manifests must be regenerated.
+				// The cache contains manifests rendered with the old ref source content. Moving the cache
+				// to the new key would serve stale manifests, breaking auto-sync (issue #30245).
+				logCtx.Debugf("ref source revision changed for application %s in repo %s from revision %s to revision %s - forcing regeneration", request.AppName, sRefSource.Repo.Repo, syncedRevision, resolvedRevision)
+				return &apiclient.UpdateRevisionForPathsResponse{
+					Revision: rRevision,
+					Changes:  true,
+				}, nil
 			}
 
 			if sourceHasChanges {
