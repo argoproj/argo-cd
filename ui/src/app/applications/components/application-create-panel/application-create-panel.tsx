@@ -111,7 +111,8 @@ export const ApplicationCreatePanel = (props: {
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
     const [retry, setRetry] = React.useState(false);
     const app = deepMerge(DEFAULT_APP, props.app || {});
-    const debouncedOnAppChanged = debounce(props.onAppChanged, 800);
+    const onAppChangedRef = React.useRef(props.onAppChanged);
+    const debouncedOnAppChangedRef = React.useRef<((value: models.Application) => void) | null>(null);
     const [destinationFieldChanges, setDestinationFieldChanges] = React.useState({destFormat: 'URL', destFormatChanged: null});
     const [comboSwitchedFromPanel, setComboSwitchedFromPanel] = React.useState(false);
     const currentRepoType = React.useRef(undefined);
@@ -125,10 +126,18 @@ export const ApplicationCreatePanel = (props: {
     const [multiSourceMode, setMultiSourceMode] = React.useState(() => (app.spec?.sources?.length ?? 0) >= 2);
 
     React.useEffect(() => {
+        onAppChangedRef.current = props.onAppChanged;
+    });
+
+    // The parent passes a new onAppChanged on every render. Keep a single debounced function for the
+    // lifetime of the panel so that a parent re-render does not cancel the pending update.
+    React.useEffect(() => {
+        const debouncedOnAppChanged = debounce((value: models.Application) => onAppChangedRef.current(value), 800);
+        debouncedOnAppChangedRef.current = debouncedOnAppChanged;
         return () => {
             debouncedOnAppChanged.cancel();
         };
-    }, [debouncedOnAppChanged]);
+    }, []);
 
     const currentName = app.spec.destination.name;
     const currentServer = app.spec.destination.server;
@@ -297,7 +306,7 @@ export const ApplicationCreatePanel = (props: {
                                     };
                                 }}
                                 defaultValues={app}
-                                formDidUpdate={state => debouncedOnAppChanged(state.values as any)}
+                                formDidUpdate={state => debouncedOnAppChangedRef.current?.(state.values as any)}
                                 onSubmit={onCreateApp}
                                 getApi={props.getFormApi}>
                                 {api => {
