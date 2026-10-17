@@ -16,7 +16,7 @@ These are the kinds of problems that usually block a PR:
 
 * A bug, a regression, a security problem, or anything that could lose or corrupt user data
 * Missing tests, unless the PR description explains why tests are not feasible
-* Docs that are missing, wrong, or misleading, including missing upgrade notes for a user-visible change
+* Docs that are missing, wrong, or misleading, including missing upgrade notes for a change that affects existing installations
 * An approach you disagree with on design grounds, in which case name the alternative you have in mind or the constraint the change breaks, so the author has a concrete direction to work from
 
 Mark everything else with one of these prefixes, so the author knows it is optional:
@@ -33,9 +33,9 @@ If at least one of your comments is a blocker, submit the review as Request chan
 
 An earlier Request changes review sometimes stays on a PR after the author has responded to it, and if you are the approver looking at that PR, use your judgment along these lines:
 
-* If the open comments read as nits, or the author has clearly addressed them and none of them raises a security or design concern, treat them as non-blocking and dismiss the review with a comment that explains why.
+* If the open comments read as nits, or the author has clearly addressed them, treat them as non-blocking and dismiss the review with a comment that explains why.
 * If an open comment raises something important, such as a security concern or a design disagreement, check with the original reviewer before dismissing the review, even when the author says the comment has been addressed.
-* If you can't resolve it with them, or they don't respond, ask the other maintainers to decide whether the review can be dismissed, in the `#argo-cd-contributors` channel on [Slack](https://argoproj.github.io/community/join-slack) or at the [contributor meeting](code-contributions.md#regular-contributor-meeting).
+* If you can't resolve it with them, or they haven't replied after a reminder on the PR, ask the other maintainers to decide whether the review can be dismissed, in the `#argo-cd-contributors` channel on [Slack](https://argoproj.github.io/community/join-slack) or at the [contributor meeting](code-contributions.md#regular-contributor-meeting).
 
 If you blocked a PR and know you won't get back to it, say so on the PR so someone else can pick it up.
 
