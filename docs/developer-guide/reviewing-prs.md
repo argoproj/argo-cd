@@ -10,13 +10,13 @@ Anyone can review a PR, and reviews from the community are welcome. Approvers (t
 
 ## 1. Be clear about what is a blocker and what is not
 
-When something must be fixed before the PR can merge, say so in the comment, and when something is only a nit, say that as well. That way the contributor knows what to work on first, and anyone who reviews the PR later can tell which of the earlier requests were optional.
+When something must be fixed before the PR can merge, say so in the comment and describe what would resolve it, and when something is only a nit, say that as well. That way the contributor knows what to work on first, and anyone who reviews the PR later can tell which of the earlier requests were optional.
 
 These are the kinds of problems that usually block a PR:
 
 * A bug, a regression, a security problem, or anything that could lose or corrupt user data
-* A user-visible change without docs or upgrade notes
-* Missing tests, or docs that are missing, wrong, or misleading
+* Missing tests, unless the PR description explains why tests are not feasible
+* Docs that are missing, wrong, or misleading, including missing upgrade notes for a user-visible change
 * An approach you disagree with on design grounds, in which case name the alternative you have in mind or the constraint the change breaks, so the author has a concrete direction to work from
 
 Mark everything else with one of these prefixes, so the author knows it is optional:
@@ -27,15 +27,15 @@ Mark everything else with one of these prefixes, so the author knows it is optio
 | `suggestion:` | An improvement the author can take or leave            |
 | `question:`   | You want to understand something; no change is implied |
 
-If none of your comments are blockers, submit your review as Comment or Approve, not Request changes.
+If at least one of your comments is a blocker, submit the review as Request changes, and if none of them are, submit it as Comment or Approve instead.
 
 ## 2. Trust your judgment when dismissing reviews
 
 An earlier Request changes review sometimes stays on a PR after the author has responded to it, and if you are the approver looking at that PR, use your judgment along these lines:
 
-* If the open comments read as nits, or the author has already addressed them, treat them as non-blocking and dismiss the review with a comment that explains why.
-* If an open comment raises something important, such as a security concern or a design disagreement, try to resolve it with the original reviewer first.
-* If you can't reach a resolution with them, ask the other maintainers to decide whether the review can be dismissed, in the `#argo-cd-contributors` channel on [Slack](https://argoproj.github.io/community/join-slack) or at the [contributor meeting](code-contributions.md#regular-contributor-meeting).
+* If the open comments read as nits, or the author has clearly addressed them and none of them raises a security or design concern, treat them as non-blocking and dismiss the review with a comment that explains why.
+* If an open comment raises something important, such as a security concern or a design disagreement, check with the original reviewer before dismissing the review, even when the author says the comment has been addressed.
+* If you can't resolve it with them, or they don't respond, ask the other maintainers to decide whether the review can be dismissed, in the `#argo-cd-contributors` channel on [Slack](https://argoproj.github.io/community/join-slack) or at the [contributor meeting](code-contributions.md#regular-contributor-meeting).
 
 If you blocked a PR and know you won't get back to it, say so on the PR so someone else can pick it up.
 
@@ -45,7 +45,7 @@ Before you post a comment or submit a review, check that the contributor will be
 
 * You approve but are not an approver: "Looks good to me. It still needs a review from an approver." If you are an Argo member or reviewer, also add the `ready-for-review` label and add the PR to the Argo CD Review project (see the [FAQ](faq.md#how-do-i-get-my-pr-labeled-ready-for-review)).
 * You are an approver waiting on another maintainer: "Approved from my side. This now waits for @name to finish their review."
-* You requested changes: your blocking comments already say what needs to change.
+* You requested changes: your blocking comments already say what would resolve each of them.
 
 If the author asks for another look and you can't get to it soon, a 👀 reaction or a short reply lets them know you've seen it.
 
