@@ -1,40 +1,39 @@
 # Teams (Office 365 Connectors)
 
-## Retirement Notice
+## ⚠️ Deprecation Notice
 
-> [!WARNING]
-> Microsoft retired Office 365 Connectors in Teams on **May 22, 2026**. Connector-based webhooks no longer work. Migrate to the [Teams Workflows service](./teams-workflows.md) to send Teams notifications.
+**Office 365 Connectors are being retired by Microsoft.**
+
+Microsoft is retiring the Office 365 Connectors service in Teams. The service will be fully retired by **March 31, 2026** (extended from the original timeline of December 2025). 
 
 ### What this means:
-- **Old Office 365 Connectors** (webhook URLs from `webhook.office.com`) no longer work
-- **Power Automate Workflows** (webhook URLs from `api.powerautomate.com`, `api.powerplatform.com`, or `flow.microsoft.com`) are the supported replacement
+- **Old Office 365 Connectors** (webhook URLs from `webhook.office.com`) will stop working after the retirement date
+- **New Power Automate Workflows** (webhook URLs from `api.powerautomate.com`, `api.powerplatform.com`, or `flow.microsoft.com`) are the recommended replacement
 
 ### Migration Required:
-If your configuration still uses Office 365 Connectors (Incoming Webhook), migrate to Power Automate Workflows using the [Teams Workflows service](./teams-workflows.md). The legacy configuration below is retained for reference only.
+If you are currently using Office 365 Connectors (Incoming Webhook), you should migrate to Power Automate Workflows before the retirement date. The notifications-engine automatically detects the webhook type and handles both formats, but you should plan your migration.
 
 **Migration Resources:**
-- [Microsoft Retirement Notice](https://devblogs.microsoft.com/microsoft365dev/retirement-of-office-365-connectors-within-microsoft-teams/)
-- [Send messages in Teams using incoming webhooks](https://support.microsoft.com/en-us/workflows/send-messages-in-teams-using-incoming-webhooks)
+- [Microsoft Deprecation Notice](https://devblogs.microsoft.com/microsoft365dev/retirement-of-office-365-connectors-within-microsoft-teams/)
+- [Create incoming webhooks with Workflows for Microsoft Teams](https://support.microsoft.com/en-us/office/create-incoming-webhooks-with-workflows-for-microsoft-teams-4b3b0b0e-0b5a-4b5a-9b5a-0b5a-4b5a-9b5a)
 
 ---
 
 ## Parameters
 
-The retired Teams notification service used Office 365 Connectors with the following settings:
+The Teams notification service sends message notifications using Office 365 Connectors and requires specifying the following settings:
 
 * `recipientUrls` - the webhook url map, e.g. `channelName: https://outlook.office.com/webhook/...`
 
-> [!WARNING]
-> Office 365 Connectors have been non-operational since **May 22, 2026**. Use the [Teams Workflows service](./teams-workflows.md) instead.
+> **⚠️ Deprecation Notice:** Office 365 Connectors will be retired by Microsoft on **March 31, 2026**. We recommend migrating to the [Teams Workflows service](./teams-workflows.md) for continued support and enhanced features.
 
 ## Configuration
 
 > **💡 For Power Automate Workflows (Recommended):** See the [Teams Workflows documentation](./teams-workflows.md) for detailed configuration instructions.
 
-### Office 365 Connectors (Retired May 22, 2026)
+### Office 365 Connectors (Deprecated - Retiring March 31, 2026)
 
-> [!WARNING]
-> This legacy configuration no longer delivers notifications. Migrate to Power Automate Workflows.
+> **⚠️ Warning:** This method is deprecated and will stop working after March 31, 2026. Please migrate to Power Automate Workflows.
 
 1. Open `Teams` and goto `Apps`
 2. Find `Incoming Webhook` microsoft app and click on it
@@ -67,11 +66,11 @@ stringData:
 
 ### Webhook Type Detection
 
-The legacy `teams` service used Office 365 Connectors (retired):
+The `teams` service supports Office 365 Connectors (deprecated):
 
-- **Office 365 Connectors**: URLs from `webhook.office.com` (retired)
+- **Office 365 Connectors**: URLs from `webhook.office.com` (deprecated)
   - Requires response body to be exactly `"1"` for success
-  - Non-operational since May 22, 2026
+  - Will stop working after March 31, 2026
 
 7. Create subscription for your Teams integration:
 
