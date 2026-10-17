@@ -31,6 +31,8 @@ import (
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/mattn/go-zglob"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/cmpserver/plugin")
@@ -136,7 +138,15 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	logCtx.WithFields(log.Fields{"duration": duration}).Debug(output)
 
 	if err != nil {
-		err := newCmdError(argsToLog, errors.New(err.Error()), strings.TrimSpace(stderr.String()))
+		cause := errors.New(err.Error())
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			// The command was killed because the context was cancelled or its deadline expired.
+			// cmd.Wait reports that as an exit status ("signal: killed") and drops the reason, so
+			// keep the context error in the chain. Callers use it to tell a command that never
+			// finished from a command that ran and failed.
+			cause = fmt.Errorf("%w: %w", ctxErr, cause)
+		}
+		err := newCmdError(argsToLog, cause, strings.TrimSpace(stderr.String()))
 		logCtx.Error(err.Error())
 		return strings.TrimSuffix(output, "\n"), err
 	}
@@ -167,6 +177,12 @@ func (ce *CmdError) Error() string {
 		res = fmt.Sprintf("%s: %s", res, ce.Stderr)
 	}
 	return res
+}
+
+// Unwrap exposes the cause so that errors.Is and errors.As can reach it, in particular
+// context.Canceled and context.DeadlineExceeded.
+func (ce *CmdError) Unwrap() error {
+	return ce.Cause
 }
 
 func newCmdError(args string, cause error, stderr string) *CmdError {
@@ -306,6 +322,22 @@ func (s *Service) MatchRepository(stream apiclient.ConfigManagementPluginService
 	return s.matchRepositoryGeneric(stream)
 }
 
+// discoveryStatusError gives a discovery failure caused by a cancelled context or an expired
+// deadline the matching gRPC status code. Without it the error crosses the wire as
+// codes.Unknown, and the repo-server cannot tell a discovery check that never completed from
+// a plugin answering that it does not support the repository - so it falls back to the native
+// generators and caches the result. See https://github.com/argoproj/argo-cd/issues/24004.
+func discoveryStatusError(err error) error {
+	switch {
+	case errors.Is(err, context.Canceled):
+		return status.Error(codes.Canceled, err.Error())
+	case errors.Is(err, context.DeadlineExceeded):
+		return status.Error(codes.DeadlineExceeded, err.Error())
+	default:
+		return err
+	}
+}
+
 func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 	bufferedCtx, cancel := buffered_context.WithEarlierDeadline(stream.Context(), cmpTimeoutBuffer)
 	defer cancel()
@@ -318,12 +350,12 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 
 	metadata, err := cmp.ReceiveRepoStream(bufferedCtx, stream, workDir, s.initConstants.PluginConfig.Spec.PreserveFileMode)
 	if err != nil {
-		return fmt.Errorf("match repository error receiving stream: %w", err)
+		return discoveryStatusError(fmt.Errorf("match repository error receiving stream: %w", err))
 	}
 
 	isSupported, isDiscoveryEnabled, err := s.matchRepository(bufferedCtx, workDir, metadata.GetEnv(), metadata.GetAppRelPath())
 	if err != nil {
-		return fmt.Errorf("match repository error: %w", err)
+		return discoveryStatusError(fmt.Errorf("match repository error: %w", err))
 	}
 	repoResponse := &apiclient.RepositoryResponse{IsSupported: isSupported, IsDiscoveryEnabled: isDiscoveryEnabled}
 
