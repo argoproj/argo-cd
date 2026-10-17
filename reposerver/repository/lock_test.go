@@ -200,7 +200,7 @@ func TestLock_CleanForNonConcurrent(t *testing.T) {
 	utilio.Close(closer)
 }
 
-func TestLock_CleanOnRevisionChange(t *testing.T) {
+func TestLock_NoCleanOnRevisionChange(t *testing.T) {
 	t.Parallel()
 	lock := NewRepositoryLock()
 	var cleanValues []bool
@@ -218,20 +218,12 @@ func TestLock_CleanOnRevisionChange(t *testing.T) {
 	assert.True(t, cleanValues[0])
 	utilio.Close(closer)
 
-	// Second op: revision "2" (different!), concurrent allowed.
+	// Second op: revision "2" (changed), concurrent allowed - no clean needed,
+	// stale Helm dependency output is handled via the .argocd-helm-dep-up markers.
 	closer, done = lockQuickly(func() (io.Closer, error) {
 		return lock.Lock("myRepo", "2", true, init)
 	})
 	assert.True(t, done)
-	// Revision changed → must clean to remove untracked files from revision "1".
-	assert.True(t, cleanValues[1])
-	utilio.Close(closer)
-
-	// Third op: same revision "2" again, concurrent allowed - no clean needed.
-	closer, done = lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "2", true, init)
-	})
-	assert.True(t, done)
-	assert.False(t, cleanValues[2])
+	assert.False(t, cleanValues[1])
 	utilio.Close(closer)
 }
