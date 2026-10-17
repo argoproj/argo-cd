@@ -235,20 +235,9 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 		return nil, fmt.Errorf("error converting live state from unstructured to %s: %w", gvk, err)
 	}
 
-	// Initialize an empty fieldpath.Set to aggregate managed fields for the specified manager
-	managerFieldsSet := &fieldpath.Set{}
-
-	// Iterate over all ManagedFields entries in predictedLive
-	for _, mfEntry := range plManagedFields {
-		managedFieldsSet := &fieldpath.Set{}
-		err := managedFieldsSet.FromJSON(bytes.NewReader(mfEntry.FieldsV1.Raw))
-		if err != nil {
-			return nil, fmt.Errorf("error building managedFields set: %w", err)
-		}
-		if mfEntry.Manager == manager {
-			// Union the fields with the aggregated set
-			managerFieldsSet = managerFieldsSet.Union(managedFieldsSet)
-		}
+	managerFieldsSet, err := managerFieldSet(plManagedFields, manager)
+	if err != nil {
+		return nil, err
 	}
 
 	if managerFieldsSet.Empty() {
@@ -280,6 +269,16 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	if comparison.Removed != nil && !comparison.Removed.Empty() {
 		// exclude the removed fields not owned by this manager from the comparison
 		comparison.Removed = comparison.Removed.Difference(nonArgoFieldsSet)
+
+		// SSA only removes fields the applier owned. Anything else missing from predictedLive was
+		// removed by another actor after live was read from the cache, so it is not a diff.
+		liveManagerFieldsSet, err := managerFieldSet(live.GetManagedFields(), manager)
+		if err != nil {
+			return nil, err
+		}
+		// A path counts as owned if it or a descendant is owned (see excludeManagerOwnedAncestors).
+		notOwned := excludeManagerOwnedAncestors(comparison.Removed.Difference(liveManagerFieldsSet), liveManagerFieldsSet)
+		comparison.Removed = comparison.Removed.Difference(notOwned)
 	}
 
 	// In case any of the removed fields cause schema violations, we will keep those fields
@@ -303,6 +302,22 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 		return nil, fmt.Errorf("error converting live typedValue: expected map got %T", plu)
 	}
 	return &unstructured.Unstructured{Object: pl}, nil
+}
+
+// managerFieldSet returns the union of the fields owned by manager across entries.
+func managerFieldSet(entries []metav1.ManagedFieldsEntry, manager string) (*fieldpath.Set, error) {
+	managerFieldsSet := &fieldpath.Set{}
+	for _, mfEntry := range entries {
+		if mfEntry.Manager != manager {
+			continue
+		}
+		managedFieldsSet := &fieldpath.Set{}
+		if err := managedFieldsSet.FromJSON(bytes.NewReader(mfEntry.FieldsV1.Raw)); err != nil {
+			return nil, fmt.Errorf("error building managedFields set: %w", err)
+		}
+		managerFieldsSet = managerFieldsSet.Union(managedFieldsSet)
+	}
+	return managerFieldsSet, nil
 }
 
 // excludeManagerOwnedAncestors removes any path from toRemove that has at
