@@ -810,6 +810,58 @@ func checkOIDCConfigChange(currentOIDCConfig *settings_util.OIDCConfig, newArgoC
 	return false
 }
 
+// checkExtensionConfigChange returns true if the proxy extension registry needs to be rebuilt, which
+// is the case if the extension configs changed, or if a secret referenced by them changed.
+func checkExtensionConfigChange(prevExtConfig, prevSecrets map[string]string, newArgoCDSettings *settings_util.ArgoCDSettings) bool {
+	if !reflect.DeepEqual(prevExtConfig, newArgoCDSettings.ExtensionConfig) {
+		return true
+	}
+	// Secret references in the extension configs are only resolved when the registry is built.
+	for key := range extensionSecretKeys(newArgoCDSettings.ExtensionConfig) {
+		prevVal, prevOK := prevSecrets[key]
+		newVal, newOK := newArgoCDSettings.Secrets[key]
+		if prevOK != newOK || prevVal != newVal {
+			return true
+		}
+	}
+	return false
+}
+
+// extensionSecretKeys returns the secret keys referenced as '$<key>' values in the extension configs.
+// Configs that fail to parse are skipped, since building the registry would reject them anyway.
+func extensionSecretKeys(extConfig map[string]string) map[string]bool {
+	keys := map[string]bool{}
+	var walk func(v any)
+	walk = func(v any) {
+		switch val := v.(type) {
+		case map[any]any:
+			for _, item := range val {
+				walk(item)
+			}
+		case map[string]any:
+			for _, item := range val {
+				walk(item)
+			}
+		case []any:
+			for _, item := range val {
+				walk(item)
+			}
+		case string:
+			if strings.HasPrefix(val, "$") && len(val) > 1 {
+				keys[val[1:]] = true
+			}
+		}
+	}
+	for _, config := range extConfig {
+		var parsed any
+		if err := yaml.Unmarshal([]byte(config), &parsed); err != nil {
+			continue
+		}
+		walk(parsed)
+	}
+	return keys
+}
+
 // watchSettings watches the configmap and secret for any setting updates that would warrant a
 // restart of the API server.
 func (server *ArgoCDServer) watchSettings() {
@@ -830,6 +882,7 @@ func (server *ArgoCDServer) watchSettings() {
 	prevGogsSecret := server.settings.GetWebhookGogsSecret()
 	prevHarborSecret := server.settings.GetWebhookHarborSecret()
 	prevExtConfig := server.settings.ExtensionConfig
+	prevSecrets := server.settings.Secrets
 	var prevCert, prevCertKey string
 	if server.settings.Certificate != nil && !server.Insecure {
 		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*server.settings.Certificate)
@@ -888,8 +941,9 @@ func (server *ArgoCDServer) watchSettings() {
 			log.Infof("harbor secret modified. restarting")
 			break
 		}
-		if !reflect.DeepEqual(prevExtConfig, server.settings.ExtensionConfig) {
+		if checkExtensionConfigChange(prevExtConfig, prevSecrets, server.settings) {
 			prevExtConfig = server.settings.ExtensionConfig
+			prevSecrets = server.settings.Secrets
 			log.Infof("extensions configs modified. Updating proxy registry...")
 			err := server.extensionManager.UpdateExtensionRegistry(server.settings)
 			if err != nil {

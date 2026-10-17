@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -1438,6 +1439,60 @@ func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, proj.Spec, existingDefaultProject.Spec)
+}
+
+func TestCheckExtensionConfigChange(t *testing.T) {
+	extConfig := map[string]string{
+		"": `
+extensions:
+- name: my-api
+  backend:
+    services:
+    - url: https://api.example.com
+      headers:
+      - name: Authorization
+        value: '$my-api-key'
+`,
+	}
+	secrets := map[string]string{"my-api-key": "Bearer old-token"}
+
+	t.Run("nothing changed", func(t *testing.T) {
+		newSettings := &settings_util.ArgoCDSettings{ExtensionConfig: maps.Clone(extConfig), Secrets: maps.Clone(secrets)}
+		assert.False(t, checkExtensionConfigChange(extConfig, secrets, newSettings))
+	})
+	t.Run("extension config changed", func(t *testing.T) {
+		newSettings := &settings_util.ArgoCDSettings{ExtensionConfig: map[string]string{"": "extensions: []"}, Secrets: maps.Clone(secrets)}
+		assert.True(t, checkExtensionConfigChange(extConfig, secrets, newSettings))
+	})
+	t.Run("secret referenced by extension config rotated", func(t *testing.T) {
+		newSettings := &settings_util.ArgoCDSettings{ExtensionConfig: maps.Clone(extConfig), Secrets: map[string]string{"my-api-key": "Bearer new-token"}}
+		assert.True(t, checkExtensionConfigChange(extConfig, secrets, newSettings))
+	})
+	t.Run("secrets changed without any extension configured", func(t *testing.T) {
+		newSettings := &settings_util.ArgoCDSettings{Secrets: map[string]string{"my-api-key": "Bearer new-token"}}
+		assert.False(t, checkExtensionConfigChange(nil, secrets, newSettings))
+	})
+	t.Run("secret not referenced by extension config changed", func(t *testing.T) {
+		newSecrets := maps.Clone(secrets)
+		newSecrets["unrelated-key"] = "value"
+		newSettings := &settings_util.ArgoCDSettings{ExtensionConfig: maps.Clone(extConfig), Secrets: newSecrets}
+		assert.False(t, checkExtensionConfigChange(extConfig, secrets, newSettings))
+	})
+	t.Run("referenced secret added after startup", func(t *testing.T) {
+		newSettings := &settings_util.ArgoCDSettings{ExtensionConfig: maps.Clone(extConfig), Secrets: maps.Clone(secrets)}
+		assert.True(t, checkExtensionConfigChange(extConfig, map[string]string{}, newSettings))
+	})
+	t.Run("secret referenced by backend extension config rotated", func(t *testing.T) {
+		backendConfig := map[string]string{"my-ext": `
+services:
+- url: https://api.example.com
+  headers:
+  - name: Authorization
+    value: '$my-api-key'
+`}
+		newSettings := &settings_util.ArgoCDSettings{ExtensionConfig: maps.Clone(backendConfig), Secrets: map[string]string{"my-api-key": "Bearer new-token"}}
+		assert.True(t, checkExtensionConfigChange(backendConfig, secrets, newSettings))
+	})
 }
 
 func TestOIDCConfigChangeDetection_SecretsChanged(t *testing.T) {
