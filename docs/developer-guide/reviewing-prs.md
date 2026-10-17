@@ -33,7 +33,7 @@ If at least one of your comments is a blocker, submit the review as Request chan
 
 An earlier Request changes review sometimes stays on a PR after the author has responded to it, and if you are the approver looking at that PR, use your judgment along these lines:
 
-* If the open comments read as nits, or the author has clearly addressed them, treat them as non-blocking and dismiss the review with a comment that explains why.
+* If the open comments are only nits, or minor points the author has clearly addressed, treat them as non-blocking and dismiss the review with a comment that explains why.
 * If an open comment raises something important, such as a security concern or a design disagreement, check with the original reviewer before dismissing the review, even when the author says the comment has been addressed.
 * If you can't resolve it with them, or they haven't replied after a reminder on the PR, ask the other maintainers to decide whether the review can be dismissed, in the `#argo-cd-contributors` channel on [Slack](https://argoproj.github.io/community/join-slack) or at the [contributor meeting](code-contributions.md#regular-contributor-meeting).
 
