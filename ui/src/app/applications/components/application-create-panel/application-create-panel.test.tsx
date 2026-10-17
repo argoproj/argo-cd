@@ -1,4 +1,4 @@
-import {act, render, waitFor} from '@testing-library/react';
+import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import * as React from 'react';
 
 import {FormApi} from 'argo-ui';
@@ -12,11 +12,27 @@ jest.mock('lodash-es', () => ({
     cloneDeep: (value: any) => (value == null ? value : JSON.parse(JSON.stringify(value))),
     debounce: (fn: (...args: any[]) => any, wait: number) => {
         let timer: ReturnType<typeof setTimeout>;
+        let pendingArgs: any[] | null = null;
+        const run = () => {
+            const args = pendingArgs;
+            pendingArgs = null;
+            fn(...args);
+        };
         const debounced = (...args: any[]) => {
             clearTimeout(timer);
-            timer = setTimeout(() => fn(...args), wait);
+            pendingArgs = args;
+            timer = setTimeout(run, wait);
         };
-        debounced.cancel = () => clearTimeout(timer);
+        debounced.cancel = () => {
+            clearTimeout(timer);
+            pendingArgs = null;
+        };
+        debounced.flush = () => {
+            clearTimeout(timer);
+            if (pendingArgs) {
+                run();
+            }
+        };
         return debounced;
     }
 }));
@@ -90,5 +106,23 @@ describe('ApplicationCreatePanel', () => {
 
         await new Promise(resolve => setTimeout(resolve, 1000));
         expect(onAppChanged).not.toHaveBeenCalled();
+    });
+
+    test('applies the pending update before switching to YAML mode', async () => {
+        let formApi: FormApi;
+        const onAppChanged = jest.fn();
+        render(renderPanel(onAppChanged, api => (formApi = api)));
+        await waitFor(() => expect(formApi).toBeDefined());
+
+        act(() => {
+            formApi.setValue('metadata.name', 'my-app');
+        });
+        fireEvent.click(screen.getByText('Edit as YAML'));
+
+        expect(onAppChanged).toHaveBeenCalledTimes(1);
+        expect(onAppChanged).toHaveBeenLastCalledWith(expect.objectContaining({metadata: expect.objectContaining({name: 'my-app'})}));
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        expect(onAppChanged).toHaveBeenCalledTimes(1);
     });
 });

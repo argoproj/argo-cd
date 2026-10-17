@@ -3,7 +3,7 @@ import {AutocompleteField, Checkbox, DataLoader, DropDownMenu, FormField, HelpIc
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import {FieldApi, Form, FormApi, FormFieldHOC as ReactFormField, Text} from 'argo-ui';
-import {cloneDeep, debounce} from 'lodash-es';
+import {cloneDeep, debounce, DebouncedFunc} from 'lodash-es';
 import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -112,7 +112,7 @@ export const ApplicationCreatePanel = (props: {
     const [retry, setRetry] = React.useState(false);
     const app = deepMerge(DEFAULT_APP, props.app || {});
     const onAppChangedRef = React.useRef(props.onAppChanged);
-    const debouncedOnAppChangedRef = React.useRef<((value: models.Application) => void) | null>(null);
+    const debouncedOnAppChangedRef = React.useRef<DebouncedFunc<(value: models.Application) => void> | null>(null);
     const [destinationFieldChanges, setDestinationFieldChanges] = React.useState({destFormat: 'URL', destFormatChanged: null});
     const [comboSwitchedFromPanel, setComboSwitchedFromPanel] = React.useState(false);
     const currentRepoType = React.useRef(undefined);
@@ -327,7 +327,11 @@ export const ApplicationCreatePanel = (props: {
                                                 <button
                                                     type='button'
                                                     className='argo-button argo-button--base application-create-panel__yaml-button'
-                                                    onClick={() => setYamlMode(true)}>
+                                                    onClick={() => {
+                                                        // The YAML editor snapshots the app when it opens, so apply the pending form change first.
+                                                        debouncedOnAppChangedRef.current?.flush();
+                                                        setYamlMode(true);
+                                                    }}>
                                                     Edit as YAML
                                                 </button>
                                             )}
