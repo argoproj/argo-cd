@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	keysync "github.com/argoproj/pkg/v2/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
@@ -868,6 +869,99 @@ entries:
 
 	require.Equal(t, "foo: second\n", extractValues())
 	requireChartRequests(2)
+}
+
+// observingKeyLock wraps a sync.KeyLock so that tests can observe when a key lock is acquired
+// or merely attempted, without polling or sleeping.
+type observingKeyLock struct {
+	keysync.KeyLock
+	beforeLock func(key string)
+	afterLock  func(key string)
+}
+
+func (l observingKeyLock) Lock(key string) {
+	if l.beforeLock != nil {
+		l.beforeLock(key)
+	}
+	l.KeyLock.Lock(key)
+	if l.afterLock != nil {
+		l.afterLock(key)
+	}
+}
+
+func Test_nativeHelmChart_CleanChartCacheWaitsForExtraction(t *testing.T) {
+	const (
+		chartName    = "test-chart"
+		chartVersion = "1.0.0"
+		repoURL      = "https://example.com/charts"
+	)
+
+	// A single chart cache root is shared by every Helm client of a repo-server instance, so both
+	// clients below resolve the same cached archive for the same chart and version.
+	chartPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	extractionLocked := make(chan string, 1)
+	cleanupLockAttempt := make(chan string, 1)
+
+	// Both clients wrap the process-wide lock, which is what helm.NewClient hands to every
+	// repo-server request.
+	extractor := NewClientWithLock(repoURL, HelmCreds{}, observingKeyLock{
+		KeyLock:   globalLock,
+		afterLock: func(key string) { extractionLocked <- key },
+	}, false, "", "", WithChartPaths(chartPaths))
+	cleaner := NewClientWithLock(repoURL, HelmCreds{}, observingKeyLock{
+		KeyLock:    globalLock,
+		beforeLock: func(key string) { cleanupLockAttempt <- key },
+	}, false, "", "", WithChartPaths(chartPaths))
+
+	nativeExtractor, ok := extractor.(*nativeHelmChart)
+	require.True(t, ok)
+	nativeCleaner, ok := cleaner.(*nativeHelmChart)
+	require.True(t, ok)
+
+	cachePath, err := nativeCleaner.getCachedChartPath(chartName, chartVersion)
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Dir(cachePath), 0o755))
+	require.NoError(t, os.WriteFile(cachePath, []byte("cached chart archive"), 0o600))
+
+	// Simulate an in-flight ExtractChart, which holds the key lock while untarChart reads and
+	// extracts the cached archive.
+	nativeExtractor.repoLock.Lock(cachePath)
+	require.Equal(t, cachePath, <-extractionLocked)
+
+	cleaned := make(chan error, 1)
+	go func() { cleaned <- cleaner.CleanChartCache(chartName, chartVersion) }()
+	select {
+	case key := <-cleanupLockAttempt:
+		require.Equal(t, cachePath, key)
+		require.FileExists(t, cachePath)
+	case err := <-cleaned:
+		require.NoError(t, err)
+		t.Fatal("chart cache cleanup completed while extraction still held the archive lock")
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for chart cache cleanup to attempt the archive lock")
+	}
+
+	nativeExtractor.repoLock.Unlock(cachePath)
+
+	select {
+	case err := <-cleaned:
+		require.NoError(t, err)
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for chart cache cleanup to complete")
+	}
+	require.NoFileExists(t, cachePath)
+}
+
+func Test_NewClient_SharesLockBetweenClients(t *testing.T) {
+	// The repo-server creates one Helm client per request. They must all share the process-wide
+	// lock, otherwise cache cleanup cannot serialize with chart extraction across requests.
+	first, ok := NewClient("https://example.com/charts", HelmCreds{}, false, "", "").(*nativeHelmChart)
+	require.True(t, ok)
+	second, ok := NewClient("https://example.com/charts", HelmCreds{}, false, "", "").(*nativeHelmChart)
+	require.True(t, ok)
+
+	require.Equal(t, globalLock, first.repoLock)
+	require.Equal(t, first.repoLock, second.repoLock)
 }
 
 func testHelmChartArchive(t *testing.T, chartName, chartVersion, values string) []byte {
