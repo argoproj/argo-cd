@@ -25,6 +25,13 @@ func stubPrimaryKeyLookup(t *testing.T, fn func(signingKeyID string) (string, er
 	t.Cleanup(func() { lookupPrimaryKeyID = prev })
 }
 
+func resetGPGDisabledWarning(t *testing.T) {
+	t.Helper()
+	previouslyLogged := _gpgDisabledLoggedAlready
+	_gpgDisabledLoggedAlready = false
+	t.Cleanup(func() { _gpgDisabledLoggedAlready = previouslyLogged })
+}
+
 func Test_IsGPGEnabled(t *testing.T) {
 	t.Run("true", func(t *testing.T) {
 		t.Setenv("ARGOCD_GPG_ENABLED", "true")
@@ -44,6 +51,7 @@ func Test_IsGPGEnabled(t *testing.T) {
 
 func Test_GPGDisabledLogging(t *testing.T) {
 	t.Setenv("ARGOCD_GPG_ENABLED", "false")
+	resetGPGDisabledWarning(t)
 
 	si := &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "*"}},
@@ -58,13 +66,15 @@ func Test_GPGDisabledLogging(t *testing.T) {
 	t.Cleanup(logger.CleanupHook)
 
 	fun := lookupGit(si, "https://github.com/argoproj/argo-cd.git")
-	assert.Equal(t, []string{"SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED"}, logger.GetEntries())
+	assert.Equal(t, []string{
+		"SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED",
+		"No verification configured for SourceIntegrity policy for [{URL:*}]",
+	}, logger.GetEntries())
 	assert.Nil(t, fun)
 
-	// No logs on the second call
 	logger.Entries = []logrus.Entry{}
-	lookupGit(si, "https://github.com/argoproj/argo-cd-ext.git")
-	assert.Equal(t, []string{}, logger.GetEntries())
+	fun = lookupGit(si, "https://github.com/argoproj/argo-cd-ext.git")
+	assert.Equal(t, []string{"No verification configured for SourceIntegrity policy for [{URL:*}]"}, logger.GetEntries())
 	assert.Nil(t, fun)
 }
 
@@ -183,8 +193,9 @@ func TestPolicyMatching(t *testing.T) {
 		{
 			repo:             "https://github.com/group/foo-legacy.git",
 			expectedPolicies: p(legacy),
-			expectedLogs:     []string{},
-			expectedNoFunc:   true, // The mode is "none"
+			// No criteria is declared, so nothing is verified
+			expectedLogs:   []string{"No verification configured for SourceIntegrity policy for [{URL:https://github.com/group/*-legacy.git}]"},
+			expectedNoFunc: true,
 		},
 		{
 			repo:             "https://github.com/group/bar-critical.git",
@@ -711,13 +722,13 @@ func TestSignedTagsOnly(t *testing.T) {
 			name:            "lightweight tag is rejected before verification",
 			signedTagsOnly:  true,
 			revision:        "v1.0-lightweight",
-			expectedProblem: "SignedTagsOnly is enabled, v1.0-lightweight is not annotated. Un-annotated tags cannot be signed",
+			expectedProblem: "SignedTagsOnly is enabled, v1.0-lightweight is not annotated. Un-annotated revisions cannot be signed",
 		},
 		{
 			name:            "commit sha is rejected before verification",
 			signedTagsOnly:  true,
 			revision:        sha,
-			expectedProblem: "SignedTagsOnly is enabled, " + sha + " is not annotated. Un-annotated tags cannot be signed",
+			expectedProblem: "SignedTagsOnly is enabled, " + sha + " is not annotated. Un-annotated revisions cannot be signed",
 		},
 		{
 			name:           "gate is not applied when SignedTagsOnly is off",
@@ -751,7 +762,7 @@ func TestSignedTagsOnly(t *testing.T) {
 				assert.Empty(t, result.PassedChecks())
 				assert.Equal(t, tc.expectedProblem, legacy)
 				gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
-				assert.Equal(t, []string{tc.expectedProblem}, logger.GetEntries())
+				assert.Empty(t, logger.GetEntries())
 				return
 			}
 
@@ -763,6 +774,95 @@ func TestSignedTagsOnly(t *testing.T) {
 				gitClient.AssertNotCalled(t, "IsAnnotatedTag", mock.Anything, mock.Anything)
 			}
 			assert.Empty(t, logger.GetEntries())
+		})
+	}
+}
+
+func TestSignedTagsOnlyWithoutGPGCheck(t *testing.T) {
+	const repoURL = "https://github.com/group/app.git"
+	const keyID = "4cfe068f80b1681b"
+	const problem = "SignedTagsOnly is enabled, main is not annotated. Un-annotated revisions cannot be signed"
+
+	si := func(gpg *v1alpha1.SourceIntegrityGitPolicyGPG) *v1alpha1.SourceIntegrity {
+		return &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
+			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+				Repos:          []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://github.com/group/*"}},
+				SignedTagsOnly: true,
+				GPG:            gpg,
+			}},
+		}}
+	}
+
+	testCases := []struct {
+		name         string
+		gpg          *v1alpha1.SourceIntegrityGitPolicyGPG
+		gpgDisabled  bool
+		expectedLogs []string
+	}{
+		{
+			name:         "no GPG criteria declared",
+			expectedLogs: []string{},
+		},
+		{
+			name:         "GPG mode none",
+			gpg:          &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeNone},
+			expectedLogs: []string{},
+		},
+		{
+			name:         "GPG turned off by ARGOCD_GPG_ENABLED",
+			gpg:          &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{keyID}},
+			gpgDisabled:  true,
+			expectedLogs: []string{"SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED"},
+		},
+		{
+			name:         "GPG mode none while turned off by ARGOCD_GPG_ENABLED",
+			gpg:          &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeNone},
+			gpgDisabled:  true,
+			expectedLogs: []string{},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.gpgDisabled {
+				t.Setenv("ARGOCD_GPG_ENABLED", "false")
+				resetGPGDisabledWarning(t)
+			}
+
+			logger := utilTest.LogHook{}
+			logrus.AddHook(&logger)
+			t.Cleanup(logger.CleanupHook)
+
+			// An annotated tag passes the gate, and nothing else is verified.
+			annotated := &gitmocks.Client{}
+			annotated.EXPECT().RepoURL().Return(repoURL)
+			annotated.EXPECT().IsAnnotatedTag(mock.Anything, "v1.0").Return(true)
+
+			result, legacy, err := VerifyGit(t.Context(), si(tc.gpg), annotated, "v1.0")
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			assert.True(t, result.IsValid())
+			require.NoError(t, result.AsError())
+			assert.Equal(t, []string{"GIT"}, result.PassedChecks())
+			assert.Empty(t, legacy)
+			annotated.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
+
+			// Anything that cannot be signed is still rejected
+			lightweight := &gitmocks.Client{}
+			lightweight.EXPECT().RepoURL().Return(repoURL)
+			lightweight.EXPECT().IsAnnotatedTag(mock.Anything, "main").Return(false)
+
+			result, legacy, err = VerifyGit(t.Context(), si(tc.gpg), lightweight, "main")
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			assert.False(t, result.IsValid())
+			require.EqualError(t, result.AsError(), "GIT: "+problem)
+			assert.Equal(t, problem, legacy)
+			lightweight.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
+
+			// SignedTagsOnly is a criteria
+			assert.True(t, HasCriteria(si(tc.gpg), v1alpha1.ApplicationSource{RepoURL: repoURL}))
+
+			assert.Equal(t, tc.expectedLogs, logger.GetEntries())
 		})
 	}
 }

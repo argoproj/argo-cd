@@ -71,42 +71,42 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 
 	policy := policies[0]
 
-	if policy.GPG != nil {
-		if policy.GPG.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeNone {
-			// Declare missing check because there is no verification performed
-			return nil
-		}
-
+	if policy.GPG != nil && policy.GPG.Mode != v1alpha1.SourceIntegrityGitPolicyGPGModeNone {
 		if !_gpgDisabledLoggedAlready && !IsGPGEnabled() {
 			log.Warnf("SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED")
 			_gpgDisabledLoggedAlready = true
-			return nil
 		}
-
-		check = func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
-			return verifyGPG(ctx, policy.GPG, gitClient, verifiedRevision)
+		if IsGPGEnabled() {
+			check = func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+				return verifyGPG(ctx, policy.GPG, gitClient, verifiedRevision)
+			}
 		}
 	}
 
-	if check == nil {
+	noGuardSet := !policy.SignedTagsOnly
+	if check == nil && noGuardSet {
 		log.Warnf("No verification configured for SourceIntegrity policy for %+v", policy.Repos)
 		return nil
 	}
 
-	return verifyWithSignedTags(policy, check)
+	return verifyWithGuard(policy, check)
 }
 
-func verifyWithSignedTags(policy *v1alpha1.SourceIntegrityGitPolicy, check gitFunc) gitFunc {
+func verifyWithGuard(policy *v1alpha1.SourceIntegrityGitPolicy, check gitFunc) gitFunc {
 	const signedTagsCheckName = "GIT"
 
 	return func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
 		if policy.SignedTagsOnly && !gitClient.IsAnnotatedTag(ctx, verifiedRevision) {
-			msg := fmt.Sprintf("SignedTagsOnly is enabled, %s is not annotated. Un-annotated tags cannot be signed", verifiedRevision)
-			log.Warn(msg)
+			msg := fmt.Sprintf("SignedTagsOnly is enabled, %s is not annotated. Un-annotated revisions cannot be signed", verifiedRevision)
 			return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
 				Name:     signedTagsCheckName,
 				Problems: []string{msg},
 			}}}, msg, nil
+		}
+		if check == nil {
+			return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+				Name: signedTagsCheckName,
+			}}}, "", nil
 		}
 		return check(ctx, gitClient, verifiedRevision)
 	}
