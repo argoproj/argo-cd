@@ -1498,6 +1498,34 @@ func (s *Server) getAppResources(ctx context.Context, a *v1alpha1.Application) (
 	return &tree, nil
 }
 
+// hasComparisonError reports whether the application carries a ComparisonError or
+// InvalidSpecError condition, i.e. its target state could not be loaded.
+func hasComparisonError(a *v1alpha1.Application) bool {
+	return len(a.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
+		v1alpha1.ApplicationConditionComparisonError:  true,
+		v1alpha1.ApplicationConditionInvalidSpecError: true,
+	})) > 0
+}
+
+// resourceNodeFromAppStatus resolves a resource from the live resources recorded in the
+// application status. It backs read-only requests when the resource tree is unavailable
+// because the application cannot be compared.
+func resourceNodeFromAppStatus(a *v1alpha1.Application, q *application.ApplicationResourceRequest) *v1alpha1.ResourceNode {
+	for i := range a.Status.Resources {
+		res := &a.Status.Resources[i]
+		if res.Group == q.GetGroup() && res.Kind == q.GetKind() && res.Namespace == q.GetNamespace() && res.Name == q.GetResourceName() {
+			return &v1alpha1.ResourceNode{
+				Group:     res.Group,
+				Version:   res.Version,
+				Kind:      res.Kind,
+				Namespace: res.Namespace,
+				Name:      res.Name,
+			}
+		}
+	}
+	return nil
+}
+
 func (s *Server) getAppLiveResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*v1alpha1.ResourceNode, *rest.Config, *v1alpha1.Application, error) {
 	fineGrainedInheritanceDisabled, err := s.settingsMgr.ApplicationFineGrainedRBACInheritanceDisabled()
 	if err != nil {
@@ -1516,13 +1544,23 @@ func (s *Server) getAppLiveResource(ctx context.Context, action string, q *appli
 		return nil, nil, nil, err
 	}
 
-	tree, err := s.getAppResources(ctx, a)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("error getting app resources: %w", err)
+	tree, treeErr := s.getAppResources(ctx, a)
+	var found *v1alpha1.ResourceNode
+	if treeErr != nil {
+		// The resource tree is derived from the target state. When the application cannot be
+		// compared (e.g. the branch it syncs from was deleted) the tree is unavailable even
+		// though the live resources still exist in the cluster. Reading a live manifest does
+		// not depend on the target state, so fall back to the live resources recorded in the
+		// application status. Mutating actions keep failing: they must resolve the resource
+		// through the resource tree so that only resources of the application are touched.
+		if action != rbac.ActionGet || !hasComparisonError(a) {
+			return nil, nil, nil, fmt.Errorf("error getting app resources: %w", treeErr)
+		}
+		found = resourceNodeFromAppStatus(a, q)
+	} else {
+		found = tree.FindNode(q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
 	}
-
-	found := tree.FindNode(q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
-	if found == nil || found.UID == "" {
+	if found == nil || (found.UID == "" && treeErr == nil) {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.GetKind(), q.GetGroup(), q.GetResourceName(), q.GetName())
 	}
 	config, err := s.getApplicationClusterConfig(ctx, a, p)

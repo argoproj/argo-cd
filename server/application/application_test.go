@@ -5707,3 +5707,81 @@ func TestRollbackRBACPermissions_ProjectScoped(t *testing.T) {
 		assert.ErrorContains(t, err, "permission denied")
 	})
 }
+
+// TestGetResourceWithComparisonError verifies that a live manifest can still be read when the
+// resource tree is unavailable because the application cannot be compared (e.g. the branch it
+// syncs from was deleted), while mutating actions keep failing.
+func TestGetResourceWithComparisonError(t *testing.T) {
+	//nolint:staticcheck
+	ctx := context.WithValue(t.Context(), "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+
+	pod := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1",
+		"kind":       "Pod",
+		"metadata": map[string]any{
+			"name":      "my-pod",
+			"namespace": "default",
+		},
+	}}
+
+	testApp := newTestApp(func(app *v1alpha1.Application) {
+		app.Status.Resources = []v1alpha1.ResourceStatus{{
+			Group:     "",
+			Version:   "v1",
+			Kind:      "Pod",
+			Namespace: "default",
+			Name:      "my-pod",
+		}}
+		app.Status.SetConditions([]v1alpha1.ApplicationCondition{{
+			Type:    v1alpha1.ApplicationConditionComparisonError,
+			Message: "Failed to load target state: unable to resolve 'master' to a commit SHA",
+		}}, map[v1alpha1.ApplicationConditionType]bool{})
+	})
+
+	appServer := newTestAppServer(t, testApp, pod)
+
+	// The resource tree cache entry is gone (e.g. it expired), so the only way to resolve the
+	// resource is the application status.
+	err := appServer.cache.GetCache().SetItem("app|resources-tree|"+testApp.Name, &v1alpha1.ApplicationTree{}, &cache.CacheActionOpts{Delete: true})
+	require.NoError(t, err)
+
+	t.Run("read the live manifest", func(t *testing.T) {
+		resp, err := appServer.GetResource(ctx, &application.ApplicationResourceRequest{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+			Namespace:    new("default"),
+			ResourceName: new("my-pod"),
+			Kind:         new("Pod"),
+			Version:      new("v1"),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, resp.Manifest)
+		assert.Contains(t, *resp.Manifest, "my-pod")
+	})
+
+	t.Run("a resource outside the application is still rejected", func(t *testing.T) {
+		_, err := appServer.GetResource(ctx, &application.ApplicationResourceRequest{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+			Namespace:    new("default"),
+			ResourceName: new("someone-elses-pod"),
+			Kind:         new("Pod"),
+			Version:      new("v1"),
+		})
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Contains(t, err.Error(), "not found as part of application")
+	})
+
+	t.Run("mutations are not served from the fallback", func(t *testing.T) {
+		_, err := appServer.DeleteResource(ctx, &application.ApplicationResourceDeleteRequest{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+			Namespace:    new("default"),
+			ResourceName: new("my-pod"),
+			Kind:         new("Pod"),
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "error getting app resources")
+	})
+}
