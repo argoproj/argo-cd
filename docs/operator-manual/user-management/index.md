@@ -127,6 +127,24 @@ cache. Default: 1000
 * `ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT`: Limits max number of concurrent login requests.
 If set to 0 then limit is disabled. Default: 50.
 
+### Revoked token resync
+
+Logging out of the UI revokes that session's token. Revocations are broadcast to all `argocd-server`
+replicas over Redis pub/sub immediately, and each replica additionally reloads the full set of revoked
+tokens once at startup and then on a timer. That reload performs a full-keyspace `SCAN`, so its cost grows
+with the total size of the Redis keyspace — normally dominated by the manifest cache rather than by revoked
+tokens — and with the number of `argocd-server` replicas.
+
+* `ARGOCD_SESSION_REVOKED_TOKEN_RESYNC_DURATION`: How often each `argocd-server` replica reloads the full
+set of revoked tokens from Redis. Accepts any Go duration string (for example `15m`), between 15s and 1h.
+Values outside that range, or that cannot be parsed, are ignored in favour of the default. Default: 5m.
+
+Because normal revocation latency is set by pub/sub and freshly started replicas load the set before
+serving, the timer is only a backstop against a dropped pub/sub message. Shortening it narrows the window
+in which a replica that dropped a message may still accept a revoked token, at a proportional increase in
+Redis CPU spent on `SCAN`; lengthening it does the reverse, and is worth doing on installations with a
+large Redis keyspace and few token revocations.
+
 ## SSO
 
 There are two ways that SSO can be configured:
@@ -174,6 +192,11 @@ kubectl edit configmap argocd-cm -n argocd
 * In the `url` key, input the base URL of Argo CD. In this example, it is `https://argocd.example.com`
 * (Optional): If Argo CD should be accessible via multiple base URLs you may
   specify any additional base URLs via the `additionalUrls` key.
+  When Argo CD is served under a non-root path, each entry must include that path.
+  For example, with `--rootpath=/argocd`, use `https://anotherhost.org/argocd`,
+  not `https://anotherhost.org`. Omitting the path causes SSO callback URLs to omit it as well.
+  Requests must match the configured host and either the base path or a child path;
+  for example, `/argo` matches `/argo/login` but not `/argocd/login`.
 * In the `dex.config` key, add the `github` connector to the `connectors` sub field. See Dex's
   [GitHub connector](https://github.com/dexidp/website/blob/main/content/docs/connectors/github.md)
   documentation for explanation of the fields. A minimal config should populate the clientID,
