@@ -4,8 +4,59 @@ import {Consumer} from '../../shared/context';
 import {services} from '../../shared/services';
 import {VersionMessage} from '../../shared/models';
 import classNames from 'classnames';
+import {CliDownload, cliDownloads, clientOS} from './cli-download';
 
 require('./help.scss');
+
+interface CliDownloadLinksProps {
+    binaryUrls: Record<string, string>;
+    hostArch: string;
+    version: string;
+}
+
+const CliDownloadLinks = (props: CliDownloadLinksProps) => {
+    // Best effort: the size of the binary served by this server is only known from its
+    // Content-Length. When the request fails (auth, proxies) the label omits the size.
+    const [serverBinarySize, setServerBinarySize] = React.useState(0);
+    React.useEffect(() => {
+        let alive = true;
+        fetch('download/argocd-linux', {method: 'HEAD'})
+            .then(response => (response.ok ? Number(response.headers.get('content-length')) : 0))
+            .then(size => {
+                if (alive) {
+                    setServerBinarySize(size);
+                }
+            })
+            .catch(() => {
+                // Ignore: the size is informational only.
+            });
+        return () => {
+            alive = false;
+        };
+    }, []);
+
+    const downloads = cliDownloads({
+        os: clientOS(navigator.userAgent, navigator.platform),
+        hostArch: props.hostArch,
+        version: props.version,
+        serverBinarySize,
+        binaryUrls: props.binaryUrls
+    });
+
+    return (
+        <>
+            {downloads.map((download: CliDownload) => (
+                <React.Fragment key={download.key}>
+                    <a href={download.href} className='user-info-panel-buttons argo-button argo-button--base'>
+                        <i className={classNames('fab', download.icon)} />
+                        {` ${download.label}`}
+                    </a>
+                    &nbsp;
+                </React.Fragment>
+            ))}
+        </>
+    );
+};
 
 export const Help = () => {
     return (
@@ -16,19 +67,21 @@ export const Help = () => {
                 // with `undefined` when every source completes (as these promise-backed ones do).
                 const [settings, version] = await Promise.all([
                     services.authService.settings(),
-                    // Best-effort, informative only: the download link below is arch-agnostic, so the
-                    // arch is just label text.
-                    services.version.version().catch(() => ({Platform: ''}) as VersionMessage)
+                    // Best-effort, informative only: the release link and the download hints are
+                    // derived from the server's version and architecture.
+                    services.version.version().catch(() => ({Platform: '', Version: ''}) as VersionMessage)
                 ]);
                 return {
                     binaryUrls: settings.help.binaryUrls || {},
                     // Platform is "<os>/<arch>" (e.g. "linux/amd64"); may be empty.
-                    hostArch: (version.Platform || '').split('/')[1] || ''
+                    hostArch: (version.Platform || '').split('/')[1] || '',
+                    version: version.Version || ''
                 };
             }}>
-            {(settings?: {binaryUrls: Record<string, string>; hostArch: string}) => {
+            {(settings?: {binaryUrls: Record<string, string>; hostArch: string; version: string}) => {
                 const binaryUrls = settings?.binaryUrls || {};
                 const hostArch = settings?.hostArch || '';
+                const version = settings?.version || '';
                 return (
                     <Consumer>
                         {() => (
@@ -45,34 +98,9 @@ export const Help = () => {
                                     <div className='columns large-4 small-6'>
                                         <div className='help-box'>
                                             <p>Want to download the CLI tool?</p>
-                                            {/* Arch-agnostic link: targets the suffix-less /argocd-linux route, which every
-                                                server serves from its own embedded binary regardless of the server's architecture.
-                                                This keeps the UI bundle architecture-independent (no arch baked in) and avoids
-                                                404s on mixed-arch clusters. The arch label is informational only, shown when known. */}
-                                            <a href='download/argocd-linux' className='user-info-panel-buttons argo-button argo-button--base'>
-                                                <i className='fab fa-linux' /> Linux{hostArch && ` (${hostArch})`}
-                                            </a>
-                                            &nbsp;
-                                            {Object.keys(binaryUrls || {}).map(binaryName => {
-                                                const url = binaryUrls[binaryName];
-                                                const match = binaryName.match(/.*(darwin|windows|linux)-(amd64|arm64|ppc64le|s390x)/);
-                                                const [platform, arch] = match ? match.slice(1) : ['', ''];
-                                                return (
-                                                    <>
-                                                        &nbsp;
-                                                        <a key={binaryName} href={url} className='user-info-panel-buttons argo-button argo-button--base'>
-                                                            <i
-                                                                className={classNames('fab', {
-                                                                    'fa-windows': platform === 'windows',
-                                                                    'fa-apple': platform === 'darwin',
-                                                                    'fa-linux': platform === 'linux'
-                                                                })}
-                                                            />
-                                                            {` ${platform}`} {arch && `(${arch})`}
-                                                        </a>
-                                                    </>
-                                                );
-                                            })}
+                                            {/* The server only publishes the Linux binary it was built for, so the
+                                                platform-neutral GitHub release page is offered next to it. */}
+                                            <CliDownloadLinks binaryUrls={binaryUrls} hostArch={hostArch} version={version} />
                                         </div>
                                     </div>
                                     <div className='columns large-4 small-6'>
