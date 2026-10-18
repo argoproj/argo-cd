@@ -45,7 +45,8 @@ export const ApplicationSyncPanelBody = ({
                     defaultValues={{
                         revision: new URLSearchParams(ctx.history.location.search).get('revision') || source.targetRevision || 'HEAD',
                         resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
-                        syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : []
+                        syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : [],
+                        message: ''
                     }}
                     validateError={values => ({
                         resources: values.resources.every((item: boolean) => !item) && 'Select at least one resource'
@@ -220,7 +221,8 @@ export const ApplicationSyncPanelBody = ({
                                 syncStrategy,
                                 selectedResources,
                                 params.syncOptions,
-                                params.retryStrategy
+                                params.retryStrategy,
+                                params.message
                             );
                             hide();
                         } catch (e) {
@@ -240,6 +242,10 @@ export const ApplicationSyncPanelBody = ({
                             </h6>
                             <div className='argo-form-row'>
                                 <FormField formApi={formApi} label='Revision' field='revision' component={Text} />
+                            </div>
+
+                            <div className='argo-form-row'>
+                                <FormField formApi={formApi} label='Sync description (optional)' field='message' component={Text} />
                             </div>
 
                             <div className='argo-form-row'>
