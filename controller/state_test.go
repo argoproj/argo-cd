@@ -2345,6 +2345,171 @@ func Test_GetRepoObjs_HydrateToAppPathNotExist(t *testing.T) {
 		require.ErrorContains(t, err, "app path does not exist")
 		require.NotContains(t, err.Error(), "waiting for an external process")
 	})
+	t.Run("with hydrateTo and failed hydration: surfaces the hydration error", func(t *testing.T) {
+		t.Parallel()
+
+		app := newFakeApp()
+		app.Spec.Source = nil
+		app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://github.com/example/repo",
+				TargetRevision: "main",
+				Path:           "apps/my-app",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "env/prod",
+				Path:         "env/prod/my-app",
+			},
+			HydrateTo: &v1alpha1.HydrateTo{
+				TargetBranch: "env/prod-next",
+			},
+		}
+		// Another app in the same hydration group failed to template, so nothing was ever
+		// committed to env/prod-next. See https://github.com/argoproj/argo-cd/issues/30258
+		app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+			Phase:          v1alpha1.HydrateOperationPhaseFailed,
+			Message:        "Failed to hydrate: cannot hydrate because application default/failing-app has an error: values-production.yaml: no such file or directory",
+			SourceHydrator: *app.Spec.SourceHydrator,
+		}
+
+		ctrl := newFakeController(t.Context(), &fakeData{manifestResponse: &apiclient.ManifestResponse{}}, errors.New("env/prod/my-app: app path does not exist"))
+		source := app.Spec.GetSource()
+
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, nil, &defaultProj, false)
+		require.ErrorContains(t, err, "app path does not exist")
+		require.ErrorContains(t, err, "hydration failed: cannot hydrate because application default/failing-app has an error: values-production.yaml: no such file or directory")
+		require.NotContains(t, err.Error(), "waiting for an external process")
+		// The "Failed to hydrate: " prefix is not nested inside the message.
+		require.NotContains(t, err.Error(), "Failed to hydrate:")
+	})
+	t.Run("with hydrateTo and failed hydration without message", func(t *testing.T) {
+		t.Parallel()
+
+		app := newFakeApp()
+		app.Spec.Source = nil
+		app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://github.com/example/repo",
+				TargetRevision: "main",
+				Path:           "apps/my-app",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "env/prod",
+				Path:         "env/prod/my-app",
+			},
+			HydrateTo: &v1alpha1.HydrateTo{
+				TargetBranch: "env/prod-next",
+			},
+		}
+		app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+			Phase:          v1alpha1.HydrateOperationPhaseFailed,
+			SourceHydrator: *app.Spec.SourceHydrator,
+		}
+
+		ctrl := newFakeController(t.Context(), &fakeData{manifestResponse: &apiclient.ManifestResponse{}}, errors.New("env/prod/my-app: app path does not exist"))
+		source := app.Spec.GetSource()
+
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, nil, &defaultProj, false)
+		require.ErrorContains(t, err, "app path does not exist")
+		require.ErrorContains(t, err, "hydration failed: check status.sourceHydrator.currentOperation for details")
+		require.NotContains(t, err.Error(), "waiting for an external process")
+	})
+	t.Run("with hydrateTo and hydration in progress: mentions hydration", func(t *testing.T) {
+		t.Parallel()
+
+		app := newFakeApp()
+		app.Spec.Source = nil
+		app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://github.com/example/repo",
+				TargetRevision: "main",
+				Path:           "apps/my-app",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "env/prod",
+				Path:         "env/prod/my-app",
+			},
+			HydrateTo: &v1alpha1.HydrateTo{
+				TargetBranch: "env/prod-next",
+			},
+		}
+		app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+			Phase:          v1alpha1.HydrateOperationPhaseHydrating,
+			SourceHydrator: *app.Spec.SourceHydrator,
+		}
+
+		ctrl := newFakeController(t.Context(), &fakeData{manifestResponse: &apiclient.ManifestResponse{}}, errors.New("env/prod/my-app: app path does not exist"))
+		source := app.Spec.GetSource()
+
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, nil, &defaultProj, false)
+		require.ErrorContains(t, err, "app path does not exist")
+		require.ErrorContains(t, err, "hydration is still in progress - waiting for an external process to update env/prod from env/prod-next")
+	})
+	t.Run("with hydrateTo and stale failed hydration: reports the wait instead of the stale cause", func(t *testing.T) {
+		t.Parallel()
+
+		for _, tc := range []struct {
+			name   string
+			mutate func(app *v1alpha1.Application, op *v1alpha1.HydrateOperation)
+		}{
+			{
+				name: "spec changed since the operation was recorded",
+				mutate: func(_ *v1alpha1.Application, op *v1alpha1.HydrateOperation) {
+					op.SourceHydrator.DrySource.Path = "apps/old-path"
+				},
+			},
+			{
+				name: "newer dry revision was already compared",
+				mutate: func(app *v1alpha1.Application, _ *v1alpha1.HydrateOperation) {
+					app.Status.SourceHydrator.LastComparedDryRevision = "newer-sha"
+				},
+			},
+			{
+				name: "operation was recorded without a hydrator snapshot",
+				mutate: func(_ *v1alpha1.Application, op *v1alpha1.HydrateOperation) {
+					op.SourceHydrator = v1alpha1.SourceHydrator{}
+				},
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+
+				app := newFakeApp()
+				app.Spec.Source = nil
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        "https://github.com/example/repo",
+						TargetRevision: "main",
+						Path:           "apps/my-app",
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "env/prod",
+						Path:         "env/prod/my-app",
+					},
+					HydrateTo: &v1alpha1.HydrateTo{
+						TargetBranch: "env/prod-next",
+					},
+				}
+				op := &v1alpha1.HydrateOperation{
+					Phase:          v1alpha1.HydrateOperationPhaseFailed,
+					Message:        "Failed to hydrate: values-production.yaml: no such file or directory",
+					DrySHA:         "old-sha",
+					SourceHydrator: *app.Spec.SourceHydrator,
+				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-sha"
+				tc.mutate(app, op)
+				app.Status.SourceHydrator.CurrentOperation = op
+
+				ctrl := newFakeController(t.Context(), &fakeData{manifestResponse: &apiclient.ManifestResponse{}}, errors.New("env/prod/my-app: app path does not exist"))
+				source := app.Spec.GetSource()
+
+				_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, nil, &defaultProj, false)
+				require.ErrorContains(t, err, "app path does not exist")
+				require.ErrorContains(t, err, "waiting for an external process to update env/prod from env/prod-next")
+				require.NotContains(t, err.Error(), "hydration failed")
+			})
+		}
+	})
 }
 
 func Test_isObjRequiresDeletionConfirmation(t *testing.T) {
