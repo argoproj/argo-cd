@@ -2,6 +2,7 @@ package sync
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -870,30 +871,52 @@ func (sc *syncContext) removeHookFinalizer(ctx context.Context, task *syncTask) 
 	if task.liveObj == nil {
 		return nil
 	}
-	removeFinalizerMutation := func(obj *unstructured.Unstructured) bool {
+
+	// The finalizer is removed with a merge patch instead of a full update: the cached live
+	// object can be missing fields that the API server defaults in immutable parts of the spec
+	// (for example spec.template of a Job with a sidecar initContainer), and sending such an
+	// object back is rejected with "field is immutable". A patch only touches
+	// metadata.finalizers, so the spec is never re-validated.
+	finalizerPatch := func(obj *unstructured.Unstructured) ([]byte, bool) {
 		finalizers := obj.GetFinalizers()
+		idx := -1
 		for i, finalizer := range finalizers {
 			if finalizer == hook.HookFinalizer {
-				obj.SetFinalizers(append(finalizers[:i], finalizers[i+1:]...))
-				return true
+				idx = i
+				break
 			}
 		}
-		return false
+		if idx < 0 {
+			return nil, false
+		}
+		remaining := make([]string, 0, len(finalizers)-1)
+		remaining = append(remaining, finalizers[:idx]...)
+		remaining = append(remaining, finalizers[idx+1:]...)
+		data, err := json.Marshal(map[string]any{"metadata": map[string]any{"finalizers": remaining}})
+		if err != nil {
+			// marshalling a map of strings cannot fail
+			return nil, false
+		}
+		return data, true
 	}
 
-	// The cached live object may be stale in the controller cache, and the actual object may have been updated in the meantime,
-	// and Kubernetes API will return a conflict error on the Update call.
-	// In that case, we need to get the latest version of the object and retry the update.
+	// The cached live object may be stale in the controller cache, and the actual object may
+	// have been updated in the meantime. In that case, we need to get the latest version of the
+	// object and retry the patch.
 	//nolint:wrapcheck // wrap inside the retried function instead
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		mutated := removeFinalizerMutation(task.liveObj)
-		if !mutated {
+		data, found := finalizerPatch(task.liveObj)
+		if !found {
 			return nil
 		}
 
-		updateErr := sc.updateResource(ctx, task)
-		if apierrors.IsConflict(updateErr) {
-			sc.log.WithValues("task", task).V(1).Info("Retrying hook finalizer removal due to conflict on update")
+		resIf, err := sc.getResourceIf(task, "patch")
+		if err != nil {
+			return fmt.Errorf("failed to get resource client: %w", err)
+		}
+		_, patchErr := resIf.Patch(ctx, task.liveObj.GetName(), types.MergePatchType, data, metav1.PatchOptions{})
+		if apierrors.IsConflict(patchErr) {
+			sc.log.WithValues("task", task).V(1).Info("Retrying hook finalizer removal due to conflict on patch")
 			liveObj, err := sc.getResource(ctx, task)
 			if apierrors.IsNotFound(err) {
 				sc.log.WithValues("task", task).V(1).Info("Resource is already deleted")
@@ -902,13 +925,13 @@ func (sc *syncContext) removeHookFinalizer(ctx context.Context, task *syncTask) 
 				return fmt.Errorf("failed to get resource: %w", err)
 			}
 			task.liveObj = liveObj
-		} else if apierrors.IsNotFound(updateErr) {
+		} else if apierrors.IsNotFound(patchErr) {
 			// If the resource is already deleted, it is a no-op
 			sc.log.WithValues("task", task).V(1).Info("Resource is already deleted")
 			return nil
 		}
-		if updateErr != nil {
-			return fmt.Errorf("failed to update resource: %w", updateErr)
+		if patchErr != nil {
+			return fmt.Errorf("failed to patch resource: %w", patchErr)
 		}
 		return nil
 	})
@@ -1571,19 +1594,6 @@ func (sc *syncContext) getResource(ctx context.Context, task *syncTask) (*unstru
 	return liveObj, nil
 }
 
-func (sc *syncContext) updateResource(ctx context.Context, task *syncTask) error {
-	sc.log.WithValues("task", task).V(1).Info("Updating resource")
-	resIf, err := sc.getResourceIf(task, "update")
-	if err != nil {
-		return err
-	}
-	_, err = resIf.Update(ctx, task.liveObj, metav1.UpdateOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to update resource: %w", err)
-	}
-	return nil
-}
-
 func (sc *syncContext) deleteResource(ctx context.Context, task *syncTask) error {
 	sc.log.WithValues("task", task).V(1).Info("Deleting resource")
 	resIf, err := sc.getResourceIf(task, "delete")
@@ -1596,7 +1606,6 @@ func (sc *syncContext) deleteResource(ctx context.Context, task *syncTask) error
 	}
 	return nil
 }
-
 func (sc *syncContext) getResourceIf(task *syncTask, verb string) (dynamic.ResourceInterface, error) {
 	apiResource, err := kubeutil.ServerResourceForGroupVersionKind(sc.disco, task.groupVersionKind(), verb)
 	if err != nil {

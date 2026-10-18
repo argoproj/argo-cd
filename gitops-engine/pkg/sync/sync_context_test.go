@@ -14,6 +14,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
@@ -1718,7 +1719,7 @@ func TestBeforeHookCreation(t *testing.T) {
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{hookObj}
 	client := fake.NewSimpleDynamicClient(runtime.NewScheme(), hookObj)
-	client.PrependReactor("update", "pods", func(_ testcore.Action) (bool, runtime.Object, error) {
+	client.PrependReactor("patch", "pods", func(_ testcore.Action) (bool, runtime.Object, error) {
 		finalizerRemoved = true
 		return false, nil, nil
 	})
@@ -1748,7 +1749,7 @@ func TestSync_ExistingHooksWithFinalizer(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), hook1, hook2, hook3)
 	syncCtx.dynamicIf = fakeDynamicClient
 	updatedCount := 0
-	fakeDynamicClient.PrependReactor("update", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("patch", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
 		// Removing the finalizers
 		updatedCount++
 		return false, nil, nil
@@ -1880,7 +1881,7 @@ func TestSync_HooksNotDeletedIfPhaseNotCompleted(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), hook1, hook2, hook3)
 	syncCtx.dynamicIf = fakeDynamicClient
 	updatedCount := 0
-	fakeDynamicClient.PrependReactor("update", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("patch", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
 		// Removing the finalizers
 		updatedCount++
 		return false, nil, nil
@@ -1940,7 +1941,7 @@ func TestSync_HooksDeletedAfterSyncSucceeded(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), hook1, hook2, hook3)
 	syncCtx.dynamicIf = fakeDynamicClient
 	updatedCount := 0
-	fakeDynamicClient.PrependReactor("update", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("patch", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
 		// Removing the finalizers
 		updatedCount++
 		return false, nil, nil
@@ -2004,7 +2005,7 @@ func TestSync_HooksDeletedAfterSyncFailed(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), hook1, hook2, hook3)
 	syncCtx.dynamicIf = fakeDynamicClient
 	updatedCount := 0
-	fakeDynamicClient.PrependReactor("update", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("patch", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
 		// Removing the finalizers
 		updatedCount++
 		return false, nil, nil
@@ -3120,7 +3121,7 @@ func TestTerminate_Hooks_Running(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), hook1, hook2, hook3)
 	syncCtx.dynamicIf = fakeDynamicClient
 	updatedCount := 0
-	fakeDynamicClient.PrependReactor("update", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("patch", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
 		// Removing the finalizers
 		updatedCount++
 		return false, nil, nil
@@ -3198,7 +3199,7 @@ func TestTerminate_Hooks_Running_Healthy(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), hook1, hook2, hook3)
 	syncCtx.dynamicIf = fakeDynamicClient
 	updatedCount := 0
-	fakeDynamicClient.PrependReactor("update", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("patch", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
 		// Removing the finalizers
 		updatedCount++
 		return false, nil, nil
@@ -3283,7 +3284,7 @@ func TestTerminate_Hooks_Completed(t *testing.T) {
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), hook1, hook2, hook3)
 	syncCtx.dynamicIf = fakeDynamicClient
 	updatedCount := 0
-	fakeDynamicClient.PrependReactor("update", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDynamicClient.PrependReactor("patch", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
 		// Removing the finalizers
 		updatedCount++
 		return false, nil, nil
@@ -3344,8 +3345,8 @@ func TestTerminate_Hooks_Error(t *testing.T) {
 	syncCtx.hooks = []*unstructured.Unstructured{hook1}
 	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), hook1)
 	syncCtx.dynamicIf = fakeDynamicClient
-	fakeDynamicClient.PrependReactor("update", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, apierrors.NewInternalError(errors.New("update failed"))
+	fakeDynamicClient.PrependReactor("patch", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, apierrors.NewInternalError(errors.New("patch failed"))
 	})
 
 	syncCtx.Terminate(context.Background())
@@ -3355,5 +3356,71 @@ func TestTerminate_Hooks_Error(t *testing.T) {
 	require.Len(t, results, 2)
 	assert.Equal(t, kube.GetResourceKey(hook1), results[0].ResourceKey)
 	assert.Equal(t, synccommon.OperationError, results[0].HookPhase)
-	assert.Contains(t, results[0].Message, "update failed")
+	assert.Contains(t, results[0].Message, "patch failed")
+}
+
+// TestSync_HookFinalizerRemovedWithPatch verifies that the hook finalizer is removed with a
+// patch rather than a full update. For a Job with a sidecar initContainer the API server
+// defaults fields inside spec.template, and sending the cached live object back is rejected
+// with "field is immutable", which used to leave the finalizer (and therefore the Job) in place.
+func TestSync_HookFinalizerRemovedWithPatch(t *testing.T) {
+	job := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "batch/v1",
+		"kind":       "Job",
+		"metadata": map[string]any{
+			"name":      "presync-job",
+			"namespace": testingutils.FakeArgoCDNamespace,
+			"annotations": map[string]any{
+				synccommon.AnnotationKeyHook:             string(synccommon.HookTypePreSync),
+				synccommon.AnnotationKeyHookDeletePolicy: string(synccommon.HookDeletePolicyBeforeHookCreation),
+			},
+			"finalizers": []any{hook.HookFinalizer},
+		},
+		"spec": map[string]any{
+			"template": map[string]any{
+				"spec": map[string]any{
+					"restartPolicy": "Never",
+					"initContainers": []any{
+						map[string]any{"name": "sidecar", "image": "prom/statsd-exporter:v0.28.0", "restartPolicy": "Always"},
+					},
+					"containers": []any{
+						map[string]any{"name": "main", "image": "my-app:latest"},
+					},
+				},
+			},
+		},
+	}}
+
+	syncCtx := newTestSyncCtx(nil)
+	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), job)
+	syncCtx.dynamicIf = fakeDynamicClient
+
+	updatedCount := 0
+	fakeDynamicClient.PrependReactor("update", "jobs", func(_ testcore.Action) (bool, runtime.Object, error) {
+		updatedCount++
+		// The API server rejects a full update of a Job whose spec.template is immutable.
+		return true, nil, apierrors.NewInvalid(schema.GroupKind{Group: "batch", Kind: "Job"}, job.GetName(),
+			field.ErrorList{field.Invalid(field.NewPath("spec", "template"), "", "field is immutable")})
+	})
+	patchedCount := 0
+	fakeDynamicClient.PrependReactor("patch", "jobs", func(_ testcore.Action) (bool, runtime.Object, error) {
+		patchedCount++
+		return false, nil, nil
+	})
+
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{job},
+		Target: []*unstructured.Unstructured{nil},
+	})
+	syncCtx.hooks = []*unstructured.Unstructured{job}
+
+	syncCtx.Sync(context.Background())
+	phase, message, _ := syncCtx.GetState()
+
+	// The sync proceeds normally (the hook is deleted before it is recreated) instead of
+	// failing with "failed to remove hook finalizer".
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	assert.Equal(t, "waiting for deletion of hook batch/Job/presync-job", message)
+	assert.Positive(t, patchedCount, "the finalizer must be removed with a patch")
+	assert.Zero(t, updatedCount, "the finalizer must not be removed with a full update")
 }
