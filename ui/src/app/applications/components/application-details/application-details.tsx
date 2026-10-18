@@ -65,7 +65,7 @@ interface FilterInput {
 
 const ApplicationDetailsFilters = (props: FiltersProps) => {
     const sidebarTarget = useSidebarTarget();
-    return ReactDOM.createPortal(<Filters {...props} />, sidebarTarget?.current);
+    return sidebarTarget && ReactDOM.createPortal(<Filters {...props} />, sidebarTarget);
 };
 
 export const NodeInfo = (node?: string): {key: string; container: number} => {

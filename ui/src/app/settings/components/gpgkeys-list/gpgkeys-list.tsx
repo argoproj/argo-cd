@@ -179,7 +179,7 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                             return (
                                 <>
                                     {sidebarTarget &&
-                                        ReactDOM.createPortal(<GpgKeysFilter gpgkeys={gpgkeysWithFilter} pref={filterPref} onChange={updateFilterPref} />, sidebarTarget.current)}
+                                        ReactDOM.createPortal(<GpgKeysFilter gpgkeys={gpgkeysWithFilter} pref={filterPref} onChange={updateFilterPref} />, sidebarTarget)}
                                     {filteredGpgKeys.length > 0 ? (
                                         <Paginate page={page} data={filteredGpgKeys} onPageChange={setPage} preferencesKey='gpgkeys-list'>
                                             {gpgkeysToDisplay => (

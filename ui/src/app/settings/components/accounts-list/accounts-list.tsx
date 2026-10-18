@@ -93,7 +93,7 @@ export const AccountsList = () => {
                         return (
                             <>
                                 {sidebarTarget &&
-                                    ReactDOM.createPortal(<AccountsFilter accounts={accountsWithFilter} pref={filterPref} onChange={updateFilterPref} />, sidebarTarget.current)}
+                                    ReactDOM.createPortal(<AccountsFilter accounts={accountsWithFilter} pref={filterPref} onChange={updateFilterPref} />, sidebarTarget)}
                                 {filteredAccounts.length > 0 ? (
                                     <Paginate page={page} data={filteredAccounts} onPageChange={setPage} preferencesKey='accounts-list'>
                                         {accountsToDisplay => (

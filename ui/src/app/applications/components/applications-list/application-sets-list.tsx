@@ -449,19 +449,20 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                                                         </EmptyState>
                                                     ) : (
                                                         <>
-                                                            {ReactDOM.createPortal(
-                                                                <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                                    {allpref => (
-                                                                        <AppSetsFilter
-                                                                            apps={filterResults}
-                                                                            onChange={newPrefs => onAppSetFilterPrefChanged(ctx, newPrefs)}
-                                                                            pref={appSetPref}
-                                                                            collapsed={allpref.hideSidebar}
-                                                                        />
-                                                                    )}
-                                                                </DataLoader>,
-                                                                sidebarTarget?.current
-                                                            )}
+                                                            {sidebarTarget &&
+                                                                ReactDOM.createPortal(
+                                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                        {allpref => (
+                                                                            <AppSetsFilter
+                                                                                apps={filterResults}
+                                                                                onChange={newPrefs => onAppSetFilterPrefChanged(ctx, newPrefs)}
+                                                                                pref={appSetPref}
+                                                                                collapsed={allpref.hideSidebar}
+                                                                            />
+                                                                        )}
+                                                                    </DataLoader>,
+                                                                    sidebarTarget
+                                                                )}
 
                                                             {pref.view === Summary ? (
                                                                 <ApplicationSetsSummary appSets={filteredApps} />

@@ -513,20 +513,21 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                             </EmptyState>
                                                         ) : (
                                                             <>
-                                                                {ReactDOM.createPortal(
-                                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                                        {allpref => (
-                                                                            <ApplicationsFilter
-                                                                                apps={filterResults}
-                                                                                onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs)}
-                                                                                pref={pref}
-                                                                                collapsed={allpref.hideSidebar}
-                                                                                hydratorEnabled={authSettings?.hydratorEnabled}
-                                                                            />
-                                                                        )}
-                                                                    </DataLoader>,
-                                                                    sidebarTarget?.current
-                                                                )}
+                                                                {sidebarTarget &&
+                                                                    ReactDOM.createPortal(
+                                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                            {allpref => (
+                                                                                <ApplicationsFilter
+                                                                                    apps={filterResults}
+                                                                                    onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs)}
+                                                                                    pref={pref}
+                                                                                    collapsed={allpref.hideSidebar}
+                                                                                    hydratorEnabled={authSettings?.hydratorEnabled}
+                                                                                />
+                                                                            )}
+                                                                        </DataLoader>,
+                                                                        sidebarTarget
+                                                                    )}
 
                                                                 {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
                                                                     <Paginate

@@ -225,8 +225,7 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
 
                             return (
                                 <>
-                                    {sidebarTarget &&
-                                        ReactDOM.createPortal(<CertsFilter certs={certsWithFilter} pref={filterPref} onChange={updateFilterPref} />, sidebarTarget.current)}
+                                    {sidebarTarget && ReactDOM.createPortal(<CertsFilter certs={certsWithFilter} pref={filterPref} onChange={updateFilterPref} />, sidebarTarget)}
                                     {filteredCerts.length > 0 ? (
                                         <Paginate page={page} data={filteredCerts} onPageChange={setPage} preferencesKey='certs-list'>
                                             {certsToDisplay => (

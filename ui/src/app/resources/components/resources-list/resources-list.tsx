@@ -325,19 +325,20 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                             </EmptyState>
                                                         ) : (
                                                             <>
-                                                                {ReactDOM.createPortal(
-                                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                                        {allpref => (
-                                                                            <ResourcesFilter
-                                                                                apps={filterResults}
-                                                                                onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
-                                                                                pref={pref}
-                                                                                collapsed={allpref.hideSidebar}
-                                                                            />
-                                                                        )}
-                                                                    </DataLoader>,
-                                                                    sidebarTarget?.current
-                                                                )}
+                                                                {sidebarTarget &&
+                                                                    ReactDOM.createPortal(
+                                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                            {allpref => (
+                                                                                <ResourcesFilter
+                                                                                    apps={filterResults}
+                                                                                    onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
+                                                                                    pref={pref}
+                                                                                    collapsed={allpref.hideSidebar}
+                                                                                />
+                                                                            )}
+                                                                        </DataLoader>,
+                                                                        sidebarTarget
+                                                                    )}
                                                                 {(pref.view === ResourcesListViewKey.Summary && <ResourcesSummary resources={filteredResources} />) || (
                                                                     <Paginate
                                                                         header={filteredResources.length > 1 && <ResourcesStatusBar resources={filteredResources} />}

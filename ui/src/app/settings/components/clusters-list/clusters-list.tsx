@@ -165,12 +165,15 @@ export const ClustersList = () => {
 
                                 return (
                                     <>
-                                        {ReactDOM.createPortal(
-                                            <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                {allpref => <ClustersFilter clusters={filterResults} pref={filterPref} onChange={onFilterChange} collapsed={allpref.hideSidebar} />}
-                                            </DataLoader>,
-                                            sidebarTarget?.current
-                                        )}
+                                        {sidebarTarget &&
+                                            ReactDOM.createPortal(
+                                                <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                    {allpref => (
+                                                        <ClustersFilter clusters={filterResults} pref={filterPref} onChange={onFilterChange} collapsed={allpref.hideSidebar} />
+                                                    )}
+                                                </DataLoader>,
+                                                sidebarTarget
+                                            )}
                                         {filteredClusters.length > 0 ? (
                                             <Paginate page={page} data={filteredClusters} onPageChange={setPage} preferencesKey='clusters-list'>
                                                 {clustersToDisplay => (

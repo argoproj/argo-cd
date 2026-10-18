@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {Sidebar} from '../../../sidebar/sidebar';
+import {Sidebar, SidebarToolsContext} from '../../../sidebar/sidebar';
 import {ViewPreferences} from '../../services';
 import {useTheme} from '../../utils';
 
@@ -23,6 +23,9 @@ export const ThemeWrapper = (props: {children: React.ReactNode; theme: string}) 
 
 export const Layout = (props: LayoutProps) => {
     const [theme] = useTheme({theme: props.pref.theme});
+    // The filter slot lives in the sidebar but is consumed by the page, so `Layout` owns it and hands it
+    // down through context instead of letting pages create their own container outside the React tree.
+    const [toolsEl, setToolsEl] = React.useState<HTMLDivElement | null>(null);
     React.useEffect(() => {
         if (theme) {
             document.body.style.background = getBGColor(theme);
@@ -32,9 +35,9 @@ export const Layout = (props: LayoutProps) => {
     return (
         <div className={`theme-${theme}`}>
             <div className={'cd-layout'}>
-                <Sidebar onVersionClick={props.onVersionClick} navItems={props.navItems} pref={props.pref} />
+                <Sidebar onVersionClick={props.onVersionClick} navItems={props.navItems} pref={props.pref} onToolsElement={setToolsEl} />
                 <div className={`cd-layout__content ${props.pref.hideSidebar ? 'cd-layout__content--sb-collapsed' : 'cd-layout__content--sb-expanded'} custom-styles`}>
-                    {props.children}
+                    <SidebarToolsContext.Provider value={toolsEl}>{props.children}</SidebarToolsContext.Provider>
                 </div>
             </div>
         </div>

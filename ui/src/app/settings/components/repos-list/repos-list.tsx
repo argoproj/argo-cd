@@ -884,12 +884,13 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
 
                                 return (
                                     <>
-                                        {ReactDOM.createPortal(
-                                            <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                {allpref => <ReposFilter repos={filterResults} pref={filterPref} onChange={onFilterChange} collapsed={allpref.hideSidebar} />}
-                                            </DataLoader>,
-                                            sidebarTarget?.current
-                                        )}
+                                        {sidebarTarget &&
+                                            ReactDOM.createPortal(
+                                                <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                    {allpref => <ReposFilter repos={filterResults} pref={filterPref} onChange={onFilterChange} collapsed={allpref.hideSidebar} />}
+                                                </DataLoader>,
+                                                sidebarTarget
+                                            )}
                                         {filteredRepos.length > 0 ? (
                                             <Paginate page={page} data={filteredRepos} onPageChange={setPage} preferencesKey='repos-list'>
                                                 {reposToDisplay => (

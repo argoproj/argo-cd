@@ -11,25 +11,34 @@ interface SidebarProps {
     onVersionClick: () => void;
     navItems: {path: string; iconClassName: string; title: string; tooltip?: string}[];
     pref: ViewPreferences;
+    /** Receives the filter slot element, which is rendered by `Sidebar` and consumed through `useSidebarTarget`. */
+    onToolsElement?: (el: HTMLDivElement | null) => void;
 }
 
 export const SIDEBAR_TOOLS_ID = 'sidebar-tools';
 
-export const useSidebarTarget = () => {
-    const sidebarTarget = React.useRef(document.createElement('div'));
+/**
+ * DOM node that the current page renders its filter controls into. It is rendered by `Sidebar` (and
+ * handed to pages by `Layout`), so React owns its lifetime from mount to unmount.
+ */
+export const SidebarToolsContext = React.createContext<HTMLElement | null>(null);
 
-    React.useEffect(() => {
-        const sidebar = document.getElementById(SIDEBAR_TOOLS_ID);
-        sidebar.appendChild(sidebarTarget?.current);
-        return () => {
-            sidebarTarget.current?.remove();
-        };
-    }, []);
-
-    return sidebarTarget;
-};
+/**
+ * Resolves the node that page filters should be portalled into.
+ *
+ * Pages must portal into that node instead of creating (and later removing) a container of their own: a
+ * container that lives outside the React tree can be detached while a portal is still mounted into it,
+ * which leaves React rendering into nodes that are no longer in the document. The next deletion pass then
+ * calls `removeChild` on a parent that does not hold the node any more, which surfaces as
+ * "NotFoundError: Failed to execute 'removeChild' on 'Node'".
+ *
+ * Returns `null` until the sidebar slot is mounted (and on routes rendered without a layout), so callers
+ * must only render the portal when a target is available.
+ */
+export const useSidebarTarget = (): HTMLElement | null => React.useContext(SidebarToolsContext);
 
 export const Sidebar = (props: SidebarProps) => {
+    const {onToolsElement} = props;
     const context = React.useContext(Context);
     const [version, loading, error] = useData(() => services.version.version());
     const locationPath = context.history.location.pathname;
@@ -119,7 +128,7 @@ export const Sidebar = (props: SidebarProps) => {
                     </ul>
                 </nav>
             </div>
-            <div id={SIDEBAR_TOOLS_ID} />
+            <div id={SIDEBAR_TOOLS_ID} ref={onToolsElement} />
         </div>
     );
 };
