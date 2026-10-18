@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"text/template"
 	"time"
@@ -1188,6 +1189,113 @@ func TestHandleEvent(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestHandleEvent_RekeysCachedManifestsConcurrently verifies that the manifest cache re-key of the
+// applications whose refresh paths did not change is performed after the refresh requests have been
+// issued, and that it does not run serially.
+func TestHandleEvent_RekeysCachedManifestsConcurrently(t *testing.T) {
+	t.Parallel()
+
+	const appCount = 12
+	const rekeyDelay = 100 * time.Millisecond
+
+	var inFlight, maxInFlight atomic.Int32
+
+	apps := make([]runtime.Object, 0, appCount)
+	sources := make([]v1alpha1.ApplicationSource, 0, appCount)
+	for i := range appCount {
+		app := &v1alpha1.Application{
+			Name:      fmt.Sprintf("test-app-%d", i),
+			Namespace: "argocd",
+			Annotations: map[string]string{
+				"argocd.argoproj.io/manifest-generate-paths": "deploy",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{Server: testClusterURL},
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/jessesuen/test-repo",
+					TargetRevision: "master",
+				},
+			},
+		}
+		apps = append(apps, app)
+		sources = append(sources, *app.Spec.Source)
+	}
+
+	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+	repoCache := cache.NewCache(cacheClient, 1*time.Minute, 1*time.Minute, 10*time.Second)
+	serverCache := servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute)
+
+	for i := range appCount {
+		setupTestCache(t, repoCache, fmt.Sprintf("test-app-%d", i), &sources[i], nil, []string{"test-manifest"})
+	}
+
+	require.NoError(t, serverCache.SetClusterInfo(testClusterURL, &v1alpha1.ClusterInfo{
+		ServerVersion:   "1.28.0",
+		ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful},
+		APIVersions:     []string{},
+	}))
+
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
+	mockDB.EXPECT().GetCluster(mock.Anything, testClusterURL).RunAndReturn(func(_ context.Context, _ string) (*v1alpha1.Cluster, error) {
+		current := inFlight.Add(1)
+		defer inFlight.Add(-1)
+		for {
+			observed := maxInFlight.Load()
+			if current <= observed || maxInFlight.CompareAndSwap(observed, current) {
+				break
+			}
+		}
+		time.Sleep(rekeyDelay)
+		return &v1alpha1.Cluster{
+			Server: testClusterURL,
+			Info: v1alpha1.ClusterInfo{
+				ServerVersion:   "1.28.0",
+				ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful},
+				APIVersions:     []string{},
+			},
+		}, nil
+	}).Maybe()
+
+	appClientset := appclientset.NewSimpleClientset(apps...)
+	h := NewHandler(
+		"argocd",
+		[]string{},
+		10,
+		1,
+		appClientset,
+		&fakeAppsLister{clientset: appClientset},
+		&settings.ArgoCDSettings{},
+		&fakeSettingsSrc{},
+		repoCache,
+		serverCache,
+		mockDB,
+		int64(50)*1024*1024,
+		0,
+		10,
+		&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
+	)
+
+	payload := createTestPayload("other/path/app.yaml")
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
+	req.Header.Set("X-GitHub-Event", "push")
+	req.Body = io.NopCloser(bytes.NewReader(payload))
+
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	h.Shutdown()
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Greater(t, maxInFlight.Load(), int32(1), "manifest cache re-keys should run concurrently")
+
+	for i := range appCount {
+		var cachedManifests cache.CachedManifestResponse
+		key := cache.NewManifestKey(testAfterSHA, &sources[i], nil, "", "", testAppLabelKey, fmt.Sprintf("test-app-%d", i), "", nil, &mockClusterInfo{}, nil)
+		require.NoError(t, repoCache.GetManifests(key, &cachedManifests), "cache should be updated for test-app-%d", i)
+		assert.Equal(t, testAfterSHA, cachedManifests.ManifestResponse.Revision)
 	}
 }
 

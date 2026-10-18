@@ -14,6 +14,7 @@ import (
 	"time"
 
 	bb "github.com/ktrysmt/go-bitbucket"
+	"golang.org/x/sync/errgroup"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/util/workqueue"
 
@@ -85,6 +86,17 @@ type appRefreshRequest struct {
 	appNamespace string
 	hydrateType  *v1alpha1.HydrateType
 }
+
+// cacheRekeyRequest represents an application whose manifest cache entry should be moved from the
+// revision in the webhook payload to the new revision.
+type cacheRekeyRequest struct {
+	logCtx *log.Entry
+	app    v1alpha1.Application
+	source v1alpha1.ApplicationSource
+}
+
+// cacheRekeyConcurrency bounds how many manifest cache re-keys are performed in parallel.
+const cacheRekeyConcurrency = 10
 
 type ArgoCDWebhookHandler struct {
 	sync.WaitGroup                // for testing
@@ -339,6 +351,11 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		}
 	}
 
+	// Cache re-keys are collected here instead of being executed inline, so that a webhook event
+	// always issues every refresh request before doing any cache maintenance. Otherwise the
+	// applications whose files actually changed can be starved behind thousands of cache re-keys.
+	var rekeys []cacheRekeyRequest
+
 	for _, webURL := range webURLs {
 		repoRegexp, err := GetWebURLRegex(webURL)
 		if err != nil {
@@ -401,17 +418,40 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 						}
 						break // we don't need to check other sources
 					} else if change.shaBefore != "" && change.shaAfter != "" && !cacheWarmDisabled {
-						// update the cached manifests with the new revision cache key
-						if err := a.storePreviouslyCachedManifests(logCtx, &app, change, trackingMethod, appInstanceLabelKey, installationID, source); err != nil {
-							// Errors while updating the cache are non-fatal since the manifest will simply be regenerated on
-							// the next reconciliation.
-							logCtx.Warnf("Failed to store cached manifests of previous revision: %v", err)
-						}
+						// the refresh paths have not changed, so the cached manifests of the previous
+						// revision can be reused for the new revision
+						rekeys = append(rekeys, cacheRekeyRequest{logCtx: logCtx, app: app, source: source})
 					}
 				}
 			}
 		}
 	}
+
+	a.rekeyManifests(rekeys, change, trackingMethod, appInstanceLabelKey, installationID)
+}
+
+// rekeyManifests moves the cached manifests of the given applications to the new revision. It runs
+// after all refresh requests of an event have been issued, and with bounded concurrency, so that
+// the cache maintenance is not on the critical path of the applications that must be refreshed.
+// Failures are logged and never abort the remaining re-keys, since a missing cache entry only
+// means that the manifests are regenerated on the next reconciliation.
+func (a *ArgoCDWebhookHandler) rekeyManifests(rekeys []cacheRekeyRequest, change changeInfo, trackingMethod string, appInstanceLabelKey string, installationID string) {
+	if len(rekeys) == 0 {
+		return
+	}
+
+	g := &errgroup.Group{}
+	g.SetLimit(cacheRekeyConcurrency)
+	for _, rekey := range rekeys {
+		g.Go(func() error {
+			err := a.storePreviouslyCachedManifests(rekey.logCtx, &rekey.app, change, trackingMethod, appInstanceLabelKey, installationID, rekey.source)
+			if err != nil {
+				rekey.logCtx.Warnf("Failed to store cached manifests of previous revision: %v", err)
+			}
+			return nil
+		})
+	}
+	_ = g.Wait()
 }
 
 // GetWebURLRegex compiles a regex that will match any targetRevision referring to the same repo as
