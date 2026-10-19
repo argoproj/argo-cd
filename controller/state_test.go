@@ -2402,6 +2402,26 @@ func TestGetRepoObjs_ChangeDetectionUsesLastSyncedBase(t *testing.T) {
 		assert.False(t, revisionsMayHaveChanges)
 	})
 
+	t.Run("synced app sends the compared revision as last-synced base", func(t *testing.T) {
+		// Non-git sources are only version-compared against LastSyncedRevision; an empty one would delay
+		// a chart bump on a Synced app by a reconcile.
+		app := newApp()
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		var req *apiclient.UpdateRevisionForPathsRequest
+		data := fakeData{
+			manifestResponse:               manifestResponse,
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: true, Revision: revB},
+			onUpdateRevisionForPaths:       func(r *apiclient.UpdateRevisionForPathsRequest) { req = r },
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, "", []string{"HEAD"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+		require.NoError(t, err)
+		require.NotNil(t, req)
+		assert.Equal(t, revB, req.LastSyncedRevision)
+		assert.Equal(t, revB, req.SyncedRevision)
+	})
+
 	t.Run("revision equal to both bases skips the repo call", func(t *testing.T) {
 		app := newApp()
 		app.Status.OperationState.SyncResult.Revision = revB

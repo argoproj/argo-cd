@@ -372,19 +372,27 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	}
 
 	// Sync.Revision advances on every comparison, even mid-sync, so it cannot tell whether the compared
-	// revision was ever synced (#27875). Only auto-sync reads the result. A Synced app's live state
-	// matches the compared revision, so that base is sound and avoids a repo-server call per reconcile
-	// for mono-repo apps whose last sync lags forever. autoSync ignores the result while an operation
-	// runs or the app is being deleted, so skip the extra diff then.
+	// revision was ever synced (#27875). Only auto-sync reads the result, and it ignores it while an
+	// operation runs or the app is being deleted.
 	var lastSyncedRevisions []string
 	var lastSyncedRefSources v1alpha1.RefTargetRevisionMapping
 	revisionsMayHaveChanges := false
-	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled() && app.Status.Sync.Status != v1alpha1.SyncStatusCodeSynced &&
-		app.Operation == nil && app.DeletionTimestamp == nil {
-		// An unusable recorded base forces the comparison; see lastAttemptedSyncRevisions.
-		lastSyncedRevisions, revisionsMayHaveChanges = lastAttemptedSyncRevisions(app, sources)
-		if lastSyncedRevisions != nil && app.Spec.HasMultipleSources() {
-			lastSyncedRefSources = argo.GetSyncedRefSources(refSources, sources, lastSyncedRevisions)
+	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled() && app.Operation == nil && app.DeletionTimestamp == nil {
+		if app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
+			// Live matches the compared revisions, so they are a sound base. Passing them (rather than
+			// nothing) keeps non-git version moves detected without a repo-server call per reconcile for
+			// mono-repo apps whose last sync lags forever.
+			lastSyncedRevisions = []string{app.Status.Sync.Revision}
+			if app.Spec.HasMultipleSources() {
+				lastSyncedRevisions = app.Status.Sync.Revisions
+				lastSyncedRefSources = syncedRefSources
+			}
+		} else {
+			// An unusable recorded base forces the comparison; see lastAttemptedSyncRevisions.
+			lastSyncedRevisions, revisionsMayHaveChanges = lastAttemptedSyncRevisions(app, sources)
+			if lastSyncedRevisions != nil && app.Spec.HasMultipleSources() {
+				lastSyncedRefSources = argo.GetSyncedRefSources(refSources, sources, lastSyncedRevisions)
+			}
 		}
 	}
 
@@ -796,7 +804,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	var manifestInfos []*apiclient.ManifestResponse
 	targetNsExists := false
 
-	// Unknown until change detection runs; "no changes" would let alreadyAttemptedSync suppress auto-sync.
+	// Local manifests skip change detection; "no changes" would let alreadyAttemptedSync suppress auto-sync.
 	revisionsMayHaveChanges := true
 
 	if len(localManifests) == 0 {
