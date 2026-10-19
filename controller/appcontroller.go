@@ -1851,6 +1851,12 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	})
 
 	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
+	// The deletion-approved annotation only approves the pruning of the operation it was set
+	// for. Remove it once that operation has succeeded, otherwise it is left on the application
+	// forever and shows up as an approval of unrelated, later deletions.
+	if state.Phase.Successful() && app.GetDeletionTimestamp() == nil {
+		ctrl.removeDeletionApprovedAnnotation(app)
+	}
 	if state.Phase.Completed() {
 		eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
 		var messages []string
@@ -2482,6 +2488,30 @@ func (ctrl *ApplicationController) handleRefreshAnnotation(ctx context.Context, 
 }
 
 var rfc6901Encoder = strings.NewReplacer("/", "~1", "~", "~0")
+
+// removeDeletionApprovedAnnotation removes the annotation that confirms the pruning of resources
+// requiring deletion confirmation. Removal is guarded by a test operation so a concurrently
+// updated annotation is not dropped.
+func (ctrl *ApplicationController) removeDeletionApprovedAnnotation(app *appv1.Application) {
+	value, ok := app.GetAnnotations()[synccommon.AnnotationDeletionApproved]
+	if !ok {
+		return
+	}
+	logCtx := log.WithFields(applog.GetAppLogFields(app))
+
+	path := "/metadata/annotations/" + rfc6901Encoder.Replace(synccommon.AnnotationDeletionApproved)
+	patch, err := json.Marshal([]map[string]any{
+		{"op": "test", "path": path, "value": value},
+		{"op": "remove", "path": path},
+	})
+	if err != nil {
+		logCtx.WithError(err).Error("error marshaling deletion-approved annotation patch")
+		return
+	}
+	if _, err := ctrl.PatchAppWithWriteBack(context.Background(), app.GetName(), app.GetNamespace(), types.JSONPatchType, patch, metav1.PatchOptions{}); err != nil {
+		logCtx.WithError(err).Warn("failed to remove the deletion-approved annotation")
+	}
+}
 
 func (ctrl *ApplicationController) removeRefreshAnnotationCombo(app *appv1.Application, annotation, timestampAnnotation string) (patchDuration time.Duration, err error) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))

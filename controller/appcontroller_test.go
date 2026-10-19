@@ -2133,6 +2133,33 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 	assert.True(t, patched)
 }
 
+func TestSetOperationStateRemovesDeletionApprovedAnnotation(t *testing.T) {
+	t.Run("removes the annotation after a successful operation", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{synccommon.AnnotationDeletionApproved: "2026-04-28T10:00:00Z"}
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		ctrl.setOperationState(t.Context(), app, &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
+
+		updated, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.NotContains(t, updated.Annotations, synccommon.AnnotationDeletionApproved)
+	})
+
+	t.Run("keeps the annotation when the operation failed", func(t *testing.T) {
+		// a failed operation can be retried and the approval is still valid for the retry
+		app := newFakeApp()
+		app.Annotations = map[string]string{synccommon.AnnotationDeletionApproved: "2026-04-28T10:00:00Z"}
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		ctrl.setOperationState(t.Context(), app, &v1alpha1.OperationState{Phase: synccommon.OperationFailed})
+
+		updated, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, "2026-04-28T10:00:00Z", updated.Annotations[synccommon.AnnotationDeletionApproved])
+	})
+}
+
 func TestSetOperationStateLogRetries(t *testing.T) {
 	hook := utilTest.LogHook{}
 	logrus.AddHook(&hook)
