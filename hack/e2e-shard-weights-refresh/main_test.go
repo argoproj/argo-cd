@@ -172,8 +172,8 @@ func TestPackMatchesShardScript(t *testing.T) {
 
 	names := slices.Sorted(maps.Keys(w.values))
 	tests := set(names[3:]...)
-	tests["TestNotInWeightsA"] = true
 	tests["TestNotInWeightsB"] = true
+	tests["TestNotInWeights_A"] = true
 
 	bin := t.TempDir()
 	writeFile(t, filepath.Join(bin, "go"), "#!/bin/sh\nprintf '%s\\n' "+strings.Join(slices.Sorted(maps.Keys(tests)), " ")+"\necho 'ok pkg 0.1s'\n")
@@ -182,7 +182,7 @@ func TestPackMatchesShardScript(t *testing.T) {
 	for _, shards := range []int{1, 3, 4} {
 		for i, shard := range pack(w.values, tests, shards) {
 			cmd := exec.CommandContext(t.Context(), filepath.Join("..", "e2e-shard.sh"), "pkg", strconv.Itoa(i+1), strconv.Itoa(shards))
-			cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"), "LC_ALL=C", "ARGOCD_E2E_SHARD_WEIGHTS="+weightsPath)
+			cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"), "LC_ALL=en_US.UTF-8", "ARGOCD_E2E_SHARD_WEIGHTS="+weightsPath)
 			out, err := cmd.Output()
 			require.NoError(t, err)
 

@@ -21,7 +21,10 @@
 # Only top-level test names are matched. `go test` splits a -run pattern on "/" and
 # applies each element to one nesting level, so a pattern with no "/" filters top-level
 # tests only and every subtest of a selected test still runs.
+#
+# The locale is pinned so that `sort` breaks weight ties the same way on every machine.
 set -eu -o pipefail
+export LC_ALL=C
 
 pkg="$1"
 shard="$2"
