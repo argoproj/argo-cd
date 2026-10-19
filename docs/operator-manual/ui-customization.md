@@ -1,5 +1,13 @@
 # UI Customization
 
+## Applications List Search
+
+The Applications list remembers the search text in your browser, like the other
+list filters. Returning from an application's details page restores the search,
+including regular expressions when regex search is enabled. Clearing the search
+also clears the saved text. A `search` parameter in the URL takes precedence over
+the saved text, including an explicitly empty `?search=` parameter.
+
 ## Default Application Details View
 
 By default, the Application Details will show the `Tree` view.
