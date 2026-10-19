@@ -3716,7 +3716,8 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 	if !isGitSource && len(request.RefSources) == 0 {
 		// Non-git (helm/OCI) contents are never path-diffed, so the version identifier is the only
 		// signal: a move since the last sync attempt must not be masked by this optimization.
-		if request.LastSyncedRevision != "" && request.LastSyncedRevision != request.Revision {
+		// Compare resolved versions; Revision may be a constraint ("15.*") or tag that never equals one.
+		if request.LastSyncedRevision != "" && request.LastSyncedRevision != request.SyncedRevision {
 			return &apiclient.UpdateRevisionForPathsResponse{Changes: true, Revision: request.Revision}, nil
 		}
 		return &apiclient.UpdateRevisionForPathsResponse{}, nil
@@ -3777,7 +3778,7 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 	}
 
 	syncChanges := syncEval.changes || forceChanges
-	if !isGitSource && request.LastSyncedRevision != "" && request.LastSyncedRevision != request.Revision {
+	if !isGitSource && request.LastSyncedRevision != "" && request.LastSyncedRevision != request.SyncedRevision {
 		// Non-git main source with git ref sources: the refs were diffed above, but the main source's
 		// version identifier never is. A move since the last sync attempt counts as a change (see above).
 		syncChanges = true

@@ -6086,6 +6086,31 @@ func TestUpdateRevisionForPaths_NonGitSourceUsesLastSyncedVersion(t *testing.T) 
 		require.NoError(t, err)
 		assert.True(t, resp.Changes, "a chart version move must not be masked by unchanged ref sources")
 	})
+
+	t.Run("version constraint resolving to the last synced version reports no changes", func(t *testing.T) {
+		// Revision carries the unresolved targetRevision; only the resolved SyncedRevision is comparable.
+		sha := "1e67a504d03def3a6a1125d934cb511680f72555"
+		refs := v1alpha1.RefTargetRevisionMapping{
+			"$values": {Repo: v1alpha1.Repository{Repo: "a-url.com"}, TargetRevision: sha},
+		}
+		for name, withRefs := range map[string]bool{"without refs": false, "with unchanged refs": true} {
+			t.Run(name, func(t *testing.T) {
+				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, _ *iomocks.TempPaths) {}, ".")
+				request := newRequest("1.2.3", "1.*")
+				request.SyncedRevision = "1.2.3"
+				if withRefs {
+					request.HasMultipleSources = true
+					request.ApplicationSource.Helm = &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/path"}}
+					request.RefSources = refs
+					request.SyncedRefSources = refs
+					request.LastSyncedRefSources = refs
+				}
+				resp, err := s.UpdateRevisionForPaths(t.Context(), request)
+				require.NoError(t, err)
+				assert.False(t, resp.Changes)
+			})
+		}
+	})
 }
 
 func TestUpdateRevisionForPaths_RepeatedCallIsIdempotent(t *testing.T) {
