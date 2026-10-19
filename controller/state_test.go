@@ -2393,12 +2393,8 @@ func TestGetRepoObjs_ChangeDetectionUsesLastSyncedBase(t *testing.T) {
 		// Mono-repo apps whose paths never change are never resynced, so their last sync lags forever.
 		app := newApp()
 		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
-		data := fakeData{
-			manifestResponse: manifestResponse,
-			onUpdateRevisionForPaths: func(*apiclient.UpdateRevisionForPathsRequest) {
-				t.Fatal("UpdateRevisionForPaths must not be called for a synced app at the compared revision")
-			},
-		}
+		// No UpdateRevisionForPaths expectation: the mock fails the test if it is called.
+		data := fakeData{manifestResponse: manifestResponse}
 		ctrl := newFakeController(t.Context(), &data, nil)
 
 		_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, "", []string{revB}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)

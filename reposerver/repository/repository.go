@@ -3539,15 +3539,7 @@ func composeGitFilesChanges(c *cache.Cache, repoURL, revision, composeVia, synce
 	if err != nil {
 		return nil, err
 	}
-	seen := make(map[string]bool, len(headFiles)+len(tailFiles))
-	files := make([]string, 0, len(headFiles)+len(tailFiles))
-	for _, f := range append(headFiles, tailFiles...) {
-		if !seen[f] {
-			seen[f] = true
-			files = append(files, f)
-		}
-	}
-	return files, nil
+	return append(headFiles, tailFiles...), nil
 }
 
 // baseRevisionEvaluation is the result of comparing the requested revision against one base.
@@ -3581,9 +3573,7 @@ func (s *Service) evaluateChangesSinceRevision(ctx context.Context, request *api
 		eval.resolvedRevision = resolvedRevision
 		eval.resolvedBase = resolvedBase
 
-		if resolvedRevision != resolvedBase {
-			eval.revisionsAreDifferent = true
-		}
+		eval.revisionsAreDifferent = resolvedRevision != resolvedBase
 
 		if sourceHasChanges {
 			logCtx.Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, request.Repo.Repo, resolvedBase, resolvedRevision)
@@ -3744,7 +3734,19 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 	// The cache transfer is keyed on syncedRevision, so diverging bases need a separate diff. Run it first:
 	// it is shared repo-wide and seeds the composition below. It only serves the transfer, so errors are logged.
 	var cacheEval *baseRevisionEvaluation
+	composeVia := ""
+	var composeRefSources map[string]*v1alpha1.RefTarget
 	if basesDiverge {
+		if isGitSource {
+			// Resolve once so both evaluations diff the same commit.
+			_, resolved, err := s.newClientResolveRevision(repo, request.Revision, gitClientOpts)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", request.Revision, err)
+			}
+			request.Revision = resolved
+		}
+		composeVia = request.SyncedRevision
+		composeRefSources = request.SyncedRefSources
 		var cacheErr error
 		cacheEval, cacheErr = s.evaluateChangesSinceRevision(ctx, request, request.SyncedRevision, request.SyncedRefSources, "", nil, isGitSource, gitClientOpts, logCtx)
 		if cacheErr != nil {
@@ -3753,20 +3755,12 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 		}
 	}
 
-	// Composition only applies when the bases diverge; otherwise the two evaluations are the same one.
-	composeVia := ""
-	var composeRefSources map[string]*v1alpha1.RefTarget
-	if basesDiverge {
-		composeVia = request.SyncedRevision
-		composeRefSources = request.SyncedRefSources
-	}
-
 	// forceChanges marks a verdict that did not come from the sync base, so it must not reach the gate.
 	forceChanges := false
 
 	syncEval, err := s.evaluateChangesSinceRevision(ctx, request, syncBaseRevision, syncBaseRefSources, composeVia, composeRefSources, isGitSource, gitClientOpts, logCtx)
 	if err != nil {
-		if request.LastSyncedRevision == "" || !basesDiverge || cacheEval == nil {
+		if cacheEval == nil {
 			if syncEval != nil {
 				return &apiclient.UpdateRevisionForPathsResponse{Changes: true, Revision: syncEval.resolvedRevision}, err
 			}
@@ -3785,11 +3779,8 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 		}
 	}
 
-	syncChanges := syncEval.changes || forceChanges
-	if nonGitVersionMoved {
-		// The refs were diffed, but the non-git main source's version never is (see above).
-		syncChanges = true
-	}
+	// The refs were diffed, but a non-git main source's version never is (see above).
+	syncChanges := syncEval.changes || forceChanges || nonGitVersionMoved
 
 	transferEval := cacheEval
 	if !basesDiverge {
