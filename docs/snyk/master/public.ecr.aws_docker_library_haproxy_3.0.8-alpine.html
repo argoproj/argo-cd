@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="37 known vulnerabilities found in 362 vulnerable dependency paths.">
+  <meta name="description" content="48 known vulnerabilities found in 464 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">September 27th 2026, 12:35:57 am (UTC+00:00)</p>
+                <p class="timestamp">October 11th 2026, 12:37:32 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -502,8 +502,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>37</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>362 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>48</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>464 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>19</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -710,6 +710,91 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-OPENSSL-16000010">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Out-of-bounds Write</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.21
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            zlib/zlib
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and zlib/zlib@1.3.1-r2
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib@1.3.1-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib@1.3.1-r2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>zlib</code> package and not the <code>zlib</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
+        <p>zlib versions 1.3.1.2 through 1.3.2 contain a heap buffer overflow vulnerability in the gz_vacate() function when processing non-blocking gzwrite() operations with stale external buffer pointers. Attackers can trigger the overflow by calling gzprintf() or gzvprintf() after a write stall, causing an unchecked memmove() to write beyond the internal input buffer boundary.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.21</code> <code>zlib</code> to version 1.3.2-r1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://gist.github.com/thesmartshadow/e0b9481792afb7c31e86fee1ff084490">https://gist.github.com/thesmartshadow/e0b9481792afb7c31e86fee1ff084490</a></li>
+        <li><a href="https://github.com/madler/zlib">https://github.com/madler/zlib</a></li>
+        <li><a href="https://github.com/madler/zlib/blob/v1.3.2/gzwrite.c#L393">https://github.com/madler/zlib/blob/v1.3.2/gzwrite.c#L393</a></li>
+        <li><a href="https://www.vulncheck.com/advisories/zlib-1.3.1.2-through-1.3.2-heap-buffer-overflow-via-gz-vacate">https://www.vulncheck.com/advisories/zlib-1.3.1.2-through-1.3.2-heap-buffer-overflow-via-gz-vacate</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-ZLIB-20541567">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -6965,6 +7050,2024 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-OPENSSL-19886047">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-84784</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.21
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and openssl/libcrypto3@3.3.3-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates/ca-certificates@20241121-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: A malicious remote peer may flood the local QUIC
+        stack with NEW_CONNECTION_ID frames by avoiding a limit check on
+        how many connection IDs the remote QUIC stack can use.</p>
+        <p>Impact summary: The local QUIC stack sends a RETIRE_CONN_ID frame
+        for every NEW_CONNECTION_ID frame it receives. The RETIRE_CONN_ID
+        frame is dispatched via the Control Frame Queue (CFQ). If the remote
+        peer also withholds ACKs, then it can force the local stack
+        to allocate ~400MB (depending on ACK delay).</p>
+        <p>CWE: CWE-770: Allocation of Resources Without Limits or Throttling</p>
+        <p>Description: RFC 9000 sections 5.1.1 and 5.1.2 [1] describe the mechanism
+        by which a remote peer can notify the local QUIC stack to change the
+        destination connection ID (a.k.a. CID) the local stack uses to
+        identify the connection at the remote peer. Each CID is associated
+        with a sequence number. The sequence number is transmitted
+        in NEW_CONNECTION_ID and RETIRE_CONNECTION_ID frames to identify the CID
+        which is being either associated with a connection or retired.</p>
+        <p>The remote peer sends a NEW_CONNECTION_ID frame to let the local stack know
+        a new CID is being associated with an existing connection. The
+        NEW_CONNECTION_ID frame carries the new CID, its sequence number, and the
+        retire-prior-to number. The retire-prior-to identifies existing
+        CIDs that are to be retired. The local QUIC stack must send a
+        RETIRE_CONNECTION_ID for every destination CID whose sequence number
+        is less than retire-prior-to. The CID becomes retired after the
+        local stack receives an ACK for its RETIRE_CONNECTION_ID frame.</p>
+        <p>Although the OpenSSL QUIC stack supports at most one destination CID
+        for every connection, it can be tricked into processing more than
+        one RETIRE_CONNECTION_ID frame per connection. The OpenSSL QUIC
+        stack currently retires the destination CID as soon as it receives
+        the NEW_CONNECTION_ID, while in fact the destination CID must
+        be retired after an ACK for the RETIRE_CONNECTION_ID frame is received.
+        Correcting the flawed logic also fixes the backlog growth.</p>
+        <p>[1] <a href="https://datatracker.ietf.org/doc/html/rfc9000#name-issuing-connection-ids">https://datatracker.ietf.org/doc/html/rfc9000#name-issuing-connection-ids</a></p>
+        <p>FIPS impact: no
+        The FIPS module is not affected as the QUIC implementation is outside of
+        the OpenSSL FIPS module boundary.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.21</code> <code>openssl</code> to version 3.3.7-r2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/4685c914b0d410b1034f40b547c95bc95e7a380a">https://github.com/openssl/openssl/commit/4685c914b0d410b1034f40b547c95bc95e7a380a</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/9a30fe0fba195c14e5b87bf93c0d0fdb70373806">https://github.com/openssl/openssl/commit/9a30fe0fba195c14e5b87bf93c0d0fdb70373806</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/dba3c48d653c64fcbc9070a17a0ee2b3e2f3af1f">https://github.com/openssl/openssl/commit/dba3c48d653c64fcbc9070a17a0ee2b3e2f3af1f</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/e9e5155833fa968bee50024bf9ca3a185ab599fe">https://github.com/openssl/openssl/commit/e9e5155833fa968bee50024bf9ca3a185ab599fe</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260929.txt">https://openssl-library.org/news/secadv/20260929.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-OPENSSL-20336250">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-75804</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.21
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and openssl/libcrypto3@3.3.3-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates/ca-certificates@20241121-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: OpenSSL QUIC stack does not enforce connection
+        level flow control for streams. Remote peers may send more bytes
+        as long as they fit within the stream flow control limits.</p>
+        <p>Impact summary: A malicious remote peer may exploit the lack of connection
+        flow control for streams to make the QUIC stack receive ~100MB of memory
+        instead of 768 KiB (default flow control window size).</p>
+        <p>CWE: CWE-770: Allocation of Resources Without Limits or Throttling</p>
+        <p>Description: The local QUIC stack advertises two flow control limits
+        to its remote peer: stream flow control limit and connection flow
+        control limit. The remote peer must follow both limits when transmitting
+        stream data.</p>
+        <p>Whenever the local QUIC stack receives a stream frame, it validates
+        that the size of the received stream frame stays within flow control limits.
+        If either limit is exceeded (stream level or connection level), then
+        the QUIC stack must close the connection with a flow control error.</p>
+        <p>The vulnerable OpenSSL QUIC stack enforces the stream-level but not
+        the connection-level limit. To exploit the issue, three conditions must be met:</p>
+        <ul>
+        <li>the remote peer opens several streams</li>
+        <li>each stream must stay within the stream-level flow control limit</li>
+        <li>there must be no zero-offset byte sent on any of the streams
+        (to prevent the vulnerable QUIC stack from consuming data).
+        By meeting the conditions above, the remote peer may make the local stack
+        allocate 2 x MAX_STREAMS x (stream flow control limit) bytes
+        of memory. MAX_STREAMS defaults to 100, and the limit applies to both
+        bidirectional and unidirectional streams, making it 200 in total. The default
+        flow control window for a stream is 512kB. The remote peer may
+        force the vulnerable QUIC stack to allocate 100MB of heap per connection.</li>
+        </ul>
+        <p>FIPS impact: no
+        The FIPS module is not affected as the QUIC implementation is outside of
+        the OpenSSL FIPS module boundary.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.21</code> <code>openssl</code> to version 3.3.7-r2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/2e8f54666b3fb7b05ff5f58aa6cac9285163654e">https://github.com/openssl/openssl/commit/2e8f54666b3fb7b05ff5f58aa6cac9285163654e</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/4533ee8a5686c953ed3b644738ac4bdf20806538">https://github.com/openssl/openssl/commit/4533ee8a5686c953ed3b644738ac4bdf20806538</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/64d3102fb5b54311e92517f26ba00169d719e74a">https://github.com/openssl/openssl/commit/64d3102fb5b54311e92517f26ba00169d719e74a</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/f9eaecf5bdd6692da052bc65b0332af2a938ac03">https://github.com/openssl/openssl/commit/f9eaecf5bdd6692da052bc65b0332af2a938ac03</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260929.txt">https://openssl-library.org/news/secadv/20260929.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-OPENSSL-20336251">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-35189</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.21
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and openssl/libcrypto3@3.3.3-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates/ca-certificates@20241121-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: A certificate with many nameRelativeToCRLIssuer CRL
+        distribution points causes disproportionate heap growth when OpenSSL caches
+        X.509 extensions.</p>
+        <p>Impact summary: Receiving a crafted certificate from a malicious peer can lead
+        to significant memory pressure and possible Denial of Service in clients or
+        in servers that solicit client certificates.</p>
+        <p>CWE: CWE-770: Allocation of Resources Without Limits or Throttling</p>
+        <p>Description: A certificate or a set of certificates that fits under the limit for
+        size of certificates accepted from the peer (~100 KiB) can result in allocation
+        of several hundred MiB of resident memory on the receiving side
+        during a normal TLS handshake.  This may be enough to crash the client or
+        server, if multiple concurrent connections lead to similarly large memory
+        allocations.</p>
+        <p>The fix postpones processing of the CRL distribution points extensions in
+        certificates to the time when the processed value is required for CRL processing.
+        This avoids keeping large memory allocations for a long time when such
+        certificates are received.</p>
+        <p>FIPS impact: no
+        The affected code is outside the FIPS module boundary.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.21</code> <code>openssl</code> to version 3.3.7-r2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/2b93c73b2c70ddc4c61c5e4bfaaa6bd71379eb84">https://github.com/openssl/openssl/commit/2b93c73b2c70ddc4c61c5e4bfaaa6bd71379eb84</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/3842516cc15e8b2cf55747011045e77547e71d89">https://github.com/openssl/openssl/commit/3842516cc15e8b2cf55747011045e77547e71d89</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/8e0efc7549b7ff8246d40e585e3fd604f728473f">https://github.com/openssl/openssl/commit/8e0efc7549b7ff8246d40e585e3fd604f728473f</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/c72ae182cac17a82e4246c6ecd4e9c4ec3586ec9">https://github.com/openssl/openssl/commit/c72ae182cac17a82e4246c6ecd4e9c4ec3586ec9</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260929.txt">https://openssl-library.org/news/secadv/20260929.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-OPENSSL-20336253">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-54872</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.21
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and openssl/libcrypto3@3.3.3-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates/ca-certificates@20241121-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: The generic elliptic-curve scalar multiplication used for
+        ECDSA and SM2 signature operations with curves that do not have a dedicated
+        implementation leaks information about the secret nonce through timing.</p>
+        <p>Impact summary: An attacker able to measure signing times may learn
+        information about the per-signature secret nonce, which over many signatures
+        can, via a lattice / Hidden Number Problem attack, lead to recovery of the
+        private key.</p>
+        <p>CWE: CWE-208: Observable Timing Discrepancy</p>
+        <p>Description: The generic elliptic-curve scalar multiplication used for
+        curves that do not have a dedicated constant-time implementation pads the
+        secret scalar with non-constant-time BIGNUM operations, so the time taken
+        depends on the value of the secret scalar derived from the ECDSA and SM2 nonce.</p>
+        <p>The leak is very small; observing it requires a large number of
+        measurements. The effect is largest for curves whose group order lies
+        on a machine-word boundary, such as brainpoolP384r1.</p>
+        <p>Applications using ECDSA signing over the Brainpool and other generic prime
+        curves, and SM2 signing on platforms that use the generic implementation,
+        are vulnerable to this issue.</p>
+        <p>The NIST curves P-256, P-384 and P-521 use dedicated constant-time
+        implementations and are not affected.</p>
+        <p>FIPS Impact: no
+        The FIPS modules are not affected: the approved NIST curves used in the FIPS
+        provider have dedicated constant-time implementations and do not use the
+        affected code path.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.21</code> <code>openssl</code> to version 3.3.7-r2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/1a5bee8dc57430a2be69cd1ffe7fec6a62f4f179">https://github.com/openssl/openssl/commit/1a5bee8dc57430a2be69cd1ffe7fec6a62f4f179</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/3f7e1363dccec6f7732bb9e9fa471bb6e4aa68cb">https://github.com/openssl/openssl/commit/3f7e1363dccec6f7732bb9e9fa471bb6e4aa68cb</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/7d83bc7764999dfd91b83b4f0815b45390422afd">https://github.com/openssl/openssl/commit/7d83bc7764999dfd91b83b4f0815b45390422afd</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/8166827a78aad164a07aa86dea2b425403ced471">https://github.com/openssl/openssl/commit/8166827a78aad164a07aa86dea2b425403ced471</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260929.txt">https://openssl-library.org/news/secadv/20260929.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-OPENSSL-20336255">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-77696</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.21
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and openssl/libcrypto3@3.3.3-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates/ca-certificates@20241121-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: SM2 signature generation uses non-constant-time arithmetic
+        on secret values, forming a timing side-channel.</p>
+        <p>Impact summary: An attacker able to measure SM2 signing times may learn
+        information about the per-signature secret nonce, which over many signatures
+        can, via a lattice / Hidden Number Problem attack, lead to recovery of the
+        private key.</p>
+        <p>CWE: CWE-208: Observable Timing Discrepancy</p>
+        <p>Description: SM2 signature generation computes the signature value using
+        variable-time BIGNUM operations on the secret nonce and the private key, so
+        the time taken to produce an SM2 signature depends on these secret values,
+        forming a timing side-channel.</p>
+        <p>Applications performing SM2 signature generation are affected on all
+        platforms.</p>
+        <p>FIPS Impact: no
+        SM2 is not a FIPS algorithm.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.21</code> <code>openssl</code> to version 3.3.7-r2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/1c4aed808a7aea32d2d013049c2e0d9fef164fc9">https://github.com/openssl/openssl/commit/1c4aed808a7aea32d2d013049c2e0d9fef164fc9</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/20b20628d39b2dcc4677194bd68c7c060fa598cb">https://github.com/openssl/openssl/commit/20b20628d39b2dcc4677194bd68c7c060fa598cb</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/419f5cb519721dceed393dbc524d79e487c72e64">https://github.com/openssl/openssl/commit/419f5cb519721dceed393dbc524d79e487c72e64</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/6b90445a56b99a328ac1feba058abf976504f440">https://github.com/openssl/openssl/commit/6b90445a56b99a328ac1feba058abf976504f440</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260929.txt">https://openssl-library.org/news/secadv/20260929.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-OPENSSL-20336256">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-75805</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.21
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and openssl/libcrypto3@3.3.3-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates/ca-certificates@20241121-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: A CMP client that requests certificate revocation on the basis
+        of a PKCS#10 CSR may dereference a NULL pointer and terminate abnormally when
+        processing a crafted revocation response. </p>
+        <p>Impact summary: The NULL pointer dereference happens on a read which 
+        leads to a crash and a Denial of Service for the affected client application.</p>
+        <p>CWE: CWE-476: NULL-pointer dereference</p>
+        <p>Description: A CMP client revoking a certificate has to tell the server which
+        certificate to revoke, and may do so by supplying a PKCS#10 CSR instead of the
+        certificate itself or its issuer name and serial number. This is
+        &#39;openssl cmp -cmd rr -csr &lt;file&gt;&#39; on the command line, or
+        OSSL_CMP_exec_RR_ses() with the certificate supplied via
+        OSSL_CMP_CTX_set1_p10CSR() through the API.</p>
+        <p>A CSR does not contain the issuer name and serial number of the certificate,
+        so the client does not send them. A server may optionally name the
+        certificate it revoked in its response, and the client then compares that
+        name against what it sent. Having sent neither an issuer name nor a serial
+        number, it has nothing to compare against, and a server returning a specially
+        crafted name causes the client to read from a NULL pointer and crash.</p>
+        <p>The revocation response is checked for valid message protection before
+        the affected code is reached, so an attacker must be a malicious or
+        compromised CMP server, or a man-in-the-middle in possession of the
+        secret used for message protection. Clients that identify the certificate
+        to be revoked by a certificate or by issuer and serial number rather
+        than by a PKCS#10 CSR are not affected.</p>
+        <p>FIPS impact: no
+        No FIPS modules are affected by this issue, as the CMP protocol
+        implementation is outside the OpenSSL FIPS module boundary.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.21</code> <code>openssl</code> to version 3.3.7-r2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/7588db7fef14209c3caa3a101d11a02006b19166">https://github.com/openssl/openssl/commit/7588db7fef14209c3caa3a101d11a02006b19166</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/7ca0ccb5172a577e9b87267d77bfe21e5481a5e7">https://github.com/openssl/openssl/commit/7ca0ccb5172a577e9b87267d77bfe21e5481a5e7</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/9eb2a8a9b86136cdb39d6d7d50644dd66941cdc3">https://github.com/openssl/openssl/commit/9eb2a8a9b86136cdb39d6d7d50644dd66941cdc3</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/abf02872a4b71767ecc72293424420f5b009190f">https://github.com/openssl/openssl/commit/abf02872a4b71767ecc72293424420f5b009190f</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260929.txt">https://openssl-library.org/news/secadv/20260929.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-OPENSSL-20336257">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-54875</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.21
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and openssl/libcrypto3@3.3.3-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates/ca-certificates@20241121-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: A non-constant-time optimized implementation of scalar
+        point multiplication is used for SM2 private key operations on ARM64 and
+        RISC-V platforms.</p>
+        <p>Impact summary: An attacker able to measure the time taken by, or to observe
+        the cache-line access pattern of SM2 signing or decryption on an affected
+        platform can learn information about the secret scalar.</p>
+        <p>CWE: CWE-208: Observable Timing Discrepancy</p>
+        <p>Description: On ARM64 and RISC-V processors, the SM2 curve uses an optimized
+        scalar multiplication implementation whose conditional branches and table
+        look ups are chosen according to the bits of the secret scalar. The execution
+        time and the cache-access pattern therefore depend on the long-term private
+        key (during SM2 decryption) or the per-signature nonce (during SM2 signature
+        generation), forming a timing and cache side-channel.</p>
+        <p>FIPS Impact: no
+        SM2 is not a FIPS algorithm and the optimized SM2 implementation is not part
+        of the FIPS module.</p>
+        <p>OpenSSL 4.0, 3.6, 3.5 and 3.4 are vulnerable to this issue on AArch64 and
+        RISC-V.</p>
+        <p>OpenSSL 3.0, 1.1.1 and 1.0.2 are not affected by this issue.</p>
+        <p>OpenSSL 4.0 users should upgrade to OpenSSL 4.0.3.
+        OpenSSL 3.6 users should upgrade to OpenSSL 3.6.5.
+        OpenSSL 3.5 users should upgrade to OpenSSL 3.5.9.
+        OpenSSL 3.4 users should upgrade to OpenSSL 3.4.8.</p>
+        <p>This issue was reported on 2 May 2026 by Abhinav Agarwal.
+        It was independently reported on 6 June 2026 by Feng Xue.
+        The fix was developed by Igor Ustinov.</p>
+        <p>-- cut (non-publishing metadata for internal use) --
+        Reported by: Abhinav Agarwal, Feng Xue
+        Fixed by: Igor Ustinov</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.21</code> <code>openssl</code> to version 3.3.7-r2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/3f01bbc28f7e08211fcdc797fd43816504f94257">https://github.com/openssl/openssl/commit/3f01bbc28f7e08211fcdc797fd43816504f94257</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/469f3e42629f4a0b5631796e20c66c92c138a3e8">https://github.com/openssl/openssl/commit/469f3e42629f4a0b5631796e20c66c92c138a3e8</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/9794ed473764839275cb701b4850f3c24d929c28">https://github.com/openssl/openssl/commit/9794ed473764839275cb701b4850f3c24d929c28</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/dddad955d5ff3e9507619cf4e0f13e9988e2197c">https://github.com/openssl/openssl/commit/dddad955d5ff3e9507619cf4e0f13e9988e2197c</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260929.txt">https://openssl-library.org/news/secadv/20260929.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-OPENSSL-20336258">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-75806</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.21
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and openssl/libcrypto3@3.3.3-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates/ca-certificates@20241121-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: An established DTLS 1.2 association using an AEAD cipher suite
+        can be terminated by a single unauthenticated datagram whose encrypted
+        fragment is shorter than the mandatory explicit IV and authentication tag
+        overhead.</p>
+        <p>Impact summary: An attacker who can send a datagram that is routed to an
+        existing DTLS 1.2 association can tear that association down without knowing
+        any key material. This is a Denial of Service limited to the targeted
+        association. There is no memory safety or confidentiality impact.</p>
+        <p>CWE: CWE-1284: Improper Validation of Specified Quantity in Input</p>
+        <p>Description: In TLS 1.2 and DTLS 1.2 every record protected by an AEAD cipher
+        suite carries an explicit IV followed by the ciphertext and an authentication
+        tag. When decrypting such a record the record layer passed the record length to
+        the cipher implementation before checking that the record was long enough to
+        contain the explicit IV and the tag. For a record shorter than that overhead the
+        cipher implementation rejected the impossible length, and the record layer
+        treated this as an internal failure and raised a fatal internal_error alert
+        instead of treating the record as one that failed authentication.</p>
+        <p>In TLS 1.2 the same record causes a fatal internal_error alert instead of the
+        expected bad_record_mac alert. Since any undecryptable record already
+        terminates a TLS connection, this is a protocol conformance issue rather than
+        a security issue in TLS.</p>
+        <p>The fix validates the record length against the explicit IV and tag length
+        before any AEAD processing, so that TLS reports bad_record_mac and DTLS
+        silently discards the record.</p>
+        <p>FIPS impact: no
+        The affected code is outside the FIPS module boundary.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.21</code> <code>openssl</code> to version 3.3.7-r2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/04728a289a823e68137f88da016cb9ede307217d">https://github.com/openssl/openssl/commit/04728a289a823e68137f88da016cb9ede307217d</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/050b275cd671a6eed1d6457642d41a5a77aab972">https://github.com/openssl/openssl/commit/050b275cd671a6eed1d6457642d41a5a77aab972</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/3a4589d015a9049d47b66f186cf50a8711343a1d">https://github.com/openssl/openssl/commit/3a4589d015a9049d47b66f186cf50a8711343a1d</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/5af82fefbaf2b5fec2fc0e1d87f112844902f01d">https://github.com/openssl/openssl/commit/5af82fefbaf2b5fec2fc0e1d87f112844902f01d</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260929.txt">https://openssl-library.org/news/secadv/20260929.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-OPENSSL-20336259">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-84782</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.21
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and openssl/libcrypto3@3.3.3-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates/ca-certificates@20241121-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: The DTLS retransmission logic does not correctly handle
+        a handshake message write that is suspended part-way through.
+        The retransmitted message can be read past the message buffer and
+        the retransmission overwrites the internal state the suspended write
+        needs to resume correctly.</p>
+        <p>Impact summary: The retransmitted message can disclose a heap memory
+        to the peer as plaintext handshake data or cause a crash and a Denial
+        of Service when the read reaches an unmapped memory region.</p>
+        <p>CWE: CWE-125: Out-of-bounds Read</p>
+        <p>Description: DTLS handshake messages can be written out in multiple
+        fragments, and a write can suspend mid-message (returning WANT_WRITE)
+        if the underlying transport temporarily cannot accept more data. While
+        such a write is suspended, the DTLS retransmission timer may
+        independently fire and ask the retransmission logic to resend an
+        earlier, already-acknowledged-as-sent message from its retransmit
+        queue.</p>
+        <p>The retransmission logic reused the same internal buffer and position
+        tracking as the message that was still being written, without
+        resetting the position back to the start of the message being
+        retransmitted. As a result the retransmission was read starting from
+        wherever the suspended write had left off, producing a mislabelled
+        message whose body was leftover bytes from the other, larger message
+        still in flight - content that was never meant to be sent at that
+        point, and which could run past the end of the allocated buffer.</p>
+        <p>Separately, even when the retransmission is positioned correctly,
+        allowing it to run to completion while another write is suspended
+        overwrites the same shared bookkeeping that the suspended write
+        depends on to resume. When the application later resumes the
+        suspended write (via a subsequent SSL_read(), SSL_write(),
+        SSL_accept(), or SSL_connect() call), it finds that bookkeeping in a
+        state inconsistent with the message and aborts the process in
+        a debugging build.</p>
+        <p>The fix resets the retransmission&#39;s read position to the start of the
+        message before resending, and skips retransmission entirely whenever a
+        handshake write is still suspended, deferring to the next call that
+        resumes it instead.</p>
+        <p>FIPS impact: no
+        The affected code is outside the FIPS module boundary.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.21</code> <code>openssl</code> to version 3.3.7-r2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/906cf0ef1c85ca40ce69163e9086d6d3fe292943">https://github.com/openssl/openssl/commit/906cf0ef1c85ca40ce69163e9086d6d3fe292943</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/9f6b34422af7eb5dac61322e33dac1ae989fa628">https://github.com/openssl/openssl/commit/9f6b34422af7eb5dac61322e33dac1ae989fa628</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/a383dafdd754eb5b22bf45e37e1bff9d07277a58">https://github.com/openssl/openssl/commit/a383dafdd754eb5b22bf45e37e1bff9d07277a58</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/d951e02ede8f6a6ff8150546db44b34f0518192c">https://github.com/openssl/openssl/commit/d951e02ede8f6a6ff8150546db44b34f0518192c</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260929.txt">https://openssl-library.org/news/secadv/20260929.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-OPENSSL-20336260">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-72897</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.21
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and openssl/libcrypto3@3.3.3-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates/ca-certificates@20241121-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: A TLS server that calls SSL_set_SSL_CTX() to switch a
+        connection to a different SSL_CTX part way through a handshake may access
+        memory beyond the end of an internal array if the replacement context knows
+        about more provider signature algorithms than the context the connection was
+        created from. Applications which never call SSL_set_SSL_CTX() are not
+        affected.</p>
+        <p>Impact summary: A remote peer may be able to cause a small out-of-bounds
+        read, and in some circumstances a fixed-value out-of-bounds write, on the
+        server heap. This may lead to a Denial of Service.</p>
+        <p>CWE: CWE-787: Out-of-bounds Write</p>
+        <p>Description: A TLS connection records how many certificate slots it has
+        when it is created, taken from the SSL_CTX that created it: the built-in
+        certificate types plus one slot for each provider TLS-SIGALG entry that
+        context was aware of. That count sizes an internal array of per-slot
+        certificate validity flags.</p>
+        <p>An application may replace a connection&#39;s SSL_CTX part way through the
+        handshake by calling SSL_set_SSL_CTX(), most commonly from a servername
+        callback in order to serve a different virtual host. Doing so did not
+        refresh the recorded count. A provider signature algorithm&#39;s slot index is
+        its position in the list of whichever context resolves it, so if the
+        replacement context is aware of more of them than the original, an
+        algorithm offered by the peer can resolve to an index beyond the end of the
+        array. Processing the peer&#39;s signature algorithms then reads one four byte
+        word past the end for each such algorithm and, where the word read is zero,
+        writes a fixed value over it. A peer offering many of them can corrupt heap
+        metadata and abort the process.</p>
+        <p>Only provider signature algorithms which occupy one of the excess slots,
+        and which the server also has configured, have this effect. Codepoints the
+        replacement context does not recognise are discarded without being resolved
+        to a slot, and provider signature algorithms are usable only from TLS 1.3.</p>
+        <p>The two contexts must therefore be aware of different numbers of provider
+        signature algorithms, which requires separate library contexts, a provider
+        loaded between the two being created, or providers which differ in what
+        they advertise - in 4.0, for example, the default provider advertises SM2
+        where the FIPS provider does not. A deployment meeting the condition is
+        also unable to negotiate the affected algorithms with legitimate clients,
+        since the same stale count hides the corresponding certificates, so the
+        misconfiguration is likely to be noticed. For that reason, and because the
+        configuration is not the default, this issue has been assessed as Low
+        severity.</p>
+        <p>FIPS impact: no
+        No FIPS modules are affected by this issue as the affected code is outside
+        the OpenSSL FIPS module boundary.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.21</code> <code>openssl</code> to version 3.3.7-r2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/00646e5085a0d12d29e0d2f9b9bc5f7111a50922">https://github.com/openssl/openssl/commit/00646e5085a0d12d29e0d2f9b9bc5f7111a50922</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/4135f553c9d3ba4a09fe752f5d30af2a6a092b2e">https://github.com/openssl/openssl/commit/4135f553c9d3ba4a09fe752f5d30af2a6a092b2e</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/9c54d209486f6b1ad79fe2179c40f13200fa4f61">https://github.com/openssl/openssl/commit/9c54d209486f6b1ad79fe2179c40f13200fa4f61</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/e87ed26b298a74d8ba61a53e9c7bcd1acac6b814">https://github.com/openssl/openssl/commit/e87ed26b298a74d8ba61a53e9c7bcd1acac6b814</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260929.txt">https://openssl-library.org/news/secadv/20260929.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-OPENSSL-20336261">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
