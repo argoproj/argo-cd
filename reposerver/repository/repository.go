@@ -3697,10 +3697,28 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 		return &apiclient.UpdateRevisionForPathsResponse{Changes: true}, nil
 	}
 
+	// Non-git contents are never diffed, so a version move since the last sync counts as a change.
+	// Resolve Revision first: it may be a constraint ("15.*") or a tag, never equal to a resolved version.
+	nonGitVersionMoved := false
+	if !isGitSource && request.LastSyncedRevision != "" && request.ApplicationSource != nil {
+		resolved := request.SyncedRevision
+		var err error
+		switch {
+		case request.ApplicationSource.IsOCI():
+			_, resolved, err = s.newOCIClientResolveRevision(ctx, repo, request.Revision, request.NoRevisionCache)
+		case request.ApplicationSource.IsHelm():
+			_, resolved, err = s.newHelmClientResolveRevision(ctx, repo, request.Revision, request.ApplicationSource.Chart, request.NoRevisionCache)
+		}
+		if err != nil {
+			// A transient registry error must not look like a version move; fall back to the last compared version.
+			logCtx.Warnf("error resolving revision %s, comparing last compared version instead: %v", request.Revision, err)
+			resolved = request.SyncedRevision
+		}
+		nonGitVersionMoved = resolved != request.LastSyncedRevision
+	}
+
 	if !isGitSource && len(request.RefSources) == 0 {
-		// Non-git contents are never diffed, so a version move since the last sync counts as a change.
-		// Compare resolved versions: Revision may be a constraint ("15.*") or a tag.
-		if request.LastSyncedRevision != "" && request.LastSyncedRevision != request.SyncedRevision {
+		if nonGitVersionMoved {
 			return &apiclient.UpdateRevisionForPathsResponse{Changes: true, Revision: request.Revision}, nil
 		}
 		return &apiclient.UpdateRevisionForPathsResponse{}, nil
@@ -3756,7 +3774,7 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 	}
 
 	syncChanges := syncEval.changes || forceChanges
-	if !isGitSource && request.LastSyncedRevision != "" && request.LastSyncedRevision != request.SyncedRevision {
+	if nonGitVersionMoved {
 		// The refs were diffed, but the non-git main source's version never is (see above).
 		syncChanges = true
 	}

@@ -6086,18 +6086,36 @@ func TestUpdateRevisionForPaths_NonGitSourceUsesLastSyncedVersion(t *testing.T) 
 		assert.True(t, resp.Changes, "a chart version move must not be masked by unchanged ref sources")
 	})
 
-	t.Run("version constraint resolving to the last synced version reports no changes", func(t *testing.T) {
-		// Revision carries the unresolved targetRevision; only the resolved SyncedRevision is comparable.
+	t.Run("version constraint is resolved before comparing", func(t *testing.T) {
+		// Revision carries the unresolved targetRevision. SyncedRevision lags a newly published version
+		// by one comparison, so only resolving Revision reports the move on the first refresh.
 		sha := "1e67a504d03def3a6a1125d934cb511680f72555"
 		refs := v1alpha1.RefTargetRevisionMapping{
 			"$values": {Repo: v1alpha1.Repository{Repo: "a-url.com"}, TargetRevision: sha},
 		}
-		for name, withRefs := range map[string]bool{"without refs": false, "with unchanged refs": true} {
-			t.Run(name, func(t *testing.T) {
-				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, _ *iomocks.TempPaths) {}, ".")
+		for _, tc := range []struct {
+			name     string
+			latest   string
+			withRefs bool
+			changes  bool
+		}{
+			{"unchanged without refs", "1.2.3", false, false},
+			{"unchanged with unchanged refs", "1.2.3", true, false},
+			{"new release without refs", "1.3.0", false, true},
+			{"new release with unchanged refs", "1.3.0", true, true},
+			{"resolve error falls back to compared version", "", false, false},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, helmClient *helmmocks.Client, _ *ocimocks.Client, _ *iomocks.TempPaths) {
+					if tc.latest == "" {
+						helmClient.EXPECT().GetTags(mock.Anything, "test", false).Return(nil, errors.New("registry unavailable"))
+						return
+					}
+					helmClient.EXPECT().GetTags(mock.Anything, "test", false).Return([]string{"1.2.3", tc.latest}, nil)
+				}, ".")
 				request := newRequest("1.2.3", "1.*")
 				request.SyncedRevision = "1.2.3"
-				if withRefs {
+				if tc.withRefs {
 					request.HasMultipleSources = true
 					request.ApplicationSource.Helm = &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/path"}}
 					request.RefSources = refs
@@ -6106,7 +6124,7 @@ func TestUpdateRevisionForPaths_NonGitSourceUsesLastSyncedVersion(t *testing.T) 
 				}
 				resp, err := s.UpdateRevisionForPaths(t.Context(), request)
 				require.NoError(t, err)
-				assert.False(t, resp.Changes)
+				assert.Equal(t, tc.changes, resp.Changes)
 			})
 		}
 	})
