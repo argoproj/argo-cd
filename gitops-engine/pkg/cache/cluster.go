@@ -236,7 +236,8 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 // indexes, read paths, discovery, settings and event handlers.
 //
 // Engines depend on store, never the reverse; the few store methods that need
-// the engine (handleCRDEvent, handleAPIServiceEvent) take it as a parameter.
+// the engine (handleCRDEvent, handleAPIServiceEvent, reconcileAPIServiceWatches)
+// take it as a parameter.
 // Settings stay here even when only one engine reads them, since
 // UpdateSettingsFunc applies to the cache.
 type store struct {
@@ -705,14 +706,12 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 	c.syncStatus.syncTime = nil
 	c.syncStatus.lock.Unlock()
 
-	for i := range c.apisMeta {
-		c.apisMeta[i].watchCancel()
-	}
 	for i := range opts {
 		opts[i](c)
 	}
 
 	// After the opts, so the engine sees any change they made to its settings.
+	// The engine cancels its watches here.
 	c.engine.onInvalidate()
 	c.apisMeta = nil
 	c.namespacedResources.Store(nil)

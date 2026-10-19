@@ -5,8 +5,9 @@ package cache
 // and never references clusterCache.
 //
 // legacyEngine is the only implementation. The interface makes that boundary
-// explicit, so another engine, such as the informer-based one proposed in
-// #19199, can be added without reworking the shared code.
+// explicit, but doesn't make engines drop-in: EnsureSynced holds c.lock for the
+// whole of sync. An engine that releases c.lock during sync, as #27998 does
+// around WaitForCacheSync, must also rework EnsureSynced's locking.
 type syncEngine interface {
 	// sync fully (re)loads the cluster and starts every watch. It's called with
 	// c.lock held, and callers assume store state doesn't change during it.

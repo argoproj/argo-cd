@@ -223,7 +223,7 @@ func (e *legacyEngine) startMissingWatches() error {
 			c.apisMeta[api.GroupKind] = &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
 
 			err := c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
-				resourceVersion, err := e.loadInitialState(ctx, api, resClient, ns, false) // don't lock here, we are already in a lock before startMissingWatches is called inside watchEvents
+				resourceVersion, err := e.loadInitialState(ctx, api, resClient, ns, false) // don't lock here: startMissingWatches's caller holds c.lock
 				if err != nil && c.isRestrictedResource(err) {
 					keep := false
 					if c.respectRBAC == RespectRbacStrict {
@@ -270,9 +270,13 @@ func (e *legacyEngine) stopWatching(gk schema.GroupKind, ns string) {
 	}
 }
 
-// onInvalidate retires the batched-event channel. Invalidate calls it under
-// c.lock after applying its opts, so batchEventsProcessing is current.
+// onInvalidate cancels every watch and retires the batched-event channel.
+// Invalidate calls it under c.lock after applying its opts, so
+// batchEventsProcessing is current.
 func (e *legacyEngine) onInvalidate() {
+	for i := range e.c.apisMeta {
+		e.c.apisMeta[i].watchCancel()
+	}
 	if e.c.batchEventsProcessing {
 		e.invalidateEventMeta()
 	}
