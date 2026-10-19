@@ -4833,6 +4833,44 @@ func newFakeControllerWithTooLargeFirstPatch(t *testing.T, app *v1alpha1.Applica
 	return ctrl, &callCount, &capturedPatch
 }
 
+// decodeJSONPatchOps decodes a JSON Patch (RFC 6902) document into a map keyed by the
+// operation's path, with the op's "value" as the map value. Fallback patches now use
+// JSON Patch (replacing the whole /status/operationState) rather than a merge patch, so
+// tests inspect the operations through this helper.
+func decodeJSONPatchOps(t *testing.T, patch []byte) map[string]any {
+	t.Helper()
+	var ops []map[string]any
+	require.NoError(t, json.Unmarshal(patch, &ops))
+	byPath := make(map[string]any, len(ops))
+	for _, op := range ops {
+		path, _ := op["path"].(string)
+		byPath[path] = op["value"]
+	}
+	return byPath
+}
+
+// jsonPatchOperationStateMessage extracts the "message" of the /status/operationState value
+// from a JSON Patch (RFC 6902) body, or "" if the patch does not replace operationState. Used
+// by test fakes to tell a real setOperationState patch from a size-limit fallback patch.
+func jsonPatchOperationStateMessage(patch []byte) string {
+	var ops []map[string]any
+	if err := json.Unmarshal(patch, &ops); err != nil {
+		return ""
+	}
+	for _, op := range ops {
+		if path, _ := op["path"].(string); path != "/status/operationState" {
+			continue
+		}
+		opState, ok := op["value"].(map[string]any)
+		if !ok {
+			return ""
+		}
+		msg, _ := opState["message"].(string)
+		return msg
+	}
+	return ""
+}
+
 // newFakeControllerWithAlwaysTooLargeRealPatch builds a fake controller for app where every
 // "real" operation-state patch (the JSONPatch setOperationState issues to persist the actual
 // state) fails with a 413 (request entity too large), while every fallback patch (the
@@ -4856,12 +4894,20 @@ func newFakeControllerWithAlwaysTooLargeRealPatch(t *testing.T, app *v1alpha1.Ap
 			{Manifests: []string{}},
 		},
 	}
-	// realPatchAttempts only counts the JSONPatch setOperationState issues to persist the
-	// actual (too-large) state, i.e. one per reconcile. It intentionally ignores unrelated
-	// MergePatch calls the sync engine makes along the way (e.g. recording deploy history),
+	// realPatchAttempts only counts the "real" setOperationState patches that persist the
+	// actual (too-large) state, i.e. one per reconcile. Both the real patch and the fallback
+	// patches are now JSONPatch, so they are distinguished by the operationState.message they
+	// replace: a fallback patch's message starts with the size-limit prefix, while a real
+	// patch's message does not (a terminated real patch may *reference* the prefix in its
+	// "triggered by" text, so we match the prefix only at the start). We fail only the real
+	// patches (modeling a permanently-too-large state) and let the smaller fallbacks succeed,
 	// so the count reflects only the retry behavior under test.
 	ctrl := newFakeControllerWithFailingPatch(t, data, func(patchAction kubetesting.PatchAction) bool {
 		if patchAction.GetPatchType() != types.JSONPatchType {
+			return false
+		}
+		if strings.HasPrefix(jsonPatchOperationStateMessage(patchAction.GetPatch()), operationStateSizeLimitMessagePrefix) {
+			// A fallback patch; let it succeed so the fallback state machine can make progress.
 			return false
 		}
 		realPatchAttempts++
@@ -4960,26 +5006,39 @@ func TestSetOperationStateTooLargeRequest(t *testing.T) {
 
 			assert.Equal(t, 2, *patchCallCount)
 
-			var patchedObj map[string]any
-			require.NoError(t, json.Unmarshal(*capturedPatch, &patchedObj))
-			phase, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "phase")
-			message, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "message")
+			// Inspect the JSON Patch operations: the fallback replaces the whole
+			// /status/operationState rather than merging into it.
+			ops := decodeJSONPatchOps(t, *capturedPatch)
+			opState, ok := ops["/status/operationState"].(map[string]any)
+			require.True(t, ok, "fallback must replace the whole /status/operationState")
+			phase, _, _ := unstructured.NestedString(opState, "phase")
+			message, _, _ := unstructured.NestedString(opState, "message")
 			assert.Equal(t, tt.wantPhase, phase)
 			assert.Contains(t, message, "exceeds the Kubernetes resource size limit")
 
-			_, hasOperation := patchedObj["operation"]
+			_, clearsOperation := ops["/operation"]
 			if tt.wantOperation {
-				assert.False(t, hasOperation, "operation should not be cleared while termination is still pending")
+				assert.False(t, clearsOperation, "operation should not be cleared while termination is still pending")
 			} else {
-				assert.True(t, hasOperation, "operation should be cleared once the operation has finalized")
-				assert.Nil(t, patchedObj["operation"])
+				assert.True(t, clearsOperation, "operation should be cleared once the operation has finalized")
+				assert.Nil(t, ops["/operation"])
 			}
 
-			resources, _, _ := unstructured.NestedSlice(patchedObj, "status", "operationState", "syncResult", "resources")
-			assert.Nil(t, resources)
-
-			revision, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "operation", "sync", "revision")
-			assert.Equal(t, "HEAD", revision, "fallback patch must retain the attempted operation, not just phase/message")
+			// Inspect the stored object to confirm the replace took effect on the server and no
+			// omitted fields survived from the previous state.
+			stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, stored.Status.OperationState)
+			assert.Equal(t, tt.wantPhase, string(stored.Status.OperationState.Phase))
+			assert.Contains(t, stored.Status.OperationState.Message, "exceeds the Kubernetes resource size limit")
+			if !tt.wantOperation {
+				assert.Nil(t, stored.Operation, "operation should be cleared once the operation has finalized")
+			}
+			if stored.Status.OperationState.SyncResult != nil {
+				assert.Nil(t, stored.Status.OperationState.SyncResult.Resources)
+			}
+			require.NotNil(t, stored.Status.OperationState.Operation.Sync)
+			assert.Equal(t, "HEAD", stored.Status.OperationState.Operation.Sync.Revision, "fallback patch must retain the attempted operation, not just phase/message")
 		})
 	}
 }
@@ -5005,11 +5064,17 @@ func TestSetOperationStateTooLargeRequest_PreservesFinishedAtOnCompletion(t *tes
 
 	assert.Equal(t, 2, *patchCallCount)
 
-	var patchedObj map[string]any
-	require.NoError(t, json.Unmarshal(*capturedPatch, &patchedObj))
-
-	finishedAtStr, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "finishedAt")
+	ops := decodeJSONPatchOps(t, *capturedPatch)
+	opState, ok := ops["/status/operationState"].(map[string]any)
+	require.True(t, ok, "fallback must replace the whole /status/operationState")
+	finishedAtStr, _, _ := unstructured.NestedString(opState, "finishedAt")
 	assert.NotEmpty(t, finishedAtStr, "fallback patch must retain FinishedAt from the attempted (completed) state")
+
+	// The replace must also land on the server.
+	stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, stored.Status.OperationState)
+	assert.NotNil(t, stored.Status.OperationState.FinishedAt, "stored state must retain FinishedAt from the attempted (completed) state")
 }
 
 func TestSetOperationStateTooLargeRequest_EmitsCompletionTelemetryOnFinalFallback(t *testing.T) {
@@ -5090,28 +5155,38 @@ func TestSetOperationStateTooLargeRequest_FallbackAlsoTooLarge(t *testing.T) {
 
 	assert.Equal(t, 3, callCount, "expected real patch + fallback patch + minimal fallback patch, all rejected until the minimal one")
 
-	var patchedObj map[string]any
-	require.NoError(t, json.Unmarshal(capturedPatch, &patchedObj))
-
-	phase, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "phase")
+	// Inspect the JSON Patch operations of the minimal fallback.
+	ops := decodeJSONPatchOps(t, capturedPatch)
+	opState, ok := ops["/status/operationState"].(map[string]any)
+	require.True(t, ok, "minimal fallback must replace the whole /status/operationState")
+	phase, _, _ := unstructured.NestedString(opState, "phase")
 	assert.Equal(t, string(synccommon.OperationError), phase, "minimal fallback must finalize the operation, not loop back to Terminating")
 
-	_, hasOperation := patchedObj["operation"]
-	assert.True(t, hasOperation, "minimal fallback must clear the top-level requested operation")
-	assert.Nil(t, patchedObj["operation"])
+	_, clearsOperation := ops["/operation"]
+	assert.True(t, clearsOperation, "minimal fallback must clear the top-level requested operation")
+	assert.Nil(t, ops["/operation"])
 
-	_, syncFound, err := unstructured.NestedMap(patchedObj, "status", "operationState", "operation", "sync")
+	_, syncFound, err := unstructured.NestedMap(opState, "operation", "sync")
 	require.NoError(t, err)
 	assert.False(t, syncFound, "minimal fallback must omit the bulky attempted operation (e.g. local manifests)")
+
+	// Confirm the replace landed on the server with none of the stale fields surviving.
+	stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, stored.Status.OperationState)
+	assert.Equal(t, synccommon.OperationError, stored.Status.OperationState.Phase)
+	assert.Nil(t, stored.Operation, "minimal fallback must clear the top-level requested operation on the server")
+	assert.Nil(t, stored.Status.OperationState.SyncResult, "minimal fallback must not leave a stale syncResult on the server")
+	assert.Nil(t, stored.Status.OperationState.Operation.Sync, "minimal fallback must drop the bulky attempted operation on the server")
 }
 
 // TestSetOperationStateTooLargeRequest_MinimalFallbackClearsSyncResult covers the
-// not-already-terminating path: the fallback patch is a MergePatch carrying Phase=Terminating
-// (not yet a completed phase), so if it also fails as too large, the minimal fallback built on
-// top of it must still (a) explicitly null out syncResult - merge-patch semantics leave omitted
-// fields untouched, so a struct with `omitempty` would silently keep a stale, oversized
-// syncResult already on the server - and (b) set a non-nil finishedAt despite the intermediate
-// fallbackStatus never having reached a completed phase.
+// not-already-terminating path: the fallback patch carries Phase=Terminating (not yet a
+// completed phase), so if it also fails as too large, the minimal fallback built on top of it
+// must still (a) drop any stale, oversized syncResult already on the server - the JSON Patch
+// replace of the whole /status/operationState guarantees omitted fields cannot survive - and
+// (b) set a non-nil finishedAt despite the intermediate fallbackStatus never having reached a
+// completed phase.
 func TestSetOperationStateTooLargeRequest_MinimalFallbackClearsSyncResult(t *testing.T) {
 	newState := &v1alpha1.OperationState{
 		Operation: v1alpha1.Operation{
@@ -5138,17 +5213,24 @@ func TestSetOperationStateTooLargeRequest_MinimalFallbackClearsSyncResult(t *tes
 
 	require.Equal(t, 3, callCount, "expected real patch + fallback patch + minimal fallback patch, all rejected until the minimal one")
 
-	var patchedObj map[string]any
-	require.NoError(t, json.Unmarshal(capturedPatch, &patchedObj))
+	// Inspect the JSON Patch operations of the minimal fallback.
+	ops := decodeJSONPatchOps(t, capturedPatch)
+	opState, ok := ops["/status/operationState"].(map[string]any)
+	require.True(t, ok, "minimal fallback must replace the whole /status/operationState")
 
-	syncResult, hasSyncResult, err := unstructured.NestedFieldNoCopy(patchedObj, "status", "operationState", "syncResult")
-	require.NoError(t, err)
-	assert.True(t, hasSyncResult, "minimal fallback must explicitly send syncResult so merge-patch clears any stale value on the server, not omit it")
-	assert.Nil(t, syncResult)
+	_, hasSyncResult := opState["syncResult"]
+	assert.False(t, hasSyncResult, "minimal fallback replaces the whole operationState, so the oversized syncResult is dropped entirely")
 
-	finishedAt, _, err := unstructured.NestedString(patchedObj, "status", "operationState", "finishedAt")
+	finishedAt, _, err := unstructured.NestedString(opState, "finishedAt")
 	require.NoError(t, err)
 	assert.NotEmpty(t, finishedAt, "minimal fallback finalizes as OperationError, so finishedAt must be set even though the intermediate fallback never reached a completed phase")
+
+	// Confirm the replace landed on the server: the stale syncResult from newFakeApp must be gone.
+	stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, stored.Status.OperationState)
+	assert.Nil(t, stored.Status.OperationState.SyncResult, "minimal fallback must clear any stale syncResult on the server")
+	assert.NotNil(t, stored.Status.OperationState.FinishedAt, "minimal fallback finalizes as OperationError, so finishedAt must be set on the server")
 }
 
 func TestWriteBackToInformer(t *testing.T) {

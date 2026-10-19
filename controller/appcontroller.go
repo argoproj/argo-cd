@@ -1902,25 +1902,28 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 			fallbackStatus.FinishedAt = &now
 		}
 
-		fallbackPatch := map[string]any{
-			"status": map[string]any{
-				"operationState": fallbackStatus,
-			},
+		// Replace the whole operationState (same as the primary patch above) instead of
+		// merging into it. A merge patch built from fallbackStatus would omit fields cleared
+		// by `omitempty` (e.g. a nil SyncResult.Resources, zero RetryCount, empty Operation.Sync
+		// fields) and, under RFC 7396 merge semantics, leave stale values from the previous
+		// operation on the server. A JSON Patch replace guarantees omitted fields cannot persist.
+		fallbackPatchOps := []map[string]any{
+			{"op": "add", "path": "/status/operationState", "value": fallbackStatus},
 		}
 		if fallbackStatus.Phase.Completed() {
 			// Mirrors the completed-phase handling above: once the operation has reached a
 			// terminal phase, clear the requested operation so the controller doesn't
 			// immediately re-attempt the same sync and hit the same size failure again.
-			fallbackPatch["operation"] = nil
+			fallbackPatchOps = append(fallbackPatchOps, map[string]any{"op": "add", "path": "/operation", "value": nil})
 		}
 
-		fallbackPatchJSON, err := json.Marshal(fallbackPatch)
+		fallbackPatchJSON, err := json.Marshal(fallbackPatchOps)
 		if err != nil {
 			logCtx.WithError(err).Error("Error marshaling fallback patch")
 			return
 		}
 
-		if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, fallbackPatchJSON, metav1.PatchOptions{}); fbErr != nil {
+		if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.JSONPatchType, fallbackPatchJSON, metav1.PatchOptions{}); fbErr != nil {
 			if !isOperationStatePayloadTooLargeError(fbErr) {
 				logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
 				return
@@ -1941,28 +1944,21 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 				StartedAt:  fallbackStatus.StartedAt,
 				FinishedAt: minimalFinishedAt,
 			}
-			// Build the patch body by hand instead of marshaling minimalStatus directly: syncResult
-			// and retryCount use `omitempty`, so a merge patch built from the struct would omit them
-			// entirely and, under RFC 7396 merge semantics, leave any stale large syncResult already
-			// on the server untouched - defeating the point of this minimal patch.
-			minimalPatchJSON, mErr := json.Marshal(map[string]any{
-				"status": map[string]any{
-					"operationState": map[string]any{
-						"phase":      minimalStatus.Phase,
-						"message":    minimalStatus.Message,
-						"startedAt":  minimalStatus.StartedAt,
-						"finishedAt": minimalStatus.FinishedAt,
-						"syncResult": nil,
-						"retryCount": nil,
-					},
-				},
-				"operation": nil,
-			})
+			// Replace the whole operationState with the minimal struct (same as the primary and
+			// regular fallback patches) instead of merging into it. A merge patch built from
+			// minimalStatus would omit `omitempty` fields (syncResult, retryCount, operation) and,
+			// under RFC 7396 merge semantics, leave the stale large values already on the server
+			// untouched - defeating the point of this minimal patch. A JSON Patch replace drops them.
+			minimalPatchOps := []map[string]any{
+				{"op": "add", "path": "/status/operationState", "value": minimalStatus},
+				{"op": "add", "path": "/operation", "value": nil},
+			}
+			minimalPatchJSON, mErr := json.Marshal(minimalPatchOps)
 			if mErr != nil {
 				logCtx.WithError(mErr).Error("Error marshaling minimal fallback patch")
 				return
 			}
-			if _, mfbErr := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, minimalPatchJSON, metav1.PatchOptions{}); mfbErr != nil {
+			if _, mfbErr := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.JSONPatchType, minimalPatchJSON, metav1.PatchOptions{}); mfbErr != nil {
 				logCtx.WithError(mfbErr).Error("Error persisting minimal fallback status")
 				return
 			}
