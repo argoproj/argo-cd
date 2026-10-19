@@ -375,6 +375,10 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		}
 	}
 
+	if len(syncOp.Resources) > 0 && state.Operation.InitiatedBy.Automated && syncOp.SyncOptions.HasOption(common.SyncOptionRunHooksOnPartialSync) {
+		logEntry.Debugf("Ignoring sync option %s for automated sync", common.SyncOptionRunHooksOnPartialSync)
+	}
+
 	opts := []sync.SyncOpt{
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
@@ -383,7 +387,7 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 				return m.db.GetProjectClusters(ctx, proj)
 			}, un, res)
 		}),
-		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
+		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), skipHooks(&syncOp, state.Operation.InitiatedBy)),
 		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes, state.StartedAt),
 		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
 			return (len(syncOp.Resources) == 0 ||
@@ -700,6 +704,20 @@ func hasSharedResourceCondition(app *v1alpha1.Application) (bool, string) {
 		}
 	}
 	return false, ""
+}
+
+// skipHooks returns whether sync hooks should be skipped for the given sync operation. Hooks are skipped for the
+// apply strategy and for partial syncs. A partial sync runs hooks only when RunHooksOnPartialSync is set and the
+// sync was not initiated automatically (e.g. self-heal, which syncs only the out-of-sync resources), to avoid
+// running hooks on every self-heal.
+func skipHooks(syncOp *v1alpha1.SyncOperation, initiatedBy v1alpha1.OperationInitiator) bool {
+	if syncOp.IsApplyStrategy() {
+		return true
+	}
+	if len(syncOp.Resources) == 0 {
+		return false
+	}
+	return initiatedBy.Automated || !syncOp.SyncOptions.HasOption(common.SyncOptionRunHooksOnPartialSync)
 }
 
 // delayBetweenSyncWaves is a gitops-engine SyncWaveHook which introduces an artificial delay
