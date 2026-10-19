@@ -1,0 +1,27 @@
+apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  name: llama-3-8b
+  namespace: kserve-test
+  generation: 3
+  annotations:
+    serving.kserve.io/stop: "true"
+spec:
+  model:
+    uri: hf://meta-llama/Meta-Llama-3-8B-Instruct
+status:
+  observedGeneration: 3
+  conditions:
+  - type: MainWorkloadReady
+    status: "False"
+    reason: Stopped
+    lastTransitionTime: "2026-09-07T10:30:00Z"
+    severity: Info
+  - type: PresetsCombined
+    status: "False"
+    reason: Stopped
+    lastTransitionTime: "2026-09-07T10:30:00Z"
+  - type: Ready
+    status: "False"
+    reason: Stopped
+    lastTransitionTime: "2026-09-07T10:30:00Z"

@@ -27,9 +27,21 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 		return nil, fmt.Errorf("failed to unmarshal dex.config from configmap: %w", err)
 	}
 	dexCfg["issuer"] = argocdSettings.IssuerURL()
-	dexCfg["storage"] = map[string]any{
-		"type": "memory",
+	storage := map[string]any{}
+	if existingStorage, found := dexCfg["storage"].(map[string]any); found {
+		if storageType, ok := existingStorage["type"].(string); ok && storageType != "" {
+			storage["type"] = storageType
+			if storageConfig, ok := existingStorage["config"].(map[string]any); ok {
+				storage["config"] = storageConfig
+			}
+		} else {
+			// No type specified, default to memory and ignore any config
+			storage["type"] = "memory"
+		}
+	} else {
+		storage["type"] = "memory"
 	}
+	dexCfg["storage"] = storage
 	if disableTLS {
 		dexCfg["web"] = map[string]any{
 			"http": "0.0.0.0:5556",
@@ -43,6 +55,25 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 		if existingWeb, found := dexCfg["web"].(map[string]any); found {
 			if minVersion, ok := existingWeb["tlsMinVersion"]; ok && minVersion != "" {
 				webCfg["tlsMinVersion"] = minVersion
+			}
+			if ciphers, exists := existingWeb["tlsCiphers"]; exists {
+				if ciphersList, ok := ciphers.([]any); ok {
+					if len(ciphersList) > 0 {
+						webCfg["tlsCiphers"] = ciphersList
+					}
+				} else {
+					log.Warnf("Invalid 'tlsCiphers' value, expected a list, using default ciphers")
+				}
+			}
+
+			if curvePreferences, exists := existingWeb["tlsCurvePreferences"]; exists {
+				if curvePreferencesList, ok := curvePreferences.([]any); ok {
+					if len(curvePreferencesList) > 0 {
+						webCfg["tlsCurvePreferences"] = curvePreferencesList
+					}
+				} else {
+					log.Warnf("Invalid 'tlsCurvePreferences' value, expected a list, using default curve preferences")
+				}
 			}
 		}
 		dexCfg["web"] = webCfg

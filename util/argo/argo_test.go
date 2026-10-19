@@ -97,17 +97,15 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	namespace := "default"
 
 	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: test.FakeArgoCDNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cm",
+		Namespace: test.FakeArgoCDNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 	}
 
 	testProj := &argoappv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: projName, Namespace: namespace},
+		Name: projName, Namespace: namespace,
 	}
 
 	var testApp argoappv1.Application
@@ -470,12 +468,10 @@ func TestValidateRepo(t *testing.T) {
 	})).Return(nil, nil).Maybe()
 
 	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: test.FakeArgoCDNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cm",
+		Namespace: test.FakeArgoCDNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{
 			"globalProjects": `
@@ -575,11 +571,9 @@ func TestValidateRepo_SourceHydrator(t *testing.T) {
 	db.EXPECT().GetAllOCIRepositoryCredentials(mock.Anything).Return(nil, nil)
 
 	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: test.FakeArgoCDNamespace,
-			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
-		},
+		Name:      "argocd-cm",
+		Namespace: test.FakeArgoCDNamespace,
+		Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
 	}
 	kubeClient := fake.NewClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
@@ -1347,7 +1341,7 @@ func TestValidatePermissions_SourceHydratorSyncSourceRepo(t *testing.T) {
 			},
 		}
 		proj := argoappv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "default"},
+			Name: "default",
 			Spec: argoappv1.AppProjectSpec{
 				Destinations: []argoappv1.ApplicationDestination{{
 					Server:    "*",
@@ -1405,10 +1399,8 @@ func TestSetAppOperations(t *testing.T) {
 	t.Run("Operation already in progress", func(t *testing.T) {
 		t.Parallel()
 		a := argoappv1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "someapp",
-				Namespace: "default",
-			},
+			Name:      "someapp",
+			Namespace: "default",
 			Operation: &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}},
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
@@ -1420,10 +1412,8 @@ func TestSetAppOperations(t *testing.T) {
 	t.Run("Operation unspecified", func(t *testing.T) {
 		t.Parallel()
 		a := argoappv1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "someapp",
-				Namespace: "default",
-			},
+			Name:      "someapp",
+			Namespace: "default",
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: nil})
@@ -1434,10 +1424,8 @@ func TestSetAppOperations(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 		a := argoappv1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "someapp",
-				Namespace: "default",
-			},
+			Name:      "someapp",
+			Namespace: "default",
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
@@ -1536,17 +1524,13 @@ func TestFilterByName(t *testing.T) {
 	t.Parallel()
 	apps := []argoappv1.Application{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "foo",
-			},
+			Name: "foo",
 			Spec: argoappv1.ApplicationSpec{
 				Project: "fooproj",
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "bar",
-			},
+			Name: "bar",
 			Spec: argoappv1.ApplicationSpec{
 				Project: "barproj",
 			},
@@ -1579,17 +1563,13 @@ func TestFilterByNameP(t *testing.T) {
 	t.Parallel()
 	apps := []*argoappv1.Application{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "foo",
-			},
+			Name: "foo",
 			Spec: argoappv1.ApplicationSpec{
 				Project: "fooproj",
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "bar",
-			},
+			Name: "bar",
 			Spec: argoappv1.ApplicationSpec{
 				Project: "barproj",
 			},
@@ -1611,6 +1591,86 @@ func TestFilterByNameP(t *testing.T) {
 	t.Run("No such app", func(t *testing.T) {
 		t.Parallel()
 		res := FilterByNameP(apps, "foobar")
+		assert.Empty(t, res)
+	})
+}
+
+func TestFilterByNamesP(t *testing.T) {
+	t.Parallel()
+	apps := []*argoappv1.Application{
+		{
+			Name: "foo",
+		},
+		{
+			Name: "bar",
+		},
+	}
+	// Applications sharing a name across namespaces, as possible with apps-in-any-namespace.
+	namespacedApps := []*argoappv1.Application{
+		{
+			Name:      "foo",
+			Namespace: "ns1",
+		},
+		{
+			Name:      "foo",
+			Namespace: "ns2",
+		},
+		{
+			Name:      "bar",
+			Namespace: "ns1",
+		},
+	}
+
+	t.Run("Empty names returns all apps", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(apps, nil)
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Single matching name", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(apps, []string{"foo"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "foo", res[0].Name)
+	})
+
+	t.Run("Multiple matching names", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(apps, []string{"foo", "bar"})
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Non-matching name is ignored", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(apps, []string{"foo", "does-not-exist"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "foo", res[0].Name)
+	})
+
+	t.Run("Namespace qualified name only matches the app in that namespace", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(namespacedApps, []string{"ns1/foo"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "ns1", res[0].Namespace)
+	})
+
+	t.Run("Unqualified name matches the app in every namespace", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(namespacedApps, []string{"foo"})
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Qualified and unqualified names can be mixed", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(namespacedApps, []string{"ns2/foo", "bar"})
+		assert.Len(t, res, 2)
+		assert.Equal(t, "ns2", res[0].Namespace)
+		assert.Equal(t, "bar", res[1].Name)
+	})
+
+	t.Run("Namespace qualified name does not match a different namespace", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(namespacedApps, []string{"ns3/foo"})
 		assert.Empty(t, res)
 	})
 }
@@ -1677,12 +1737,10 @@ func TestGetGlobalProjects(t *testing.T) {
 		namespace := "default"
 
 		cm := corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "argocd-cm",
-				Namespace: test.FakeArgoCDNamespace,
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      "argocd-cm",
+			Namespace: test.FakeArgoCDNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string]string{
 				"globalProjects": `
@@ -1701,7 +1759,7 @@ func TestGetGlobalProjects(t *testing.T) {
 		}
 
 		defaultX := &argoappv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "default-x", Namespace: namespace},
+			Name: "default-x", Namespace: namespace,
 			Spec: argoappv1.AppProjectSpec{
 				ClusterResourceWhitelist: []argoappv1.ClusterResourceRestrictionItem{
 					{Group: "*", Kind: "*"},
@@ -1713,7 +1771,7 @@ func TestGetGlobalProjects(t *testing.T) {
 		}
 
 		defaultNonX := &argoappv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "default-non-x", Namespace: namespace},
+			Name: "default-non-x", Namespace: namespace,
 			Spec: argoappv1.AppProjectSpec{
 				ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{
 					{Group: "*", Kind: "*"},
@@ -1722,17 +1780,15 @@ func TestGetGlobalProjects(t *testing.T) {
 		}
 
 		isX := &argoappv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "is-x",
-				Namespace: namespace,
-				Labels: map[string]string{
-					"is-x": "yep",
-				},
+			Name:      "is-x",
+			Namespace: namespace,
+			Labels: map[string]string{
+				"is-x": "yep",
 			},
 		}
 
 		isNoX := &argoappv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "is-no-x", Namespace: namespace},
+			Name: "is-no-x", Namespace: namespace,
 		}
 
 		projClientset := appclientset.NewSimpleClientset(defaultX, defaultNonX, isX, isNoX)
@@ -2397,12 +2453,10 @@ func TestGetAppEventLabels(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			cm := corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd-cm",
-					Namespace: test.FakeArgoCDNamespace,
-					Labels: map[string]string{
-						"app.kubernetes.io/part-of": "argocd",
-					},
+				Name:      "argocd-cm",
+				Namespace: test.FakeArgoCDNamespace,
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
 				},
 				Data: map[string]string{
 					"resource.includeEventLabelKeys": tt.cmInEventLabelKeys,
@@ -2411,11 +2465,9 @@ func TestGetAppEventLabels(t *testing.T) {
 			}
 
 			proj := &argoappv1.AppProject{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "default",
-					Namespace: test.FakeArgoCDNamespace,
-					Labels:    tt.projLabels,
-				},
+				Name:      "default",
+				Namespace: test.FakeArgoCDNamespace,
+				Labels:    tt.projLabels,
 			}
 
 			var app argoappv1.Application
@@ -2456,10 +2508,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Valid HTTPS URL",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "https://argocd.example.com",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "https://argocd.example.com",
 				},
 			},
 			wantErr: false,
@@ -2467,10 +2517,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Valid HTTP URL",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "http://argocd.example.com",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "http://argocd.example.com",
 				},
 			},
 			wantErr: false,
@@ -2478,10 +2526,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Valid localhost HTTPS URL",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "https://localhost:8081",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "https://localhost:8081",
 				},
 			},
 			wantErr: false,
@@ -2489,10 +2535,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Valid localhost HTTP URL",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "http://localhost:8081",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "http://localhost:8081",
 				},
 			},
 			wantErr: false,
@@ -2500,10 +2544,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Valid 127.0.0.1 URL",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "http://127.0.0.1:8081",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "http://127.0.0.1:8081",
 				},
 			},
 			wantErr: false,
@@ -2518,10 +2560,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Empty managed-by-url",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "",
 				},
 			},
 			wantErr: false,
@@ -2529,10 +2569,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Missing managed-by-url annotation",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						"other.annotation": "value",
-					},
+				Annotations: map[string]string{
+					"other.annotation": "value",
 				},
 			},
 			wantErr: false,
@@ -2540,10 +2578,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Invalid protocol - javascript",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "javascript:alert('xss')",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "javascript:alert('xss')",
 				},
 			},
 			wantErr:    true,
@@ -2552,10 +2588,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Invalid protocol - data",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "data:text/html,<script>alert('xss')</script>",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "data:text/html,<script>alert('xss')</script>",
 				},
 			},
 			wantErr:    true,
@@ -2564,10 +2598,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Invalid protocol - file",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "file:///etc/passwd",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "file:///etc/passwd",
 				},
 			},
 			wantErr:    true,
@@ -2576,10 +2608,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Invalid URL format",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "not-a-url",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "not-a-url",
 				},
 			},
 			wantErr:    true,
@@ -2588,10 +2618,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "URL with path and query",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "https://argocd.example.com/applications?namespace=default",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "https://argocd.example.com/applications?namespace=default",
 				},
 			},
 			wantErr: false,

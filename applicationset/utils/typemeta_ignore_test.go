@@ -21,8 +21,8 @@ func TestApplyIgnoreDifferencesIsTypeMetaIndependent(t *testing.T) {
 
 	newApp := func(tm metav1.TypeMeta, rev string) *argov1alpha1.Application {
 		return &argov1alpha1.Application{
-			TypeMeta:   tm,
-			ObjectMeta: metav1.ObjectMeta{Name: "app", Namespace: "argocd"},
+			TypeMeta: tm,
+			Name:     "app", Namespace: "argocd",
 			Spec: argov1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &argov1alpha1.ApplicationSource{

@@ -1,0 +1,25 @@
+# The same kind once the controller has established it. Paired with
+# compositeresourcedefinition_progressing.yaml so the pair shows the
+# kind reaching Healthy rather than only ever Progressing.
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xpostgresqlinstances.example.org
+spec:
+  group: example.org
+  names:
+    kind: XPostgreSQLInstance
+    plural: xpostgresqlinstances
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+status:
+  conditions:
+    - lastTransitionTime: "2025-11-22T08:45:44Z"
+      reason: WatchingCompositeResource
+      status: "True"
+      type: Established

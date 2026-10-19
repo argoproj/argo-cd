@@ -44,15 +44,15 @@ func assertNotFired(t *testing.T, ch <-chan struct{}) {
 }
 
 func argoCDConfigMap() *corev1.ConfigMap {
-	return &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: common.ArgoCDConfigMapName, Namespace: "argocd"}}
+	return &corev1.ConfigMap{Name: common.ArgoCDConfigMapName, Namespace: "argocd"}
 }
 
 func repositorySecret() *corev1.Secret {
-	return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+	return &corev1.Secret{
 		Name:      "repo-secret",
 		Namespace: "argocd",
 		Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-	}}
+	}
 }
 
 func TestArgoCDConfigMapEventHandler(t *testing.T) {
@@ -74,7 +74,7 @@ func TestArgoCDConfigMapEventHandler(t *testing.T) {
 		mgr, fired := newChangeTrackingManager(t)
 		h := mgr.argoCDConfigMapEventHandler()
 
-		other := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-rbac-cm", Namespace: "argocd"}}
+		other := &corev1.ConfigMap{Name: "argocd-rbac-cm", Namespace: "argocd"}
 		h.OnAdd(other, false)
 		h.OnUpdate(other, other)
 		h.OnDelete(other)
@@ -121,7 +121,7 @@ func TestRepositorySecretEventHandler(t *testing.T) {
 		mgr, fired := newChangeTrackingManager(t)
 		h := mgr.repositorySecretEventHandler()
 
-		plain := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "plain", Namespace: "argocd"}}
+		plain := &corev1.Secret{Name: "plain", Namespace: "argocd"}
 		h.OnAdd(plain, false)
 		h.OnUpdate(plain, plain)
 		h.OnDelete(plain)
@@ -156,11 +156,11 @@ func TestClusterSecretEventHandler(t *testing.T) {
 		mgr, fired := newChangeTrackingManager(t)
 		h := mgr.clusterSecretEventHandler()
 
-		secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+		secret := &corev1.Secret{
 			Name:      "cluster-secret",
 			Namespace: "argocd",
 			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
-		}}
+		}
 
 		h.OnAdd(secret, false)
 		waitFired(t, fired)
@@ -186,13 +186,13 @@ func TestClusterSecretEventHandler(t *testing.T) {
 func TestSettingsNotificationEventHandler(t *testing.T) {
 	const partOfLabel = "app.kubernetes.io/part-of"
 	settingsObject := func(creation time.Time, resourceVersion string) *corev1.Secret {
-		return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+		return &corev1.Secret{
 			Name:              "argocd-secret",
 			Namespace:         "argocd",
 			Labels:            map[string]string{partOfLabel: "argocd"},
 			CreationTimestamp: metav1.NewTime(creation),
 			ResourceVersion:   resourceVersion,
-		}}
+		}
 	}
 
 	t.Run("add of a settings object created after the cutoff notifies", func(t *testing.T) {
@@ -218,7 +218,7 @@ func TestSettingsNotificationEventHandler(t *testing.T) {
 		count := 0
 		h := settingsNotificationEventHandler(now, func() { count++ })
 
-		nonSettings := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "plain", CreationTimestamp: metav1.NewTime(now.Add(time.Hour))}}
+		nonSettings := &corev1.Secret{Name: "plain", CreationTimestamp: metav1.NewTime(now.Add(time.Hour))}
 		assert.NotPanics(t, func() {
 			h.OnAdd(nonSettings, false)
 			h.OnAdd("not-an-object", false)
@@ -243,7 +243,7 @@ func TestSettingsNotificationEventHandler(t *testing.T) {
 		count := 0
 		h := settingsNotificationEventHandler(now, func() { count++ })
 
-		nonSettings := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "plain", ResourceVersion: "2"}}
+		nonSettings := &corev1.Secret{Name: "plain", ResourceVersion: "2"}
 		assert.NotPanics(t, func() {
 			// new object is not a settings object
 			h.OnUpdate(settingsObject(now, "1"), nonSettings)

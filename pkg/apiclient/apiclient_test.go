@@ -1,9 +1,12 @@
 package apiclient
 
 import (
+	"encoding/base64"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -14,6 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+
+	"github.com/argoproj/argo-cd/v3/util/localconfig"
 )
 
 func Test_parseHeaders(t *testing.T) {
@@ -280,4 +285,91 @@ func (c *closeTracker) Close() error {
 		c.onClose()
 	}
 	return c.ReadCloser.Close()
+}
+
+func Test_clientCertFromContext(t *testing.T) {
+	certPEM, err := os.ReadFile(filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.crt"))
+	require.NoError(t, err)
+	keyPEM, err := os.ReadFile(filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.key"))
+	require.NoError(t, err)
+
+	dir := t.TempDir()
+	certPath := filepath.Join(dir, "client.crt")
+	keyPath := filepath.Join(dir, "client.key")
+	require.NoError(t, os.WriteFile(certPath, certPEM, 0o600))
+	require.NoError(t, os.WriteFile(keyPath, keyPEM, 0o600))
+
+	t.Run("no client certificate configured", func(t *testing.T) {
+		cert, err := clientCertFromContext(&localconfig.Server{Server: "argocd.example.com"})
+		require.NoError(t, err)
+		assert.Nil(t, cert)
+	})
+
+	t.Run("client certificate referenced by path", func(t *testing.T) {
+		cert, err := clientCertFromContext(&localconfig.Server{
+			Server:               "argocd.example.com",
+			ClientCertificate:    certPath,
+			ClientCertificateKey: keyPath,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+		assert.NotEmpty(t, cert.Certificate)
+	})
+
+	t.Run("client certificate inlined as data", func(t *testing.T) {
+		cert, err := clientCertFromContext(&localconfig.Server{
+			Server:                   "argocd.example.com",
+			ClientCertificateData:    base64.StdEncoding.EncodeToString(certPEM),
+			ClientCertificateKeyData: base64.StdEncoding.EncodeToString(keyPEM),
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+		assert.NotEmpty(t, cert.Certificate)
+	})
+
+	t.Run("certificate and key must be configured together", func(t *testing.T) {
+		_, err := clientCertFromContext(&localconfig.Server{
+			Server:            "argocd.example.com",
+			ClientCertificate: certPath,
+		})
+		require.ErrorContains(t, err, "must always be specified together")
+	})
+
+	t.Run("certificate does not match key", func(t *testing.T) {
+		_, err := clientCertFromContext(&localconfig.Server{
+			Server:                   "argocd.example.com",
+			ClientCertificateData:    base64.StdEncoding.EncodeToString(certPEM),
+			ClientCertificateKeyData: base64.StdEncoding.EncodeToString([]byte("not a key")),
+		})
+		require.Error(t, err)
+	})
+}
+
+func TestNewClient_ClientCertData(t *testing.T) {
+	certPEM, err := os.ReadFile(filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.crt"))
+	require.NoError(t, err)
+	keyPEM, err := os.ReadFile(filepath.Join("..", "..", "util", "tls", "testdata", "valid_tls.key"))
+	require.NoError(t, err)
+
+	t.Run("certificate loaded from data", func(t *testing.T) {
+		c, err := NewClient(&ClientOptions{
+			ServerAddr:        "localhost:1234",
+			PlainText:         true,
+			GRPCWeb:           true,
+			ClientCertData:    certPEM,
+			ClientCertKeyData: keyPEM,
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, c.(*client).ClientCert)
+	})
+
+	t.Run("certificate and key data must be given together", func(t *testing.T) {
+		_, err := NewClient(&ClientOptions{
+			ServerAddr:     "localhost:1234",
+			PlainText:      true,
+			GRPCWeb:        true,
+			ClientCertData: certPEM,
+		})
+		require.ErrorContains(t, err, "must always be specified together")
+	})
 }
