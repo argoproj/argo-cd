@@ -3142,8 +3142,9 @@ func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, 
 			log.Infof("Failed to fetch revision %s: %v", revision, err)
 			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
 
+			// The full fetch succeeded, so the remote is reachable but no longer has this revision.
 			if err := gitClient.Fetch(ctx, revision, 0); err != nil {
-				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
+				return fmt.Errorf("failed to fetch revision %s: %w: %w", revision, git.ErrRevisionNotFound, err)
 			}
 		}
 	}
@@ -3482,7 +3483,7 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 		defer utilio.Close(closer)
 
 		if err := s.fetch(ctx, gitClient, []string{syncedRevision}, repo.Depth); err != nil {
-			return files, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
+			return files, fmt.Errorf("unable to fetch git repo %s with syncedRevisions %s: %w", repo.Repo, syncedRevision, err)
 		}
 
 		files, err = gitClient.ChangedFiles(ctx, syncedRevision, revision)
@@ -3760,14 +3761,14 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 
 	syncEval, err := s.evaluateChangesSinceRevision(ctx, request, syncBaseRevision, syncBaseRefSources, composeVia, composeRefSources, isGitSource, gitClientOpts, logCtx)
 	if err != nil {
-		if request.LastSyncedRevision == "" || !basesDiverge || cacheEval == nil {
+		if request.LastSyncedRevision == "" || !basesDiverge || cacheEval == nil || !errors.Is(err, git.ErrRevisionNotFound) {
 			if syncEval != nil {
 				return &apiclient.UpdateRevisionForPathsResponse{Changes: true, Revision: syncEval.resolvedRevision}, err
 			}
 			return nil, err
 		}
-		// An unevaluable last-synced base (e.g. force-pushed away) must not fail every refresh, since only a
-		// sync can replace it; report changes instead.
+		// A last-synced base gone from the remote (e.g. force-pushed away) must not fail every refresh, since
+		// only a sync can replace it; report changes instead. Other errors may be transient (#29430).
 		logCtx.Warnf("error evaluating changes against last synced revision %s, reporting changes: %v", syncBaseRevision, err)
 		syncEval = cacheEval
 		forceChanges = true

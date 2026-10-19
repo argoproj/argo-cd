@@ -5932,11 +5932,24 @@ func TestUpdateRevisionForPaths_LastSyncedBase(t *testing.T) {
 		assert.True(t, manifestCacheContains(cacheMocks, request, revCompared), "compared revision cache entry must remain")
 	})
 
-	t.Run("last-synced base cannot be evaluated: reports changes", func(t *testing.T) {
-		// An unreachable last-synced SHA (e.g. force-pushed away) must not fail the refresh forever:
-		// the RPC reports changes so the controller compares revisions instead of trusting a verdict
-		// computed against a base it did not ask for.
-		s, cacheMocks := newServiceWithFailingDiff(t, revLastSynced, nil)
+	t.Run("last-synced base gone from the remote: reports changes", func(t *testing.T) {
+		// A force-pushed-away last-synced SHA must not fail the refresh forever: the RPC reports changes
+		// so the controller compares revisions instead of trusting a verdict from another base.
+		s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+			gitClient.EXPECT().Init().Return(nil)
+			gitClient.EXPECT().Fetch(mock.Anything, "", int64(0)).Return(nil)
+			gitClient.EXPECT().Fetch(mock.Anything, revCompared, int64(0)).Return(nil)
+			gitClient.EXPECT().Fetch(mock.Anything, revLastSynced, int64(0)).Return(errors.New("not our ref"))
+			gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
+			gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+			gitClient.EXPECT().LsRemote("HEAD").Return(revResolved, nil)
+			gitClient.EXPECT().LsRemote(revLastSynced).Return(revLastSynced, nil)
+			gitClient.EXPECT().LsRemote(revCompared).Return(revCompared, nil)
+			gitClient.EXPECT().Root().Return("")
+			gitClient.EXPECT().ChangedFiles(mock.Anything, revCompared, revResolved).Return(nil, nil)
+			paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+			paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+		}, ".")
 		request := newRequest(revCompared)
 		seedManifestCache(t, cacheMocks, request, revCompared)
 
@@ -5945,6 +5958,16 @@ func TestUpdateRevisionForPaths_LastSyncedBase(t *testing.T) {
 		assert.True(t, resp.Changes, "a verdict from another base must not reach the auto-sync gate")
 		assert.Equal(t, revResolved, resp.Revision)
 		assert.True(t, manifestCacheContains(cacheMocks, request, revResolved), "cache transfer still runs on the compared base")
+	})
+
+	t.Run("transient last-synced evaluation error: returned, not reported as changes", func(t *testing.T) {
+		// Reporting changes on e.g. a network error would auto-sync unrelated apps in a mono-repo (#29430).
+		s, cacheMocks := newServiceWithFailingDiff(t, revLastSynced, nil)
+		request := newRequest(revCompared)
+		seedManifestCache(t, cacheMocks, request, revCompared)
+
+		_, err := s.UpdateRevisionForPaths(t.Context(), request)
+		require.Error(t, err)
 	})
 
 	t.Run("compared-base evaluation error: RPC still answers from the last-synced base", func(t *testing.T) {
