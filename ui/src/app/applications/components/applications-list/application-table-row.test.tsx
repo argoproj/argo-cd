@@ -34,6 +34,9 @@ const app = {
 const pref = {
     appList: {
         favoritesAppList: []
+    },
+    appDetails: {
+        view: 'tree'
     }
 } as any;
 
