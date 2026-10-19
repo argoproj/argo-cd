@@ -106,7 +106,8 @@ metadata:
 stringData:
   headers: "authorization=Bearer <token>"
 ---
-# Patch for the argocd-server Deployment. Repeat for the other components.
+# Strategic merge patch for the argocd-server Deployment, e.g. a Kustomize `patches` entry or
+# `kubectl patch deployment argocd-server -n argocd --patch-file <file>`. Repeat for the other components.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -130,7 +131,8 @@ For mTLS, mount the client certificate from a Secret and point the standard envi
 at it:
 
 ```yaml
-# Patch for the argocd-server Deployment. Repeat for the other components.
+# Strategic merge patch for the argocd-server Deployment, e.g. a Kustomize `patches` entry or
+# `kubectl patch deployment argocd-server -n argocd --patch-file <file>`. Repeat for the other components.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
