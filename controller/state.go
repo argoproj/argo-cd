@@ -223,27 +223,20 @@ func (m *appStateManager) EvaluateAppRevisionsChanges(ctx context.Context, app *
 	return hasChanges, resolvedRevisions, nil
 }
 
-// usableSyncBaseRevision reports whether a recorded sync-attempt revision can serve as a
-// change-detection base. Git revisions must be resolved SHAs: an ambiguous ref like "HEAD" or a
-// branch name, left behind by an operation that errored before revision resolution, is diffed
-// against itself — or skipped when it string-equals the requested revision — and wrongly reports
-// no changes. Non-git (chart/OCI) identifiers are opaque strings and only need to be non-empty.
+// usableSyncBaseRevision reports whether a recorded sync-attempt revision can be a change-detection
+// base. A git ref like "HEAD", left by an operation that failed before resolving, diffs against itself.
 func usableSyncBaseRevision(source v1alpha1.ApplicationSource, revision string) bool {
 	if revision == "" {
 		return false
 	}
-	if source.Chart != "" || strings.HasPrefix(strings.ToLower(source.RepoURL), "oci://") {
+	if source.IsHelm() || source.IsOCI() {
 		return true
 	}
 	return git.IsCommitSHA(revision)
 }
 
-// lastAttemptedSyncRevisions returns the revisions of the most recent sync attempt, aligned with the
-// given sources, and whether the revision comparison must be forced. Forcing is required when a
-// matching attempt exists but its revisions are unusable as a base (see usableSyncBaseRevision):
-// alreadyAttemptedSync's source-equality checks still pass, so it would trust a baseless no-changes
-// flag. (nil, false) means those checks failed or there is no prior attempt; auto-sync ignores the
-// flag there, so the legacy compared-revision base is safe.
+// lastAttemptedSyncRevisions returns the last sync attempt's revisions, aligned with sources, and
+// whether to force the revision comparison because a matching attempt has an unusable base.
 func lastAttemptedSyncRevisions(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource) ([]string, bool) {
 	state := app.Status.OperationState
 	if state == nil || state.SyncResult == nil {
@@ -384,10 +377,8 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		syncedRefSources = argo.GetSyncedRefSources(refSources, sources, app.Status.Sync.Revisions)
 	}
 
-	// Base change detection on the last sync attempt, so revisionsMayHaveChanges answers "changed
-	// since the last sync?" — what auto-sync needs. app.Status.Sync.Revision cannot serve as that
-	// base: it advances on every comparison, even mid-sync, losing the fact that the newly compared
-	// revision was never synced (#27875). Only auto-sync reads the result, so skip this when it is off.
+	// Sync.Revision advances on every comparison, even mid-sync, so it cannot tell whether the compared
+	// revision was ever synced (#27875). Only auto-sync reads the result.
 	var lastSyncedRevisions []string
 	var lastSyncedRefSources v1alpha1.RefTargetRevisionMapping
 	forceCompareRevisions := false
@@ -527,9 +518,8 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 
 // evaluateRevisionChanges checks if a single source revision has changes without generating manifests.
 // Returns the resolved revision and whether changes were detected.
-// A non-nil lastSyncedRevisions (aligned with the app's sources, see lastAttemptedSyncRevisions) bases
-// change detection on the last sync attempt rather than the last compared revision; the repo-server's
-// manifest cache transfer stays keyed on the latter.
+// A non-nil lastSyncedRevisions bases change detection on the last sync attempt; the manifest cache
+// transfer stays keyed on the compared revision.
 func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, sourceIndex int, revision string, refSources v1alpha1.RefTargetRevisionMapping, syncedRefSources v1alpha1.RefTargetRevisionMapping, lastSyncedRevisions []string, lastSyncedRefSources v1alpha1.RefTargetRevisionMapping, noRevisionCache bool, trackingMethod string, appLabelKey string, installationID string, serverVersion string, apiVersions []string, proj *v1alpha1.AppProject, repoClient apiclient.RepoServerServiceClient, sourceIntegrity *v1alpha1.SourceIntegrity) (string, bool, error) {
 	alwaysResolveRevision := false
 	if revision == "" {
@@ -574,8 +564,7 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 
 	if syncedRevision == revision && revision != "" && len(refSources) == 0 && (lastSyncedRevision == "" || lastSyncedRevision == revision) {
 		// if revisions are the same (and we are not using reference sources), we know there is no changes.
-		// A lagging last-synced revision still needs its own diff, even once the compared revision
-		// caught up (#27875).
+		// A lagging last-synced revision still needs its own diff (#27875).
 		// TODO: Could be optimized to not call the repo server at all if we know this specific source does not use reference.
 		return revision, false, nil
 	}
@@ -849,8 +838,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 			m.repoErrorCache.Delete(app.Name)
 		}
 	} else {
-		// Change detection never ran here, so claiming "no changes" would let alreadyAttemptedSync
-		// suppress auto-sync forever after a local sync.
+		// Change detection never ran, so "no changes" would suppress auto-sync forever after a local sync.
 		revisionsMayHaveChanges = true
 		// Prevent applying local manifests for now when source integrity is enforced
 		// This is also enforced on API level, but as a last resort, we also enforce it here
