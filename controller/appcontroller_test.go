@@ -5043,6 +5043,49 @@ func TestSetOperationStateTooLargeRequest(t *testing.T) {
 	}
 }
 
+// TestSetOperationStateTooLargeRequest_PreservesHookResultsForTermination verifies that the
+// size-limit fallback keeps hook results while dropping the bulky non-hook resource results.
+// When the fallback routes the operation through Terminating, the next reconcile seeds the sync
+// context's initial state from SyncResult.Resources; Terminate can only clean up hooks it sees
+// there, so dropping hook results would make termination a silent no-op.
+func TestSetOperationStateTooLargeRequest_PreservesHookResultsForTermination(t *testing.T) {
+	newState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
+		},
+		Phase:   synccommon.OperationRunning,
+		Message: "running",
+		SyncResult: &v1alpha1.SyncOperationResult{
+			Resources: v1alpha1.ResourceResults{
+				{Kind: "ConfigMap", Name: "bulky-non-hook", Status: synccommon.ResultCodeSynced},
+				{Kind: "Job", Name: "running-presync-hook", HookType: synccommon.HookTypePreSync, HookPhase: synccommon.OperationRunning},
+			},
+		},
+	}
+
+	app := newFakeApp()
+	ctrl, patchCallCount, capturedPatch := newFakeControllerWithTooLargeFirstPatch(t, app)
+
+	ctrl.setOperationState(t.Context(), app, newState)
+
+	assert.Equal(t, 2, *patchCallCount)
+
+	// The fallback routes through Terminating (not already terminating), so the hook must survive.
+	ops := decodeJSONPatchOps(t, *capturedPatch)
+	opState, ok := ops["/status/operationState"].(map[string]any)
+	require.True(t, ok, "fallback must replace the whole /status/operationState")
+	assert.Equal(t, string(synccommon.OperationTerminating), opState["phase"])
+
+	stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, stored.Status.OperationState)
+	require.NotNil(t, stored.Status.OperationState.SyncResult)
+	results := stored.Status.OperationState.SyncResult.Resources
+	require.Len(t, results, 1, "only hook results should survive the size-limit fallback")
+	assert.Equal(t, "running-presync-hook", results[0].Name)
+	assert.Equal(t, synccommon.HookTypePreSync, results[0].HookType, "hook results needed for termination must be retained")
+}
+
 func TestSetOperationStateTooLargeRequest_PreservesFinishedAtOnCompletion(t *testing.T) {
 	finishedAt := metav1.Now()
 	newState := &v1alpha1.OperationState{

@@ -1862,124 +1862,147 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		return nil
 	})
 
+	// persistedState is the operation state actually written to the server. On the happy path
+	// that's the state we were asked to persist; on the fallback path it's a different, shrunken
+	// state (e.g. Terminating, or a minimal Error) and may be nil if nothing could be persisted.
+	persistedState := state
 	if nonRetryableError != nil {
-		// Base the fallback on the state we tried to persist, not the old
-		// app.Status.OperationState, so fields set in this reconcile (Operation, FinishedAt)
-		// are not lost.
-		fallbackStatus := state.DeepCopy()
-		fallbackStatus.Phase = synccommon.OperationError
-		fallbackStatus.Message = nonRetryableError.Error()
-
-		// alreadyTerminating is true once we've already asked the operation to terminate
-		// (below) and are back here because even the terminated state was too large to
-		// persist. In that case we give up and finalize as an error instead of terminating
-		// again, which would otherwise loop forever.
-		alreadyTerminating := app.Status.OperationState != nil && app.Status.OperationState.Phase == synccommon.OperationTerminating
-
-		if isOperationStatePayloadTooLargeError(nonRetryableError) {
-			sizeLimitMessage := operationStateSizeLimitMessagePrefix + " and could not be persisted. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application. error: " + nonRetryableError.Error()
-
-			if !alreadyTerminating {
-				// Request termination instead of jumping straight to an error state, so the next
-				// reconcile drives the operation through the normal Terminating path (same as the
-				// "Terminate" UI/API action) and cleans up any in-flight hooks before we give up.
-				logCtx.WithError(nonRetryableError).Warn("Application operation status exceeds the Kubernetes resource size limit; requesting operation termination")
-				fallbackStatus.Phase = synccommon.OperationTerminating
-			} else {
-				logCtx.WithError(nonRetryableError).Warn("Application operation status still exceeds the Kubernetes resource size limit after termination; falling back to operation error")
-				fallbackStatus.Phase = synccommon.OperationError
-			}
-			fallbackStatus.Message = sizeLimitMessage
-
-			// Drop resources so the fallback patch, itself doesn't hit the same size limit.
-			if fallbackStatus.SyncResult != nil {
-				fallbackStatus.SyncResult.Resources = nil
-			}
+		persistedState = ctrl.persistOperationStateFallback(app, state, nonRetryableError, logCtx)
+		if persistedState == nil {
+			return
 		}
+	}
 
-		if fallbackStatus.Phase.Completed() && fallbackStatus.FinishedAt == nil {
+	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), persistedState.Phase)
+
+	// Record completion telemetry against the state that was actually persisted (whose phase may
+	// differ from the attempted state's, e.g. Succeeded -> Terminating or Running -> Error).
+	if persistedState.Phase.Completed() {
+		ctrl.recordOperationCompletion(ctx, app, logCtx, persistedState)
+	}
+}
+
+// persistOperationStateFallback handles the case where the primary operation-state patch could
+// not be persisted (e.g. the payload exceeds the Kubernetes resource size limit). It persists a
+// shrunken fallback state, routing an oversized operation through Terminating before giving up,
+// and finally a minimal terminal state if even the fallback is too large. It returns the state
+// that was actually persisted (so the caller can record completion telemetry against it), or nil
+// if nothing could be persisted.
+func (ctrl *ApplicationController) persistOperationStateFallback(app *appv1.Application, state *appv1.OperationState, nonRetryableError error, logCtx *log.Entry) *appv1.OperationState {
+	// Base the fallback on the state we tried to persist, not the old
+	// app.Status.OperationState, so fields set in this reconcile (Operation, FinishedAt)
+	// are not lost.
+	fallbackStatus := state.DeepCopy()
+	fallbackStatus.Phase = synccommon.OperationError
+	fallbackStatus.Message = nonRetryableError.Error()
+
+	// alreadyTerminating is true once we've already asked the operation to terminate
+	// (below) and are back here because even the terminated state was too large to
+	// persist. In that case we give up and finalize as an error instead of terminating
+	// again, which would otherwise loop forever.
+	alreadyTerminating := app.Status.OperationState != nil && app.Status.OperationState.Phase == synccommon.OperationTerminating
+
+	if isOperationStatePayloadTooLargeError(nonRetryableError) {
+		sizeLimitMessage := operationStateSizeLimitMessagePrefix + " and could not be persisted. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application. error: " + nonRetryableError.Error()
+
+		if !alreadyTerminating {
+			// Request termination instead of jumping straight to an error state, so the next
+			// reconcile drives the operation through the normal Terminating path (same as the
+			// "Terminate" UI/API action) and cleans up any in-flight hooks before we give up.
+			logCtx.WithError(nonRetryableError).Warn("Application operation status exceeds the Kubernetes resource size limit; requesting operation termination")
+			fallbackStatus.Phase = synccommon.OperationTerminating
+		} else {
+			logCtx.WithError(nonRetryableError).Warn("Application operation status still exceeds the Kubernetes resource size limit after termination; falling back to operation error")
+			fallbackStatus.Phase = synccommon.OperationError
+		}
+		fallbackStatus.Message = sizeLimitMessage
+
+		// Shrink the fallback patch so it doesn't hit the same size limit, but keep the hook
+		// results. When we route through Terminating (above), the next reconcile seeds the
+		// sync context's initial state from SyncResult.Resources (see SyncAppState ->
+		// WithInitialState). Terminate only cleans up hooks it can see as running/completed
+		// there, so dropping hook results would make termination a silent no-op. Hook results
+		// are few; the bulk that overflows the limit is the non-hook resource results, so drop
+		// only those.
+		if fallbackStatus.SyncResult != nil {
+			var hookResults []*appv1.ResourceResult
+			for _, res := range fallbackStatus.SyncResult.Resources {
+				if res != nil && res.HookType != "" {
+					hookResults = append(hookResults, res)
+				}
+			}
+			fallbackStatus.SyncResult.Resources = hookResults
+		}
+	}
+
+	if fallbackStatus.Phase.Completed() && fallbackStatus.FinishedAt == nil {
+		now := metav1.Now()
+		fallbackStatus.FinishedAt = &now
+	}
+
+	// Replace the whole operationState (same as the primary patch above) instead of
+	// merging into it. A merge patch built from fallbackStatus would omit fields cleared
+	// by `omitempty` (e.g. a nil SyncResult.Resources, zero RetryCount, empty Operation.Sync
+	// fields) and, under RFC 7396 merge semantics, leave stale values from the previous
+	// operation on the server. A JSON Patch replace guarantees omitted fields cannot persist.
+	fallbackPatchOps := []map[string]any{
+		{"op": "add", "path": "/status/operationState", "value": fallbackStatus},
+	}
+	if fallbackStatus.Phase.Completed() {
+		// Mirrors the completed-phase handling above: once the operation has reached a
+		// terminal phase, clear the requested operation so the controller doesn't
+		// immediately re-attempt the same sync and hit the same size failure again.
+		fallbackPatchOps = append(fallbackPatchOps, map[string]any{"op": "add", "path": "/operation", "value": nil})
+	}
+
+	fallbackPatchJSON, err := json.Marshal(fallbackPatchOps)
+	if err != nil {
+		logCtx.WithError(err).Error("Error marshaling fallback patch")
+		return nil
+	}
+
+	if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.JSONPatchType, fallbackPatchJSON, metav1.PatchOptions{}); fbErr != nil {
+		if !isOperationStatePayloadTooLargeError(fbErr) {
+			logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
+			return nil
+		}
+		// The fallback itself is still too large (e.g. the attempted operation carries large
+		// local manifests). Give up preserving any of the attempted operation and persist the
+		// smallest possible terminal state so the requested operation is cleared and the
+		// controller stops looping.
+		logCtx.WithError(fbErr).Warn("Fallback operation status still exceeds the Kubernetes resource size limit; persisting minimal terminal state")
+		minimalFinishedAt := fallbackStatus.FinishedAt
+		if minimalFinishedAt == nil {
 			now := metav1.Now()
-			fallbackStatus.FinishedAt = &now
+			minimalFinishedAt = &now
 		}
-
-		// Replace the whole operationState (same as the primary patch above) instead of
-		// merging into it. A merge patch built from fallbackStatus would omit fields cleared
-		// by `omitempty` (e.g. a nil SyncResult.Resources, zero RetryCount, empty Operation.Sync
-		// fields) and, under RFC 7396 merge semantics, leave stale values from the previous
-		// operation on the server. A JSON Patch replace guarantees omitted fields cannot persist.
-		fallbackPatchOps := []map[string]any{
-			{"op": "add", "path": "/status/operationState", "value": fallbackStatus},
+		minimalStatus := &appv1.OperationState{
+			Phase:      synccommon.OperationError,
+			Message:    operationStateSizeLimitMessagePrefix + " and could not be persisted, even after dropping sync results. error: " + fbErr.Error(),
+			StartedAt:  fallbackStatus.StartedAt,
+			FinishedAt: minimalFinishedAt,
 		}
-		if fallbackStatus.Phase.Completed() {
-			// Mirrors the completed-phase handling above: once the operation has reached a
-			// terminal phase, clear the requested operation so the controller doesn't
-			// immediately re-attempt the same sync and hit the same size failure again.
-			fallbackPatchOps = append(fallbackPatchOps, map[string]any{"op": "add", "path": "/operation", "value": nil})
+		// Replace the whole operationState with the minimal struct (same as the primary and
+		// regular fallback patches) instead of merging into it. A merge patch built from
+		// minimalStatus would omit `omitempty` fields (syncResult, retryCount, operation) and,
+		// under RFC 7396 merge semantics, leave the stale large values already on the server
+		// untouched - defeating the point of this minimal patch. A JSON Patch replace drops them.
+		minimalPatchOps := []map[string]any{
+			{"op": "add", "path": "/status/operationState", "value": minimalStatus},
+			{"op": "add", "path": "/operation", "value": nil},
 		}
-
-		fallbackPatchJSON, err := json.Marshal(fallbackPatchOps)
-		if err != nil {
-			logCtx.WithError(err).Error("Error marshaling fallback patch")
-			return
+		minimalPatchJSON, mErr := json.Marshal(minimalPatchOps)
+		if mErr != nil {
+			logCtx.WithError(mErr).Error("Error marshaling minimal fallback patch")
+			return nil
 		}
-
-		if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.JSONPatchType, fallbackPatchJSON, metav1.PatchOptions{}); fbErr != nil {
-			if !isOperationStatePayloadTooLargeError(fbErr) {
-				logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
-				return
-			}
-			// The fallback itself is still too large (e.g. the attempted operation carries large
-			// local manifests). Give up preserving any of the attempted operation and persist the
-			// smallest possible terminal state so the requested operation is cleared and the
-			// controller stops looping.
-			logCtx.WithError(fbErr).Warn("Fallback operation status still exceeds the Kubernetes resource size limit; persisting minimal terminal state")
-			minimalFinishedAt := fallbackStatus.FinishedAt
-			if minimalFinishedAt == nil {
-				now := metav1.Now()
-				minimalFinishedAt = &now
-			}
-			minimalStatus := &appv1.OperationState{
-				Phase:      synccommon.OperationError,
-				Message:    operationStateSizeLimitMessagePrefix + " and could not be persisted, even after dropping sync results. error: " + fbErr.Error(),
-				StartedAt:  fallbackStatus.StartedAt,
-				FinishedAt: minimalFinishedAt,
-			}
-			// Replace the whole operationState with the minimal struct (same as the primary and
-			// regular fallback patches) instead of merging into it. A merge patch built from
-			// minimalStatus would omit `omitempty` fields (syncResult, retryCount, operation) and,
-			// under RFC 7396 merge semantics, leave the stale large values already on the server
-			// untouched - defeating the point of this minimal patch. A JSON Patch replace drops them.
-			minimalPatchOps := []map[string]any{
-				{"op": "add", "path": "/status/operationState", "value": minimalStatus},
-				{"op": "add", "path": "/operation", "value": nil},
-			}
-			minimalPatchJSON, mErr := json.Marshal(minimalPatchOps)
-			if mErr != nil {
-				logCtx.WithError(mErr).Error("Error marshaling minimal fallback patch")
-				return
-			}
-			if _, mfbErr := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.JSONPatchType, minimalPatchJSON, metav1.PatchOptions{}); mfbErr != nil {
-				logCtx.WithError(mfbErr).Error("Error persisting minimal fallback status")
-				return
-			}
-			ctrl.recordOperationCompletion(ctx, app, logCtx, minimalStatus)
-			return
+		if _, mfbErr := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.JSONPatchType, minimalPatchJSON, metav1.PatchOptions{}); mfbErr != nil {
+			logCtx.WithError(mfbErr).Error("Error persisting minimal fallback status")
+			return nil
 		}
-		// This fallback patch skips the normal completion path below, so emit the completion
-		// event and sync metrics here when it finalizes the operation (the alreadyTerminating
-		// case, which settles on OperationError instead of Terminating). Without this, a
-		// completed operation would be missing from completion events, failure counters, and
-		// duration metrics.
-		if fallbackStatus.Phase.Completed() {
-			ctrl.recordOperationCompletion(ctx, app, logCtx, fallbackStatus)
-		}
-		return
+		return minimalStatus
 	}
-
-	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
-	if state.Phase.Completed() {
-		ctrl.recordOperationCompletion(ctx, app, logCtx, state)
-	}
+	return fallbackStatus
 }
 
 // recordOperationCompletion emits the completion event and sync/duration metrics for a
