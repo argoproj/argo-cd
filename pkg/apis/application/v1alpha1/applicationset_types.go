@@ -866,6 +866,8 @@ type ApplicationSetCondition struct {
 	Status ApplicationSetConditionStatus `json:"status" protobuf:"bytes,4,opt,name=status"`
 	// Single word camelcase representing the reason for the status eg ErrorOccurred
 	Reason string `json:"reason" protobuf:"bytes,5,opt,name=reason"`
+	// provide description here
+	ObservedGeneration int64
 }
 
 // ApplicationSetConditionStatus is a type which represents possible comparison results
@@ -889,6 +891,7 @@ type ApplicationSetConditionType string
 
 // ErrorOccurred / ParametersGenerated / TemplateRendered / ResourcesUpToDate
 const (
+	// HERE WE HAVE TYPES OF STATUSES
 	ApplicationSetConditionErrorOccurred        ApplicationSetConditionType = "ErrorOccurred"
 	ApplicationSetConditionParametersGenerated  ApplicationSetConditionType = "ParametersGenerated"
 	ApplicationSetConditionResourcesUpToDate    ApplicationSetConditionType = "ResourcesUpToDate"

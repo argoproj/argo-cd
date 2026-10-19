@@ -4448,7 +4448,7 @@ func TestMigrateStatus(t *testing.T) {
 				Client: client,
 			}
 
-			err := r.migrateStatus(t.Context(), &tc.appset)
+			err := r.migrateStatusToLatestVersion(t.Context(), &tc.appset)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedStatus, tc.appset.Status)
 		})
