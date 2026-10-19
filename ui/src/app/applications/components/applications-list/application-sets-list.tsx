@@ -18,13 +18,18 @@ import {createMatcher} from './applications-list-search';
 import {AppSetsStatusBar} from './applications-status-bar';
 import {AppSetTile} from './appset-tile';
 import {AppSetTableRow} from './appset-table-row';
-import {ApplicationSetsSummary} from './application-sets-summary';
 import {FlexTopBar} from '../../../shared/components';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {ViewTypeSwitcher} from './view-type-switcher';
 
 import './applications-list.scss';
 import './applications-table.scss';
 import './applications-tiles.scss';
+
+const ApplicationSetsSummary = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "appset-summary" */ './application-sets-summary').then(m => ({default: m.ApplicationSetsSummary}))),
+    'Failed to load application sets summary. Please reload and try again.'
+);
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
@@ -230,11 +235,10 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
     const [itemsPer, setItemsPer] = React.useState(0);
 
     React.useEffect(() => {
+        let timeoutId: ReturnType<typeof setTimeout>;
         const handleResize = () => {
-            let timeoutId: any;
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
-                timeoutId = null;
                 const itemWidth = itemRef.current ? itemRef.current.offsetWidth : -1;
                 const containerWidth = containerRef.current ? containerRef.current.offsetWidth : -1;
                 const curItemsPer = containerWidth > 0 && itemWidth > 0 ? Math.floor(containerWidth / itemWidth) : 1;
@@ -246,6 +250,7 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
         window.addEventListener('resize', handleResize);
         handleResize();
         return () => {
+            clearTimeout(timeoutId);
             window.removeEventListener('resize', handleResize);
         };
     }, []);

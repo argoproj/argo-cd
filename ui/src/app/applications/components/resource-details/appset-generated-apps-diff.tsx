@@ -3,11 +3,18 @@ import * as jsYaml from 'js-yaml';
 import * as React from 'react';
 import {useEffect, useState} from 'react';
 
-import {MonacoEditor} from '../../../shared/components';
+import {MonacoEditor} from '../../../shared/components/monaco-editor';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
 import './resource-details.scss';
+
+const ApplicationResourcesDiff = lazyWithBoundary(
+    React.lazy(() =>
+        import(/* webpackChunkName: "app-resources-diff" */ '../application-resources-diff/application-resources-diff').then(m => ({default: m.ApplicationResourcesDiff}))
+    ),
+    'Failed to load diff. Please reload and try again.'
+);
 
 export interface AppSetGeneratedAppsDiffProps {
     currentAppSet: models.ApplicationSet;

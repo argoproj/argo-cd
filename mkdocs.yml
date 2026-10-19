@@ -1,11 +1,16 @@
+exclude_docs: assets/lib/README.md
 extra:
   analytics:
     property: G-5Z1VTPDL73
     provider: google
 extra_css:
 - assets/versions.css
+- assets/nav.css
 extra_javascript:
 - assets/versions.js
+- assets/lib/mermaid-11.17.2.min.js
+- assets/mermaid-init.js
+- assets/nav.js
 markdown_extensions:
 - markdown_include.include
 - attr_list
@@ -14,7 +19,11 @@ markdown_extensions:
 - admonition
 - toc:
     permalink: true
-- pymdownx.superfences
+- pymdownx.superfences:
+    custom_fences:
+    - class: mermaid
+      format: !!python/name:pymdownx.superfences.fence_div_format
+      name: mermaid
 nav:
 - Overview: index.md
 - understand_the_basics.md
@@ -31,6 +40,7 @@ nav:
   - operator-manual/ingress.md
   - High Availability:
     - Overview: operator-manual/high_availability.md
+    - Manifest Compression: operator-manual/manifest-compression.md
     - Dynamic Cluster Distribution: operator-manual/dynamic-cluster-distribution.md
   - User Management:
     - operator-manual/user-management/index.md
@@ -142,6 +152,7 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/3.6-3.7.md
     - operator-manual/upgrading/3.5-3.6.md
     - operator-manual/upgrading/3.4-3.5.md
     - operator-manual/upgrading/3.3-3.4.md
@@ -254,7 +265,6 @@ nav:
   - developer-guide/tilt.md
   - developer-guide/custom-resource-icons.md
   - developer-guide/maintaining-internal-argo-cd-forks.md
-  - developer-guide/github-agentics-issue-triage.md
 - faq.md
 - security_considerations.md
 - Support: SUPPORT.md

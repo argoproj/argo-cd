@@ -209,3 +209,25 @@ export function isSSOConfigured(userInfo: UserInfo | null | undefined, authSetti
     const hasOidcConfig = !!authSettings.oidcConfig;
     return isExternalIssuer && (hasDexConnectors || hasOidcConfig);
 }
+
+/**
+ * Checks whether merging the given query parameters into a search string would change it. Mirrors
+ * how NavigationApi.goto merges them: null or undefined removes a parameter, any other value sets it.
+ * @param search - The current query string, including the leading '?'
+ * @param params - The parameters that would be merged in
+ * @returns true if the query string would change, otherwise false
+ */
+export function queryParamsChanged(search: string, params: {[name: string]: string | null}): boolean {
+    const current = new URLSearchParams(search);
+    const next = new URLSearchParams(search);
+    for (const [name, value] of Object.entries(params)) {
+        next.delete(name);
+        if (value !== undefined && value !== null) {
+            next.set(name, value);
+        }
+    }
+    // Sort before comparing: goto reorders the parameters it sets, which is not a real change.
+    current.sort();
+    next.sort();
+    return next.toString() !== current.toString();
+}
