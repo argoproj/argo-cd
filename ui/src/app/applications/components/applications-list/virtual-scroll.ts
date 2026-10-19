@@ -160,8 +160,3 @@ export function resourcesLayoutKey(
     }
     return `${resources.length}:${hash >>> 0}`;
 }
-
-/** Resource rows always use TABLE_ROW_HEIGHT (no per-row height variants). */
-export function getResourceTableRowHeight(): number {
-    return TABLE_ROW_HEIGHT;
-}

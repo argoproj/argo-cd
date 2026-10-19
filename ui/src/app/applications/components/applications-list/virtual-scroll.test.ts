@@ -6,7 +6,6 @@ import {
     computeColumnWidthForIndex,
     computeColumnsPerRow,
     computeOverscanRowCount,
-    getResourceTableRowHeight,
     getTableRowHeight,
     hasActiveHydrator,
     OVERSCAN_VIEWPORT_SCREENS,
@@ -220,12 +219,6 @@ describe('virtual-scroll', () => {
                     } as Application
                 ])
             );
-        });
-    });
-
-    describe('getResourceTableRowHeight', () => {
-        it('returns TABLE_ROW_HEIGHT', () => {
-            expect(getResourceTableRowHeight()).toBe(TABLE_ROW_HEIGHT);
         });
     });
 
