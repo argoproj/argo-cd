@@ -1234,6 +1234,9 @@ func findAndPrintDiff(ctx context.Context, app *argoappv1.Application, resources
 	// Call compareManifests (does all the heavy lifting)
 	changedObjects, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 	errors.CheckError(err)
+	if excludeSecret {
+		changedObjects = excludeLiveSecrets(changedObjects)
+	}
 
 	// Print results
 	foundDiffs := len(changedObjects) > 0

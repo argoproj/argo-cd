@@ -1179,3 +1179,21 @@ func TestNewNormalizeTargetManifestsProvider(t *testing.T) {
 		assert.Equal(t, "test-app", labels["app.kubernetes.io/instance"])
 	})
 }
+
+func TestExcludeLiveSecrets(t *testing.T) {
+	secret := createTestUnstructured(&corev1.Secret{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Secret"}, ObjectMeta: metav1.ObjectMeta{Name: "s", Namespace: "default"}})
+	cm := createTestUnstructured(&corev1.ConfigMap{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "ConfigMap"}, ObjectMeta: metav1.ObjectMeta{Name: "c", Namespace: "default"}})
+
+	results := []diff_util.ComparisonObject{
+		{Key: kube.GetResourceKey(secret), Live: secret},
+		{Key: kube.GetResourceKey(secret), Live: secret, Target: secret},
+		{Key: kube.GetResourceKey(secret), Target: secret},
+		{Key: kube.GetResourceKey(cm), Live: cm},
+	}
+
+	filtered := excludeLiveSecrets(results)
+
+	require.Len(t, filtered, 2)
+	assert.Equal(t, results[2], filtered[0])
+	assert.Equal(t, results[3], filtered[1])
+}

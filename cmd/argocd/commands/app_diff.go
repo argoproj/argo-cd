@@ -497,6 +497,19 @@ func compareManifests(
 	return results, nil
 }
 
+// excludeLiveSecrets drops results whose live side is a core Secret. Server-side diff resolves live state on the
+// server, so filtering live Secrets out of the client's live manifests alone does not keep them out of the diff.
+func excludeLiveSecrets(results []diff_utils.ComparisonObject) []diff_utils.ComparisonObject {
+	filtered := make([]diff_utils.ComparisonObject, 0, len(results))
+	for _, result := range results {
+		if result.Live != nil && result.Key.Group == "" && result.Key.Kind == kube.SecretKind {
+			continue
+		}
+		filtered = append(filtered, result)
+	}
+	return filtered
+}
+
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -541,10 +554,6 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			if len(sourceNames) > 0 && len(revisions) != len(sourceNames) {
 				errors.Fatal(errors.ErrorGeneric, "While using --revisions and --source-names, length of values for both flags should be same.")
-			}
-
-			if serverSideDiffConcurrency == 0 {
-				errors.Fatal(errors.ErrorGeneric, "invalid value for --server-side-diff-concurrency: 0 is not allowed (use -1 for unlimited, or a positive number to limit concurrency)")
 			}
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
@@ -650,6 +659,9 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			// Compute diff
 			results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, diffHandler)
 			errors.CheckError(err)
+			if excludeSecret {
+				results = excludeLiveSecrets(results)
+			}
 
 			sort.Slice(results, func(i, j int) bool {
 				return results[i].Key.String() < results[j].Key.String()
