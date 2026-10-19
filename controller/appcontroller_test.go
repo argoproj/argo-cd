@@ -3362,6 +3362,104 @@ func TestProcessRequestedAppOperation_HasRetriesTerminatedWithSizeLimitCause(t *
 	assert.Equal(t, "Operation terminated, triggered by "+sizeLimitMessage, patchedApp.Status.OperationState.Message)
 }
 
+type phaseSyncStateManager struct {
+	AppStateManager
+	phase synccommon.OperationPhase
+}
+
+func (m *phaseSyncStateManager) SyncAppState(_ context.Context, _ *v1alpha1.Application, _ *v1alpha1.AppProject, state *v1alpha1.OperationState) {
+	state.Phase = m.phase
+	state.Message = "waiting for completion of hook /Pod/hook"
+}
+
+func TestProcessRequestedAppOperation_TerminatedWhileSyncing(t *testing.T) {
+	tests := []struct {
+		name           string
+		syncPhase      synccommon.OperationPhase
+		retryLimit     int64
+		retryStarts    bool
+		terminateOnGet bool
+	}{
+		{name: "terminated between the read and the write", syncPhase: synccommon.OperationRunning, terminateOnGet: true},
+		{name: "terminated before the read", syncPhase: synccommon.OperationRunning},
+		{name: "terminated before a retry is scheduled", syncPhase: synccommon.OperationFailed, retryLimit: 1},
+		{name: "terminated before a retry starts", syncPhase: synccommon.OperationRunning, retryLimit: 1, retryStarts: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.Spec.Project = "default"
+			app.Operation = &v1alpha1.Operation{
+				Sync:  &v1alpha1.SyncOperation{},
+				Retry: v1alpha1.RetryStrategy{Limit: tt.retryLimit},
+			}
+			app.Status.OperationState.Operation = *app.Operation
+			app.Status.OperationState.Phase = synccommon.OperationRunning
+			if !tt.retryStarts {
+				app.Status.OperationState.FinishedAt = nil
+			}
+
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
+			ctrl.appStateManager = &phaseSyncStateManager{AppStateManager: ctrl.appStateManager, phase: tt.syncPhase}
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			gvr := v1alpha1.SchemeGroupVersion.WithResource("applications")
+			terminate := func() error {
+				obj, err := fakeAppCs.Tracker().Get(gvr, app.Namespace, app.Name)
+				if err != nil {
+					return err
+				}
+				stored := obj.(*v1alpha1.Application).DeepCopy()
+				stored.Status.OperationState.Phase = synccommon.OperationTerminating
+				return fakeAppCs.Tracker().Update(gvr, stored, app.Namespace)
+			}
+			if tt.terminateOnGet {
+				terminated := false
+				fakeAppCs.PrependReactor("get", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+					obj, err := fakeAppCs.Tracker().Get(gvr, app.Namespace, app.Name)
+					if err != nil || terminated {
+						return true, obj, err
+					}
+					terminated = true
+					return true, obj, terminate()
+				})
+			} else {
+				require.NoError(t, terminate())
+			}
+
+			ctrl.processRequestedAppOperation(app)
+
+			patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, patchedApp.Status.OperationState)
+			assert.Equal(t, synccommon.OperationTerminating, patchedApp.Status.OperationState.Phase)
+			assert.Equal(t, "operation is terminating", patchedApp.Status.OperationState.Message)
+			assert.Nil(t, patchedApp.Status.OperationState.FinishedAt)
+		})
+	}
+}
+
+func TestSetOperationStateIfPhase_WritesWhenPhaseMatches(t *testing.T) {
+	app := newFakeApp()
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+	}
+	app.Status.OperationState.Operation = *app.Operation
+	app.Status.OperationState.Phase = synccommon.OperationRunning
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+	state := app.Status.OperationState.DeepCopy()
+	state.Message = "waiting for completion of hook /Pod/hook"
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	ctrl.setOperationStateIfPhase(ctx, app, state, synccommon.OperationRunning)
+
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationRunning, patchedApp.Status.OperationState.Phase)
+	assert.Equal(t, "waiting for completion of hook /Pod/hook", patchedApp.Status.OperationState.Message)
+}
+
 func TestProcessRequestedAppOperation_Successful(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Project = "default"
