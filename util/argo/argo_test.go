@@ -918,10 +918,8 @@ func TestFilterByPath(t *testing.T) {
 func TestFilterByFiles(t *testing.T) {
 	// app1: path=example/apps/foo/chart, annotation=".;.."  → resolves to [example/apps/foo/chart, example/apps/foo]
 	app1 := argoappv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{
-				argoappv1.AnnotationKeyManifestGeneratePaths: ".;..",
-			},
+		Annotations: map[string]string{
+			argoappv1.AnnotationKeyManifestGeneratePaths: ".;..",
 		},
 		Spec: argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{Path: "example/apps/foo/chart"},
@@ -929,10 +927,8 @@ func TestFilterByFiles(t *testing.T) {
 	}
 	// app2: path=example/apps/foo, annotation="."  → resolves to [example/apps/foo]
 	app2 := argoappv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{
-				argoappv1.AnnotationKeyManifestGeneratePaths: ".",
-			},
+		Annotations: map[string]string{
+			argoappv1.AnnotationKeyManifestGeneratePaths: ".",
 		},
 		Spec: argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{Path: "example/apps/foo"},
@@ -946,10 +942,8 @@ func TestFilterByFiles(t *testing.T) {
 	}
 	// app4: path=example/other, annotation="."  → resolves to [example/other]
 	app4 := argoappv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{
-				argoappv1.AnnotationKeyManifestGeneratePaths: ".",
-			},
+		Annotations: map[string]string{
+			argoappv1.AnnotationKeyManifestGeneratePaths: ".",
 		},
 		Spec: argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{Path: "example/other"},
