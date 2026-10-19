@@ -2822,9 +2822,10 @@ func (m *ManagedResourcesResponse) GetItems() []*v1alpha1.ResourceDiff {
 }
 
 type ApplicationServerSideDiffQuery struct {
-	AppName              *string                  `protobuf:"bytes,1,req,name=appName" json:"appName,omitempty"`
-	AppNamespace         *string                  `protobuf:"bytes,2,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string                  `protobuf:"bytes,3,opt,name=project" json:"project,omitempty"`
+	AppName      *string `protobuf:"bytes,1,req,name=appName" json:"appName,omitempty"`
+	AppNamespace *string `protobuf:"bytes,2,opt,name=appNamespace" json:"appNamespace,omitempty"`
+	Project      *string `protobuf:"bytes,3,opt,name=project" json:"project,omitempty"`
+	// Deprecated: this field is ignored. Live resources will be calulcated server-side instead.
 	LiveResources        []*v1alpha1.ResourceDiff `protobuf:"bytes,4,rep,name=liveResources" json:"liveResources,omitempty"`
 	TargetManifests      []string                 `protobuf:"bytes,5,rep,name=targetManifests" json:"targetManifests,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`

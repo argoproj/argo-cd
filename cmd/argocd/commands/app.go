@@ -1196,22 +1196,7 @@ func targetObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstruc
 }
 
 // findAndPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
-func findAndPrintDiff(
-	ctx context.Context,
-	app *argoappv1.Application,
-	resources *application.ManagedResourcesResponse,
-	argoSettings *settings.Settings,
-	localObjsStrings []string,
-	revision string,
-	revisions []string,
-	sourcePositions []int64,
-	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
-	useServerSideDiff bool,
-	appIf application.ApplicationServiceClient,
-	appName, appNs string,
-	serverSideDiffConcurrency int,
-	serverSideDiffMaxBatchKB int,
-) bool {
+func findAndPrintDiff(ctx context.Context, app *argoappv1.Application, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, localObjsStrings []string, revision string, revisions []string, sourcePositions []int64, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts, useServerSideDiff bool, appIf application.ApplicationServiceClient, appName, appNs string) bool {
 	// Build target manifest provider based on sync type
 	var baseTargetProvider manifestProvider
 	excludeSecret := false
@@ -1239,7 +1224,7 @@ func findAndPrintDiff(
 	// Choose diff strategy
 	var performDiff diffStrategy
 	if useServerSideDiff {
-		performDiff = newServerSideDiffStrategy(app, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
+		performDiff = newServerSideDiffStrategy(app, appIf, appName, appNs)
 	} else {
 		var err error
 		performDiff, err = newClientSideDiffStrategy(app, argoSettings, ignoreNormalizerOpts)
@@ -1253,10 +1238,10 @@ func findAndPrintDiff(
 	// Print results
 	foundDiffs := len(changedObjects) > 0
 	sort.Slice(changedObjects, func(i, j int) bool {
-		return changedObjects[i].key.String() < changedObjects[j].key.String()
+		return changedObjects[i].Key.String() < changedObjects[j].Key.String()
 	})
 	for _, obj := range changedObjects {
-		printResourceDiff(obj.key.Group, obj.key.Kind, obj.key.Namespace, obj.key.Name, obj.live, obj.target)
+		printResourceDiff(obj.Key.Group, obj.Key.Kind, obj.Key.Namespace, obj.Key.Name, obj.Live, obj.Target)
 	}
 
 	return foundDiffs
@@ -2028,7 +2013,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					// Check if application has ServerSideDiff annotation
 					serverSideDiff := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
 
-					foundDiffs = findAndPrintDiff(ctx, app, resources, argoSettings, localObjsStrings, revision, revisions, sourcePositions, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
+					foundDiffs = findAndPrintDiff(ctx, app, resources, argoSettings, localObjsStrings, revision, revisions, sourcePositions, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs)
 					if !foundDiffs {
 						fmt.Print("====== No Differences found ======\n")
 						// if no differences found, then no need to sync
