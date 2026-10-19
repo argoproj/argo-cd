@@ -192,6 +192,11 @@ kubectl edit configmap argocd-cm -n argocd
 * In the `url` key, input the base URL of Argo CD. In this example, it is `https://argocd.example.com`
 * (Optional): If Argo CD should be accessible via multiple base URLs you may
   specify any additional base URLs via the `additionalUrls` key.
+  When Argo CD is served under a non-root path, each entry must include that path.
+  For example, with `--rootpath=/argocd`, use `https://anotherhost.org/argocd`,
+  not `https://anotherhost.org`. Omitting the path causes SSO callback URLs to omit it as well.
+  Requests must match the configured host and either the base path or a child path;
+  for example, `/argo` matches `/argo/login` but not `/argocd/login`.
 * In the `dex.config` key, add the `github` connector to the `connectors` sub field. See Dex's
   [GitHub connector](https://github.com/dexidp/website/blob/main/content/docs/connectors/github.md)
   documentation for explanation of the fields. A minimal config should populate the clientID,
