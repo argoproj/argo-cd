@@ -6014,9 +6014,8 @@ func TestUpdateRevisionForPaths_ComposesLastSyncedDiffFromCachedDiffs(t *testing
 		assert.False(t, resp.Changes)
 		assert.Equal(t, revResolved, resp.Revision)
 
-		composed, err := cacheMocks.cache.GetGitFilesChanges("a-url.com", revResolved, revLastSynced)
-		require.NoError(t, err, "the composed set must be stored so the next refresh can compose again")
-		assert.Empty(t, composed)
+		_, err = cacheMocks.cache.GetGitFilesChanges("a-url.com", revResolved, revLastSynced)
+		require.ErrorIs(t, err, cache.ErrCacheMiss, "a composed set must not stand in for the shared real diff")
 	})
 
 	t.Run("relevant file in the cached tail set composes to changes", func(t *testing.T) {

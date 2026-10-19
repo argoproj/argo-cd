@@ -3440,7 +3440,7 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 // gitSourceHasChanges reports whether files under refreshPaths changed between syncedRevision and
 // revision. With composeVia set, it unions the cached (base..composeVia) and (composeVia..revision)
 // sets instead of diffing, so per-app last-synced bases share the repo-wide diff. The union may
-// over-report a reverted change, never under-report.
+// over-report a reverted change, never under-report, so it is not cached.
 func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Repository, revision, syncedRevision string, refreshPaths []string, gitClientOpts git.ClientOpts, composeVia string) (string, string, bool, error) {
 	if repo == nil {
 		return revision, syncedRevision, true, status.Error(codes.InvalidArgument, "must pass a valid repo")
@@ -3492,9 +3492,11 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 		return files, nil
 	}
 
+	composed := false
 	files, err := s.cache.GetGitFilesChanges(repo.Repo, revision, syncedRevision)
 	if err != nil {
 		files, err = composeGitFilesChanges(s.cache, repo.Repo, revision, composeVia, syncedRevision)
+		composed = err == nil
 		if err != nil {
 			files, err = getGitFilesChanges()
 			if err != nil {
@@ -3503,8 +3505,11 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 		}
 	}
 
-	if err := s.cache.SetGitFilesChanges(repo.Repo, revision, syncedRevision, files); err != nil {
-		log.Warnf("Failed to store git files changes for `%s` repo in `%s...%s` with: %v", repo.Repo, revision, syncedRevision, err)
+	// The key is shared repo-wide, so an over-reported union must not stand in for a real diff.
+	if !composed {
+		if err := s.cache.SetGitFilesChanges(repo.Repo, revision, syncedRevision, files); err != nil {
+			log.Warnf("Failed to store git files changes for `%s` repo in `%s...%s` with: %v", repo.Repo, revision, syncedRevision, err)
+		}
 	}
 
 	changed := false
