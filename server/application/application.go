@@ -3134,36 +3134,12 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 			modified = true
 		}
 
-		// Extract resource metadata for the diff result. Resources should be pre-aligned by the CLI.
-		var group, kind, namespace, name string
-		var hook bool
+		item := aligned[i]
+		group, kind, namespace, name := item.Key.Group, item.Key.Kind, item.Key.Namespace, item.Key.Name
+		hook := item.Live != nil && hookutil.IsHook(item.Live)
 		var resourceVersion string
-
-		// Extract resource metadata for the ResourceDiff response. The CLI sends aligned arrays
-		// of live resources and target manifests, but individual resources may only exist in one
-		// array depending on the operation
-		switch {
-		case i < len(alignedLiveObjs):
-			// A live resource exists at this index
-			lr := alignedLiveObjs[i]
-			group = lr.GroupVersionKind().Group
-			kind = lr.GroupVersionKind().Kind
-			namespace = lr.GetNamespace()
-			name = lr.GetName()
-			hook = hookutil.IsHook(lr)
-			resourceVersion = lr.GetResourceVersion()
-		case i < len(alignedTargetObjs) && alignedTargetObjs[i] != nil:
-			// A target resource exists at this index, but no live resource exists at this index
-			obj := alignedTargetObjs[i]
-			group = obj.GroupVersionKind().Group
-			kind = obj.GroupVersionKind().Kind
-			namespace = obj.GetNamespace()
-			name = obj.GetName()
-			hook = false
-			resourceVersion = ""
-		default:
-			return nil, fmt.Errorf("diff result index %d out of bounds: live resources (%d), target objects (%d)",
-				i, len(alignedLiveObjs), len(alignedTargetObjs))
+		if item.Live != nil {
+			resourceVersion = item.Live.GetResourceVersion()
 		}
 
 		// Create ResourceDiff with StateDiffs results
@@ -3172,15 +3148,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		targetState := string(diffRes.PredictedLive)
 		liveState := string(diffRes.NormalizedLive)
 
-		// Whether to mask Secret data must be decided from the objects the server
-		// itself parsed (targetObjs[i]/liveObjs[i]), never from the caller-supplied
-		// kind/group metadata. Otherwise a request can pair a spoofed non-Secret
-		// liveResources[i].Kind with a Secret target manifest to bypass masking and
-		// leak the dry-run result's Secret data. The live side is checked too as
-		// defense-in-depth, in case the live-resource consistency validation above
-		// is ever relaxed.
-		isSecret := (i < len(alignedTargetObjs) && isCoreSecret(alignedTargetObjs[i])) ||
-			(i < len(liveObjs) && isCoreSecret(liveObjs[i]))
+		isSecret := isCoreSecret(item.Target) || isCoreSecret(item.Live)
 
 		if isSecret {
 			var targetObj, liveObj *unstructured.Unstructured
