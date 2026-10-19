@@ -8,8 +8,8 @@
 # based splitting leaves stragglers, because the slow tests cluster together in the same
 # file and so sit next to each other in `go test -list` order.
 #
-# Durations come from test/e2e/shard-weights.txt, regenerated from CI artifacts by
-# hack/e2e-shard-weights.sh. Tests missing from that file, including every test when the
+# Durations come from test/e2e/shard-weights.txt, refreshed from CI artifacts by the
+# e2e-shard-weights.yaml workflow. Tests missing from that file, including every test when the
 # file does not exist yet, get the mean weight, so the split stays sane between refreshes.
 #
 # Requires a running e2e environment. `go test -list` links and starts the test binary,

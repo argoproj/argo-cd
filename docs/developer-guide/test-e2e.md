@@ -81,14 +81,7 @@ The workflow reads the test timings of the 10 most recent successful master buil
 The workflow opens a PR only if a test was added or removed, or if the slowest shard would finish at least 30 seconds sooner. The PR description lists every change and the estimated slowest shard before and after. Later runs add a commit to the same PR, or close it if the change is no longer justified.
 
 > [!NOTE]
-> Each run overwrites `test/e2e/shard-weights.txt` on the PR branch, so do not edit that file in the PR.
-
-To regenerate the weights by hand from a green CI run:
-
-```bash
-gh run download <run-id> -p 'e2e-test-timings-shard*'
-./hack/e2e-shard-weights.sh e2e-test-timings-shard*/junit.xml > test/e2e/shard-weights.txt
-```
+> Only this workflow updates `test/e2e/shard-weights.txt`. Do not edit the file by hand, either on master or in the refresh PR, because each run overwrites it on the PR branch.
 
 ## Test Isolation
 

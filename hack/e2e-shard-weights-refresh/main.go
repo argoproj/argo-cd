@@ -374,6 +374,6 @@ func (r refresh) report(repo string) string {
 		return fmt.Sprintf("| %s | %.3f | %.3f |", c.name, c.old, c.new)
 	})
 
-	b.WriteString("\nThis PR is opened by the `Refresh e2e shard weights` workflow. Its next run overwrites `test/e2e/shard-weights.txt` on this branch, so edit that file elsewhere.\n")
+	b.WriteString("\nThis PR is opened by the `Refresh e2e shard weights` workflow. Its next run overwrites `test/e2e/shard-weights.txt` on this branch, so do not edit that file here.\n")
 	return b.String()
 }

@@ -1,5 +1,5 @@
 # Per-test e2e durations in seconds, consumed by hack/e2e-shard.sh.
-# Regenerate with hack/e2e-shard-weights.sh; see that script for the command.
+# Refreshed by the e2e-shard-weights.yaml workflow; do not edit by hand.
 # Tests absent here are given the mean weight, so a stale entry is not fatal.
 TestAPIServerGracefulRestart 7.450
 TestAPIServiceLateRegistrationIsDiscovered 12.130
