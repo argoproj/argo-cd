@@ -1731,7 +1731,11 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 	} else {
 		state = NewOperationState(*app.Operation)
-		ctrl.setOperationState(ctx, app, state)
+		var expectedPhase synccommon.OperationPhase
+		if app.Status.OperationState != nil {
+			expectedPhase = app.Status.OperationState.Phase
+		}
+		ctrl.setOperationStateIfPhase(ctx, app, state, expectedPhase)
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")

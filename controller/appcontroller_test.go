@@ -3378,12 +3378,14 @@ func TestProcessRequestedAppOperation_TerminatedWhileSyncing(t *testing.T) {
 		syncPhase      synccommon.OperationPhase
 		retryLimit     int64
 		retryStarts    bool
+		newOperation   bool
 		terminateOnGet bool
 	}{
 		{name: "terminated between the read and the write", syncPhase: synccommon.OperationRunning, terminateOnGet: true},
 		{name: "terminated before the read", syncPhase: synccommon.OperationRunning},
 		{name: "terminated before a retry is scheduled", syncPhase: synccommon.OperationFailed, retryLimit: 1},
 		{name: "terminated before a retry starts", syncPhase: synccommon.OperationRunning, retryLimit: 1, retryStarts: true},
+		{name: "terminated before a new operation starts", syncPhase: synccommon.OperationRunning, newOperation: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -3393,10 +3395,12 @@ func TestProcessRequestedAppOperation_TerminatedWhileSyncing(t *testing.T) {
 				Sync:  &v1alpha1.SyncOperation{},
 				Retry: v1alpha1.RetryStrategy{Limit: tt.retryLimit},
 			}
-			app.Status.OperationState.Operation = *app.Operation
-			app.Status.OperationState.Phase = synccommon.OperationRunning
-			if !tt.retryStarts {
-				app.Status.OperationState.FinishedAt = nil
+			if !tt.newOperation {
+				app.Status.OperationState.Operation = *app.Operation
+				app.Status.OperationState.Phase = synccommon.OperationRunning
+				if !tt.retryStarts {
+					app.Status.OperationState.FinishedAt = nil
+				}
 			}
 
 			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
@@ -3434,6 +3438,7 @@ func TestProcessRequestedAppOperation_TerminatedWhileSyncing(t *testing.T) {
 			assert.Equal(t, synccommon.OperationTerminating, patchedApp.Status.OperationState.Phase)
 			assert.Equal(t, "operation is terminating", patchedApp.Status.OperationState.Message)
 			assert.Nil(t, patchedApp.Status.OperationState.FinishedAt)
+			assert.Equal(t, *app.Operation, patchedApp.Status.OperationState.Operation)
 		})
 	}
 }
