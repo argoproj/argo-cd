@@ -100,19 +100,14 @@ Design documents are usually submitted as PR and use [this template](https://git
 
 ## Adding a configuration option
 
-When you add a setting to an Argo CD component, expose it the same way as the existing settings of that component so
-that operators can find and set it in one place:
+Most settings of an Argo CD component are CLI flags, and operators usually set them through the `argocd-cmd-params-cm` ConfigMap. If you add a new setting, please wire it up the same way, so operators can find it in the command reference and configure it like the settings next to it:
 
-1. Add a CLI flag to the component's command and read the flag's default from an `ARGOCD_*` environment variable through
-   the helpers in `util/env`. Pass the value into the code that uses it. Do not read environment variables in `init()`
-   functions or store them in package-level variables.
-2. Add an `argocd-cmd-params-cm` key for the setting and wire it to the environment variable with an `optional: true`
-   `configMapKeyRef` in every manifest under `manifests/base` that runs the component. The application controller, for
-   example, has both a StatefulSet and a Deployment.
+1. Add a flag to the component's command and read its default from an `ARGOCD_*` environment variable with the helpers in `util/env`. Pass the value down to the code that uses it. Please don't read the environment variable in an `init()` function or keep it in a package-level variable.
+2. Add an `argocd-cmd-params-cm` key and map it to the environment variable with an `optional: true` `configMapKeyRef`. Do this in every manifest under `manifests/base` that runs the component, because some components have more than one (the application controller has both a StatefulSet and a Deployment).
 3. Document the key and its default in `docs/operator-manual/argocd-cmd-params-cm.yaml`.
 4. Run `make codegen` to regenerate the install manifests and the command reference docs.
 
-The `--status-processors` flag of the application controller follows this pattern:
+Here is how the application controller's `--status-processors` flag is set up:
 
 ```go
 command.Flags().IntVar(&statusProcessors, "status-processors", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_STATUS_PROCESSORS", 20, 0, math.MaxInt32), "Number of application status processors")
