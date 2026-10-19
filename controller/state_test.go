@@ -2870,3 +2870,38 @@ func TestShouldUseServerSideDiff(t *testing.T) {
 		})
 	}
 }
+
+func TestGetRepoObjs_PropagatesRefRevision(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Sources = v1alpha1.ApplicationSources{
+		{Ref: "values", RepoURL: "https://git.test.com", TargetRevision: "main"},
+		{RepoURL: "oci://example.com/argo/argo-cd", TargetRevision: "0.0.1", Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/my-path"}}},
+	}
+
+	data := fakeData{
+		manifestResponses: []*apiclient.ManifestResponse{
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "resolved-values-sha",
+			},
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "0.0.1",
+			},
+		},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+
+	revisions := []string{"main", "0.0.1"}
+	sources := app.Spec.Sources
+
+	_, manifestInfos, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "app", revisions, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+	require.NoError(t, err)
+	require.Len(t, manifestInfos, 2)
+	assert.Equal(t, "resolved-values-sha", revisions[0])
+	assert.Equal(t, "resolved-values-sha", manifestInfos[0].Revision)
+}

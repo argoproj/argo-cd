@@ -433,6 +433,14 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			targetObjs = append(targetObjs, targetObj...)
 			manifestInfos = append(manifestInfos, manifestInfo)
 
+			if source.IsRef() && manifestInfo.Revision != "" {
+				revisions[i] = manifestInfo.Revision
+				refKey := "$" + source.Ref
+				if refTarget, ok := refSources[refKey]; ok && refTarget != nil {
+					refTarget.TargetRevision = manifestInfo.Revision
+				}
+			}
+
 			// Update eventual check problems with the ID of the current source. This is so users can attribute problems to correct sources
 			if len(sources) > 1 {
 				var sourceId string
