@@ -2340,7 +2340,7 @@ func TestGetRepoObjs_ChangeDetectionUsesLastSyncedBase(t *testing.T) {
 	newApp := func() *v1alpha1.Application {
 		app := newFakeApp()
 		app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
-		app.Status.Sync = v1alpha1.SyncStatus{Revision: revB, Status: v1alpha1.SyncStatusCodeSynced}
+		app.Status.Sync = v1alpha1.SyncStatus{Revision: revB, Status: v1alpha1.SyncStatusCodeOutOfSync}
 		// The fakeApp fixture's SyncResult already uses revA with a source equal to the spec source.
 		return app
 	}
@@ -2387,6 +2387,23 @@ func TestGetRepoObjs_ChangeDetectionUsesLastSyncedBase(t *testing.T) {
 		require.NotNil(t, req, "UpdateRevisionForPaths must be called when the last synced revision lags behind the desired revision")
 		assert.Equal(t, revA, req.LastSyncedRevision)
 		assert.True(t, revisionsMayHaveChanges)
+	})
+
+	t.Run("synced app with a lagging last sync uses the compared base and skips the repo call", func(t *testing.T) {
+		// Mono-repo apps whose paths never change are never resynced, so their last sync lags forever.
+		app := newApp()
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		data := fakeData{
+			manifestResponse: manifestResponse,
+			onUpdateRevisionForPaths: func(*apiclient.UpdateRevisionForPathsRequest) {
+				t.Fatal("UpdateRevisionForPaths must not be called for a synced app at the compared revision")
+			},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+
+		_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, "", []string{revB}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+		require.NoError(t, err)
+		assert.False(t, revisionsMayHaveChanges)
 	})
 
 	t.Run("revision equal to both bases skips the repo call", func(t *testing.T) {
@@ -2439,7 +2456,7 @@ func TestGetRepoObjs_ChangeDetectionUsesLastSyncedBase(t *testing.T) {
 		app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
 		// Compared revisions moved ahead of the last synced revisions (fixture: revA, revB, revC).
 		app.Status.Sync = v1alpha1.SyncStatus{
-			Status:    v1alpha1.SyncStatusCodeSynced,
+			Status:    v1alpha1.SyncStatusCodeOutOfSync,
 			Revisions: []string{"dddddddddddddddddddddddddddddddddddddddd", "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "ffffffffffffffffffffffffffffffffffffffff"},
 		}
 		var reqs []*apiclient.UpdateRevisionForPathsRequest

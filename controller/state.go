@@ -378,11 +378,13 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	}
 
 	// Sync.Revision advances on every comparison, even mid-sync, so it cannot tell whether the compared
-	// revision was ever synced (#27875). Only auto-sync reads the result.
+	// revision was ever synced (#27875). Only auto-sync reads the result. A Synced app's live state
+	// matches the compared revision, so that base is sound and avoids a repo-server call per reconcile
+	// for mono-repo apps whose last sync lags forever.
 	var lastSyncedRevisions []string
 	var lastSyncedRefSources v1alpha1.RefTargetRevisionMapping
 	forceCompareRevisions := false
-	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
+	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled() && app.Status.Sync.Status != v1alpha1.SyncStatusCodeSynced {
 		lastSyncedRevisions, forceCompareRevisions = lastAttemptedSyncRevisions(app, sources)
 		if lastSyncedRevisions != nil && app.Spec.HasMultipleSources() {
 			lastSyncedRefSources = argo.GetSyncedRefSources(refSources, sources, lastSyncedRevisions)
