@@ -3144,9 +3144,12 @@ func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, 
 			log.Infof("Failed to fetch revision %s: %v", revision, err)
 			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
 
-			// The full fetch succeeded, so the remote is reachable but no longer has this revision.
 			if err := gitClient.Fetch(ctx, revision, 0); err != nil {
-				return fmt.Errorf("failed to fetch revision %s: %w: %w", revision, git.ErrRevisionNotFound, err)
+				// Only git's missing-object answers mean the remote no longer has the revision.
+				if msg := err.Error(); strings.Contains(msg, "not our ref") || strings.Contains(msg, "unadvertised object") || strings.Contains(msg, "couldn't find remote ref") {
+					return fmt.Errorf("failed to fetch revision %s: %w: %w", revision, git.ErrRevisionNotFound, err)
+				}
+				return fmt.Errorf("failed to fetch revision %s: %w", revision, err)
 			}
 		}
 	}
@@ -3659,8 +3662,8 @@ func (s *Service) evaluateChangesSinceRevision(ctx context.Context, request *api
 // For multi-source applications, all related ref sources are compared (multiple git repositories
 // referenced via `ref` in Helm value files).
 //
-// Changes is computed against lastSyncedRevision when set, else syncedRevision. If that base cannot
-// be evaluated, it reports changes instead of failing the refresh.
+// Changes is computed against lastSyncedRevision when set, else syncedRevision. If the last-synced
+// base is gone from the remote it reports changes; other errors on it fall back to syncedRevision.
 //
 // Independently, if nothing changed since syncedRevision, the cached manifest is copied from the old
 // revision key to the new one, avoiding unnecessary regeneration.

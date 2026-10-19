@@ -5999,6 +5999,30 @@ func TestUpdateRevisionForPaths_LastSyncedBase(t *testing.T) {
 		assert.True(t, manifestCacheContains(cacheMocks, request, revResolved), "cache transfer still runs on the compared base")
 	})
 
+	t.Run("transient fetch error of the last-synced base: not treated as gone", func(t *testing.T) {
+		s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+			gitClient.EXPECT().Init().Return(nil)
+			gitClient.EXPECT().Fetch(mock.Anything, "", int64(0)).Return(nil)
+			gitClient.EXPECT().Fetch(mock.Anything, revCompared, int64(0)).Return(nil)
+			gitClient.EXPECT().Fetch(mock.Anything, revLastSynced, int64(0)).Return(errors.New("connection reset by peer"))
+			gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
+			gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+			gitClient.EXPECT().LsRemote("HEAD").Return(revResolved, nil)
+			gitClient.EXPECT().LsRemote(revLastSynced).Return(revLastSynced, nil)
+			gitClient.EXPECT().LsRemote(revCompared).Return(revCompared, nil)
+			gitClient.EXPECT().Root().Return("")
+			gitClient.EXPECT().ChangedFiles(mock.Anything, revCompared, revResolved).Return(nil, nil)
+			paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+			paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+		}, ".")
+		request := newRequest(revCompared)
+		seedManifestCache(t, cacheMocks, request, revCompared)
+
+		resp, err := s.UpdateRevisionForPaths(t.Context(), request)
+		require.NoError(t, err)
+		assert.False(t, resp.Changes, "a transient fetch error must not report changes (#29430)")
+	})
+
 	t.Run("transient last-synced evaluation error: answers from the compared base", func(t *testing.T) {
 		// Reporting changes on e.g. a network error would auto-sync unrelated apps in a mono-repo (#29430),
 		// and failing the RPC would fail the whole comparison.
