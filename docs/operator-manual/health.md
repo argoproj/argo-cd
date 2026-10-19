@@ -22,8 +22,8 @@ specific types of Kubernetes resources:
 
 ### CronJob
 
-- If the last scheduled job for this CronJob failed, the CronJob will be marked as "Degraded"
-- If the last scheduled job for this CronJob is running, the CronJob will be marked as "Progressing"
+* If the last scheduled job for this CronJob failed, the CronJob will be marked as "Degraded"
+* If the last scheduled job for this CronJob is running, the CronJob will be marked as "Healthy"
 
 ### Job
 
