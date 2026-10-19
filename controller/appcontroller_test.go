@@ -971,6 +971,50 @@ func TestAutoSyncManifestGeneratePathsNewCommit(t *testing.T) {
 	})
 }
 
+func TestAutoSyncCompareWithRecentAfterBlockedSync(t *testing.T) {
+	// Regression for #21692: while a deny sync window blocks auto-sync, comparisons still advance
+	// Status.Sync.Revision to the new commit. A CompareWithRecent refresh after the window then compares
+	// that same revision. Without manifest-generate-paths, the commit was never synced, so this must be a
+	// full sync (hooks run, history recorded), not a self-heal partial sync or no sync at all.
+	revA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	revB := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+	for _, selfHeal := range []bool{true, false} {
+		t.Run(fmt.Sprintf("selfHeal=%v", selfHeal), func(t *testing.T) {
+			app := newFakeApp()
+			app.Spec.SyncPolicy.Automated.SelfHeal = new(selfHeal)
+			app.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync, Revision: revB}
+			// The fakeApp fixture's last sync succeeded at revA.
+			require.Equal(t, revA, app.Status.OperationState.SyncResult.Revision)
+			data := fakeData{
+				apps: []runtime.Object{app},
+				manifestResponse: &apiclient.ManifestResponse{
+					Manifests: []string{},
+					Namespace: test.FakeDestNamespace,
+					Server:    test.FakeClusterURL,
+					Revision:  revB,
+				},
+			}
+			ctrl := newFakeController(t.Context(), &data, nil)
+
+			// CompareWithRecent compares Status.Sync.Revision rather than the target revision.
+			_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, "", []string{revB}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+			require.NoError(t, err)
+			assert.True(t, revisionsMayHaveChanges)
+
+			cond, _ := ctrl.autoSync(t.Context(), app, &app.Status.Sync, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, revisionsMayHaveChanges)
+			assert.Nil(t, cond)
+			app, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, app.Operation)
+			require.NotNil(t, app.Operation.Sync)
+			assert.Equal(t, revB, app.Operation.Sync.Revision)
+			assert.Empty(t, app.Operation.Sync.Resources)
+			assert.Zero(t, app.Operation.Sync.SelfHealAttemptsCount)
+		})
+	}
+}
+
 func TestAutoSyncNotAllowEmpty(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.SyncPolicy.Automated.Prune = new(true)
