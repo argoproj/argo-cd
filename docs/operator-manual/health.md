@@ -27,7 +27,7 @@ specific types of Kubernetes resources:
 
 ### Job
 
-- If job `.spec.suspended` is set to 'true', then the job and app health will be marked as suspended.
+- If job `.spec.suspend` is set to `true`, the Job health is `Suspended`. The Job aggregates as `Healthy`, so it does not make the Application `Suspended`.
 
 ### PersistentVolumeClaim
 
