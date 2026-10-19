@@ -35,6 +35,7 @@ import (
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/resourceversion"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
@@ -268,7 +269,7 @@ func NewApplicationController(
 			}
 			if appControllerDeployment != nil {
 				if appControllerDeployment.Spec.Replicas != nil && int(*appControllerDeployment.Spec.Replicas) <= 0 {
-					return fmt.Errorf("application controller deployment replicas is not set or is less than 0, replicas: %d", appControllerDeployment.Spec.Replicas)
+					return fmt.Errorf("application controller deployment replicas is not set or is less than 0, replicas: %d", *appControllerDeployment.Spec.Replicas)
 				}
 				shard := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
 				shard, err := sharding.GetOrUpdateShardFromConfigMap(kubeClientset.(*kubernetes.Clientset), settingsMgr, int(*appControllerDeployment.Spec.Replicas), shard)
@@ -2080,9 +2081,16 @@ func (ctrl *ApplicationController) writeBackToInformer(app *appv1.Application) {
 		logCtx.Info("Skipping informer write-back: application no longer in informer store")
 		return
 	}
-	if cached, ok := obj.(*appv1.Application); ok && cached.UID != app.UID {
+	cached, ok := obj.(*appv1.Application)
+	if ok && cached.UID != app.UID {
 		logCtx.Info("Skipping informer write-back: application was replaced under the same name")
 		return
+	}
+	if ok {
+		if cmp, err := resourceversion.CompareResourceVersion(cached.ResourceVersion, app.ResourceVersion); err == nil && cmp > 0 {
+			logCtx.Info("Skipping informer write-back: informer store already has a newer version")
+			return
+		}
 	}
 	if err := ctrl.appInformer.GetStore().Update(app); err != nil {
 		logCtx.WithError(err).Error("failed to update informer store")

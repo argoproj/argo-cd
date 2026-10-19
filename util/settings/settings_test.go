@@ -2037,8 +2037,10 @@ func TestRedirectURLForRequest(t *testing.T) {
 		Name        string
 		Settings    *ArgoCDSettings
 		RequestURL  string
+		RequestURI  string
 		ExpectedURL string
 		ExpectError bool
+		ErrorText   string
 	}{
 		{
 			Name: "Single URL",
@@ -2077,16 +2079,115 @@ func TestRedirectURLForRequest(t *testing.T) {
 			ExpectedURL: "https://anotherhost.org/auth/callback",
 			ExpectError: false,
 		},
+		{
+			Name: "Additional URL after root path stripping",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org/argocd",
+				AdditionalURLs: []string{"https://anotherhost.org/argocd"},
+			},
+			RequestURL:  "https://anotherhost.org/auth/login",
+			RequestURI:  "/argocd/auth/login?return_url=%2Fargocd%2Fapplications",
+			ExpectedURL: "https://anotherhost.org/argocd/auth/callback",
+		},
+		{
+			Name: "Absolute request URI after root path stripping",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org/argocd",
+				AdditionalURLs: []string{"https://anotherhost.org/argocd"},
+			},
+			RequestURL:  "https://anotherhost.org/auth/login",
+			RequestURI:  "https://anotherhost.org/argocd/auth/login",
+			ExpectedURL: "https://anotherhost.org/argocd/auth/callback",
+		},
+		{
+			Name: "Additional URL with a different path does not match",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org/argocd",
+				AdditionalURLs: []string{"https://anotherhost.org/other"},
+			},
+			RequestURL:  "https://anotherhost.org/auth/login",
+			RequestURI:  "/argocd/auth/login",
+			ExpectedURL: "https://example.org/argocd/auth/callback",
+		},
+		{
+			Name: "Additional URL with a shared path prefix does not match",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo"},
+			},
+			RequestURL:  "https://anotherhost.org/argocd/login",
+			ExpectedURL: "https://example.org/auth/callback",
+		},
+		{
+			Name: "Shared path prefix after root path stripping does not match",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo"},
+			},
+			RequestURL:  "https://anotherhost.org/auth/login",
+			RequestURI:  "/argocd/auth/login",
+			ExpectedURL: "https://example.org/auth/callback",
+		},
+		{
+			Name: "Exact additional URL path with query matches",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo"},
+			},
+			RequestURL:  "https://anotherhost.org/argo?return_url=%2Fapplications",
+			ExpectedURL: "https://anotherhost.org/argo/auth/callback",
+		},
+		{
+			Name: "Additional URL with trailing slash matches child path",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo/"},
+			},
+			RequestURL:  "https://anotherhost.org/argo/login",
+			ExpectedURL: "https://anotherhost.org/argo/auth/callback",
+		},
+		{
+			Name: "Additional URL with trailing slash matches exact path",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo/"},
+			},
+			RequestURL:  "https://anotherhost.org/argo",
+			ExpectedURL: "https://anotherhost.org/argo/auth/callback",
+		},
+		{
+			Name: "Encoded separator does not create a path boundary",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo"},
+			},
+			RequestURL:  "https://anotherhost.org/argo%2Flogin",
+			ExpectedURL: "https://example.org/auth/callback",
+		},
+		{
+			Name: "Invalid request URI",
+			Settings: &ArgoCDSettings{
+				URL: "https://example.org",
+			},
+			RequestURL:  "https://example.org/auth/login",
+			RequestURI:  "/%invalid",
+			ExpectError: true,
+			ErrorText:   "error parsing request URI:",
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, tc.RequestURL, http.NoBody)
 			require.NoError(t, err)
+			request.RequestURI = tc.RequestURI
 			result, err := tc.Settings.RedirectURLForRequest(request)
 			assert.Equal(t, tc.ExpectedURL, result)
 			if tc.ExpectError {
-				assert.Error(t, err)
+				require.Error(t, err)
+				if tc.ErrorText != "" {
+					require.ErrorContains(t, err, tc.ErrorText)
+				}
 			} else {
 				assert.NoError(t, err)
 			}

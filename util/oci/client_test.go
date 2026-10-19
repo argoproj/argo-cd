@@ -851,6 +851,41 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 	}
 }
 
+type fakeTagsCache struct {
+	data []byte
+}
+
+func (f *fakeTagsCache) SetOCITags(_ string, indexData []byte) error {
+	f.data = indexData
+	return nil
+}
+
+func (f *fakeTagsCache) GetOCITags(_ string, indexData *[]byte) error {
+	*indexData = f.data
+	return nil
+}
+
+// Regression test for https://github.com/argoproj/argo-cd/issues/30117:
+// GetTags must store the fetched tags, not the empty cache-read buffer.
+func Test_nativeOCIClient_GetTagsUsesCache(t *testing.T) {
+	calls := 0
+	tagsFunc := func(context.Context, string) ([]string, error) {
+		calls++
+		return []string{"1.0.0", "1.1.0_build.1"}, nil
+	}
+	repoURL := "example.com/myorg/myrepo"
+	c := newClientWithLock(repoURL, globalLock, memory.New(), tagsFunc, func(context.Context) error {
+		return nil
+	}, nil, WithIndexCache(&fakeTagsCache{}), WithEventHandlers(fakeEventHandlers(t, repoURL)))
+
+	for range 2 {
+		tags, err := c.GetTags(t.Context(), false)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"1.0.0", "1.1.0+build.1"}, tags)
+	}
+	assert.Equal(t, 1, calls, "the second call should be served from the cache")
+}
+
 func Test_nativeOCIClient_DigestMetadata(t *testing.T) {
 	// Regression test for https://github.com/argoproj/argo-cd/issues/27521:
 	// DigestMetadata must work on any replica without relying on a local tar

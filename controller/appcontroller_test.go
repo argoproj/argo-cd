@@ -5154,6 +5154,7 @@ func TestSetOperationStateTooLargeRequest_MinimalFallbackClearsSyncResult(t *tes
 func TestWriteBackToInformer(t *testing.T) {
 	t.Run("updates an application that is still in the store", func(t *testing.T) {
 		app := newFakeApp()
+		app.ResourceVersion = "1"
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 
 		updated := app.DeepCopy()
@@ -5196,6 +5197,41 @@ func TestWriteBackToInformer(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, exists)
 		assert.Equal(t, types.UID("new"), obj.(*v1alpha1.Application).UID)
+	})
+
+	t.Run("does not overwrite a newer version the reflector already stored", func(t *testing.T) {
+		app := newFakeApp()
+		app.ResourceVersion = "4"
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		newer := app.DeepCopy()
+		newer.ResourceVersion = "5"
+		newer.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+		require.NoError(t, ctrl.appInformer.GetStore().Update(newer))
+
+		ctrl.writeBackToInformer(app.DeepCopy())
+
+		obj, exists, err := ctrl.appInformer.GetStore().GetByKey(app.QualifiedName())
+		require.NoError(t, err)
+		require.True(t, exists)
+		stored := obj.(*v1alpha1.Application)
+		assert.Equal(t, "5", stored.ResourceVersion)
+		assert.NotNil(t, stored.Operation, "write-back must not drop an operation the API server set after the patch")
+	})
+
+	t.Run("writes back when resource versions are not numeric", func(t *testing.T) {
+		app := newFakeApp()
+		app.ResourceVersion = "b"
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		updated := app.DeepCopy()
+		updated.ResourceVersion = "a"
+		ctrl.writeBackToInformer(updated)
+
+		obj, exists, err := ctrl.appInformer.GetStore().GetByKey(app.QualifiedName())
+		require.NoError(t, err)
+		require.True(t, exists)
+		assert.Equal(t, "a", obj.(*v1alpha1.Application).ResourceVersion)
 	})
 }
 
