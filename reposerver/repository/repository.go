@@ -3763,17 +3763,23 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 
 	syncEval, err := s.evaluateChangesSinceRevision(ctx, request, syncBaseRevision, syncBaseRefSources, composeVia, composeRefSources, isGitSource, gitClientOpts, logCtx)
 	if err != nil {
-		if request.LastSyncedRevision == "" || !basesDiverge || cacheEval == nil || !errors.Is(err, git.ErrRevisionNotFound) {
+		if request.LastSyncedRevision == "" || !basesDiverge || cacheEval == nil {
 			if syncEval != nil {
 				return &apiclient.UpdateRevisionForPathsResponse{Changes: true, Revision: syncEval.resolvedRevision}, err
 			}
 			return nil, err
 		}
-		// A last-synced base gone from the remote (e.g. force-pushed away) must not fail every refresh, since
-		// only a sync can replace it; report changes instead. Other errors may be transient (#29430).
-		logCtx.Warnf("error evaluating changes against last synced revision %s, reporting changes: %v", syncBaseRevision, err)
 		syncEval = cacheEval
-		forceChanges = true
+		if errors.Is(err, git.ErrRevisionNotFound) {
+			// A base gone from the remote (e.g. force-pushed away) can only be replaced by a sync; report
+			// changes so one can happen.
+			logCtx.Warnf("last synced revision %s is gone from the remote, reporting changes: %v", syncBaseRevision, err)
+			forceChanges = true
+		} else {
+			// Possibly transient: answer from the compared base rather than fail the comparison or report
+			// spurious changes (#29430).
+			logCtx.Warnf("error evaluating changes against last synced revision %s, using compared revision: %v", syncBaseRevision, err)
+		}
 	}
 
 	syncChanges := syncEval.changes || forceChanges

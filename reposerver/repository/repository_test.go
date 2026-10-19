@@ -5999,14 +5999,17 @@ func TestUpdateRevisionForPaths_LastSyncedBase(t *testing.T) {
 		assert.True(t, manifestCacheContains(cacheMocks, request, revResolved), "cache transfer still runs on the compared base")
 	})
 
-	t.Run("transient last-synced evaluation error: returned, not reported as changes", func(t *testing.T) {
-		// Reporting changes on e.g. a network error would auto-sync unrelated apps in a mono-repo (#29430).
+	t.Run("transient last-synced evaluation error: answers from the compared base", func(t *testing.T) {
+		// Reporting changes on e.g. a network error would auto-sync unrelated apps in a mono-repo (#29430),
+		// and failing the RPC would fail the whole comparison.
 		s, cacheMocks := newServiceWithFailingDiff(t, revLastSynced, nil)
 		request := newRequest(revCompared)
 		seedManifestCache(t, cacheMocks, request, revCompared)
 
-		_, err := s.UpdateRevisionForPaths(t.Context(), request)
-		require.Error(t, err)
+		resp, err := s.UpdateRevisionForPaths(t.Context(), request)
+		require.NoError(t, err)
+		assert.False(t, resp.Changes)
+		assert.Equal(t, revResolved, resp.Revision)
 	})
 
 	t.Run("compared-base evaluation error: RPC still answers from the last-synced base", func(t *testing.T) {
