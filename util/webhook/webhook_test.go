@@ -1245,6 +1245,39 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 			errExpected:  false,
 		},
 		{
+			name: "application outside the control plane namespace is keyed by its instance name",
+			app: &v1alpha1.Application{
+				Name:      "test-app",
+				Namespace: "argocd-apps",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/test/repo",
+						TargetRevision: "main",
+					},
+				},
+			},
+			project: &v1alpha1.AppProject{
+				Name:      "default",
+				Namespace: "argocd",
+				Spec: v1alpha1.AppProjectSpec{
+					SourceRepos: []string{"*"},
+					Destinations: []v1alpha1.ApplicationDestination{
+						{
+							Server:    "*",
+							Namespace: "*",
+						},
+					},
+				},
+			},
+			seedCache:    true,
+			cacheUpdated: true,
+			errExpected:  false,
+		},
+		{
 			name: "single source rename cache miss is not an error",
 			app: &v1alpha1.Application{
 				Name:      "test-app",
@@ -1372,7 +1405,7 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 			)
 
 			if tt.seedCache {
-				setupTestCache(t, repoCache, tt.app.Name, source, tt.project.EffectiveSourceIntegrity(), []string{"test-manifest"})
+				setupTestCache(t, repoCache, tt.app.InstanceName("argocd"), source, tt.project.EffectiveSourceIntegrity(), []string{"test-manifest"})
 			}
 			logger, _ := test.NewNullLogger()
 			logCtx := logger.WithField("application", tt.app.Name)
@@ -1390,7 +1423,7 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 				if tt.project != nil {
 					sourceIntegrity = tt.project.EffectiveSourceIntegrity()
 				}
-				key := cache.NewManifestKey(testAfterSHA, source, nil, "", "", testAppLabelKey, tt.app.Name, "", sourceIntegrity, clusterInfo, nil)
+				key := cache.NewManifestKey(testAfterSHA, source, nil, "", "", testAppLabelKey, tt.app.InstanceName("argocd"), "", sourceIntegrity, clusterInfo, nil)
 				err = repoCache.GetManifests(key, &cache.CachedManifestResponse{})
 				require.NoError(t, err)
 			}

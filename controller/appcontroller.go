@@ -35,6 +35,7 @@ import (
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/resourceversion"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
@@ -1902,9 +1903,16 @@ func (ctrl *ApplicationController) writeBackToInformer(app *appv1.Application) {
 		logCtx.Info("Skipping informer write-back: application no longer in informer store")
 		return
 	}
-	if cached, ok := obj.(*appv1.Application); ok && cached.UID != app.UID {
+	cached, ok := obj.(*appv1.Application)
+	if ok && cached.UID != app.UID {
 		logCtx.Info("Skipping informer write-back: application was replaced under the same name")
 		return
+	}
+	if ok {
+		if cmp, err := resourceversion.CompareResourceVersion(cached.ResourceVersion, app.ResourceVersion); err == nil && cmp > 0 {
+			logCtx.Info("Skipping informer write-back: informer store already has a newer version")
+			return
+		}
 	}
 	if err := ctrl.appInformer.GetStore().Update(app); err != nil {
 		logCtx.WithError(err).Error("failed to update informer store")
