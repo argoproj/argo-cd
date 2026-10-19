@@ -81,7 +81,7 @@ The workflow reads the test timings of the 10 most recent successful master buil
 The workflow opens a PR only if a test was added or removed, or if the slowest shard would finish at least 30 seconds sooner. The PR description lists every change and the estimated slowest shard before and after. Later runs add a commit to the same PR, or close it if the change is no longer justified.
 
 > [!NOTE]
-> Only this workflow updates `test/e2e/shard-weights.txt`. Do not edit the file by hand, either on master or in the refresh PR, because each run overwrites it on the PR branch.
+> Only this workflow updates `test/e2e/shard-weights.txt`, so do not edit the file by hand. Each run rewrites it from CI timings and overwrites it on the refresh PR branch.
 
 ## Test Isolation
 
