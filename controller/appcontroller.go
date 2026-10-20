@@ -3030,6 +3030,15 @@ func (ctrl *ApplicationController) appProjectEventHandlerFuncs() cache.ResourceE
 	}
 }
 
+// invalidateAppLocalCache drops this controller's in-memory copies of the app's resource tree and
+// managed resources. Another controller may have written them since this one last did, e.g. while
+// the app's destination was a cluster managed by another shard, so the next write must not be skipped.
+func (ctrl *ApplicationController) invalidateAppLocalCache(obj any) {
+	if app, ok := obj.(*appv1.Application); ok {
+		ctrl.cache.InvalidateAppLocalState(app.InstanceName(ctrl.namespace))
+	}
+}
+
 // applicationEventHandlerFuncs returns the informer event handlers for Application
 // objects. Events for applications this controller cannot process (per canProcessApp)
 // are ignored. DeleteFunc unwraps cache.DeletedFinalStateUnknown tombstones and
@@ -3041,6 +3050,7 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 			if !ctrl.canProcessApp(obj) {
 				return
 			}
+			ctrl.invalidateAppLocalCache(obj)
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil {
 				ctrl.appRefreshQueue.AddRateLimited(key)
@@ -3053,6 +3063,11 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 		UpdateFunc: func(old, new any) {
 			if !ctrl.canProcessApp(new) {
 				return
+			}
+			if !ctrl.canProcessApp(old) {
+				// The app was previously handled by another controller (e.g. its destination moved to
+				// a cluster managed by this shard), which may have overwritten its cached state.
+				ctrl.invalidateAppLocalCache(new)
 			}
 
 			key, err := cache.MetaNamespaceKeyFunc(new)
