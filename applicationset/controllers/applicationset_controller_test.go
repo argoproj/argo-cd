@@ -2538,7 +2538,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	require.NoError(t, err)
 	kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 	someTime := &metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
-	existingParameterGeneratedCondition := getParametersGeneratedCondition(true, "")
+	existingParameterGeneratedCondition := getParametersGeneratedCondition(1, true, "")
 	existingParameterGeneratedCondition.LastTransitionTime = someTime
 
 	for _, c := range []struct {
@@ -4448,7 +4448,7 @@ func TestMigrateStatus(t *testing.T) {
 				Client: client,
 			}
 
-			err := r.migrateStatusToLatestVersion(t.Context(), &tc.appset)
+			err := r.migrateStatuses(t.Context(), &tc.appset)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedStatus, tc.appset.Status)
 		})

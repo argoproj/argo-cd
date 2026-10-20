@@ -7321,6 +7321,11 @@
           "type": "string",
           "title": "Message contains human-readable message indicating details about condition"
         },
+        "observedGeneration": {
+          "type": "integer",
+          "format": "int64",
+          "title": "provide description here"
+        },
         "reason": {
           "type": "string",
           "title": "Single word camelcase representing the reason for the status eg ErrorOccurred"

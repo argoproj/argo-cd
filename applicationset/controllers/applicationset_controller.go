@@ -179,8 +179,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, nil
 	}
 
-	// NOTE: calling migrate status here
-	if err := r.migrateStatusToLatestVersion(ctx, &applicationSet); err != nil {
+	if err := r.migrateStatuses(ctx, &applicationSet); err != nil {
 		logCtx.Errorf("failed to migrate status subresource %v", err)
 		return ctrl.Result{}, err
 	}
@@ -189,7 +188,6 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if r.EnableProgressiveSyncs && progressivesync.IsDeletionOrderReversed(&applicationSet) {
 		if !controllerutil.ContainsFinalizer(&applicationSet, argov1alpha1.ResourcesFinalizerName) {
 			controllerutil.AddFinalizer(&applicationSet, argov1alpha1.ResourcesFinalizerName)
-			// NOTE: update here too
 			if err := r.Update(ctx, &applicationSet); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -199,7 +197,6 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// Log a warning if there are unrecognized generators
 	_ = utils.CheckInvalidGenerators(&applicationSet)
 	// desiredApplications is the main list of all expected Applications from all generators in this appset.
-	// NOTE: generate applications here
 	generatedApplications, applicationSetReason, err := template.GenerateApplications(logCtx, applicationSet, r.Generators, r.Renderer, r.Client)
 	if err != nil {
 		logCtx.Errorf("unable to generate applications: %v", err)
@@ -212,7 +209,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					Message: err.Error(),
 					Reason:  string(applicationSetReason),
 					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-					ObservedGeneration: 1,
+					ObservedGeneration: applicationSet.Generation,
 				},
 			}, parametersGenerated,
 		)
@@ -242,6 +239,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					Message: err.Error(),
 					Reason:  argov1alpha1.ApplicationSetReasonApplicationValidationError,
 					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+					ObservedGeneration: applicationSet.Generation,
 				},
 			}, parametersGenerated,
 		)
@@ -276,7 +274,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 							Message: "No steps defined for rollout",
 							Reason:  argov1alpha1.ApplicationSetReasonApplicationSetRolloutError,
 							Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-							ObservedGeneration: 1,
+							ObservedGeneration: applicationSet.Generation,
 						},
 					}, parametersGenerated,
 				)
@@ -326,7 +324,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					Message: message,
 					Reason:  argov1alpha1.ApplicationSetReasonApplicationValidationError,
 					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-					ObservedGeneration: 1,
+					ObservedGeneration: applicationSet.Generation,
 				},
 			}, parametersGenerated,
 		)
@@ -366,7 +364,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 						Message: err.Error(),
 						Reason:  argov1alpha1.ApplicationSetReasonUpdateApplicationError,
 						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-						ObservedGeneration: 1,
+						ObservedGeneration: applicationSet.Generation,
 					},
 				}, parametersGenerated,
 			)
@@ -384,6 +382,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 						Message: err.Error(),
 						Reason:  argov1alpha1.ApplicationSetReasonCreateApplicationError,
 						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+						ObservedGeneration: applicationSet.Generation,
 					},
 				}, parametersGenerated,
 			)
@@ -404,6 +403,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 						Message: err.Error(),
 						Reason:  argov1alpha1.ApplicationSetReasonDeleteApplicationError,
 						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+						ObservedGeneration: applicationSet.Generation,
 					},
 				}, parametersGenerated,
 			)
@@ -435,6 +435,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 						Message: err.Error(),
 						Reason:  argov1alpha1.ApplicationSetReasonRefreshApplicationError,
 						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+						ObservedGeneration: applicationSet.Generation,
 					},
 				}, parametersGenerated,
 			)
@@ -454,6 +455,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					Message: "All applications have been generated successfully",
 					Reason:  argov1alpha1.ApplicationSetReasonApplicationSetUpToDate,
 					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+					ObservedGeneration: applicationSet.Generation,
 				},
 			}, parametersGenerated,
 		); err != nil {
@@ -471,7 +473,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}, nil
 }
 
-func getParametersGeneratedCondition(parametersGenerated bool, message string) argov1alpha1.ApplicationSetCondition {
+func getParametersGeneratedCondition(observedGeneration int64, parametersGenerated bool, message string) argov1alpha1.ApplicationSetCondition {
 	var parametersGeneratedCondition argov1alpha1.ApplicationSetCondition
 	if parametersGenerated {
 		parametersGeneratedCondition = argov1alpha1.ApplicationSetCondition{
@@ -479,6 +481,7 @@ func getParametersGeneratedCondition(parametersGenerated bool, message string) a
 			Message: "Successfully generated parameters for all Applications",
 			Reason:  argov1alpha1.ApplicationSetReasonParametersGenerated,
 			Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+			ObservedGeneration: observedGeneration,
 		}
 	} else {
 		parametersGeneratedCondition = argov1alpha1.ApplicationSetCondition{
@@ -486,12 +489,14 @@ func getParametersGeneratedCondition(parametersGenerated bool, message string) a
 			Message: message,
 			Reason:  argov1alpha1.ApplicationSetReasonErrorOccurred,
 			Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
+			ObservedGeneration: observedGeneration,
 		}
 	}
 	return parametersGeneratedCondition
 }
 
 // ONE
+// Sets status condition in application set
 func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, conditions []argov1alpha1.ApplicationSetCondition, parametersGenerated bool) error {
 	// Initialize the default condition types that this method evaluates
 	evaluatedTypes := map[argov1alpha1.ApplicationSetConditionType]bool{
@@ -501,12 +506,6 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 		argov1alpha1.ApplicationSetConditionRolloutProgressing:   false,
 		argov1alpha1.ApplicationSetConditionInvalidRolloutConfig: false,
 	}
-
-	// UNDERCONSTRUCTION
-
-
-	// UNDERCONSTRUCTION
-
 
 	if !progressivesync.IsRollingSyncStrategy(applicationSet) {
 		// Progressing sync is always evaluated so conditions are removed when it is not enabled
@@ -528,7 +527,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 	}
 	// Evaluate ParametersGenerated since it is always provided
 	if !hasParamsGenerated {
-		newConditions = append(newConditions, getParametersGeneratedCondition(parametersGenerated, paramsMsg))
+		newConditions = append(newConditions, getParametersGeneratedCondition(applicationSet.Generation, parametersGenerated, paramsMsg))
 	}
 	for _, condition := range conditions {
 		// Evaluate current condition
@@ -546,7 +545,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 					Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
 					Reason:  condition.Reason,
 					Message: condition.Message,
-					ObservedGeneration: 1,
+					ObservedGeneration: applicationSet.Generation,
 				})
 			}
 		case argov1alpha1.ApplicationSetConditionErrorOccurred:
@@ -558,7 +557,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 					Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
 					Reason:  argov1alpha1.ApplicationSetReasonErrorOccurred,
 					Message: condition.Message,
-					ObservedGeneration: 1,
+					ObservedGeneration: applicationSet.Generation,
 				})
 			}
 		case argov1alpha1.ApplicationSetConditionRolloutProgressing:
@@ -577,7 +576,6 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 	// Update the applicationSet conditions
 	previousConditions := applicationSet.Status.Conditions
 
-	// HERE WE UPDATE
 	applicationSet.Status.SetConditions(newConditions, evaluatedTypes)
 
 	// Try to not call get/update if nothing has changed
@@ -1097,11 +1095,10 @@ func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx conte
 	return nil
 }
 
-// migrateStatus run migrations on the status subresource of ApplicationSet early during the run of ApplicationSetReconciler.Reconcile
+// migrateStatuses run migrations on the status subresource of ApplicationSet early during the run of ApplicationSetReconciler.Reconcile
 // this handles any defaulting of values - which would otherwise cause the references to r.Client.Status().Update to fail given missing required fields.
 // TWO
-// allows to migrate latest data into applicaion set from k8s cluster
-func (r *ApplicationSetReconciler) migrateStatusToLatestVersion(ctx context.Context, appset *argov1alpha1.ApplicationSet) error {
+func (r *ApplicationSetReconciler) migrateStatuses(ctx context.Context, appset *argov1alpha1.ApplicationSet) error {
 	update := false
 	if statusList := appset.Status.ApplicationStatus; statusList != nil {
 		for idx := range statusList {

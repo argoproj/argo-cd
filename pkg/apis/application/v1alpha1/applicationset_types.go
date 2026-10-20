@@ -867,7 +867,7 @@ type ApplicationSetCondition struct {
 	// Single word camelcase representing the reason for the status eg ErrorOccurred
 	Reason string `json:"reason" protobuf:"bytes,5,opt,name=reason"`
 	// provide description here
-	ObservedGeneration int64
+	ObservedGeneration int64 `json:"observedGeneration,omitempty" protobuf:"varint,6,opt,name=observedGeneration"`
 }
 
 // ApplicationSetConditionStatus is a type which represents possible comparison results
