@@ -386,7 +386,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           BRANCH="update-version-$(date +%s)"
           # Make new branch explicitly from master since we're on the release branch
-          git checkout -b "$BRANCH" -f master
+          git fetch origin master
+          git checkout -b "$BRANCH" -f origin/master
           # Ensure there is no junk left from the previous steps
           git clean -fd
           # Update the files
