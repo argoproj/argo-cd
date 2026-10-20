@@ -2,3 +2,44 @@ actionTests:
 - action: force-promote
   inputPath: testdata/isbservice.yaml
   expectedOutputPath: testdata/isbservice-force-promote.yaml
+- action: force-promote-chain
+  inputPath: testdata/isbservice-chain-failed.yaml
+  expectedOutputPath: testdata/isbservice-force-promote-chain.yaml
+
+discoveryTests:
+  - inputPath: testdata/isbservice.yaml
+    result:
+      - name: force-promote
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-forward'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
+  - inputPath: testdata/isbservice-force-promote.yaml
+    result:
+      - name: force-promote
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
+  - inputPath: testdata/isbservice-chain-failed.yaml
+    result:
+      - name: force-promote
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward'
+      - name: force-promote-chain
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
+  - inputPath: testdata/isbservice-force-promote-chain.yaml
+    result:
+      - name: force-promote
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
