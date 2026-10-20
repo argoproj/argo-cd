@@ -69,9 +69,8 @@ func (c *twoLevelClient) Set(item *Item) error {
 
 // externalCacheWasReset reports whether the external cache lost the marker key, which means it no longer holds the
 // values that were written through this client. In that case the in-memory cache is flushed so that subsequent
-// writes reach the external cache again. A marker that is found is written again, so that it does not expire while
-// the external cache keeps its data. The check runs at most once per externalCacheCheckInterval, and a failed check
-// is not treated as data loss.
+// writes reach the external cache again. The check runs at most once per externalCacheCheckInterval, and a failed
+// check is not treated as data loss.
 func (c *twoLevelClient) externalCacheWasReset() bool {
 	now := time.Now().UnixNano()
 	last := c.lastExternalCacheCheck.Load()
@@ -82,7 +81,6 @@ func (c *twoLevelClient) externalCacheWasReset() bool {
 	var marker string
 	err := c.externalCache.Get(c.externalCacheMarkerKey, &marker)
 	if err == nil {
-		c.saveExternalCacheMarker()
 		return false
 	}
 	if !errors.Is(err, ErrCacheMiss) {
@@ -90,20 +88,10 @@ func (c *twoLevelClient) externalCacheWasReset() bool {
 		return false
 	}
 
-	// The marker is also missing on the first check after start-up, because it was never written. Flushing then
-	// only costs one extra write per key.
-	if last == 0 {
-		log.Debugf("Marker key '%s' is not in external cache yet, flushing in-memory cache", c.externalCacheMarkerKey)
-	} else {
-		log.Infof("Marker key '%s' is missing from external cache, flushing in-memory cache", c.externalCacheMarkerKey)
-	}
+	// The marker is also missing on the first check after start-up. Flushing then only costs one extra write per key.
+	log.Infof("Marker key '%s' is missing from external cache, flushing in-memory cache", c.externalCacheMarkerKey)
 	c.inMemoryCache.Flush()
-	c.saveExternalCacheMarker()
-	return true
-}
-
-func (c *twoLevelClient) saveExternalCacheMarker() {
-	err := c.externalCache.Set(&Item{
+	err = c.externalCache.Set(&Item{
 		Key:             c.externalCacheMarkerKey,
 		Object:          c.externalCacheMarkerKey,
 		CacheActionOpts: CacheActionOpts{Expiration: externalCacheMarkerExpiration},
@@ -111,6 +99,7 @@ func (c *twoLevelClient) saveExternalCacheMarker() {
 	if err != nil {
 		log.Warnf("Failed to save marker key '%s' in external cache: %v", c.externalCacheMarkerKey, err)
 	}
+	return true
 }
 
 // Get returns cache value from in-memory cache if it present. Otherwise loads it from external cache and persists
