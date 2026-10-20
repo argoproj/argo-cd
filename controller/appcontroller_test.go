@@ -3380,12 +3380,14 @@ func TestProcessRequestedAppOperation_TerminatedWhileSyncing(t *testing.T) {
 		retryStarts    bool
 		newOperation   bool
 		terminateOnGet bool
+		failFirstGet   bool
 	}{
 		{name: "terminated between the read and the write", syncPhase: synccommon.OperationRunning, terminateOnGet: true},
 		{name: "terminated before the read", syncPhase: synccommon.OperationRunning},
 		{name: "terminated before a retry is scheduled", syncPhase: synccommon.OperationFailed, retryLimit: 1},
 		{name: "terminated before a retry starts", syncPhase: synccommon.OperationRunning, retryLimit: 1, retryStarts: true},
 		{name: "terminated before a new operation starts", syncPhase: synccommon.OperationRunning, newOperation: true},
+		{name: "terminated before a read that fails", syncPhase: synccommon.OperationRunning, failFirstGet: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -3429,6 +3431,16 @@ func TestProcessRequestedAppOperation_TerminatedWhileSyncing(t *testing.T) {
 			} else {
 				require.NoError(t, terminate())
 			}
+			if tt.failFirstGet {
+				failed := false
+				fakeAppCs.PrependReactor("get", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+					if failed {
+						return false, nil, nil
+					}
+					failed = true
+					return true, nil, errors.New("connection refused")
+				})
+			}
 
 			ctrl.processRequestedAppOperation(app)
 
@@ -3443,26 +3455,51 @@ func TestProcessRequestedAppOperation_TerminatedWhileSyncing(t *testing.T) {
 	}
 }
 
-func TestSetOperationStateIfPhase_WritesWhenPhaseMatches(t *testing.T) {
-	app := newFakeApp()
-	app.Operation = &v1alpha1.Operation{
-		Sync: &v1alpha1.SyncOperation{},
+func TestSetOperationStateIfPhase(t *testing.T) {
+	tests := []struct {
+		name          string
+		storedPhase   synccommon.OperationPhase
+		tooLargePatch int
+		wantPhase     synccommon.OperationPhase
+		wantMessage   string
+	}{
+		{name: "writes when the stored phase matches", storedPhase: synccommon.OperationRunning, wantPhase: synccommon.OperationRunning, wantMessage: "waiting for completion of hook /Pod/hook"},
+		{name: "writes when the stored operation state is empty", wantPhase: synccommon.OperationRunning, wantMessage: "waiting for completion of hook /Pod/hook"},
+		{name: "keeps Terminating when the retried write is too large", storedPhase: synccommon.OperationTerminating, tooLargePatch: 2, wantPhase: synccommon.OperationTerminating, wantMessage: operationStateSizeLimitMessagePrefix},
 	}
-	app.Status.OperationState.Operation = *app.Operation
-	app.Status.OperationState.Phase = synccommon.OperationRunning
-	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.Operation = &v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{},
+			}
+			app.Status.OperationState.Operation = *app.Operation
+			app.Status.OperationState.Phase = synccommon.OperationRunning
+			stored := app.DeepCopy()
+			if tt.storedPhase == "" {
+				stored.Status.OperationState = nil
+			} else {
+				stored.Status.OperationState.Phase = tt.storedPhase
+			}
+			patches := 0
+			ctrl := newFakeControllerWithFailingPatch(t, &fakeData{apps: []runtime.Object{stored}}, func(_ kubetesting.PatchAction) bool {
+				patches++
+				return patches == tt.tooLargePatch
+			})
 
-	state := app.Status.OperationState.DeepCopy()
-	state.Message = "waiting for completion of hook /Pod/hook"
-	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
-	defer cancel()
-	ctrl.setOperationStateIfPhase(ctx, app, state, synccommon.OperationRunning)
+			state := app.Status.OperationState.DeepCopy()
+			state.Message = "waiting for completion of hook /Pod/hook"
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			ctrl.setOperationStateIfPhase(ctx, app, state, synccommon.OperationRunning)
 
-	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
-	require.NoError(t, err)
-	require.NotNil(t, patchedApp.Status.OperationState)
-	assert.Equal(t, synccommon.OperationRunning, patchedApp.Status.OperationState.Phase)
-	assert.Equal(t, "waiting for completion of hook /Pod/hook", patchedApp.Status.OperationState.Message)
+			patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, patchedApp.Status.OperationState)
+			assert.Equal(t, tt.wantPhase, patchedApp.Status.OperationState.Phase)
+			assert.Contains(t, patchedApp.Status.OperationState.Message, tt.wantMessage)
+		})
+	}
 }
 
 func TestProcessRequestedAppOperation_Successful(t *testing.T) {
