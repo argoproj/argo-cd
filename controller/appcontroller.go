@@ -1748,18 +1748,27 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 	ts.AddCheckpoint("sync_app_state_ms")
 
+	// persistedPhase is the phase currently stored on the server, as observed by
+	// re-reading the Application. It is used to guard the final write so that a
+	// concurrent terminate-op (which sets Terminating) is not clobbered by a
+	// Running state. Empty means "not observed", in which case the write is not
+	// guarded (the pre-existing fresh-read check below still applies).
+	persistedPhase := synccommon.OperationPhase("")
+
 	switch state.Phase {
 	case synccommon.OperationRunning:
 		// It's possible for an app to be terminated while we were operating on it. We do not want
 		// to clobber the Terminated state with Running. Get the latest app state to check for this.
 		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
-		if err == nil {
-			if freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase == synccommon.OperationTerminating {
+		if err == nil && freshApp.Status.OperationState != nil {
+			if freshApp.Status.OperationState.Phase == synccommon.OperationTerminating {
 				state.Phase = synccommon.OperationTerminating
 				state.Message = "operation is terminating"
 				// after this, we will get requeued to the workqueue, but next time the
 				// SyncAppState will operate in a Terminating phase, allowing the worker to perform
 				// cleanup (e.g. delete jobs, workflows, etc...)
+			} else {
+				persistedPhase = freshApp.Status.OperationState.Phase
 			}
 		}
 	case synccommon.OperationFailed, synccommon.OperationError:
@@ -1775,6 +1784,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				state.FinishedAt = &now
 				state.RetryCount++
 				state.Message = fmt.Sprintf("%s. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.UTC().Format(time.RFC3339))
+				// The retry carries the operation into Running; read the persisted phase
+				// so the final write can guard against a concurrent terminate-op.
+				if freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{}); err == nil &&
+					freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase != synccommon.OperationTerminating {
+					persistedPhase = freshApp.Status.OperationState.Phase
+				}
 			}
 		} else {
 			if terminating && terminatingCause != "" {
@@ -1786,7 +1801,14 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 	}
 
-	ctrl.setOperationState(ctx, app, state)
+	// Guard the write with the persisted phase we observed when we are
+	// persisting a Running state, so a concurrent terminate-op (which sets
+	// Terminating) is not clobbered back to Running.
+	expectedPhase := synccommon.OperationPhase("")
+	if state.Phase == synccommon.OperationRunning && persistedPhase != "" {
+		expectedPhase = persistedPhase
+	}
+	ctrl.setOperationStateWithPrecondition(ctx, app, state, expectedPhase)
 	ts.AddCheckpoint("final_set_operation_state_ms")
 	if state.Phase.Completed() && (app.Operation.Sync != nil && !app.Operation.Sync.DryRun) {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
@@ -1812,6 +1834,20 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 }
 
 func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *appv1.Application, state *appv1.OperationState) {
+	ctrl.setOperationStateWithPrecondition(ctx, app, state, "")
+}
+
+// setOperationStateWithPrecondition writes the operation state, optionally
+// guarded by a JSON Patch test on the currently persisted operation phase.
+//
+// When expectedPhase is set, the patch is only applied if the phase stored on
+// the server still matches it. This closes the race where the operation is
+// terminated (argocd app terminate-op) between the controller reading the
+// Application and writing the state back: without the guard the write would
+// overwrite Terminating with Running. If the test fails the patch returns an
+// error and the state is left untouched, so the next reconcile observes the
+// Terminating phase.
+func (ctrl *ApplicationController) setOperationStateWithPrecondition(ctx context.Context, app *appv1.Application, state *appv1.OperationState, expectedPhase synccommon.OperationPhase) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	if state.Phase == "" {
 		// expose any bugs where we neglect to set phase
@@ -1827,9 +1863,13 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		return
 	}
 	// Replace the whole operationState since we re-evaluated the whole object
-	patchOps := []map[string]any{
-		{"op": "add", "path": "/status/operationState", "value": state},
+	patchOps := []map[string]any{}
+	if expectedPhase != "" {
+		// Compare-and-swap on the phase: only replace the operation state if it
+		// is still the phase we based this write on.
+		patchOps = append(patchOps, map[string]any{"op": "test", "path": "/status/operationState/phase", "value": expectedPhase})
 	}
+	patchOps = append(patchOps, map[string]any{"op": "add", "path": "/status/operationState", "value": state})
 	if state.Phase.Completed() {
 		// If operation is completed, clear the operation field to indicate no operation is in progress.
 		patchOps = append(patchOps, map[string]any{"op": "add", "path": "/operation", "value": nil})

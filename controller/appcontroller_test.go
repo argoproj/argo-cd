@@ -4950,6 +4950,100 @@ func TestProcessRequestedAppOperation_TooLargeRequestTerminatesWithinBoundedReco
 	assert.Equal(t, 2, *realPatchAttempts, "each reconcile must attempt the real patch exactly once before falling back, not retry it in a loop")
 }
 
+// TestSetOperationStateWithPrecondition verifies the phase compare-and-swap used to stop a
+// Running write from clobbering a Terminating phase. When expectedPhase is set the patch must
+// carry a JSON Patch "test" op on the persisted phase; when it is empty the patch must not.
+func TestSetOperationStateWithPrecondition(t *testing.T) {
+	// The state we persist differs from the stored one (different message), otherwise
+	// setOperationState skips the patch entirely.
+	newState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "HEAD"}},
+		Phase:     synccommon.OperationRunning,
+		Message:   "running",
+	}
+
+	captureFirstPatch := func(t *testing.T, app *v1alpha1.Application) (*ApplicationController, *[]byte) {
+		t.Helper()
+		var captured []byte
+		ctrl := newFakeControllerWithFailingPatch(t, &fakeData{apps: []runtime.Object{app, &defaultProj}}, func(patchAction kubetesting.PatchAction) bool {
+			if captured == nil {
+				captured = patchAction.GetPatch()
+			}
+			return false
+		})
+		return ctrl, &captured
+	}
+
+	t.Run("precondition is added when expectedPhase is set", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Project = "default"
+		app.Status.OperationState = newState.DeepCopy()
+		app.Status.OperationState.Message = "old"
+		ctrl, captured := captureFirstPatch(t, app)
+
+		ctrl.setOperationStateWithPrecondition(t.Context(), app, newState.DeepCopy(), synccommon.OperationRunning)
+
+		var ops []map[string]any
+		require.NoError(t, json.Unmarshal(*captured, &ops))
+		require.NotEmpty(t, ops)
+		assert.Equal(t, "test", ops[0]["op"], "the guarded write must start with a test op")
+		assert.Equal(t, "/status/operationState/phase", ops[0]["path"])
+		assert.Equal(t, string(synccommon.OperationRunning), ops[0]["value"])
+	})
+
+	t.Run("no precondition when expectedPhase is empty", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Project = "default"
+		app.Status.OperationState = newState.DeepCopy()
+		app.Status.OperationState.Message = "old"
+		ctrl, captured := captureFirstPatch(t, app)
+
+		ctrl.setOperationStateWithPrecondition(t.Context(), app, newState.DeepCopy(), "")
+
+		var ops []map[string]any
+		require.NoError(t, json.Unmarshal(*captured, &ops))
+		require.NotEmpty(t, ops)
+		assert.NotEqual(t, "test", ops[0]["op"], "an unguarded write must not carry a test op")
+	})
+
+	t.Run("failed test leaves the persisted phase untouched", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Project = "default"
+		// The server already holds a Terminating phase, as if terminate-op landed after the
+		// controller read the Application.
+		app.Status.OperationState = newState.DeepCopy()
+		app.Status.OperationState.Phase = synccommon.OperationTerminating
+		app.Status.OperationState.Message = "terminating"
+
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patchAction := action.(kubetesting.PatchAction)
+			var ops []map[string]any
+			if json.Unmarshal(patchAction.GetPatch(), &ops) == nil && len(ops) > 0 && ops[0]["op"] == "test" {
+				if ops[0]["value"] != string(synccommon.OperationTerminating) {
+					// The controller tried to write a Running state while the server holds
+					// Terminating, so the server rejects the test op.
+					return true, nil, apierrors.NewConflict(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, app.Name, errors.New("test failed"))
+				}
+			}
+			return false, nil, nil
+		})
+
+		// We are about to persist Running, but the server is now Terminating, so the test op
+		// must fail and the write must be rejected. Use a short-lived context so the internal
+		// retry loop gives up promptly instead of retrying forever against the fake.
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		ctrl.setOperationStateWithPrecondition(ctx, app, newState.DeepCopy(), synccommon.OperationRunning)
+
+		stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, stored.Status.OperationState)
+		assert.Equal(t, synccommon.OperationTerminating, stored.Status.OperationState.Phase, "the Terminating phase must not be clobbered back to Running")
+	})
+}
+
 func TestSetOperationStateTooLargeRequest(t *testing.T) {
 	newState := &v1alpha1.OperationState{
 		Operation: v1alpha1.Operation{
