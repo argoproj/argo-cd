@@ -2795,9 +2795,17 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 	// the dry-run for relevant apply/delete operation would have to be invoked as well.
 	for _, impactedResource := range newObjects {
 		newObj := impactedResource.UnstructuredObj
-		err := s.verifyResourcePermitted(ctx, destCluster, proj, newObj)
-		if err != nil {
-			return nil, err
+		// A patch always targets the object the action ran on. For an action on the Application
+		// itself that is the Application, which lives on the control plane in its own namespace, so
+		// checking it against the project's destinations (which describe where the Application
+		// deploys to) would wrongly reject it. Access to it is governed by the Argo CD RBAC check
+		// in getUnstructuredLiveResourceOrApp.
+		patchesApplicationItself := res == nil && impactedResource.K8SOperation == lua.PatchOperation
+		if !patchesApplicationItself {
+			err := s.verifyResourcePermitted(ctx, destCluster, proj, newObj)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if impactedResource.K8SOperation == lua.CreateOperation {
 			createOptions := metav1.CreateOptions{DryRun: []string{"All"}}

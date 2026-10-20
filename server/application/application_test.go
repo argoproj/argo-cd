@@ -5422,9 +5422,6 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 	})
 }
 
-// fakeControlPlaneKubeconfig points the in-cluster address at a throwaway kubeconfig, so that
-// getControlPlaneClusterConfig() is resolvable in unit tests running outside of a cluster. This is
-// the same ARGOCD_FAKE_IN_CLUSTER escape hatch that core/headless mode relies on.
 // configRecordingKubectl records the REST config each write is routed to, so that tests can assert
 // which cluster an operation was sent to.
 type configRecordingKubectl struct {
@@ -5443,6 +5440,9 @@ func (k *configRecordingKubectl) CreateResource(ctx context.Context, config *res
 	return k.Kubectl.CreateResource(ctx, config, gvk, name, namespace, obj, opts, subresources...)
 }
 
+// fakeControlPlaneKubeconfig points the in-cluster address at a throwaway kubeconfig, so that
+// getControlPlaneClusterConfig() is resolvable in unit tests running outside of a cluster. This is
+// the same ARGOCD_FAKE_IN_CLUSTER escape hatch that core/headless mode relies on.
 func fakeControlPlaneKubeconfig(t *testing.T) {
 	t.Helper()
 	kubeconfig := `apiVersion: v1
@@ -5686,6 +5686,71 @@ definitions:
 
 	assert.Equal(t, []string{controlPlaneServer}, recorder.patchHosts)
 	assert.Empty(t, recorder.createHosts)
+}
+
+// The project's destinations describe where the Application deploys to, not where the Application
+// itself is stored. A project that only allows the app's destination (cluster-api/fake-dest-ns) does
+// not permit the Application's own namespace on that cluster, which must not block a patch of the
+// Application itself.
+func TestRunResourceActionV2OnApplicationPatchIgnoresProjectDestinations(t *testing.T) {
+	fakeControlPlaneKubeconfig(t)
+
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+
+	actions := `
+discovery.lua: |
+  actions = {}
+  actions["label-it"] = {}
+  return actions
+definitions:
+- name: label-it
+  action.lua: |
+    obj.metadata.labels = {}
+    obj.metadata.labels["acted"] = "true"
+    return obj
+`
+
+	proj := &v1alpha1.AppProject{
+		Name: "restricted", Namespace: testNamespace,
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{
+				{Server: fakeCluster().Server, Namespace: test.FakeDestNamespace},
+			},
+		},
+	}
+	app := newTestApp(func(a *v1alpha1.Application) {
+		a.Spec.Project = proj.Name
+	})
+	require.NotEqual(t, test.FakeDestNamespace, app.Namespace,
+		"the Application must live outside the namespace the project permits")
+
+	appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		map[string]string{"resource.customizations.actions.argoproj.io_Application": actions},
+		app, proj,
+	)
+
+	recorder := &configRecordingKubectl{Kubectl: appServer.kubectl}
+	appServer.kubectl = recorder
+
+	appName := app.Name
+	project := proj.Name
+	group := "argoproj.io"
+	kind := "Application"
+	action := "label-it"
+	_, err := appServer.RunResourceActionV2(t.Context(), &application.ResourceActionRunRequestV2{
+		Name:         &appName,
+		ResourceName: &appName,
+		Group:        &group,
+		Kind:         &kind,
+		Project:      &project,
+		Action:       &action,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{controlPlaneServer}, recorder.patchHosts)
 }
 
 func TestRollbackRBACPermissions(t *testing.T) {
