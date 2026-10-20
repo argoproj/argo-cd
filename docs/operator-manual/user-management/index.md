@@ -908,8 +908,15 @@ data:
 ```
 
 UserInfo is authoritative for these claims: a claim listed in `scopes` that is missing from the UserInfo response is
-cleared, even if the ID token still contains it, so revoked memberships take effect without waiting for the ID token
-to expire. Make sure your provider returns every claim listed in `scopes` (for example `email`) in the UserInfo response.
+cleared, even if the ID token still contains it. Make sure your provider returns every claim listed in `scopes`
+(for example `email`) in the UserInfo response.
+
+> [!NOTE]
+> The UserInfo response is cached, so removing a user from a group does not take effect until the cache entry expires
+> or the user logs in again. The entry expires after `userInfoCacheExpiration` only if that setting is set and shorter
+> than the remaining lifetime of the ID token. Otherwise it is cached for as long as the ID token is valid, and a
+> removed membership stays in effect until the token expires. Set a short `userInfoCacheExpiration` if you need group
+> changes to apply sooner.
 
 Claim names are case-sensitive, and the identity claims `iss`, `sub`, `aud`, `exp`, `iat`, `nbf`, `jti` and
 `federated_claims` are never overwritten. See [RBAC Configuration](../rbac.md#using-ssousersgroups) for more on `scopes`.

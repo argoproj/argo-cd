@@ -970,7 +970,11 @@ func (a *ClientApp) SetGroupsClaimFromEndpoint(ctx context.Context, claims jwt.C
 					continue
 				}
 				// Overwrite even when absent so revoked memberships in a still-valid ID token are not kept.
-				groupClaims[scope] = userInfo[scope]
+				value, found := userInfo[scope]
+				if !found {
+					log.Warnf("claim '%s' from RBAC scopes not found in UserInfo response (sub=%s), clearing it", scope, jwtutil.StringField(groupClaims, "sub"))
+				}
+				groupClaims[scope] = value
 			}
 			return groupClaims, nil
 		}
