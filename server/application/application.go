@@ -2799,8 +2799,14 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 		// itself that is the Application, which lives on the control plane in its own namespace, so
 		// checking it against the project's destinations (which describe where the Application
 		// deploys to) would wrongly reject it. Access to it is governed by the Argo CD RBAC check
-		// in getUnstructuredLiveResourceOrApp.
+		// in getUnstructuredLiveResourceOrApp. That check only covers the Application the action was
+		// run on, so the action must not be able to retarget the patch at a different Application.
 		patchesApplicationItself := res == nil && impactedResource.K8SOperation == lua.PatchOperation
+		if patchesApplicationItself && (newObj.GroupVersionKind() != liveObj.GroupVersionKind() ||
+			newObj.GetName() != liveObj.GetName() ||
+			newObj.GetNamespace() != liveObj.GetNamespace()) {
+			return nil, errors.New("resource action cannot change the identity of the Application it was run on")
+		}
 		if !patchesApplicationItself {
 			err := s.verifyResourcePermitted(ctx, destCluster, proj, newObj)
 			if err != nil {

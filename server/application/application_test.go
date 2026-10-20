@@ -5753,6 +5753,63 @@ definitions:
 	assert.Equal(t, []string{controlPlaneServer}, recorder.patchHosts)
 }
 
+// The RBAC check only covers the Application an action was run on, so an action that renames the
+// object it returns must not be able to patch a different Application with the control plane config.
+func TestRunResourceActionV2OnApplicationRejectsIdentityChange(t *testing.T) {
+	fakeControlPlaneKubeconfig(t)
+
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+
+	tests := []struct {
+		name string
+		lua  string
+	}{
+		{name: "Name", lua: `obj.metadata.name = "other-app"`},
+		{name: "Namespace", lua: `obj.metadata.namespace = "other-ns"`},
+		{name: "Kind", lua: `obj.kind = "AppProject"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actions := `
+discovery.lua: |
+  actions = {}
+  actions["retarget"] = {}
+  return actions
+definitions:
+- name: retarget
+  action.lua: |
+    ` + tt.lua + `
+    return obj
+`
+			app := newTestApp()
+			appServer := newTestAppServerWithEnforcerConfigure(t, f,
+				map[string]string{"resource.customizations.actions.argoproj.io_Application": actions},
+				app,
+			)
+
+			recorder := &configRecordingKubectl{Kubectl: appServer.kubectl}
+			appServer.kubectl = recorder
+
+			appName := app.Name
+			group := "argoproj.io"
+			kind := "Application"
+			action := "retarget"
+			_, err := appServer.RunResourceActionV2(t.Context(), &application.ResourceActionRunRequestV2{
+				Name:         &appName,
+				ResourceName: &appName,
+				Group:        &group,
+				Kind:         &kind,
+				Action:       &action,
+			})
+			require.ErrorContains(t, err, "cannot change the identity of the Application")
+			assert.Empty(t, recorder.patchHosts)
+		})
+	}
+}
+
 func TestRollbackRBACPermissions(t *testing.T) {
 	newTestAppWithRollbackHistory := func() *v1alpha1.Application {
 		app := newTestApp()
