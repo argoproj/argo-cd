@@ -170,9 +170,6 @@ importers:
       '@types/dagre':
         specifier: 0.7.54
         version: 0.7.54
-      '@types/git-url-parse':
-        specifier: ^16.0.2
-        version: 16.0.2
       '@types/history':
         specifier: ^4.7.2
         version: 4.7.11
@@ -1895,10 +1892,6 @@ packages:
   '@types/express@4.17.25':
     resolution: {integrity: sha512-dVd04UKsfpINUnK0yBoYHDF3xu7xVH4BuDotC/xGuycx4CgbP48X/KF/586bcObxT0HENHXEU8Nqtu6NR+eKhw==}
 
-  '@types/git-url-parse@16.0.2':
-    resolution: {integrity: sha512-STa+QaJtPbqwtioDIncRyft1xXrsTIYW0KkS6RS6l++NiDaQxqgsIkNp2Jf9nJ1KnCGPOvWaR1iO+B7LkM8+ew==}
-    deprecated: This is a stub types definition. git-url-parse provides its own type definitions, so you do not need this installed.
-
   '@types/graceful-fs@4.1.9':
     resolution: {integrity: sha512-olP3sd1qOEe5dXTSaFvQG+02VdRXcdytWLAZsAq1PecU8uqQAhkrnbli7DagjtXKW/Bl7YJbUsa8MPcuc8LHEQ==}
 
@@ -3283,14 +3276,8 @@ packages:
   get-tsconfig@4.14.3:
     resolution: {integrity: sha512-++QEw4DIY7WGoukz+/+A/8dGYPT9l9yIadnmSgZ8Rjr3YVSVDipQSO9CdnJo9ePqFqUUqh+wk9uIaoiAwsiPkA==}
 
-  git-up@7.0.0:
-    resolution: {integrity: sha512-ONdIrbBCFusq1Oy0sC71F5azx8bVkvtZtMJAsv+a6lz5YAmbNnLD6HAB4gptHZVLPR8S2/kVN6Gab7lryq5+lQ==}
-
   git-up@8.1.1:
     resolution: {integrity: sha512-FDenSF3fVqBYSaJoYy1KSc2wosx0gCvKP+c+PRBht7cAaiCeQlBtfBDX9vgnNOHmdePlSFITVcn4pFfcgNvx3g==}
-
-  git-url-parse@13.1.1:
-    resolution: {integrity: sha512-PCFJyeSSdtnbfhSNRw9Wk96dDCNx+sogTe4YNXeXSJxt7xz5hvXekuRn9JX7m+Mf4OscCu8h+mtAl3+h5Fo8lQ==}
 
   git-url-parse@16.1.0:
     resolution: {integrity: sha512-cPLz4HuK86wClEW7iDdeAKcCVlWXmrLpb2L+G9goW0Z1dtpNS6BXXSOckUTlJT/LDQViE1QZKstNORzHsLnobw==}
@@ -4354,9 +4341,6 @@ packages:
 
   parse-path@7.1.0:
     resolution: {integrity: sha512-EuCycjZtfPcjWk7KTksnJ5xPMvWGA/6i4zrLYhRG0hGvC3GPU/jGUj3Cy+ZR0v30duV3e23R95T1lE2+lsndSw==}
-
-  parse-url@8.1.0:
-    resolution: {integrity: sha512-xDvOoLU5XRrcOZvnI6b8zA6n9O9ejNk/GExuz1yBuWUGn9KA97GI6HTs6u02wKara1CeVmZhH+0TZFdWScR89w==}
 
   parse-url@9.2.0:
     resolution: {integrity: sha512-bCgsFI+GeGWPAvAiUv63ZorMeif3/U0zaXABGJbOWt5OH2KCaPHF6S+0ok4aqM9RuIPGyZdx9tR9l13PsW4AYQ==}
@@ -7631,10 +7615,6 @@ snapshots:
       '@types/qs': 6.15.1
       '@types/serve-static': 1.15.10
 
-  '@types/git-url-parse@16.0.2':
-    dependencies:
-      git-url-parse: 13.1.1
-
   '@types/graceful-fs@4.1.9':
     dependencies:
       '@types/node': 26.6.3
@@ -9341,19 +9321,10 @@ snapshots:
     dependencies:
       resolve-pkg-maps: 1.0.0
 
-  git-up@7.0.0:
-    dependencies:
-      is-ssh: 1.4.1
-      parse-url: 8.1.0
-
   git-up@8.1.1:
     dependencies:
       is-ssh: 1.4.1
       parse-url: 9.2.0
-
-  git-url-parse@13.1.1:
-    dependencies:
-      git-up: 7.0.0
 
   git-url-parse@16.1.0:
     dependencies:
@@ -10595,10 +10566,6 @@ snapshots:
   parse-path@7.1.0:
     dependencies:
       protocols: 2.0.2
-
-  parse-url@8.1.0:
-    dependencies:
-      parse-path: 7.1.0
 
   parse-url@9.2.0:
     dependencies:
