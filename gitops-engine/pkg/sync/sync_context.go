@@ -568,6 +568,9 @@ func (sc *syncContext) Sync(ctx context.Context) {
 			} else {
 				sc.setResourceResult(task, task.syncStatus, operationState, message)
 			}
+		} else if task.skipHealthCheck() {
+			// the resource opted out of the health check during sync, it is considered synced once applied
+			sc.setResourceResult(task, task.syncStatus, common.OperationSucceeded, task.message)
 		} else {
 			// this must be calculated on the live object
 			healthStatus, err := health.GetResourceHealth(task.liveObj, sc.healthOverride)
