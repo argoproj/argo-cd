@@ -5,10 +5,12 @@ extra:
     provider: google
 extra_css:
 - assets/versions.css
+- assets/nav.css
 extra_javascript:
 - assets/versions.js
 - assets/lib/mermaid-11.17.2.min.js
 - assets/mermaid-init.js
+- assets/nav.js
 markdown_extensions:
 - markdown_include.include
 - attr_list
@@ -237,6 +239,7 @@ nav:
   - Development Environment: developer-guide/development-environment.md
   - Development Cycle: developer-guide/development-cycle.md
   - Submit Your PR: developer-guide/submit-your-pr.md
+  - Review PRs: developer-guide/reviewing-prs.md
   - Backport Your Fix: developer-guide/backporting-fixes.md
   - Architecture:
     - developer-guide/architecture/authz-authn.md
