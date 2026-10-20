@@ -26,8 +26,8 @@ secret-based implementation.
 
 ## Summary
 
-Argo CD stores repository configuration and credentials in Secrets. This proposal adds two namespaced CRDs —
-`Repository` and `RepositoryCredential` (`argoproj.io/v1alpha1`), holding all *non-secret* configuration
+Argo CD stores repository configuration and credentials in Secrets. This proposal adds two namespaced CRDs:
+`Repository` and `RepositoryCredential` (`argoproj.io/v1alpha1`) which holds all *non-secret* configuration
 declaratively, with credential material remaining in a Secret referenced via `spec.secretRef`. Storage is selected
 fleet-wide by the `repository.backend` key in `argocd-cm`: `secret` (default, existing behavior), `crd`, or `hybrid`
 (read both, CRDs win; writes migrate to CRDs). The CRDs are spec-only: connection health keeps
@@ -82,20 +82,13 @@ being reported the way it is today, and a `status` subresource is deferred to a 
    ("repositories-in-any-namespace") is not addressed — though the namespaced CRD shape leaves room for it.
 5. **Workload identity.** Existing ad-hoc support is carried through as-is (`spec.useAzureWorkloadIdentity`, as
    with secrets today); a holistic solution is future work.
-6. **Other configuration objects.** This proposal covers repositories and credential templates only. It does set a
-   pattern (spec-only CRD, credential material in a labelled Secret) that other configuration could follow, but each
-   object needs its own case: sync windows are already becoming a CRD in
-   [#28840](https://github.com/argoproj/argo-cd/pull/28840); cluster Secrets are untouched here, and a future move
-   would more likely target the upstream
-   [ClusterProfile](https://multicluster.sigs.k8s.io/concepts/cluster-profile-api/) API than a bespoke CRD. Nothing
-   else in `argocd-cm`/`argocd-secret` has a pressing need.
-7. **Repository status.** The CRDs ship spec-only: no `status` subresource and no connection-health controller.
+6. **Repository status.** The CRDs ship spec-only: no `status` subresource and no connection-health controller.
    Connection state keeps being produced exactly as it is today — the API server runs `TestRepository` on a
    connection-state cache miss (`server/repository.List`) — so `argocd repo list` and the UI behave identically in
    every mode. A real status is worth having, but it is a design of its own (write amplification, per-controlplane
-   field ownership, retention limits) and is deferred to a follow-up proposal. It can be added backwards compatibly:
-   a `status` subresource and its RBAC grant are additive to an existing CRD version, readers finding no status fall
-   back to the probe-on-read path above, and nothing in the spec described here changes.
+   field ownership, retention limits etc.) and is deferred to a follow-up proposal. It can be added in a backwards 
+   compatible way: a `status` subresource and its RBAC grant are additive to an existing CRD version, readers finding 
+   no status fall back to the probe-on-read path above, and nothing in the spec described here changes.
 
 ## Proposal
 
@@ -103,10 +96,6 @@ being reported the way it is today, and a `status` subresource is deferred to a 
 
 #### Use case 1:
 As a user, I would like to manage my repositories using GitOps.
-
-#### Use case 2:
-As a user, when running Argo CD in separate controlplanes, I want to ensure that my secrets stay on the workload
-clusters.
 
 ### Implementation Details/Notes/Constraints
 
@@ -125,24 +114,18 @@ alone.
 #### Backend selection
 
 * The storage backend is a single fleet-wide setting, `repository.backend` in `argocd-cm` (`secret` | `crd` |
-  `hybrid`), rather than a per-component flag. `hybrid` already makes mixed fleets safe, so there is no staged-rollout
-  case for per-component modes, and one key removes the failure mode where components disagree about where a
-  repository lives. Every component already constructs `db.NewDB` with a `SettingsManager`, so no new plumbing is
-  needed.
-* The key is read once, when `db.NewDB` runs, not hot-reloaded: switching backends under running reconciles would
+  `hybrid`). Every component already constructs `db.NewDB` with a `SettingsManager`, so no new plumbing is needed.
+* The key is read once when `db.NewDB` runs, not hot-reloaded: switching backends under running reconciles would
   change lookup results mid-refresh, and `crd`/`hybrid` also need the CRD RBAC to be in place. Changing the key
-  requires a restart of the affected components, which is documented next to the key. An invalid or unset value
-  resolves to `secret` with a warning. `ARGOCD_REPOSITORY_BACKEND` overrides the key when set, for tests and for
-  `argocd admin` invocations that have no `argocd-cm` in reach.
+  requires a restart of the affected components, which is documented next to the key. Until the restart completes,
+  `secret` and `hybrid` components coexist and the `secret` ones cannot see repositories migrated in that window, so
+  the rollout should finish before repositories are updated. An invalid or unset value resolves to `secret` with a 
+  warning. `ARGOCD_REPOSITORY_BACKEND` overrides the key when set, for tests and for `argocd admin` invocations that 
+  have no `argocd-cm` in reach.
 * `db.NewDB` validates the mode/clientset pairing once: crd/hybrid without an application clientset downgrades to
   the secrets backend with a warning instead of failing at first use. The notifications controller's `argoCDService`
   currently builds `db.NewDB` with only a Kubernetes clientset and so would always take this downgrade; it gains the
   application clientset as part of this work.
-* Components that only read *cluster* data (sharding, several admin commands) intentionally stay on the secrets
-  backend regardless of mode — cluster storage is unaffected by this proposal. `argocd admin repo generate-spec`
-  keeps emitting Secret manifests from CLI arguments, since that is the command's purpose; a new `argocd admin repo
-  export` emits the equivalent Secret manifests from existing `Repository`/`RepositoryCredential` CRs, which is what
-  downgrade needs (see Upgrade / Downgrade Strategy).
 
 #### Storage model
 
@@ -159,11 +142,12 @@ alone.
 * **`secretRef` resolves only to opted-in Secrets** — those labeled `argocd.argoproj.io/secret-type` with the new
   value `repository-secret` (credential material only, no `url`), or with the existing `repository`/`repo-creds`
   values, which already publish the Secret to Argo CD and so need no second opt-in; this is what lets migration
-  reference a user-provided legacy Secret without relabelling it. `repository-secret` is a distinct value because the
+  reference a user-provided legacy Secret without relabeling it. `repository-secret` is a distinct value because the
   label is single-valued and `repo-creds` Secrets are listed as URL-prefix templates, where a url-less Secret would
-  match every URL; it deliberately avoids "creds" in the name, which `repo-creds` already uses for a different thing. Otherwise anyone able to create a `Repository` could name an arbitrary Secret in the control-plane
-  namespace and have Argo CD send it to a URL of their choosing (see Security Considerations). An existing but
-  unlabeled target reports `CredentialsMissing` rather than being silently ignored.
+  match every URL; it deliberately avoids "creds" in the name, which `repo-creds` already uses for a different thing. 
+  Otherwise, anyone able to create a `Repository` could name an arbitrary Secret in the control-plane namespace and have 
+  Argo CD send it to a URL of their choosing (see Security Considerations). An existing but unlabeled target reports 
+ `CredentialsMissing` rather than being silently ignored.
 
 #### Repository resolution
 
@@ -190,6 +174,9 @@ Lookup is by URL + project, not resource name, so declaratively-created resource
   every few minutes per Application. A log line rather than an event: detection happens inside the lookup, which runs
   in four components and re-fires on every resolution, so an event would re-announce the same misconfiguration
   indefinitely. CEL cannot express cross-object uniqueness, so this is detection, not prevention.
+* **A miss is not an error.** When no repository matches in any store, `crd` and `hybrid` return a URL-only
+  repository, as the secrets backend does today: credential templates still apply, and public repositories need no
+  object at all.
 
 #### Secret ownership and lifecycle
 
@@ -198,9 +185,9 @@ the way the secrets backend already decides it: legacy Secrets Argo CD generated
 `managed-by: argocd.argoproj.io` annotation (`util/db/secrets.go`), and anything without it is user-provided.
 
 * **Generated Secrets** — created when a repository is registered imperatively (`argocd repo add`, UI, API). One per
-  `Repository`, named as repository Secret names are derived today, carrying an owner reference to the CR (and the
-  `managed-by` annotation, for components still in `secret` mode). Deleting the `Repository` garbage-collects it; no
-  finalizer.
+  `Repository`, named as repository Secret names are derived today, and carrying an owner reference to the CR.
+  Deleting the `Repository` garbage-collects it; no finalizer. As a `secretRef` target it is credential-only and
+  labeled `repository-secret` (see Storage model).
 * **User-provided Secrets** — anything else a `secretRef` points at. Never owner-referenced, never deleted; several
   repositories may share one, and its lifecycle belongs to whoever manages it, including external controllers such as
   External Secrets Operator (which would recreate it anyway).
@@ -345,8 +332,9 @@ spec:
 * **Upgrading** requires applying the new CRDs (part of the install manifests) but changes no behavior:
   `repository.backend` defaults to `secret`.
 * **There is no bulk migration.** Repositories become CRDs one at a time, when something updates them, so `hybrid` is
-  the only safe way in. Going straight from `secret` to `crd` makes every unmigrated repository invisible (no Secret
-  fallback) and their applications fail to resolve sources.
+  the only safe way in. Going straight from `secret` to `crd` drops every unmigrated repository to a URL-only lookup
+  (see Repository resolution): public ones keep working, private ones lose their credentials unless a credential
+  template covers them.
 * **Migration progress is observable.** Since repositories migrate only when touched, "how many are left" needs to be
   answerable by inspection, since without an answer an operator in `hybrid` cannot know whether moving to `crd` is safe.
   The API server exports a gauge of repositories resolved per backend, and `argocd repo list` gains a column reporting
