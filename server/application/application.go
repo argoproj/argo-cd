@@ -91,6 +91,7 @@ var (
 type Server struct {
 	ns                     string
 	kubeclientset          kubernetes.Interface
+	controlPlaneConfig     *rest.Config
 	appclientset           appclientset.Interface
 	appLister              applisters.ApplicationLister
 	appInformer            cache.SharedIndexInformer
@@ -112,6 +113,7 @@ type Server struct {
 func NewServer(
 	namespace string,
 	kubeclientset kubernetes.Interface,
+	controlPlaneConfig *rest.Config,
 	appclientset appclientset.Interface,
 	appLister applisters.ApplicationLister,
 	appInformer cache.SharedIndexInformer,
@@ -149,6 +151,7 @@ func NewServer(
 		appInformer:            appInformer,
 		appBroadcaster:         appBroadcaster,
 		kubeclientset:          kubeclientset,
+		controlPlaneConfig:     controlPlaneConfig,
 		cache:                  cache,
 		db:                     db,
 		repoClientset:          repoClientset,
@@ -1464,10 +1467,15 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Ap
 // for resources which are always stored on the control plane regardless of an Application's
 // spec.destination.
 //
-// This goes through Cluster.RESTConfig() rather than calling rest.InClusterConfig() directly so that
-// ARGOCD_FAKE_IN_CLUSTER keeps working for core/headless mode, and so that the config picks up the
-// same defaults (QPS, timeouts, retries) as every other REST config in the codebase.
-func getControlPlaneClusterConfig() (*rest.Config, error) {
+// When the server was given the REST config it loaded at startup (which honors --kubeconfig and the
+// other client flags), a copy of that is used. Otherwise this goes through Cluster.RESTConfig()
+// rather than calling rest.InClusterConfig() directly so that ARGOCD_FAKE_IN_CLUSTER keeps working
+// for core/headless mode, and so that the config picks up the same defaults (QPS, timeouts,
+// retries) as every other REST config in the codebase.
+func getControlPlaneClusterConfig(loaded *rest.Config) (*rest.Config, error) {
+	if loaded != nil {
+		return rest.CopyConfig(loaded), nil
+	}
 	controlPlaneCluster := v1alpha1.Cluster{Server: v1alpha1.KubernetesInternalAPIServerAddr}
 	config, err := controlPlaneCluster.RESTConfig()
 	if err != nil {
@@ -2641,7 +2649,7 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 		// so the destination cluster config must not be used. Destination impersonation does not
 		// apply either: a destination service account only exists on the destination cluster.
 		// Access remains governed by the Argo CD RBAC check above.
-		config, err = getControlPlaneClusterConfig()
+		config, err = getControlPlaneClusterConfig(s.controlPlaneConfig)
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}

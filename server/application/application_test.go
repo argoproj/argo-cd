@@ -312,6 +312,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	server, _ := NewServer(
 		testNamespace,
 		kubeclientset,
+		nil,
 		fakeAppsClientset,
 		factory.Argoproj().V1alpha1().Applications().Lister(),
 		appInformer,
@@ -490,6 +491,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 	server, _ := NewServer(
 		testNamespace,
 		kubeclientset,
+		nil,
 		fakeAppsClientset,
 		factory.Argoproj().V1alpha1().Applications().Lister(),
 		appInformer,
@@ -5565,6 +5567,36 @@ func TestGetUnstructuredLiveResourceOrAppForApplication(t *testing.T) {
 		assert.Equal(t, controlPlaneServer, config.Host)
 		assert.Empty(t, config.Impersonate.UserName)
 	})
+}
+
+// When the server was started with a REST config (e.g. via --kubeconfig), Application actions must
+// use it for the control plane instead of resolving an in-cluster config, which does not exist when
+// the server runs outside of a pod.
+func TestGetUnstructuredLiveResourceOrAppForApplicationUsesLoadedConfig(t *testing.T) {
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+
+	// Deliberately no fakeControlPlaneKubeconfig: without a pod or ARGOCD_FAKE_IN_CLUSTER, resolving
+	// the in-cluster config would fail.
+	app := newTestApp()
+	appServer := newTestAppServerWithEnforcerConfigure(t, f, nil, app)
+	loaded := &rest.Config{Host: "https://loaded-control-plane.example.com"}
+	appServer.controlPlaneConfig = loaded
+
+	appName := app.Name
+	group := "argoproj.io"
+	kind := "Application"
+	_, _, _, config, err := appServer.getUnstructuredLiveResourceOrApp(t.Context(), rbac.ActionGet, &application.ApplicationResourceRequest{
+		Name:         &appName,
+		ResourceName: &appName,
+		Group:        &group,
+		Kind:         &kind,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, loaded.Host, config.Host)
+	assert.NotSame(t, loaded, config, "the loaded config must be copied, not shared with the caller")
 }
 
 // An action on an Application patches the Application on the control plane, but any resource the
