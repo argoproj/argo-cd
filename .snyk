@@ -22,7 +22,7 @@ ignore:
     - '*':
         reason: >-
           Argo CD uses go-restful as a transitive dependency of kube-openapi. kube-openapi is used to generate openapi
-          specs. We do not use go-restul at runtime and are therefore not vulnerable to this CORS misconfiguration
+          specs. We do not use go-restful at runtime and are therefore not vulnerable to this CORS misconfiguration
           issue in go-restful.
   SNYK-JS-FORMIDABLE-2838956:
     - '*':

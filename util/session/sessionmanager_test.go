@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,7 +23,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -61,22 +61,18 @@ func getKubeClient(t *testing.T, pass string, enabled bool, capabilities ...sett
 	}
 
 	return fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cm",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{
 			"admin":         strings.Join(capabilitiesStr, ","),
 			"admin.enabled": strconv.FormatBool(enabled),
 		},
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: "argocd",
-		},
+		Name:      "argocd-secret",
+		Namespace: "argocd",
 		Data: map[string][]byte{
 			"admin.password":   []byte(bcrypt),
 			"server.secretkey": []byte(defaultSecretKey),
@@ -104,7 +100,7 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, newToken)
 
-	mapClaims := *(claims.(*jwt.MapClaims))
+	mapClaims := *claims.(*jwt.MapClaims)
 	subject := mapClaims["sub"].(string)
 	if subject != "admin" {
 		t.Errorf("Token claim subject %q does not match expected subject %q.", subject, "admin")
@@ -130,7 +126,7 @@ func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
 	claims, _, err := mgr.Parse(newToken)
 	require.NoError(t, err)
 
-	mapClaims := *(claims.(*jwt.MapClaims))
+	mapClaims := *claims.(*jwt.MapClaims)
 	subject := mapClaims["sub"].(string)
 	assert.Equal(t, "admin", subject)
 }
@@ -240,11 +236,9 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 
 	t.Run("Valid Token", func(t *testing.T) {
 		proj := appv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
-			Spec: appv1.AppProjectSpec{Roles: []appv1.ProjectRole{{Name: "test"}}},
+			Name:      "default",
+			Namespace: "argocd",
+			Spec:      appv1.AppProjectSpec{Roles: []appv1.ProjectRole{{Name: "test"}}},
 			Status: appv1.AppProjectStatus{JWTTokensByRole: map[string]appv1.JWTTokens{
 				"test": {
 					Items: []appv1.JWTToken{{ID: "abc", IssuedAt: time.Now().Unix(), ExpiresAt: 0}},
@@ -267,11 +261,9 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 
 	t.Run("Token Revoked", func(t *testing.T) {
 		proj := appv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
-			Spec: appv1.AppProjectSpec{Roles: []appv1.ProjectRole{{Name: "test"}}},
+			Name:      "default",
+			Namespace: "argocd",
+			Spec:      appv1.AppProjectSpec{Roles: []appv1.ProjectRole{{Name: "test"}}},
 		}
 
 		mgr := newSessionManager(settingsMgr, getProjLister(&proj), NewUserStateStorage(nil))
@@ -682,6 +674,42 @@ func TestMaxUsernameLength(t *testing.T) {
 	assert.ErrorContains(t, err, fmt.Sprintf(usernameTooLongError, maxUsernameLength))
 }
 
+// TestLoginFailureCountConcurrentBurst locks the TOCTOU race in VerifyUsernamePassword:
+// getFailureCount / exceededFailedLoginAttempts run before password verification and
+// updateFailureCount, so concurrent wrong-password attempts for the same user can all
+// observe FailCount < max and each increment the counter (and each run bcrypt).
+func TestLoginFailureCountConcurrentBurst(t *testing.T) {
+	const maxFails = 5
+	const concurrentAttempts = 40
+
+	t.Setenv(envLoginMaxFailCount, strconv.Itoa(maxFails))
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "password", true), "argocd")
+	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
+
+	var start sync.WaitGroup
+	start.Add(1)
+	var wg sync.WaitGroup
+
+	for range concurrentAttempts {
+		wg.Go(func() {
+			start.Wait()
+			// Wrong password: a correct limiter allows at most maxFails increments;
+			// excess attempts must be rejected before password verification / increment.
+			err := mgr.VerifyUsernamePassword("admin", "wrong-password")
+			require.Error(t, err)
+		})
+	}
+	start.Done()
+	wg.Wait()
+
+	failures := mgr.GetLoginFailures()
+	attempt := failures["admin"]
+	assert.LessOrEqual(t, attempt.FailCount, maxFails,
+		"FailCount=%d after %d concurrent wrong-password logins; expected <= %d (rate limit must serialize check+increment per user)",
+		attempt.FailCount, concurrentAttempts, maxFails)
+}
+
 func TestMaxCacheSize(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
@@ -725,20 +753,16 @@ func getKubeClientWithConfig(config map[string]string, secretConfig map[string][
 	maps.Copy(mergedSecretConfig, secretConfig)
 
 	return fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cm",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: config,
 	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: "argocd",
-		},
-		Data: mergedSecretConfig,
+		Name:      "argocd-secret",
+		Namespace: "argocd",
+		Data:      mergedSecretConfig,
 	})
 }
 
@@ -1564,4 +1588,48 @@ func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
 			assert.Equal(t, "test2", *user)
 		}
 	})
+}
+
+func TestTokenUniqueID(t *testing.T) {
+	testCases := []struct {
+		name   string
+		claims jwt.MapClaims
+		want   string
+	}{
+		{
+			name:   "jti present",
+			claims: jwt.MapClaims{"jti": "abc123"},
+			want:   "abc123",
+		},
+		{
+			name:   "uti fallback when jti absent (Entra ID)",
+			claims: jwt.MapClaims{"uti": "xyz789"},
+			want:   "xyz789",
+		},
+		{
+			name:   "jti preferred over uti",
+			claims: jwt.MapClaims{"jti": "abc123", "uti": "xyz789"},
+			want:   "abc123",
+		},
+		{
+			name:   "empty jti falls back to uti",
+			claims: jwt.MapClaims{"jti": "", "uti": "xyz789"},
+			want:   "xyz789",
+		},
+		{
+			name:   "neither present",
+			claims: jwt.MapClaims{"sub": "user"},
+			want:   "",
+		},
+		{
+			name:   "non-string jti ignored, uti used",
+			claims: jwt.MapClaims{"jti": 123, "uti": "xyz789"},
+			want:   "xyz789",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, tokenUniqueID(tc.claims))
+		})
+	}
 }

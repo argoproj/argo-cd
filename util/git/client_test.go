@@ -8,14 +8,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"net/mail"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -25,6 +29,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -47,6 +52,26 @@ func outputCmd(ctx context.Context, workingDir string, name string, args ...stri
 	return cmd.Output()
 }
 
+func TestNewGitRequestContext(t *testing.T) {
+	t.Run("zero timeout has no deadline", func(t *testing.T) {
+		ctx, cancel := newGitRequestContext(0)
+		defer cancel()
+
+		_, hasDeadline := ctx.Deadline()
+		assert.False(t, hasDeadline)
+		assert.NoError(t, ctx.Err())
+	})
+
+	t.Run("positive timeout has a deadline", func(t *testing.T) {
+		ctx, cancel := newGitRequestContext(time.Minute)
+		defer cancel()
+
+		_, hasDeadline := ctx.Deadline()
+		assert.True(t, hasDeadline)
+		assert.NoError(t, ctx.Err())
+	})
+}
+
 func _createEmptyGitRepo(ctx context.Context) (string, error) {
 	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
@@ -60,6 +85,278 @@ func _createEmptyGitRepo(ctx context.Context) (string, error) {
 
 	err = runCmd(ctx, tempDir, "git", "commit", "-m", "Initial commit", "--allow-empty")
 	return tempDir, err
+}
+
+// fakeGitRefCache is an in-memory stand-in for the reposerver git ref cache. It
+// lets a test steer which branch of getRefs runs and records how the cache was
+// used. Its GetOrLockGitReferences mirrors the real contract (see
+// reposerver/cache/cache.go): on a cache hit it fills references and returns an
+// empty lock id; when the caller wins the lock it echoes the caller's lockId
+// back; on error it returns the error.
+type fakeGitRefCache struct {
+	mu sync.Mutex
+
+	// Behavior knobs for GetOrLockGitReferences.
+	cachedRefs []*plumbing.Reference // non-nil => simulate a cache hit
+	refsByKey  map[string][]*plumbing.Reference
+	getLockErr error // non-nil => return this error (get/lock failure)
+	// When cachedRefs is nil and getLockErr is nil, the caller becomes the lock
+	// owner (its lockId is echoed back) and is expected to populate the cache.
+
+	// Behavior knob for SetGitReferences.
+	setErr error
+
+	// Call recording.
+	getOrLockCalls int
+	setCalls       int
+	setKeys        []string
+	setRefs        []*plumbing.Reference
+	unlockCalls    int
+	unlockKeys     []string
+}
+
+func (f *fakeGitRefCache) GetGitReferences(repo string, references *[]*plumbing.Reference) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.getLockErr != nil {
+		return "", f.getLockErr
+	}
+	if f.refsByKey != nil {
+		if refs, ok := f.refsByKey[repo]; ok {
+			*references = refs
+		}
+		return "", nil
+	}
+	if f.cachedRefs != nil {
+		*references = f.cachedRefs
+	}
+	return "", nil
+}
+
+func (f *fakeGitRefCache) GetOrLockGitReferences(repo string, lockId string, references *[]*plumbing.Reference) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.getOrLockCalls++
+	if f.getLockErr != nil {
+		// Foreign (empty) lock id + error => getRefs takes its error path.
+		return "", f.getLockErr
+	}
+	if f.cachedRefs != nil {
+		// Cache hit: fill the caller's slice and return an empty lock id so the
+		// caller is not the lock owner and returns the cached value directly.
+		*references = f.cachedRefs
+		return "", nil
+	}
+	if f.refsByKey != nil {
+		if refs, ok := f.refsByKey[repo]; ok {
+			*references = refs
+			return "", nil
+		}
+	}
+	// No cached data and no error => caller wins the lock (owns population).
+	return lockId, nil
+}
+
+func (f *fakeGitRefCache) SetGitReferences(repo string, references []*plumbing.Reference) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.setCalls++
+	f.setKeys = append(f.setKeys, repo)
+	f.setRefs = references
+	if f.refsByKey != nil {
+		f.refsByKey[repo] = references
+	}
+	return f.setErr
+}
+
+func (f *fakeGitRefCache) UnlockGitReferences(repo string, _ string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.unlockCalls++
+	f.unlockKeys = append(f.unlockKeys, repo)
+	return nil
+}
+
+type coalescingGitRefCache struct {
+	mu sync.Mutex
+
+	cond      *sync.Cond
+	refsByKey map[string][]*plumbing.Reference
+	lockByKey map[string]string
+	setCalls  int
+}
+
+func newCoalescingGitRefCache() *coalescingGitRefCache {
+	cache := &coalescingGitRefCache{
+		refsByKey: map[string][]*plumbing.Reference{},
+		lockByKey: map[string]string{},
+	}
+	cache.cond = sync.NewCond(&cache.mu)
+	return cache
+}
+
+func (c *coalescingGitRefCache) GetOrLockGitReferences(repo string, lockID string, references *[]*plumbing.Reference) (string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for {
+		if refs, ok := c.refsByKey[repo]; ok {
+			*references = refs
+			return "", nil
+		}
+		owner := c.lockByKey[repo]
+		if owner == "" {
+			c.lockByKey[repo] = lockID
+			return lockID, nil
+		}
+		if owner == lockID {
+			return lockID, nil
+		}
+		c.cond.Wait()
+	}
+}
+
+func (c *coalescingGitRefCache) SetGitReferences(repo string, references []*plumbing.Reference) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.refsByKey[repo] = references
+	delete(c.lockByKey, repo)
+	c.setCalls++
+	c.cond.Broadcast()
+	return nil
+}
+
+func (c *coalescingGitRefCache) UnlockGitReferences(repo string, lockID string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.lockByKey[repo] == lockID {
+		delete(c.lockByKey, repo)
+		c.cond.Broadcast()
+	}
+	return nil
+}
+
+// newSpiedClient builds a nativeGitClient wired to the given cache and counts
+// how many times the remote-listing path (OnLsRemote) is entered, which is the
+// step immediately before the actual network fetch in getRefs. A count of zero
+// therefore proves the cache short-circuited before any remote call.
+func newSpiedClient(t *testing.T, repoURL string, cache gitRefCache, loadRefFromCache bool) (*nativeGitClient, *int) {
+	t.Helper()
+	lsRemoteCalls := 0
+	return &nativeGitClient{
+		OnLsRemote: func(string) func() {
+			lsRemoteCalls++
+			return func() {}
+		},
+		repoURL:          repoURL,
+		creds:            NopCreds{},
+		gitRefCache:      cache,
+		loadRefFromCache: loadRefFromCache,
+	}, &lsRemoteCalls
+}
+
+func Test_nativeGitClient_getRefs(t *testing.T) {
+	// A synthetic ref set used by the pure-cache paths, which never touch a real
+	// repository.
+	cachedRefs := []*plumbing.Reference{
+		plumbing.NewHashReference("refs/heads/master", plumbing.NewHash("abcdef0123456789abcdef0123456789abcdef01")),
+	}
+
+	t.Run("cache hit returns cached refs without any remote call", func(t *testing.T) {
+		cache := &fakeGitRefCache{cachedRefs: cachedRefs}
+		// A deliberately unreachable URL: if getRefs fell through to a fetch it
+		// would fail, so a clean return proves the cache short-circuited.
+		client, lsRemoteCalls := newSpiedClient(t, "file:///does-not-exist", cache, true)
+
+		refs, err := client.getRefs()
+
+		require.NoError(t, err)
+		assert.Equal(t, cachedRefs, refs)
+		assert.Equal(t, 0, *lsRemoteCalls, "must not hit the remote on a cache hit")
+		assert.Equal(t, 0, cache.setCalls, "must not re-populate the cache on a hit")
+		assert.Equal(t, 0, cache.unlockCalls, "must not unlock when not the lock owner")
+	})
+
+	t.Run("get/lock error is propagated without a remote call", func(t *testing.T) {
+		wantErr := errors.New("cache exploded")
+		cache := &fakeGitRefCache{getLockErr: wantErr}
+		client, lsRemoteCalls := newSpiedClient(t, "file:///does-not-exist", cache, true)
+
+		refs, err := client.getRefs()
+
+		require.ErrorIs(t, err, wantErr)
+		assert.Nil(t, refs)
+		assert.Equal(t, 0, *lsRemoteCalls, "must not hit the remote when the cache errors")
+		assert.Equal(t, 0, cache.setCalls)
+	})
+
+	t.Run("lock owner fetches, populates cache, and does not unlock", func(t *testing.T) {
+		tempDir, err := _createEmptyGitRepo(t.Context())
+		require.NoError(t, err)
+		cache := &fakeGitRefCache{} // no cached data, no error => caller owns the lock
+		client, lsRemoteCalls := newSpiedClient(t, "file://"+tempDir, cache, true)
+
+		refs, err := client.getRefs()
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, refs, "a real repo must advertise at least one ref")
+		assert.Equal(t, 1, *lsRemoteCalls, "lock owner must perform the remote listing")
+		assert.Equal(t, 1, cache.setCalls, "lock owner must store the fetched refs")
+		assert.Equal(t, refs, cache.setRefs, "the stored refs must match what was returned")
+		// SetGitReferences overwrites the lock with real data, so the deferred
+		// unlock must be skipped (needsUnlock=false).
+		assert.Equal(t, 0, cache.unlockCalls, "must not unlock after a successful store")
+	})
+
+	t.Run("failed cache store still returns refs and releases the lock", func(t *testing.T) {
+		tempDir, err := _createEmptyGitRepo(t.Context())
+		require.NoError(t, err)
+		cache := &fakeGitRefCache{setErr: errors.New("redis down")}
+		client, lsRemoteCalls := newSpiedClient(t, "file://"+tempDir, cache, true)
+
+		refs, err := client.getRefs()
+
+		// A store failure is logged, not surfaced: the caller still gets the refs.
+		require.NoError(t, err)
+		assert.NotEmpty(t, refs)
+		assert.Equal(t, 1, *lsRemoteCalls)
+		assert.Equal(t, 1, cache.setCalls)
+		// Store failed => needsUnlock stayed true => the deferred unlock must fire
+		// so the lock is not left stranded.
+		assert.Equal(t, 1, cache.unlockCalls, "must release the lock when the store fails")
+	})
+
+	t.Run("loadRefFromCache=false skips the lock but still stores fetched refs", func(t *testing.T) {
+		tempDir, err := _createEmptyGitRepo(t.Context())
+		require.NoError(t, err)
+		cache := &fakeGitRefCache{}
+		client, lsRemoteCalls := newSpiedClient(t, "file://"+tempDir, cache, false)
+
+		refs, err := client.getRefs()
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, refs)
+		assert.Equal(t, 1, *lsRemoteCalls)
+		// The get/lock block is guarded by loadRefFromCache and is skipped...
+		assert.Equal(t, 0, cache.getOrLockCalls, "must not read or lock the cache when loadRefFromCache is false")
+		// ...but the store block is guarded only by gitRefCache != nil, so it runs.
+		assert.Equal(t, 1, cache.setCalls, "results are still written back to the cache")
+		assert.Equal(t, 0, cache.unlockCalls)
+	})
+
+	t.Run("no cache configured fetches directly", func(t *testing.T) {
+		tempDir, err := _createEmptyGitRepo(t.Context())
+		require.NoError(t, err)
+		client, lsRemoteCalls := newSpiedClient(t, "file://"+tempDir, nil, false)
+
+		refs, err := client.getRefs()
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, refs)
+		assert.Equal(t, 1, *lsRemoteCalls)
+	})
 }
 
 func Test_nativeGitClient_cleanupOrphanedTempPackfiles(t *testing.T) {
@@ -144,7 +441,7 @@ func Test_nativeGitClient_Fetch_cleansOrphanedTempPacksOnError(t *testing.T) {
 
 	client := &nativeGitClient{root: root, repoURL: "file://" + badRemote, creds: NopCreds{}}
 
-	err := client.Fetch("", 0)
+	err := client.Fetch(t.Context(), "", 0)
 	require.Error(t, err, "fetch against a missing remote must fail")
 	assert.NoFileExists(t, orphanPack, "orphaned temp pack should be cleaned up after a failed fetch")
 	assert.NoFileExists(t, orphanIdx, "orphaned temp index should be cleaned up after a failed fetch")
@@ -160,7 +457,7 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch(t.Context(), "", 0)
 	require.NoError(t, err)
 }
 
@@ -178,7 +475,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = runCmd(ctx, tempDir, "git", "branch", "test/foo")
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch(t.Context(), "", 0)
 	require.NoError(t, err)
 
 	err = runCmd(ctx, tempDir, "git", "branch", "-d", "test/foo")
@@ -186,7 +483,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = runCmd(ctx, tempDir, "git", "branch", "test/foo/bar")
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch(t.Context(), "", 0)
 	require.NoError(t, err)
 }
 
@@ -219,24 +516,24 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	err = runCmd(ctx, client.Root(), "git", "tag", "light-tag")
 	require.NoError(t, err)
 
-	atag := client.IsAnnotatedTag("HEAD")
+	atag := client.IsAnnotatedTag(t.Context(), "HEAD")
 	assert.False(t, atag)
 
-	atag = client.IsAnnotatedTag("master")
+	atag = client.IsAnnotatedTag(t.Context(), "master")
 	assert.False(t, atag)
 
-	atag = client.IsAnnotatedTag("blorp")
+	atag = client.IsAnnotatedTag(t.Context(), "blorp")
 	assert.False(t, atag)
 
-	sha, err := client.CommitSHA()
+	sha, err := client.CommitSHA(t.Context())
 	require.NoError(t, err)
-	atag = client.IsAnnotatedTag(sha)
+	atag = client.IsAnnotatedTag(t.Context(), sha)
 	assert.False(t, atag)
 
-	atag = client.IsAnnotatedTag("annot-tag")
+	atag = client.IsAnnotatedTag(t.Context(), "annot-tag")
 	assert.True(t, atag)
 
-	atag = client.IsAnnotatedTag("light-tag")
+	atag = client.IsAnnotatedTag(t.Context(), "light-tag")
 	assert.False(t, atag)
 }
 
@@ -291,20 +588,20 @@ func Test_ChangedFiles(t *testing.T) {
 	require.NoError(t, err)
 
 	// Invalid commits, error
-	_, err = client.ChangedFiles("0000000000000000000000000000000000000000", "1111111111111111111111111111111111111111")
+	_, err = client.ChangedFiles(t.Context(), "0000000000000000000000000000000000000000", "1111111111111111111111111111111111111111")
 	require.Error(t, err)
 
 	// Not SHAs, error
-	_, err = client.ChangedFiles(previousSHA, "HEAD")
+	_, err = client.ChangedFiles(t.Context(), previousSHA, "HEAD")
 	require.Error(t, err)
 
 	// Same commit, no changes
-	changedFiles, err := client.ChangedFiles(commitSHA, commitSHA)
+	changedFiles, err := client.ChangedFiles(t.Context(), commitSHA, commitSHA)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{}, changedFiles)
 
 	// Different ref, with changes
-	changedFiles, err = client.ChangedFiles(previousSHA, commitSHA)
+	changedFiles, err = client.ChangedFiles(t.Context(), previousSHA, commitSHA)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"README"}, changedFiles)
 }
@@ -605,6 +902,953 @@ func Test_SemverTagsWithPrefix(t *testing.T) {
 	}
 }
 
+func TestParseLsRemoteOutput(t *testing.T) {
+	const (
+		refHash    = "1111111111111111111111111111111111111111"
+		peeledHash = "2222222222222222222222222222222222222222"
+	)
+
+	for _, tc := range []struct {
+		name          string
+		input         string
+		expected      []*plumbing.Reference
+		errorContains string
+	}{
+		{
+			name:     "empty output",
+			expected: []*plumbing.Reference{},
+		},
+		{
+			name:  "hash references",
+			input: refHash + "\trefs/heads/main\n" + peeledHash + "\trefs/tags/v1.0.0\n",
+			expected: []*plumbing.Reference{
+				plumbing.NewHashReference("refs/heads/main", plumbing.NewHash(refHash)),
+				plumbing.NewHashReference("refs/tags/v1.0.0", plumbing.NewHash(peeledHash)),
+			},
+		},
+		{
+			name:  "symbolic reference",
+			input: "ref: refs/heads/main\tHEAD\n",
+			expected: []*plumbing.Reference{
+				plumbing.NewSymbolicReference("HEAD", "refs/heads/main"),
+			},
+		},
+		{
+			name:  "annotated tag uses peeled hash",
+			input: refHash + "\trefs/tags/v1.0.0\n" + peeledHash + "\trefs/tags/v1.0.0^{}\n",
+			expected: []*plumbing.Reference{
+				plumbing.NewHashReference("refs/tags/v1.0.0", plumbing.NewHash(peeledHash)),
+			},
+		},
+		{
+			name:          "malformed hash reference",
+			input:         "malformed\n",
+			errorContains: "malformed ls-remote ref line",
+		},
+		{
+			name:          "invalid hash reference",
+			input:         "not-a-hash\trefs/heads/main\n",
+			errorContains: "malformed ls-remote ref line",
+		},
+		{
+			name:          "malformed symbolic reference",
+			input:         "ref: refs/heads/main HEAD\n",
+			errorContains: "malformed ls-remote symbolic ref line",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			refs, err := parseLsRemoteOutput(tc.input)
+			if tc.errorContains != "" {
+				require.ErrorContains(t, err, tc.errorContains)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, refs)
+			assert.NotNil(t, refs)
+		})
+	}
+}
+
+func TestParseTargetedHeadFetchOutput(t *testing.T) {
+	const headSHA = "2222222222222222222222222222222222222222"
+
+	for _, tc := range []struct {
+		name          string
+		input         string
+		expected      *plumbing.Reference
+		errorContains string
+	}{
+		{
+			name:     "porcelain output",
+			input:    "* 0000000000000000000000000000000000000000 " + headSHA + " FETCH_HEAD\n",
+			expected: plumbing.NewHashReference(headRevision, plumbing.NewHash(headSHA)),
+		},
+		{
+			name:          "empty output",
+			errorContains: "returned no ref",
+		},
+		{
+			name:          "malformed output",
+			input:         "* " + headSHA + " FETCH_HEAD\n",
+			errorContains: "malformed targeted Git HEAD query line",
+		},
+		{
+			name: "multiple refs",
+			input: "* 0000000000000000000000000000000000000000 " + headSHA + " FETCH_HEAD\n" +
+				"* 0000000000000000000000000000000000000000 3333333333333333333333333333333333333333 FETCH_HEAD\n",
+			errorContains: "returned multiple refs",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ref, err := parseTargetedHeadFetchOutput(tc.input)
+			if tc.errorContains != "" {
+				require.ErrorContains(t, err, tc.errorContains)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, ref)
+		})
+	}
+}
+
+func TestRunTargetedHeadFetchWarnsWhenServerIgnoresFilter(t *testing.T) {
+	fakeBin := t.TempDir()
+	fakeGit := filepath.Join(fakeBin, "git")
+	const headSHA = "2222222222222222222222222222222222222222"
+	require.NoError(t, os.WriteFile(fakeGit, []byte(`#!/bin/sh
+case "$*" in
+  "init --bare --quiet .") exit 0 ;;
+  *"fetch --dry-run --porcelain"*)
+    printf '* 0000000000000000000000000000000000000000 2222222222222222222222222222222222222222 FETCH_HEAD\n'
+    printf 'warning: filtering not recognized by server, ignoring\n' >&2
+    ;;
+  *"rev-parse --verify"*) printf '2222222222222222222222222222222222222222\n' ;;
+esac
+`), 0o755))
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	hook := logtest.NewGlobal()
+	t.Cleanup(hook.Reset)
+	client := &nativeGitClient{repoURL: "https://example.com/repo.git", creds: NopCreds{}}
+	ref, err := client.runTargetedHeadFetch()
+	require.NoError(t, err)
+	assert.Equal(t, plumbing.NewHashReference(headRevision, plumbing.NewHash(headSHA)), ref)
+
+	var messages []string
+	for _, entry := range hook.AllEntries() {
+		messages = append(messages, entry.Message)
+	}
+	assert.Contains(t, messages, "Git server for https://example.com/repo.git ignored object filtering; targeted HEAD resolution may transfer the full tip tree")
+}
+
+func TestRunTargetedHeadFetchReturnsRevisionNotFound(t *testing.T) {
+	fakeBin := t.TempDir()
+	fakeGit := filepath.Join(fakeBin, "git")
+	require.NoError(t, os.WriteFile(fakeGit, []byte(`#!/bin/sh
+case "$*" in
+  "init --bare --quiet .") exit 0 ;;
+  *"fetch --dry-run --porcelain"*)
+    printf "fatal: couldn't find remote ref HEAD\n" >&2
+    exit 128
+    ;;
+esac
+`), 0o755))
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	client := &nativeGitClient{repoURL: "https://example.com/repo.git", creds: NopCreds{}}
+	_, err := client.runTargetedHeadFetch()
+	require.ErrorIs(t, err, ErrRevisionNotFound)
+}
+
+func TestNativeLsRemoteCommandsRedactCredentials(t *testing.T) {
+	fakeBin := t.TempDir()
+	fakeGit := filepath.Join(fakeBin, "git")
+	require.NoError(t, os.WriteFile(fakeGit, []byte(`#!/bin/sh
+if [ "$1" = "init" ]; then
+  exit 0
+fi
+printf 'failed' >&2
+exit 1
+`), 0o755))
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	hook := logtest.NewGlobal()
+	t.Cleanup(hook.Reset)
+	const repoURL = "https://user:secret@example.com/repo.git"
+	client := &nativeGitClient{repoURL: repoURL, root: t.TempDir(), creds: NopCreds{}}
+	_, err := client.runLsRemote("ls-remote", "--heads", "--tags", repoURL)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "user:secret")
+	assert.Contains(t, err.Error(), "https://example.com/repo.git")
+
+	_, err = client.runTargetedHeadFetch()
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "user:secret")
+	assert.Contains(t, err.Error(), "https://example.com/repo.git")
+
+	for _, entry := range hook.AllEntries() {
+		assert.NotContains(t, entry.Message, "user:secret")
+	}
+}
+
+func TestRunLsRemoteIgnoresDiscoveredRepositoryConfig(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	baseDir := t.TempDir()
+
+	createRepo := func(name string) (string, string) {
+		repoDir := filepath.Join(baseDir, name)
+		require.NoError(t, os.Mkdir(repoDir, 0o755))
+		require.NoError(t, runCmd(ctx, repoDir, "git", "init"))
+		require.NoError(t, runCmd(ctx, repoDir, "git", "checkout", "-b", "main"))
+		require.NoError(t, runCmd(ctx, repoDir, "git", "commit", "-m", name, "--allow-empty"))
+		sha, err := outputCmd(ctx, repoDir, "git", "rev-parse", "HEAD")
+		require.NoError(t, err)
+		return repoDir, strings.TrimSpace(string(sha))
+	}
+
+	sourceRepo, sourceSHA := createRepo("source")
+	replacementRepo, replacementSHA := createRepo("replacement")
+	require.NotEqual(t, sourceSHA, replacementSHA)
+
+	// A fresh child directory still discovers repositories and their config in
+	// parent directories unless the command explicitly disables discovery.
+	discoveryRoot := filepath.Join(baseDir, "discovery")
+	require.NoError(t, os.Mkdir(discoveryRoot, 0o755))
+	require.NoError(t, runCmd(ctx, discoveryRoot, "git", "init"))
+	sourceURL := "file://" + sourceRepo
+	replacementURL := "file://" + replacementRepo
+	require.NoError(t, runCmd(ctx, discoveryRoot, "git", "config", "url."+replacementURL+".insteadOf", sourceURL))
+
+	tempDir := filepath.Join(discoveryRoot, "tmp")
+	require.NoError(t, os.Mkdir(tempDir, 0o755))
+	clientRoot := filepath.Join(baseDir, "client")
+	t.Setenv("TMPDIR", tempDir)
+
+	client, err := NewClientExt(sourceURL, clientRoot, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	nativeClient := client.(*nativeGitClient)
+	refs, err := nativeClient.runLsRemote("ls-remote", "--heads", "--tags", sourceURL)
+	require.NoError(t, err)
+	resolvedSHA, err := nativeClient.resolveRevisionWithoutTruncatedSHAFallback("main", refs)
+	require.NoError(t, err)
+	assert.Equal(t, sourceSHA, resolvedSHA)
+}
+
+func TestOptimizedLsRemoteCachesHeadWithBranchesAndTags(t *testing.T) {
+	fakeBin := t.TempDir()
+	fakeGit := filepath.Join(fakeBin, "git")
+	callsFile := filepath.Join(t.TempDir(), "calls")
+	const commitSHA = "abcdef0123456789abcdef0123456789abcdef01"
+	require.NoError(t, os.WriteFile(fakeGit, fmt.Appendf(nil, `#!/bin/sh
+printf '%%s\n' "$*" >> "$GIT_LS_REMOTE_CALLS_FILE"
+case "$*" in
+  *"ls-remote --heads --tags"*) printf '%s\trefs/heads/main\n' ;;
+  *"fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0"*) printf '* 0000000000000000000000000000000000000000 %s FETCH_HEAD\n' ;;
+  *"rev-parse --verify"*) printf '%s\n' ;;
+esac
+`, commitSHA, commitSHA, commitSHA), 0o755))
+	t.Setenv("GIT_LS_REMOTE_CALLS_FILE", callsFile)
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	repoURL := "https://example.com/repo.git"
+	cache := &fakeGitRefCache{refsByKey: map[string][]*plumbing.Reference{}}
+	client, err := NewClientExt(repoURL, filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "",
+		WithCache(cache, true),
+		WithOptimizedLsRemote(true))
+	require.NoError(t, err)
+
+	sha, err := client.LsRemote("main")
+	require.NoError(t, err)
+	assert.Equal(t, commitSHA, sha)
+
+	for _, revision := range []string{"", headRevision} {
+		sha, err := client.LsRemote(revision)
+		require.NoError(t, err)
+		assert.Equal(t, commitSHA, sha)
+	}
+
+	calls, err := os.ReadFile(callsFile)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{
+		"--git-dir=" + os.DevNull + " -c protocol.version=2 ls-remote --heads --tags -- " + repoURL,
+		"init --bare --quiet .",
+		"--git-dir=. -c protocol.version=2 fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0 -- " + repoURL + " HEAD",
+		"--git-dir=. rev-parse --verify " + commitSHA + "^{commit}",
+	}, strings.Split(strings.TrimSpace(string(calls)), "\n"))
+	assert.Equal(t, []string{"ls-remote-optimized|" + repoURL + "|HEAD,heads,tags"}, cache.setKeys)
+}
+
+func TestOptimizedLsRemoteTerminatesOptionsBeforeRepoURL(t *testing.T) {
+	fakeBin := t.TempDir()
+	fakeGit := filepath.Join(fakeBin, "git")
+	const commitSHA = "abcdef0123456789abcdef0123456789abcdef01"
+	require.NoError(t, os.WriteFile(fakeGit, fmt.Appendf(nil, `#!/bin/sh
+seen_separator=false
+for arg in "$@"; do
+  if [ "$arg" = "--" ]; then
+    seen_separator=true
+  elif [ "$arg" = "$GIT_TEST_REPO_URL" ] && [ "$seen_separator" != true ]; then
+    exit 97
+  fi
+done
+
+case "$*" in
+  *"ls-remote --heads --tags"*) printf '%s\trefs/heads/main\n' ;;
+  *"fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0"*) printf '* 0000000000000000000000000000000000000000 %s FETCH_HEAD\n' ;;
+  *"rev-parse --verify"*) printf '%s\n' ;;
+esac
+`, commitSHA, commitSHA, commitSHA), 0o755))
+
+	repoURL := "--upload-pack=echo-injected"
+	t.Setenv("GIT_TEST_REPO_URL", repoURL)
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	client, err := NewClientExt(repoURL, filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "", WithOptimizedLsRemote(true))
+	require.NoError(t, err)
+
+	sha, err := client.LsRemote("main")
+	require.NoError(t, err)
+	assert.Equal(t, commitSHA, sha)
+}
+
+func TestOptimizedLsRemoteRunsQueriesConcurrently(t *testing.T) {
+	fakeBin := t.TempDir()
+	fakeGit := filepath.Join(fakeBin, "git")
+	barrierDir := t.TempDir()
+	const commitSHA = "abcdef0123456789abcdef0123456789abcdef01"
+	require.NoError(t, os.WriteFile(fakeGit, fmt.Appendf(nil, `#!/bin/sh
+wait_for_file() {
+  attempts=0
+  while [ ! -f "$1" ]; do
+    attempts=$((attempts + 1))
+    [ "$attempts" -ge 100 ] && exit 1
+    sleep 0.01
+  done
+}
+
+case "$*" in
+  "init --bare --quiet .") exit 0 ;;
+  *"ls-remote --heads --tags"*)
+    touch "$GIT_LS_REMOTE_BARRIER/refs"
+    wait_for_file "$GIT_LS_REMOTE_BARRIER/head"
+    printf '%s\trefs/heads/main\n'
+    ;;
+  *"fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0"*)
+    touch "$GIT_LS_REMOTE_BARRIER/head"
+    wait_for_file "$GIT_LS_REMOTE_BARRIER/refs"
+    printf '* 0000000000000000000000000000000000000000 %s FETCH_HEAD\n'
+    ;;
+  *"rev-parse --verify"*) printf '%s\n' ;;
+esac
+`, commitSHA, commitSHA, commitSHA), 0o755))
+	t.Setenv("GIT_LS_REMOTE_BARRIER", barrierDir)
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	client, err := NewClientExt("https://example.com/repo.git", filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "", WithOptimizedLsRemote(true))
+	require.NoError(t, err)
+
+	sha, err := client.LsRemote("main")
+	require.NoError(t, err)
+	assert.Equal(t, commitSHA, sha)
+}
+
+func TestOptimizedLsRemote(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath := t.TempDir()
+
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "init"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "config", "tag.gpgSign", "false"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "checkout", "-b", "main"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "commit", "-m", "main", "--allow-empty"))
+
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "tag", "v1.0.0"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "commit", "-m", "v1.1.0", "--allow-empty"))
+	v110SHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	v110SHA := strings.TrimSpace(string(v110SHABytes))
+	mainSHA := v110SHA
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "tag", "v1.1.0"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "tag", "-a", "annotated", "-m", "annotated"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "tag", "20240101"))
+
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "checkout", "-b", "pull-ref"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "commit", "-m", "pull ref", "--allow-empty"))
+	pullSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	pullSHA := strings.TrimSpace(string(pullSHABytes))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "update-ref", "refs/pull/123/head", pullSHA))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "checkout", "main"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "branch", "-D", "pull-ref"))
+
+	clientRoot := filepath.Join(t.TempDir(), "client")
+	client, err := NewClientExt("file://"+sourceRepoPath, clientRoot, NopCreds{}, true, false, "", "", WithOptimizedLsRemote(true))
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name     string
+		revision string
+		expected string
+	}{
+		{name: "HEAD", revision: "HEAD", expected: mainSHA},
+		{name: "empty revision", revision: "", expected: mainSHA},
+		{name: "branch short name", revision: "main", expected: mainSHA},
+		{name: "branch full ref", revision: "refs/heads/main", expected: mainSHA},
+		{name: "tag short name", revision: "v1.1.0", expected: v110SHA},
+		{name: "tag full ref", revision: "refs/tags/v1.1.0", expected: v110SHA},
+		{name: "semver constraint", revision: "v1.*", expected: v110SHA},
+		{name: "annotated tag resolves to commit", revision: "annotated", expected: v110SHA},
+		{name: "hex-looking tag", revision: "20240101", expected: v110SHA},
+		{name: "non-standard short ref falls back", revision: "pull/123/head", expected: pullSHA},
+		{name: "non-standard ref falls back", revision: "refs/pull/123/head", expected: pullSHA},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sha, err := client.LsRemote(tc.revision)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, sha)
+		})
+	}
+}
+
+func TestResolveSemverRevisionForSignature(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	repoPath, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	checkedOutSHABytes, err := outputCmd(ctx, repoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	checkedOutSHA := strings.TrimSpace(string(checkedOutSHABytes))
+	require.NoError(t, runCmd(ctx, repoPath, "git", "commit", "-m", "new", "--allow-empty"))
+	newSHABytes, err := outputCmd(ctx, repoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	newSHA := strings.TrimSpace(string(newSHABytes))
+	require.NoError(t, runCmd(ctx, repoPath, "git", "checkout", "--detach", checkedOutSHA))
+
+	repoURL := "https://example.com/repo.git"
+	optimizedCacheKey := "ls-remote-optimized|" + repoURL + "|HEAD,heads,tags"
+	tagRef := func(name string, sha string) *plumbing.Reference {
+		return plumbing.NewHashReference(plumbing.ReferenceName("refs/tags/"+name), plumbing.NewHash(sha))
+	}
+
+	t.Run("optimized cache is used when enabled", func(t *testing.T) {
+		cache := &fakeGitRefCache{refsByKey: map[string][]*plumbing.Reference{
+			repoURL:           {tagRef("v1.2.0", newSHA)},
+			optimizedCacheKey: {tagRef("v1.1.0", checkedOutSHA)},
+		}}
+		client, err := NewClientExt(repoURL, repoPath, NopCreds{}, true, false, "", "",
+			WithCache(cache, true),
+			WithOptimizedLsRemote(true))
+		require.NoError(t, err)
+
+		resolvedRevision, err := client.(*nativeGitClient).resolveSemverRevisionForSignature(ctx, "v1.*")
+		require.NoError(t, err)
+		assert.Equal(t, "v1.1.0", resolvedRevision)
+	})
+
+	t.Run("optimized cache must match checked out commit", func(t *testing.T) {
+		cache := &fakeGitRefCache{refsByKey: map[string][]*plumbing.Reference{
+			optimizedCacheKey: {tagRef("v1.2.0", newSHA)},
+		}}
+		client, err := NewClientExt(repoURL, repoPath, NopCreds{}, true, false, "", "",
+			WithCache(cache, true),
+			WithOptimizedLsRemote(true))
+		require.NoError(t, err)
+
+		_, err = client.(*nativeGitClient).resolveSemverRevisionForSignature(ctx, "v1.*")
+		require.ErrorContains(t, err, "but the checked out commit is "+checkedOutSHA)
+	})
+
+	t.Run("legacy cache is used when disabled", func(t *testing.T) {
+		cache := &fakeGitRefCache{refsByKey: map[string][]*plumbing.Reference{
+			repoURL:           {tagRef("v1.1.0", checkedOutSHA)},
+			optimizedCacheKey: {tagRef("v1.2.0", newSHA)},
+		}}
+		client, err := NewClientExt(repoURL, repoPath, NopCreds{}, true, false, "", "", WithCache(cache, true))
+		require.NoError(t, err)
+
+		resolvedRevision, err := client.(*nativeGitClient).resolveSemverRevisionForSignature(ctx, "v1.*")
+		require.NoError(t, err)
+		assert.Equal(t, "v1.1.0", resolvedRevision)
+	})
+}
+
+func TestOptimizedLsRemoteTruncatedSHAUsesDefaultResolver(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	shaBytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	truncatedSHA := strings.TrimSpace(string(shaBytes))[:7]
+
+	lsRemoteCalls := 0
+	client, err := NewClientExt("file://"+sourceRepoPath, filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "",
+		WithOptimizedLsRemote(true),
+		WithEventHandlers(EventHandlers{
+			OnLsRemote: func(string) func() {
+				lsRemoteCalls++
+				return func() {}
+			},
+		}))
+	require.NoError(t, err)
+
+	resolvedSHA, err := client.LsRemote(truncatedSHA)
+	require.NoError(t, err)
+	assert.Equal(t, truncatedSHA, resolvedSHA)
+	assert.Equal(t, 1, lsRemoteCalls, "truncated SHAs should bypass the optimized cache fill")
+}
+
+func TestOptimizedLsRemoteEmptyRepositoryDoesNotFallBack(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath := t.TempDir()
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "init", "--bare"))
+
+	for _, tc := range []struct {
+		name     string
+		revision string
+	}{
+		{name: "empty revision", revision: ""},
+		{name: "HEAD", revision: headRevision},
+		{name: "fully qualified branch", revision: "refs/heads/main"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			lsRemoteCalls := 0
+			client, err := NewClientExt("file://"+sourceRepoPath, filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "",
+				WithOptimizedLsRemote(true),
+				WithEventHandlers(EventHandlers{
+					OnLsRemote: func(string) func() {
+						lsRemoteCalls++
+						return func() {}
+					},
+				}))
+			require.NoError(t, err)
+
+			_, err = client.(*nativeGitClient).lsRemote(tc.revision)
+			require.ErrorIs(t, err, ErrRevisionNotFound)
+			assert.Equal(t, 1, lsRemoteCalls, "a missing HEAD should not trigger the full resolver")
+		})
+	}
+}
+
+func TestOptimizedLsRemoteMissingHeadStillResolvesBranch(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	shaBytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	expectedSHA := strings.TrimSpace(string(shaBytes))
+	branchBytes, err := outputCmd(ctx, sourceRepoPath, "git", "branch", "--show-current")
+	require.NoError(t, err)
+	branch := strings.TrimSpace(string(branchBytes))
+	require.NotEmpty(t, branch)
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "symbolic-ref", "HEAD", "refs/heads/missing"))
+
+	lsRemoteCalls := 0
+	client, err := NewClientExt("file://"+sourceRepoPath, filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "",
+		WithOptimizedLsRemote(true),
+		WithEventHandlers(EventHandlers{
+			OnLsRemote: func(string) func() {
+				lsRemoteCalls++
+				return func() {}
+			},
+		}))
+	require.NoError(t, err)
+
+	resolvedSHA, err := client.LsRemote(branch)
+	require.NoError(t, err)
+	assert.Equal(t, expectedSHA, resolvedSHA)
+	assert.Equal(t, 1, lsRemoteCalls, "a missing HEAD should not discard usable branch refs")
+}
+
+func TestOptimizedLsRemoteResolvesDetachedHeadWithoutBranches(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	shaBytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	expectedSHA := strings.TrimSpace(string(shaBytes))
+	branchBytes, err := outputCmd(ctx, sourceRepoPath, "git", "branch", "--show-current")
+	require.NoError(t, err)
+	branch := strings.TrimSpace(string(branchBytes))
+	require.NotEmpty(t, branch)
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "checkout", "--detach", expectedSHA))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "branch", "-D", branch))
+
+	client, err := NewClientExt("file://"+sourceRepoPath, filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "", WithOptimizedLsRemote(true))
+	require.NoError(t, err)
+
+	resolvedSHA, err := client.LsRemote(headRevision)
+	require.NoError(t, err)
+	assert.Equal(t, expectedSHA, resolvedSHA)
+}
+
+func TestOptimizedLsRemoteAnnotatedTagMatchesDefault(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath := t.TempDir()
+
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "init"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "config", "tag.gpgSign", "false"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "checkout", "-b", "main"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "commit", "-m", "main", "--allow-empty"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "tag", "-a", "annotated", "-m", "annotated"))
+
+	tagObjectSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "annotated")
+	require.NoError(t, err)
+	commitSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "annotated^{}")
+	require.NoError(t, err)
+	tagObjectSHA := strings.TrimSpace(string(tagObjectSHABytes))
+	commitSHA := strings.TrimSpace(string(commitSHABytes))
+	require.NotEqual(t, tagObjectSHA, commitSHA)
+
+	repoURL := "file://" + sourceRepoPath
+	defaultClient, err := NewClientExt(repoURL, filepath.Join(t.TempDir(), "default"), NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	optimizedClient, err := NewClientExt(repoURL, filepath.Join(t.TempDir(), "optimized"), NopCreds{}, true, false, "", "", WithOptimizedLsRemote(true))
+	require.NoError(t, err)
+
+	defaultSHA, err := defaultClient.LsRemote("annotated")
+	require.NoError(t, err)
+	optimizedSHA, err := optimizedClient.LsRemote("annotated")
+	require.NoError(t, err)
+
+	assert.Equal(t, commitSHA, defaultSHA)
+	assert.Equal(t, defaultSHA, optimizedSHA)
+}
+
+func TestOptimizedLsRemoteAnnotatedTagHeadMatchesDefault(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath := t.TempDir()
+
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "init"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "config", "tag.gpgSign", "false"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "config", "uploadpack.allowFilter", "true"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "checkout", "-b", "main"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "commit", "-m", "main", "--allow-empty"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "tag", "-a", "annotated", "-m", "annotated"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "symbolic-ref", headRevision, "refs/tags/annotated"))
+
+	tagObjectSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "annotated")
+	require.NoError(t, err)
+	commitSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "annotated^{}")
+	require.NoError(t, err)
+	tagObjectSHA := strings.TrimSpace(string(tagObjectSHABytes))
+	commitSHA := strings.TrimSpace(string(commitSHABytes))
+	require.NotEqual(t, tagObjectSHA, commitSHA)
+
+	repoURL := "file://" + sourceRepoPath
+	defaultClient, err := NewClientExt(repoURL, filepath.Join(t.TempDir(), "default"), NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	optimizedClient, err := NewClientExt(repoURL, filepath.Join(t.TempDir(), "optimized"), NopCreds{}, true, false, "", "", WithOptimizedLsRemote(true))
+	require.NoError(t, err)
+
+	defaultSHA, err := defaultClient.LsRemote(headRevision)
+	require.NoError(t, err)
+	optimizedSHA, err := optimizedClient.LsRemote(headRevision)
+	require.NoError(t, err)
+
+	assert.Equal(t, commitSHA, defaultSHA)
+	assert.Equal(t, defaultSHA, optimizedSHA)
+}
+
+func TestOptimizedLsRemoteIgnoresUnusableClientRoot(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	expectedSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	branchBytes, err := outputCmd(ctx, sourceRepoPath, "git", "symbolic-ref", "--short", "HEAD")
+	require.NoError(t, err)
+
+	clientRoot := filepath.Join(t.TempDir(), "not-a-directory")
+	require.NoError(t, os.WriteFile(clientRoot, nil, 0o600))
+	client, err := NewClientExt("file://"+sourceRepoPath, clientRoot, NopCreds{}, true, false, "", "", WithOptimizedLsRemote(true))
+	require.NoError(t, err)
+
+	sha, handled, err := client.(*nativeGitClient).lsRemoteOptimized(strings.TrimSpace(string(branchBytes)))
+	require.NoError(t, err)
+	assert.True(t, handled)
+	assert.Equal(t, strings.TrimSpace(string(expectedSHABytes)), sha)
+}
+
+func TestOptimizedLsRemoteCoveredFullRefMissDoesNotFallback(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath := t.TempDir()
+
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "init"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "checkout", "-b", "main"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "commit", "-m", "main", "--allow-empty"))
+
+	lsRemoteCalls := 0
+	client, err := NewClientExt("file://"+sourceRepoPath, filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "",
+		WithOptimizedLsRemote(true),
+		WithEventHandlers(EventHandlers{
+			OnLsRemote: func(string) func() {
+				lsRemoteCalls++
+				return func() {}
+			},
+		}))
+	require.NoError(t, err)
+
+	_, err = client.LsRemote("refs/heads/missing")
+	require.ErrorContains(t, err, "unable to resolve 'refs/heads/missing'")
+	assert.Equal(t, 1, lsRemoteCalls, "covered full-ref miss should use one optimized cache fill")
+}
+
+func TestOptimizedLsRemoteHeadFailureFallsBackToGoGit(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath := t.TempDir()
+
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "init"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "checkout", "-b", "main"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "commit", "-m", "main", "--allow-empty"))
+	mainSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	mainSHA := strings.TrimSpace(string(mainSHABytes))
+
+	const fakeSHA = "1111111111111111111111111111111111111111"
+	fakeBin := t.TempDir()
+	fakeGit := filepath.Join(fakeBin, "git")
+	require.NoError(t, os.WriteFile(fakeGit, fmt.Appendf(nil, `#!/bin/sh
+case "$*" in
+  *"ls-remote --heads --tags"*) printf '%s\trefs/heads/main\n' ;;
+  *"fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0"*) exit 1 ;;
+esac
+`, fakeSHA), 0o755))
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	lsRemoteCalls := 0
+	client, err := NewClientExt("file://"+sourceRepoPath, filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "",
+		WithOptimizedLsRemote(true),
+		WithEventHandlers(EventHandlers{
+			OnLsRemote: func(string) func() {
+				lsRemoteCalls++
+				return func() {}
+			},
+		}))
+	require.NoError(t, err)
+
+	sha, err := client.LsRemote(headRevision)
+	require.NoError(t, err)
+	assert.Equal(t, mainSHA, sha)
+	assert.Equal(t, 2, lsRemoteCalls, "go-git should run only after the optimized cache fill fails")
+}
+
+func TestOptimizedLsRemoteUsesSingleCacheKey(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath := t.TempDir()
+
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "init"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "checkout", "-b", "main"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "commit", "-m", "main", "--allow-empty"))
+	mainSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	mainSHA := strings.TrimSpace(string(mainSHABytes))
+
+	repoURL := "file://" + sourceRepoPath
+	cache := &fakeGitRefCache{refsByKey: map[string][]*plumbing.Reference{}}
+	lsRemoteCalls := 0
+	client, err := NewClientExt(repoURL, filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "",
+		WithCache(cache, true),
+		WithOptimizedLsRemote(true),
+		WithEventHandlers(EventHandlers{
+			OnLsRemote: func(string) func() {
+				lsRemoteCalls++
+				return func() {}
+			},
+		}))
+	require.NoError(t, err)
+
+	sha, err := client.LsRemote("main")
+	require.NoError(t, err)
+	assert.Equal(t, mainSHA, sha)
+
+	sha, err = client.LsRemote("main")
+	require.NoError(t, err)
+	assert.Equal(t, mainSHA, sha)
+
+	sha, err = client.LsRemote("HEAD")
+	require.NoError(t, err)
+	assert.Equal(t, mainSHA, sha)
+
+	sha, err = client.LsRemote("HEAD")
+	require.NoError(t, err)
+	assert.Equal(t, mainSHA, sha)
+
+	assert.Equal(t, 1, lsRemoteCalls, "one cache fill should report one ls-remote operation")
+	assert.Equal(t, []string{"ls-remote-optimized|" + repoURL + "|HEAD,heads,tags"}, cache.setKeys)
+}
+
+func TestOptimizedLsRemoteConcurrentHeadRequestsShareCacheFill(t *testing.T) {
+	fakeBin := t.TempDir()
+	fakeGit := filepath.Join(fakeBin, "git")
+	callsFile := filepath.Join(t.TempDir(), "calls")
+	const commitSHA = "abcdef0123456789abcdef0123456789abcdef01"
+	require.NoError(t, os.WriteFile(fakeGit, fmt.Appendf(nil, `#!/bin/sh
+printf '%%s\n' "$*" >> "$GIT_LS_REMOTE_CALLS_FILE"
+case "$*" in
+  *"ls-remote --heads --tags"*)
+    sleep 0.1
+    printf '%s\trefs/heads/main\n'
+    ;;
+  *"fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0"*)
+    sleep 0.1
+    printf '* 0000000000000000000000000000000000000000 %s FETCH_HEAD\n'
+    ;;
+  *"rev-parse --verify"*) printf '%s\n' ;;
+esac
+`, commitSHA, commitSHA, commitSHA), 0o755))
+	t.Setenv("GIT_LS_REMOTE_CALLS_FILE", callsFile)
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	repoURL := "https://example.com/repo.git"
+	cache := newCoalescingGitRefCache()
+	var lsRemoteCalls atomic.Int32
+	client, err := NewClientExt(repoURL, filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "",
+		WithCache(cache, true),
+		WithOptimizedLsRemote(true),
+		WithEventHandlers(EventHandlers{
+			OnLsRemote: func(string) func() {
+				lsRemoteCalls.Add(1)
+				return func() {}
+			},
+		}))
+	require.NoError(t, err)
+
+	const callers = 10
+	errs := make(chan error, callers)
+	var wg sync.WaitGroup
+	for range callers {
+		wg.Go(func() {
+			sha, err := client.LsRemote(headRevision)
+			if err == nil && sha != commitSHA {
+				err = fmt.Errorf("HEAD resolved to %s, expected %s", sha, commitSHA)
+			}
+			errs <- err
+		})
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		require.NoError(t, err)
+	}
+
+	calls, err := os.ReadFile(callsFile)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{
+		"--git-dir=" + os.DevNull + " -c protocol.version=2 ls-remote --heads --tags -- " + repoURL,
+		"init --bare --quiet .",
+		"--git-dir=. -c protocol.version=2 fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0 -- " + repoURL + " HEAD",
+		"--git-dir=. rev-parse --verify " + commitSHA + "^{commit}",
+	}, strings.Split(strings.TrimSpace(string(calls)), "\n"))
+	assert.EqualValues(t, 1, lsRemoteCalls.Load())
+	assert.Equal(t, 1, cache.setCalls)
+}
+
+func TestOptimizedLsRemoteIgnoresExistingFullRefCache(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath := t.TempDir()
+
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "init"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "checkout", "-b", "main"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "commit", "-m", "old", "--allow-empty"))
+	oldSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	oldSHA := strings.TrimSpace(string(oldSHABytes))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "commit", "-m", "new", "--allow-empty"))
+	newSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	newSHA := strings.TrimSpace(string(newSHABytes))
+
+	repoURL := "file://" + sourceRepoPath
+	cache := &fakeGitRefCache{refsByKey: map[string][]*plumbing.Reference{
+		repoURL: {
+			plumbing.NewSymbolicReference("HEAD", "refs/heads/main"),
+			plumbing.NewHashReference("refs/heads/main", plumbing.NewHash(oldSHA)),
+		},
+	}}
+	lsRemoteCalls := 0
+	client, err := NewClientExt(repoURL, filepath.Join(t.TempDir(), "client"), NopCreds{}, true, false, "", "",
+		WithCache(cache, true),
+		WithOptimizedLsRemote(true),
+		WithEventHandlers(EventHandlers{
+			OnLsRemote: func(string) func() {
+				lsRemoteCalls++
+				return func() {}
+			},
+		}))
+	require.NoError(t, err)
+
+	sha, err := client.LsRemote(headRevision)
+	require.NoError(t, err)
+	assert.Equal(t, newSHA, sha)
+
+	sha, err = client.LsRemote("main")
+	require.NoError(t, err)
+	assert.Equal(t, newSHA, sha)
+	assert.Equal(t, 1, lsRemoteCalls, "optimized HEAD must not use the go-git full-ref cache")
+	assert.Contains(t, cache.setKeys, "ls-remote-optimized|"+repoURL+"|HEAD,heads,tags")
+}
+
+func TestOptimizedLsRemoteHardRefreshUpdatesOptimizedCache(t *testing.T) {
+	setupGitEnv(t)
+	ctx := t.Context()
+	sourceRepoPath := t.TempDir()
+
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "init"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "checkout", "-b", "main"))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "commit", "-m", "old", "--allow-empty"))
+	oldSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	oldSHA := strings.TrimSpace(string(oldSHABytes))
+	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "commit", "-m", "new", "--allow-empty"))
+	newSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	newSHA := strings.TrimSpace(string(newSHABytes))
+
+	repoURL := "file://" + sourceRepoPath
+	cacheKey := "ls-remote-optimized|" + repoURL + "|HEAD,heads,tags"
+	cache := &fakeGitRefCache{refsByKey: map[string][]*plumbing.Reference{
+		cacheKey: {
+			plumbing.NewHashReference("refs/heads/main", plumbing.NewHash(oldSHA)),
+		},
+	}}
+	noCacheClient, err := NewClientExt(repoURL, filepath.Join(t.TempDir(), "client-hard-refresh"), NopCreds{}, true, false, "", "",
+		WithCache(cache, false),
+		WithOptimizedLsRemote(true))
+	require.NoError(t, err)
+
+	sha, err := noCacheClient.LsRemote("main")
+	require.NoError(t, err)
+	assert.Equal(t, newSHA, sha)
+
+	cachedClient, err := NewClientExt(repoURL, filepath.Join(t.TempDir(), "client-cached"), NopCreds{}, true, false, "", "",
+		WithCache(cache, true),
+		WithOptimizedLsRemote(true))
+	require.NoError(t, err)
+
+	sha, err = cachedClient.LsRemote("main")
+	require.NoError(t, err)
+	assert.Equal(t, newSHA, sha)
+	assert.Contains(t, cache.setKeys, cacheKey)
+}
+
 func Test_nativeGitClient_Submodule(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "")
 	require.NoError(t, err)
@@ -648,14 +1892,14 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch(t.Context(), "", 0)
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
 	// Call Checkout() with submoduleEnabled=false.
-	_, err = client.Checkout(commitSHA, false, true)
+	_, err = client.Checkout(t.Context(), commitSHA, false, true)
 	require.NoError(t, err)
 
 	// Check if submodule url does not exist in .git/config
@@ -663,7 +1907,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.Error(t, err)
 
 	// Call Submodule() via Checkout() with submoduleEnabled=true.
-	_, err = client.Checkout(commitSHA, true, true)
+	_, err = client.Checkout(t.Context(), commitSHA, true, true)
 	require.NoError(t, err)
 
 	// Check if the .gitmodule URL is reflected in .git/config
@@ -678,7 +1922,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.NoError(t, err)
 
 	// Call Submodule()
-	err = client.Submodule()
+	err = client.Submodule(t.Context())
 	require.NoError(t, err)
 
 	// Check if the URL change in .gitmodule is reflected in .git/config
@@ -723,11 +1967,11 @@ func Test_IsRevisionPresent(t *testing.T) {
 	require.NoError(t, err)
 
 	// Ensure revision for HEAD is present locally.
-	revisionPresent := client.IsRevisionPresent(commitSHA)
+	revisionPresent := client.IsRevisionPresent(t.Context(), commitSHA)
 	assert.True(t, revisionPresent)
 
 	// Ensure invalid revision is not returned.
-	revisionPresent = client.IsRevisionPresent("invalid-revision")
+	revisionPresent = client.IsRevisionPresent(t.Context(), "invalid-revision")
 	assert.False(t, revisionPresent)
 }
 
@@ -770,7 +2014,7 @@ func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	metadata, err := client.RevisionMetadata("HEAD")
+	metadata, err := client.RevisionMetadata(t.Context(), "HEAD")
 	require.NoError(t, err)
 	require.Equal(t, &RevisionMetadata{
 		Author: `FooBar ||| somethingelse <foo@foo.com>`,
@@ -816,7 +2060,7 @@ func Test_nativeGitClient_SetAuthor(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	out, err := client.SetAuthor(expectedName, expectedEmail)
+	out, err := client.SetAuthor(t.Context(), expectedName, expectedEmail)
 	require.NoError(t, err, "error output: ", out)
 
 	// Check git user.name
@@ -848,7 +2092,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		require.NoError(t, err)
 
 		// set the author for the initial commit of the orphan branch
-		out, err := client.SetAuthor("test", "test@example.com")
+		out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 		require.NoError(t, err, "error output: %s", out)
 
 		// get base branch
@@ -869,7 +2113,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		err = runCmd(ctx, tempDir, "git", "checkout", baseBranch)
 		require.NoError(t, err)
 
-		out, err = client.CheckoutOrOrphan(expectedBranch, false)
+		out, err = client.CheckoutOrOrphan(t.Context(), expectedBranch, false)
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
@@ -914,10 +2158,10 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		require.NoError(t, err)
 
 		// set the author for the initial commit of the orphan branch
-		out, err := client.SetAuthor("test", "test@example.com")
+		out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 		require.NoError(t, err, "error output: %s", out)
 
-		err = client.Fetch("", 0)
+		err = client.Fetch(t.Context(), "", 0)
 		require.NoError(t, err)
 
 		// checkout to origin base branch
@@ -929,7 +2173,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		require.NoError(t, err)
 		baseCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
 
-		out, err = client.CheckoutOrOrphan(expectedBranch, false)
+		out, err = client.CheckoutOrOrphan(t.Context(), expectedBranch, false)
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
@@ -983,7 +2227,7 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		err = client.Init()
 		require.NoError(t, err)
 
-		out, err := client.SetAuthor("test", "test@example.com")
+		out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 		require.NoError(t, err, "error output: %s", out)
 
 		// get base branch
@@ -1000,14 +2244,14 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		require.NoError(t, err)
 
 		// get expected commit
-		expectedCommitHash, err := client.CommitSHA()
+		expectedCommitHash, err := client.CommitSHA(t.Context())
 		require.NoError(t, err)
 
 		// checkout to base branch, ready to test
 		err = runCmd(ctx, tempDir, "git", "checkout", baseBranch)
 		require.NoError(t, err)
 
-		out, err = client.CheckoutOrNew(expectedBranch, baseBranch, false)
+		out, err = client.CheckoutOrNew(t.Context(), expectedBranch, baseBranch, false)
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
@@ -1017,7 +2261,7 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		require.Equal(t, expectedBranch, actualBranch)
 
 		// get current commit hash, verify current commit hash
-		actualCommitHash, err := client.CommitSHA()
+		actualCommitHash, err := client.CommitSHA(t.Context())
 		require.NoError(t, err)
 		require.Equal(t, expectedCommitHash, actualCommitHash)
 	})
@@ -1043,7 +2287,7 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		err = client.Init()
 		require.NoError(t, err)
 
-		out, err := client.SetAuthor("test", "test@example.com")
+		out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 		require.NoError(t, err, "error output: %s", out)
 
 		// get base branch
@@ -1052,10 +2296,10 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		baseBranch := strings.TrimSpace(string(gitCurrentBranch))
 
 		// get expected commit
-		expectedCommitHash, err := client.CommitSHA()
+		expectedCommitHash, err := client.CommitSHA(t.Context())
 		require.NoError(t, err)
 
-		out, err = client.CheckoutOrNew(expectedBranch, baseBranch, false)
+		out, err = client.CheckoutOrNew(t.Context(), expectedBranch, baseBranch, false)
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
@@ -1065,7 +2309,7 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		require.Equal(t, expectedBranch, actualBranch)
 
 		// get current commit hash, verify current commit hash
-		actualCommitHash, err := client.CommitSHA()
+		actualCommitHash, err := client.CommitSHA(t.Context())
 		require.NoError(t, err)
 		require.Equal(t, expectedCommitHash, actualCommitHash)
 	})
@@ -1083,7 +2327,7 @@ func Test_nativeGitClient_RemoveContents_SpecificPath(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	_, err = client.SetAuthor("test", "test@example.com")
+	_, err = client.SetAuthor(t.Context(), "test", "test@example.com")
 	require.NoError(t, err)
 
 	err = runCmd(ctx, client.Root(), "touch", "README.md")
@@ -1100,7 +2344,7 @@ func Test_nativeGitClient_RemoveContents_SpecificPath(t *testing.T) {
 	require.NoError(t, err)
 
 	// when: remove only "scripts" directory
-	_, err = client.RemoveContents([]string{"scripts"})
+	_, err = client.RemoveContents(t.Context(), []string{"scripts"})
 	require.NoError(t, err)
 
 	// then: "scripts" should be gone, "README.md" should still exist
@@ -1116,7 +2360,7 @@ func Test_nativeGitClient_RemoveContents_SpecificPath(t *testing.T) {
 	require.Equal(t, "README.md", strings.TrimSpace(string(ls)))
 }
 
-func Test_nativeGitClient_CommitAndPush(t *testing.T) {
+func Test_nativeGitClient_Commit_Push(t *testing.T) {
 	ctx := t.Context()
 	tempDir, err := _createEmptyGitRepo(ctx)
 	require.NoError(t, err)
@@ -1137,24 +2381,26 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	out, err := client.SetAuthor("test", "test@example.com")
+	out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch, 0)
+	err = client.Fetch(t.Context(), branch, 0)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false, true)
+	out, err = client.Checkout(t.Context(), branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// make a file then commit and push
 	err = runCmd(ctx, client.Root(), "touch", "README.md")
 	require.NoError(t, err)
 
-	out, err = client.CommitAndPush(branch, "docs: README")
+	out, err = client.Commit("docs: README", "")
+	require.NoError(t, err, "error output: %s", out)
+	out, err = client.Push(branch)
 	require.NoError(t, err, "error output: %s", out)
 
 	// get current commit hash of the cloned repository
-	expectedCommitHash, err := client.CommitSHA()
+	expectedCommitHash, err := client.CommitSHA(t.Context())
 	require.NoError(t, err)
 
 	// get origin repository's current commit hash
@@ -1482,11 +2728,11 @@ func Test_LsFiles_RaceCondition(t *testing.T) {
 	require.NoError(t, err)
 
 	// Assert that LsFiles returns the correct files when called sequentially
-	files1, err := client1.LsFiles("*", true)
+	files1, err := client1.LsFiles(t.Context(), "*", true)
 	require.NoError(t, err)
 	require.Contains(t, files1, "file1.txt")
 
-	files2, err := client2.LsFiles("*", true)
+	files2, err := client2.LsFiles(t.Context(), "*", true)
 	require.NoError(t, err)
 	require.Contains(t, files2, "file2.txt")
 
@@ -1495,7 +2741,7 @@ func Test_LsFiles_RaceCondition(t *testing.T) {
 	callLsFiles := func(client Client, expectedFile string) {
 		defer wg.Done()
 		for range 100 {
-			files, err := client.LsFiles("*", true)
+			files, err := client.LsFiles(t.Context(), "*", true)
 			require.NoError(t, err)
 			require.Contains(t, files, expectedFile)
 		}
@@ -1704,28 +2950,30 @@ func Test_nativeGitClient_GetCommitNote(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	out, err := client.SetAuthor("test", "test@example.com")
+	out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch, 0)
+	err = client.Fetch(t.Context(), branch, 0)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false, true)
+	out, err = client.Checkout(t.Context(), branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// Create and commit a test file
 	err = os.WriteFile(filepath.Join(client.Root(), "README.md"), []byte("content"), 0o644)
 	require.NoError(t, err)
-	out, err = client.CommitAndPush(branch, "initial commit")
+	out, err = client.Commit("initial commit", "")
+	require.NoError(t, err, "error output: %s", out)
+	out, err = client.Push(branch)
 	require.NoError(t, err, "error output: %s", out)
 
 	// Get the latest commit SHA
-	sha, err := client.CommitSHA()
+	sha, err := client.CommitSHA(t.Context())
 	require.NoError(t, err)
 	require.NotEmpty(t, sha)
 
 	// No note found, should return ErrNoNoteFound
-	got, err := client.GetCommitNote(sha, "")
+	got, err := client.GetCommitNote(t.Context(), sha, "")
 	require.Empty(t, got)
 	unwrappedError := errors.Unwrap(err)
 	require.ErrorIs(t, unwrappedError, ErrNoNoteFound)
@@ -1736,7 +2984,7 @@ func Test_nativeGitClient_GetCommitNote(t *testing.T) {
 	require.NoError(t, err)
 
 	// Call the method under test
-	got, err = client.GetCommitNote(sha, "")
+	got, err = client.GetCommitNote(t.Context(), sha, "")
 	require.NoError(t, err)
 	require.Equal(t, noteMsg, got)
 }
@@ -1762,29 +3010,31 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	out, err := client.SetAuthor("test", "test@example.com")
+	out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch, 0)
+	err = client.Fetch(t.Context(), branch, 0)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false, true)
+	out, err = client.Checkout(t.Context(), branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// Create and commit a test file
 	err = os.WriteFile(filepath.Join(client.Root(), "README.md"), []byte("content"), 0o644)
 	require.NoError(t, err)
-	out, err = client.CommitAndPush(branch, "initial commit")
+	out, err = client.Commit("initial commit", "")
+	require.NoError(t, err, "error output: %s", out)
+	out, err = client.Push(branch)
 	require.NoError(t, err, "error output: %s", out)
 
 	// Get current commit SHA
-	sha, err := client.CommitSHA()
+	sha, err := client.CommitSHA(t.Context())
 	require.NoError(t, err)
 	require.NotEmpty(t, sha)
 
 	// Add and push a note (to the same repo acting as its own origin)
 	note := "this is a test note"
-	err = client.AddAndPushNote(sha, "", note)
+	err = client.AddAndPushNote(t.Context(), sha, "", note)
 	require.NoError(t, err)
 
 	// Verify the note exists
@@ -1796,13 +3046,92 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 	t.Run("custom namespace", func(t *testing.T) {
 		customNS := "source-hydrator"
 		customNote := "custom namespace note"
-		err = client.AddAndPushNote(sha, customNS, customNote)
+		err = client.AddAndPushNote(t.Context(), sha, customNS, customNote)
 		require.NoError(t, err)
 
 		outBytes, err := outputCmd(ctx, client.Root(), "git", "notes", "--ref="+customNS, "show", sha)
 		require.NoError(t, err)
 		require.Equal(t, customNote, strings.TrimSpace(string(outBytes)))
 	})
+
+	t.Run("permanent failure is not reported as exhausted retries", func(t *testing.T) {
+		err := runCmd(t.Context(), client.Root(), "git", "remote", "set-url", "origin", "file:///nonexistent/repo.git")
+		require.NoError(t, err)
+
+		err = client.AddAndPushNote(t.Context(), sha, "permanent-failure", "note")
+		require.Error(t, err)
+		assert.True(t, strings.HasPrefix(err.Error(), "failed to push note: `git push"),
+			"expected a single unqualified prefix, got: %s", err.Error())
+		assert.NotContains(t, err.Error(), "attempts")
+	})
+
+	t.Run("exhausted retries report the attempt count", func(t *testing.T) {
+		remoteDir := t.TempDir()
+		require.NoError(t, runCmd(t.Context(), remoteDir, "git", "init", "--bare"))
+
+		// Reject every push with a retryable message so the backoff runs to its deadline.
+		hook := `#!/bin/sh
+echo "error: cannot lock ref 'refs/notes/exhausted': is at aaa but expected bbb" >&2
+exit 1
+`
+		require.NoError(t, os.WriteFile(filepath.Join(remoteDir, "hooks", "pre-receive"), []byte(hook), 0o755))
+		require.NoError(t, runCmd(t.Context(), client.Root(), "git", "remote", "set-url", "origin", "file://"+remoteDir))
+
+		err := client.AddAndPushNote(t.Context(), sha, "exhausted", "note")
+		require.Error(t, err)
+		matches := regexp.MustCompile(`^failed to push note after (\d+) attempts: `).FindStringSubmatch(err.Error())
+		require.Len(t, matches, 2, "unexpected error format: %s", err.Error())
+		attempts, convErr := strconv.Atoi(matches[1])
+		require.NoError(t, convErr)
+		assert.Greater(t, attempts, 1, "expected the push to have been retried")
+	})
+}
+
+func Test_isRetryableNotePushError(t *testing.T) {
+	tests := []struct {
+		name   string
+		errStr string
+		want   bool
+	}{
+		{
+			name:   "fetch first",
+			errStr: "Updates were rejected because the remote contains work that you do not have locally. fetch first",
+			want:   true,
+		},
+		{
+			name:   "reference already exists",
+			errStr: "failed to push some refs: reference already exists",
+			want:   true,
+		},
+		{
+			name:   "incorrect old value",
+			errStr: "update_ref failed for ref 'refs/notes/hydrator.metadata': cannot update the ref: incorrect old value",
+			want:   true,
+		},
+		{
+			name:   "failed to update ref",
+			errStr: "error: failed to update ref",
+			want:   true,
+		},
+		{
+			name: "cannot lock ref from concurrent shard",
+			errStr: " ! [remote rejected]     refs/notes/hydrator.metadata -> refs/notes/hydrator.metadata " +
+				"(cannot lock ref 'refs/notes/hydrator.metadata': is at 477134654bdd5531fc0f76bf026be86515e8685f " +
+				"but expected 30b2c9044a27f1b853fee454ab9bfef183fb9e0d)\n" +
+				"error: failed to push some refs to 'https://github.example.com/org/deployments.git'",
+			want: true,
+		},
+		{
+			name:   "non-retryable error",
+			errStr: "fatal: Authentication failed for 'https://github.example.com/org/deployments.git'",
+			want:   false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isRetryableNotePushError(tt.errStr))
+		})
+	}
 }
 
 func Test_nativeGitClient_HasFileChanged(t *testing.T) {
@@ -1826,13 +3155,13 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	out, err := client.SetAuthor("test", "test@example.com")
+	out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch, 0)
+	err = client.Fetch(t.Context(), branch, 0)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false, true)
+	out, err = client.Checkout(t.Context(), branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// Create the file inside repo root
@@ -1843,21 +3172,23 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	require.NoError(t, err)
 
 	// Untracked file, should be reported as changed
-	changed, err := client.HasFileChanged(filePath)
+	changed, err := client.HasFileChanged(t.Context(), filePath)
 	require.NoError(t, err)
 	require.True(t, changed, "expected untracked file to be reported as changed")
 
 	// After commit, should NOT be changed
-	out, err = client.CommitAndPush(branch, "add sample.txt")
+	out, err = client.Commit("add sample.txt", "")
 	require.NoError(t, err, "error output: %s", out)
-	changed, err = client.HasFileChanged(filePath)
+	out, err = client.Push(branch)
+	require.NoError(t, err, "error output: %s", out)
+	changed, err = client.HasFileChanged(t.Context(), filePath)
 	require.NoError(t, err)
 	require.False(t, changed, "expected committed file to not be changed")
 
 	// Modify the file should be reported as changed
 	err = os.WriteFile(filePath, []byte("modified content"), 0o644)
 	require.NoError(t, err)
-	changed, err = client.HasFileChanged(filePath)
+	changed, err = client.HasFileChanged(t.Context(), filePath)
 	require.NoError(t, err)
 	require.True(t, changed, "expected modified file to be reported as changed")
 }
@@ -1869,7 +3200,7 @@ func Test_LsSignatures_Error(t *testing.T) {
 	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 	require.NoError(t, client.Init())
-	out, err := client.SetAuthor("test", "test@example.com")
+	out, err := client.SetAuthor(t.Context(), "test", "test@example.com")
 	require.NoError(t, err, "error output: %s", out)
 
 	err = runCmd(ctx, tempDir, "git", "log")
@@ -1893,9 +3224,63 @@ func Test_LsSignatures_Error(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		signatures, legacy, err := client.LsSignatures(tt.revision, tt.deep)
+		signatures, legacy, err := client.LsSignatures(t.Context(), tt.revision, tt.deep)
 		require.ErrorContains(t, err, tt.expectedMsg)
 		assert.Nil(t, signatures)
 		assert.Empty(t, legacy)
 	}
+}
+
+func Test_humanizeAuthPromptError(t *testing.T) {
+	repoURL := "https://github.com/argoproj/argo-cd.git"
+
+	t.Run("nil error is passed through", func(t *testing.T) {
+		require.NoError(t, humanizeAuthPromptError(repoURL, nil))
+	})
+
+	t.Run("unrelated error is left unchanged", func(t *testing.T) {
+		orig := errors.New("fatal: not a git repository")
+		require.Equal(t, orig, humanizeAuthPromptError(repoURL, orig))
+	})
+
+	t.Run("terminal-prompt failure is rewritten but keeps the cause", func(t *testing.T) {
+		orig := errors.New("`git fetch origin` failed exit status 128: fatal: could not read Username for 'https://github.com': terminal prompts disabled")
+		got := humanizeAuthPromptError(repoURL, orig)
+		require.ErrorIs(t, got, orig, "original error must be wrapped for debugging")
+		assert.Contains(t, got.Error(), "failed to authenticate to git repository")
+		assert.Contains(t, got.Error(), "no credentials matched this URL")
+		assert.Contains(t, got.Error(), repoURL)
+	})
+}
+
+// Test_fetch_authPromptRewrite reproduces issue #22750 end-to-end: a credentialed
+// git fetch against a repository that requires auth but has no matching credentials
+// makes git emit the misleading "terminal prompts disabled" message. It proves the
+// fix rewrites that into an actionable authentication error while preserving the
+// original cause.
+func Test_fetch_authPromptRewrite(t *testing.T) {
+	// A remote that always demands basic auth, mimicking a private repo whose
+	// credentials no longer match (e.g. after a rename/move or token rotation).
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("WWW-Authenticate", `Basic realm="git"`)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+
+	tmp := t.TempDir()
+	ctx := t.Context()
+	require.NoError(t, runCmd(ctx, tmp, "git", "init", "--initial-branch=master"))
+	// Reset the credential helper list so no system/keychain helper interferes.
+	require.NoError(t, runCmd(ctx, tmp, "git", "config", "--local", "credential.helper", ""))
+	require.NoError(t, runCmd(ctx, tmp, "git", "remote", "add", "origin", srv.URL))
+
+	// NopCreds => no credentials injected, exactly like a repo URL that matched no secret.
+	client := &nativeGitClient{repoURL: srv.URL, root: tmp, creds: NopCreds{}}
+
+	err := client.fetch(ctx, "", 0)
+	require.Error(t, err)
+	// The raw git failure really happened (reproduction) ...
+	assert.Contains(t, err.Error(), "terminal prompts disabled", "expected to reproduce the raw git auth-prompt failure")
+	// ... and the fix surfaces it as an actionable authentication error (the fix).
+	assert.Contains(t, err.Error(), "failed to authenticate to git repository", "expected the humanized authentication error")
 }

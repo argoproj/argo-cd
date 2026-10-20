@@ -42,33 +42,25 @@ const testNamespace = "default"
 
 var (
 	argocdCM = corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "argocd-cm",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Namespace: testNamespace,
+		Name:      "argocd-cm",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 	}
 	argocdSecret = corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: testNamespace,
-		},
+		Name:      "argocd-secret",
+		Namespace: testNamespace,
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),
 		},
 	}
 	defaultProj = &appsv1.AppProject{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.AppProjectKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "default",
-			Namespace: testNamespace,
-		},
+		Kind:       application.AppProjectKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "default",
+		Namespace:  testNamespace,
 		Spec: appsv1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -76,14 +68,10 @@ var (
 	}
 
 	defaultProjNoSources = &appsv1.AppProject{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.AppProjectKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "default",
-			Namespace: testNamespace,
-		},
+		Kind:       application.AppProjectKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "default",
+		Namespace:  testNamespace,
 		Spec: appsv1.AppProjectSpec{
 			SourceRepos:  []string{},
 			Destinations: []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
@@ -102,14 +90,10 @@ var (
 		InheritedCreds: true,
 	}
 	guestbookApp = &appsv1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "guestbook",
-			Namespace: testNamespace,
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "guestbook",
+		Namespace:  testNamespace,
 		Spec: appsv1.ApplicationSpec{
 			Project: "default",
 			Source: &appsv1.ApplicationSource{
@@ -137,14 +121,10 @@ var (
 	}
 	multiSourceApp001AppName = "msa-two-helm-types"
 	multiSourceApp001        = &appsv1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      multiSourceApp001AppName,
-			Namespace: testNamespace,
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       multiSourceApp001AppName,
+		Namespace:  testNamespace,
 		Spec: appsv1.ApplicationSpec{
 			Project: "default",
 			Sources: []appsv1.ApplicationSource{
@@ -188,14 +168,10 @@ var (
 	}
 	multiSourceApp002AppName = "msa-one-plugin-one-helm"
 	multiSourceApp002        = &appsv1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      multiSourceApp002AppName,
-			Namespace: testNamespace,
-		},
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       multiSourceApp002AppName,
+		Namespace:  testNamespace,
 		Spec: appsv1.ApplicationSpec{
 			Project: "default",
 			Sources: []appsv1.ApplicationSource{

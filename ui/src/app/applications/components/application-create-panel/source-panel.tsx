@@ -93,12 +93,16 @@ export const SourcePanel = (props: SourcePanelProps) => {
                                             if (!source) {
                                                 return;
                                             }
+                                            // These refs are written from a DropDownMenu click handler, which runs on
+                                            // user interaction rather than during render, so ref access here is safe.
+                                            /* eslint-disable react-hooks/refs */
                                             if (repoType === 'git' || repoType === 'helm') {
                                                 lastGitOrHelmUrl.current = source.repoURL;
                                             } else {
                                                 lastOciUrl.current = source.repoURL;
                                             }
                                             currentRepoType.current = type;
+                                            /* eslint-enable react-hooks/refs */
                                             switch (type) {
                                                 case 'git':
                                                 case 'oci':

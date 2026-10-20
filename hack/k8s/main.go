@@ -11,7 +11,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/errors"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 )
 
@@ -24,7 +24,7 @@ func main() {
 
 	errors.CheckError(err)
 	kubeConfigPath := "/tmp/kubeconfig"
-	if len(os.Args) > 2 {
+	if len(os.Args) > 1 {
 		kubeConfigPath = os.Args[1]
 	}
 

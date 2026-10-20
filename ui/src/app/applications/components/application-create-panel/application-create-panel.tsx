@@ -4,7 +4,7 @@ import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import {FieldApi, Form, FormApi, FormFieldHOC as ReactFormField, Text} from 'argo-ui';
 import {cloneDeep, debounce} from 'lodash-es';
-import {YamlEditor} from '../../../shared/components';
+import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {AuthSettingsCtx} from '../../../shared/context';
@@ -16,7 +16,7 @@ import {HydratorSourcePanel} from './hydrator-source-panel';
 import {CollapsibleMultiSourceSection} from './collapsible-multi-source-section';
 import {SourcePanel} from './source-panel';
 import './application-create-panel.scss';
-import {getAppDefaultSource} from '../utils';
+import {getAppDefaultSource, getClusterOptions} from '../utils';
 import {APP_SOURCE_TYPES, normalizeTypeFieldsForSource} from '../shared/app-source-edit';
 
 const jsonMergePatch = require('json-merge-patch');
@@ -113,7 +113,7 @@ export const ApplicationCreatePanel = (props: {
     const app = deepMerge(DEFAULT_APP, props.app || {});
     const debouncedOnAppChanged = debounce(props.onAppChanged, 800);
     const [destinationFieldChanges, setDestinationFieldChanges] = React.useState({destFormat: 'URL', destFormatChanged: null});
-    const comboSwitchedFromPanel = React.useRef(false);
+    const [comboSwitchedFromPanel, setComboSwitchedFromPanel] = React.useState(false);
     const currentRepoType = React.useRef(undefined);
     const lastGitOrHelmUrl = React.useRef('');
     const lastOciUrl = React.useRef('');
@@ -125,10 +125,6 @@ export const ApplicationCreatePanel = (props: {
     const [multiSourceMode, setMultiSourceMode] = React.useState(() => (app.spec?.sources?.length ?? 0) >= 2);
 
     React.useEffect(() => {
-        comboSwitchedFromPanel.current = false;
-    }, []);
-
-    React.useEffect(() => {
         return () => {
             debouncedOnAppChanged.cancel();
         };
@@ -138,7 +134,7 @@ export const ApplicationCreatePanel = (props: {
     const currentServer = app.spec.destination.server;
     if (destinationFieldChanges.destFormatChanged !== null) {
         if (destinationComboValue == 'NAME') {
-            if (currentName === undefined && currentServer !== undefined && comboSwitchedFromPanel.current === false) {
+            if (currentName === undefined && currentServer !== undefined && comboSwitchedFromPanel === false) {
                 destinationComboValue = 'URL';
             } else {
                 delete app.spec.destination.server;
@@ -147,7 +143,7 @@ export const ApplicationCreatePanel = (props: {
                 }
             }
         } else {
-            if (currentServer === undefined && currentName !== undefined && comboSwitchedFromPanel.current === false) {
+            if (currentServer === undefined && currentName !== undefined && comboSwitchedFromPanel === false) {
                 destinationComboValue = 'NAME';
             } else {
                 delete app.spec.destination.name;
@@ -229,7 +225,7 @@ export const ApplicationCreatePanel = (props: {
             load={() =>
                 Promise.all([
                     services.projects.list('items.metadata.name').then(projects => projects.map(proj => proj.metadata.name).sort()),
-                    services.clusters.list().then(clusters => clusters.sort()),
+                    services.clusters.list(),
                     services.repos.list()
                 ]).then(([projects, clusters, reposInfo]) => ({projects, clusters, reposInfo}))
             }>
@@ -468,7 +464,7 @@ export const ApplicationCreatePanel = (props: {
                                                             qeId='application-create-field-cluster-url'
                                                             field='spec.destination.server'
                                                             componentProps={{
-                                                                items: clusters.map(cluster => cluster.server),
+                                                                items: getClusterOptions(clusters, 'server'),
                                                                 filterSuggestions: true
                                                             }}
                                                             component={AutocompleteField}
@@ -482,7 +478,7 @@ export const ApplicationCreatePanel = (props: {
                                                             qeId='application-create-field-cluster-name'
                                                             field='spec.destination.name'
                                                             componentProps={{
-                                                                items: clusters.map(cluster => cluster.name),
+                                                                items: getClusterOptions(clusters, 'name'),
                                                                 filterSuggestions: true
                                                             }}
                                                             component={AutocompleteField}
@@ -503,7 +499,7 @@ export const ApplicationCreatePanel = (props: {
                                                                 action: () => {
                                                                     if (destinationComboValue !== type) {
                                                                         destinationComboValue = type;
-                                                                        comboSwitchedFromPanel.current = true;
+                                                                        setComboSwitchedFromPanel(true);
                                                                         setDestinationFieldChanges({destFormat: type, destFormatChanged: 'changed'});
                                                                     }
                                                                 }

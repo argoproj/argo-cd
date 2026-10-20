@@ -315,12 +315,13 @@ func TestMTLSIntegration_NoClientCert_IsRejected(t *testing.T) {
 
 	err = healthCheck(t, conn)
 	require.Error(t, err, "the server enforces mTLS; a client without a certificate must be rejected")
-	// gRPC may surface the TLS alert as "certificate required" or as a transport-level
-	// "broken pipe" when the server closes the connection after detecting the missing cert.
-	// Both are valid indicators of an mTLS rejection.
+	// gRPC may surface the TLS alert as "certificate required", as a transport-level
+	// "broken pipe" when the server closes the connection after detecting the missing cert,
+	// or as "connection reset by peer" when the server sends a TCP RST before completing
+	// the TLS handshake. All are valid indicators of an mTLS rejection.
 	assert.True(t,
-		strings.Contains(err.Error(), "certificate") || strings.Contains(err.Error(), "broken pipe"),
-		"rejection must be a TLS-related error (certificate or broken pipe), got: %v", err,
+		strings.Contains(err.Error(), "certificate") || strings.Contains(err.Error(), "broken pipe") || strings.Contains(err.Error(), "connection reset by peer"),
+		"rejection must be a TLS-related error (certificate, broken pipe, or connection reset by peer), got: %v", err,
 	)
 }
 

@@ -85,6 +85,16 @@ export interface NewHTTPSRepoParams {
     useAzureWorkloadIdentity: boolean;
 }
 
+export const normalizeHTTPSRepoParams = (params: NewHTTPSRepoParams): NewHTTPSRepoParams => {
+    const enableOCI = params.type === 'helm' && !!params.enableOCI;
+    return {
+        ...params,
+        url: enableOCI ? params.url.replace(/^(https?|oci):\/\//, '') : params.url,
+        enableOCI,
+        insecureOCIForceHttp: (params.type === 'oci' || enableOCI) && !!params.insecureOCIForceHttp
+    };
+};
+
 interface NewGitHubAppRepoParams {
     type: string;
     name: string;
@@ -200,6 +210,79 @@ export enum ConnectionMethod {
     AZURESERVICEPRINCIPAL = 'via Azure Service Principal'
 }
 
+const ConnectRepoFormButton = ({method, onSelection, formApi}: {method: string; onSelection: (method: string) => void; formApi: React.MutableRefObject<FormApi | null>}) => {
+    return (
+        <div className='white-box'>
+            <p>Choose your connection method:</p>
+            <DropDownMenu
+                anchor={() => (
+                    <p>
+                        {method.toUpperCase()} <i className='fa fa-caret-down' />
+                    </p>
+                )}
+                items={[ConnectionMethod.SSH, ConnectionMethod.HTTPS, ConnectionMethod.GITHUBAPP, ConnectionMethod.GOOGLECLOUD, ConnectionMethod.AZURESERVICEPRINCIPAL].map(
+                    (
+                        connectMethod:
+                            ConnectionMethod.SSH | ConnectionMethod.HTTPS | ConnectionMethod.GITHUBAPP | ConnectionMethod.GOOGLECLOUD | ConnectionMethod.AZURESERVICEPRINCIPAL
+                    ) => ({
+                        title: connectMethod.toUpperCase(),
+                        action: () => {
+                            onSelection(connectMethod);
+                            const formState = formApi.current.getFormState();
+                            formApi.current.setFormState({
+                                ...formState,
+                                errors: {}
+                            });
+                        }
+                    })
+                )}
+            />
+        </div>
+    );
+};
+
+const SlidingPanelHeader = ({
+    showConnectRepo,
+    displayEditPanel,
+    connecting,
+    onConnect,
+    onSaveCredsTemplate,
+    setConnectRepo,
+    setDisplayEditPanel
+}: {
+    showConnectRepo: boolean;
+    displayEditPanel: boolean;
+    connecting: boolean;
+    onConnect: () => void;
+    onSaveCredsTemplate: () => void;
+    setConnectRepo: (val: boolean) => void;
+    setDisplayEditPanel: (val: boolean) => void;
+}) => {
+    return (
+        <>
+            {showConnectRepo && (
+                <>
+                    <button className='argo-button argo-button--base' onClick={onConnect}>
+                        <Spinner show={connecting} style={{marginRight: '5px'}} />
+                        Connect
+                    </button>{' '}
+                    <button className='argo-button argo-button--base' onClick={onSaveCredsTemplate}>
+                        Save as credentials template
+                    </button>{' '}
+                    <button onClick={() => setConnectRepo(false)} className='argo-button argo-button--base-o'>
+                        Cancel
+                    </button>
+                </>
+            )}
+            {displayEditPanel && (
+                <button onClick={() => setDisplayEditPanel(false)} className='argo-button argo-button--base-o'>
+                    Cancel
+                </button>
+            )}
+        </>
+    );
+};
+
 export const ReposList = ({match, location}: RouteComponentProps) => {
     const [connecting, setConnecting] = React.useState(false);
     const [method, setMethod] = React.useState<string>(ConnectionMethod.SSH);
@@ -250,41 +333,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         fetchAuthSettings();
     }, []);
 
-    const ConnectRepoFormButton = ({method, onSelection}: {method: string; onSelection: (method: string) => void}) => {
-        return (
-            <div className='white-box'>
-                <p>Choose your connection method:</p>
-                <DropDownMenu
-                    anchor={() => (
-                        <p>
-                            {method.toUpperCase()} <i className='fa fa-caret-down' />
-                        </p>
-                    )}
-                    items={[ConnectionMethod.SSH, ConnectionMethod.HTTPS, ConnectionMethod.GITHUBAPP, ConnectionMethod.GOOGLECLOUD, ConnectionMethod.AZURESERVICEPRINCIPAL].map(
-                        (
-                            connectMethod:
-                                | ConnectionMethod.SSH
-                                | ConnectionMethod.HTTPS
-                                | ConnectionMethod.GITHUBAPP
-                                | ConnectionMethod.GOOGLECLOUD
-                                | ConnectionMethod.AZURESERVICEPRINCIPAL
-                        ) => ({
-                            title: connectMethod.toUpperCase(),
-                            action: () => {
-                                onSelection(connectMethod);
-                                const formState = formApi.current.getFormState();
-                                formApi.current.setFormState({
-                                    ...formState,
-                                    errors: {}
-                                });
-                            }
-                        })
-                    )}
-                />
-            </div>
-        );
-    };
-
     const onChooseDefaultValues = (): FormValues => {
         return {type: 'git', ghType: 'GitHub', azureType: 'Azure Public Cloud', write: false};
     };
@@ -303,7 +351,11 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 return {
                     url:
                         (!validURLValues.url && 'Repository URL is required') ||
-                        (credsTemplate && !isHTTPOrHTTPSUrl(validURLValues.url) && !validURLValues.enableOCI && params.type != 'oci' && 'Not a valid HTTP/HTTPS URL') ||
+                        (credsTemplate &&
+                            !isHTTPOrHTTPSUrl(validURLValues.url) &&
+                            !(validURLValues.type === 'helm' && validURLValues.enableOCI) &&
+                            params.type != 'oci' &&
+                            'Not a valid HTTP/HTTPS URL') ||
                         (credsTemplate && !isOCIUrl(validURLValues.url) && params.type == 'oci' && 'Not a valid OCI URL'),
                     name: validURLValues.type === 'helm' && !validURLValues.name && 'Name is required',
                     username: !validURLValues.username && validURLValues.password && 'Username is required if password is given.',
@@ -346,49 +398,12 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         }
     };
 
-    const SlidingPanelHeader = () => {
-        return (
-            <>
-                {showConnectRepo() && (
-                    <>
-                        <button
-                            className='argo-button argo-button--base'
-                            onClick={() => {
-                                credsTemplate.current = false;
-                                formApi.current.submitForm(null);
-                            }}>
-                            <Spinner show={connecting} style={{marginRight: '5px'}} />
-                            Connect
-                        </button>{' '}
-                        <button
-                            className='argo-button argo-button--base'
-                            onClick={() => {
-                                credsTemplate.current = true;
-                                formApi.current.submitForm(null);
-                            }}>
-                            Save as credentials template
-                        </button>{' '}
-                        <button onClick={() => setConnectRepo(false)} className='argo-button argo-button--base-o'>
-                            Cancel
-                        </button>
-                    </>
-                )}
-                {displayEditPanel && (
-                    <button onClick={() => setDisplayEditPanel(false)} className='argo-button argo-button--base-o'>
-                        Cancel
-                    </button>
-                )}
-            </>
-        );
-    };
-
     const onSubmitForm = (params: FormValues) => {
         switch (method) {
             case ConnectionMethod.SSH:
                 return connectSSHRepo(params as NewSSHRepoParams);
             case ConnectionMethod.HTTPS:
-                params.url = params.enableOCI && params.type != 'oci' ? stripProtocol(params.url) : params.url;
-                return connectHTTPSRepo(params as NewHTTPSRepoParams);
+                return connectHTTPSRepo(normalizeHTTPSRepoParams(params as NewHTTPSRepoParams));
             case ConnectionMethod.GITHUBAPP:
                 return connectGitHubAppRepo(params as NewGitHubAppRepoParams);
             case ConnectionMethod.GOOGLECLOUD:
@@ -419,10 +434,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         } else {
             return false;
         }
-    };
-
-    const stripProtocol = (url: string) => {
-        return url.replace('https://', '').replace('oci://', '');
     };
 
     // only connections of git type which are not via GitHub App or Azure Service Principal are updatable
@@ -1021,8 +1032,24 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                         setDisplayEditPanel(false);
                     }
                 }}
-                header={<SlidingPanelHeader />}>
-                {showConnectRepo() && <ConnectRepoFormButton method={method} onSelection={setMethod} />}
+                header={
+                    <SlidingPanelHeader
+                        showConnectRepo={showConnectRepo()}
+                        displayEditPanel={displayEditPanel}
+                        connecting={connecting}
+                        onConnect={() => {
+                            credsTemplate.current = false;
+                            formApi.current.submitForm(null);
+                        }}
+                        onSaveCredsTemplate={() => {
+                            credsTemplate.current = true;
+                            formApi.current.submitForm(null);
+                        }}
+                        setConnectRepo={setConnectRepo}
+                        setDisplayEditPanel={setDisplayEditPanel}
+                    />
+                }>
+                {showConnectRepo() && <ConnectRepoFormButton method={method} onSelection={setMethod} formApi={formApi} />}
                 {displayEditPanel && currentRepo && (
                     <RepoDetails item={currentRepo} save={(params: NewHTTPSRepoParams) => updateHTTPSRepo(params)} readonly={!isRepoUpdatable(currentRepo)} />
                 )}
@@ -1184,13 +1211,17 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                 </div>
-                                                <div className='argo-form-row'>
-                                                    {formApi.getFormState().values.type !== 'oci' ? (
+                                                {formApi.getFormState().values.type === 'helm' && (
+                                                    <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Enable OCI' field='enableOCI' component={CheckboxField} />
-                                                    ) : (
+                                                    </div>
+                                                )}
+                                                {(formApi.getFormState().values.type === 'oci' ||
+                                                    (formApi.getFormState().values.type === 'helm' && formApi.getFormState().values.enableOCI)) && (
+                                                    <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Insecure HTTP Only' field='insecureOCIForceHttp' component={CheckboxField} />
-                                                    )}
-                                                </div>
+                                                    </div>
+                                                )}
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='Use Azure Workload Identity' field='useAzureWorkloadIdentity' component={CheckboxField} />
                                                 </div>

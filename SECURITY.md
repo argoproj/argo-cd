@@ -1,6 +1,6 @@
 # Security Policy for Argo CD
 
-Version: **v1.5 (2023-03-06)**
+Version: **v1.6 (2026-09-21)**
 
 ## Preface
 
@@ -67,6 +67,16 @@ and we will evaluate it and decide whether or not to upgrade the dependency.
 
 ## Reporting a Vulnerability
 
+> [!IMPORTANT]
+> Before reporting a vulnerability, please read and understand the Argo project's
+> [policy on GenAI/LLM generated content](https://github.com/argoproj/argoproj/blob/main/community/genai.md).
+> While we encourage everyone to use any means, including LLMs, to find security
+> vulnerabilities in Argo CD, we would like to kindly ask you to not report findings
+> from LLMs without having properly validated their impact on your own. We also
+> appreciate short, concise reports instead of pages long LLM write-ups. 
+> Maintainers' time is limited. Please also be prepared to engage with us in
+> discussions about your findings without having to resort to an LLM.
+
 If you find a security related bug in Argo CD, we kindly ask you for responsible
 disclosure and for giving us appropriate time to react, analyze and develop a
 fix to mitigate the found security vulnerability.
@@ -80,7 +90,7 @@ We will publish security advisories using the
 feature to keep our community well-informed, and will credit you for your
 findings (unless you prefer to stay anonymous, of course).
 
-To report a vulnerability to the Argo CD team a draft GitHub security advisory: https://github.com/argoproj/argo-cd/security/advisories/new
+To report a vulnerability to the Argo CD team, create a draft GitHub security advisory at: https://github.com/argoproj/argo-cd/security/advisories/new
 
 ## Securing your Argo CD Instance
 

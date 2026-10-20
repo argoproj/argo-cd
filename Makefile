@@ -24,7 +24,7 @@ TARGET_ARCH?=linux/amd64
 VERSION=$(shell cat ${CURRENT_DIR}/VERSION)
 BUILD_DATE:=$(if $(BUILD_DATE),$(BUILD_DATE),$(shell date -u +'%Y-%m-%dT%H:%M:%SZ'))
 GIT_COMMIT:=$(if $(GIT_COMMIT),$(GIT_COMMIT),$(shell git rev-parse HEAD))
-GIT_TAG:=$(if $(GIT_TAG),$(GIT_TAG),$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi))
+GIT_TAG:=$(if $(GIT_TAG),$(GIT_TAG),$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags --match 'v*' HEAD 2>/dev/null; fi))
 GIT_TREE_STATE:=$(if $(GIT_TREE_STATE),$(GIT_TREE_STATE),$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi))
 VOLUME_MOUNT=$(shell if test "$(go env GOOS)" = "darwin"; then echo ":delegated"; elif test selinuxenabled; then echo ":Z"; else echo ""; fi)
 KUBECTL_VERSION=$(shell go list -m k8s.io/client-go | head -n 1 | rev | cut -d' ' -f1 | rev)
@@ -80,6 +80,8 @@ ARGOCD_E2E_DIR?=/tmp/argo-e2e
 
 ARGOCD_E2E_TEST_TIMEOUT?=90m
 ARGOCD_E2E_RERUN_FAILS?=5
+ARGOCD_E2E_SHARD?=
+ARGOCD_E2E_SHARD_COUNT?=
 
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
@@ -157,7 +159,7 @@ endef
 
 #
 define exec-in-test-server
-	$(SUDO) $(DOCKER) exec -it -u $(CONTAINER_UID):$(CONTAINER_GID) -e ARGOCD_E2E_RECORD=$(ARGOCD_E2E_RECORD) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
+	$(SUDO) $(DOCKER) exec -it -u $(CONTAINER_UID):$(CONTAINER_GID) -e ARGOCD_E2E_RECORD=$(ARGOCD_E2E_RECORD) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) -e ARGOCD_E2E_SHARD=$(ARGOCD_E2E_SHARD) -e ARGOCD_E2E_SHARD_COUNT=$(ARGOCD_E2E_SHARD_COUNT) argocd-test-server $(1)
 endef
 
 PATH:=$(PATH):$(PWD)/hack
@@ -259,8 +261,12 @@ openapigen:
 	./hack/update-openapi.sh
 
 .PHONY: notification-catalog
-notification-catalog:
+notification-catalog: notification-catalog-test
 	go run ./hack/gen-catalog catalog
+
+.PHONY: notification-catalog-test
+notification-catalog-test:
+	go test ./hack/gen-catalog
 
 .PHONY: notification-docs
 notification-docs:
@@ -352,7 +358,7 @@ controller:
 .PHONY: build-ui
 build-ui:
 	DOCKER_BUILDKIT=1 $(DOCKER) build -t argocd-ui --platform=$(TARGET_ARCH) --target argocd-ui .
-	find ./ui/dist -type f -not -name .gitkeep -delete
+	find ./ui/dist -type f -not -name gitkeep -not -name .gitkeep -delete
 	$(DOCKER) run $(PODMAN_ARGS) -v ${CURRENT_DIR}/ui/dist/app:/tmp/app:Z --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 
 .PHONY: image
@@ -379,7 +385,7 @@ endif
 
 .PHONY: armimage
 armimage:
-	$(DOCKER) build -t $(IMAGE_PREFIX)(IMAGE_REPOSITORY):$(IMAGE_TAG)-arm .
+	$(DOCKER) build -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG)-arm .
 
 .PHONY: builder-image
 builder-image:
@@ -409,9 +415,41 @@ lint: test-tools-image
 
 # Run linter on the code (local version)
 .PHONY: lint-local
-lint-local:
+lint-local: actionlint-local
 	golangci-lint --version
 	golangci-lint run --fix --verbose
+
+# Run actionlint on the GitHub Actions workflows
+.PHONY: actionlint
+actionlint: test-tools-image
+	$(call run-in-test-client,make actionlint-local)
+
+# Run actionlint on the GitHub Actions workflows (local version)
+.PHONY: actionlint-local
+actionlint-local:
+	actionlint --version
+	actionlint
+
+# Kubernetes versions whose schemas the generated install manifests are validated against: the minor version of
+# k8s.io/api in go.mod and the three before it, which matches the versions used for e2e tests in CI.
+KUBECONFORM_KUBERNETES_MINOR ?= $(shell go list -m -f '{{.Version}}' k8s.io/api | cut -d. -f2)
+KUBECONFORM_KUBERNETES_VERSIONS ?= $(foreach offset,0 1 2 3,1.$(shell echo $$(($(KUBECONFORM_KUBERNETES_MINOR) - $(offset)))).0)
+
+# Validate the generated install manifests against the Kubernetes schemas
+.PHONY: kubeconform
+kubeconform: test-tools-image
+	$(call run-in-test-client,make kubeconform-local)
+
+# Validate the generated install manifests against the Kubernetes schemas (local version).
+# CustomResourceDefinitions are skipped because kubeconform has no schema for them.
+.PHONY: kubeconform-local
+kubeconform-local:
+	kubeconform -v
+	@for version in $(KUBECONFORM_KUBERNETES_VERSIONS); do \
+		echo "Validating against Kubernetes $$version"; \
+		kubeconform -strict -summary -skip CustomResourceDefinition -kubernetes-version $$version \
+			manifests/*.yaml manifests/ha/*.yaml || exit 1; \
+	done
 
 .PHONY: lint-ui
 lint-ui: test-tools-image
@@ -458,8 +496,8 @@ endif
 test-gitops-engine:
 # run if TEST_MODULE is empty or points to gitops-engine tests
 ifneq ($(if $(TEST_MODULE),,ALL)$(filter github.com/argoproj/argo-cd/gitops-engine% ./gitops-engine%,$(TEST_MODULE)),)
-	mkdir -p $(PWD)/test-results
-	cd gitops-engine && go test -race -cover ./... -args -test.gocoverdir="$(PWD)/test-results"
+	mkdir -p $(PWD)/test-results/gitops-engine
+	cd gitops-engine && go test -race -cover ./... -args -test.gocoverdir="$(PWD)/test-results/gitops-engine"
 endif
 
 .PHONY: test-race
@@ -487,7 +525,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS=$${ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS:-true}  DIST_DIR=${DIST_DIR} RERUN_FAILS=$(ARGOCD_E2E_RERUN_FAILS) PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_CONFIG_DIR=$(HOME)/.config/argocd-e2e ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
+	ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS=$${ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS:-true}  DIST_DIR=${DIST_DIR} RERUN_FAILS=$(ARGOCD_E2E_RERUN_FAILS) ARGOCD_E2E_SHARD=$(ARGOCD_E2E_SHARD) ARGOCD_E2E_SHARD_COUNT=$(ARGOCD_E2E_SHARD_COUNT) PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_CONFIG_DIR=$(HOME)/.config/argocd-e2e ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
@@ -513,6 +551,12 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply --server-side --force-conflicts -f -
 	kubectl apply -f https://raw.githubusercontent.com/open-cluster-management/api/a6845f2ebcb186ec26b832f60c988537a58f3859/cluster/v1alpha1/0000_04_clusters.open-cluster-management.io_placementdecisions.crd.yaml
+	# Wait for the CRDs to be served, otherwise the API server can exit on its first AppProject write
+	kubectl wait --for=condition=Established --timeout=60s \
+		crd/applications.argoproj.io \
+		crd/applicationsets.argoproj.io \
+		crd/appprojects.argoproj.io \
+		crd/placementdecisions.cluster.open-cluster-management.io
 	# Create GPG keys and source directories
 	if test -d $(ARGOCD_E2E_DIR)/app/config/gpg; then rm -rf $(ARGOCD_E2E_DIR)/app/config/gpg/*; fi
 	mkdir -p $(ARGOCD_E2E_DIR)/app/config/gpg/keys && chmod 0700 $(ARGOCD_E2E_DIR)/app/config/gpg/keys
@@ -657,6 +701,8 @@ install-codegen-tools-local:
 install-go-tools-local:
 	./hack/install.sh codegen-go-tools
 	./hack/install.sh lint-tools
+	./hack/install.sh actionlint
+	./hack/install.sh kubeconform
 
 .PHONY: dep-ui
 dep-ui: test-tools-image

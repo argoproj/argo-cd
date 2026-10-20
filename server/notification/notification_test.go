@@ -15,7 +15,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/notification/k8s"
 	"github.com/argoproj/argo-cd/v3/util/notification/settings"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
@@ -25,6 +24,7 @@ import (
 
 const testNamespace = "default"
 
+// TestNotificationServer verifies that supported notification configuration is exposed through the server API.
 func TestNotificationServer(t *testing.T) {
 	t.Parallel()
 	// catalogPath := path.Join(paths[1], "config", "notifications-catalog")
@@ -37,22 +37,18 @@ func TestNotificationServer(t *testing.T) {
 	cm.Namespace = testNamespace
 
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: testNamespace,
-			Name:      "argocd-notifications-cm",
-		},
+		Namespace: testNamespace,
+		Name:      "argocd-notifications-cm",
 		Data: map[string]string{
 			"service.webhook.test": "url: https://test.example.com",
-			"template.app-created": "email:\n  subject: Application {{.app.metadata.name}} has been created.\nmessage: Application {{.app.metadata.name}} has been created.\nteams:\n  title: Application {{.app.metadata.name}} has been created.\n",
+			"template.app-created": "email:\n  subject: Application {{.app.metadata.name}} has been created.\nmessage: Application {{.app.metadata.name}} has been created.\nteams-workflows:\n  title: Application {{.app.metadata.name}} has been created.\n",
 			"trigger.on-created":   "- description: Application is created.\n  oncePer: app.metadata.name\n  send:\n  - app-created\n  when: \"true\"\n",
 		},
 	},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "argocd-notifications-secret",
-				Namespace: testNamespace,
-			},
-			Data: map[string][]byte{},
+			Name:      "argocd-notifications-secret",
+			Namespace: testNamespace,
+			Data:      map[string][]byte{},
 		})
 
 	ctx := t.Context()

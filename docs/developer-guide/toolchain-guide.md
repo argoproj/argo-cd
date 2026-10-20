@@ -127,6 +127,10 @@ you should edit your `~/.kube/config` and modify the `server` option to point to
 
 Goreman is used to start all needed processes to get a working Argo CD development environment (defined in `Procfile`)
 
+#### Production binary versions
+
+Helm, Kustomize, and git-lfs versions shipped in the Argo CD image are pinned in `hack/tool-versions.sh`. The git package is pinned in Dockerfiles. Renovate proposes updates via PRs labeled `production-binary`; downloaded binary checksums are refreshed automatically. Maintainers must review and merge those PRs before they land on `master`.
+
 #### Install required dependencies and build-tools
 
 > [!NOTE]

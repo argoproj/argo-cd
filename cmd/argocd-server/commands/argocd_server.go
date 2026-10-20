@@ -35,6 +35,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilglob "github.com/argoproj/argo-cd/v3/util/glob"
+	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/kube"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 	"github.com/argoproj/argo-cd/v3/util/tls"
@@ -65,6 +66,7 @@ func NewCommand() *cobra.Command {
 		otlpInsecure             bool
 		otlpHeaders              map[string]string
 		otlpAttrs                []string
+		otlpSampleRatio          float64
 		glogLevel                int
 		clientConfig             clientcmd.ClientConfig
 		repoServerTimeoutSeconds int
@@ -92,6 +94,10 @@ func NewCommand() *cobra.Command {
 		webhookRefreshWorkers    int
 		hydratorEnabled          bool
 		syncWithReplaceAllowed   bool
+		disableSwaggerUI         bool
+		enableSourceIPLogging    bool
+		trustedProxies           []string
+		clientIPHeader           string
 
 		// ApplicationSet
 		enableNewGitFileGlobbing bool
@@ -224,6 +230,9 @@ func NewCommand() *cobra.Command {
 				contentTypesList = strings.Split(contentTypes, ";")
 			}
 
+			trustedProxyPrefixes, err := grpc_util.ParseTrustedProxies(trustedProxies)
+			errors.CheckError(err)
+
 			argoCDOpts := server.ArgoCDServerOpts{
 				Insecure:                insecure,
 				ListenPort:              listenPort,
@@ -257,6 +266,10 @@ func NewCommand() *cobra.Command {
 				EnableK8sEvent:          enableK8sEvent,
 				HydratorEnabled:         hydratorEnabled,
 				SyncWithReplaceAllowed:  syncWithReplaceAllowed,
+				DisableSwaggerUI:        disableSwaggerUI,
+				EnableSourceIPLogging:   enableSourceIPLogging,
+				TrustedProxies:          trustedProxyPrefixes,
+				ClientIPHeader:          clientIPHeader,
 			}
 
 			appsetOpts := server.ApplicationSetOpts{
@@ -279,7 +292,7 @@ func NewCommand() *cobra.Command {
 				lns, err := argocd.Listen()
 				errors.CheckError(err)
 				if otlpAddress != "" {
-					closer, err = traceutil.InitTracer(serverCtx, "argocd-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs)
+					closer, err = traceutil.InitTracer(serverCtx, "argocd-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs, otlpSampleRatio)
 					if err != nil {
 						log.Fatalf("failed to initialize tracing: %v", err)
 					}
@@ -316,6 +329,10 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&disableAuth, "disable-auth", env.ParseBoolFromEnv("ARGOCD_SERVER_DISABLE_AUTH", false), "Disable client authentication")
 	command.Flags().StringVar(&contentTypes, "api-content-types", env.StringFromEnv("ARGOCD_API_CONTENT_TYPES", "application/json", env.StringFromEnvOpts{AllowEmpty: true}), "Semicolon separated list of allowed content types for non GET api requests. Any content type is allowed if empty.")
 	command.Flags().BoolVar(&enableGZip, "enable-gzip", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_GZIP", true), "Enable GZIP compression")
+	command.Flags().BoolVar(&disableSwaggerUI, "disable-swagger-ui", env.ParseBoolFromEnv("ARGOCD_SERVER_DISABLE_SWAGGER_UI", false), "Disable the Swagger UI (/swagger-ui) endpoint")
+	command.Flags().BoolVar(&enableSourceIPLogging, "enable-source-ip-logging", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_SOURCE_IP_LOGGING", false), "Include the source IP address of the client in API request logs")
+	command.Flags().StringSliceVar(&trustedProxies, "trusted-proxies", env.StringsFromEnv("ARGOCD_SERVER_TRUSTED_PROXIES", []string{}, ","), "CIDRs or addresses of proxies whose X-Forwarded-For entries and --client-ip-header are honoured when logging the source IP")
+	command.Flags().StringVar(&clientIPHeader, "client-ip-header", env.StringFromEnv("ARGOCD_SERVER_CLIENT_IP_HEADER", ""), "Header a trusted proxy sets to the client IP, e.g. CF-Connecting-IP, True-Client-IP or X-Real-IP")
 	command.AddCommand(cli.NewVersionCmd(common.CommandServer))
 	command.Flags().StringVar(&listenHost, "address", env.StringFromEnv("ARGOCD_SERVER_LISTEN_ADDRESS", common.DefaultAddressAPIServer), "Listen on given address")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortAPIServer, "Listen on given port")
@@ -325,6 +342,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_SERVER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")
 	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_SERVER_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
 	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_SERVER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
+	cli.BoundedFloat64Var(command.Flags(), &otlpSampleRatio, "otlp-sample-ratio", env.ParseFloat64FromEnv("ARGOCD_SERVER_OTLP_SAMPLE_RATIO", 1.0, 0.0, 1.0), 0.0, 1.0, "Fraction of traces to sample, from 0.0 (none) to 1.0 (all). Parent-based, so downstream services honor the upstream sampling decision")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().StringVar(&frameOptions, "x-frame-options", env.StringFromEnv("ARGOCD_SERVER_X_FRAME_OPTIONS", "sameorigin"), "Set X-Frame-Options header in HTTP responses to `value`. To disable, set to \"\".")
 	command.Flags().StringVar(&contentSecurityPolicy, "content-security-policy", env.StringFromEnv("ARGOCD_SERVER_CONTENT_SECURITY_POLICY", "frame-ancestors 'self';"), "Set Content-Security-Policy header in HTTP responses to `value`. To disable, set to \"\".")

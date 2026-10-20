@@ -18,10 +18,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache/mocks"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache/mocks"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -42,22 +42,18 @@ func (n netError) Temporary() bool { return false }
 
 func fixtures(ctx context.Context, data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *argosettings.SettingsManager) {
 	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: "default",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: "default",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: data,
 	}
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDSecretName,
-			Namespace: "default",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDSecretName,
+		Namespace: "default",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string][]byte{},
 	}
@@ -341,9 +337,7 @@ func Test_asResourceNode_owner_refs(t *testing.T) {
 		Resource:          nil,
 	}, nil)
 	expected := appv1.ResourceNode{
-		ResourceRef: appv1.ResourceRef{
-			Version: "v1",
-		},
+		Version: "v1",
 		ParentRefs: []appv1.ResourceRef{
 			{
 				Group:   "",

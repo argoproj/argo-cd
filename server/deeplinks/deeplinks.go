@@ -6,7 +6,7 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/expr-lang/expr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 

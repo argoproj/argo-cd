@@ -4,10 +4,11 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/netip"
 	"slices"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -23,6 +24,7 @@ import (
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/security"
 	util_session "github.com/argoproj/argo-cd/v3/util/session"
@@ -43,6 +45,11 @@ type terminalHandler struct {
 type TerminalOptions struct {
 	DisableAuth bool
 	Enf         *rbac.Enforcer
+	// EnableSourceIPLogging adds the client address to the terminal session logs. TrustedProxies and
+	// ClientIPHeader decide which address a request is attributed to.
+	EnableSourceIPLogging bool
+	TrustedProxies        []netip.Prefix
+	ClientIPHeader        string
 }
 
 // NewHandler returns a new terminal handler.
@@ -69,6 +76,15 @@ func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a 
 		return nil, err
 	}
 	return rawConfig, nil
+}
+
+// sourceIPFields returns the client address fields for the session logs. The terminal is not served
+// through grpc-gateway, so the gRPC logging interceptors never see its requests.
+func (s *terminalHandler) sourceIPFields(r *http.Request) log.Fields {
+	if s.terminalOptions == nil || !s.terminalOptions.EnableSourceIPLogging {
+		return nil
+	}
+	return grpc_util.HTTPSourceIPFields(r, s.terminalOptions.TrustedProxies, s.terminalOptions.ClientIPHeader)
 }
 
 type GetSettingsFunc func() (*settings.ArgoCDSettings, error)
@@ -160,7 +176,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fieldLog := log.WithFields(log.Fields{
 		"application": app, "userName": util_session.Username(ctx), "container": container,
 		"podName": podName, "namespace": namespace, "project": project, "appNamespace": appNamespace,
-	})
+	}).WithFields(s.sourceIPFields(r))
 
 	a, err := s.appLister.Applications(ns).Get(app)
 	if err != nil {
@@ -231,12 +247,12 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if slices.Contains(s.allowedShells, shell) {
 		cmd := []string{shell}
-		err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session)
+		err = startProcess(ctx, kubeClientset, config, namespace, podName, container, cmd, session)
 	} else {
 		// No shell given or the given shell was not allowed: try the configured shells until one succeeds or all fail.
 		for _, testShell := range s.allowedShells {
 			cmd := []string{testShell}
-			if err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session); err == nil {
+			if err = startProcess(ctx, kubeClientset, config, namespace, podName, container, cmd, session); err == nil {
 				break
 			}
 		}
@@ -298,7 +314,7 @@ type TerminalCommand struct {
 }
 
 // startProcess executes specified commands in the container and connects it up with the ptyHandler (a session)
-func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, podName, containerName string, cmd []string, ptyHandler PtyHandler) error {
+func startProcess(ctx context.Context, k8sClient kubernetes.Interface, cfg *rest.Config, namespace, podName, containerName string, cmd []string, ptyHandler PtyHandler) error {
 	req := k8sClient.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -332,7 +348,7 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, p
 			return err
 		}
 	}
-	return exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+	return exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:             ptyHandler,
 		Stdout:            ptyHandler,
 		Stderr:            ptyHandler,
