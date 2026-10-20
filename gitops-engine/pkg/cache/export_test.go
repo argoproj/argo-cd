@@ -14,8 +14,9 @@ func legacyEngineOf(c *clusterCache) *legacyEngine {
 	return c.engine.(*legacyEngine)
 }
 
+// sync isn't on syncEngine, so call it on the concrete engine.
 func (c *clusterCache) sync() error {
-	return c.engine.sync()
+	return legacyEngineOf(c).sync()
 }
 
 func (c *clusterCache) startMissingWatches() error {

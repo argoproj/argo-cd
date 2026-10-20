@@ -1011,21 +1011,7 @@ func (c *clusterCache) EnsureSynced() error {
 	}
 	syncStatus.lock.Unlock() // release the lock, so that we can acquire the parent lock (see struct comment re: lock acquisition ordering)
 
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	syncStatus.lock.Lock()
-	defer syncStatus.lock.Unlock()
-
-	// before doing any work, check once again now that we have the lock, to see if it got
-	// synced between the first check and now
-	if syncStatus.synced(c.clusterSyncRetryTimeout) {
-		return syncStatus.syncError
-	}
-	err := c.engine.sync()
-	syncTime := time.Now()
-	syncStatus.syncTime = &syncTime
-	syncStatus.syncError = err
-	return syncStatus.syncError
+	return c.engine.ensureSynced()
 }
 
 func (c *store) FindResources(namespace string, predicates ...func(r *Resource) bool) map[kube.ResourceKey]*Resource {

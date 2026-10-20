@@ -36,6 +36,29 @@ type legacyEngine struct {
 	eventMetaCh chan eventMeta
 }
 
+// ensureSynced holds c.lock, then syncStatus.lock, for the whole of sync, so
+// store state doesn't change during it.
+func (e *legacyEngine) ensureSynced() error {
+	c := e.c
+	syncStatus := &c.syncStatus
+
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	syncStatus.lock.Lock()
+	defer syncStatus.lock.Unlock()
+
+	// before doing any work, check once again now that we have the lock, to see if it got
+	// synced between the first check and now
+	if syncStatus.synced(c.clusterSyncRetryTimeout) {
+		return syncStatus.syncError
+	}
+	err := e.sync()
+	syncTime := time.Now()
+	syncStatus.syncTime = &syncTime
+	syncStatus.syncError = err
+	return syncStatus.syncError
+}
+
 // sync retrieves the current state of the cluster and stores relevant information in the store fields.
 //
 // First we get some metadata from the cluster, like the server version, OpenAPI document, and the list of all API
@@ -47,6 +70,8 @@ type legacyEngine struct {
 //
 // When this function exits, the cluster cache is up to date, and the appropriate resources are being watched for
 // changes.
+//
+// It's called with c.lock held.
 func (e *legacyEngine) sync() (err error) {
 	c := e.c
 	c.log.Info("Start syncing cluster")
