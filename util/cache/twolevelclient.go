@@ -53,7 +53,8 @@ func (c *twoLevelClient) Rename(oldKey string, newKey string, expiration time.Du
 
 // Set stores the given value in both in-memory and external cache.
 // Skip storing the value in external cache if the same value already exists in memory to avoid requesting external cache,
-// unless the external cache lost its data since the value was stored.
+// unless the external cache lost its data since the value was stored. If the external write fails, the value is
+// removed from memory so that the next Set with the same value writes it again.
 func (c *twoLevelClient) Set(item *Item) error {
 	has, err := c.inMemoryCache.HasSame(item.Key, item.Object)
 	if has && !c.externalCacheWasReset() {
@@ -66,7 +67,12 @@ func (c *twoLevelClient) Set(item *Item) error {
 	if err != nil {
 		log.Warnf("Failed to save key '%s' in in-memory cache: %v", item.Key, err)
 	}
-	return c.externalCache.Set(item)
+	err = c.externalCache.Set(item)
+	if err != nil {
+		// Drop the in-memory copy so that a retry with the same value is not skipped.
+		_ = c.inMemoryCache.Delete(item.Key)
+	}
+	return err
 }
 
 // externalCacheWasReset reports whether the external cache lost the marker key, which means it no longer holds the

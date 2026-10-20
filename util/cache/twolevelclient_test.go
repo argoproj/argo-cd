@@ -214,3 +214,24 @@ func TestTwoLevelClient_MarkerWriteErrorDoesNotRecordWriteTime(t *testing.T) {
 	require.Error(t, client.Set(&Item{Key: "key", Object: "value"}))
 	assert.Zero(t, client.externalCacheMarkerWrittenAt.Load())
 }
+
+func TestTwoLevelClient_SetRetriesValueAfterExternalWriteError(t *testing.T) {
+	_, redisCache := newTestRedisCache(t)
+	external := &countingCacheClient{CacheClient: redisCache}
+	client := NewTwoLevelClient(external, time.Minute)
+	client.externalCacheCheckInterval = time.Hour
+
+	// Store the marker, so that the next unchanged write is skipped without a check.
+	require.NoError(t, client.Set(&Item{Key: "other", Object: "value"}))
+	require.NoError(t, client.Set(&Item{Key: "other", Object: "value"}))
+
+	external.setErr = errors.New("write failed")
+	require.Error(t, client.Set(&Item{Key: "key", Object: "value"}))
+	external.setErr = nil
+
+	// The retry with the same value must reach the external cache.
+	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
+	var value string
+	require.NoError(t, redisCache.Get("key", &value))
+	assert.Equal(t, "value", value)
+}
