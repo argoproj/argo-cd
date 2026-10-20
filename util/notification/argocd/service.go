@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -22,7 +23,8 @@ import (
 type Service interface {
 	GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error)
 	GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error)
-	GetAppProject(ctx context.Context, projectName string, namespace string) (*unstructured.Unstructured, error)
+	GetAppProject(ctx context.Context, projectName string) (*unstructured.Unstructured, error)
+	SetAppProjectInformer(informer cache.SharedIndexInformer)
 }
 
 func NewArgoCDService(clientset kubernetes.Interface, dynamicClient dynamic.Interface, namespace string, repoClientset apiclient.Clientset) (*argoCDService, error) {
@@ -49,7 +51,15 @@ type argoCDService struct {
 	namespace        string
 	settingsMgr      *settings.SettingsManager
 	repoServerClient apiclient.RepoServerServiceClient
+	appProjInformer  cache.SharedIndexInformer
 	dispose          func()
+}
+
+// SetAppProjectInformer wires an AppProject informer (the controller's) so
+// GetAppProject serves from its cache. AppProjects live in the controller
+// namespace, so the cache is keyed there.
+func (svc *argoCDService) SetAppProjectInformer(informer cache.SharedIndexInformer) {
+	svc.appProjInformer = informer
 }
 
 func (svc *argoCDService) GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error) {
@@ -125,13 +135,29 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Appli
 	}, nil
 }
 
-func (svc *argoCDService) GetAppProject(ctx context.Context, projectName string, namespace string) (*unstructured.Unstructured, error) {
+func (svc *argoCDService) GetAppProject(ctx context.Context, projectName string) (*unstructured.Unstructured, error) {
 	if projectName == "" {
 		projectName = "default"
 	}
 
+	// AppProjects live in the controller (argocd) namespace, NOT the application's
+	// namespace — resolving in the app namespace 404s for every app-in-any-namespace
+	// app (see argoproj/argo-cd#28137). So always key on svc.namespace.
+	//
+	// Fast path: serve from the AppProject informer cache when the controller has
+	// wired one (SetAppProjectInformer), so there is no API GET per evaluation.
+	if svc.appProjInformer != nil {
+		if obj, exists, err := svc.appProjInformer.GetIndexer().GetByKey(svc.namespace + "/" + projectName); err == nil && exists {
+			if u, ok := obj.(*unstructured.Unstructured); ok {
+				// Informer cache objects are shared across goroutines; return a copy.
+				return u.DeepCopy(), nil
+			}
+		}
+	}
+
+	// Fallback: live lookup (no informer wired — e.g. CLI — or cache miss).
 	resource := v1alpha1.AppProjectSchemaGroupVersionKind.GroupVersion().WithResource(application.AppProjectPlural)
-	obj, err := svc.dynamicClient.Resource(resource).Namespace(namespace).Get(ctx, projectName, metav1.GetOptions{})
+	obj, err := svc.dynamicClient.Resource(resource).Namespace(svc.namespace).Get(ctx, projectName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("cannot get application project %w", err)
 	}

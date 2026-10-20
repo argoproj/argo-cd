@@ -10,7 +10,7 @@ import {Context, ContextApis, AuthSettingsCtx} from '../../../shared/context';
 import {ClusterResourceRestrictionItem, GroupKind, Groups, Project, DetailedProjectsResponse, ProjectSpec, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
 
-import {SyncWindowStatusIcon} from '../../../applications/components/utils';
+import {SyncWindowStatusIcon} from '../../../shared/components/app-utils';
 import {ProjectSyncWindowsParams} from '../../../shared/services/projects-service';
 import {ProjectEvents} from '../project-events/project-events';
 import {ProjectRoleEditPanel} from '../project-role-edit-panel/project-role-edit-panel';
@@ -420,7 +420,12 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
 
                 <EditablePanel
                     values={scopedProj}
-                    title={<React.Fragment>SCOPED REPOSITORIES{helpTip('Git repositories where application manifests are permitted to be retrieved from')}</React.Fragment>}
+                    title={
+                        <React.Fragment>
+                            SCOPED REPOSITORIES
+                            {helpTip('Git repositories configured specifically for this project and available only to applications and ApplicationSets in the project')}
+                        </React.Fragment>
+                    }
                     view={
                         <React.Fragment>
                             {scopedProj.repositories && scopedProj.repositories.length
@@ -429,7 +434,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                           <div className='columns small-12'>{repo.repo}</div>
                                       </div>
                                   ))
-                                : emptyMessage('source repositories')}
+                                : emptyMessage('scoped repositories')}
                         </React.Fragment>
                     }
                     items={[]}

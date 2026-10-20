@@ -43,7 +43,7 @@ func assertNotEnqueued(t *testing.T, q workqueue.TypedRateLimitingInterface[stri
 }
 
 func newProject(name string) *v1alpha1.AppProject {
-	return &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: test.FakeArgoCDNamespace}}
+	return &v1alpha1.AppProject{Name: name, Namespace: test.FakeArgoCDNamespace}
 }
 
 func TestAppProjectEventHandlerFuncs(t *testing.T) {

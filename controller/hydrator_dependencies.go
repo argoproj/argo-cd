@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -100,13 +99,9 @@ func (ctrl *ApplicationController) RequestAppRefresh(appName string, appNamespac
 }
 
 func (ctrl *ApplicationController) PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
-	newAnnotations := make(map[string]string)
-	maps.Copy(newAnnotations, orig.GetAnnotations())
-	delete(newAnnotations, appv1.AnnotationKeyHydrate)
 	status := orig.Status.DeepCopy()
 	status.SourceHydrator = *newStatus
-	// PersistHydrationStatus has no request context; the status write roots its own trace.
-	ctrl.persistAppStatus(context.Background(), orig, status, newAnnotations)
+	ctrl.persistAppStatus(context.Background(), orig, status)
 }
 
 func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueueKey) {
@@ -145,4 +140,10 @@ func (ctrl *ApplicationController) GetCommitAuthorEmail() (string, error) {
 		return "", fmt.Errorf("failed to get commit author email: %w", err)
 	}
 	return authorEmail, nil
+}
+
+func (ctrl *ApplicationController) RemoveHydrationAnnotations(app *appv1.Application) {
+	// Remove the nil check in handleRefreshAnnotation when hydrator gets tracing support
+	//nolint:staticcheck // nil context is intentional here
+	ctrl.handleRefreshAnnotation(nil, app, appv1.AnnotationKeyHydrate, appv1.AnnotationKeyHydrateTimestamp)
 }

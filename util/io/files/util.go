@@ -78,7 +78,7 @@ func IsSymlink(fi os.FileInfo) bool {
 // Considerations:
 // - baseDir must be absolute path. Will return false otherwise
 // - candidate can be absolute or relative path
-// - candidate should not be symlink as only syntatic validation is
+// - candidate should not be symlink as only syntactic validation is
 // applied by this function
 func Inbound(candidate, baseDir string) bool {
 	if !filepath.IsAbs(baseDir) {
@@ -91,4 +91,19 @@ func Inbound(candidate, baseDir string) bool {
 		target = filepath.Join(baseDir, candidate)
 	}
 	return strings.HasPrefix(target, filepath.Clean(baseDir)+string(os.PathSeparator))
+}
+
+// ResolveInbound resolves symlinks in candidate and reports whether the
+// resolved path is inside baseDir, per Inbound's rules. err is non-nil only
+// if the symlinks in candidate could not be resolved (e.g. candidate doesn't
+// exist); ok is false if resolution succeeded but the resolved path is
+// outside baseDir. Callers are responsible for producing their own error
+// message when ok is false, so as not to leak absolute filesystem paths in
+// messages that may reach an end user.
+func ResolveInbound(candidate, baseDir string) (resolved string, ok bool, err error) {
+	resolved, err = filepath.EvalSymlinks(candidate)
+	if err != nil {
+		return "", false, err
+	}
+	return resolved, Inbound(resolved, baseDir), nil
 }

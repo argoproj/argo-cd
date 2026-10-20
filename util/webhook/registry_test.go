@@ -15,7 +15,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
 )
@@ -37,7 +36,7 @@ func TestNormalizeOCI(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := normalizeOCI(tt.url)
+			got := NormalizeOCI(tt.url)
 			assert.Equal(t, tt.expected, got)
 		})
 	}
@@ -45,7 +44,7 @@ func TestNormalizeOCI(t *testing.T) {
 
 func TestGHCRHandlerCanHandle(t *testing.T) {
 	t.Parallel()
-	h := newGHCRParser("")
+	h := NewGHCRParser("")
 
 	tests := []struct {
 		name     string
@@ -100,10 +99,8 @@ func TestHandleRegistryEvent_RefreshMatchingApp(t *testing.T) {
 		&reactorDef{"patch", "applications", reaction},
 		[]string{},
 		&v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "oci-app",
-				Namespace: "argocd",
-			},
+			Name:      "oci-app",
+			Namespace: "argocd",
 			Spec: v1alpha1.ApplicationSpec{
 				Sources: v1alpha1.ApplicationSources{
 					{
@@ -127,16 +124,67 @@ func TestHandleRegistryEvent_RefreshMatchingApp(t *testing.T) {
 	assert.Contains(t, hook.LastEntry().Message, "Requested app 'oci-app' refresh")
 }
 
+func TestHandleRegistryEvent_RefreshMatchingHelmOCIChart(t *testing.T) {
+	tests := []struct {
+		name    string
+		repoURL string
+		chart   string
+	}{
+		{"unprefixed repoURL plus chart", "ghcr.io/user", "repo"},
+		{"oci:// repoURL plus chart", "oci://ghcr.io/user", "repo"},
+		{"trailing slash repoURL plus chart", "oci://ghcr.io/user/", "repo"},
+		{"repoURL already ends in chart", "oci://ghcr.io/user/repo", "repo"},
+		{"chart name differs in case", "ghcr.io/user", "Repo"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			patchedApps := []string{}
+			reaction := func(action kubetesting.Action) (bool, runtime.Object, error) {
+				patch := action.(kubetesting.PatchAction)
+				patchedApps = append(patchedApps, patch.GetName())
+				return true, nil, nil
+			}
+
+			h := NewMockHandler(
+				&reactorDef{"patch", "applications", reaction},
+				[]string{},
+				&v1alpha1.Application{
+					Name:      "oci-app",
+					Namespace: "argocd",
+					Spec: v1alpha1.ApplicationSpec{
+						Sources: v1alpha1.ApplicationSources{
+							{
+								RepoURL:        tt.repoURL,
+								Chart:          tt.chart,
+								TargetRevision: "1.0.0",
+							},
+						},
+					},
+				},
+			)
+
+			event := &RegistryEvent{
+				RegistryURL: "ghcr.io",
+				Repository:  "user/repo",
+				Tag:         "1.0.0",
+			}
+
+			h.HandleRegistryEvent(event)
+
+			assert.Contains(t, patchedApps, "oci-app")
+		})
+	}
+}
+
 func TestHandleRegistryEvent_RepoMismatch(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 	hook := test.NewGlobal()
 
 	h := NewMockHandler(nil, []string{},
 		&v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "oci-app",
-				Namespace: "argocd",
-			},
+			Name:      "oci-app",
+			Namespace: "argocd",
 			Spec: v1alpha1.ApplicationSpec{
 				Sources: v1alpha1.ApplicationSources{
 					{
@@ -166,10 +214,8 @@ func TestHandleRegistryEvent_RevisionMismatch(t *testing.T) {
 		nil,
 		[]string{},
 		&v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "oci-app",
-				Namespace: "argocd",
-			},
+			Name:      "oci-app",
+			Namespace: "argocd",
 			Spec: v1alpha1.ApplicationSpec{
 				Sources: v1alpha1.ApplicationSources{
 					{
@@ -205,10 +251,8 @@ func TestHandleRegistryEvent_NamespaceFiltering(t *testing.T) {
 		&reactorDef{"patch", "applications", reaction},
 		[]string{"team-*"},
 		&v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "app1",
-				Namespace: "team-a",
-			},
+			Name:      "app1",
+			Namespace: "team-a",
 			Spec: v1alpha1.ApplicationSpec{
 				Sources: v1alpha1.ApplicationSources{
 					{RepoURL: "oci://ghcr.io/user/repo", TargetRevision: "1.0.0"},
@@ -216,10 +260,8 @@ func TestHandleRegistryEvent_NamespaceFiltering(t *testing.T) {
 			},
 		},
 		&v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "app2",
-				Namespace: "kube-system",
-			},
+			Name:      "app2",
+			Namespace: "kube-system",
 			Spec: v1alpha1.ApplicationSpec{
 				Sources: v1alpha1.ApplicationSources{
 					{RepoURL: "oci://ghcr.io/user/repo", TargetRevision: "1.0.0"},
@@ -282,10 +324,8 @@ func TestHandleRegistryEvent_HelmOCI(t *testing.T) {
 				&reactorDef{"patch", "applications", reaction},
 				[]string{},
 				&v1alpha1.Application{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "helm-oci-app",
-						Namespace: "argocd",
-					},
+					Name:      "helm-oci-app",
+					Namespace: "argocd",
 					Spec: v1alpha1.ApplicationSpec{
 						Sources: v1alpha1.ApplicationSources{
 							{
@@ -333,10 +373,8 @@ func TestHandleRegistryEvent_PlainOCI(t *testing.T) {
 		&reactorDef{"patch", "applications", reaction},
 		[]string{},
 		&v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "plain-oci-app",
-				Namespace: "argocd",
-			},
+			Name:      "plain-oci-app",
+			Namespace: "argocd",
 			Spec: v1alpha1.ApplicationSpec{
 				Sources: v1alpha1.ApplicationSources{
 					{
