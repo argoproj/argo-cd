@@ -119,7 +119,7 @@ With `otlp.insecure: "false"`, Argo CD always connects over TLS. The collector c
 verified against the first of the following that is configured:
 
 1. The CA in `OTEL_EXPORTER_OTLP_CERTIFICATE`, or its signal-specific variant such as
-   `OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE`.
+   `OTEL_EXPORTER_OTLP_TRACES_CERTIFICATE`, which takes precedence.
 2. The CA configured for the collector host in `argocd-tls-certs-cm`. The port is ignored when
    matching the host.
 3. The system root CAs.
@@ -127,8 +127,7 @@ verified against the first of the following that is configured:
 For mTLS, set `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` and `OTEL_EXPORTER_OTLP_CLIENT_KEY`, or their
 signal-specific variants. The client certificate works with any of the CAs above. The certificate
 and key are read as a pair: the signal-specific pair is used if both are set, otherwise the generic
-pair. Signal-specific CA variables take precedence over the generic one, and empty values are
-ignored.
+pair. Empty values are ignored.
 
 > [!NOTE]
 > A component fails to start if a configured CA file cannot be read or contains no certificates,
@@ -158,7 +157,8 @@ metadata:
 stringData:
   headers: "authorization=Bearer <token>"
 ---
-# Patch for the argocd-server Deployment. Repeat for the other components.
+# Strategic merge patch for the argocd-server Deployment, e.g. a Kustomize `patches` entry or
+# `kubectl patch deployment argocd-server -n argocd --patch-file <file>`. Repeat for the other components.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -182,7 +182,8 @@ For mTLS, mount the client certificate from a Secret and point the standard envi
 at it:
 
 ```yaml
-# Patch for the argocd-server Deployment. Repeat for the other components.
+# Strategic merge patch for the argocd-server Deployment, e.g. a Kustomize `patches` entry or
+# `kubectl patch deployment argocd-server -n argocd --patch-file <file>`. Repeat for the other components.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

@@ -3,6 +3,7 @@ package trace
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"net"
 	"os"
@@ -41,7 +42,7 @@ func (c *fakeCollector) Export(ctx context.Context, req *collectormetricspb.Expo
 	return &collectormetricspb.ExportMetricsServiceResponse{}, nil
 }
 
-func startCollector(t *testing.T, opts ...grpc.ServerOption) (string, *fakeCollector) {
+func startMetricsCollector(t *testing.T, opts ...grpc.ServerOption) (string, *fakeCollector) {
 	t.Helper()
 	lis, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -96,7 +97,7 @@ func newCounterRegistry(t *testing.T, name string) *prometheus.Registry {
 }
 
 func TestInitMeter_PushesBridgedMetrics(t *testing.T) {
-	addr, collector := startCollector(t)
+	addr, collector := startMetricsCollector(t)
 	before := otel.GetMeterProvider()
 
 	closer, err := InitMeter(t.Context(), "argocd-test", addr, true,
@@ -126,7 +127,7 @@ func TestInitMeter_PushesBridgedMetrics(t *testing.T) {
 }
 
 func TestInitMeter_FailingGathererDoesNotDropOthers(t *testing.T) {
-	addr, collector := startCollector(t)
+	addr, collector := startMetricsCollector(t)
 	hook := logtest.NewGlobal()
 	t.Cleanup(hook.Reset)
 	failing := prometheus.GathererFunc(func() ([]*dto.MetricFamily, error) {
@@ -168,7 +169,7 @@ func TestInitMeter_CloserReturnsPromptlyWhenCollectorUnreachable(t *testing.T) {
 }
 
 func TestInitMeter_CloserFlushesAfterContextCancel(t *testing.T) {
-	addr, collector := startCollector(t)
+	addr, collector := startMetricsCollector(t)
 	ctx, cancel := context.WithCancel(t.Context())
 
 	// Interval outlives the test: the only export is the closer's flush.
@@ -183,8 +184,8 @@ func TestInitMeter_CloserFlushesAfterContextCancel(t *testing.T) {
 }
 
 func TestInitMeter_HonorsStandardOTLPEnv(t *testing.T) {
-	serverCert, caPath := selfSignedCert(t)
-	addr, collector := startCollector(t, grpc.Creds(credentials.NewServerTLSFromCert(&serverCert)))
+	serverCert, caPath, _, _ := selfSignedCert(t, x509.ExtKeyUsageServerAuth)
+	addr, collector := startMetricsCollector(t, grpc.Creds(credentials.NewServerTLSFromCert(&serverCert)))
 	t.Setenv("OTEL_EXPORTER_OTLP_CERTIFICATE", caPath)
 	t.Setenv("OTEL_EXPORTER_OTLP_HEADERS", "authorization=Bearer from-env")
 
@@ -197,8 +198,8 @@ func TestInitMeter_HonorsStandardOTLPEnv(t *testing.T) {
 }
 
 func TestInitMeter_UsesCAFromTLSCertsConfigMap(t *testing.T) {
-	serverCert, caPath := selfSignedCert(t)
-	addr, collector := startCollector(t, grpc.Creds(credentials.NewServerTLSFromCert(&serverCert)))
+	serverCert, caPath, _, _ := selfSignedCert(t, x509.ExtKeyUsageServerAuth)
+	addr, collector := startMetricsCollector(t, grpc.Creds(credentials.NewServerTLSFromCert(&serverCert)))
 	// argocd-tls-certs-cm is mounted as one file per hostname.
 	tlsDataPath := t.TempDir()
 	ca, err := os.ReadFile(caPath)
@@ -217,7 +218,7 @@ func TestInitMeter_UsesCAFromTLSCertsConfigMap(t *testing.T) {
 }
 
 func TestInitMeter_SecureIgnoresInsecureEnv(t *testing.T) {
-	addr, collector := startCollector(t) // plaintext
+	addr, collector := startMetricsCollector(t) // plaintext
 	t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
 
 	closer, err := InitMeter(t.Context(), "argocd-test", addr, false, nil, nil,
@@ -238,9 +239,9 @@ func TestInitMeter_MutualTLS(t *testing.T) {
 		"metrics vars": "OTEL_EXPORTER_OTLP_METRICS_",
 	} {
 		t.Run(name, func(t *testing.T) {
-			serverCert, caPath := selfSignedCert(t)
-			clientCertPath, clientKeyPath, clientCAs := clientCertFiles(t)
-			addr, collector := startCollector(t, grpc.Creds(credentials.NewTLS(&tls.Config{
+			serverCert, caPath, _, _ := selfSignedCert(t, x509.ExtKeyUsageServerAuth)
+			_, clientCertPath, clientKeyPath, clientCAs := selfSignedCert(t, x509.ExtKeyUsageClientAuth)
+			addr, collector := startMetricsCollector(t, grpc.Creds(credentials.NewTLS(&tls.Config{
 				Certificates: []tls.Certificate{serverCert},
 				ClientAuth:   tls.RequireAndVerifyClientCert,
 				ClientCAs:    clientCAs,
@@ -260,7 +261,7 @@ func TestInitMeter_MutualTLS(t *testing.T) {
 }
 
 func TestInitMeter_InvalidTLSEnvFails(t *testing.T) {
-	clientCertPath, _, _ := clientCertFiles(t)
+	_, clientCertPath, _, _ := selfSignedCert(t, x509.ExtKeyUsageClientAuth)
 	// Without credentials, this would let the exporter fall back to plaintext.
 	t.Setenv("OTEL_EXPORTER_OTLP_INSECURE", "true")
 	t.Setenv("OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE", clientCertPath)
@@ -271,8 +272,8 @@ func TestInitMeter_InvalidTLSEnvFails(t *testing.T) {
 }
 
 func TestInitMeter_InsecureIgnoresTLSEnv(t *testing.T) {
-	addr, collector := startCollector(t) // plaintext
-	_, caPath := selfSignedCert(t)
+	addr, collector := startMetricsCollector(t) // plaintext
+	_, caPath, _, _ := selfSignedCert(t, x509.ExtKeyUsageServerAuth)
 	t.Setenv("OTEL_EXPORTER_OTLP_CERTIFICATE", caPath)
 
 	closer, err := InitMeter(t.Context(), "argocd-test", addr, true, nil, nil,

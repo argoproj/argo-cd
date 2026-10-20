@@ -58,6 +58,10 @@ func TestOTLPExportToAuthenticatedCollector(t *testing.T) {
 
 	ctx := Given(t).CustomCACertAdded()
 
+	// Registered before the restart so a partial failure is also undone; runs before srv.Stop.
+	t.Cleanup(func() {
+		assert.NoError(t, RestartProcess(ApplicationControllerProcName, nil))
+	})
 	require.NoError(t, RestartProcess(ApplicationControllerProcName, map[string]string{
 		// test/container/Procfile passes no --otlp-address, so the controller reads this.
 		"ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS":      otlpAddress,
