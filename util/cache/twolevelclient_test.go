@@ -2,6 +2,7 @@ package cache
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,15 +12,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// countingCacheClient wraps a CacheClient and counts the Set calls that reach it.
+// countingCacheClient wraps a CacheClient, counts the Set calls that reach it and can make calls fail.
 type countingCacheClient struct {
 	CacheClient
-	sets   int
-	getErr error
+	sets            int
+	getErr          error
+	setErrKeyPrefix string
 }
 
 func (c *countingCacheClient) Set(item *Item) error {
 	c.sets++
+	if c.setErrKeyPrefix != "" && strings.HasPrefix(item.Key, c.setErrKeyPrefix) {
+		return errors.New("write failed")
+	}
 	return c.CacheClient.Set(item)
 }
 
@@ -148,5 +153,42 @@ func TestTwoLevelClient_ExternalCacheCheckErrorKeepsInMemoryCache(t *testing.T) 
 
 	var value string
 	require.NoError(t, client.Get("key", &value))
+	assert.Equal(t, "value", value)
+}
+
+func TestTwoLevelClient_ExternalCacheMarkerIsRefreshed(t *testing.T) {
+	mr, redisCache := newTestRedisCache(t)
+	client := NewTwoLevelClient(redisCache, time.Minute)
+	client.externalCacheCheckInterval = 0
+
+	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
+	// The first unchanged write runs the check and stores the marker.
+	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
+	require.True(t, mr.Exists(client.externalCacheMarkerKey))
+
+	// A check shortly before the marker expires finds it and writes it again.
+	mr.FastForward(externalCacheMarkerExpiration - time.Hour)
+	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
+
+	mr.FastForward(2 * time.Hour)
+	assert.True(t, mr.Exists(client.externalCacheMarkerKey))
+}
+
+func TestTwoLevelClient_MarkerWriteErrorKeepsWritingToExternalCache(t *testing.T) {
+	mr, redisCache := newTestRedisCache(t)
+	external := &countingCacheClient{CacheClient: redisCache, setErrKeyPrefix: "twolevelclient|marker|"}
+	client := NewTwoLevelClient(external, time.Minute)
+	client.externalCacheCheckInterval = 0
+
+	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
+	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
+
+	// Remove only the key. If the marker had been written, the next check would find it and skip the write.
+	// Since it could not be written, the check finds it missing again and the unchanged value is written.
+	mr.Del("key")
+	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
+
+	var value string
+	require.NoError(t, redisCache.Get("key", &value))
 	assert.Equal(t, "value", value)
 }
