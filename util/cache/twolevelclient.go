@@ -39,6 +39,8 @@ type twoLevelClient struct {
 	externalCacheCheckInterval time.Duration
 	// lastExternalCacheCheck is the time of the last marker check, in Unix nanoseconds.
 	lastExternalCacheCheck atomic.Int64
+	// externalCacheMarkerWrittenAt is the time of the last successful marker write, in Unix nanoseconds.
+	externalCacheMarkerWrittenAt atomic.Int64
 }
 
 func (c *twoLevelClient) Rename(oldKey string, newKey string, expiration time.Duration) error {
@@ -88,9 +90,21 @@ func (c *twoLevelClient) externalCacheWasReset() bool {
 		return false
 	}
 
-	// The marker is also missing on the first check after start-up. Flushing then only costs one extra write per key.
-	log.Infof("Marker key '%s' is missing from external cache, flushing in-memory cache", c.externalCacheMarkerKey)
+	// A marker written less than externalCacheMarkerExpiration ago can only be missing because the external cache lost
+	// it. Otherwise it was never written (first check after start-up) or it expired, and the flush is a precaution
+	// that costs one extra write per key. Data lost after the marker expired but before this check is logged as an
+	// expiry; the flush is the same either way.
+	writtenAt := c.externalCacheMarkerWrittenAt.Load()
+	if writtenAt != 0 && now-writtenAt < externalCacheMarkerExpiration.Nanoseconds() {
+		log.Infof("Marker key '%s' is missing from external cache, flushing in-memory cache", c.externalCacheMarkerKey)
+	} else {
+		log.Debugf("Marker key '%s' is not in external cache yet or expired, flushing in-memory cache", c.externalCacheMarkerKey)
+	}
 	c.inMemoryCache.Flush()
+
+	// Take the time before the write, so that the marker always expires in the external cache after
+	// externalCacheMarkerExpiration has passed by this clock.
+	writeTime := time.Now().UnixNano()
 	err = c.externalCache.Set(&Item{
 		Key:             c.externalCacheMarkerKey,
 		Object:          c.externalCacheMarkerKey,
@@ -98,7 +112,9 @@ func (c *twoLevelClient) externalCacheWasReset() bool {
 	})
 	if err != nil {
 		log.Warnf("Failed to save marker key '%s' in external cache: %v", c.externalCacheMarkerKey, err)
+		return true
 	}
+	c.externalCacheMarkerWrittenAt.Store(writeTime)
 	return true
 }
 

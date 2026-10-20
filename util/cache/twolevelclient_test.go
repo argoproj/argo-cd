@@ -2,24 +2,31 @@ package cache
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// countingCacheClient wraps a CacheClient and counts the Set calls that reach it.
+// countingCacheClient wraps a CacheClient, counts the Set calls that reach it and can make calls fail.
 type countingCacheClient struct {
 	CacheClient
 	sets   int
 	getErr error
+	setErr error
 }
 
 func (c *countingCacheClient) Set(item *Item) error {
 	c.sets++
+	if c.setErr != nil {
+		return c.setErr
+	}
 	return c.CacheClient.Set(item)
 }
 
@@ -149,4 +156,61 @@ func TestTwoLevelClient_ExternalCacheCheckErrorKeepsInMemoryCache(t *testing.T) 
 	var value string
 	require.NoError(t, client.Get("key", &value))
 	assert.Equal(t, "value", value)
+}
+
+// newTestLogHook captures the standard logger's entries for the duration of the test.
+func newTestLogHook(t *testing.T) *logtest.Hook {
+	t.Helper()
+	logger := log.StandardLogger()
+	hooks := logger.ReplaceHooks(make(log.LevelHooks))
+	t.Cleanup(func() { logger.ReplaceHooks(hooks) })
+	return logtest.NewLocal(logger)
+}
+
+// missingMarkerInfoLogs counts the info-level entries that report the marker as missing.
+func missingMarkerInfoLogs(hook *logtest.Hook) int {
+	count := 0
+	for _, entry := range hook.AllEntries() {
+		if entry.Level == log.InfoLevel && strings.Contains(entry.Message, "is missing from external cache") {
+			count++
+		}
+	}
+	return count
+}
+
+func TestTwoLevelClient_MissingMarkerIsLoggedOnlyOnDataLoss(t *testing.T) {
+	hook := newTestLogHook(t)
+	mr, redisCache := newTestRedisCache(t)
+	client := NewTwoLevelClient(redisCache, time.Minute)
+	client.externalCacheCheckInterval = 0
+
+	// First check after start-up: the marker was never written.
+	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
+	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
+	assert.Equal(t, 0, missingMarkerInfoLogs(hook))
+
+	// The marker expires. miniredis only moves its own clock forward, so move the write time back as well.
+	mr.FastForward(externalCacheMarkerExpiration + time.Minute)
+	client.externalCacheMarkerWrittenAt.Store(time.Now().Add(-externalCacheMarkerExpiration - time.Minute).UnixNano())
+	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
+	assert.Equal(t, 0, missingMarkerInfoLogs(hook))
+
+	// Redis loses its data.
+	mr.FlushAll()
+	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
+	assert.Equal(t, 1, missingMarkerInfoLogs(hook))
+}
+
+func TestTwoLevelClient_MarkerWriteErrorDoesNotRecordWriteTime(t *testing.T) {
+	_, redisCache := newTestRedisCache(t)
+	external := &countingCacheClient{CacheClient: redisCache}
+	client := NewTwoLevelClient(external, time.Minute)
+	client.externalCacheCheckInterval = 0
+
+	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
+	external.setErr = errors.New("write failed")
+
+	// The check finds no marker and cannot write it, so the unchanged value goes to the external cache and fails too.
+	require.Error(t, client.Set(&Item{Key: "key", Object: "value"}))
+	assert.Zero(t, client.externalCacheMarkerWrittenAt.Load())
 }
