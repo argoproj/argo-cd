@@ -3595,8 +3595,9 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 
 	// Create env for variable substitution in value file paths (e.g., $ARGOCD_APP_NAME)
 	// Match the same variables available in GenerateManifest, excluding those not in UpdateRevisionForPathsRequest
-	shortRevision := shortenRevision(request.Revision, 7)
-	shortRevision8 := shortenRevision(request.Revision, 8)
+	// Use rRevision (resolved revision) instead of request.Revision to match manifest generation behavior
+	shortRevision := shortenRevision(rRevision, 7)
+	shortRevision8 := shortenRevision(rRevision, 8)
 
 	repoURL := ""
 	if request.Repo != nil {
@@ -3613,7 +3614,7 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 	env := &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: request.AppName},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: request.Namespace},
-		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: request.Revision},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: rRevision},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: shortRevision},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT_8", Value: shortRevision8},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: repoURL},
