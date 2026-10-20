@@ -3219,6 +3219,57 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
 	assert.Truef(t, patchedApp.Status.OperationState.FinishedAt.After(failedAttemptFinisedAt), "finishedAt was expected to be updated. The retry was not performed.")
 }
 
+// TestProcessRequestedAppOperation_TerminatedBeforeRetryStarts verifies that a terminate request
+// made after the controller read the app, but before it starts a scheduled retry, is not
+// overwritten by the retry attempt.
+func TestProcessRequestedAppOperation_TerminatedBeforeRetryStarts(t *testing.T) {
+	app := newFakeApp()
+	app.Operation = &v1alpha1.Operation{
+		Sync:  &v1alpha1.SyncOperation{},
+		Retry: v1alpha1.RetryStrategy{Limit: 1},
+	}
+	app.Status.OperationState.Operation = *app.Operation
+	app.Status.OperationState.Phase = synccommon.OperationRunning
+	app.Status.OperationState.RetryCount = 1
+	app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now().Add(-time.Minute * 5)}
+
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeController(t.Context(), data, nil)
+
+	// Terminate the operation right before the controller writes the state that starts the retry.
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	gvr := v1alpha1.SchemeGroupVersion.WithResource("applications")
+	terminated := false
+	fakeAppCs.PrependReactor("patch", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+		if !terminated {
+			obj, err := fakeAppCs.Tracker().Get(gvr, app.Namespace, app.Name)
+			require.NoError(t, err)
+			terminating := obj.(*v1alpha1.Application).DeepCopy()
+			terminating.Status.OperationState.Phase = synccommon.OperationTerminating
+			require.NoError(t, fakeAppCs.Tracker().Update(gvr, terminating, app.Namespace))
+			terminated = true
+		}
+		return false, nil, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	require.True(t, terminated)
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationFailed, patchedApp.Status.OperationState.Phase, "the retry must not run after the operation was terminated")
+	assert.Contains(t, patchedApp.Status.OperationState.Message, "Operation terminated")
+}
+
 func TestProcessRequestedAppOperation_RunningPreviouslyFailedBackoff(t *testing.T) {
 	failedAttemptFinisedAt := time.Now().Add(-time.Second)
 	app := newFakeApp()
@@ -3436,6 +3487,104 @@ func TestSetOperationState_EmptySyncRevisionClearsPreviousRevision(t *testing.T)
 	require.NotNil(t, patchedApp.Status.OperationState.Operation.Sync)
 	assert.Empty(t, patchedApp.Status.OperationState.Operation.Sync.Revision,
 		"empty Sync.Revision (omitempty) must clear the previous revision if empty instead of preserving it")
+}
+
+// TestProcessRequestedAppOperation_TerminatedWhileFailedAttemptIsRetried verifies that a terminate
+// request made while an operation attempt is running is not overwritten when the controller
+// schedules a retry of the failed attempt, and that no retry is scheduled or counted.
+func TestProcessRequestedAppOperation_TerminatedWhileFailedAttemptIsRetried(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "invalid-project"
+	app.Operation = &v1alpha1.Operation{
+		Sync:  &v1alpha1.SyncOperation{},
+		Retry: v1alpha1.RetryStrategy{Limit: 1},
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+	// Terminate the operation right after the controller has initialized it.
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	gvr := v1alpha1.SchemeGroupVersion.WithResource("applications")
+	initialized, terminated := false, false
+	fakeAppCs.PrependReactor("*", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		if initialized && !terminated {
+			obj, err := fakeAppCs.Tracker().Get(gvr, app.Namespace, app.Name)
+			require.NoError(t, err)
+			terminating := obj.(*v1alpha1.Application).DeepCopy()
+			terminating.Status.OperationState.Phase = synccommon.OperationTerminating
+			require.NoError(t, fakeAppCs.Tracker().Update(gvr, terminating, app.Namespace))
+			terminated = true
+		}
+		if action.GetVerb() == "patch" {
+			initialized = true
+		}
+		return false, nil, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	require.True(t, terminated)
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationTerminating, patchedApp.Status.OperationState.Phase)
+	assert.Equal(t, "operation is terminating", patchedApp.Status.OperationState.Message)
+	assert.Nil(t, patchedApp.Status.OperationState.FinishedAt, "no retry must be scheduled")
+	assert.Equal(t, int64(0), patchedApp.Status.OperationState.RetryCount, "no retry must be counted")
+}
+
+// TestProcessRequestedAppOperation_TerminatedDuringTerminationCheck verifies that a terminate
+// request made while the controller checks for it is not overwritten when the operation state is
+// written back, whether or not the check can read the app, and that no retry is scheduled or counted.
+func TestProcessRequestedAppOperation_TerminatedDuringTerminationCheck(t *testing.T) {
+	testCases := []struct {
+		name   string
+		getErr error
+	}{
+		{name: "check reads the app before termination"},
+		{name: "check fails to read the app", getErr: errors.New("fake get error")},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.Spec.Project = "invalid-project"
+			app.Operation = &v1alpha1.Operation{
+				Sync:  &v1alpha1.SyncOperation{},
+				Retry: v1alpha1.RetryStrategy{Limit: 1},
+			}
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+			// Terminate the operation right after the controller has read the app to check for termination.
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			gvr := v1alpha1.SchemeGroupVersion.WithResource("applications")
+			terminated := false
+			fakeAppCs.PrependReactor("get", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+				if terminated {
+					return false, nil, nil
+				}
+				obj, err := fakeAppCs.Tracker().Get(gvr, app.Namespace, app.Name)
+				require.NoError(t, err)
+				terminating := obj.(*v1alpha1.Application).DeepCopy()
+				terminating.Status.OperationState.Phase = synccommon.OperationTerminating
+				require.NoError(t, fakeAppCs.Tracker().Update(gvr, terminating, app.Namespace))
+				terminated = true
+				if tc.getErr != nil {
+					return true, nil, tc.getErr
+				}
+				return true, obj, nil
+			})
+
+			ctrl.processRequestedAppOperation(app)
+
+			require.True(t, terminated)
+			patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, patchedApp.Status.OperationState)
+			assert.Equal(t, synccommon.OperationTerminating, patchedApp.Status.OperationState.Phase)
+			assert.Equal(t, "operation is terminating", patchedApp.Status.OperationState.Message)
+			assert.Nil(t, patchedApp.Status.OperationState.FinishedAt, "no retry must be scheduled")
+			assert.Equal(t, int64(0), patchedApp.Status.OperationState.RetryCount, "no retry must be counted")
+		})
+	}
 }
 
 func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
