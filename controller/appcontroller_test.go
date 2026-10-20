@@ -3458,6 +3458,7 @@ func TestProcessRequestedAppOperation_TerminatedWhileSyncing(t *testing.T) {
 func TestSetOperationStateIfPhase(t *testing.T) {
 	tests := []struct {
 		name          string
+		informerPhase synccommon.OperationPhase
 		storedPhase   synccommon.OperationPhase
 		tooLargePatch int
 		wantPhase     synccommon.OperationPhase
@@ -3466,6 +3467,7 @@ func TestSetOperationStateIfPhase(t *testing.T) {
 		{name: "writes when the stored phase matches", storedPhase: synccommon.OperationRunning, wantPhase: synccommon.OperationRunning, wantMessage: "waiting for completion of hook /Pod/hook"},
 		{name: "writes when the stored operation state is empty", wantPhase: synccommon.OperationRunning, wantMessage: "waiting for completion of hook /Pod/hook"},
 		{name: "keeps Terminating when the retried write is too large", storedPhase: synccommon.OperationTerminating, tooLargePatch: 2, wantPhase: synccommon.OperationTerminating, wantMessage: operationStateSizeLimitMessagePrefix},
+		{name: "ends as Error when the write is still too large after terminating", informerPhase: synccommon.OperationTerminating, storedPhase: synccommon.OperationTerminating, tooLargePatch: 1, wantPhase: synccommon.OperationError, wantMessage: operationStateSizeLimitMessagePrefix},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -3475,6 +3477,9 @@ func TestSetOperationStateIfPhase(t *testing.T) {
 			}
 			app.Status.OperationState.Operation = *app.Operation
 			app.Status.OperationState.Phase = synccommon.OperationRunning
+			if tt.informerPhase != "" {
+				app.Status.OperationState.Phase = tt.informerPhase
+			}
 			stored := app.DeepCopy()
 			if tt.storedPhase == "" {
 				stored.Status.OperationState = nil
@@ -3491,7 +3496,7 @@ func TestSetOperationStateIfPhase(t *testing.T) {
 			state.Message = "waiting for completion of hook /Pod/hook"
 			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			defer cancel()
-			ctrl.setOperationStateIfPhase(ctx, app, state, synccommon.OperationRunning)
+			ctrl.setOperationStateIfPhase(ctx, app, state, app.Status.OperationState.Phase)
 
 			patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 			require.NoError(t, err)
