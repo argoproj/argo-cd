@@ -280,6 +280,12 @@ spec:
               name: argocd-cmd-params-cm
               key: otlp.headers
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_ATTRS
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: otlp.attrs
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO
           valueFrom:
             configMapKeyRef:
@@ -374,6 +380,9 @@ spec:
           mountPath: /home/argocd
         - name: argocd-cmd-params-cm
           mountPath: /home/argocd/params
+        # CA for the OTLP collector, looked up by --otlp-address host.
+        - name: tls-certs
+          mountPath: /app/config/tls
       serviceAccountName: argocd-application-controller
       affinity:
         podAntiAffinity:
@@ -393,6 +402,9 @@ spec:
       volumes:
       - emptyDir: {}
         name: argocd-home
+      - name: tls-certs
+        configMap:
+          name: argocd-tls-certs-cm
       - name: argocd-repo-server-tls
         secret:
           secretName: argocd-repo-server-tls
