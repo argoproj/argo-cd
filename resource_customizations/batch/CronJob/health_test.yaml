@@ -20,6 +20,7 @@ tests:
       message: The job is running. Its last execution may not have been successful
     inputPath: testdata/active.yaml
   - healthStatus:
-      status: Healthy
+      status: Suspended
       message: CronJob is Suspended
+      aggregateAs: Healthy
     inputPath: testdata/suspended.yaml

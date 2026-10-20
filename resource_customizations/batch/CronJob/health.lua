@@ -1,10 +1,11 @@
 hs = {}
 
 if obj.spec.suspend == true then
-    -- Set to Healthy instead of Suspended until bug is resolved
-    -- See https://github.com/argoproj/argo-cd/issues/24428
-    hs.status = "Healthy"
+    hs.status = "Suspended"
     hs.message = "CronJob is Suspended"
+    -- Suspended CronJobs should not affect Application health
+    -- See https://github.com/argoproj/argo-cd/issues/24428
+    hs.aggregateAs = "Healthy"
     return hs
 end
 
