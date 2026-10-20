@@ -17,7 +17,7 @@
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.7.2",
     "ansi-to-react": "^6.1.6",
-    "argo-ui": "git+https://github.com/argoproj/argo-ui.git#f941b0a3ca094066dd9d5e002f48acdc5fda45a0",
+    "argo-ui": "git+https://github.com/argoproj/argo-ui.git#28927a57027a361505ff91d0498a4bc9670bd882",
     "buffer": "^6.0.3",
     "classnames": "^2.2.5",
     "color": "^3.2.1",
