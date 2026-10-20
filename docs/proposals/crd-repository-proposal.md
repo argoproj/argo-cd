@@ -377,6 +377,15 @@ spec:
   dropping Secret-based repositories (non-goal 2). It also moves the source of truth unasked: for a Secret managed in
   Git, later edits to its `url`, `project` or proxy settings are silently shadowed by the converted CR. `hybrid` keeps
   that dual-representation risk opt-in and per-repository, and keeps backend branching confined to `db.NewDB`.
+* **Mirror Secrets into CRs with a controller instead of a `hybrid` mode.** A controller watches repository Secrets
+  and keeps a generated CR for each, so every reader resolves from CRDs only. This drops `hybrid` and its
+  cross-store resolution rules, and unlike a startup pass it sees Secrets applied at any time. The costs: a mirrored
+  CR must stay derived from its Secret, or edits to a Git-managed Secret are shadowed again, so user edits and
+  `argocd repo update` on it need an ownership rule (write through to the Secret, or detach the CR), which is the
+  migration rule in another form; a newly applied Secret resolves only after the controller reconciles it, where
+  today it resolves immediately; it is a new leader-elected process, with an ownerRef from the CR to its Secret for
+  cleanup; and with readers CRD-only, the CRDs and their RBAC become mandatory for every install, so `secret` can no
+  longer be a zero-change default.
 * Alternatively, we could have a single `Repository` CRD instead of having the `Repository`/`RepositoryCredential`
   split. In that case we would need to define how a repository credential template is defined in the context of a
   `Repository` (perhaps with a field denoting it to be a credential template)
