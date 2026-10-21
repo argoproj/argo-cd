@@ -261,8 +261,12 @@ openapigen:
 	./hack/update-openapi.sh
 
 .PHONY: notification-catalog
-notification-catalog:
+notification-catalog: notification-catalog-test
 	go run ./hack/gen-catalog catalog
+
+.PHONY: notification-catalog-test
+notification-catalog-test:
+	go test ./hack/gen-catalog
 
 .PHONY: notification-docs
 notification-docs:
@@ -566,6 +570,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	mkdir -p /tmp/coverage/notification
 	mkdir -p /tmp/coverage/commit-server
 	# set paths for locally managed ssh known hosts and tls certs data
+	# OTLP points at the e2e test collector, but sampling is off unless a test enables it
 	ARGOCD_E2E_DIR=$(ARGOCD_E2E_DIR) \
 	ARGOCD_SSH_DATA_PATH=$(ARGOCD_E2E_DIR)/app/config/ssh \
 	ARGOCD_TLS_DATA_PATH=$(ARGOCD_E2E_DIR)/app/config/tls \
@@ -586,6 +591,10 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_E2E_TEST=true \
 	ARGOCD_HYDRATOR_ENABLED=true \
 	ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL=1ms \
+	ARGOCD_OTLP_ADDRESS=127.0.0.1:4327 \
+	ARGOCD_SERVER_OTLP_SAMPLE_RATIO=0 \
+	ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO=0 \
+	ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO=0 \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 	ls -lrt /tmp/coverage
 
