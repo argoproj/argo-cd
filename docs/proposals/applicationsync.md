@@ -44,8 +44,8 @@ auto-sync for a group. ApplicationSet RollingSync could later be rebuilt on top 
 ## Summary
 
 Today a sync is requested through the API, CLI or UI, or by writing the `operation` field on the Application
-([Sync Applications with Kubectl](../user-guide/sync-kubectl.md)). Each request covers one app and mutates the
-Application, and no record of it survives once the next operation replaces `status.operationState`.
+([Sync Applications with Kubectl](../user-guide/sync-kubectl.md)). Each request covers one app and mutates the Application, and no record of it 
+survives once the next operation replaces `status.operationState`.
 
 `ApplicationSync` is a separate resource whose spec is fixed once created, apart from `paused`. It lists Applications
 in groups, and a group can depend on other groups. The controller syncs a group's apps in parallel once the groups
@@ -57,16 +57,12 @@ as history until garbage collection removes them.
 - **GitOps-friendly sync requests.** Patching `operation` onto an Application that is itself managed from Git,
   by an app-of-apps or an ApplicationSet, is an out-of-band edit to a managed object. A separate object can be
   applied, committed or templated without touching the Application.
-- **Least privilege.** Syncing through kubectl today needs `patch` on `applications`, which also allows
-  changing the Application's spec. `create` on `applicationsyncs` grants only "sync these apps".
 - **Ordering across apps.** The options today are ApplicationSet RollingSync, which is tied to one
   ApplicationSet and its label selectors, or app-of-apps with sync waves. The latter needs the Application
-  health check restored (see [upgrading to 1.8](../operator-manual/upgrading/1.7-1.8.md)) and a parent
-  Application.
-- **Moving progressive sync out of the ApplicationSet.** In the discussion on
-  [#28927](https://github.com/argoproj/argo-cd/issues/28927) about promoting Progressive Sync to stable, maintainers
-  supported eventually giving it its own CRD and controller, as an independent proposal. This proposal provides the
-  engine it would run on (see [Future work](#future-work)). Several open RollingSync bugs come from the
+  health check restored (see [upgrading to 1.8](../operator-manual/upgrading/1.7-1.8.md)) and a parent Application.
+- **Moving progressive sync out of the ApplicationSet.** In the discussion on [#28927](https://github.com/argoproj/argo-cd/issues/28927) about promoting Progressive 
+  Sync to stable, maintainers supported eventually giving it its own CRD and controller, as an independent proposal. 
+  This proposal provides the engine it would run on (see [Future work](#future-work)). Several open RollingSync bugs come from the
   ApplicationSet controller rebuilding a sync state machine out of Application status fields.
 - **History and group auto-sync.** No object records a sync request. Auto-sync also works one app at a time,
   with no way to auto-sync a group of apps in dependency order.
@@ -110,18 +106,15 @@ The proposal has three parts. They are designed to ship together, and are descri
 As an operator, I apply one manifest that syncs `db`, then `api` and `worker` in parallel, then `web`. Each app
 only starts once the apps it depends on are Healthy.
 
-#### Use case 2: sync from a pipeline without mutating Applications
+#### Use case 2: roll a release back across apps
 
-As a CI pipeline, I create an ApplicationSync with my Kubernetes service account and wait on `status.phase`. I
-don't need to write to the Application, and I don't need an Argo CD API token. A Kubernetes Role grants my
-service account `create`, `get` and `watch` on `applicationsyncs` in the apps' namespace.
+As an operator, I find that the last release broke something. The ApplicationSync before it records the revisions
+each app synced to, so I create a new ApplicationSync that pins those revisions for the same apps and groups, and
+the rollback runs in the same order with the same health gates
+([#25741](https://github.com/argoproj/argo-cd/issues/25741)). Today I would roll back each app separately, and
+nothing records which revisions belonged together.
 
-#### Use case 3: sync history
-
-As an operator, I can list the recent ApplicationSyncs of an app, with who requested them and how each one
-ended.
-
-#### Use case 4: auto-sync a group
+#### Use case 3: auto-sync a group
 
 As a platform team, I want a set of apps to auto-sync as a unit in dependency order whenever they drift,
 instead of each app auto-syncing on its own. Auto-sync is off on the individual apps.
@@ -438,10 +431,12 @@ progress from its current run, which covers most of [#27879](https://github.com/
 and revision conflicts, the replace setting) and then create a single-app ApplicationSync instead of writing
 `operation`, with every source resolved and the Argo CD user in `spec.initiatedBy.username`. The handler returns
 once the controller has written the operation, so clients don't change. If that times out, the handler deletes the
-ApplicationSync and reads the Application again: if the tagged operation is there, the controller got in first and
-the request succeeds; otherwise it fails, and the sync can no longer start. Local syncs, rollbacks, syncs of
-auto-synced apps and `override`d revisions keep writing `operation`. Still open: whether a request for an app with an
-operation running is rejected, as today, or queued.
+ApplicationSync and looks for its UID in the Application's `operation` and `status.operationState`: if it is there,
+the controller got in first and the request succeeds; otherwise it fails. Because the controller reads the
+ApplicationSync live just before writing an operation, a sync can then only start in the short window between that
+read and the write; closing it fully needs a cancel-and-acknowledge handshake, to be designed with this change.
+Local syncs, rollbacks, syncs of auto-synced apps and `override`d revisions keep writing `operation`. Still open:
+whether a request for an app with an operation running is rejected, as today, or queued.
 
 **App auto-sync as a generated policy.** While `spec.syncPolicy.automated` is on, the application controller would
 keep a single-app ApplicationSyncPolicy for the app, owned by it, with `selfHeal`, `prune` and `allowEmpty` copied
@@ -478,8 +473,9 @@ controls, revisions (pins are passed as given; see Open Question 2) and Applicat
   UID matches. Matching on the UID means a same-named ApplicationSync that was deleted and recreated never adopts
   the old run's operation. The application controller runs the sync as usual.
 - **Crash safety.** If setting the operation succeeds but the status update doesn't, the next pass finds the
-  tagged operation and carries on; it never starts a second sync. Before deciding an operation was lost, the
-  controller reads the Application live rather than from its cache.
+  tagged operation and carries on; it never starts a second sync. Before writing an operation, the controller reads
+  the ApplicationSync live, so a deleted one never starts a sync from a stale cache, and before deciding an
+  operation was lost, it reads the Application live.
 - **Settings.** It reads `application.sync.requireOverridePrivilegeForRevisionSync` from `argocd-cm`, and
   `server.sync.replace.allowed` and the self-heal backoff from `argocd-cmd-params-cm`, so they behave as they do for
   Argo CD's own syncs.
