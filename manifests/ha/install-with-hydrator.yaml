@@ -38230,6 +38230,54 @@ spec:
               key: hydrator.enabled
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_CLUSTER_CACHE_RESYNC_DURATION
+          valueFrom:
+            configMapKeyRef:
+              key: controller.cluster.cache.resync.duration
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION
+          valueFrom:
+            configMapKeyRef:
+              key: controller.cluster.cache.watch.resync.duration
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTER_SYNC_RETRY_TIMEOUT_DURATION
+          valueFrom:
+            configMapKeyRef:
+              key: controller.cluster.cache.sync.retry.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: controller.cluster.cache.list.page.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: controller.cluster.cache.list.page.buffer.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_LIST_SEMAPHORE
+          valueFrom:
+            configMapKeyRef:
+              key: controller.cluster.cache.list.semaphore
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_ATTEMPT_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.cluster.cache.attempt.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF
+          valueFrom:
+            configMapKeyRef:
+              key: controller.cluster.cache.retry.use.backoff
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING
           valueFrom:
             configMapKeyRef:
