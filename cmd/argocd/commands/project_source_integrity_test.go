@@ -106,28 +106,6 @@ func mockApplicationClient(t *testing.T) *applicationmocks.ApplicationServiceCli
 	return mockClient
 }
 
-func runCmd(t *testing.T, cmd *cobra.Command, args ...string) (stdout string, stderr string, e error) {
-	t.Helper()
-	cmd.SilenceErrors = true
-	cmd.SilenceUsage = true
-
-	cmd.SetArgs(args)
-
-	var outbuf bytes.Buffer
-	cmd.SetOut(&outbuf)
-	var errbuf bytes.Buffer
-	cmd.SetErr(&errbuf)
-
-	err := cmd.ExecuteContext(t.Context())
-	// Make sure the messare from the error reported by Command.RunE() is appended to the errbuf for verification (same as in main.go)
-	if err != nil {
-		errMsg, _ := NewDefaultPluginHandler().HandleCommandExecutionError(err, true, args)
-		errbuf.WriteString(errMsg)
-	}
-
-	return outbuf.String(), errbuf.String(), err
-}
-
 func TestProjectSourceIntegrityAddCommand(t *testing.T) {
 	projectName := "test-project"
 
