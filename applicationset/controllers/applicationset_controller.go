@@ -135,7 +135,6 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	var applicationSet argov1alpha1.ApplicationSet
 	parametersGenerated := false
 	startTime := time.Now()
-	// NOTE: getting application set from the request coming from outside
 	if err := r.Get(ctx, req.NamespacedName, &applicationSet); err != nil {
 		if client.IgnoreNotFound(err) != nil {
 			logCtx.WithError(err).Infof("unable to get ApplicationSet: '%v' ", err)
@@ -205,10 +204,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			&applicationSet,
 			[]argov1alpha1.ApplicationSetCondition{
 				{
-					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-					Message: err.Error(),
-					Reason:  string(applicationSetReason),
-					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+					Type:               argov1alpha1.ApplicationSetConditionErrorOccurred,
+					Message:            err.Error(),
+					Reason:             string(applicationSetReason),
+					Status:             argov1alpha1.ApplicationSetConditionStatusTrue,
 					ObservedGeneration: applicationSet.Generation,
 				},
 			}, parametersGenerated,
@@ -235,10 +234,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			&applicationSet,
 			[]argov1alpha1.ApplicationSetCondition{
 				{
-					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-					Message: err.Error(),
-					Reason:  argov1alpha1.ApplicationSetReasonApplicationValidationError,
-					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+					Type:               argov1alpha1.ApplicationSetConditionErrorOccurred,
+					Message:            err.Error(),
+					Reason:             argov1alpha1.ApplicationSetReasonApplicationValidationError,
+					Status:             argov1alpha1.ApplicationSetConditionStatusTrue,
 					ObservedGeneration: applicationSet.Generation,
 				},
 			}, parametersGenerated,
@@ -270,10 +269,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					&applicationSet,
 					[]argov1alpha1.ApplicationSetCondition{
 						{
-							Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-							Message: "No steps defined for rollout",
-							Reason:  argov1alpha1.ApplicationSetReasonApplicationSetRolloutError,
-							Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+							Type:               argov1alpha1.ApplicationSetConditionErrorOccurred,
+							Message:            "No steps defined for rollout",
+							Reason:             argov1alpha1.ApplicationSetReasonApplicationSetRolloutError,
+							Status:             argov1alpha1.ApplicationSetConditionStatusTrue,
 							ObservedGeneration: applicationSet.Generation,
 						},
 					}, parametersGenerated,
@@ -320,10 +319,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			&applicationSet,
 			[]argov1alpha1.ApplicationSetCondition{
 				{
-					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-					Message: message,
-					Reason:  argov1alpha1.ApplicationSetReasonApplicationValidationError,
-					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+					Type:               argov1alpha1.ApplicationSetConditionErrorOccurred,
+					Message:            message,
+					Reason:             argov1alpha1.ApplicationSetReasonApplicationValidationError,
+					Status:             argov1alpha1.ApplicationSetConditionStatusTrue,
 					ObservedGeneration: applicationSet.Generation,
 				},
 			}, parametersGenerated,
@@ -360,10 +359,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				&applicationSet,
 				[]argov1alpha1.ApplicationSetCondition{
 					{
-						Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-						Message: err.Error(),
-						Reason:  argov1alpha1.ApplicationSetReasonUpdateApplicationError,
-						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+						Type:               argov1alpha1.ApplicationSetConditionErrorOccurred,
+						Message:            err.Error(),
+						Reason:             argov1alpha1.ApplicationSetReasonUpdateApplicationError,
+						Status:             argov1alpha1.ApplicationSetConditionStatusTrue,
 						ObservedGeneration: applicationSet.Generation,
 					},
 				}, parametersGenerated,
@@ -378,10 +377,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				&applicationSet,
 				[]argov1alpha1.ApplicationSetCondition{
 					{
-						Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-						Message: err.Error(),
-						Reason:  argov1alpha1.ApplicationSetReasonCreateApplicationError,
-						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+						Type:               argov1alpha1.ApplicationSetConditionErrorOccurred,
+						Message:            err.Error(),
+						Reason:             argov1alpha1.ApplicationSetReasonCreateApplicationError,
+						Status:             argov1alpha1.ApplicationSetConditionStatusTrue,
 						ObservedGeneration: applicationSet.Generation,
 					},
 				}, parametersGenerated,
@@ -399,10 +398,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				&applicationSet,
 				[]argov1alpha1.ApplicationSetCondition{
 					{
-						Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-						Message: err.Error(),
-						Reason:  argov1alpha1.ApplicationSetReasonDeleteApplicationError,
-						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+						Type:               argov1alpha1.ApplicationSetConditionErrorOccurred,
+						Message:            err.Error(),
+						Reason:             argov1alpha1.ApplicationSetReasonDeleteApplicationError,
+						Status:             argov1alpha1.ApplicationSetConditionStatusTrue,
 						ObservedGeneration: applicationSet.Generation,
 					},
 				}, parametersGenerated,
@@ -431,10 +430,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				&applicationSet,
 				[]argov1alpha1.ApplicationSetCondition{
 					{
-						Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-						Message: err.Error(),
-						Reason:  argov1alpha1.ApplicationSetReasonRefreshApplicationError,
-						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+						Type:               argov1alpha1.ApplicationSetConditionErrorOccurred,
+						Message:            err.Error(),
+						Reason:             argov1alpha1.ApplicationSetReasonRefreshApplicationError,
+						Status:             argov1alpha1.ApplicationSetConditionStatusTrue,
 						ObservedGeneration: applicationSet.Generation,
 					},
 				}, parametersGenerated,
@@ -451,10 +450,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			&applicationSet,
 			[]argov1alpha1.ApplicationSetCondition{
 				{
-					Type:    argov1alpha1.ApplicationSetConditionResourcesUpToDate,
-					Message: "All applications have been generated successfully",
-					Reason:  argov1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+					Type:               argov1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Message:            "All applications have been generated successfully",
+					Reason:             argov1alpha1.ApplicationSetReasonApplicationSetUpToDate,
+					Status:             argov1alpha1.ApplicationSetConditionStatusTrue,
 					ObservedGeneration: applicationSet.Generation,
 				},
 			}, parametersGenerated,
@@ -477,18 +476,18 @@ func getParametersGeneratedCondition(observedGeneration int64, parametersGenerat
 	var parametersGeneratedCondition argov1alpha1.ApplicationSetCondition
 	if parametersGenerated {
 		parametersGeneratedCondition = argov1alpha1.ApplicationSetCondition{
-			Type:    argov1alpha1.ApplicationSetConditionParametersGenerated,
-			Message: "Successfully generated parameters for all Applications",
-			Reason:  argov1alpha1.ApplicationSetReasonParametersGenerated,
-			Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
+			Type:               argov1alpha1.ApplicationSetConditionParametersGenerated,
+			Message:            "Successfully generated parameters for all Applications",
+			Reason:             argov1alpha1.ApplicationSetReasonParametersGenerated,
+			Status:             argov1alpha1.ApplicationSetConditionStatusTrue,
 			ObservedGeneration: observedGeneration,
 		}
 	} else {
 		parametersGeneratedCondition = argov1alpha1.ApplicationSetCondition{
-			Type:    argov1alpha1.ApplicationSetConditionParametersGenerated,
-			Message: message,
-			Reason:  argov1alpha1.ApplicationSetReasonErrorOccurred,
-			Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
+			Type:               argov1alpha1.ApplicationSetConditionParametersGenerated,
+			Message:            message,
+			Reason:             argov1alpha1.ApplicationSetReasonErrorOccurred,
+			Status:             argov1alpha1.ApplicationSetConditionStatusFalse,
 			ObservedGeneration: observedGeneration,
 		}
 	}
@@ -496,7 +495,6 @@ func getParametersGeneratedCondition(observedGeneration int64, parametersGenerat
 }
 
 // ONE
-// Sets status condition in application set
 func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, conditions []argov1alpha1.ApplicationSetCondition, parametersGenerated bool) error {
 	// Initialize the default condition types that this method evaluates
 	evaluatedTypes := map[argov1alpha1.ApplicationSetConditionType]bool{
@@ -541,10 +539,10 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 				// If the resources are up to date, we know there was no errors
 				evaluatedTypes[argov1alpha1.ApplicationSetConditionErrorOccurred] = true
 				newConditions = append(newConditions, argov1alpha1.ApplicationSetCondition{
-					Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-					Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
-					Reason:  condition.Reason,
-					Message: condition.Message,
+					Type:               argov1alpha1.ApplicationSetConditionErrorOccurred,
+					Status:             argov1alpha1.ApplicationSetConditionStatusFalse,
+					Reason:             condition.Reason,
+					Message:            condition.Message,
 					ObservedGeneration: applicationSet.Generation,
 				})
 			}
@@ -553,10 +551,10 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 				// If there is an error anywhere in the reconciliation, we cannot consider the resources up to date
 				evaluatedTypes[argov1alpha1.ApplicationSetConditionResourcesUpToDate] = true
 				newConditions = append(newConditions, argov1alpha1.ApplicationSetCondition{
-					Type:    argov1alpha1.ApplicationSetConditionResourcesUpToDate,
-					Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
-					Reason:  argov1alpha1.ApplicationSetReasonErrorOccurred,
-					Message: condition.Message,
+					Type:               argov1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Status:             argov1alpha1.ApplicationSetConditionStatusFalse,
+					Reason:             argov1alpha1.ApplicationSetReasonErrorOccurred,
+					Message:            condition.Message,
 					ObservedGeneration: applicationSet.Generation,
 				})
 			}
@@ -1112,7 +1110,6 @@ func (r *ApplicationSetReconciler) migrateStatuses(ctx context.Context, appset *
 	if update {
 		// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			// Fetch the latest version of applicationset from cluster
 			namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
 			updatedAppset := &argov1alpha1.ApplicationSet{}
 			if err := r.Get(ctx, namespacedName, updatedAppset); err != nil {
