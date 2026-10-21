@@ -594,8 +594,8 @@ The OIDC provider must support the device code grant type
 instance — no additional Dex configuration is required.
 
 **External OIDC providers**: The device authorization endpoint is discovered automatically from the
-provider's OIDC discovery document. No additional configuration is needed for standards-compliant
-providers.
+provider's OIDC discovery document. Some providers also require the device code grant to be enabled
+on the OIDC client used by the CLI. For Keycloak, see [Enabling the Device Code Grant](keycloak.md#enabling-the-device-code-grant).
 
 For providers that support the device code grant but do **not** advertise the endpoint in their discovery
 document, you can configure the URLs explicitly:

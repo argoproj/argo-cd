@@ -65,8 +65,9 @@ browser, approve the request, and the CLI stores the token automatically.
   2. `oidcSettings.GetDeviceURL()` — operator-configured fallback in `argocd-cm`.
 - PKCE (`code_challenge` / `code_challenge_method=S256`) is always included in the device
   authorization request and `code_verifier` is sent with the token request. Providers that
-  enforce PKCE globally (e.g. Keycloak with **Require PKCE = S256**) require this even for
-  the device flow. Providers that do not require PKCE ignore the extra parameters.
+  enforce PKCE globally (e.g. Keycloak with **PKCE Challenge Method = S256**) require this even for
+  the device flow and verify the code_verifier against the challenge. 
+  Providers without PKCE support are expected to ignore the unknown parameters.
 
 **Dex configuration (`util/dex/config.go`)**
 
@@ -89,7 +90,7 @@ and logs a warning; the operator must add the grant to enable the device flow.
 | Risk                                             | Mitigation                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 |--------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | OIDC provider does not support device code grant | If the provider rejects the device code request, the CLI exits with `Failed to request device code: <provider error>`. If the provider issues a device code but does not allow the grant (for example, Dex with `oauth2.grantTypes` set without `urn:ietf:params:oauth:grant-type:device_code`), the CLI prints the verification URL and then exits on the first poll with `oauth2: "unsupported_grant_type"`; Argo CD logs a warning when it generates such a Dex configuration. |
-| Provider requires PKCE for all flows             | PKCE (`code_challenge=S256`) is always sent with the device authorization request and `code_verifier` is always sent with the token request. This satisfies providers such as Keycloak with **Require PKCE = S256** enabled. Providers that do not enforce PKCE ignore the extra parameters.                                                                                                                                                                                      |
+| Provider requires PKCE for all flows             | PKCE (`code_challenge=S256`) is always sent with the device authorization request and `code_verifier` is always sent with the token request. This satisfies providers such as Keycloak with **PKCE Method = S256** enabled. Providers without PKCE support are expected to ignore the extra parameters.                                                                                                                                                                           |
 | User cancels on the provider side but CLI hangs  | CLI exits when `expired_token` is returned or `Ctrl+C` cancels the context                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ### Upgrade / Downgrade Strategy

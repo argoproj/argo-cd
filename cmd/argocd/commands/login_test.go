@@ -1,9 +1,12 @@
 package commands
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -164,4 +167,66 @@ func Test_buildVerificationPrompt_invalidBaseURI(t *testing.T) {
 	// Even an unparseable URI is shown as-is alongside the code.
 	prompt := buildVerificationPrompt("", "://bad url", "XXXX-YYYY")
 	assert.Equal(t, "  ://bad url\n\n  Enter the code: XXXX-YYYY", prompt)
+}
+
+// pkceCharsetRe matches the unreserved characters allowed by RFC 7636 §4.1.
+var pkceCharsetRe = regexp.MustCompile(`^[A-Za-z0-9\-._~]+$`)
+
+func Test_generatePKCECodeVerifierAndChallenge_noError(t *testing.T) {
+	verifier, challenge, err := generatePKCECodeVerifierAndChallenge()
+	require.NoError(t, err)
+	assert.NotEmpty(t, verifier)
+	assert.NotEmpty(t, challenge)
+}
+
+func Test_generatePKCECodeVerifierAndChallenge_verifierLength(t *testing.T) {
+	// RFC 7636 §4.1 mandates a code_verifier of 43–128 characters; the
+	// implementation always produces exactly 43.
+	verifier, _, err := generatePKCECodeVerifierAndChallenge()
+	require.NoError(t, err)
+	assert.Len(t, verifier, 43)
+}
+
+func Test_generatePKCECodeVerifierAndChallenge_verifierCharset(t *testing.T) {
+	// RFC 7636 §4.1: allowed characters are ALPHA / DIGIT / "-" / "." / "_" / "~"
+	verifier, _, err := generatePKCECodeVerifierAndChallenge()
+	require.NoError(t, err)
+	assert.Regexp(t, pkceCharsetRe, verifier, "verifier must only contain RFC 7636 unreserved characters")
+}
+
+func Test_generatePKCECodeVerifierAndChallenge_challengeIsS256OfVerifier(t *testing.T) {
+	// RFC 7636 §4.2: code_challenge = BASE64URL(SHA256(ASCII(code_verifier)))
+	verifier, challenge, err := generatePKCECodeVerifierAndChallenge()
+	require.NoError(t, err)
+
+	h := sha256.Sum256([]byte(verifier))
+	expected := base64.RawURLEncoding.EncodeToString(h[:])
+	assert.Equal(t, expected, challenge, "challenge must be BASE64URL(SHA256(verifier))")
+}
+
+func Test_generatePKCECodeVerifierAndChallenge_challengeHasNoPadding(t *testing.T) {
+	// BASE64URL encoding without padding must not contain '=' characters.
+	_, challenge, err := generatePKCECodeVerifierAndChallenge()
+	require.NoError(t, err)
+	assert.NotContains(t, challenge, "=", "challenge must use unpadded base64url encoding")
+}
+
+func Test_generatePKCECodeVerifierAndChallenge_challengeIsBase64URL(t *testing.T) {
+	// The challenge must contain only base64url alphabet characters (A-Z, a-z, 0-9, '-', '_').
+	_, challenge, err := generatePKCECodeVerifierAndChallenge()
+	require.NoError(t, err)
+	assert.Regexp(t, `^[A-Za-z0-9_-]+$`, challenge, "challenge must be a valid base64url string")
+}
+
+func Test_generatePKCECodeVerifierAndChallenge_uniqueness(t *testing.T) {
+	// Two successive calls must not produce the same verifier.  The probability
+	// of a collision is negligibly small (~1/52^43).
+	v1, c1, err := generatePKCECodeVerifierAndChallenge()
+	require.NoError(t, err)
+
+	v2, c2, err := generatePKCECodeVerifierAndChallenge()
+	require.NoError(t, err)
+
+	assert.NotEqual(t, v1, v2, "successive verifiers should be unique")
+	assert.NotEqual(t, c1, c2, "successive challenges should be unique")
 }
