@@ -114,7 +114,7 @@ only starts once the apps it depends on are Healthy.
 
 As a CI pipeline, I create an ApplicationSync with my Kubernetes service account and wait on `status.phase`. I
 don't need to write to the Application, and I don't need an Argo CD API token. A Kubernetes Role grants my
-service account `create` on `applicationsyncs` in the apps' namespace.
+service account `create`, `get` and `watch` on `applicationsyncs` in the apps' namespace.
 
 #### Use case 3: sync history
 
@@ -202,9 +202,9 @@ Semantics:
 - **No auto-sync.** Apps in an ApplicationSync must have auto-sync disabled, whoever created it; otherwise auto-sync
   could sync an app ahead of its dependencies or undo a pinned revision. The controller refuses such an app and says
   so in its status. To keep a group in sync automatically, use an [ApplicationSyncPolicy](#applicationsyncpolicy).
-- **Garbage collection.** The 20 most recent completed ApplicationSyncs are kept per set of apps; older ones are
-  deleted. The limit is `applicationsynccontroller.history.limit` in `argocd-cmd-params-cm` (`--history-limit`), and
-  `0` disables deletion.
+- **Garbage collection.** Each app keeps its 20 most recent completed ApplicationSyncs: a run is deleted once it is
+  among the newest 20 for none of its apps, so the total is bounded by 20 per app. The limit is
+  `applicationsynccontroller.history.limit` in `argocd-cmd-params-cm` (`--history-limit`), and `0` disables deletion.
 
 #### History and rollback
 
@@ -319,19 +319,20 @@ spec:
 Each app can pin the revision of each of its sources:
 
 ```yaml
-groups:
-- name: platform
-  apps:
-  - name: guestbook        # single source: one entry, with no source or position
-    revisions:
-    - revision: v1.4.0
-  - name: monitoring       # three sources
-    revisions:
-    - source: chart        # matches spec.sources[].name
-      revision: 45.7.1
-    - position: 2          # 1-based index into spec.sources, as in the Sync API's sourcePositions
-      revision: main
-    # the third source is not listed, so it is not pinned
+spec:
+  groups:
+  - name: platform
+    apps:
+    - name: guestbook        # single source: one entry, with no source or position
+      revisions:
+      - revision: v1.4.0
+    - name: monitoring       # three sources
+      revisions:
+      - source: chart        # matches spec.sources[].name
+        revision: 45.7.1
+      - position: 2          # 1-based index into spec.sources, as in the Sync API's sourcePositions
+        revision: main
+      # the third source is not listed, so it is not pinned
 ```
 
 **Which source an entry applies to**
@@ -415,6 +416,8 @@ spec:
 - **Runs** are ordinary ApplicationSyncs, labeled with the policy name and owned by it. Being owned by the policy
   makes them automatic for sync windows (see [Rollout controls](#rollout-controls)), and an app whose window is
   closed waits for it to open, as with auto-sync. History garbage collection bounds how many are kept.
+- **Deleting a policy deletes its runs,** as deleting a CronJob deletes its Jobs: a run in progress is cancelled, and
+  its completed runs go with it. `kubectl delete --cascade=orphan` keeps them as history.
 - **Authorization.** Creating a policy is governed by Kubernetes RBAC on `applicationsyncpolicies`. A policy
   decides when its apps sync, so granting `create` on it is comparable to granting `update` on those Applications.
 
@@ -434,10 +437,11 @@ progress from its current run, which covers most of [#27879](https://github.com/
 **API and UI syncs.** `argocd-server`'s Sync handler would keep its checks (Argo CD RBAC, sync windows, auto-sync
 and revision conflicts, the replace setting) and then create a single-app ApplicationSync instead of writing
 `operation`, with every source resolved and the Argo CD user in `spec.initiatedBy.username`. The handler returns
-once the controller has written the operation, and deletes the ApplicationSync if that times out, so clients don't
-change and a sync can't start after the user has seen an error. Local syncs, rollbacks, syncs of auto-synced apps
-and `override`d revisions keep writing `operation`. Still open: whether a request for an app with an operation
-running is rejected, as today, or queued.
+once the controller has written the operation, so clients don't change. If that times out, the handler deletes the
+ApplicationSync and reads the Application again: if the tagged operation is there, the controller got in first and
+the request succeeds; otherwise it fails, and the sync can no longer start. Local syncs, rollbacks, syncs of
+auto-synced apps and `override`d revisions keep writing `operation`. Still open: whether a request for an app with an
+operation running is rejected, as today, or queued.
 
 **App auto-sync as a generated policy.** While `spec.syncPolicy.automated` is on, the application controller would
 keep a single-app ApplicationSyncPolicy for the app, owned by it, with `selfHeal`, `prune` and `allowEmpty` copied
@@ -469,9 +473,10 @@ controls, revisions (pins are passed as given; see Open Question 2) and Applicat
 - **Reconciler.** A dedicated controller with leader election, so each object has one owner and no sharded
   component takes on the extra load. ApplicationSyncs and policies are indexed by the apps they list, so a change
   to an app wakes up the ones that reference it.
-- **Writing operations.** The controller sets each app's `operation` as the Sync API does, tagged with an `Info`
-  entry `ApplicationSync: <name>`, and reads the result back from `status.operationState` when the tag matches and
-  `startedAt` isn't before the ApplicationSync was created. The application controller runs the sync as usual.
+- **Writing operations.** The controller sets each app's `operation` as the Sync API does, tagged with `Info`
+  entries for the ApplicationSync's name and UID, and reads the result back from `status.operationState` when the
+  UID matches. Matching on the UID means a same-named ApplicationSync that was deleted and recreated never adopts
+  the old run's operation. The application controller runs the sync as usual.
 - **Crash safety.** If setting the operation succeeds but the status update doesn't, the next pass finds the
   tagged operation and carries on; it never starts a second sync. Before deciding an operation was lost, the
   controller reads the Application live rather than from its cache.
@@ -504,9 +509,6 @@ controls, revisions (pins are passed as given; see Open Question 2) and Applicat
   Mitigation: document it, and don't include it in any aggregated or default roles.
 - **Apps that still auto-sync.** Users moving existing apps into ApplicationSyncs may leave auto-sync on.
   Mitigation: the app fails, or waits with `onFailure: Wait`, with a message naming the setting to change.
-- **History across overlapping sets of apps.** History is kept per set of apps, so each set containing an app keeps
-  its own 20. Policy runs use a stable set, but ad-hoc ApplicationSyncs for ever-changing sets keep adding history.
-  Mitigation: a namespace-wide cap on completed ApplicationSyncs alongside the per-set limit.
 - **Status size.** Status grows with the number of apps. Mitigation: `maxItems` limits on `spec.groups` and on the
   apps in each group, and a small per-app status (phase, message, revisions, timestamps).
 - **Apps that never become Synced.** An app with a diff that never goes away blocks its dependents, as it blocks a
@@ -533,6 +535,7 @@ controls, revisions (pins are passed as given; see Open Question 2) and Applicat
   | `appprojects` | `get/list/watch` | Application controller's namespace | Read sync windows |
   | `configmaps` | `get` | Application controller's namespace | Read `argocd-cm` and `argocd-cmd-params-cm` |
   | `events` | `create/patch` | App namespaces | Record phase changes |
+
 - **Downgrade.** Removing the controller stops new runs. Operations it already wrote finish normally, and the CRDs
   and their objects stay as inert history.
 
