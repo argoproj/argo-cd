@@ -250,12 +250,12 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		// wait on timeout signal and fallback to fatal timeout signal
 		if timeoutBehavior.ShouldWait {
 			select {
-			case <-done:
+			case <-done: //nolint:errcheck // exit error after our signal is expected
 			case <-fatalTimeoutCh:
 				// upgrades to SIGKILL if cmd does not respect SIGTERM
 				_ = cmd.Process.Signal(fatalTimeoutBehaviour)
 				// now original cmd should exit immediately after SIGKILL
-				<-done
+				<-done //nolint:errcheck
 				// return error with a marker indicating that cmd exited only after fatal SIGKILL
 				output := stdout.String()
 				if opts.CaptureStderr {
