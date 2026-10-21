@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Degraded
+      message: "CreatingCustomResource: error creating object: 400 Bad Request: {\"errors\":[\"The value provided for parameter 'query' is invalid\"]}"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: "DatadogGenericResource is synced"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for DatadogGenericResource to be synced"
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for DatadogGenericResource to be synced"
+    inputPath: testdata/progressing_empty_conditions.yaml
