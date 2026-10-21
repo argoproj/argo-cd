@@ -502,8 +502,10 @@ controls, revisions (pins are passed as given; see Open Question 2) and Applicat
   revision" check.
 - **Policies only trust runs they recorded.** Labels, owner references and annotations can be set by anyone who can
   create ApplicationSyncs, so a policy identifies its runs through its own status, which only the controller
-  writes: it records a run's name and UID once its create succeeds, and ignores any run it didn't record. A
-  controller restart between the two can leave one extra run, which is harmless, since both carry the same pins.
+  writes: it records a run's name and UID once its create succeeds, and ignores any run it didn't record. Before
+  starting a run, it deletes any unfinished run that names it as controller owner but isn't recorded, so a restart
+  between creating and recording a run, or a forged run, never leaves two runs going. Naming the policy as
+  controller hands it the run's lifecycle, as garbage collection does when the policy is deleted.
 
 ### Security Considerations
 
