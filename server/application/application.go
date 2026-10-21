@@ -2109,8 +2109,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	s.inferResourcesStatusHealth(a)
 
-	projWindows, appWindows := s.effectiveSyncWindows(a, proj)
-	canSync, err := canSyncTwoTier(projWindows, appWindows, true, nil)
+	canSync, err := s.resolveSyncWindows(a, proj).CanSync(true, nil)
 	if err != nil {
 		return a, status.Errorf(codes.PermissionDenied, "cannot sync: invalid sync window: %v", err)
 	}
@@ -2912,20 +2911,13 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 		return nil, err
 	}
 
-	projWindows, appWindows := s.effectiveSyncWindows(a, proj)
-	sync, err := canSyncTwoTier(projWindows, appWindows, true, nil)
+	syncWindows := s.resolveSyncWindows(a, proj)
+	sync, err := syncWindows.CanSync(true, nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid sync windows: %w", err)
 	}
 
-	// Merge both tiers for display; CanSync is already the AND of both tiers above.
-	var allWindows v1alpha1.SyncWindows
-	if projWindows != nil {
-		allWindows = append(allWindows, *projWindows...)
-	}
-	if appWindows != nil {
-		allWindows = append(allWindows, *appWindows...)
-	}
+	allWindows := syncWindows.All()
 	activeWindows, err := allWindows.Active()
 	if err != nil {
 		return nil, fmt.Errorf("invalid sync windows: %w", err)
@@ -2962,50 +2954,13 @@ func (s *Server) inferResourcesStatusHealth(app *v1alpha1.Application) {
 	}
 }
 
-// effectiveSyncWindows resolves sync windows for an app into two independent tiers.
-// projWindows is the AppProject tier (inline + project CRD refs, filtered by app).
-// appWindows is the Application tier (app CRD refs, applied unconditionally).
-// Both tiers must independently permit a sync — neither overrides the other.
-func (s *Server) effectiveSyncWindows(a *v1alpha1.Application, proj *v1alpha1.AppProject) (projWindows, appWindows *v1alpha1.SyncWindows) {
-	projWindows = proj.Spec.SyncWindows.Matches(a)
-	resolver := syncwindow.NewResolver(s.syncWindowLister, s.ns)
-	if len(proj.Spec.SyncWindowRefs) > 0 {
-		resolved, err := resolver.ResolveProjectRefs(proj.Spec.SyncWindowRefs)
-		if err != nil {
-			log.WithFields(applog.GetAppLogFields(a)).WithError(err).Warn("Failed to resolve some project sync window refs")
-		}
-		if matched := resolved.Matches(a); matched.HasWindows() {
-			if projWindows == nil {
-				projWindows = matched
-			} else {
-				*projWindows = append(*projWindows, *matched...)
-			}
-		}
+// resolveSyncWindows returns the app's effective sync windows, logging any refs that could not be resolved.
+func (s *Server) resolveSyncWindows(a *v1alpha1.Application, proj *v1alpha1.AppProject) syncwindow.EffectiveWindows {
+	syncWindows := syncwindow.NewResolver(s.syncWindowLister, s.ns).Resolve(a, proj)
+	if err := syncWindows.RefsErr(); err != nil {
+		log.WithFields(applog.GetAppLogFields(a)).WithError(err).Warn("Failed to resolve some sync window refs")
 	}
-	if len(a.Spec.SyncWindowRefs) > 0 {
-		resolved, err := resolver.ResolveAppRefs(a.Spec.SyncWindowRefs, a.Namespace)
-		if err != nil {
-			log.WithFields(applog.GetAppLogFields(a)).WithError(err).Warn("Failed to resolve some app sync window refs")
-		}
-		if len(resolved) > 0 {
-			w := v1alpha1.SyncWindows(resolved)
-			appWindows = &w
-		}
-	}
-	return projWindows, appWindows
-}
-
-// canSyncTwoTier returns true only if both the AppProject tier and the Application tier
-// independently permit a sync. isManual and operationStartTime follow the same semantics
-// as SyncWindows.CanSync.
-func canSyncTwoTier(projWindows, appWindows *v1alpha1.SyncWindows, isManual bool, operationStartTime *time.Time) (bool, error) {
-	if ok, err := projWindows.CanSync(isManual, operationStartTime); err != nil || !ok {
-		return false, err
-	}
-	if ok, err := appWindows.CanSync(isManual, operationStartTime); err != nil || !ok {
-		return false, err
-	}
-	return true, nil
+	return syncWindows
 }
 
 func convertSyncWindows(w *v1alpha1.SyncWindows) []*application.ApplicationSyncWindow {

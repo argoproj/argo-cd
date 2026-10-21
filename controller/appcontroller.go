@@ -2391,23 +2391,19 @@ func (ctrl *ApplicationController) refreshAppConditions(ctx context.Context, app
 
 // syncWindowRefConditions reports unresolved SyncWindow refs, whose windows are otherwise silently skipped.
 func (ctrl *ApplicationController) syncWindowRefConditions(app *appv1.Application, proj *appv1.AppProject) []appv1.ApplicationCondition {
-	resolver := syncwindow.NewResolver(ctrl.syncWindowLister, ctrl.namespace)
+	syncWindows := syncwindow.NewResolver(ctrl.syncWindowLister, ctrl.namespace).Resolve(app, proj)
 	var conditions []appv1.ApplicationCondition
-	if len(proj.Spec.SyncWindowRefs) > 0 {
-		if _, err := resolver.ResolveProjectRefs(proj.Spec.SyncWindowRefs); err != nil {
-			conditions = append(conditions, appv1.ApplicationCondition{
-				Type:    appv1.ApplicationConditionSyncWindowRefWarning,
-				Message: fmt.Sprintf("Project %q has unresolved sync window refs: %v", proj.Name, err),
-			})
-		}
+	if syncWindows.ProjectRefsErr != nil {
+		conditions = append(conditions, appv1.ApplicationCondition{
+			Type:    appv1.ApplicationConditionSyncWindowRefWarning,
+			Message: fmt.Sprintf("Project %q has unresolved sync window refs: %v", proj.Name, syncWindows.ProjectRefsErr),
+		})
 	}
-	if len(app.Spec.SyncWindowRefs) > 0 {
-		if _, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs, app.Namespace); err != nil {
-			conditions = append(conditions, appv1.ApplicationCondition{
-				Type:    appv1.ApplicationConditionSyncWindowRefWarning,
-				Message: fmt.Sprintf("Application has unresolved sync window refs: %v", err),
-			})
-		}
+	if syncWindows.AppRefsErr != nil {
+		conditions = append(conditions, appv1.ApplicationCondition{
+			Type:    appv1.ApplicationConditionSyncWindowRefWarning,
+			Message: fmt.Sprintf("Application has unresolved sync window refs: %v", syncWindows.AppRefsErr),
+		})
 	}
 	return conditions
 }
@@ -2698,26 +2694,11 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 
 // syncWindowPreventsAutoSync checks if sync windows (both inline and CRD-based) prevent auto-sync.
 func (ctrl *ApplicationController) syncWindowPreventsAutoSync(app *appv1.Application, project *appv1.AppProject) (bool, error) {
-	var projCRDWindows, appWindows appv1.SyncWindows
-	resolver := syncwindow.NewResolver(ctrl.syncWindowLister, ctrl.namespace)
-	if len(project.Spec.SyncWindowRefs) > 0 {
-		windows, err := resolver.ResolveProjectRefs(project.Spec.SyncWindowRefs)
-		if err != nil {
-			log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to resolve some project sync window refs")
-		}
-		projCRDWindows = append(projCRDWindows, windows...)
-	}
-	if len(app.Spec.SyncWindowRefs) > 0 {
-		windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs, app.Namespace)
-		if err != nil {
-			log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to resolve some app sync window refs")
-		}
-		appWindows = append(appWindows, windows...)
-	}
 	// Auto-sync decision path: no operation has started yet, so pass isManual=false
 	// and operationStartTime=nil. status.OperationState here reflects a *previous*
 	// operation and must not influence whether the next auto-sync attempt is allowed.
-	return syncWindowPreventsSync(app, project, projCRDWindows, appWindows, false, nil)
+	canSync, err := resolveSyncWindows(ctrl.syncWindowLister, ctrl.namespace, app, project).CanSync(false, nil)
+	return !canSync, err
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync
