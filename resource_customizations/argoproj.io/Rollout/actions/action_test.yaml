@@ -152,6 +152,23 @@ discoveryTests:
       disabled: true
     - name: pause
       disabled: true
+- inputPath: testdata/no_status_rollout.yaml
+  result:
+    - name: restart
+      disabled: false
+      displayName: Restart Pods
+    - name: resume
+      disabled: true
+    - name: abort
+      disabled: true
+    - name: retry
+      disabled: true
+    - name: promote-full
+      disabled: true
+    - name: skip-current-step
+      disabled: true
+    - name: pause
+      disabled: true
 actionTests:
 - action: resume
   inputPath: testdata/pre_v0.6_paused_rollout.yaml
