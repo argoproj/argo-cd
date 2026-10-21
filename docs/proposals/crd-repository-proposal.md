@@ -105,10 +105,11 @@ JSON field names, the protobuf wire format and REST paths are unchanged.
   is `helm.name`, since git and OCI repositories don't use it.
 * The Secret carries only credential material (`username`, `password`, `sshPrivateKey`, `githubAppPrivateKey`, …). A
   `secretRef` is written only when credentials exist.
-* `secretRef` resolves only to Secrets labeled `argocd.argoproj.io/secret-type` with the new value `repository-secret`
-  (credential-only, no `url`; a new value because a url-less `repo-creds` template would match every URL) or the
-  existing `repository`/`repo-creds` values, so migration can reference a legacy Secret without relabeling it (see
-  Security Considerations). An unlabeled target reports `CredentialsMissing`.
+* `secretRef` resolves only to a Secret labeled `argocd.argoproj.io/secret-type: repository-secret` (credential-only,
+  no `url`; a new value because a url-less `repo-creds` template would match every URL), or to a legacy Secret used
+  for what it was created for: a `repository` Secret whose `url` matches (`git.SameURL`) and whose `project`, if set,
+  matches, or a `repo-creds` Secret whose `url` is a prefix of the referencing object's. That lets migration reference
+  a legacy Secret without relabeling it (see Security Considerations). Any other target reports `CredentialsMissing`.
 
 #### Repository resolution
 
@@ -116,8 +117,9 @@ Today, the secrets backend looks repositories up by URL + project: URLs are comp
 exact-`project` match beats a project-less one, credential templates match by longest URL prefix, and a miss returns
 a URL-only repository, so templates still apply and public repositories need no object.
 
-The CRD backend keeps these rules and reuses the same helpers; since lookup is by URL + project, CRs may use any
-name. New with this proposal:
+The CRD backend keeps these rules and reuses the same helpers. It reads CRs only from the control-plane namespace,
+as the secrets backend reads Secrets today, and ignores them elsewhere; since lookup is by URL + project, CRs may
+use any name. New with this proposal:
 
 * **In `hybrid`, the rules apply across both stores.** Candidates from both are ranked together: an exact-project
   match beats a project-less one, and the longest template prefix wins, whichever store each comes from. CRD
@@ -132,15 +134,18 @@ deletes only those; a user-provided Secret just loses its `secret-type` label an
 This proposal keeps the rule that Argo CD deletes a Secret only if it created it:
 
 * **Generated Secrets**: a Secret labeled `secret-type: repository-secret` is created when a `Repository` CR is
-  _imperatively_ created with credentials (=created with `argocd repo add`, UI, API). The Secret gets owner-referenced
+  _imperatively_ created with credentials (`argocd repo add`, UI, API). The Secret gets owner-referenced
   to the CR, and garbage-collected when the CR is removed.
 * **User-provided Secrets**: never owner-referenced or deleted, and may be shared; their lifecycle belongs to whoever
-  manages them (e.g. External Secrets Operator).
+  manages them (e.g. External Secrets Operator). Deleting a `Repository` leaves them untouched, label included,
+  unlike `argocd repo rm` in `secret` mode today, so other repositories sharing one keep working.
 * **Migration** happens only on an imperative update in `hybrid` mode (`argocd repo add --upsert`, UI, API);
-  editing the Secret directly with `kubectl` or from Git migrates nothing. The update first writes the CR from the
-  Secret's non-credential keys, then replaces a generated legacy Secret with a generated Secret as above, or
-  references a user-provided one as-is (see "Two writers of repository configuration" under Risks and Mitigations).
-  Each step is idempotent, so a potential crash leaves the repository still resolvable.
+  editing the Secret directly with `kubectl` or from Git migrates nothing. A generated legacy Secret is replaced in
+  an order where every intermediate state has working credentials: create the replacement Secret, create the CR from
+  the legacy Secret's non-credential keys with `secretRef` pointing at it, add the CR's owner reference to the new
+  Secret, then delete the legacy one. Until the CR exists the legacy Secret keeps serving, and a retry resumes from
+  the first missing step. A user-provided Secret is referenced as-is (see "Two writers of repository configuration"
+  under Risks and Mitigations).
 * **Deleting a `Repository` does not check Applications**, like `argocd repo rm` today; any apps referencing deleted
   repositories fail at their next refresh.
 
@@ -158,6 +163,21 @@ Applications and AppProjects; a migration emits `ResourceCreated`.
 ### Detailed examples
 
 **Example Repository Manifests:**
+
+Each `secretRef` below points at a Secret like this one, holding only credentials:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-creds
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository-secret
+stringData:
+  username: git
+  password: <token>
+```
 
 **Git:**
 
@@ -234,10 +254,12 @@ spec:
 ### Security Considerations
 
 * Credential material never enters the CRD, so the spec is safe to store in Git.
-* **`spec.secretRef` is gated by a label.** Otherwise anyone who can create a `Repository` but not read Secrets could
-  have Argo CD send any Secret in the namespace to a URL they control. A reference is honored only when the target
-  carries an Argo CD `secret-type` label (`repository-secret`, `repository` or `repo-creds`); once labeled, its
-  credentials are usable by anyone who can create a `Repository`, against any URL.
+* **`spec.secretRef` only reaches what a Secret's owner published.** Otherwise anyone who can create a `Repository`
+  but not read Secrets could have Argo CD send any Secret in the namespace to a URL they control. A legacy
+  `repository` or `repo-creds` Secret is only honored for the URL (and project) it was created for, or URLs under
+  its prefix, so existing Secrets are exposed no further than today. A `repository-secret` Secret has no URL:
+  labeling one publishes its credentials to anyone who can create a `Repository`, against any URL, and the docs say
+  so.
 * **Credential-template prefix matching is unchanged.** A repository URL with no credentials of its own uses
   those of the longest-prefix template, and the prefix match has no path boundary: a template for
   `https://github.com/example` also covers `https://github.com/example-evil`. `RepositoryCredential` templates match
