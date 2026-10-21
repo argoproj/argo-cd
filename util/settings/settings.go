@@ -571,6 +571,9 @@ const (
 	settingsServerRBACDisableFineGrainedInheritance = "server.rbac.disableApplicationFineGrainedRBACInheritance"
 	// settingsServerRBACRollbackEnforceEnableKey enables the dedicated rollback RBAC action in argocd-cm
 	settingsServerRBACRollbackEnforceEnableKey = "server.rbac.rollback.enforce.enable"
+	// settingsRollbackAwareAutoSyncEnabledKey enables rollback-aware automated sync for applications that do not set
+	// spec.syncPolicy.automated.rollbackAware explicitly
+	settingsRollbackAwareAutoSyncEnabledKey = "application.rollbackAwareAutoSyncEnabled"
 	// MaxPodLogsToRender the maximum number of pod logs to render
 	settingsMaxPodLogsToRender = "server.maxPodLogsToRender"
 	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
@@ -997,6 +1000,21 @@ func (mgr *SettingsManager) GetServerRBACRollbackEnforceEnable() (bool, error) {
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACRollbackEnforceEnableKey])
+}
+
+// GetRollbackAwareAutoSyncEnabled returns the instance-wide default for rollback-aware automated sync.
+// Applications override it with spec.syncPolicy.automated.rollbackAware. Defaults to false.
+func (mgr *SettingsManager) GetRollbackAwareAutoSyncEnabled() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, err
+	}
+
+	if argoCDCM.Data[settingsRollbackAwareAutoSyncEnabledKey] == "" {
+		return false, nil
+	}
+
+	return strconv.ParseBool(argoCDCM.Data[settingsRollbackAwareAutoSyncEnabledKey])
 }
 
 func (mgr *SettingsManager) GetMaxPodLogsToRender() (int64, error) {

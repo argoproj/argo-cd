@@ -7484,6 +7484,46 @@ func TestCluster_RESTConfig_QPSAndBurst(t *testing.T) {
 	}
 }
 
+func TestSyncPolicy_IsRollbackAwareAutoSync(t *testing.T) {
+	tests := []struct {
+		name         string
+		policy       *SyncPolicy
+		defaultValue bool
+		expected     bool
+	}{
+		{name: "nil policy uses default false", policy: nil, defaultValue: false, expected: false},
+		{name: "nil policy uses default true", policy: nil, defaultValue: true, expected: true},
+		{name: "no automated policy uses default", policy: &SyncPolicy{}, defaultValue: true, expected: true},
+		{name: "automated without rollbackAware uses default", policy: &SyncPolicy{Automated: &SyncPolicyAutomated{}}, defaultValue: true, expected: true},
+		{name: "explicit true overrides default false", policy: &SyncPolicy{Automated: &SyncPolicyAutomated{RollbackAware: new(true)}}, defaultValue: false, expected: true},
+		{name: "explicit false overrides default true", policy: &SyncPolicy{Automated: &SyncPolicyAutomated{RollbackAware: new(false)}}, defaultValue: true, expected: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.policy.IsRollbackAwareAutoSync(tt.defaultValue))
+		})
+	}
+}
+
+func TestSyncPolicy_HasExplicitRollbackAware(t *testing.T) {
+	tests := []struct {
+		name     string
+		policy   *SyncPolicy
+		expected bool
+	}{
+		{name: "nil policy", policy: nil, expected: false},
+		{name: "no automated policy", policy: &SyncPolicy{}, expected: false},
+		{name: "automated without rollbackAware", policy: &SyncPolicy{Automated: &SyncPolicyAutomated{}}, expected: false},
+		{name: "explicit true", policy: &SyncPolicy{Automated: &SyncPolicyAutomated{RollbackAware: new(true)}}, expected: true},
+		{name: "explicit false", policy: &SyncPolicy{Automated: &SyncPolicyAutomated{RollbackAware: new(false)}}, expected: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.policy.HasExplicitRollbackAware())
+		})
+	}
+}
+
 func TestCluster_Sanitized_PreservesQPSAndBurst(t *testing.T) {
 	cluster := &Cluster{
 		Server: "https://kubernetes.example",
@@ -7532,4 +7572,13 @@ func TestCluster_HashIdentity_IncludesQPSAndBurst(t *testing.T) {
 
 	assert.NotEqual(t, base.HashIdentity(0), withDiffQPS.HashIdentity(0))
 	assert.NotEqual(t, base.HashIdentity(0), withDiffBurst.HashIdentity(0))
+}
+
+func TestSyncOperation_IsRollback(t *testing.T) {
+	var nilOp *SyncOperation
+	assert.False(t, nilOp.IsRollback())
+	assert.False(t, (&SyncOperation{}).IsRollback())
+	assert.False(t, (&SyncOperation{Revision: "abc"}).IsRollback())
+	assert.True(t, (&SyncOperation{RolledBackFromRevision: "abc"}).IsRollback())
+	assert.True(t, (&SyncOperation{RolledBackFromRevisions: []string{"abc", "def"}}).IsRollback())
 }

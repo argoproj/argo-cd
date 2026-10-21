@@ -169,6 +169,18 @@ spec:
                     items:
                       type: string
                     type: array
+                  rolledBackFromRevision:
+                    description: |-
+                      RolledBackFromRevision is the revision that was deployed when a rollback operation was initiated.
+                      It is only set by rollback operations when rollback-aware automated sync is enabled, and is recorded in
+                      the application status once the rollback succeeds so that automated sync can skip that revision.
+                    type: string
+                  rolledBackFromRevisions:
+                    description: RolledBackFromRevisions is the multi-source equivalent
+                      of RolledBackFromRevision
+                    items:
+                      type: string
+                    type: array
                   source:
                     description: |-
                       Source overrides the source definition set in the application.
@@ -2320,6 +2332,12 @@ spec:
                           from the cluster that are not found in the sources anymore
                           as part of automated sync (default: false)'
                         type: boolean
+                      rollbackAware:
+                        description: |-
+                          RollbackAware allows rollbacks while automated sync is enabled. After a rollback, automated sync skips the
+                          rolled-back revision until a different revision is available. When unset, the value of the
+                          `application.rollbackAwareAutoSyncEnabled` key in the argocd-cm ConfigMap applies (default: false).
+                        type: boolean
                       selfHeal:
                         description: 'SelfHeal specifies whether to revert resources
                           back to their desired state upon modification in the cluster
@@ -3424,6 +3442,18 @@ spec:
                             description: |-
                               Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
                               If omitted, will use the revision specified in app spec.
+                            items:
+                              type: string
+                            type: array
+                          rolledBackFromRevision:
+                            description: |-
+                              RolledBackFromRevision is the revision that was deployed when a rollback operation was initiated.
+                              It is only set by rollback operations when rollback-aware automated sync is enabled, and is recorded in
+                              the application status once the rollback succeeds so that automated sync can skip that revision.
+                            type: string
+                          rolledBackFromRevisions:
+                            description: RolledBackFromRevisions is the multi-source
+                              equivalent of RolledBackFromRevision
                             items:
                               type: string
                             type: array
@@ -5327,6 +5357,18 @@ spec:
                         (e.g., "v1", "v1beta1").
                       type: string
                   type: object
+                type: array
+              rolledBackRevision:
+                description: |-
+                  RolledBackRevision is the revision that was deployed before the most recent rollback. When rollback-aware
+                  automated sync is enabled, automated sync skips this revision until a different revision is available.
+                  It is cleared when any other revision is successfully synced.
+                type: string
+              rolledBackRevisions:
+                description: RolledBackRevisions is the multi-source equivalent of
+                  RolledBackRevision
+                items:
+                  type: string
                 type: array
               sourceHydrator:
                 description: SourceHydrator stores information about the current state
@@ -8138,6 +8180,8 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        rollbackAware:
+                                          type: boolean
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -9057,6 +9101,8 @@ spec:
                                         enabled:
                                           type: boolean
                                         prune:
+                                          type: boolean
+                                        rollbackAware:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
@@ -9979,6 +10025,8 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        rollbackAware:
+                                          type: boolean
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -10877,6 +10925,8 @@ spec:
                                         enabled:
                                           type: boolean
                                         prune:
+                                          type: boolean
+                                        rollbackAware:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
@@ -11802,6 +11852,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -12721,6 +12773,8 @@ spec:
                                                   enabled:
                                                     type: boolean
                                                   prune:
+                                                    type: boolean
+                                                  rollbackAware:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
@@ -13643,6 +13697,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -14541,6 +14597,8 @@ spec:
                                                   enabled:
                                                     type: boolean
                                                   prune:
+                                                    type: boolean
+                                                  rollbackAware:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
@@ -15463,6 +15521,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -16372,6 +16432,8 @@ spec:
                                                   enabled:
                                                     type: boolean
                                                   prune:
+                                                    type: boolean
+                                                  rollbackAware:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
@@ -17507,6 +17569,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -18638,6 +18702,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -19553,6 +19619,8 @@ spec:
                                         enabled:
                                           type: boolean
                                         prune:
+                                          type: boolean
+                                        rollbackAware:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
@@ -20480,6 +20548,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -21399,6 +21469,8 @@ spec:
                                                   enabled:
                                                     type: boolean
                                                   prune:
+                                                    type: boolean
+                                                  rollbackAware:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
@@ -22321,6 +22393,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -23219,6 +23293,8 @@ spec:
                                                   enabled:
                                                     type: boolean
                                                   prune:
+                                                    type: boolean
+                                                  rollbackAware:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
@@ -24141,6 +24217,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -25050,6 +25128,8 @@ spec:
                                                   enabled:
                                                     type: boolean
                                                   prune:
+                                                    type: boolean
+                                                  rollbackAware:
                                                     type: boolean
                                                   selfHeal:
                                                     type: boolean
@@ -26185,6 +26265,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -27316,6 +27398,8 @@ spec:
                                                     type: boolean
                                                   prune:
                                                     type: boolean
+                                                  rollbackAware:
+                                                    type: boolean
                                                   selfHeal:
                                                     type: boolean
                                                 type: object
@@ -28235,6 +28319,8 @@ spec:
                                         enabled:
                                           type: boolean
                                         prune:
+                                          type: boolean
+                                        rollbackAware:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
@@ -29156,6 +29242,8 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        rollbackAware:
+                                          type: boolean
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -30065,6 +30153,8 @@ spec:
                                         enabled:
                                           type: boolean
                                         prune:
+                                          type: boolean
+                                        rollbackAware:
                                           type: boolean
                                         selfHeal:
                                           type: boolean
@@ -31200,6 +31290,8 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        rollbackAware:
+                                          type: boolean
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -32331,6 +32423,8 @@ spec:
                                           type: boolean
                                         prune:
                                           type: boolean
+                                        rollbackAware:
+                                          type: boolean
                                         selfHeal:
                                           type: boolean
                                       type: object
@@ -33323,6 +33417,8 @@ spec:
                               enabled:
                                 type: boolean
                               prune:
+                                type: boolean
+                              rollbackAware:
                                 type: boolean
                               selfHeal:
                                 type: boolean

@@ -59,6 +59,7 @@ type AppOptions struct {
 	syncOptions                     []string
 	autoPrune                       bool
 	selfHeal                        bool
+	rollbackAware                   bool
 	allowEmpty                      bool
 	namePrefix                      string
 	nameSuffix                      string
@@ -141,6 +142,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning for automated sync policy")
 	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing for automated sync policy")
 	command.Flags().BoolVar(&opts.allowEmpty, "allow-empty", false, "Set allow zero live resources for automated sync policy")
+	command.Flags().BoolVar(&opts.rollbackAware, "rollback-aware", false, "Allow rollbacks while automated sync is enabled; automated sync skips the rolled-back revision until a new revision is available")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
 	command.Flags().StringVar(&opts.kustomizeVersion, "kustomize-version", "", "Kustomize version")
@@ -288,7 +290,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		}
 	})
 
-	if flags.Changed("auto-prune") || flags.Changed("self-heal") || flags.Changed("allow-empty") {
+	if flags.Changed("auto-prune") || flags.Changed("self-heal") || flags.Changed("allow-empty") || flags.Changed("rollback-aware") {
 		if spec.SyncPolicy == nil {
 			spec.SyncPolicy = &argoappv1.SyncPolicy{}
 		}
@@ -305,6 +307,9 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		}
 		if flags.Changed("allow-empty") {
 			spec.SyncPolicy.Automated.AllowEmpty = &appOpts.allowEmpty
+		}
+		if flags.Changed("rollback-aware") {
+			spec.SyncPolicy.Automated.RollbackAware = &appOpts.rollbackAware
 		}
 	}
 	return visited

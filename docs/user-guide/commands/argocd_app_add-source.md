@@ -77,6 +77,7 @@ argocd app add-source APPNAME [flags]
       --repo string                                Repository URL, ignored if a file is set
       --revision string                            The tracking source branch, tag, commit or Helm chart version the application will sync to
       --revision-history-limit int                 How many items to keep in revision history (default 10)
+      --rollback-aware                             Allow rollbacks while automated sync is enabled; automated sync skips the rolled-back revision until a new revision is available
       --self-heal                                  Set self healing for automated sync policy
       --source-name string                         Name of the source from the list of sources of the app.
       --sync-option Prune=false                    Add or remove a sync option, e.g add Prune=false. Remove using `!` prefix, e.g. `!Prune=false`

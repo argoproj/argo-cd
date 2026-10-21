@@ -2,7 +2,7 @@ import * as React from 'react';
 import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import * as models from '../../../shared/models';
 import {COLORS} from '../../../shared/components/colors';
-import {Context} from '../../../shared/context';
+import {AuthSettingsCtx, Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
 import {ApplicationStatusPanel} from './application-status-panel';
 import {ApplicationSetStatusPanel} from './appset-status-panel';
@@ -365,6 +365,112 @@ describe('ApplicationStatusPanel', () => {
             await act(async () => undefined);
             expect(screen.queryByTitle('Progressive Sync')).toBeNull();
         });
+    });
+});
+
+const withRolledBack = (status: Partial<models.ApplicationStatus>, automated: Record<string, unknown> = {}) =>
+    ({
+        ...application,
+        spec: {...application.spec, syncPolicy: {automated: {prune: false, selfHeal: false, enabled: true, rollbackAware: true, ...automated}}},
+        status: {...application.status, ...status}
+    }) as unknown as models.Application;
+
+const rolledBackSha = '9639592aa0f1e2d3c4b5a6978899aabbccddeeff';
+
+const pauseLine = (container: HTMLElement) => {
+    const icon = container.querySelector('.fa-pause-circle');
+    return icon && icon.parentElement.textContent.replace(/\s+/g, ' ').trim();
+};
+
+describe('ApplicationStatusPanel rolled back revision', () => {
+    it('does not mention a rolled back revision when none is recorded', () => {
+        const {container} = render(<ApplicationStatusPanel application={application} />);
+        expect(pauseLine(container)).toBeNull();
+    });
+
+    it('names the paused revision, abbreviated to seven characters', () => {
+        const {container} = render(<ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: ['9639592aa0f1e2d3c4b5a6978899aabbccddeeff']})} />);
+        expect(pauseLine(container)).toBe('Auto sync skips rolled back revision 9639592 until a new revision is available.');
+    });
+
+    it('keeps the full revisions in the tooltip', () => {
+        const revision = '9639592aa0f1e2d3c4b5a6978899aabbccddeeff';
+        const {container} = render(<ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: [revision]})} />);
+        expect(container.querySelector('.fa-pause-circle').parentElement.getAttribute('title')).toBe(revision);
+    });
+
+    it('lists one revision per source for a multi-source application', () => {
+        const {container} = render(
+            <ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: ['9639592aa0f1e2d3c4b5a6978899aabbccddeeff', '112f220bb1c2d3e4f5061728394a5b6c7d8e9f00']})} />
+        );
+        expect(pauseLine(container)).toBe('Auto sync skips rolled back revision 9639592, 112f220 until a new revision is available.');
+    });
+
+    it('falls back to the singular revision field', () => {
+        const {container} = render(<ApplicationStatusPanel application={withRolledBack({rolledBackRevision: '112f220bb1c2d3e4f5061728394a5b6c7d8e9f00'})} />);
+        expect(pauseLine(container)).toBe('Auto sync skips rolled back revision 112f220 until a new revision is available.');
+    });
+
+    it('prefers the plural field when an application carries both', () => {
+        const {container} = render(
+            <ApplicationStatusPanel
+                application={withRolledBack({
+                    rolledBackRevision: '112f220bb1c2d3e4f5061728394a5b6c7d8e9f00',
+                    rolledBackRevisions: ['9639592aa0f1e2d3c4b5a6978899aabbccddeeff']
+                })}
+            />
+        );
+        expect(pauseLine(container)).toBe('Auto sync skips rolled back revision 9639592 until a new revision is available.');
+    });
+
+    it('treats an empty plural field as no record rather than falling back', () => {
+        const {container} = render(<ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: []})} />);
+        expect(pauseLine(container)).toBeNull();
+    });
+
+    it('leaves the collapsed panel unchanged', () => {
+        const {container} = render(<ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: ['9639592aa0f1e2d3c4b5a6978899aabbccddeeff']})} collapsed={true} />);
+        expect(pauseLine(container)).toBeNull();
+    });
+
+    it('stays silent when rollback-aware automated sync does not apply', () => {
+        const {container} = render(<ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: [rolledBackSha]}, {rollbackAware: undefined})} />);
+        expect(pauseLine(container)).toBeNull();
+    });
+
+    it('speaks up when the instance-wide default enables the feature', () => {
+        const {container} = render(
+            <AuthSettingsCtx.Provider value={{rollbackAwareAutoSyncEnabled: true} as models.AuthSettings}>
+                <ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: [rolledBackSha]}, {rollbackAware: undefined})} />
+            </AuthSettingsCtx.Provider>
+        );
+        expect(pauseLine(container)).toContain('Auto sync skips rolled back revision');
+    });
+
+    it('lets an explicit opt-out beat the instance-wide default', () => {
+        const {container} = render(
+            <AuthSettingsCtx.Provider value={{rollbackAwareAutoSyncEnabled: true} as models.AuthSettings}>
+                <ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: [rolledBackSha]}, {rollbackAware: false})} />
+            </AuthSettingsCtx.Provider>
+        );
+        expect(pauseLine(container)).toBeNull();
+    });
+
+    it('stays silent while automated sync itself is turned off', () => {
+        const {container} = render(<ApplicationStatusPanel application={withRolledBack({rolledBackRevisions: [rolledBackSha]}, {enabled: false})} />);
+        expect(pauseLine(container)).toBeNull();
+    });
+
+    it('stays silent once the application is Synced again', () => {
+        const app = withRolledBack({rolledBackRevisions: [rolledBackSha], sync: {status: 'Synced', revision: 'abc123def456'}} as Partial<models.ApplicationStatus>);
+        const {container} = render(<ApplicationStatusPanel application={app} />);
+        expect(pauseLine(container)).toBeNull();
+    });
+
+    it('speaks up when the desired revision cannot be established', () => {
+        const app = withRolledBack({rolledBackRevisions: [rolledBackSha], sync: {status: 'Unknown', revision: ''}} as Partial<models.ApplicationStatus>);
+        const {container} = render(<ApplicationStatusPanel application={app} />);
+        expect(pauseLine(container)).toContain('Auto sync skips rolled back revision');
     });
 });
 
