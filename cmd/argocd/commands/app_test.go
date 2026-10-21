@@ -641,36 +641,7 @@ func TestPrintAppSummaryTable(t *testing.T) {
 			},
 		}
 
-		windows := &v1alpha1.SyncWindows{
-			{
-				Kind:     "allow",
-				Schedule: "0 0 * * *",
-				Duration: "24h",
-				Applications: []string{
-					"*-prod",
-				},
-				ManualSync: true,
-			},
-			{
-				Kind:     "deny",
-				Schedule: "0 0 * * *",
-				Duration: "24h",
-				Namespaces: []string{
-					"default",
-				},
-			},
-			{
-				Kind:     "allow",
-				Schedule: "0 0 * * *",
-				Duration: "24h",
-				Clusters: []string{
-					"in-cluster",
-					"cluster1",
-				},
-			},
-		}
-
-		printAppSummaryTable(app, "url", windows)
+		printAppSummaryTable(app, "url", deniedSyncWindowsResponse())
 		return nil
 	})
 
@@ -733,36 +704,7 @@ func TestPrintAppSummaryTable_MultipleSources(t *testing.T) {
 			},
 		}
 
-		windows := &v1alpha1.SyncWindows{
-			{
-				Kind:     "allow",
-				Schedule: "0 0 * * *",
-				Duration: "24h",
-				Applications: []string{
-					"*-prod",
-				},
-				ManualSync: true,
-			},
-			{
-				Kind:     "deny",
-				Schedule: "0 0 * * *",
-				Duration: "24h",
-				Namespaces: []string{
-					"default",
-				},
-			},
-			{
-				Kind:     "allow",
-				Schedule: "0 0 * * *",
-				Duration: "24h",
-				Clusters: []string{
-					"in-cluster",
-					"cluster1",
-				},
-			},
-		}
-
-		printAppSummaryTable(app, "url", windows)
+		printAppSummaryTable(app, "url", deniedSyncWindowsResponse())
 		return nil
 	})
 
@@ -787,6 +729,64 @@ Sync Status:        OutOfSync from master
 Health Status:      Progressing
 `
 	assert.Equalf(t, expectation, output, "Incorrect print app summary output %q, should be %q", output, expectation)
+}
+
+func syncWindow(kind string) *applicationpkg.ApplicationSyncWindow {
+	return &applicationpkg.ApplicationSyncWindow{Kind: new(kind), Schedule: new("0 0 * * *"), Duration: new("24h"), ManualSync: new(false)}
+}
+
+// deniedSyncWindowsResponse has all windows active, including a deny window without manual sync.
+func deniedSyncWindowsResponse() *applicationpkg.ApplicationSyncWindowsResponse {
+	windows := []*applicationpkg.ApplicationSyncWindow{syncWindow("allow"), syncWindow("deny"), syncWindow("allow")}
+	return &applicationpkg.ApplicationSyncWindowsResponse{ActiveWindows: windows, AssignedWindows: windows, CanSync: new(false)}
+}
+
+func TestPrintAppSummaryTable_SyncWindowStatus(t *testing.T) {
+	allow, deny := syncWindow("allow"), syncWindow("deny")
+	tests := []struct {
+		name     string
+		windows  *applicationpkg.ApplicationSyncWindowsResponse
+		expected string
+	}{
+		{name: "no windows", windows: nil, expected: "Sync Allowed"},
+		{
+			name:     "active allow",
+			windows:  &applicationpkg.ApplicationSyncWindowsResponse{ActiveWindows: []*applicationpkg.ApplicationSyncWindow{allow}, AssignedWindows: []*applicationpkg.ApplicationSyncWindow{allow}, CanSync: new(true)},
+			expected: "Sync Allowed",
+		},
+		{
+			// e.g. a deny window resolved from a SyncWindow ref, which is not in proj.Spec.SyncWindows
+			name:     "active deny",
+			windows:  &applicationpkg.ApplicationSyncWindowsResponse{ActiveWindows: []*applicationpkg.ApplicationSyncWindow{deny}, AssignedWindows: []*applicationpkg.ApplicationSyncWindow{deny}, CanSync: new(false)},
+			expected: "Sync Denied",
+		},
+		{
+			name:     "active deny with manual sync",
+			windows:  &applicationpkg.ApplicationSyncWindowsResponse{ActiveWindows: []*applicationpkg.ApplicationSyncWindow{deny}, AssignedWindows: []*applicationpkg.ApplicationSyncWindow{deny}, CanSync: new(true)},
+			expected: "Manual Allowed",
+		},
+		{
+			name:     "only inactive allow",
+			windows:  &applicationpkg.ApplicationSyncWindowsResponse{AssignedWindows: []*applicationpkg.ApplicationSyncWindow{allow}, CanSync: new(false)},
+			expected: "Sync Denied",
+		},
+		{
+			// project tier has an active allow, app tier has an inactive allow: server denies
+			name:     "active allow blocked by other tier",
+			windows:  &applicationpkg.ApplicationSyncWindowsResponse{ActiveWindows: []*applicationpkg.ApplicationSyncWindow{allow}, AssignedWindows: []*applicationpkg.ApplicationSyncWindow{allow, allow}, CanSync: new(false)},
+			expected: "Sync Denied",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output, _ := captureOutput(func() error {
+				app := &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}
+				printAppSummaryTable(app, "url", tt.windows)
+				return nil
+			})
+			assert.Contains(t, output, "SyncWindow:         "+tt.expected+"\n")
+		})
+	}
 }
 
 func TestPrintAppConditions(t *testing.T) {

@@ -2381,7 +2381,35 @@ func (ctrl *ApplicationController) refreshAppConditions(ctx context.Context, app
 		appv1.ApplicationConditionInvalidSpecError: true,
 		appv1.ApplicationConditionUnknownError:     true,
 	})
+	if err == nil {
+		app.Status.SetConditions(ctrl.syncWindowRefConditions(app, proj), map[appv1.ApplicationConditionType]bool{
+			appv1.ApplicationConditionSyncWindowRefWarning: true,
+		})
+	}
 	return proj, len(errorConditions) > 0
+}
+
+// syncWindowRefConditions reports unresolved SyncWindow refs, whose windows are otherwise silently skipped.
+func (ctrl *ApplicationController) syncWindowRefConditions(app *appv1.Application, proj *appv1.AppProject) []appv1.ApplicationCondition {
+	resolver := syncwindow.NewResolver(ctrl.syncWindowLister, ctrl.namespace)
+	var conditions []appv1.ApplicationCondition
+	if len(proj.Spec.SyncWindowRefs) > 0 {
+		if _, err := resolver.ResolveProjectRefs(proj.Spec.SyncWindowRefs); err != nil {
+			conditions = append(conditions, appv1.ApplicationCondition{
+				Type:    appv1.ApplicationConditionSyncWindowRefWarning,
+				Message: fmt.Sprintf("Project %q has unresolved sync window refs: %v", proj.Name, err),
+			})
+		}
+	}
+	if len(app.Spec.SyncWindowRefs) > 0 {
+		if _, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs, app.Namespace); err != nil {
+			conditions = append(conditions, appv1.ApplicationCondition{
+				Type:    appv1.ApplicationConditionSyncWindowRefWarning,
+				Message: fmt.Sprintf("Application has unresolved sync window refs: %v", err),
+			})
+		}
+	}
+	return conditions
 }
 
 // normalizeApplication normalizes an application.spec and additionally persists updates if it changed
@@ -2675,14 +2703,14 @@ func (ctrl *ApplicationController) syncWindowPreventsAutoSync(app *appv1.Applica
 	if len(project.Spec.SyncWindowRefs) > 0 {
 		windows, err := resolver.ResolveProjectRefs(project.Spec.SyncWindowRefs)
 		if err != nil {
-			log.WithError(err).Warn("Failed to resolve some project sync window refs")
+			log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to resolve some project sync window refs")
 		}
 		projCRDWindows = append(projCRDWindows, windows...)
 	}
 	if len(app.Spec.SyncWindowRefs) > 0 {
 		windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs, app.Namespace)
 		if err != nil {
-			log.WithError(err).Warn("Failed to resolve some app sync window refs")
+			log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to resolve some app sync window refs")
 		}
 		appWindows = append(appWindows, windows...)
 	}
@@ -3118,6 +3146,12 @@ func (ctrl *ApplicationController) syncWindowEventHandlerFuncs() cache.ResourceE
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) { requeue(obj) },
 		UpdateFunc: func(old, new any) {
+			// Skip periodic informer resyncs, apps are refreshed on their own reconciliation cadence.
+			oldSW, oldOK := old.(metav1.Object)
+			newSW, newOK := new.(metav1.Object)
+			if oldOK && newOK && oldSW.GetResourceVersion() == newSW.GetResourceVersion() {
+				return
+			}
 			requeue(old)
 			requeue(new)
 		},

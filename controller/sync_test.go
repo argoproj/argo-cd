@@ -411,6 +411,36 @@ func TestSyncWindowEventRequeueRespectsCanProcessApp(t *testing.T) {
 		requested, _ := ctrl.isRefreshRequested(app.QualifiedName())
 		assert.False(t, requested)
 	})
+
+	t.Run("resync update with unchanged resource version is ignored", func(t *testing.T) {
+		t.Parallel()
+		app := newAppReferencingWindow()
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		oldSW := sw.DeepCopy()
+		oldSW.ResourceVersion = "1"
+		newSW := oldSW.DeepCopy()
+		ctrl.syncWindowEventHandlerFuncs().UpdateFunc(oldSW, newSW)
+
+		requested, _ := ctrl.isRefreshRequested(app.QualifiedName())
+		assert.False(t, requested)
+	})
+
+	t.Run("update with changed resource version requests refresh", func(t *testing.T) {
+		t.Parallel()
+		app := newAppReferencingWindow()
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		oldSW := sw.DeepCopy()
+		oldSW.ResourceVersion = "1"
+		newSW := oldSW.DeepCopy()
+		newSW.ResourceVersion = "2"
+		ctrl.syncWindowEventHandlerFuncs().UpdateFunc(oldSW, newSW)
+
+		requested, level := ctrl.isRefreshRequested(app.QualifiedName())
+		assert.True(t, requested)
+		assert.Equal(t, CompareWithRecent, level)
+	})
 }
 
 // activeSchedule returns a cron schedule that is active right now ("* * * * *" = every minute).

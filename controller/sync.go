@@ -784,7 +784,7 @@ func (m *appStateManager) resolveSyncWindowCRDRefs(app *v1alpha1.Application, pr
 	if len(proj.Spec.SyncWindowRefs) > 0 {
 		windows, err := resolver.ResolveProjectRefs(proj.Spec.SyncWindowRefs)
 		if err != nil {
-			log.WithError(err).Warn("Failed to resolve some project sync window refs")
+			log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to resolve some project sync window refs")
 		}
 		projWindows = append(projWindows, windows...)
 	}
@@ -792,7 +792,7 @@ func (m *appStateManager) resolveSyncWindowCRDRefs(app *v1alpha1.Application, pr
 	if len(app.Spec.SyncWindowRefs) > 0 {
 		windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs, app.Namespace)
 		if err != nil {
-			log.WithError(err).Warn("Failed to resolve some app sync window refs")
+			log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to resolve some app sync window refs")
 		}
 		appWindows = append(appWindows, windows...)
 	}

@@ -142,6 +142,14 @@ namespace, so Tier 2 refs resolve from there and behavior is unchanged.
 > Tier 1 (AppProject) refs are **always** resolved from the control-plane namespace regardless of
 > where the Application lives, since AppProjects are an administrator-owned, control-plane resource.
 
+#### Unresolved refs
+
+> [!WARNING]
+> A ref that cannot be resolved (for example a typo, a deleted `SyncWindow`, or a ref that sets both
+> `name` and `selector`) contributes **no** windows. This includes `deny` windows, so syncs that the
+> missing window would have blocked are allowed. The Application gets a `SyncWindowRefWarning`
+> condition that names the failing ref. The condition is cleared once the ref resolves.
+
 ### ApplicationSet
 
 `ApplicationSet` has **no** `syncWindowRefs` field of its own. Put the ref in
