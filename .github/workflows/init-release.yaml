@@ -75,7 +75,7 @@ jobs:
         if: ${{ inputs.RELEASE_BLOG_POST_URL != '' }}
         run: |
           set -ue
-          if ! echo "${INPUTS_RELEASE_BLOG_POST_URL}" | grep -Eq '^https://[^[:space:]]+$'; then
+          if ! echo "${INPUTS_RELEASE_BLOG_POST_URL}" | grep -Eq '^https://([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}([/?#][^[:space:]]*)?$'; then
             echo "::error::RELEASE_BLOG_POST_URL must be an https URL without spaces, refusing to continue." >&2
             exit 1
           fi

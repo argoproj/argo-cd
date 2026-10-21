@@ -64,21 +64,6 @@ releases) require [Approver](https://github.com/argoproj/argoproj/blob/master/co
 membership. The Release Champion can delegate tasks when necessary and will be responsible for coordinating with the
 Approver.
 
-#### Release Notes Blog Post
-
-The GitHub release notes include a link to the release blog post when the release branch contains a
-`RELEASE_BLOG_POST_URL` file. The file holds a single line with the blog post URL. If the file does not exist,
-the section is omitted from the release notes.
-
-The file is created by the [Init ArgoCD Release](https://github.com/argoproj/argo-cd/actions/workflows/init-release.yaml)
-workflow when its optional `RELEASE_BLOG_POST_URL` input is set. Because the file lives on the release branch,
-every later release from that branch (further release candidates, the GA release and patch releases) links to
-the same post, and releases from other branches are not affected.
-
-The blog post URL is usually not known yet when RC1 is initialized. In that case, leave the input empty, edit the
-RC1 [GitHub release](https://github.com/argoproj/argo-cd/releases) to add the link once the post is published,
-and pass the URL to the workflow when initializing the next release on that branch.
-
 ### Feature Acceptance Criteria
 
 To be eligible for inclusion in a minor release, a new feature must meet the following criteria before the release’s RC
