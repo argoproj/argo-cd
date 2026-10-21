@@ -275,7 +275,7 @@ describe('virtual-scroll', () => {
             jest.useRealTimers();
         });
 
-        it('returns 1 while disabled and remasures on the next tick when re-enabled', () => {
+        it('returns 1 while disabled and remeasures on the next tick when re-enabled', () => {
             const itemRef = {current: {offsetWidth: 100} as HTMLDivElement};
             const containerRef = {current: {offsetWidth: 400} as HTMLElement};
             const {result, rerender} = renderHook(({enabled}: {enabled: boolean}) => useItemsPerContainer(itemRef, containerRef, enabled), {
