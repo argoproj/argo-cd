@@ -17,6 +17,10 @@ tests:
   inputPath: testdata/applyingchanges.yaml
 - healthStatus:
     status: Progressing
+    message: "Elasticsearch phase is ApplyingChanges"
+  inputPath: testdata/applyingchanges_unknown_health.yaml
+- healthStatus:
+    status: Progressing
     message: "Elasticsearch phase is MigratingData"
   inputPath: testdata/migratingdata.yaml
 - healthStatus:
