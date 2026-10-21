@@ -502,7 +502,8 @@ controls, revisions (pins are passed as given; see Open Question 2) and Applicat
   revision" check.
 - **Policies only trust runs they recorded.** Labels, owner references and annotations can be set by anyone who can
   create ApplicationSyncs, so a policy identifies its runs through its own status, which only the controller
-  writes: it records a run's name before creating it and its UID after, and ignores any run it didn't record.
+  writes: it records a run's name and UID once its create succeeds, and ignores any run it didn't record. A
+  controller restart between the two can leave one extra run, which is harmless, since both carry the same pins.
 
 ### Security Considerations
 
