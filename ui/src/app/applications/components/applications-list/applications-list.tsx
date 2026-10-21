@@ -24,7 +24,7 @@ import {FlexTopBar} from '../../../shared/components';
 import {ViewTypeSwitcher} from './view-type-switcher';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
-import {isInvalidRegex, queryParamsChanged} from '../../../shared/utils';
+import {isInvalidRegex} from '../../../shared/utils';
 
 import './applications-list.scss';
 
@@ -393,10 +393,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
         // Every filter in the sidebar reports its state up when it mounts, so a remount produces one
         // call per filter with nothing changed. Browsers rate limit history updates and Safari throws
         // once the cap is hit, so only navigate when the query string actually changes.
-        if (!queryParamsChanged(window.location.search, params)) {
-            return;
-        }
-        ctx.navigation.goto('.', params, {replace: true});
+        ctx.navigation.goto('.', params, {replace: true, skipIfUnchanged: true});
     }
 
     function getPageTitle(view: string) {
