@@ -20,8 +20,8 @@ importers:
         specifier: ^6.1.6
         version: 6.2.6(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       argo-ui:
-        specifier: git+https://github.com/argoproj/argo-ui.git#f941b0a3ca094066dd9d5e002f48acdc5fda45a0
-        version: https://codeload.github.com/argoproj/argo-ui/tar.gz/f941b0a3ca094066dd9d5e002f48acdc5fda45a0(@types/react@19.3.0)(jquery@4.0.0)(motion-ui@2.0.8(jquery@4.0.0))(react-dom@19.3.1(react@19.3.1))(react-router-dom@5.3.4(react@19.3.1))(react@19.3.1)(what-input@5.2.12)
+        specifier: git+https://github.com/argoproj/argo-ui.git#28927a57027a361505ff91d0498a4bc9670bd882
+        version: https://codeload.github.com/argoproj/argo-ui/tar.gz/28927a57027a361505ff91d0498a4bc9670bd882(@types/react@19.3.0)(jquery@4.0.0)(motion-ui@2.0.8(jquery@4.0.0))(react-dom@19.3.1(react@19.3.1))(react-router-dom@5.3.4(react@19.3.1))(react@19.3.1)(what-input@5.2.12)
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
@@ -44,8 +44,8 @@ importers:
         specifier: ^6.8.1
         version: 6.9.0(jquery@4.0.0)(motion-ui@2.0.8(jquery@4.0.0))(what-input@5.2.12)
       git-url-parse:
-        specifier: ^13.1.0
-        version: 13.1.1
+        specifier: ^16.1.0
+        version: 16.1.0
       history:
         specifier: ^4.7.2
         version: 4.10.1
@@ -170,9 +170,6 @@ importers:
       '@types/dagre':
         specifier: 0.7.54
         version: 0.7.54
-      '@types/git-url-parse':
-        specifier: ^9.0.1
-        version: 9.0.3
       '@types/history':
         specifier: ^4.7.2
         version: 4.7.11
@@ -1895,9 +1892,6 @@ packages:
   '@types/express@4.17.25':
     resolution: {integrity: sha512-dVd04UKsfpINUnK0yBoYHDF3xu7xVH4BuDotC/xGuycx4CgbP48X/KF/586bcObxT0HENHXEU8Nqtu6NR+eKhw==}
 
-  '@types/git-url-parse@9.0.3':
-    resolution: {integrity: sha512-Wrb8zeghhpKbYuqAOg203g+9YSNlrZWNZYvwxJuDF4dTmerijqpnGbI79yCuPtHSXHPEwv1pAFUB4zsSqn82Og==}
-
   '@types/graceful-fs@4.1.9':
     resolution: {integrity: sha512-olP3sd1qOEe5dXTSaFvQG+02VdRXcdytWLAZsAq1PecU8uqQAhkrnbli7DagjtXKW/Bl7YJbUsa8MPcuc8LHEQ==}
 
@@ -1955,6 +1949,10 @@ packages:
 
   '@types/node@26.6.3':
     resolution: {integrity: sha512-dsqMQQoeTLqu9wynDD00q573mNzso3IdQOAfHRJqLCcmCFPoGo9A1bDpUcv/9tnKpErQWv9uKeGfl37EIS02Yg==}
+
+  '@types/parse-path@7.1.0':
+    resolution: {integrity: sha512-EULJ8LApcVEPbrfND0cRQqutIOdiIgJ1Mgrhpy755r14xMohPTEpkV/k28SJvuOs9bHRFW8x+KeDAEPiGQPB9Q==}
+    deprecated: This is a stub types definition. parse-path provides its own type definitions, so you do not need this installed.
 
   '@types/prop-types@15.7.15':
     resolution: {integrity: sha512-F6bEyamV9jKGAFBEmlQnesRPGOQqS2+Uwi0Em15xenOxHaf2hv6L8YCVn3rPdPJOiJfPiCnLIRyvwVaqMY3MIw==}
@@ -2273,8 +2271,8 @@ packages:
   arg@4.1.3:
     resolution: {integrity: sha512-58S9QDqG0Xx27YwPSt9fJxivjYl432YCwfDMfZ+71RAqUrZef7LrKQZ3LHLOwCS4FLNBplP533Zx895SeOCHvA==}
 
-  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/f941b0a3ca094066dd9d5e002f48acdc5fda45a0:
-    resolution: {gitHosted: true, integrity: sha512-UNHX2q9VVWU1OGjkf6EMnv7N1r86i6a0hB10fBInNJ50v9KfaZyYazk9rbeggqhuP/C5F8bfSB6V6rbqRCnFrw==, tarball: https://codeload.github.com/argoproj/argo-ui/tar.gz/f941b0a3ca094066dd9d5e002f48acdc5fda45a0}
+  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/28927a57027a361505ff91d0498a4bc9670bd882:
+    resolution: {gitHosted: true, integrity: sha512-PGLABF65/bhjNyQrgn7/JZ/kxfBjYkmORpuTBK8DPM0l8y31fLW25q+VtE4NXi2Mcg4RxD5hePSXxD0h5AhgrQ==, tarball: https://codeload.github.com/argoproj/argo-ui/tar.gz/28927a57027a361505ff91d0498a4bc9670bd882}
     version: 1.0.0
     peerDependencies:
       '@types/react': ^19.0.0
@@ -3188,8 +3186,8 @@ packages:
   flatted@3.4.2:
     resolution: {integrity: sha512-PjDse7RzhcPkIJwy5t7KPWQSZ9cAbzQXcafsetQoD7sOJRQlGikNbx7yZp2OotDnJyrDcbyRq3Ttb18iYOqkxA==}
 
-  follow-redirects@1.16.0:
-    resolution: {integrity: sha512-y5rN/uOsadFT/JfYwhxRS5R7Qce+g3zG97+JrtFZlC9klX/W5hD7iiLzScI4nZqUS7DNUdhPgw4xI8W2LuXlUw==}
+  follow-redirects@1.16.1:
+    resolution: {integrity: sha512-FNvFGzoMLWmE6Yj9spb/zjd7yiNCHiAW9/Tg9CXrQ8wuu32HtlJOwWO11OJafl5FfY3DxTdQ0vj42zU1kvv5jg==}
     engines: {node: '>=4.0'}
     peerDependencies:
       debug: '*'
@@ -3278,11 +3276,11 @@ packages:
   get-tsconfig@4.14.3:
     resolution: {integrity: sha512-++QEw4DIY7WGoukz+/+A/8dGYPT9l9yIadnmSgZ8Rjr3YVSVDipQSO9CdnJo9ePqFqUUqh+wk9uIaoiAwsiPkA==}
 
-  git-up@7.0.0:
-    resolution: {integrity: sha512-ONdIrbBCFusq1Oy0sC71F5azx8bVkvtZtMJAsv+a6lz5YAmbNnLD6HAB4gptHZVLPR8S2/kVN6Gab7lryq5+lQ==}
+  git-up@8.1.1:
+    resolution: {integrity: sha512-FDenSF3fVqBYSaJoYy1KSc2wosx0gCvKP+c+PRBht7cAaiCeQlBtfBDX9vgnNOHmdePlSFITVcn4pFfcgNvx3g==}
 
-  git-url-parse@13.1.1:
-    resolution: {integrity: sha512-PCFJyeSSdtnbfhSNRw9Wk96dDCNx+sogTe4YNXeXSJxt7xz5hvXekuRn9JX7m+Mf4OscCu8h+mtAl3+h5Fo8lQ==}
+  git-url-parse@16.1.0:
+    resolution: {integrity: sha512-cPLz4HuK86wClEW7iDdeAKcCVlWXmrLpb2L+G9goW0Z1dtpNS6BXXSOckUTlJT/LDQViE1QZKstNORzHsLnobw==}
 
   gitdiff-parser@0.3.1:
     resolution: {integrity: sha512-YQJnY8aew65id8okGxKCksH3efDCJ9HzV7M9rsvd65habf39Pkh4cgYJ27AaoDMqo1X98pgNJhNMrm/kpV7UVQ==}
@@ -3958,8 +3956,8 @@ packages:
     resolution: {integrity: sha512-eTIzlVOSUR+JxdDFepEYcBMtZ9Qqdef+rnzWdRZuMbOywu5tO2w2N7rqjoANZ5k9vywhL6Br1VRjUIgTQx4E8w==}
     engines: {node: '>=6'}
 
-  launch-editor@2.14.1:
-    resolution: {integrity: sha512-QWBrQsMpH7gPr965dsKD/3cKWiNoTjpATQf++Xq63N6sKRGMwlVXz41O1IZTMfZQgBctD/K5Zt06+/I6pP6+HA==}
+  launch-editor@2.14.2:
+    resolution: {integrity: sha512-NHJEb30MGBCkmZXLZwz25t37QR4aY03ZzPYUJXOJaOa92uWwExI9SBQUuIznBYc1xkD7cJNGX7oc3Nl3sq2kQQ==}
 
   leven@3.1.0:
     resolution: {integrity: sha512-qsda+H8jTaUaN/x5vzW2rzc+8Rw4TAQ/4KjB46IwK5VH+IlVeeeje/EoZRpiXvIqjFgK84QffqPztGI3VBLG1A==}
@@ -4344,8 +4342,9 @@ packages:
   parse-path@7.1.0:
     resolution: {integrity: sha512-EuCycjZtfPcjWk7KTksnJ5xPMvWGA/6i4zrLYhRG0hGvC3GPU/jGUj3Cy+ZR0v30duV3e23R95T1lE2+lsndSw==}
 
-  parse-url@8.1.0:
-    resolution: {integrity: sha512-xDvOoLU5XRrcOZvnI6b8zA6n9O9ejNk/GExuz1yBuWUGn9KA97GI6HTs6u02wKara1CeVmZhH+0TZFdWScR89w==}
+  parse-url@9.2.0:
+    resolution: {integrity: sha512-bCgsFI+GeGWPAvAiUv63ZorMeif3/U0zaXABGJbOWt5OH2KCaPHF6S+0ok4aqM9RuIPGyZdx9tR9l13PsW4AYQ==}
+    engines: {node: '>=14.13.0'}
 
   parse5@7.3.0:
     resolution: {integrity: sha512-IInvU7fabl34qmi9gY8XOVxhYyMyuH2xUNpb2q8/Y+7552KlejkRvqvD19nMoUW/uQGGbqNpA6Tufu5FL5BZgw==}
@@ -7616,8 +7615,6 @@ snapshots:
       '@types/qs': 6.15.1
       '@types/serve-static': 1.15.10
 
-  '@types/git-url-parse@9.0.3': {}
-
   '@types/graceful-fs@4.1.9':
     dependencies:
       '@types/node': 26.6.3
@@ -7678,6 +7675,10 @@ snapshots:
   '@types/node@26.6.3':
     dependencies:
       undici-types: 8.9.0
+
+  '@types/parse-path@7.1.0':
+    dependencies:
+      parse-path: 7.1.0
 
   '@types/prop-types@15.7.15': {}
 
@@ -8082,7 +8083,7 @@ snapshots:
   arg@4.1.3:
     optional: true
 
-  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/f941b0a3ca094066dd9d5e002f48acdc5fda45a0(@types/react@19.3.0)(jquery@4.0.0)(motion-ui@2.0.8(jquery@4.0.0))(react-dom@19.3.1(react@19.3.1))(react-router-dom@5.3.4(react@19.3.1))(react@19.3.1)(what-input@5.2.12):
+  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/28927a57027a361505ff91d0498a4bc9670bd882(@types/react@19.3.0)(jquery@4.0.0)(motion-ui@2.0.8(jquery@4.0.0))(react-dom@19.3.1(react@19.3.1))(react-router-dom@5.3.4(react@19.3.1))(react@19.3.1)(what-input@5.2.12):
     dependencies:
       '@fortawesome/fontawesome-free': 6.7.2
       '@types/react': 19.3.0
@@ -9232,7 +9233,7 @@ snapshots:
 
   flatted@3.4.2: {}
 
-  follow-redirects@1.16.0(debug@4.4.3(supports-color@8.1.1)):
+  follow-redirects@1.16.1(debug@4.4.3(supports-color@8.1.1)):
     optionalDependencies:
       debug: 4.4.3(supports-color@8.1.1)
 
@@ -9320,14 +9321,14 @@ snapshots:
     dependencies:
       resolve-pkg-maps: 1.0.0
 
-  git-up@7.0.0:
+  git-up@8.1.1:
     dependencies:
       is-ssh: 1.4.1
-      parse-url: 8.1.0
+      parse-url: 9.2.0
 
-  git-url-parse@13.1.1:
+  git-url-parse@16.1.0:
     dependencies:
-      git-up: 7.0.0
+      git-up: 8.1.1
 
   gitdiff-parser@0.3.1: {}
 
@@ -9507,7 +9508,7 @@ snapshots:
   http-proxy@1.18.1(debug@4.4.3(supports-color@8.1.1)):
     dependencies:
       eventemitter3: 4.0.7
-      follow-redirects: 1.16.0(debug@4.4.3(supports-color@8.1.1))
+      follow-redirects: 1.16.1(debug@4.4.3(supports-color@8.1.1))
       requires-port: 1.0.0
     transitivePeerDependencies:
       - debug
@@ -10227,7 +10228,7 @@ snapshots:
 
   kleur@3.0.3: {}
 
-  launch-editor@2.14.1:
+  launch-editor@2.14.2:
     dependencies:
       picocolors: 1.1.1
       shell-quote: 1.12.0
@@ -10566,8 +10567,9 @@ snapshots:
     dependencies:
       protocols: 2.0.2
 
-  parse-url@8.1.0:
+  parse-url@9.2.0:
     dependencies:
+      '@types/parse-path': 7.1.0
       parse-path: 7.1.0
 
   parse5@7.3.0:
@@ -11807,7 +11809,7 @@ snapshots:
       graceful-fs: 4.2.11
       http-proxy-middleware: 2.0.10(@types/express@4.17.25)(debug@4.4.3(supports-color@8.1.1))
       ipaddr.js: 2.4.0
-      launch-editor: 2.14.1
+      launch-editor: 2.14.2
       open: 10.2.0
       p-retry: 6.2.1
       schema-utils: 4.3.3

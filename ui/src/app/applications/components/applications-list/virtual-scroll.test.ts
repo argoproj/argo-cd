@@ -9,6 +9,7 @@ import {
     getTableRowHeight,
     hasActiveHydrator,
     OVERSCAN_VIEWPORT_SCREENS,
+    resourcesLayoutKey,
     shouldUseVirtualScroll,
     TABLE_OVERSCAN_ROW_COUNT,
     TABLE_ROW_HEIGHT,
@@ -221,14 +222,35 @@ describe('virtual-scroll', () => {
         });
     });
 
+    describe('resourcesLayoutKey', () => {
+        const resource = (name: string) => ({
+            name,
+            namespace: 'default',
+            kind: 'ConfigMap',
+            group: '',
+            appName: 'demo',
+            appNamespace: 'argocd'
+        });
+
+        it('is stable for the same order', () => {
+            const resources = [resource('a'), resource('b')];
+            expect(resourcesLayoutKey(resources)).toBe(resourcesLayoutKey([...resources]));
+        });
+
+        it('changes when resources are reordered', () => {
+            const a = resource('a');
+            const b = resource('b');
+            expect(resourcesLayoutKey([a, b])).not.toBe(resourcesLayoutKey([b, a]));
+        });
+    });
+
     describe('useWindowScrollerPosition', () => {
         it('updates an enabled scroller when the surrounding layout changes', () => {
             const updatePosition = jest.fn();
             const scrollerRef = {current: {updatePosition}};
-            const {rerender} = renderHook(
-                ({enabled, layoutKey}: {enabled: boolean; layoutKey: string}) => useWindowScrollerPosition(scrollerRef, enabled, layoutKey),
-                {initialProps: {enabled: true, layoutKey: 'header-hidden'}}
-            );
+            const {rerender} = renderHook(({enabled, layoutKey}: {enabled: boolean; layoutKey: string}) => useWindowScrollerPosition(scrollerRef, enabled, layoutKey), {
+                initialProps: {enabled: true, layoutKey: 'header-hidden'}
+            });
 
             expect(updatePosition).toHaveBeenCalledTimes(1);
 
@@ -242,5 +264,4 @@ describe('virtual-scroll', () => {
             expect(updatePosition).toHaveBeenCalledTimes(2);
         });
     });
-
 });
