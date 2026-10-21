@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"sort"
@@ -149,6 +150,7 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 		namespacesByServer[destCluster.Server][app.Spec.Destination.Namespace] = true
 	}
 	clusters := make([]ClusterWithInfo, len(clustersList.Items))
+	clusterPopulated := make([]bool, len(clustersList.Items))
 
 	batchSize := 10
 	batchesCount := int(math.Ceil(float64(len(clusters)) / float64(batchSize)))
@@ -156,7 +158,7 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 		batchStart := batchSize * batchNum
 		batchEnd := min((batchSize * (batchNum + 1)), len(clustersList.Items))
 		batch := clustersList.Items[batchStart:batchEnd]
-		_ = kube.RunAllAsync(len(batch), func(i int) error {
+		err = kube.RunAllAsync(len(batch), func(i int) error {
 			clusterShard := 0
 			cluster := batch[i]
 			if replicas > 0 {
@@ -171,12 +173,24 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 			for ns := range namespacesByServer[cluster.Server] {
 				namespaces = append(namespaces, ns)
 			}
-			_ = cache.GetClusterInfo(cluster.Server, &cluster.Info)
+			if infoErr := cache.GetClusterInfo(cluster.Server, &cluster.Info); infoErr != nil {
+				log.Warnf("Failed to get info of cluster %q from cache, its stats will be reported as zero: %v", cluster.Server, infoErr)
+			}
 			clusters[batchStart+i] = ClusterWithInfo{cluster, clusterShard, namespaces}
+			clusterPopulated[batchStart+i] = true
 			return nil
 		})
+		if err != nil {
+			return nil, err
+		}
 	}
-	return clusters, nil
+	result := make([]ClusterWithInfo, 0, len(clusters))
+	for i := range clusters {
+		if clusterPopulated[i] {
+			result = append(result, clusters[i])
+		}
+	}
+	return result, nil
 }
 
 func getControllerReplicas(ctx context.Context, kubeClient *kubernetes.Clientset, namespace string, appControllerName string) (int, error) {
@@ -227,7 +241,7 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				return
 			}
 
-			printStatsSummary(clusters, replicas)
+			printStatsSummary(os.Stdout, clusters, replicas)
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
@@ -245,7 +259,7 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	return &command
 }
 
-func printStatsSummary(clusters []ClusterWithInfo, replicas int) {
+func printStatsSummary(out io.Writer, clusters []ClusterWithInfo, replicas int) {
 	totalResourcesCount := int64(0)
 	resourcesCountByShard := map[int]int64{}
 	for _, c := range clusters {
@@ -261,12 +275,18 @@ func printStatsSummary(clusters []ClusterWithInfo, replicas int) {
 	}
 
 	avgResourcesByShard := totalResourcesCount / int64(replicas)
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	_, _ = fmt.Fprintf(w, "SHARD\tRESOURCES COUNT\t%% OF TOTAL\t%% OF AVG PER SHARD (%d)\n", avgResourcesByShard)
 	for shard := 0; shard < len(resourcesCountByShard); shard++ {
 		cnt := resourcesCountByShard[shard]
-		totalPercent := (float64(cnt) / float64(totalResourcesCount)) * 100.0
-		avgPercent := (float64(cnt) / float64(avgResourcesByShard)) * 100.0
+		// avoid printing NaN% when no resource counts are available, e.g. the controller cache is empty
+		totalPercent, avgPercent := float64(0), float64(0)
+		if totalResourcesCount > 0 {
+			totalPercent = (float64(cnt) / float64(totalResourcesCount)) * 100.0
+		}
+		if avgResourcesByShard > 0 {
+			avgPercent = (float64(cnt) / float64(avgResourcesByShard)) * 100.0
+		}
 		_, _ = fmt.Fprintf(w, "%d\t%d\t%.0f%%\t%.0f%%\n", shard, cnt, totalPercent, avgPercent)
 	}
 	_ = w.Flush()
