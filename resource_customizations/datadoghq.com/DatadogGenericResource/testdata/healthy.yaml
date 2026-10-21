@@ -1,0 +1,27 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogGenericResource
+metadata:
+  name: foo-monitor
+  namespace: foo-namespace
+spec:
+  type: monitor
+  jsonSpec: |-
+    {
+      "name": "foo monitor",
+      "type": "metric alert",
+      "query": "avg(last_5m):avg:foo.bar{*} > 1",
+      "message": "foo"
+    }
+status:
+  conditions:
+    - lastTransitionTime: "2026-10-21T10:00:00Z"
+      message: DatadogGenericResource Created
+      reason: CreatingGenericResource
+      status: "True"
+      type: Created
+  created: "2026-10-21T10:00:00Z"
+  creator: foo@example.com
+  currentHash: 1a2b3c4d5e6f
+  id: "123456"
+  state: OK
+  syncStatus: OK
