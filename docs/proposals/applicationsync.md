@@ -44,8 +44,8 @@ auto-sync for a group. ApplicationSet RollingSync could later be rebuilt on top 
 ## Summary
 
 Today a sync is requested through the API, CLI or UI, or by writing the `operation` field on the Application
-([Sync Applications with Kubectl](../user-guide/sync-kubectl.md)). Each request covers one app and mutates the Application, and no record of it 
-survives once the next operation replaces `status.operationState`.
+([Sync Applications with Kubectl](../user-guide/sync-kubectl.md)). Each request covers one app and mutates the
+Application, and no record of it survives once the next operation replaces `status.operationState`.
 
 `ApplicationSync` is a separate resource whose spec is fixed once created, apart from `paused`. It lists Applications
 in groups, and a group can depend on other groups. The controller syncs a group's apps in parallel once the groups
@@ -60,9 +60,10 @@ as history until garbage collection removes them.
 - **Ordering across apps.** The options today are ApplicationSet RollingSync, which is tied to one
   ApplicationSet and its label selectors, or app-of-apps with sync waves. The latter needs the Application
   health check restored (see [upgrading to 1.8](../operator-manual/upgrading/1.7-1.8.md)) and a parent Application.
-- **Moving progressive sync out of the ApplicationSet.** In the discussion on [#28927](https://github.com/argoproj/argo-cd/issues/28927) about promoting Progressive 
-  Sync to stable, maintainers supported eventually giving it its own CRD and controller, as an independent proposal. 
-  This proposal provides the engine it would run on (see [Future work](#future-work)). Several open RollingSync bugs come from the
+- **Moving progressive sync out of the ApplicationSet.** In the discussion on
+  [#28927](https://github.com/argoproj/argo-cd/issues/28927) about promoting Progressive Sync to stable, maintainers
+  supported eventually giving it its own CRD and controller, as an independent proposal. This proposal provides the
+  engine it would run on (see [Future work](#future-work)). Several open RollingSync bugs come from the
   ApplicationSet controller rebuilding a sync state machine out of Application status fields.
 - **History and group auto-sync.** No object records a sync request. Auto-sync also works one app at a time,
   with no way to auto-sync a group of apps in dependency order.
@@ -164,6 +165,11 @@ status:
 A single app is a single group with one entry, and the group's name can be left out:
 
 ```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSync
+metadata:
+  name: guestbook-sync
+  namespace: argocd
 spec:
   groups:
   - apps: [{name: guestbook}]
@@ -233,6 +239,11 @@ Each matches something RollingSync does today, so RollingSync could later be reb
 | Freshness check | Refresh annotations before acting |
 
 ```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSync
+metadata:
+  name: release-43
+  namespace: argocd
 spec:
   initiatedBy: {username: release-bot}
   onFailure: Wait              # Fail (default) | Wait
@@ -277,8 +288,9 @@ spec:
   counts as done, for example when resources are skipped with `SkipDryRunOnMissingResource`
   ([#19771](https://github.com/argoproj/argo-cd/issues/19771)).
 - **Freshness.** An app is only skipped or counted as done once its status reflects its current spec and
-  revisions: `status.reconciledAt` is after the ApplicationSync was accepted, `status.sync.comparedTo` matches the
-  app's sources, destination and `ignoreDifferences`, and `status.sync.revisions` matches its pinned sources.
+  revisions: `status.reconciledAt` is after `status.startedAt`, which the controller sets when it accepts the
+  ApplicationSync; `status.sync.comparedTo` matches the app's sources, destination and `ignoreDifferences`; and
+  `status.sync.revisions` matches its pinned sources.
   Otherwise the controller requests a refresh straight away. Without this, stale status ends a step early or skips
   an app that still needs a sync ([#29410](https://github.com/argoproj/argo-cd/issues/29410),
   [#27949](https://github.com/argoproj/argo-cd/issues/27949)). RollingSync waits `--refresh-grace-period-seconds`
@@ -312,6 +324,11 @@ spec:
 Each app can pin the revision of each of its sources:
 
 ```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSync
+metadata:
+  name: platform-pins
+  namespace: argocd
 spec:
   groups:
   - name: platform
@@ -483,6 +500,9 @@ controls, revisions (pins are passed as given; see Open Question 2) and Applicat
   no second run for the same change, except to self-heal after a successful run. Otherwise an app that keeps
   failing would start a run on every reconciliation, as auto-sync would without its "already attempted this
   revision" check.
+- **Policies only trust runs they recorded.** Labels, owner references and annotations can be set by anyone who can
+  create ApplicationSyncs, so a policy identifies its runs through its own status, which only the controller
+  writes: it records a run's name before creating it and its UID after, and ignores any run it didn't record.
 
 ### Security Considerations
 
@@ -530,6 +550,7 @@ controls, revisions (pins are passed as given; see Open Question 2) and Applicat
   | `applicationsyncpolicies` | `get/list/watch` | App namespaces | Read policies |
   | `appprojects` | `get/list/watch` | Application controller's namespace | Read sync windows |
   | `configmaps` | `get` | Application controller's namespace | Read `argocd-cm` and `argocd-cmd-params-cm` |
+  | `leases` (`coordination.k8s.io`) | `get/list/watch/create/update/patch/delete` | Application controller's namespace | Leader election |
   | `events` | `create/patch` | App namespaces | Record phase changes |
 
 - **Downgrade.** Removing the controller stops new runs. Operations it already wrote finish normally, and the CRDs
