@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -1116,6 +1117,15 @@ func Test_unset(t *testing.T) {
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
+	kustomizeSource.Kustomize.Images = v1alpha1.KustomizeImages{
+		"registry.example.com:5000/team/foo:1.0",
+		"registry.example.com:5000/team/bar:1.0",
+	}
+	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"registry.example.com:5000/team/bar"}})
+	assert.True(t, updated)
+	assert.False(t, nothingToUnset)
+	assert.Equal(t, v1alpha1.KustomizeImages{"registry.example.com:5000/team/foo:1.0"}, kustomizeSource.Kustomize.Images)
+
 	assert.Len(t, kustomizeSource.Kustomize.Replicas, 2)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
 	assert.Len(t, kustomizeSource.Kustomize.Replicas, 1)
@@ -1838,6 +1848,12 @@ func testApp(name, project string, labels map[string]string, annotations map[str
 	}
 }
 
+var resourceTimestampRegex = regexp.MustCompile(`(?m)^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}`)
+
+func maskResourceTimestamps(output string) string {
+	return resourceTimestampRegex.ReplaceAllString(output, "YYYY-MM-DDTHH:MM:SS+HH:MM")
+}
+
 func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	acdClient := &customAcdClient{&fakeAcdClient{}}
 	ctx := t.Context()
@@ -1872,11 +1888,11 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "")
 		return nil
 	})
-	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
+	output = maskResourceTimestamps(output)
 
 	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
-%s            Service     default         service-name1    Synced  Healthy
-%s   apps  Deployment     default                  test    Synced  Healthy
+YYYY-MM-DDTHH:MM:SS+HH:MM            Service     default         service-name1    Synced  Healthy
+YYYY-MM-DDTHH:MM:SS+HH:MM   apps  Deployment     default                  test    Synced  Healthy
 
 Name:               argocd/test
 Project:            default
@@ -1906,7 +1922,6 @@ GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
        Service     default    service-name1  Synced  Healthy
 apps   Deployment  default    test           Synced  Healthy
 `
-	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
 	expectationParts := strings.Split(expectation, "\n")
 	// Trim trailing whitespace from each line
 	for i := range expectationParts {
@@ -1941,11 +1956,11 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput_With_Timeout(t *testing.T)
 		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 5, watch, selectResource, "")
 		return nil
 	})
-	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
+	output = maskResourceTimestamps(output)
 
 	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
-%s            Service     default         service-name1    Synced  Healthy
-%s   apps  Deployment     default                  test    Synced  Healthy
+YYYY-MM-DDTHH:MM:SS+HH:MM            Service     default         service-name1    Synced  Healthy
+YYYY-MM-DDTHH:MM:SS+HH:MM   apps  Deployment     default                  test    Synced  Healthy
 
 The command timed out waiting for the conditions to be met.
 
@@ -1979,7 +1994,6 @@ GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
        Service     default    service-name1  Synced  Healthy
 apps   Deployment  default    test           Synced  Healthy
 `
-	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
 	expectationParts := strings.Split(expectation, "\n")
 	// Trim trailing whitespace from each line
 	for i := range expectationParts {
