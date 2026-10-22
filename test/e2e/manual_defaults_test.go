@@ -7,6 +7,7 @@ import (
 	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -62,10 +63,11 @@ func TestManualDefaultsDryRunAllowsLocalSyncWithAutosync(t *testing.T) {
 		And(func(app *Application) {
 			_, err := fixture.RunCli("app", "sync", app.Name, "--local-repo-root", ".", "--local", guestbookPathLocal)
 			require.NoError(t, err)
-		}).
-		And(func(app *Application) {
-			require.NotNil(t, app.Status.OperationState)
-			require.NotNil(t, app.Status.OperationState.Operation.Sync)
-			assert.True(t, app.Status.OperationState.Operation.Sync.DryRun)
+
+			updated, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, updated.Status.OperationState)
+			require.NotNil(t, updated.Status.OperationState.Operation.Sync)
+			assert.True(t, updated.Status.OperationState.Operation.Sync.DryRun)
 		})
 }
