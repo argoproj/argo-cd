@@ -561,6 +561,21 @@ func TestGoogleCloudCreds_Environ_cleanup(t *testing.T) {
 	assert.Len(t, store.creds, credsLenBefore-1)
 }
 
+func TestGoogleCloudCreds_GetUserInfo(t *testing.T) {
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	googleCloudCreds := GoogleCloudCreds{&google.Credentials{
+		ProjectID: "my-google-project",
+		JSON:      []byte(gcpServiceAccountKeyJSON),
+	}, store}
+
+	username, email, err := googleCloudCreds.GetUserInfo(context.Background())
+	require.NoError(t, err)
+
+	expected := "argocd-service-account@my-google-project.iam.gserviceaccount.com"
+	assert.Equal(t, expected, username)
+	assert.Equal(t, expected, email)
+}
+
 func TestAzureWorkloadIdentityCreds_Environ(t *testing.T) {
 	resetAzureTokenCache()
 	store := &memoryCredsStore{creds: make(map[string]cred)}
