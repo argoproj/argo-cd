@@ -57,6 +57,14 @@
     text-align: left;
   }
 
+  &__head-column {
+    // Header labels are not truncated, so keep them inside their own column when the window is
+    // narrow: break at the explicit <wbr /> hints instead of overflowing into the next header.
+    white-space: normal;
+    overflow-wrap: break-word;
+    line-height: 1.2;
+  }
+
   &__row--selected {
     @include resource-highlight-list-row;
   }

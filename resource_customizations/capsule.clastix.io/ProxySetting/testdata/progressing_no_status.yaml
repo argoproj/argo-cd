@@ -1,0 +1,13 @@
+apiVersion: capsule.clastix.io/v1beta1
+kind: ProxySetting
+metadata:
+  name: alice-proxy
+  namespace: solar-production
+spec:
+  subjects:
+    - name: alice
+      kind: User
+      proxySettings:
+        - kind: IngressClasses
+          operations:
+            - List

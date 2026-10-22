@@ -1,0 +1,23 @@
+# SetAsUnknown: CloudNativePG could not determine the database state (e.g. a
+# transient connection error while reconciling). It sets a message and leaves
+# status.applied unset, keeping the previously observed generation -> the health
+# check falls through to Progressing and surfaces the operator's message.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  creationTimestamp: "2026-09-02T12:00:00Z"
+  finalizers:
+  - cnpg.io/deleteDatabase
+  generation: 1
+  name: database-example
+  namespace: default
+spec:
+  cluster:
+    name: cluster-example
+  databaseReclaimPolicy: retain
+  ensure: present
+  name: app
+  owner: app
+status:
+  observedGeneration: 1
+  message: "unable to determine database status: connection refused"

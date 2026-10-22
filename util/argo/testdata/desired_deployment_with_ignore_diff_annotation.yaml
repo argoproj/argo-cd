@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+      argocd.argoproj.io/ignore-differences: |-
+        jsonPointers:
+        - /spec/replicas
+  name: kustomize-guestbook-ui
+  namespace: default
+spec:
+  replicas: 3
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: guestbook-ui
+  template:
+    metadata:
+      labels:
+        app: guestbook-ui
+    spec:
+      containers:
+        - image: 'quay.io/argoprojlabs/argocd-e2e-container:0.1'
+          name: test-container
+          ports:
+            - containerPort: 80

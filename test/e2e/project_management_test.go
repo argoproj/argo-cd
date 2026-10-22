@@ -98,7 +98,7 @@ func TestProjectDeletion(t *testing.T) {
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(
-		t.Context(), &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}}, metav1.CreateOptions{})
+		t.Context(), &v1alpha1.AppProject{Name: projectName}, metav1.CreateOptions{})
 	require.NoError(t, err)
 
 	_, err = fixture.RunCli("proj", "delete", projectName)
@@ -114,7 +114,7 @@ func TestSetProject(t *testing.T) {
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(
-		t.Context(), &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}}, metav1.CreateOptions{})
+		t.Context(), &v1alpha1.AppProject{Name: projectName}, metav1.CreateOptions{})
 	require.NoError(t, err)
 
 	_, err = fixture.RunCli("proj", "set", projectName,
@@ -146,7 +146,7 @@ func TestAddProjectDestination(t *testing.T) {
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(
-		t.Context(), &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}}, metav1.CreateOptions{})
+		t.Context(), &v1alpha1.AppProject{Name: projectName}, metav1.CreateOptions{})
 	require.NoError(t, err, "Unable to create project")
 
 	_, err = fixture.RunCli("proj", "add-destination", projectName,
@@ -188,7 +188,7 @@ func TestAddProjectDestinationWithName(t *testing.T) {
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(
-		t.Context(), &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}}, metav1.CreateOptions{})
+		t.Context(), &v1alpha1.AppProject{Name: projectName}, metav1.CreateOptions{})
 	require.NoError(t, err, "Unable to create project")
 
 	_, err = fixture.RunCli("proj", "add-destination", projectName,
@@ -214,7 +214,7 @@ func TestRemoveProjectDestination(t *testing.T) {
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(t.Context(), &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: projectName},
+		Name: projectName,
 		Spec: v1alpha1.AppProjectSpec{
 			Destinations: []v1alpha1.ApplicationDestination{{
 				Server:    "https://192.168.99.100:8443",
@@ -248,7 +248,7 @@ func TestAddProjectSource(t *testing.T) {
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(
-		t.Context(), &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}}, metav1.CreateOptions{})
+		t.Context(), &v1alpha1.AppProject{Name: projectName}, metav1.CreateOptions{})
 	require.NoError(t, err, "Unable to create project")
 
 	_, err = fixture.RunCli("proj", "add-source", projectName, "https://github.com/argoproj/argo-cd.git")
@@ -270,7 +270,7 @@ func TestRemoveProjectSource(t *testing.T) {
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(t.Context(), &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: projectName},
+		Name: projectName,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos: []string{"https://github.com/argoproj/argo-cd.git"},
 		},
@@ -300,9 +300,7 @@ func TestUseJWTToken(t *testing.T) {
 	roleName := "roleTest"
 	roleName2 := "roleTest2"
 	testApp := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: appName,
-		},
+		Name: appName,
 		Spec: v1alpha1.ApplicationSpec{
 			Source: &v1alpha1.ApplicationSource{
 				RepoURL: fixture.RepoURL(fixture.RepoURLTypeFile),
@@ -316,7 +314,7 @@ func TestUseJWTToken(t *testing.T) {
 		},
 	}
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(t.Context(), &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: projectName},
+		Name: projectName,
 		Spec: v1alpha1.AppProjectSpec{
 			Destinations: []v1alpha1.ApplicationDestination{{
 				Server:    v1alpha1.KubernetesInternalAPIServerAddr,
@@ -376,7 +374,7 @@ func TestAddOrphanedIgnore(t *testing.T) {
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(
-		t.Context(), &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}}, metav1.CreateOptions{})
+		t.Context(), &v1alpha1.AppProject{Name: projectName}, metav1.CreateOptions{})
 	require.NoError(t, err, "Unable to create project")
 
 	_, err = fixture.RunCli("proj", "add-orphaned-ignore", projectName,
@@ -411,7 +409,7 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(t.Context(), &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: projectName},
+		Name: projectName,
 		Spec: v1alpha1.AppProjectSpec{
 			OrphanedResources: &v1alpha1.OrphanedResourcesMonitorSettings{
 				Warn:   new(true),
@@ -479,7 +477,7 @@ func createAndConfigGlobalProject(ctx context.Context, testName string) error {
 	}
 
 	projGlobal.Spec.SyncWindows = v1alpha1.SyncWindows{}
-	win := &v1alpha1.SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "1h", Applications: []string{"*"}}
+	win := &v1alpha1.InlineSyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "1h", Applications: []string{"*"}}
 	projGlobal.Spec.SyncWindows = append(projGlobal.Spec.SyncWindows, win)
 
 	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(ctx, projGlobal, metav1.UpdateOptions{})
@@ -510,6 +508,17 @@ func createAndConfigGlobalProject(ctx context.Context, testName string) error {
 	return nil
 }
 
+func waitForAppResources(t *testing.T, appName string) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(t.Context(), appName, metav1.GetOptions{})
+		if err != nil {
+			return false
+		}
+		return len(app.Status.Resources) > 0
+	}, 30*time.Second, 500*time.Millisecond, "timed out waiting for the resources of app %s", appName)
+}
+
 func TestGetVirtualProjectNoMatch(t *testing.T) {
 	ctx := fixture.EnsureCleanState(t)
 	err := createAndConfigGlobalProject(t.Context(), ctx.GetName())
@@ -531,6 +540,8 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	_, err = fixture.RunCli("app", "create", ctx.GetName(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
 		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", ctx.DeploymentNamespace())
 	require.NoError(t, err)
+
+	waitForAppResources(t, ctx.GetName())
 
 	// App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", ctx.GetName(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", strconv.Itoa(10))
@@ -569,6 +580,8 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", testCtx.DeploymentNamespace())
 	require.NoError(t, err)
 
+	waitForAppResources(t, testCtx.GetName())
+
 	// App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", testCtx.GetName(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", strconv.Itoa(10))
 	require.ErrorContains(t, err, "blocked by sync window")
@@ -583,7 +596,7 @@ func TestSyncWindowSyncOverrun(t *testing.T) {
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(
-		t.Context(), &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}}, metav1.CreateOptions{})
+		t.Context(), &v1alpha1.AppProject{Name: projectName}, metav1.CreateOptions{})
 	require.NoError(t, err, "Unable to create project")
 
 	// Test adding a sync window with --sync-overrun flag
@@ -638,7 +651,7 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(
-		t.Context(), &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}}, metav1.CreateOptions{})
+		t.Context(), &v1alpha1.AppProject{Name: projectName}, metav1.CreateOptions{})
 	require.NoError(t, err, "Unable to create project")
 
 	// Given, an existing project

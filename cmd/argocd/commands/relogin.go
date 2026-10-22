@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
+	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
@@ -25,12 +27,13 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		callback         string
 		ssoPort          int
 		ssoLaunchBrowser bool
+		noBrowser        bool
 	)
 	command := &cobra.Command{
 		Use:   "relogin",
 		Short: "Refresh an expired authenticate token",
 		Long:  "Refresh an expired authenticate token",
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 0 {
@@ -63,6 +66,12 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				PlainText:         configCtx.Server.PlainText,
 				Headers:           clientOpts.Headers,
 			}
+			// Fall back to the client certificate persisted for the context, since reloginOpts
+			// deliberately does not read the local config.
+			if reloginOpts.ClientCertFile == "" && reloginOpts.ClientCertKeyFile == "" {
+				reloginOpts.ClientCertData, reloginOpts.ClientCertKeyData, err = configCtx.Server.ClientCertPEM()
+				errors.CheckError(err)
+			}
 			acdClient := headless.NewClientOrDie(&reloginOpts, c)
 			claims, err := configCtx.User.Claims()
 			errors.CheckError(err)
@@ -71,7 +80,7 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				tokenString = passwordLogin(ctx, acdClient, localconfig.GetUsername(jwtutil.StringField(claims, "sub")), password)
 			} else {
 				fmt.Println("Reinitiating SSO login")
-				setConn, setIf := acdClient.NewSettingsClientOrDie()
+				setConn, setIf := acdClient.NewSettingsClientOrDieWithContext(ctx)
 				defer utilio.Close(setConn)
 				httpClient, err := acdClient.HTTPClient()
 				errors.CheckError(err)
@@ -80,7 +89,11 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				errors.CheckError(err)
 				oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 				errors.CheckError(err)
-				tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser, acdSet.GetDexConfig().GetDexAuthConnectorID())
+				if !noBrowser {
+					tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser, acdSet.GetDexConfig().GetDexAuthConnectorID())
+				} else {
+					tokenString, refreshToken = oauth2LoginNoBrowser(ctx, acdSet.GetOIDCConfig(), oauth2conf, httpClient)
+				}
 			}
 
 			localCfg.UpsertUser(localconfig.User{
@@ -91,7 +104,7 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
 			errors.CheckError(err)
 			fmt.Printf("Context '%s' updated\n", configCtxName)
-		},
+		}),
 		Example: `
 # Reinitiates the login with previous contexts
 argocd relogin
@@ -109,5 +122,6 @@ argocd login cd.argoproj.io --core
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().StringVar(&callback, "callback", "", "Host and Port for the callback URL")
 	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the default browser when performing SSO login")
+	command.Flags().BoolVar(&noBrowser, "no-browser", false, "Perform SSO relogin without a browser using the device code flow")
 	return command
 }

@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
@@ -131,6 +132,41 @@ func FilterByProjectsP(apps []*argoappv1.Application, projects []string) []*argo
 	return items
 }
 
+// FilterByNamesP returns applications whose name is contained in the provided set of names.
+// It is used by the UI favorites filter to restrict the list to a client-selected subset of applications.
+// Names may be namespace-qualified, see MatchesNameFilter.
+func FilterByNamesP(apps []*argoappv1.Application, names []string) []*argoappv1.Application {
+	if len(names) == 0 {
+		return apps
+	}
+	namesMap := NewNameFilter(names)
+	items := []*argoappv1.Application{}
+	for i := range apps {
+		a := apps[i]
+		if MatchesNameFilter(namesMap, a.Namespace, a.Name) {
+			items = append(items, a)
+		}
+	}
+	return items
+}
+
+// NewNameFilter turns a list of application names into a set which can be passed to MatchesNameFilter.
+func NewNameFilter(names []string) map[string]bool {
+	namesMap := make(map[string]bool, len(names))
+	for i := range names {
+		namesMap[names[i]] = true
+	}
+	return namesMap
+}
+
+// MatchesNameFilter returns true if an application is contained in the provided set of names. An entry
+// may be qualified as "namespace/name" to match only the application in that namespace, which matters
+// when apps-in-any-namespace is enabled and the same name exists in more than one namespace. Unqualified
+// entries match on name alone, regardless of the namespace the application lives in.
+func MatchesNameFilter(names map[string]bool, namespace, name string) bool {
+	return names[name] || names[namespace+"/"+name]
+}
+
 // FilterAppSetsByProjects returns applications which belongs to the specified project
 func FilterAppSetsByProjects(appsets []argoappv1.ApplicationSet, projects []string) []argoappv1.ApplicationSet {
 	if len(projects) == 0 {
@@ -157,8 +193,11 @@ func FilterByRepo(apps []argoappv1.Application, repo string) []argoappv1.Applica
 	}
 	items := []argoappv1.Application{}
 	for i := range apps {
-		if apps[i].Spec.GetSource().RepoURL == repo {
-			items = append(items, apps[i])
+		for _, source := range apps[i].Spec.GetSources() {
+			if source.RepoURL == repo {
+				items = append(items, apps[i])
+				break
+			}
 		}
 	}
 	return items
@@ -171,21 +210,63 @@ func FilterByRepoP(apps []*argoappv1.Application, repo string) []*argoappv1.Appl
 	}
 	items := []*argoappv1.Application{}
 	for i := range apps {
-		if apps[i].Spec.GetSource().RepoURL == repo {
-			items = append(items, apps[i])
+		for _, source := range apps[i].Spec.GetSources() {
+			if source.RepoURL == repo {
+				items = append(items, apps[i])
+				break
+			}
 		}
 	}
 	return items
 }
 
 // FilterByPath returns an application
-func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Application {
-	if path == "" {
+func FilterByPath(apps []argoappv1.Application, appPath string) []argoappv1.Application {
+	if appPath == "" {
 		return apps
 	}
 	items := []argoappv1.Application{}
 	for i := range apps {
-		if apps[i].Spec.GetSource().Path == path {
+		for _, source := range apps[i].Spec.GetSources() {
+			if source.Path == appPath {
+				items = append(items, apps[i])
+				break
+			}
+		}
+	}
+	return items
+}
+
+// FilterByFiles returns applications that are affected by the given list of changed files.
+// For each application, it computes the refresh paths (source path + annotation paths) across
+// all sources (including multi-source apps) and checks whether any of the provided files
+// falls under those paths.
+func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.Application {
+	if len(files) == 0 {
+		return apps
+	}
+	items := []argoappv1.Application{}
+	for i := range apps {
+		app := &apps[i]
+		matched := false
+		for _, source := range app.Spec.GetSources() {
+			// Skip Helm chart sources (no path) to avoid matching every file
+			// when AppFilesHaveChanged is called with an empty refreshPaths slice.
+			if source.Path == "" {
+				continue
+			}
+			refreshPaths := path.GetSourceRefreshPaths(app, source)
+			// If no annotation, fall back to the source path itself so that any
+			// file under that directory triggers a match.
+			if len(refreshPaths) == 0 {
+				refreshPaths = []string{source.Path}
+			}
+			if path.AppFilesHaveChanged(refreshPaths, files) {
+				matched = true
+				break
+			}
+		}
+		if matched {
 			items = append(items, apps[i])
 		}
 	}
