@@ -4,13 +4,13 @@ data:
     email:
       subject: Application {{.app.metadata.name}} has been created.
     message: Application {{.app.metadata.name}} has been created.
-    teams:
+    teams-workflows:
       title: Application {{.app.metadata.name}} has been created.
   template.app-deleted: |
     email:
       subject: Application {{.app.metadata.name}} has been deleted.
     message: Application {{.app.metadata.name}} has been deleted.
-    teams:
+    teams-workflows:
       title: Application {{.app.metadata.name}} has been deleted.
   template.app-deployed: |
     email:
@@ -52,7 +52,7 @@ data:
       deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
-    teams:
+    teams-workflows:
       facts: |
         [{
           "name": "Sync Status",
@@ -129,7 +129,7 @@ data:
       deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
-    teams:
+    teams-workflows:
       facts: |
         [{
           "name": "Health Status",
@@ -202,7 +202,7 @@ data:
       deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
-    teams:
+    teams-workflows:
       facts: |
         [{
           "name": "Sync Status",
@@ -279,7 +279,7 @@ data:
       deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
-    teams:
+    teams-workflows:
       facts: |
         [{
           "name": "Sync Status",
@@ -360,7 +360,7 @@ data:
       deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
-    teams:
+    teams-workflows:
       facts: |
         [{
           "name": "Sync Status",
@@ -432,7 +432,7 @@ data:
       deliveryPolicy: Post
       groupingKey: ""
       notifyBroadcast: false
-    teams:
+    teams-workflows:
       facts: |
         [{
           "name": "Sync Status",

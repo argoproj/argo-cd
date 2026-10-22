@@ -390,27 +390,12 @@ func trackingKey(appLabelKey string, trackingMethod string) string {
 	return trackingKey
 }
 
-// LogDebugManifestCacheKeyFields logs all the information included in a manifest cache key. It's intended to be run
-// before every manifest cache operation to help debug cache misses.
-func LogDebugManifestCacheKeyFields(message string, reason string, manifestKey manifestKey) {
-	if log.IsLevelEnabled(log.DebugLevel) {
-		log.WithFields(log.Fields{
-			"revision":    manifestKey.Revision,
-			"appSrc":      appSourceKeyJSON(manifestKey.AppSource, manifestKey.RefSources, manifestKey.RefSourceCommitSHAs),
-			"namespace":   manifestKey.Namespace,
-			"trackingKey": trackingKey(manifestKey.AppLabelKey, manifestKey.TrackingMethod),
-			"appName":     manifestKey.AppName,
-			"clusterInfo": clusterRuntimeInfoKeyUnhashed(manifestKey.ClusterInfo),
-			"reason":      reason,
-		}).Debug(message)
-	}
-}
-
 func (c *Cache) SetNewRevisionManifests(oldKey, newKey manifestKey) error {
 	return c.cache.RenameItem(oldKey.String(), newKey.String(), c.repoCacheExpiration)
 }
 
 func (c *Cache) GetManifests(manifestKey manifestKey, res *CachedManifestResponse) error {
+	logCtx := log.WithField("cacheKey", manifestKey.String())
 	err := c.cache.GetItem(manifestKey.String(), res)
 	if err != nil {
 		return err
@@ -423,9 +408,8 @@ func (c *Cache) GetManifests(manifestKey manifestKey, res *CachedManifestRespons
 
 	// If cached result does not have manifests or the expected hash of the cache entry does not match the actual hash value...
 	if hash != res.CacheEntryHash || res.ManifestResponse == nil && res.MostRecentError == "" {
-		log.Warnf("Manifest hash did not match expected value or cached manifests response is empty, treating as a cache miss: %s", manifestKey.AppName)
-
-		LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", manifestKey)
+		logCtx.Warnf("Manifest hash did not match expected value or cached manifests response is empty, treating as a cache miss: %s", manifestKey.AppName)
+		logCtx.Debug("deleting manifests cache: manifest hash did not match or cached response is empty")
 
 		err = c.DeleteManifests(manifestKey)
 		if err != nil {
@@ -592,6 +576,40 @@ func (c *Cache) GetGitFilesChanges(repoURL, revision, targetRevision string) ([]
 	var files []string
 	err := c.cache.GetItem(getGitFilesChangesKey(repoURL, revision, targetRevision), &files)
 	return files, err
+}
+
+func ociFilesKey(repoURL, revision, pattern string) string {
+	return fmt.Sprintf("ocifiles|%s|%s|%s", repoURL, revision, pattern)
+}
+
+func (c *Cache) SetOciFiles(repoURL, revision, pattern string, files map[string][]byte) error {
+	return c.cache.SetItem(
+		ociFilesKey(repoURL, revision, pattern),
+		&files,
+		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+}
+
+func (c *Cache) GetOciFiles(repoURL, revision, pattern string) (map[string][]byte, error) {
+	var item map[string][]byte
+	err := c.cache.GetItem(ociFilesKey(repoURL, revision, pattern), &item)
+	return item, err
+}
+
+func ociDirectoriesKey(repoURL, revision string) string {
+	return fmt.Sprintf("ocidirs|%s|%s", repoURL, revision)
+}
+
+func (c *Cache) SetOciDirectories(repoURL, revision string, directories []string) error {
+	return c.cache.SetItem(
+		ociDirectoriesKey(repoURL, revision),
+		&directories,
+		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+}
+
+func (c *Cache) GetOciDirectories(repoURL, revision string) ([]string, error) {
+	var item []string
+	err := c.cache.GetItem(ociDirectoriesKey(repoURL, revision), &item)
+	return item, err
 }
 
 func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {

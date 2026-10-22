@@ -67,15 +67,69 @@ argocd proj add-source <PROJECT> !<REPO>
 argocd proj remove-source <PROJECT> !<REPO>
 ```
 
-Declaratively we can do something like this:
+#### Wildcard Patterns in Source Repositories
+
+Source repositories support glob-style wildcard patterns. `/` is a segment boundary: `*` matches only within a single path segment, and `**` matches across segments.
+
+- `*` - Matches any characters within a single path segment (between slashes)
+- `**` - Matches any characters across multiple path segments (recursive)
+
+A wildcard placed on the organization segment admits lookalike organizations. Prefer an exact repository URL, or a pattern whose organization segment is bounded by `/`.
+
+```yaml
+spec:
+  sourceRepos:
+    # Bounded to the acme organization. Does not permit acme-evil.
+    - 'https://github.com/acme/*'
+    # Unbounded: * is inside the organization segment, so acme-evil is permitted.
+    - 'https://github.com/acme*/*'
+    # A wildcard at the end of the repository name permits a longer name.
+    - 'https://github.com/acme/pay*'
+```
+
+> [!NOTE]
+> This differs from [RBAC glob matching](../operator-manual/rbac.md#the-applications-resource), which does not treat `/` as a separator.
+
+> [!NOTE]
+> `{...}` and `[...]` in the host are not applied as globs. The pattern is parsed as a URL first, and those characters do not match the hosts they appear to name. `https://{github,gitlab}.com/myorg/*` permits neither `github.com` nor `gitlab.com`. `https://git-[abc].example.com/**` does not permit `git-a.example.com`. The same applies to an SSH host, such as `git@{git,lab}.example.com:org/repo`. `*` and `?` in the host do work: `https://*.example.com/**` permits `https://git.example.com/org/repo`, and `https://git-?.example.com/**` permits `https://git-a.example.com/org/repo`.
+
+Common patterns:
+
+```yaml
+spec:
+  sourceRepos:
+    # Match all repositories (any Git server)
+    - '*'
+
+    # Match all GitHub repositories (using double-wildcard for recursive matching)
+    - 'https://github.com/**'
+
+    # Match all repositories in a specific organization
+    - 'https://github.com/argoproj/*'
+
+    # Match all repositories in organizations starting with 'my-'
+    - 'https://github.com/my-*/*'
+
+    # Match GitLab group repositories with nested subgroups
+    - 'https://gitlab.com/group/**'
+
+    # Match specific nested path depth
+    - 'https://gitlab.com/group/*/*'  # Exactly two levels deep
+```
+
+Negation examples:
 
 ```yaml
 spec:
   sourceRepos:
     # Do not use the test repo in argoproj
     - '!ssh://git@GITHUB.com:argoproj/test'
-    # Nor any Gitlab repo under group/ 
+    # Nor any Gitlab repo under group/
     - '!https://gitlab.com/group/**'
+    # Deny all GitHub repos except those explicitly allowed
+    - '!https://github.com/**'
+    # Allow specific GitHub organization
+    - 'https://github.com/my-org/*'
     # Any other repo is fine though
     - '*'
 ```

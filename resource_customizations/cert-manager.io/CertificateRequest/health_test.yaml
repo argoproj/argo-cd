@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "Certificate fetched from issuer successfully"
+    inputPath: testdata/issued.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting on certificate issuance from order default/example-order: \"pending\""
+    inputPath: testdata/pending.yaml
+  - healthStatus:
+      status: Degraded
+      message: "The certificate request has failed to complete and will be retried: failed to wait for order resource to become signed"
+    inputPath: testdata/failed.yaml
+  - healthStatus:
+      status: Degraded
+      message: "The CertificateRequest was denied by an approval controller"
+    inputPath: testdata/denied.yaml

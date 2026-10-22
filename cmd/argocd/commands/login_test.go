@@ -3,12 +3,15 @@ package commands
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/localconfig"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func captureStdout(callback func()) (string, error) {
@@ -76,4 +79,71 @@ func Test_ssoAuthFlow_ssoLaunchBrowser_false(t *testing.T) {
 	})
 
 	assert.Contains(t, out, "To authenticate, copy-and-paste the following URL into your preferred browser: http://test-sso-browser-flow.com")
+}
+
+func Test_applyCertConfig(t *testing.T) {
+	dir := t.TempDir()
+	certPath := filepath.Join(dir, "client.crt")
+	keyPath := filepath.Join(dir, "client.key")
+
+	t.Run("persists the client certificate given on the command line", func(t *testing.T) {
+		serverCfg := localconfig.Server{Server: "argocd.example.com"}
+		require.NoError(t, applyCertConfig(&serverCfg, nil, certPath, keyPath))
+		assert.Equal(t, certPath, serverCfg.ClientCertificate)
+		assert.Equal(t, keyPath, serverCfg.ClientCertificateKey)
+	})
+
+	t.Run("stores the client certificate as an absolute path", func(t *testing.T) {
+		t.Chdir(dir)
+		serverCfg := localconfig.Server{Server: "argocd.example.com"}
+		require.NoError(t, applyCertConfig(&serverCfg, nil, "client.crt", "client.key"))
+		assert.Equal(t, certPath, serverCfg.ClientCertificate)
+		assert.Equal(t, keyPath, serverCfg.ClientCertificateKey)
+	})
+
+	t.Run("carries over the certificate of a previous login", func(t *testing.T) {
+		existing := &localconfig.Server{
+			Server:                     "argocd.example.com",
+			CACertificateAuthorityData: "ca-data",
+			ClientCertificate:          certPath,
+			ClientCertificateKey:       keyPath,
+		}
+		serverCfg := localconfig.Server{Server: "argocd.example.com"}
+		require.NoError(t, applyCertConfig(&serverCfg, existing, "", ""))
+		assert.Equal(t, "ca-data", serverCfg.CACertificateAuthorityData)
+		assert.Equal(t, certPath, serverCfg.ClientCertificate)
+		assert.Equal(t, keyPath, serverCfg.ClientCertificateKey)
+	})
+
+	t.Run("carries over inlined certificate data of a previous login", func(t *testing.T) {
+		existing := &localconfig.Server{
+			Server:                   "argocd.example.com",
+			ClientCertificateData:    "Y2VydA==",
+			ClientCertificateKeyData: "a2V5",
+		}
+		serverCfg := localconfig.Server{Server: "argocd.example.com"}
+		require.NoError(t, applyCertConfig(&serverCfg, existing, "", ""))
+		assert.Equal(t, "Y2VydA==", serverCfg.ClientCertificateData)
+		assert.Equal(t, "a2V5", serverCfg.ClientCertificateKeyData)
+	})
+
+	t.Run("command line certificate replaces inlined certificate data", func(t *testing.T) {
+		existing := &localconfig.Server{
+			Server:                   "argocd.example.com",
+			ClientCertificateData:    "Y2VydA==",
+			ClientCertificateKeyData: "a2V5",
+		}
+		serverCfg := localconfig.Server{Server: "argocd.example.com"}
+		require.NoError(t, applyCertConfig(&serverCfg, existing, certPath, keyPath))
+		assert.Equal(t, certPath, serverCfg.ClientCertificate)
+		assert.Equal(t, keyPath, serverCfg.ClientCertificateKey)
+		assert.Empty(t, serverCfg.ClientCertificateData)
+		assert.Empty(t, serverCfg.ClientCertificateKeyData)
+	})
+
+	t.Run("certificate and key must be given together", func(t *testing.T) {
+		serverCfg := localconfig.Server{Server: "argocd.example.com"}
+		require.ErrorContains(t, applyCertConfig(&serverCfg, nil, certPath, ""), "must always be specified together")
+		require.ErrorContains(t, applyCertConfig(&serverCfg, nil, "", keyPath), "must always be specified together")
+	})
 }

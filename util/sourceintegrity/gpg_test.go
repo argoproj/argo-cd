@@ -337,6 +337,27 @@ func Test_KeyID(t *testing.T) {
 	}
 }
 
+func Test_PrimaryKeyID(t *testing.T) {
+	initTempDir(t)
+	err := InitializeGnuPG()
+	require.NoError(t, err)
+
+	_, err = ImportPGPKeys("testdata/github.asc")
+	require.NoError(t, err)
+
+	t.Run("returns the primary key id for an imported key", func(t *testing.T) {
+		res, err := PrimaryKeyID(shortKeyID)
+		require.NoError(t, err)
+		assert.Equal(t, shortKeyID, res)
+	})
+
+	t.Run("errors for a key that is not in the keyring", func(t *testing.T) {
+		res, err := PrimaryKeyID("DEADBEEFDEADBEEF")
+		require.Error(t, err)
+		assert.Empty(t, res)
+	})
+}
+
 func Test_IsShortKeyID(t *testing.T) {
 	assert.True(t, IsShortKeyID(shortKeyID))
 	assert.False(t, IsShortKeyID(longKeyID))

@@ -17,6 +17,9 @@ const (
 	// AnnotationKeyHookDeletePolicy is the policy of deleting a hook
 	AnnotationKeyHookDeletePolicy = "argocd.argoproj.io/hook-delete-policy"
 	AnnotationDeletionApproved    = "argocd.argoproj.io/deletion-approved"
+	// AnnotationIgnoreRestartPolicy makes health assessment of Pods with restartPolicy
+	// Never/OnFailure treat them as long-running pods (ignored for hook Pods)
+	AnnotationIgnoreRestartPolicy = "argocd.argoproj.io/ignore-restart-policy"
 
 	// Sync option that disables dry run in resource is missing in the cluster
 	SyncOptionSkipDryRunOnMissingResource = "SkipDryRunOnMissingResource=true"
@@ -50,6 +53,8 @@ const (
 	SyncOptionClientSideApplyMigration = "ClientSideApplyMigration=true"
 	// Sync option that disables client-side apply migration
 	SyncOptionDisableClientSideApplyMigration = "ClientSideApplyMigration=false"
+	// Sync option that marks a resource as synced once it is applied, without waiting for it to become healthy
+	SyncOptionSkipHealthCheck = "SkipHealthCheck=true"
 
 	// Default field manager for client-side apply migration
 	DefaultClientSideApplyMigrationManager = "kubectl-client-side-apply"

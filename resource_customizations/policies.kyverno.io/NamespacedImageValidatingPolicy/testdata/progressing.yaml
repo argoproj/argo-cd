@@ -1,0 +1,6 @@
+apiVersion: policies.kyverno.io/v1alpha1
+kind: NamespacedImageValidatingPolicy
+metadata:
+  name: sample-namespaced-image-validating-policy
+  namespace: test-namespace
+spec: {}

@@ -1,0 +1,22 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Status not known yet"
+  inputPath: testdata/backupjob_not_finished_not_failed.yaml
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/backupjob_ok.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed nodes exist"
+  inputPath: testdata/backupjob_failed.yaml
+- healthStatus:
+    status: Progressing
+    message: "observedGeneration is not equal to generation"
+  inputPath: testdata/backupjob_ok_but_non_matching_generation.yaml
+- healthStatus:
+    status: Unknown
+    message: "No observedGeneration"
+  inputPath: testdata/backupjob_ok_but_no_observedgeneration.yaml
+

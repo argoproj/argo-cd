@@ -108,7 +108,9 @@ test   true     login, apiKey`, output)
 
 	clientOpts := ArgoCDClientset.ClientOptions()
 	clientOpts.AuthToken = token
-	testAccountClientset := headless.NewClientOrDie(&clientOpts, &cobra.Command{})
+	cmd := &cobra.Command{}
+	cmd.SetContext(t.Context())
+	testAccountClientset := headless.NewClientOrDie(&clientOpts, cmd)
 
 	closer, client := testAccountClientset.NewSessionClientOrDie()
 	defer utilio.Close(closer)
@@ -168,7 +170,9 @@ func TestAccountSessionToken(t *testing.T) {
 			// Verify the token can be used for authentication
 			clientOpts := ArgoCDClientset.ClientOptions()
 			clientOpts.AuthToken = token
-			testAccountClientset := headless.NewClientOrDie(&clientOpts, &cobra.Command{})
+			cmd := &cobra.Command{}
+			cmd.SetContext(t.Context())
+			testAccountClientset := headless.NewClientOrDie(&clientOpts, cmd)
 
 			closer, client := testAccountClientset.NewSessionClientOrDie()
 			defer utilio.Close(closer)
