@@ -175,6 +175,7 @@ func TestPrintApplicationSetTable(t *testing.T) {
 					{
 						Status: v1alpha1.ApplicationSetConditionStatusTrue,
 						Type:   v1alpha1.ApplicationSetConditionResourcesUpToDate,
+						ObservedGeneration: 2,
 					},
 				},
 			},
@@ -184,7 +185,7 @@ func TestPrintApplicationSetTable(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
-	expectation := "NAME               PROJECT  SYNCPOLICY  HEALTH  CONDITIONS\napp-name           default  nil                 [{ResourcesUpToDate  <nil> True }]\nteam-two/app-name  default  nil                 [{ResourcesUpToDate  <nil> True }]\n"
+	expectation := "NAME               PROJECT  SYNCPOLICY  HEALTH  CONDITIONS\napp-name           default  nil                 [{ResourcesUpToDate    <nil>  True    0}]\nteam-two/app-name  default  nil                 [{ResourcesUpToDate    <nil>  True    2}]\n"
 	assert.Equal(t, expectation, output)
 }
 
