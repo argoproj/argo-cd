@@ -570,7 +570,7 @@ Exit codes:
 
 			validOutputFormats := []string{"yaml", "json", "wide", ""}
 			if !slices.Contains(validOutputFormats, output) {
-				fmt.Fprintf(c.ErrOrStderr(), "unknown output format: %s", output)
+				fmt.Fprintf(c.ErrOrStderr(), "unknown output format: %s\n", output)
 				os.Exit(1)
 			}
 
@@ -591,7 +591,7 @@ Exit codes:
 				AppNamespace: &appNs,
 			})
 			if err != nil {
-				fmt.Fprintf(c.ErrOrStderr(), "Failed inspecting git gpg source integrity for application %q: %v", appName, err)
+				fmt.Fprintf(c.ErrOrStderr(), "Failed inspecting git gpg source integrity for application %q: %v\n", appName, err)
 				os.Exit(1)
 			}
 
@@ -607,7 +607,7 @@ Exit codes:
 			case "yaml", "json":
 				err := PrintResourceList(data.GetItems(), output, false)
 				if err != nil {
-					fmt.Fprintf(c.ErrOrStderr(), "Failed printing git gpg source integrity response in %s format: %v", output, err)
+					fmt.Fprintf(c.ErrOrStderr(), "Failed printing git gpg source integrity response in %s format: %v\n", output, err)
 					os.Exit(1)
 				}
 			case "wide", "":
