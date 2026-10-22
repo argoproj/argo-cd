@@ -8,7 +8,8 @@ redis-ha:
     masterGroupName: argocd
     config:
       save: '""'
-      bind: '0.0.0.0'
+      # listen on IPv4, and on IPv6 when available ("-" marks the address optional)
+      bind: '* -::*'
   haproxy:
     enabled: true
     IPv6:
@@ -30,7 +31,7 @@ redis-ha:
     # renovate: datasource=docker packageName=docker.io/library/redis
     tag: 8.10.2-alpine
   sentinel:
-    bind: '0.0.0.0'
+    bind: '* -::*'
     lifecycle:
       postStart:
         exec:
