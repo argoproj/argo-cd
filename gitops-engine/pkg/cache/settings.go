@@ -27,6 +27,10 @@ func (f *noopSettings) IsExcludedResource(_, _, _ string) bool {
 	return false
 }
 
+func (f *noopSettings) GetLabelSelector(_, _, _ string) string {
+	return ""
+}
+
 // Settings caching customizations
 type Settings struct {
 	// ResourceHealthOverride contains health assessment overrides
@@ -181,5 +185,26 @@ func SetBatchEventsProcessing(batchProcessing bool) UpdateSettingsFunc {
 func SetEventProcessingInterval(interval time.Duration) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
 		cache.eventProcessingInterval = interval
+	}
+}
+
+// SetManifestCompressionEnabled controls whether manifests are stored compressed or as raw *unstructured.Unstructured
+func SetManifestCompressionEnabled(enabled bool) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.manifestCompressionEnabled = enabled
+	}
+}
+
+// SetManifestStorageType sets the serialization format for cached manifests
+func SetManifestStorageType(storageType ManifestStorageType) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.manifestStorageType = normalizeManifestStorageType(storageType)
+	}
+}
+
+// SetManifestCompressionType sets the compression algorithm for cached manifests
+func SetManifestCompressionType(compressionType ManifestCompressionType) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.manifestCompressionType = normalizeManifestCompressionType(compressionType)
 	}
 }

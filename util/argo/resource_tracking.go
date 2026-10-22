@@ -51,7 +51,7 @@ func IsOldTrackingMethod(trackingMethod string) bool {
 }
 
 func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, installationID string) *AppInstanceValue {
-	if installationID != "" && un.GetAnnotations() == nil || un.GetAnnotations()[common.AnnotationInstallationID] != installationID {
+	if installationID != "" && (un.GetAnnotations() == nil || un.GetAnnotations()[common.AnnotationInstallationID] != installationID) {
 		return nil
 	}
 	appInstanceAnnotation, err := kube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance)

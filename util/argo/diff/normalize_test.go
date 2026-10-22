@@ -111,4 +111,43 @@ func TestNormalize(t *testing.T) {
 		assert.Equal(t, f.lives[0], result.Lives[0])
 		assert.Equal(t, f.targets[0], result.Targets[0])
 	})
+	t.Run("will correctly normalize with ignore configurations and resource ignore difference annotations", func(t *testing.T) {
+		// given
+		t.Parallel()
+		// Only managed fields manager ignore at app level; /spec/replicas is handled by the annotation on the target resource; should have the same outcome as multiple ignore configurations
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:                 "*",
+				Kind:                  "*",
+				ManagedFieldsManagers: []string{"revision-history-manager"},
+			},
+		}
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
+		target := test.YamlToUnstructured(testdata.DesiredDeploymentAnnotationYaml)
+
+		// when
+		normalized, err := diff.Normalize([]*unstructured.Unstructured{live}, []*unstructured.Unstructured{target}, dc)
+
+		// then
+		require.NoError(t, err)
+		require.Len(t, normalized.Targets, 1)
+		// revisionHistoryLimit removed from both by managed fields manager ignore
+		_, ok, err := unstructured.NestedFloat64(normalized.Targets[0].Object, "spec", "revisionHistoryLimit")
+		require.NoError(t, err)
+		require.False(t, ok)
+		_, ok, err = unstructured.NestedFloat64(normalized.Lives[0].Object, "spec", "revisionHistoryLimit")
+		require.NoError(t, err)
+		require.False(t, ok)
+		_, ok, err = unstructured.NestedInt64(normalized.Targets[0].Object, "spec", "replicas")
+		require.NoError(t, err)
+		require.False(t, ok)
+		_, ok, err = unstructured.NestedInt64(normalized.Lives[0].Object, "spec", "replicas")
+		require.NoError(t, err)
+		require.False(t, ok)
+	})
 }
