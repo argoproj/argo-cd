@@ -94,6 +94,16 @@ describe('SourceIntegrityTab', () => {
         expect(screen.queryByText('!https://github.com/example/skip.git')).toBeFalsy();
     });
 
+    test('shows None when a policy has no keys', () => {
+        renderTab(projectWithGitPolicies([{repos: [{url: 'https://github.com/example/app.git'}], gpg: {mode: 'head', keys: []}}]));
+
+        expect(screen.getByText('GIT')).toBeTruthy();
+        expect(screen.getAllByText('KEYS')).toHaveLength(1);
+        expect(screen.getByText('None')).toBeTruthy();
+        expect(screen.getAllByText('REPO-URLS')).toHaveLength(1);
+        expect(screen.getByText('https://github.com/example/app.git')).toBeTruthy();
+    });
+
     test('renders two git GPG policies', () => {
         renderTab(
             projectWithGitPolicies([

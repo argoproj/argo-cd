@@ -167,7 +167,7 @@ function GitSourceIntegritySection({git}: {git?: SourceIntegrityGit}) {
                                 <div className='row white-box__details-row'>
                                     <div className='columns small-2'></div>
                                     <div className='columns small-2'>KEYS</div>
-                                    <div className='columns small-8'>{(policy.gpg?.keys ?? []).join(', ')}</div>
+                                    <div className='columns small-8'>{(policy.gpg?.keys ?? []).length > 0 ? (policy.gpg?.keys ?? []).join(', ') : <div>None</div>}</div>
                                 </div>
                             </>
                         )}
