@@ -681,7 +681,10 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 	if m.rbac == nil {
 		return nil, errors.New("rbac enforcer not set in extension manager")
 	}
-	appRBACName := security.RBACName(rr.ApplicationNamespace, rr.ProjectName, rr.ApplicationNamespace, rr.ApplicationName)
+	// Use the control-plane namespace as RBACName defaultNS (same as application/terminal
+	// handlers). Passing the Application namespace as both defaultNS and namespace collapses
+	// to the 2-segment project/name form and bypasses apps-in-any-namespace RBAC.
+	appRBACName := security.RBACName(m.namespace, rr.ProjectName, rr.ApplicationNamespace, rr.ApplicationName)
 	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionGet, appRBACName); err != nil {
 		return nil, fmt.Errorf("application authorization error: %w", err)
 	}

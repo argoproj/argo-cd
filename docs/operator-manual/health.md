@@ -18,7 +18,7 @@ with at least one value for `hostname` or `IP`.
 
 ### CronJob
 * If the last scheduled job for this CronJob failed, the CronJob will be marked as "Degraded"
-* If the last scheduled job for this CronJob is running, the CronJob will be marked as "Progressing"
+* If the last scheduled job for this CronJob is running, the CronJob will be marked as "Healthy"
 
 ### Job
 * If job `.spec.suspended` is set to 'true', then the job and app health will be marked as suspended.
@@ -384,3 +384,7 @@ metadata:
 ```
 
 By doing this, the health status of the Deployment will not affect the health of its parent Application.
+
+This annotation only affects the health of the Application. It does not change how [sync waves](../user-guide/sync-waves.md)
+wait for the resource to become healthy. To let later waves proceed without waiting for the resource, use the
+[`SkipHealthCheck=true` sync option](../user-guide/sync-options.md#skip-health-check-during-sync).

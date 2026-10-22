@@ -1276,7 +1276,13 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	}
 	mux.Handle("/api/", handler)
 
-	terminalOpts := application.TerminalOptions{DisableAuth: server.DisableAuth, Enf: server.enf}
+	terminalOpts := application.TerminalOptions{
+		DisableAuth:           server.DisableAuth,
+		Enf:                   server.enf,
+		EnableSourceIPLogging: server.EnableSourceIPLogging,
+		TrustedProxies:        server.TrustedProxies,
+		ClientIPHeader:        server.ClientIPHeader,
+	}
 
 	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
 		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
@@ -1754,7 +1760,9 @@ type bug21955Workaround struct {
 var pathPatters = []*regexp.Regexp{
 	regexp.MustCompile(`/api/v1/clusters/[^/]+`),
 	regexp.MustCompile(`/api/v1/repositories/[^/]+`),
+	regexp.MustCompile(`/api/v1/write-repositories/[^/]+`),
 	regexp.MustCompile(`/api/v1/repocreds/[^/]+`),
+	regexp.MustCompile(`/api/v1/write-repocreds/[^/]+`),
 	regexp.MustCompile(`/api/v1/repositories/[^/]+/apps`),
 	regexp.MustCompile(`/api/v1/repositories/[^/]+/apps/[^/]+`),
 	regexp.MustCompile(`/settings/clusters/[^/]+`),
