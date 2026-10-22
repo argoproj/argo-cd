@@ -755,6 +755,7 @@ func TestHelmChartReferencingExternalValues_RefSourceDepthIsHonored(t *testing.T
 	require.NoError(t, err)
 	assert.NotNil(t, response)
 }
+
 func TestHelmChartReferencingSameRepoAndRevision_ConcurrentCommit(t *testing.T) {
 	const (
 		repoURL   = "https://git.example.com/test/repo"
