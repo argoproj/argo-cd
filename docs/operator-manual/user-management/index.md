@@ -160,6 +160,12 @@ There are two ways that SSO can be configured:
 
 ### Automatic SSO login
 
+> [!WARNING]
+> **Beta Feature (Since v3.7.0)**
+>
+> This is a [beta-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta)
+> feature. The common cases work, but how the login page decides when to redirect may still change.
+
 By default, the login page shows an SSO login button that users have to click. To send users to the SSO provider as soon as
 they open the login page, set `sso.autoLogin` to `"true"` in the `argocd-cm` ConfigMap:
 
