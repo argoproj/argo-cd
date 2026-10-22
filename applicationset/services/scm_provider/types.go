@@ -2,7 +2,8 @@ package scm_provider
 
 import (
 	"context"
-	"regexp"
+
+	"github.com/dlclark/regexp2"
 )
 
 // An abstract repository from an API provider.
@@ -24,11 +25,11 @@ type SCMProviderService interface {
 
 // A compiled version of SCMProviderGeneratorFilter for performance.
 type Filter struct {
-	RepositoryMatch *regexp.Regexp
+	RepositoryMatch *regexp2.Regexp
 	PathsExist      []string
 	PathsDoNotExist []string
-	LabelMatch      *regexp.Regexp
-	BranchMatch     *regexp.Regexp
+	LabelMatch      *regexp2.Regexp
+	BranchMatch     *regexp2.Regexp
 	FilterType      FilterType
 }
 

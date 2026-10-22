@@ -2,7 +2,8 @@ package pull_request
 
 import (
 	"context"
-	"regexp"
+
+	"github.com/dlclark/regexp2"
 )
 
 type PullRequest struct {
@@ -29,7 +30,7 @@ type PullRequestService interface {
 }
 
 type Filter struct {
-	BranchMatch       *regexp.Regexp
-	TargetBranchMatch *regexp.Regexp
-	TitleMatch        *regexp.Regexp
+	BranchMatch       *regexp2.Regexp
+	TargetBranchMatch *regexp2.Regexp
+	TitleMatch        *regexp2.Regexp
 }
