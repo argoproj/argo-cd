@@ -385,6 +385,45 @@ func TestSyncStrictModeFailsOnShallowRepo(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "shallow repository lacks history required for deep signature verification, use full clone"))
 }
 
+func TestSyncStrictModeSucceedsAfterRemovingShallowDepth(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+
+	Given(t).
+		Project("gpg").
+		ProjectSpec(projectWithHeadMode).
+		Path(guestbookPath).
+		HTTPSInsecureRepoURLAdded(true, repos.WithDepth(1)).
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedSealCommit().
+		AddSignedFile("test.yaml", "null").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions()).
+		Given().
+		// Switch to strict mode and remove shallow depth
+		ProjectSpec(projectWithStrictMode).
+		HTTPSInsecureRepoURLAdded(true, repos.WithUpsert()).
+		When().
+		AddSignedFile("test-after-full-clone.yaml", "null").
+		IgnoreErrors().
+		Refresh(RefreshTypeHard).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions())
+}
+
 func TestNamespacedSyncToUnsignedCommit(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
 	fixture.EnsureCleanState(t)
