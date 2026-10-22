@@ -3159,7 +3159,7 @@ func TestProcessRequestedAppOperation_FailedRetryHonorsTerminating(t *testing.T)
 	// the fresh read the retry path performs observes Terminating.
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	flipped := false
-	fakeAppCs.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	fakeAppCs.PrependReactor("get", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if !flipped {
 			flipped = true
 			fresh := app.DeepCopy()
