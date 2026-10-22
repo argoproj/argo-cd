@@ -22,6 +22,9 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     tzdata \
     connect-proxy
 
+# eMudhra CA compromise fix
+RUN sed -i 's@^mozilla/emSign_ECC_Root_CA_-_G3.crt@!&@' /etc/ca-certificates.conf && update-ca-certificate
+
 RUN go install github.com/go-delve/delve/cmd/dlv@latest
 
 COPY hack/install.sh hack/tool-versions.sh ./
