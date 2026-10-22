@@ -1792,6 +1792,11 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 					if freshApp.Status.OperationState.Phase == synccommon.OperationTerminating {
 						state.Phase = synccommon.OperationTerminating
 						state.Message = "operation is terminating"
+						// The retry marker (FinishedAt set on a Running phase) only
+						// means anything while the phase is Running; drop it so the
+						// persisted Terminating state has the same shape as the
+						// Running case writes above.
+						state.FinishedAt = nil
 					} else {
 						persistedPhase = freshApp.Status.OperationState.Phase
 					}

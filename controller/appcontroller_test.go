@@ -3179,6 +3179,7 @@ func TestProcessRequestedAppOperation_FailedRetryHonorsTerminating(t *testing.T)
 	require.NotNil(t, patchedApp.Status.OperationState)
 	assert.Equal(t, synccommon.OperationTerminating, patchedApp.Status.OperationState.Phase, "the retry must not overwrite a concurrently observed Terminating phase with Running")
 	assert.Contains(t, patchedApp.Status.OperationState.Message, "operation is terminating")
+	assert.Nil(t, patchedApp.Status.OperationState.FinishedAt, "the retry marker (FinishedAt on a non-completed phase) must not leak into the persisted Terminating state")
 }
 
 func TestProcessRequestedAppOperation_FailedRetryMessageTime(t *testing.T) {
