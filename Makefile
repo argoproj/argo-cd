@@ -709,6 +709,11 @@ install-go-tools-local:
 	./hack/install.sh actionlint
 	./hack/install.sh kubeconform
 
+# Checks that the locally installed tools match the versions used in CI
+.PHONY: check-tools-local
+check-tools-local:
+	./hack/check-tools.sh
+
 .PHONY: dep-ui
 dep-ui: test-tools-image
 	$(call run-in-test-client,make dep-ui-local)
