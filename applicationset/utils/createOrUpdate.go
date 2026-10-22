@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -23,6 +24,8 @@ import (
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
+
+const AppSetControllerUsername = "applicationset-controller"
 
 var appEquality = conversion.EqualitiesOrDie(
 	func(a, b resource.Quantity) bool {
@@ -103,6 +106,13 @@ func SpecsEquivalent(diffConfig argodiff.DiffConfig, live, desired *argov1alpha1
 // cluster is normalized internally.
 //
 // The MutateFn is called regardless of creating or updating an object.
+// When generating an Operation, MutateFn must assign a new Operation pointer to
+// obj.Operation; it must not mutate the existing Operation in place. Operation is
+// excluded from MergeFrom and written only via a JSON-patch add when desiredOp !=
+// cacheOp.
+//
+// MergeFrom and the optional Operation JSON-patch are not atomic; a failed second
+// write leaves a partial update until the next reconcile retries.
 //
 // It returns the executed operation and an error.
 func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, diffConfig argodiff.DiffConfig, obj *argov1alpha1.Application, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
@@ -120,12 +130,23 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, dif
 		return controllerutil.OperationResultCreated, nil
 	}
 
+	cacheOp := obj.Operation
 	normalizedLive := obj.DeepCopy()
 
 	// Mutate the live object to match the desired state.
 	if err := mutate(f, key, obj); err != nil {
 		return controllerutil.OperationResultNone, err
 	}
+
+	desiredOp := obj.Operation
+	generatedAssigned := desiredOp != cacheOp
+	// MergeFrom is RFC 7386. A stale Get (Operation==nil) while the API object
+	// already has sync.resources produces a patch with no resources key and
+	// keeps the leftover filter. Never send Operation through MergeFrom.
+	obj.Operation = cacheOp
+
+	alreadyFullAppSet := cacheOp != nil && cacheOp.InitiatedBy.Username == AppSetControllerUsername && cacheOp.Sync != nil && len(cacheOp.Sync.Resources) == 0
+	shouldWriteOp := generatedAssigned && desiredOp != nil && (cacheOp == nil || cacheOp.InitiatedBy.Username == AppSetControllerUsername) && !alreadyFullAppSet
 
 	// Normalize the live spec to avoid spurious diffs from unimportant differences (e.g. nil vs
 	// empty SyncPolicy). obj.Spec is already normalized by the caller; only the live side needs it.
@@ -138,22 +159,33 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, dif
 		return controllerutil.OperationResultNone, fmt.Errorf("failed to apply ignore differences: %w", err)
 	}
 
-	// Note: if the informer cache holds a stale entry for an application that no longer exists on
-	// the API server, DeepEqual may match against that stale entry and we skip Patch here. The
-	// eviction in cacheSyncingClient only runs on NotFound from a write operation, so this edge
-	// case is not covered and relies on Kubernetes propagating the delete event to the informer.
-	if appEquality.DeepEqual(normalizedLive, obj) {
-		return controllerutil.OperationResultNone, nil
+	result := controllerutil.OperationResultNone
+	if !appEquality.DeepEqual(normalizedLive, obj) {
+		patch := client.MergeFrom(normalizedLive)
+		if log.IsLevelEnabled(log.DebugLevel) {
+			LogPatch(logCtx, patch, obj)
+		}
+		if err := c.Patch(ctx, obj, patch); err != nil {
+			return controllerutil.OperationResultNone, err
+		}
+		result = controllerutil.OperationResultUpdated
 	}
 
-	patch := client.MergeFrom(normalizedLive)
-	if log.IsLevelEnabled(log.DebugLevel) {
-		LogPatch(logCtx, patch, obj)
+	if shouldWriteOp {
+		patch, err := json.Marshal([]map[string]any{
+			{"op": "add", "path": "/operation", "value": desiredOp},
+		})
+		if err != nil {
+			return result, fmt.Errorf("marshal operation patch: %w", err)
+		}
+		if err := c.Patch(ctx, obj, client.RawPatch(types.JSONPatchType, patch)); err != nil {
+			return result, err
+		}
+		obj.Operation = desiredOp
+		result = controllerutil.OperationResultUpdated
 	}
-	if err := c.Patch(ctx, obj, patch); err != nil {
-		return controllerutil.OperationResultNone, err
-	}
-	return controllerutil.OperationResultUpdated, nil
+
+	return result, nil
 }
 
 func LogPatch(logCtx *log.Entry, patch client.Patch, obj *argov1alpha1.Application) {
