@@ -484,7 +484,7 @@ func printApplicationSetTable(apps []argoappsetv1.ApplicationSet, output *string
 			app.Spec.Template.Spec.Project,
 			app.Spec.SyncPolicy,
 			app.Status.Health.Status,
-			formatConditions(app.Status.Conditions),
+			FormatConditions(app.Status.Conditions),
 		}
 		if *output == "wide" {
 			vals = append(vals, app.Spec.Template.Spec.GetSource().RepoURL, app.Spec.Template.Spec.GetSource().Path, app.Spec.Template.Spec.GetSource().TargetRevision)
@@ -494,7 +494,7 @@ func printApplicationSetTable(apps []argoappsetv1.ApplicationSet, output *string
 	_ = w.Flush()
 }
 
-func formatConditions(conditions []argoappsetv1.ApplicationSetCondition) string {
+func FormatConditions(conditions []argoappsetv1.ApplicationSetCondition) string {
 	fmtStr := "{%s\t%s\t%s\t%s\t%s\t%d}"
 	res := make([]string, len(conditions))
 	for index, condition := range conditions {

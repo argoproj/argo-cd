@@ -15,6 +15,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
 )
 
 type state = string
@@ -114,7 +115,7 @@ func ApplicationSetHasConditions(expectedConditions []v1alpha1.ApplicationSetCon
 			if err != nil {
 				return failed, err.Error()
 			}
-			return pending, fmt.Sprintf("application set conditions are not equal: '%s', diff: %s\n", expectedConditions, diff)
+			return pending, fmt.Sprintf("application set conditions are not equal: '%s', diff: %s\n", commands.FormatConditions(expectedConditions), diff)
 		}
 		return succeeded, "application set successfully found"
 	}

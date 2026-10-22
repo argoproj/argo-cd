@@ -173,8 +173,8 @@ func TestPrintApplicationSetTable(t *testing.T) {
 			Status: v1alpha1.ApplicationSetStatus{
 				Conditions: []v1alpha1.ApplicationSetCondition{
 					{
-						Status: v1alpha1.ApplicationSetConditionStatusTrue,
-						Type:   v1alpha1.ApplicationSetConditionResourcesUpToDate,
+						Status:             v1alpha1.ApplicationSetConditionStatusTrue,
+						Type:               v1alpha1.ApplicationSetConditionResourcesUpToDate,
 						ObservedGeneration: 2,
 					},
 				},
