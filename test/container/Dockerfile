@@ -44,6 +44,9 @@ RUN  apt-get update && apt-get install --fix-missing -y \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+# eMudhra CA compromise fix
+RUN sed -i 's@^mozilla/emSign_ECC_Root_CA_-_G3.crt@!&@' /etc/ca-certificates.conf && update-ca-certificates
+
 COPY --from=golang /usr/local/go /usr/local/go
 
 COPY --from=kubectl /opt/bitnami/kubectl/bin/kubectl /usr/local/bin/kubectl
