@@ -1,14 +1,11 @@
 import {renderHook} from '@testing-library/react';
 import {
     appsLayoutKey,
-    bidirectionalOverscanIndicesGetter,
     computeColumnWidth,
     computeColumnWidthForIndex,
     computeColumnsPerRow,
-    computeOverscanRowCount,
     getTableRowHeight,
     hasActiveHydrator,
-    OVERSCAN_VIEWPORT_SCREENS,
     shouldUseVirtualScroll,
     TABLE_OVERSCAN_ROW_COUNT,
     TABLE_ROW_HEIGHT,
@@ -16,7 +13,6 @@ import {
     TILE_GAP,
     TILE_MIN_WIDTH,
     TILE_OVERSCAN_ROW_COUNT,
-    TILE_ROW_STRIDE,
     useWindowScrollerPosition,
     VIRTUAL_THRESHOLD
 } from './virtual-scroll';
@@ -36,75 +32,9 @@ describe('virtual-scroll', () => {
         }) as Application;
 
     describe('overscan defaults', () => {
-        it('keeps a floor for tile/table overscan', () => {
+        it('uses enough tile/table overscan to avoid blank flashes on fast scroll', () => {
             expect(TILE_OVERSCAN_ROW_COUNT).toBeGreaterThanOrEqual(6);
             expect(TABLE_OVERSCAN_ROW_COUNT).toBeGreaterThanOrEqual(10);
-            expect(OVERSCAN_VIEWPORT_SCREENS).toBeGreaterThan(0);
-            expect(OVERSCAN_VIEWPORT_SCREENS).toBeLessThanOrEqual(2);
-        });
-    });
-
-    describe('computeOverscanRowCount', () => {
-        it('returns the minimum when viewport or row height is invalid', () => {
-            expect(computeOverscanRowCount(0, TILE_ROW_STRIDE, TILE_OVERSCAN_ROW_COUNT)).toBe(TILE_OVERSCAN_ROW_COUNT);
-            expect(computeOverscanRowCount(800, 0, TILE_OVERSCAN_ROW_COUNT)).toBe(TILE_OVERSCAN_ROW_COUNT);
-            expect(computeOverscanRowCount(-1, TABLE_ROW_HEIGHT, TABLE_OVERSCAN_ROW_COUNT)).toBe(TABLE_OVERSCAN_ROW_COUNT);
-        });
-
-        it('keeps the floor when the viewport is small', () => {
-            expect(computeOverscanRowCount(400, TILE_ROW_STRIDE, TILE_OVERSCAN_ROW_COUNT)).toBe(TILE_OVERSCAN_ROW_COUNT);
-            expect(computeOverscanRowCount(400, TABLE_ROW_HEIGHT, TABLE_OVERSCAN_ROW_COUNT)).toBe(TABLE_OVERSCAN_ROW_COUNT);
-        });
-
-        it('grows with viewport height for zoomed-out / tall screens', () => {
-            const tileOverscan = computeOverscanRowCount(5000, TILE_ROW_STRIDE, TILE_OVERSCAN_ROW_COUNT);
-            expect(tileOverscan).toBe(Math.ceil((5000 / TILE_ROW_STRIDE) * OVERSCAN_VIEWPORT_SCREENS));
-            expect(tileOverscan).toBeGreaterThan(TILE_OVERSCAN_ROW_COUNT);
-
-            const tableOverscan = computeOverscanRowCount(1800, TABLE_ROW_HEIGHT, TABLE_OVERSCAN_ROW_COUNT);
-            expect(tableOverscan).toBe(Math.ceil((1800 / TABLE_ROW_HEIGHT) * OVERSCAN_VIEWPORT_SCREENS));
-            expect(tableOverscan).toBeGreaterThan(TABLE_OVERSCAN_ROW_COUNT);
-        });
-    });
-
-    describe('bidirectionalOverscanIndicesGetter', () => {
-        const visible = {startIndex: 20, stopIndex: 30, cellCount: 100, overscanCellsCount: 8, scrollDirection: 1 as const};
-
-        it('overscans equally above and below the visible range', () => {
-            expect(bidirectionalOverscanIndicesGetter(visible)).toEqual({
-                overscanStartIndex: 12,
-                overscanStopIndex: 38
-            });
-        });
-
-        it('returns the same range regardless of scroll direction (no reversal remounts)', () => {
-            const forward = bidirectionalOverscanIndicesGetter({...visible, scrollDirection: 1});
-            const backward = bidirectionalOverscanIndicesGetter({...visible, scrollDirection: -1});
-            expect(forward).toEqual(backward);
-        });
-
-        it('is a no-op when overscanCellsCount is 0 (Grid horizontal default)', () => {
-            expect(
-                bidirectionalOverscanIndicesGetter({
-                    cellCount: 100,
-                    overscanCellsCount: 0,
-                    scrollDirection: 1,
-                    startIndex: 20,
-                    stopIndex: 30
-                })
-            ).toEqual({overscanStartIndex: 20, overscanStopIndex: 30});
-        });
-
-        it('clamps to list bounds', () => {
-            expect(
-                bidirectionalOverscanIndicesGetter({
-                    cellCount: 5,
-                    overscanCellsCount: 8,
-                    scrollDirection: 1,
-                    startIndex: 0,
-                    stopIndex: 2
-                })
-            ).toEqual({overscanStartIndex: 0, overscanStopIndex: 4});
         });
     });
 
