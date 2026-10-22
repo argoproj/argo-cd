@@ -3146,6 +3146,41 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	assert.EqualValues(t, 1, patchedApp.Status.OperationState.RetryCount)
 }
 
+func TestProcessRequestedAppOperation_FailedRetryHonorsTerminating(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "invalid-project"
+	app.Operation = &v1alpha1.Operation{
+		Sync:  &v1alpha1.SyncOperation{},
+		Retry: v1alpha1.RetryStrategy{Limit: 1},
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+	// A terminate-op lands between the failed sync attempt and the retry write, so
+	// the fresh read the retry path performs observes Terminating.
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	flipped := false
+	fakeAppCs.PrependReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if !flipped {
+			flipped = true
+			fresh := app.DeepCopy()
+			fresh.Status.OperationState = &v1alpha1.OperationState{
+				Operation: *app.Operation,
+				Phase:     synccommon.OperationTerminating,
+			}
+			return true, fresh, nil
+		}
+		return false, nil, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationTerminating, patchedApp.Status.OperationState.Phase, "the retry must not overwrite a concurrently observed Terminating phase with Running")
+	assert.Contains(t, patchedApp.Status.OperationState.Message, "operation is terminating")
+}
+
 func TestProcessRequestedAppOperation_FailedRetryMessageTime(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Project = "invalid-project"
@@ -5022,20 +5057,22 @@ func TestSetOperationStateWithPrecondition(t *testing.T) {
 			var ops []map[string]any
 			if json.Unmarshal(patchAction.GetPatch(), &ops) == nil && len(ops) > 0 && ops[0]["op"] == "test" {
 				if ops[0]["value"] != string(synccommon.OperationTerminating) {
-					// The controller tried to write a Running state while the server holds
-					// Terminating, so the server rejects the test op.
-					return true, nil, apierrors.NewConflict(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, app.Name, errors.New("test failed"))
+					// The controller tried to write a Running state while the server
+					// holds Terminating, so the server rejects the test op. A real
+					// apiserver answers a failed JSON Patch test with 422.
+					return true, nil, apierrors.NewGenericServerResponse(http.StatusUnprocessableEntity, "patch", schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, app.Name, "the server rejected our request: testing value /status/operationState/phase failed", 0, false)
 				}
 			}
 			return false, nil, nil
 		})
 
-		// We are about to persist Running, but the server is now Terminating, so the test op
-		// must fail and the write must be rejected. Use a short-lived context so the internal
-		// retry loop gives up promptly instead of retrying forever against the fake.
-		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
-		defer cancel()
-		ctrl.setOperationStateWithPrecondition(ctx, app, newState.DeepCopy(), synccommon.OperationRunning)
+		// We are about to persist Running, but the server is now Terminating, so the test
+		// op must fail and the write must be rejected. The compare-and-swap failure is not
+		// transient: setOperationStateWithPrecondition stops retrying and backs off without
+		// writing, so this returns promptly without an extra context deadline, the way
+		// production calls it (context.Background, no deadline), and the caller's requeue
+		// lets the next reconcile observe Terminating.
+		ctrl.setOperationStateWithPrecondition(t.Context(), app, newState.DeepCopy(), synccommon.OperationRunning)
 
 		stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)

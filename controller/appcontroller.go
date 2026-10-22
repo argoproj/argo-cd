@@ -1784,11 +1784,17 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				state.FinishedAt = &now
 				state.RetryCount++
 				state.Message = fmt.Sprintf("%s. Retrying attempt #%d at %s.", state.Message, state.RetryCount, retryAt.UTC().Format(time.RFC3339))
-				// The retry carries the operation into Running; read the persisted phase
-				// so the final write can guard against a concurrent terminate-op.
-				if freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{}); err == nil &&
-					freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase != synccommon.OperationTerminating {
-					persistedPhase = freshApp.Status.OperationState.Phase
+				// A terminate-op may have landed while the sync attempt was running. Honor
+				// it instead of retrying, and record the persisted phase so the final
+				// write is guarded the same way the Running case is.
+				freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
+				if err == nil && freshApp.Status.OperationState != nil {
+					if freshApp.Status.OperationState.Phase == synccommon.OperationTerminating {
+						state.Phase = synccommon.OperationTerminating
+						state.Message = "operation is terminating"
+					} else {
+						persistedPhase = freshApp.Status.OperationState.Phase
+					}
 				}
 			}
 		} else {
@@ -1881,6 +1887,7 @@ func (ctrl *ApplicationController) setOperationStateWithPrecondition(ctx context
 	}
 
 	var nonRetryableError error
+	preconditionFailed := false
 	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
 		_, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.JSONPatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
@@ -1894,6 +1901,23 @@ func (ctrl *ApplicationController) setOperationStateWithPrecondition(ctx context
 				nonRetryableError = err
 				return nil
 			}
+
+			if expectedPhase != "" {
+				var status apierrors.APIStatus
+				if stderrors.As(err, &status) && status.Status().Code == http.StatusUnprocessableEntity {
+					// The JSON Patch "test" op failed: another writer (e.g. `argocd app
+					// terminate-op`) changed the phase between the read that produced
+					// expectedPhase and this write. patchJSON still carries the stale
+					// expectation, so retrying it can never succeed and would pin this
+					// worker in the loop until the app is deleted. Back off without
+					// writing: the deferred requeue re-reads the Application and the
+					// next reconcile observes the phase that won.
+					preconditionFailed = true
+					logCtx.WithError(err).Warn("operation state precondition failed; deferring to the concurrently written phase")
+					return nil
+				}
+			}
+
 			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
 			// warning.
 			logCtx.WithError(err).Warn("error patching application with operation state")
@@ -1901,6 +1925,13 @@ func (ctrl *ApplicationController) setOperationStateWithPrecondition(ctx context
 		}
 		return nil
 	})
+
+	// The compare-and-swap lost: nothing was written, so skip the "updated" log and the
+	// completion telemetry. The deferred requeue in processRequestedAppOperation takes
+	// over from the state the server actually holds.
+	if preconditionFailed {
+		return
+	}
 
 	// persistedState is the operation state actually written to the server. On the happy path
 	// that's the state we were asked to persist; on the fallback path it's a different, shrunken
