@@ -929,6 +929,69 @@ func TestGenerateJsonnetLibOutside(t *testing.T) {
 	require.ErrorContains(t, err, "file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
 }
 
+func TestGenerateJsonnetImportAbsoluteOutsideRepoRoot(t *testing.T) {
+	service := newService(t, ".")
+
+	q := apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:      "./testdata/jsonnet-import-abs-outside",
+			Directory: &v1alpha1.ApplicationSourceDirectory{},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	_, err := service.GenerateManifest(t.Context(), &q)
+	require.ErrorContains(t, err, "resolves outside repository root")
+}
+
+func TestGenerateJsonnetImportTraversalOutsideRepoRoot(t *testing.T) {
+	service := newService(t, ".")
+
+	q := apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:      "./testdata/jsonnet-import-traversal-outside",
+			Directory: &v1alpha1.ApplicationSourceDirectory{},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	_, err := service.GenerateManifest(t.Context(), &q)
+	require.ErrorContains(t, err, "resolves outside repository root")
+}
+
+// A non-terminating virtual file like /dev/zero must be rejected before it
+// is read: go-jsonnet's FileImporter reads the whole file into memory
+// unconditionally, so validating only after that read would let an import
+// of /dev/zero hang and exhaust repo-server memory rather than error out.
+func TestGenerateJsonnetImportDeviceFileOutsideRepoRoot(t *testing.T) {
+	service := newService(t, ".")
+
+	q := apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:      "./testdata/jsonnet-import-device-outside",
+			Directory: &v1alpha1.ApplicationSourceDirectory{},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := service.GenerateManifest(t.Context(), &q)
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		require.ErrorContains(t, err, "resolves outside repository root")
+	case <-time.After(10 * time.Second):
+		t.Fatal("GenerateManifest did not return: import of /dev/zero must be rejected before it is read")
+	}
+}
+
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 	// Returns the state of the manifest generation cache, by querying the cache for the previously set result
 	getRecentCachedEntry := func(service *Service, manifestRequest *apiclient.ManifestRequest) *cache.CachedManifestResponse {
@@ -3280,12 +3343,16 @@ func Test_findManifests(t *testing.T) {
 	})
 
 	t.Run("jsonnet isn't counted against size limit", func(t *testing.T) {
+		// repoRoot must be absolute: the jsonnet importer confines resolved imports to repoRoot.
+		repoRoot, err := filepath.Abs("./testdata/jsonnet-and-json")
+		require.NoError(t, err)
+
 		// Each file is 36 bytes. Only the 36-byte json file should be counted against the limit.
-		manifests, err := findManifests(logCtx, "./testdata/jsonnet-and-json", "./testdata/jsonnet-and-json", nil, noRecurse, nil, resource.MustParse("36"))
+		manifests, err := findManifests(logCtx, repoRoot, repoRoot, nil, noRecurse, nil, resource.MustParse("36"))
 		assert.Len(t, manifests, 2)
 		require.NoError(t, err)
 
-		manifests, err = findManifests(logCtx, "./testdata/jsonnet-and-json", "./testdata/jsonnet-and-json", nil, noRecurse, nil, resource.MustParse("35"))
+		manifests, err = findManifests(logCtx, repoRoot, repoRoot, nil, noRecurse, nil, resource.MustParse("35"))
 		assert.Empty(t, manifests)
 		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
 	})
@@ -5699,6 +5766,45 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
 			Changes:  false,
 		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
+			ExternalGets:    0,
+			ExternalSets:    0,
+		}},
+		{name: "UntypedHelmSingleSourceShortCircuits", fields: func() fields {
+			// Regression test for issue #29388: a single source application with an
+			// untyped Helm chart source (Type is empty, no ref sources at all) and the
+			// manifest-generate-paths annotation must not be treated as git. Before the
+			// fix, Normalize defaulted the empty type to git and the chart version was
+			// resolved as a git revision against the Helm repository URL, failing with
+			// "unable to resolve git revision : failed to list refs: repository not
+			// found". The mocks below make any git resolution fail so that the test only
+			// passes when the git path is skipped entirely.
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().LsRemote(mock.Anything).Return("", errors.New("failed to list refs: repository not found"))
+				gitClient.EXPECT().Root().Return("")
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:              &v1alpha1.Repository{Repo: "https://charts.example.com"},
+				Revision:          "1.2.3",
+				SyncedRevision:    "1.2.2",
+				Paths:             []string{"."},
+				AppLabelKey:       "app.kubernetes.io/name",
+				AppName:           "untyped-helm-single-source",
+				Namespace:         "default",
+				TrackingMethod:    "annotation+label",
+				ApplicationSource: &v1alpha1.ApplicationSource{Chart: "my-chart", Helm: &v1alpha1.ApplicationSourceHelm{ReleaseName: "test"}},
+				KubeVersion:       "v1.16.0",
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
 			ExternalRenames: 0,
 			ExternalGets:    0,
 			ExternalSets:    0,
