@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: retry-analysis
+  namespace: default
+spec:
+  replicas: 3
+  paused: false
+  selector:
+    matchLabels:
+      app: retry-analysis
+  template:
+    metadata:
+      labels:
+        app: retry-analysis
+    spec:
+      containers:
+      - name: app
+        image: nginx:1.19-alpine
+  strategy:
+    canary:
+      analysis:
+        templates:
+        - templateName: success-rate
+      steps:
+      - setWeight: 20
+      - analysis:
+          templates:
+          - templateName: success-rate
+status:
+  abortedAt: '2020-11-13T08:38:19Z'
+  currentPodHash: candidate
+  stableRS: stable
+  controllerPause: true
+  pauseConditions:
+  - reason: InconclusiveAnalysis
+    startTime: '2020-11-13T08:37:53Z'
+  currentStepIndex: 1
+  currentStepHash: steps
+  canary:
+    weights:
+      canary:
+        weight: 0
+      stable:
+        weight: 100
