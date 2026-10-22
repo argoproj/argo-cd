@@ -678,7 +678,7 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 				revisions = append(revisions, commit.GetRevision())
 			}
 			if len(revisions) > 0 {
-				fmt.Fprintf(w, "  git log -p --no-walk %s\n", strings.Join(revisions, " "))
+				fmt.Fprintf(w, "  git log -p --no-walk %s [--show-signature]\n", strings.Join(revisions, " "))
 			}
 		}
 	}
