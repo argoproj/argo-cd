@@ -13,9 +13,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
 )
 
 type state = string
