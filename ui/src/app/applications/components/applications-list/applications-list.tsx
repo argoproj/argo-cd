@@ -16,6 +16,7 @@ import * as AppUtils from '../utils';
 import {ApplicationsFilter, FilteredApp, getAppFilterResults} from './applications-filter';
 import {createMatcher} from './applications-list-search';
 import {showCreateFirstAppState} from './applications-list-empty-state';
+import {closeSyncPanelParams, openSyncPanelParams, syncPanelTarget} from './applications-list-sync-panel';
 import {AppsStatusBar} from './applications-status-bar';
 import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
@@ -568,7 +569,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                 <ApplicationTiles
                                                                                     applications={data}
                                                                                     syncApplication={(appName, appNamespace) =>
-                                                                                        ctx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true})
+                                                                                        ctx.navigation.goto('.', openSyncPanelParams(appName, appNamespace), {replace: true})
                                                                                     }
                                                                                     refreshApplication={refreshApp}
                                                                                     deleteApplication={(appName, appNamespace) =>
@@ -581,7 +582,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                 <ApplicationsTable
                                                                                     applications={data}
                                                                                     syncApplication={(appName, appNamespace) =>
-                                                                                        ctx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true})
+                                                                                        ctx.navigation.goto('.', openSyncPanelParams(appName, appNamespace), {replace: true})
                                                                                     }
                                                                                     refreshApplication={refreshApp}
                                                                                     deleteApplication={(appName, appNamespace) =>
@@ -613,9 +614,8 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                         load={() =>
                                                             observableQuery$.pipe(
                                                                 mergeMap(params => {
-                                                                    const syncApp = params.get('syncApp');
-                                                                    const appNamespace = params.get('appNamespace');
-                                                                    return (syncApp && from(services.applications.get(syncApp, appNamespace, 'application'))) || from([null]);
+                                                                    const {appName, appNamespace} = syncPanelTarget(params);
+                                                                    return (appName && from(services.applications.get(appName, appNamespace, 'application'))) || from([null]);
                                                                 })
                                                             )
                                                         }>
@@ -624,7 +624,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                 key='syncPanel'
                                                                 application={app}
                                                                 selectedResource={'all'}
-                                                                hide={() => ctx.navigation.goto('.', {syncApp: null}, {replace: true})}
+                                                                hide={() => ctx.navigation.goto('.', closeSyncPanelParams, {replace: true})}
                                                             />
                                                         )}
                                                     </DataLoader>
