@@ -1902,20 +1902,17 @@ func (ctrl *ApplicationController) setOperationStateWithPrecondition(ctx context
 				return nil
 			}
 
-			if expectedPhase != "" {
-				var status apierrors.APIStatus
-				if stderrors.As(err, &status) && status.Status().Code == http.StatusUnprocessableEntity {
-					// The JSON Patch "test" op failed: another writer (e.g. `argocd app
-					// terminate-op`) changed the phase between the read that produced
-					// expectedPhase and this write. patchJSON still carries the stale
-					// expectation, so retrying it can never succeed and would pin this
-					// worker in the loop until the app is deleted. Back off without
-					// writing: the deferred requeue re-reads the Application and the
-					// next reconcile observes the phase that won.
-					preconditionFailed = true
-					logCtx.WithError(err).Warn("operation state precondition failed; deferring to the concurrently written phase")
-					return nil
-				}
+			if expectedPhase != "" && apierrors.IsInvalid(err) {
+				// The JSON Patch "test" op failed: another writer (e.g. `argocd app
+				// terminate-op`) changed the phase between the read that produced
+				// expectedPhase and this write. patchJSON still carries the stale
+				// expectation, so retrying it can never succeed and would pin this
+				// worker in the loop until the app is deleted. Back off without
+				// writing: the deferred requeue re-reads the Application and the
+				// next reconcile observes the phase that won.
+				preconditionFailed = true
+				logCtx.WithError(err).Warn("operation state precondition failed; deferring to the concurrently written phase")
+				return nil
 			}
 
 			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
