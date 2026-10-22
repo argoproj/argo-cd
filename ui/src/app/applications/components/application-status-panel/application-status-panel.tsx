@@ -31,6 +31,7 @@ import './application-status-panel.scss';
 interface Props {
     application: models.Application;
     collapsed?: boolean;
+    hasDebugContainer?: boolean;
     showDiff?: () => any;
     showOperation?: () => any;
     showHydrateOperation?: () => any;
@@ -224,7 +225,17 @@ const ProgressiveSyncStatus = ({application, collapsed}: {application: models.Ap
     );
 };
 
-export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
+export const ApplicationStatusPanel = ({
+    application,
+    collapsed,
+    hasDebugContainer,
+    showDiff,
+    showOperation,
+    showHydrateOperation,
+    showConditions,
+    showExtension,
+    showMetadataInfo
+}: Props) => {
     // Keep the full panel mounted once shown: unmounting it on collapse would re-run its
     // data loaders (and re-fire their requests) on every expand.
     const [everExpanded, setEverExpanded] = React.useState(!collapsed);
@@ -416,6 +427,11 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                                     </a>
                                 ) : (
                                     <ComparisonStatusIcon status={application.status.sync.status} label={true} />
+                                )}
+                                {hasDebugContainer && (
+                                    <span className='application-status-panel__item-name' style={{marginLeft: '5px'}}>
+                                        (Debug Container Attached)
+                                    </span>
                                 )}
                             </div>
                             <div className='application-status-panel__item-value__revision show-for-large'>{renderSyncStatusRevision(application)}</div>
