@@ -2661,6 +2661,7 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 		if q.Repo.Type == "git" {
 			mainRepoURL = git.NormalizeGitURL(q.Repo.Repo)
 		}
+		sourceRevision := textutils.FirstNonEmpty(q.Source.TargetRevision, revision)
 		refNames := []string{}
 		for refName := range getReferencedSources(selectedValueFiles, q.RefSources) {
 			refNames = append(refNames, refName)
@@ -2675,7 +2676,7 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 			var gitClient git.Client
 			var refSHA string
 			gitClientOpts := git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache)
-			if isSameRepoAndRevision(mainRepoURL, q.Source.TargetRevision, refSource) {
+			if isSameRepoAndRevision(mainRepoURL, sourceRevision, refSource) {
 				gitClient, err = s.newClient(&refSource.Repo, gitClientOpts)
 				refSHA = commitSHA
 			} else {

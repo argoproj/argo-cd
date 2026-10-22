@@ -756,7 +756,7 @@ func TestHelmChartReferencingExternalValues_RefSourceDepthIsHonored(t *testing.T
 	assert.NotNil(t, response)
 }
 
-func TestHelmChartReferencingSameRepoAndRevision_ConcurrentCommit(t *testing.T) {
+func TestHelmChartReferencingSameRepoAndRevision_ResolvesRevisionOnce(t *testing.T) {
 	const (
 		repoURL   = "https://git.example.com/test/repo"
 		oldSHA    = "1111111111111111111111111111111111111111"
@@ -4005,6 +4005,39 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				query := queryTemplate
 				query.Source = query.Source.DeepCopy()
 				query.Source.TargetRevision = targetRevision
+				query.RefSources = map[string]*v1alpha1.RefTarget{
+					refName: {
+						Repo: v1alpha1.Repository{
+							Type: "git",
+							Repo: repoURL,
+						},
+						TargetRevision: targetRevision,
+					},
+				}
+				return query
+			},
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				paths.EXPECT().GetPath(repoURL).Return(refRoot, nil)
+				paths.EXPECT().GetPathIfExists(repoURL).Return(refRoot)
+			},
+			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
+				client := gitmocks.Client{}
+				client.EXPECT().Root().Return(refRoot)
+				client.EXPECT().Init().Return(nil)
+				client.EXPECT().IsRevisionPresent(mock.Anything, sha).Return(true)
+				client.EXPECT().Checkout(mock.Anything, sha, false, true).Return("", nil)
+				return &client, nil
+			},
+			testResults: func(t *testing.T) {
+				t.Helper()
+				require.NoError(t, err)
+				assert.Len(t, res.Helm.Parameters, 1)
+			},
+		},
+		{
+			name: "same_repo_empty_source_revision_falls_back_to_revision_arg",
+			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
+				query := queryTemplate
 				query.RefSources = map[string]*v1alpha1.RefTarget{
 					refName: {
 						Repo: v1alpha1.Repository{
