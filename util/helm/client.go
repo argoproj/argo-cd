@@ -39,6 +39,9 @@ var (
 	indexLock  = sync.NewKeyLock()
 
 	ErrOCINotEnabled = errors.New("could not perform the action when oci is not enabled")
+	// ErrProvenanceNotFound means every chart mirror returned HTTP 404 for the .prov file.
+	ErrProvenanceNotFound = errors.New("helm chart provenance not found")
+	errHTTPNotFound       = errors.New("http not found")
 )
 
 // userAgentTransport wraps an http.RoundTripper to add User-Agent header to all requests
@@ -64,6 +67,12 @@ type Client interface {
 	GetIndex(ctx context.Context, noCache bool, maxIndexSize int64) (*Index, error)
 	GetTags(ctx context.Context, chart string, noCache bool) ([]string, error)
 	TestHelmOCI(ctx context.Context) (bool, error)
+	// GetChartTgzPath returns the path to the cached chart .tgz (valid after ExtractChart).
+	GetChartTgzPath(chart string, version string) (string, error)
+	// FetchProvenance fetches the .prov file for the chart version and returns its content and the chart filename.
+	// For traditional Helm repos this is an HTTP sibling of the chart archive; for Helm OCI repos it uses `helm pull --prov`.
+	// When noCache is true, the Helm index is not read from cache (traditional repos only).
+	FetchProvenance(ctx context.Context, chart string, noCache bool, version string) (provContent []byte, chartFilename string, err error)
 }
 
 type ClientOpts func(c *nativeHelmChart)
@@ -267,7 +276,7 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 			}
 
 			// 'helm pull' ensures that chart is downloaded into temp directory
-			_, err = helmCmd.PullOCI(c.repoURL, chart, version, tempDest, c.creds, c.plainHTTP)
+			_, err = helmCmd.PullOCI(c.repoURL, chart, version, tempDest, c.creds, c.plainHTTP, false)
 			if err != nil {
 				_ = os.RemoveAll(tempDir)
 				return "", nil, fmt.Errorf("error pulling OCI chart: %w", err)
@@ -378,51 +387,81 @@ func (c *nativeHelmChart) TestHelmOCI(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
+func (c *nativeHelmChart) newHelmHTTPClient() (*http.Client, error) {
+	tlsConf, err := newTLSConfig(c.creds)
+	if err != nil {
+		return nil, fmt.Errorf("error creating TLS config: %w", err)
+	}
+	return &http.Client{
+		Transport: &http.Transport{
+			Proxy:             proxy.GetCallback(c.proxy, c.noProxy),
+			TLSClientConfig:   tlsConf,
+			DisableKeepAlives: true,
+			ForceAttemptHTTP2: true,
+		},
+	}, nil
+}
+
+func (c *nativeHelmChart) setGETRequestAuth(req *http.Request) error {
+	helmPassword, err := c.creds.GetPassword()
+	if err != nil {
+		return fmt.Errorf("failed to get password for helm registry: %w", err)
+	}
+	if c.creds.GetUsername() != "" || helmPassword != "" {
+		req.SetBasicAuth(c.creds.GetUsername(), helmPassword)
+	}
+	return nil
+}
+
+// doRepoHTTPGet performs an authenticated GET for traditional Helm HTTP repository resources.
+// When maxBody > 0, the response body is limited to maxBody bytes.
+func (c *nativeHelmChart) doRepoHTTPGet(ctx context.Context, url string, maxBody int64) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("error creating HTTP request for %s: %w", url, err)
+	}
+	req.Header.Set("User-Agent", c.getUserAgent())
+	if err := c.setGETRequestAuth(req); err != nil {
+		return nil, err
+	}
+
+	client, err := c.newHelmHTTPClient()
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error making HTTP request for %s: %w", url, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("HTTP GET %s returned %s: %w", url, resp.Status, errHTTPNotFound)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP GET %s returned %s", url, resp.Status)
+	}
+	body := io.Reader(resp.Body)
+	if maxBody > 0 {
+		body = io.LimitReader(resp.Body, maxBody)
+	}
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading HTTP response from %s: %w", url, err)
+	}
+	return data, nil
+}
+
 func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64) ([]byte, error) {
 	indexURL, err := getIndexURL(c.repoURL)
 	if err != nil {
 		return nil, fmt.Errorf("error getting index URL: %w", err)
 	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, indexURL, http.NoBody)
+	data, err := c.doRepoHTTPGet(ctx, indexURL, maxIndexSize)
 	if err != nil {
-		return nil, fmt.Errorf("error creating HTTP request: %w", err)
+		return nil, fmt.Errorf("failed to get index: %w", err)
 	}
-
-	// Set User-Agent header to comply with robot policies
-	req.Header.Set("User-Agent", c.getUserAgent())
-
-	helmPassword, err := c.creds.GetPassword()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get password for helm registry: %w", err)
-	}
-	if c.creds.GetUsername() != "" || helmPassword != "" {
-		// only basic supported
-		req.SetBasicAuth(c.creds.GetUsername(), helmPassword)
-	}
-
-	tlsConf, err := newTLSConfig(c.creds)
-	if err != nil {
-		return nil, fmt.Errorf("error creating TLS config: %w", err)
-	}
-
-	tr := &http.Transport{
-		Proxy:             proxy.GetCallback(c.proxy, c.noProxy),
-		TLSClientConfig:   tlsConf,
-		DisableKeepAlives: true,
-		ForceAttemptHTTP2: true,
-	}
-	client := http.Client{Transport: tr}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error making HTTP request: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New("failed to get index: " + resp.Status)
-	}
-	return io.ReadAll(io.LimitReader(resp.Body, maxIndexSize))
+	return data, nil
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {
@@ -470,6 +509,122 @@ func (c *nativeHelmChart) getCachedChartPath(chart string, version string) (stri
 		return "", fmt.Errorf("error marshaling cache key data: %w", err)
 	}
 	return c.chartCachePaths.GetPath(string(keyData))
+}
+
+func (c *nativeHelmChart) GetChartTgzPath(chart string, version string) (string, error) {
+	return c.getCachedChartPath(chart, version)
+}
+
+func (c *nativeHelmChart) FetchProvenance(ctx context.Context, chart string, noCache bool, version string) ([]byte, string, error) {
+	if c.enableOci {
+		return c.fetchOCIProvenance(ctx, chart, version)
+	}
+	const maxIndexSizeForProvenance = 10 * 1024 * 1024 // 10MB
+	index, err := c.GetIndex(ctx, noCache, maxIndexSizeForProvenance)
+	if err != nil {
+		return nil, "", fmt.Errorf("error getting index for provenance: %w", err)
+	}
+	chartURLs, err := index.GetChartURLs(chart, version)
+	if err != nil {
+		return nil, "", err
+	}
+	allNotFound := true
+	var lastErr error
+	for _, chartURL := range chartURLs {
+		provContent, err := c.fetchProvenanceFromChartURL(ctx, chartURL)
+		if err == nil {
+			return provContent, path.Base(chartURL), nil
+		}
+		if !errors.Is(err, errHTTPNotFound) {
+			allNotFound = false
+		}
+		lastErr = err
+	}
+	if allNotFound && len(chartURLs) > 0 {
+		// Every mirror answered 404: the .prov definitively does not exist for this chart version.
+		return nil, "", fmt.Errorf("%w: failed to fetch provenance for chart %q version %q from %d URL(s): %w", ErrProvenanceNotFound, chart, version, len(chartURLs), lastErr)
+	}
+	return nil, "", fmt.Errorf("failed to fetch provenance for chart %q version %q from %d URL(s): %w", chart, version, len(chartURLs), lastErr)
+}
+
+// fetchOCIProvenance downloads the chart's .prov via `helm pull --prov` without changing the
+// ExtractChart cache (which expects a single .tgz in the pull destination).
+func (c *nativeHelmChart) fetchOCIProvenance(ctx context.Context, chart, version string) ([]byte, string, error) {
+	helmCmd, err := NewCmdWithVersion("", c.enableOci, c.proxy, c.noProxy)
+	if err != nil {
+		return nil, "", fmt.Errorf("error creating Helm command: %w", err)
+	}
+	defer helmCmd.Close()
+
+	tempDest, err := files.CreateTempDir(os.TempDir())
+	if err != nil {
+		return nil, "", fmt.Errorf("error creating temporary destination directory: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(tempDest) }()
+
+	helmPassword, err := c.creds.GetPassword()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to get password for helm registry: %w", err)
+	}
+	if helmPassword != "" && c.creds.GetUsername() != "" {
+		if _, err = helmCmd.RegistryLogin(ctx, c.repoURL, c.creds, c.plainHTTP); err != nil {
+			return nil, "", fmt.Errorf("error logging into OCI registry: %w", err)
+		}
+		defer func() {
+			_, _ = helmCmd.RegistryLogout(c.repoURL, c.creds)
+		}()
+	}
+
+	if _, err = helmCmd.PullOCI(c.repoURL, chart, version, tempDest, c.creds, c.plainHTTP, true); err != nil {
+		return nil, "", fmt.Errorf("error pulling OCI chart provenance for %q version %q: %w", chart, version, err)
+	}
+
+	provContent, chartFilename, err := readProvenanceFromPullDir(tempDest)
+	if err != nil {
+		return nil, "", fmt.Errorf("after helm pull --prov for chart %q version %q: %w", chart, version, err)
+	}
+	return provContent, chartFilename, nil
+}
+
+// readProvenanceFromPullDir finds the .prov file written by `helm pull --prov` and returns its
+// contents plus the chart archive filename (the .prov name with the suffix stripped).
+func readProvenanceFromPullDir(dir string) ([]byte, string, error) {
+	infos, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, "", fmt.Errorf("error reading OCI pull directory: %w", err)
+	}
+	for _, info := range infos {
+		name := info.Name()
+		if info.IsDir() || !strings.HasSuffix(name, ".prov") {
+			continue
+		}
+		provContent, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			return nil, "", fmt.Errorf("error reading provenance file %q: %w", name, err)
+		}
+		return provContent, strings.TrimSuffix(name, ".prov"), nil
+	}
+	return nil, "", fmt.Errorf("%w: provenance file missing", ErrProvenanceNotFound)
+}
+
+func (c *nativeHelmChart) resolveProvenanceURL(chartURL string) string {
+	provURL := chartURL + ".prov"
+	// Resolve relative URLs against repo base (index often has relative URLs like "chart-1.0.0.tgz")
+	if base, errParse := url.Parse(c.repoURL); errParse == nil {
+		if ref, errRef := url.Parse(provURL); errRef == nil {
+			provURL = base.ResolveReference(ref).String()
+		}
+	}
+	return provURL
+}
+
+func (c *nativeHelmChart) fetchProvenanceFromChartURL(ctx context.Context, chartURL string) ([]byte, error) {
+	provURL := c.resolveProvenanceURL(chartURL)
+	provContent, err := c.doRepoHTTPGet(ctx, provURL, 0)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching provenance %s: %w", provURL, err)
+	}
+	return provContent, nil
 }
 
 // Ensures that given OCI registries URL does not have protocol

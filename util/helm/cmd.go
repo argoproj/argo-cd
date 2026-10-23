@@ -306,12 +306,15 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	return out, nil
 }
 
-func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds Creds, plainHTTP bool) (string, error) {
+func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds Creds, plainHTTP bool, prov bool) (string, error) {
 	args := []string{
 		"pull", fmt.Sprintf("oci://%s/%s", repo, chart), "--version",
 		version,
 		"--destination",
 		destination,
+	}
+	if prov {
+		args = append(args, "--prov")
 	}
 	if creds.GetCAPath() != "" {
 		args = append(args, "--ca-file", creds.GetCAPath())
