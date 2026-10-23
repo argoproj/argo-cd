@@ -274,18 +274,16 @@ func printStatsSummary(out io.Writer, clusters []ClusterWithInfo, replicas int) 
 		}
 	}
 
-	avgResourcesByShard := totalResourcesCount / int64(replicas)
+	avgResourcesByShard := float64(totalResourcesCount) / float64(replicas)
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "SHARD\tRESOURCES COUNT\t%% OF TOTAL\t%% OF AVG PER SHARD (%d)\n", avgResourcesByShard)
+	_, _ = fmt.Fprintf(w, "SHARD\tRESOURCES COUNT\t%% OF TOTAL\t%% OF AVG PER SHARD (%.0f)\n", avgResourcesByShard)
 	for shard := 0; shard < len(resourcesCountByShard); shard++ {
 		cnt := resourcesCountByShard[shard]
 		// avoid printing NaN% when no resource counts are available, e.g. the controller cache is empty
 		totalPercent, avgPercent := float64(0), float64(0)
 		if totalResourcesCount > 0 {
 			totalPercent = (float64(cnt) / float64(totalResourcesCount)) * 100.0
-		}
-		if avgResourcesByShard > 0 {
-			avgPercent = (float64(cnt) / float64(avgResourcesByShard)) * 100.0
+			avgPercent = (float64(cnt) / avgResourcesByShard) * 100.0
 		}
 		_, _ = fmt.Fprintf(w, "%d\t%d\t%.0f%%\t%.0f%%\n", shard, cnt, totalPercent, avgPercent)
 	}

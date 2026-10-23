@@ -285,6 +285,14 @@ func Test_printStatsSummary(t *testing.T) {
 		assert.Equal(t, "SHARD  RESOURCES COUNT  % OF TOTAL  % OF AVG PER SHARD (133)\n"+
 			"0      100              25%         75%\n"+
 			"1      0                0%          0%\n"+
-			"2      300              75%         226%\n", out.String())
+			"2      300              75%         225%\n", out.String())
+	})
+
+	t.Run("fewer resources than replicas", func(t *testing.T) {
+		out := &bytes.Buffer{}
+		printStatsSummary(out, []ClusterWithInfo{withResources(0, 1)}, 2)
+		assert.Equal(t, "SHARD  RESOURCES COUNT  % OF TOTAL  % OF AVG PER SHARD (0)\n"+
+			"0      1                100%        200%\n"+
+			"1      0                0%          0%\n", out.String())
 	})
 }
