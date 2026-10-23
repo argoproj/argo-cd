@@ -281,19 +281,8 @@ func NewApplicationController(
 					ctrl.stateCache.UpdateShard(shard)
 
 					// resync all applications
-					apps, err := ctrl.appLister.List(labels.Everything())
-					if err != nil {
+					if err := ctrl.resyncAppsAfterShardChange(); err != nil {
 						return err
-					}
-					for _, app := range apps {
-						if !ctrl.canProcessApp(app) {
-							continue
-						}
-						key, err := cache.MetaNamespaceKeyFunc(app)
-						if err == nil {
-							ctrl.appRefreshQueue.AddRateLimited(key)
-							ctrl.clusterSharding.AddApp(app)
-						}
 					}
 				}
 			}
@@ -3021,6 +3010,37 @@ func (ctrl *ApplicationController) appProjectEventHandlerFuncs() cache.ResourceE
 	}
 }
 
+// resyncAppsAfterShardChange requeues every application this controller can process after its shard
+// number changed. Ownership of these apps moved without any change to the Application objects, so the
+// informer handlers don't see it; another controller may have written their cached state meanwhile.
+func (ctrl *ApplicationController) resyncAppsAfterShardChange() error {
+	apps, err := ctrl.appLister.List(labels.Everything())
+	if err != nil {
+		return err
+	}
+	for _, app := range apps {
+		if !ctrl.canProcessApp(app) {
+			continue
+		}
+		key, err := cache.MetaNamespaceKeyFunc(app)
+		if err == nil {
+			ctrl.invalidateAppLocalCache(app)
+			ctrl.appRefreshQueue.AddRateLimited(key)
+			ctrl.clusterSharding.AddApp(app)
+		}
+	}
+	return nil
+}
+
+// invalidateAppLocalCache drops this controller's in-memory copies of the app's resource tree and
+// managed resources. Another controller may have written them since this one last did, e.g. while
+// the app's destination was a cluster managed by another shard, so the next write must not be skipped.
+func (ctrl *ApplicationController) invalidateAppLocalCache(obj any) {
+	if app, ok := obj.(*appv1.Application); ok {
+		ctrl.cache.InvalidateAppLocalState(app.InstanceName(ctrl.namespace))
+	}
+}
+
 // applicationEventHandlerFuncs returns the informer event handlers for Application
 // objects. Events for applications this controller cannot process (per canProcessApp)
 // are ignored. DeleteFunc unwraps cache.DeletedFinalStateUnknown tombstones and
@@ -3032,6 +3052,7 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 			if !ctrl.canProcessApp(obj) {
 				return
 			}
+			ctrl.invalidateAppLocalCache(obj)
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil {
 				ctrl.appRefreshQueue.AddRateLimited(key)
@@ -3045,6 +3066,16 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 			if !ctrl.canProcessApp(new) {
 				return
 			}
+			oldApp, oldOK := old.(*appv1.Application)
+			newApp, newOK := new.(*appv1.Application)
+			// Only the destination or skip-reconcile annotation can make old unprocessable here, so
+			// skip resolving it again on every other update.
+			if oldOK && newOK &&
+				(oldApp.Spec.Destination != newApp.Spec.Destination || oldApp.Annotations[common.AnnotationKeyAppSkipReconcile] != newApp.Annotations[common.AnnotationKeyAppSkipReconcile]) &&
+				!ctrl.canProcessApp(old) {
+				// Another controller may have written the app's cached state while it handled the app.
+				ctrl.invalidateAppLocalCache(new)
+			}
 
 			key, err := cache.MetaNamespaceKeyFunc(new)
 			if err != nil {
@@ -3054,8 +3085,6 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 			var compareWith *CompareWith
 			var delay *time.Duration
 
-			oldApp, oldOK := old.(*appv1.Application)
-			newApp, newOK := new.(*appv1.Application)
 			if oldOK && newOK {
 				if automatedSyncEnabled(oldApp, newApp) {
 					log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
