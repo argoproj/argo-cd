@@ -245,6 +245,7 @@ func NewCommand() *cobra.Command {
 				DynamicClientset:        dynamicClient,
 				KubeControllerClientset: controllerClient,
 				KubeClientset:           kubeclientset,
+				ControlPlaneConfig:      config,
 				AppClientset:            appClientSet,
 				RepoClientset:           repoclientset,
 				DexServerAddr:           dexServerAddress,
