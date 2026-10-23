@@ -7330,7 +7330,7 @@
         "observedGeneration": {
           "type": "integer",
           "format": "int64",
-          "title": "provide description here"
+          "title": "Generation which controller has processed"
         },
         "reason": {
           "type": "string",

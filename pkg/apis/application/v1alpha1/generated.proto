@@ -259,7 +259,7 @@ message ApplicationSetCondition {
   // Single word camelcase representing the reason for the status eg ErrorOccurred
   optional string reason = 5;
 
-  // provide description here
+  // Generation which controller has processed
   optional int64 observedGeneration = 6;
 }
 

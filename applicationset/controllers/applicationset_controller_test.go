@@ -5257,7 +5257,7 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 		applications        []v1alpha1.Application
 		desiredApplications []v1alpha1.Application
 		expectedSyncMap     map[string]bool
-		expectedConditions []v1alpha1.ApplicationSetCondition
+		expectedConditions  []v1alpha1.ApplicationSetCondition
 	}{
 		{
 			name: "blocks sync when applications not reconciled",
@@ -5415,8 +5415,6 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 			},
 		},
 		{
-			// Step 1 is complete but step 2 is not, so the rollout reports itself as progressing
-			// and names the first incomplete step.
 			name: "reports rollout progressing on the first incomplete step",
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
