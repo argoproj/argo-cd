@@ -21,7 +21,7 @@ last-updated: 2022-08-11
 ## Summary
 
 Enhance the ArgoCD ApplicationSet resource to embed a rollout strategy for a progressive application resource update after the ApplicationSet spec or Application templates are modified.
-Further discussion and interest has been communicated here: https://github.com/argoproj/argo-cd/issues/9437
+Further discussion and interest has been communicated here: [https://github.com/argoproj/argo-cd/issues/9437](https://github.com/argoproj/argo-cd/issues/9437)
 
 ## Motivation
 
@@ -116,7 +116,7 @@ An Application rollout is considered “complete” when the Application resourc
 - Moved into a “Progressing” state.
 - Moved out of a “Progressing” state and into a “Healthy” state.
 
-`RollingSync` operates using the same spec, but is a re-implementation of the https://github.com/Skyscanner/applicationset-progressive-sync tool. It notices that Applications become OutOfSync, and triggers sync operations on those Applications following the order declared in the Application strategy spec.
+`RollingSync` operates using the same spec, but is a re-implementation of the [applicationset-progressive-sync](https://github.com/Skyscanner/applicationset-progressive-sync) tool. It notices that Applications become OutOfSync, and triggers sync operations on those Applications following the order declared in the Application strategy spec.
 
 
 #### Use case 2:
@@ -140,7 +140,7 @@ To implement the “paused” functionality of Applications that are not yet rea
   * Potentially conflicts with user provided auto-sync settings.
   * Provides the benefit of being able to see the full diff of the ApplicationSet change.
 * “Pause” the Application.
-  * Not Yet Implemented: https://github.com/argoproj/argo-cd/issues/4808
+  * Not Yet Implemented: [https://github.com/argoproj/argo-cd/issues/4808](https://github.com/argoproj/argo-cd/issues/4808)
 * Prevent any updates at all to the live Applications via the rolling update strategy defined.
   * This is likely the initial implementation method we'll target.
 
@@ -176,4 +176,4 @@ The idea is to find the best form of an argument why this enhancement should _no
 One alternative we considered was to create an extra CRD specifically to govern the rollout process for an ApplicationSet. We ultimately decided against this approach because all other rollout strategy specs we looked at were implemented in the same CRD resource (K8s Deployments, Argo Rollouts, CAPI MachineDeployments, etc).
 
 Another alternative is to implement Application Dependencies through the application-controller instead. This is a far more complicated approach that requires implementing and maintaining an Application DAG.
-https://github.com/argoproj/argo-cd/issues/7437
+[https://github.com/argoproj/argo-cd/issues/7437](https://github.com/argoproj/argo-cd/issues/7437)
