@@ -400,7 +400,7 @@ func TestLFSClient(t *testing.T) {
 	_, err = client.Checkout(t.Context(), commitSHA, true, true)
 	require.NoError(t, err)
 
-	largeFiles, err := client.LsLargeFiles(t.Context())
+	largeFiles, err := client.lsLargeFiles(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, largeFiles, 3)
 
