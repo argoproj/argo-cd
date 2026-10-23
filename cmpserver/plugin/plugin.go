@@ -8,10 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -21,6 +23,7 @@ import (
 	repoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/buffered_context"
 	"github.com/argoproj/argo-cd/v3/util/cmp"
+	"github.com/argoproj/argo-cd/v3/util/env"
 	argoexec "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 
@@ -38,6 +41,10 @@ var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/cmpserver/plugin")
 // cmpTimeoutBuffer is the amount of time before the request deadline to timeout server-side work. It makes sure there's
 // enough time before the client times out to send a meaningful error message.
 const cmpTimeoutBuffer = 100 * time.Millisecond
+
+// pluginExecTimeout bounds a plugin command. Zero means no exec timeout.
+// Tests shorten it.
+var pluginExecTimeout = env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64)
 
 // Service implements ConfigManagementPluginService interface
 type Service struct {
@@ -84,6 +91,11 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	if len(command.Command) == 0 {
 		return "", errors.New("Command is empty")
 	}
+	if pluginExecTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, pluginExecTimeout)
+		defer cancel()
+	}
 	cmd := exec.CommandContext(ctx, command.Command[0], append(command.Command[1:], command.Args...)...)
 
 	cmd.Env = env
@@ -113,8 +125,18 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		return "", err
 	}
 
+	var exitMu sync.Mutex
+	exited := false
 	go func() {
 		<-ctx.Done()
+		// The timeout context is cancelled when this function returns. Do not signal a
+		// process that has already been waited on.
+		exitMu.Lock()
+		alreadyExited := exited
+		exitMu.Unlock()
+		if alreadyExited {
+			return
+		}
 		// Kill by group ID to make sure child processes are killed. The - tells `kill` that it's a group ID.
 		// Since we didn't set Pgid in SysProcAttr, the group ID is the same as the process ID. https://pkg.go.dev/syscall#SysProcAttr
 
@@ -129,6 +151,9 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	}()
 
 	err = cmd.Wait()
+	exitMu.Lock()
+	exited = true
+	exitMu.Unlock()
 
 	duration := time.Since(start)
 	output := stdout.String()
