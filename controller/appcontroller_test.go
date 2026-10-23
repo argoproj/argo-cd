@@ -4575,3 +4575,31 @@ func TestFinalizeApplicationDeletion_EvictsApplicationGoneFromAPIServer(t *testi
 	require.NoError(t, err)
 	assert.False(t, exists)
 }
+
+func TestResyncAppsAfterShardChange_InvalidatesLocalCache(t *testing.T) {
+	healthy := &v1alpha1.ApplicationTree{Nodes: []v1alpha1.ResourceNode{{ResourceRef: v1alpha1.ResourceRef{Kind: "Pod", Name: "pod-1"}}}}
+	suspended := &v1alpha1.ApplicationTree{Nodes: []v1alpha1.ResourceNode{{ResourceRef: v1alpha1.ResourceRef{Kind: "Deployment", Name: "deploy"}}}}
+
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	// Give ctrl a two-level cache client, like the real controller, backed by an external cache that a
+	// second controller also writes to.
+	external := cacheutil.NewInMemoryCache(time.Hour) // stands in for Redis
+	ctrl.cache.Cache.SetClient(cacheutil.NewTwoLevelClient(external, time.Hour))
+	other := appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewTwoLevelClient(external, time.Hour)), time.Hour)
+	reader := appstatecache.NewCache(cacheutil.NewCache(external), time.Hour)
+	name := app.InstanceName(ctrl.namespace)
+
+	// This controller wrote the tree, then the app's cluster moved to another shard, whose controller
+	// overwrote it. The cluster is now back on this controller's shard, with no change to the app.
+	require.NoError(t, ctrl.cache.SetAppResourcesTree(name, healthy))
+	require.NoError(t, other.SetAppResourcesTree(name, suspended))
+	require.NoError(t, ctrl.resyncAppsAfterShardChange())
+	require.NoError(t, ctrl.cache.SetAppResourcesTree(name, healthy))
+
+	got := &v1alpha1.ApplicationTree{}
+	require.NoError(t, reader.GetAppResourcesTree(name, got))
+	require.Len(t, got.Nodes, 1)
+	assert.Equal(t, "pod-1", got.Nodes[0].Name)
+	require.Eventually(t, func() bool { return ctrl.appRefreshQueue.Len() > 0 }, 2*time.Second, 5*time.Millisecond, "expected the app to be requeued")
+}
