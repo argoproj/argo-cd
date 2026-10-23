@@ -97,7 +97,7 @@ func verifyWithGuard(policy *v1alpha1.SourceIntegrityGitPolicy, check gitFunc) g
 
 	return func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
 		if policy.SignedTagsOnly && !gitClient.IsAnnotatedTag(ctx, verifiedRevision) {
-			msg := fmt.Sprintf("SignedTagsOnly is enabled, %s is not annotated. Un-annotated revisions cannot be signed", verifiedRevision)
+			msg := fmt.Sprintf("SignedTagsOnly is enabled, %s is not annotated. Un-annotated tags cannot be verified", verifiedRevision)
 			return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
 				Name:     signedTagsCheckName,
 				Problems: []string{msg},

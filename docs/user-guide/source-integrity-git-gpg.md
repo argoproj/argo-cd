@@ -222,10 +222,6 @@ argocd proj source-integrity git policies add PROJECT \
 argocd proj source-integrity git policies update PROJECT POLICY_ID --signed-tags-only=false
 ```
 
-> [!NOTE]
-> On `update`, the constraint is only touched when `--signed-tags-only` is passed explicitly, so
-> changing a policy's repositories or keys leaves it as it was.
-
 ### The `gpg` verification policy
 
 The Git commit signature verification is an alternative to calling `git verify-commit`/`git verify-tag` with configured keyring and making sure the key ID used for the signatures is among the configured Key IDs in the source integrity policy.
