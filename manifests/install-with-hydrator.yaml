@@ -35510,7 +35510,7 @@ spec:
               key: dexserver.connector.failure.continue
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.46.0
+        image: ghcr.io/dexidp/dex:v2.46.1
         imagePullPolicy: Always
         name: dex
         ports:
@@ -36088,6 +36088,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.git.request.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GIT_LS_REMOTE_OPTIMIZED_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.git.lsremote.optimized.enabled
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG
@@ -37241,6 +37247,8 @@ spec:
           name: argocd-home
         - mountPath: /home/argocd/params
           name: argocd-cmd-params-cm
+        - mountPath: /app/config/tls
+          name: tls-certs
         - mountPath: /tmp
           name: argocd-application-controller-tmp
         workingDir: /home/argocd
@@ -37250,6 +37258,9 @@ spec:
       volumes:
       - emptyDir: {}
         name: argocd-home
+      - configMap:
+          name: argocd-tls-certs-cm
+        name: tls-certs
       - emptyDir: {}
         name: argocd-application-controller-tmp
       - name: argocd-repo-server-tls

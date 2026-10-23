@@ -4,7 +4,7 @@ ARG BASE_IMAGE=docker.io/library/ubuntu:26.04@sha256:2260313b31c8c011cd2eebe7280
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM docker.io/library/golang:1.27.1@sha256:f773aa2679c165b2d4ccf04c1de9ef5f34c0e4fd7008b3c449d4cdc47d83af55 AS builder
+FROM docker.io/library/golang:1.27.3@sha256:f24164268fc1e741bbdc0066dbadcf1c8426c5a8489f0729c02c3905a53032fd AS builder
 
 WORKDIR /tmp
 
@@ -101,7 +101,7 @@ WORKDIR /home/argocd
 ####################################################################################################
 # Argo CD UI stage
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/node:24.21.0@sha256:3d27e5c11e5786e309ec3e03f93ae536eb36e6e5eb3714d5eb3300a36157add0 AS argocd-ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:24.22.1@sha256:5630d96570d4ca4a8523fda3d169d0114554d0f48293e1ae3db6be7c79b42a17 AS argocd-ui
 
 WORKDIR /src
 COPY ["ui/package.json", "ui/pnpm-lock.yaml", "ui/pnpm-workspace.yaml", "./"]
@@ -121,7 +121,7 @@ RUN NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.27.1@sha256:f773aa2679c165b2d4ccf04c1de9ef5f34c0e4fd7008b3c449d4cdc47d83af55 AS argocd-build
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.27.3@sha256:f24164268fc1e741bbdc0066dbadcf1c8426c5a8489f0729c02c3905a53032fd AS argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 

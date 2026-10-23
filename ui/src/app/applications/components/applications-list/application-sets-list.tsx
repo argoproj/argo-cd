@@ -377,15 +377,15 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
 
     function onAppSetFilterPrefChanged(ctx: ContextApis, newPref: AppSetsListPreferences) {
         services.viewPreferences.updatePreferences({appList: newPref as AppsListPreferences});
-        ctx.navigation.goto(
-            '.',
-            {
-                health: newPref.healthFilter.join(','),
-                labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
-                showFavorites: newPref.showFavorites ? 'true' : null
-            },
-            {replace: true}
-        );
+        const params = {
+            health: newPref.healthFilter.join(','),
+            labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
+            showFavorites: newPref.showFavorites ? 'true' : null
+        };
+        // Every filter in the sidebar reports its state up when it mounts, so a remount produces one
+        // call per filter with nothing changed. Browsers rate limit history updates and Safari throws
+        // once the cap is hit, so only navigate when the query string actually changes.
+        ctx.navigation.goto('.', params, {replace: true, skipIfUnchanged: true});
     }
 
     function getPageTitle(view: string) {
