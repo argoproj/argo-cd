@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
@@ -291,4 +292,27 @@ func TestApplicationEventHandlerFuncs_InvalidatesLocalCacheOnArrival(t *testing.
 		// Unchanged behavior for apps that stay on this controller: the write is still deduplicated.
 		assert.Equal(t, "deploy", name)
 	})
+}
+
+func TestResyncAppsAfterShardChange_InvalidatesLocalCache(t *testing.T) {
+	healthy := &v1alpha1.ApplicationTree{Nodes: []v1alpha1.ResourceNode{{Kind: "Pod", Name: "pod-1"}}}
+	suspended := &v1alpha1.ApplicationTree{Nodes: []v1alpha1.ResourceNode{{Kind: "Deployment", Name: "deploy"}}}
+
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	other, reader := withSharedTreeCache(ctrl)
+	name := app.InstanceName(ctrl.namespace)
+
+	// This controller wrote the tree, then the app's cluster moved to another shard, whose controller
+	// overwrote it. The cluster is now back on this controller's shard, with no change to the app.
+	require.NoError(t, ctrl.cache.SetAppResourcesTree(name, healthy))
+	require.NoError(t, other.SetAppResourcesTree(name, suspended))
+	require.NoError(t, ctrl.resyncAppsAfterShardChange())
+	require.NoError(t, ctrl.cache.SetAppResourcesTree(name, healthy))
+
+	got := &v1alpha1.ApplicationTree{}
+	require.NoError(t, reader.GetAppResourcesTree(name, got))
+	require.Len(t, got.Nodes, 1)
+	assert.Equal(t, "pod-1", got.Nodes[0].Name)
+	assert.Contains(t, assertEnqueued(t, ctrl.appRefreshQueue), "my-app")
 }

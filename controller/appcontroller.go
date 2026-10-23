@@ -283,19 +283,8 @@ func NewApplicationController(
 					ctrl.stateCache.UpdateShard(shard)
 
 					// resync all applications
-					apps, err := ctrl.appLister.List(labels.Everything())
-					if err != nil {
+					if err := ctrl.resyncAppsAfterShardChange(); err != nil {
 						return err
-					}
-					for _, app := range apps {
-						if !ctrl.canProcessApp(app) {
-							continue
-						}
-						key, err := cache.MetaNamespaceKeyFunc(app)
-						if err == nil {
-							ctrl.appRefreshQueue.AddRateLimited(key)
-							ctrl.clusterSharding.AddApp(app)
-						}
 					}
 				}
 			}
@@ -3225,6 +3214,28 @@ func (ctrl *ApplicationController) appProjectEventHandlerFuncs() cache.ResourceE
 			}
 		},
 	}
+}
+
+// resyncAppsAfterShardChange requeues every application this controller can process after its shard
+// number changed. Ownership of these apps moved without any change to the Application objects, so the
+// informer handlers don't see it; another controller may have written their cached state meanwhile.
+func (ctrl *ApplicationController) resyncAppsAfterShardChange() error {
+	apps, err := ctrl.appLister.List(labels.Everything())
+	if err != nil {
+		return err
+	}
+	for _, app := range apps {
+		if !ctrl.canProcessApp(app) {
+			continue
+		}
+		key, err := cache.MetaNamespaceKeyFunc(app)
+		if err == nil {
+			ctrl.invalidateAppLocalCache(app)
+			ctrl.appRefreshQueue.AddRateLimited(key)
+			ctrl.clusterSharding.AddApp(app)
+		}
+	}
+	return nil
 }
 
 // invalidateAppLocalCache drops this controller's in-memory copies of the app's resource tree and
