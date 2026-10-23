@@ -2224,6 +2224,9 @@ func (m *nativeGitClient) runCredentialedCmdOutput(ctx context.Context, ropts ru
 	return m.runCmdOutput(cmd, ropts)
 }
 
+// gitCancelGracePeriod is how long a cancelled git command has to exit after SIGTERM before it is killed.
+var gitCancelGracePeriod = 10 * time.Second
+
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {
 	if ropts.Dir == "" {
 		cmd.Dir = m.root
@@ -2262,6 +2265,10 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 		}
 	}
 	cmd.Env = proxy.UpsertEnv(cmd, m.proxy, m.noProxy)
+	// On context cancellation, send SIGTERM (not os/exec's default SIGKILL) so git can
+	// remove its lock files; os/exec sends SIGKILL if git is still running after WaitDelay.
+	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
+	cmd.WaitDelay = gitCancelGracePeriod
 	opts := executil.ExecRunOpts{
 		TimeoutBehavior: executil.TimeoutBehavior{
 			Signal:     syscall.SIGTERM,
