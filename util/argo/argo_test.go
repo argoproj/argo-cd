@@ -2866,3 +2866,78 @@ func TestValidateRepo_GenerateManifestInterrupted(t *testing.T) {
 		})
 	}
 }
+
+// TestValidateRepo_TestRepositoryInterrupted verifies that an interrupted repository
+// accessibility check (canceled context or exceeded deadline) is reported as a transport
+// error carrying its gRPC code, the same way TestValidateRepo_GenerateManifestInterrupted
+// already handles an interrupted GenerateManifest call. Raised by ppapapetrou76 on #30272:
+// a cancellation during TestRepository took a different path and still came back as an
+// InvalidSpecError condition.
+func TestValidateRepo_TestRepositoryInterrupted(t *testing.T) {
+	t.Parallel()
+
+	newFixtures := func(t *testing.T, testRepoErr error) (*argoappv1.Application, *argoappv1.AppProject, *mocks.Clientset, *dbmocks.ArgoDB, *settings.SettingsManager) {
+		t.Helper()
+		repo := &argoappv1.Repository{Repo: "https://example.com/repo.git", Type: "git"}
+		cluster := &argoappv1.Cluster{Server: "sample server"}
+		app := &argoappv1.Application{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{RepoURL: repo.Repo, Path: "guestbook"},
+				Destination: argoappv1.ApplicationDestination{
+					Server:    cluster.Server,
+					Namespace: "default",
+				},
+			},
+		}
+		proj := &argoappv1.AppProject{Spec: argoappv1.AppProjectSpec{SourceRepos: []string{"*"}}}
+
+		repoClient := &mocks.RepoServerServiceClient{}
+		repoClient.EXPECT().TestRepository(mock.Anything, mock.Anything).
+			Return(nil, testRepoErr).Once()
+
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetRepository(mock.Anything, app.Spec.Source.RepoURL, "").Return(repo, nil).Maybe()
+		db.EXPECT().ListHelmRepositories(mock.Anything).Return(nil, nil).Maybe()
+		db.EXPECT().ListOCIRepositories(mock.Anything).Return(nil, nil).Maybe()
+		db.EXPECT().GetCluster(mock.Anything, cluster.Server).Return(cluster, nil).Maybe()
+		db.EXPECT().GetAllHelmRepositoryCredentials(mock.Anything).Return(nil, nil).Maybe()
+		db.EXPECT().GetAllOCIRepositoryCredentials(mock.Anything).Return(nil, nil).Maybe()
+
+		cm := corev1.ConfigMap{
+			Name:      "argocd-cm",
+			Namespace: test.FakeArgoCDNamespace,
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		}
+		kubeClient := fake.NewClientset(&cm)
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+		return app, proj, &mocks.Clientset{RepoServerServiceClient: repoClient}, db, settingsMgr
+	}
+
+	for _, tc := range []struct {
+		name        string
+		testRepoErr error
+		wantCode    codes.Code
+		wantErr     bool
+	}{
+		{name: "context canceled", testRepoErr: status.Error(codes.Canceled, "context canceled"), wantCode: codes.Canceled, wantErr: true},
+		{name: "deadline exceeded", testRepoErr: status.Error(codes.DeadlineExceeded, "context deadline exceeded"), wantCode: codes.DeadlineExceeded, wantErr: true},
+		{name: "other error stays an invalid spec condition", testRepoErr: status.Error(codes.Unavailable, "repo server unavailable")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			app, proj, repoClientset, db, settingsMgr := newFixtures(t, tc.testRepoErr)
+
+			conditions, err := ValidateRepo(t.Context(), app, repoClientset, db, &kubetest.MockKubectlCmd{Version: "v1.16"}, proj, settingsMgr)
+
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Equal(t, tc.wantCode, status.Code(err))
+				assert.Empty(t, conditions, "an interrupted repository check must not be reported as an invalid spec")
+			} else {
+				require.NoError(t, err)
+				require.Len(t, conditions, 1)
+				assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+			}
+		})
+	}
+}
