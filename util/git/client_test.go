@@ -538,7 +538,7 @@ func Test_IsAnnotatedTag(t *testing.T) {
 }
 
 func Test_nativeGitClient_Checkout_cancelDoesNotLeaveIndexLock(t *testing.T) {
-	client, err := NewClient("file://"+t.TempDir(), NopCreds{}, true, false, "", "")
+	client, err := NewClientExt("file://"+t.TempDir(), t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 	require.NoError(t, client.Init())
 	root := client.Root()
