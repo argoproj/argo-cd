@@ -34,6 +34,9 @@ export const TABLE_ROW_HEIGHT = 68;
 /** Table row height when a source-hydrator status line is present. */
 export const TABLE_ROW_HEIGHT_WITH_HYDRATOR = 94;
 
+/** Project heading slot in the virtual table: 36px heading + 8px row padding. */
+export const PROJECT_HEADING_ROW_HEIGHT = 44;
+
 /** Default tile height until CellMeasurer measures the cell (excludes TILE_GAP). */
 export const TILE_HEIGHT = 360;
 

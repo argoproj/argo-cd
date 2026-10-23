@@ -120,6 +120,34 @@
             cursor: default;
             color: $argo-color-teal-5;
         }
+        button.applications-list__group-toggle {
+            display: inline-block;
+            vertical-align: middle;
+            font: inherit;
+            line-height: inherit;
+            background: none;
+            border: 0;
+            border-left: 1px solid $argo-color-gray-4;
+            border-right: 1px solid $argo-color-gray-4;
+            padding: 0 1em;
+            margin: 0 calc(1em - 3px) 0 0; // Log out button has 3px padding of its own
+            cursor: pointer;
+            color: $argo-color-gray-4;
+            i {
+                margin-right: 0;
+                display: block;
+            }
+            &.selected {
+                color: $argo-color-teal-5;
+                i {
+                    color: $argo-color-teal-5;
+                }
+            }
+            &:focus-visible {
+                outline: 2px solid $argo-color-teal-5;
+                outline-offset: 2px;
+            }
+        }
     }
 
     &__table-icon {

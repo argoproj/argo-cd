@@ -24,6 +24,20 @@
         }
     }
 
+    .applications-tiles__virtual-group-row {
+        box-sizing: border-box;
+        padding-bottom: 24px;
+
+        &--heading {
+            padding-bottom: 12px;
+        }
+    }
+
+    .applications-tiles__virtual-group-tiles {
+        display: grid;
+        gap: 24px;
+    }
+
     .ReactVirtualized__Grid {
         // Extra guard against subpixel horizontal overflow from floor() column math.
         overflow-x: hidden !important;
@@ -39,6 +53,20 @@
     gap: 24px;
     grid-template-columns: repeat(auto-fill,minmax(370px,1fr));
     padding: 0;
+
+    > .project-group-heading {
+        grid-column: 1 / -1;
+
+        // Tighten the gap to the tiles below, but not when the heading ends the list (collapsed last
+        // project), where the negative margin would pull the paginator over it.
+        &:not(:last-child) {
+            margin-bottom: -12px;
+        }
+
+        &:last-child {
+            margin-bottom: 12px;
+        }
+    }
 
     &__wrapper {
         // <a> defaults to display: inline; we need block-level layout for height:100%
