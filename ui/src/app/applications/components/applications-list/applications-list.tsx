@@ -23,7 +23,7 @@ import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applicatio
 import {FlexTopBar} from '../../../shared/components';
 import {ViewTypeSwitcher} from './view-type-switcher';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
-import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
+import {useSearchParams, useObservableQuery} from '../../../shared/hooks/query';
 import {isInvalidRegex, queryParamsChanged} from '../../../shared/utils';
 
 import './applications-list.scss';
@@ -346,7 +346,7 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
 };
 
 export const ApplicationsList = (props: RouteComponentProps<any>) => {
-    const query = useQuery();
+    const query = useSearchParams();
     const observableQuery$ = useObservableQuery();
     const appInput = tryJsonParse(query.get('new'));
     const syncAppsInput = tryJsonParse(query.get('syncApps'));

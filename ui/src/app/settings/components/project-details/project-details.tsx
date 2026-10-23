@@ -13,6 +13,7 @@ import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services}
 
 import {SyncWindowStatusIcon} from '../../../shared/components/app-utils';
 import {ProjectSyncWindowsParams} from '../../../shared/services';
+import {applicationQueries, clusterQueries, gpgkeyQueries, projectQueries, repoQueries} from '../../../shared/queries';
 import {ProjectEvents} from '../project-events/project-events';
 import {ProjectRoleEditPanel} from '../project-role-edit-panel/project-role-edit-panel';
 import {ProjectSyncWindowsEditPanel} from '../project-sync-windows-edit-panel/project-sync-windows-edit-panel';
@@ -155,17 +156,17 @@ function loadFailed(retry: () => void) {
 }
 
 const ProjectLinks = ({name}: {name: string}) => {
-    const {data} = useQuery({queryKey: ['projects', name, 'links'], queryFn: () => services.projects.getLinks(name)});
+    const {data} = useQuery(projectQueries.links(name));
     return data ? <DeepLinks links={data.items} /> : null;
 };
 
 const ProjectApplicationsCount = ({name, objectListKind}: {name: string; objectListKind: string}) => {
-    const {data} = useQuery({queryKey: ['applications', 'list', [name], objectListKind], queryFn: () => services.applications.list([name], objectListKind)});
+    const {data} = useQuery(applicationQueries.list([name], objectListKind));
     return data ? <Link to={'/applications?proj=' + name}>{data.items.length}</Link> : null;
 };
 
 const SyncWindowsTable = ({proj, ctx}: {proj: Project; ctx: ContextApis}) => {
-    const {data, isError, refetch} = useQuery({queryKey: ['projects', proj.metadata.name, 'syncWindows'], queryFn: () => services.projects.getSyncWindows(proj.metadata.name)});
+    const {data, isError, refetch} = useQuery(projectQueries.syncWindows(proj.metadata.name));
     if (isError) {
         return loadFailed(refetch);
     }
@@ -246,7 +247,7 @@ const SyncWindowsTable = ({proj, ctx}: {proj: Project; ctx: ContextApis}) => {
 };
 
 const SourceReposEdit = ({formApi}: {formApi: FormApi}) => {
-    const {data: repos = []} = useQuery({queryKey: ['repos', 'list'], queryFn: () => services.repos.list()});
+    const {data: repos = []} = useQuery(repoQueries.list());
     return (
         <React.Fragment>
             {(formApi.values.spec.sourceRepos || []).map((_: Project, i: number) => (
@@ -265,7 +266,7 @@ const SourceReposEdit = ({formApi}: {formApi: FormApi}) => {
 };
 
 const DestinationsEdit = ({formApi}: {formApi: FormApi}) => {
-    const {data: clusters = []} = useQuery({queryKey: ['clusters', 'list'], queryFn: () => services.clusters.list()});
+    const {data: clusters = []} = useQuery(clusterQueries.list());
     return (
         <React.Fragment>
             <div className='row white-box__details-row'>
@@ -316,7 +317,7 @@ const DestinationsEdit = ({formApi}: {formApi: FormApi}) => {
 };
 
 const DestinationServiceAccountsEdit = ({formApi}: {formApi: FormApi}) => {
-    const {data: clusters = []} = useQuery({queryKey: ['clusters', 'list'], queryFn: () => services.clusters.list()});
+    const {data: clusters = []} = useQuery(clusterQueries.list());
     return (
         <React.Fragment>
             <div className='row white-box__details-row'>
@@ -368,7 +369,7 @@ const DestinationServiceAccountsEdit = ({formApi}: {formApi: FormApi}) => {
 };
 
 const SignatureKeysEdit = ({formApi}: {formApi: FormApi}) => {
-    const {data: keys = []} = useQuery({queryKey: ['gpgkeys', 'list'], queryFn: () => services.gpgkeys.list()});
+    const {data: keys = []} = useQuery(gpgkeyQueries.list());
     return (
         <React.Fragment>
             {(formApi.values.spec.signatureKeys || []).map((_: Project, i: number) => (
@@ -403,9 +404,9 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
     const objectListKind = props.objectListKind || 'application';
     const queryClient = useQueryClient();
     const name = props.match.params.name;
-    const detailed = useQuery({queryKey: ['projects', name, 'detailed'], queryFn: () => services.projects.getDetailed(name)});
+    const detailed = useQuery(projectQueries.detailed(name));
     // Prefix also covers the sync window states and links queries below.
-    const refreshProject = () => queryClient.invalidateQueries({queryKey: ['projects', name]});
+    const refreshProject = () => queryClient.invalidateQueries({queryKey: projectQueries.byName(name)});
 
     const deleteJWTToken = async (params: DeleteJWTTokenParams, notifications: NotificationsApi) => {
         try {
