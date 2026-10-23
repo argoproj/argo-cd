@@ -338,24 +338,28 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 		t.Skip("Skipping progressive sync tests - ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS not enabled")
 	}
 
+	// Create only, this test never updates the spec.
 	expectedConditions := []v1alpha1.ApplicationSetCondition{
 		{
-			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-			Message: "No steps defined for rollout",
-			Reason:  v1alpha1.ApplicationSetReasonApplicationSetRolloutError,
+			Type:               v1alpha1.ApplicationSetConditionErrorOccurred,
+			Status:             v1alpha1.ApplicationSetConditionStatusTrue,
+			Message:            "No steps defined for rollout",
+			Reason:             v1alpha1.ApplicationSetReasonApplicationSetRolloutError,
+			ObservedGeneration: 1,
 		},
 		{
-			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
-			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-			Message: "Successfully generated parameters for all Applications",
-			Reason:  v1alpha1.ApplicationSetReasonParametersGenerated,
+			Type:               v1alpha1.ApplicationSetConditionParametersGenerated,
+			Status:             v1alpha1.ApplicationSetConditionStatusTrue,
+			Message:            "Successfully generated parameters for all Applications",
+			Reason:             v1alpha1.ApplicationSetReasonParametersGenerated,
+			ObservedGeneration: 1,
 		},
 		{
-			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: "No steps defined for rollout",
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
+			Type:               v1alpha1.ApplicationSetConditionResourcesUpToDate,
+			Status:             v1alpha1.ApplicationSetConditionStatusFalse,
+			Message:            "No steps defined for rollout",
+			Reason:             v1alpha1.ApplicationSetReasonErrorOccurred,
+			ObservedGeneration: 1,
 		},
 	}
 
