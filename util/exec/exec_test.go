@@ -260,7 +260,7 @@ func TestRunWithExecRunOptsCaptureStderr(t *testing.T) {
 }
 
 func TestRunCommandExt_timeoutDoesNotRaceOnOutputBuffers(t *testing.T) {
-	cmd := exec.Command("sh", "-c", "echo hi; sleep 1; echo bye")
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "echo hi; sleep 1; echo bye")
 	_, err := RunCommandExt(cmd, CmdOpts{Timeout: 200 * time.Millisecond})
 	require.Error(t, err)
 	// Keep the process alive past RunCommandExt's return so the race detector
