@@ -3,6 +3,9 @@ package certificate
 import (
 	"context"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	certificatepkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/certificate"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/db"
@@ -39,6 +42,24 @@ func (s *Server) ListCertificates(ctx context.Context, q *certificatepkg.Reposit
 	})
 	if err != nil {
 		return nil, err
+	}
+	return certList, nil
+}
+
+// Returns the certificates configured for a single server, including their data
+func (s *Server) GetCertificate(ctx context.Context, q *certificatepkg.RepositoryCertificateGetRequest) (*appsv1.RepositoryCertificateList, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceCertificates, rbac.ActionGet, ""); err != nil {
+		return nil, err
+	}
+	if q.GetServerName() == "" {
+		return nil, status.Error(codes.InvalidArgument, "server name must not be empty")
+	}
+	certList, err := s.db.GetRepoCertificates(ctx, q.GetServerName(), q.GetCertType(), q.GetCertSubType())
+	if err != nil {
+		return nil, err
+	}
+	if len(certList.Items) == 0 {
+		return nil, status.Errorf(codes.NotFound, "no certificates configured for server '%s'", q.GetServerName())
 	}
 	return certList, nil
 }

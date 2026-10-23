@@ -84,6 +84,7 @@ argocd cert [flags]
 * [argocd](argocd.md)	 - argocd controls an Argo CD server
 * [argocd cert add-ssh](argocd_cert_add-ssh.md)	 - Add SSH known host entries for repository servers
 * [argocd cert add-tls](argocd_cert_add-tls.md)	 - Add TLS certificate data for connecting to repository server SERVERNAME
+* [argocd cert get](argocd_cert_get.md)	 - Get the certificates and SSH known hosts entries configured for SERVERNAME
 * [argocd cert list](argocd_cert_list.md)	 - List configured certificates
 * [argocd cert rm](argocd_cert_rm.md)	 - Remove certificate of TYPE for REPOSERVER
 
