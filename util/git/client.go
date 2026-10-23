@@ -2224,8 +2224,14 @@ func (m *nativeGitClient) runCredentialedCmdOutput(ctx context.Context, ropts ru
 	return m.runCmdOutput(cmd, ropts)
 }
 
-// gitCancelGracePeriod is how long a cancelled git command has to exit after SIGTERM before it is killed.
-var gitCancelGracePeriod = 10 * time.Second
+// gitCancelGracePeriod is how long a cancelled git command has to exit after
+// SIGTERM before it is killed. It reads ARGOCD_EXEC_FATAL_TIMEOUT, the same
+// env var util/exec uses to bound its own timeout-then-SIGKILL escalation, so
+// one knob governs both. Duplicating the read here instead of sharing an
+// accessor with util/exec is a shortcut; a later layer should clean it up.
+func gitCancelGracePeriod() time.Duration {
+	return env.ParseDurationFromEnv("ARGOCD_EXEC_FATAL_TIMEOUT", 10*time.Second, 0, math.MaxInt64)
+}
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {
 	if ropts.Dir == "" {
@@ -2268,7 +2274,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 	// On context cancellation, send SIGTERM (not os/exec's default SIGKILL) so git can
 	// remove its lock files; os/exec sends SIGKILL if git is still running after WaitDelay.
 	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
-	cmd.WaitDelay = gitCancelGracePeriod
+	cmd.WaitDelay = gitCancelGracePeriod()
 	opts := executil.ExecRunOpts{
 		TimeoutBehavior: executil.TimeoutBehavior{
 			Signal:     syscall.SIGTERM,

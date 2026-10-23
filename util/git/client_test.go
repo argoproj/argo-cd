@@ -584,10 +584,18 @@ func Test_nativeGitClient_Checkout_cancelDoesNotLeaveIndexLock(t *testing.T) {
 	require.NoFileExists(t, indexLock, "cancelled git left a stale index.lock behind")
 }
 
+func Test_gitCancelGracePeriod(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		assert.Equal(t, 10*time.Second, gitCancelGracePeriod())
+	})
+	t.Run("respects ARGOCD_EXEC_FATAL_TIMEOUT", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "500ms")
+		assert.Equal(t, 500*time.Millisecond, gitCancelGracePeriod())
+	})
+}
+
 func Test_nativeGitClient_runCmdOutput_killsProcessIgnoringSIGTERMAfterGracePeriod(t *testing.T) {
-	oldGracePeriod := gitCancelGracePeriod
-	gitCancelGracePeriod = 500 * time.Millisecond
-	t.Cleanup(func() { gitCancelGracePeriod = oldGracePeriod })
+	t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "500ms")
 
 	client := &nativeGitClient{root: t.TempDir(), repoURL: "https://example.com/repo.git"}
 	marker := filepath.Join(t.TempDir(), "started")
