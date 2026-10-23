@@ -56,9 +56,9 @@ func TestTwoLevelClient_SetSkipsUnchangedValue(t *testing.T) {
 	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
 	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
 
-	// The first write stores the key. The first unchanged write finds no marker yet, so it stores the marker and
-	// writes the key once more. The last write is skipped.
-	assert.Equal(t, 3, external.sets)
+	// The marker is written when the client is created and the key on the first write. The first unchanged write
+	// finds the marker, so both unchanged writes are skipped.
+	assert.Equal(t, 2, external.sets)
 }
 
 func TestTwoLevelClient_SetWritesChangedValue(t *testing.T) {
@@ -149,9 +149,10 @@ func TestTwoLevelClient_ExternalCacheCheckErrorKeepsInMemoryCache(t *testing.T) 
 	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
 	external.getErr = errors.New("connection refused")
 
-	// A failed check must not be read as data loss, so the unchanged value is not written again.
+	// A failed check must not be read as data loss, so the unchanged value is not written again. The two writes are
+	// the marker at start-up and the key.
 	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
-	assert.Equal(t, 1, external.sets)
+	assert.Equal(t, 2, external.sets)
 
 	var value string
 	require.NoError(t, client.Get("key", &value))
@@ -184,7 +185,7 @@ func TestTwoLevelClient_MissingMarkerIsLoggedOnlyOnDataLoss(t *testing.T) {
 	client := NewTwoLevelClient(redisCache, time.Minute)
 	client.externalCacheCheckInterval = 0
 
-	// First check after start-up: the marker was never written.
+	// First check after start-up: the marker was written when the client was created, so the check finds it.
 	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
 	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
 	assert.Equal(t, 0, missingMarkerInfoLogs(hook))
@@ -201,18 +202,23 @@ func TestTwoLevelClient_MissingMarkerIsLoggedOnlyOnDataLoss(t *testing.T) {
 	assert.Equal(t, 1, missingMarkerInfoLogs(hook))
 }
 
-func TestTwoLevelClient_MarkerWriteErrorDoesNotRecordWriteTime(t *testing.T) {
+func TestTwoLevelClient_MarkerWriteErrorAtStartUpFallsBackToCheck(t *testing.T) {
+	hook := newTestLogHook(t)
 	_, redisCache := newTestRedisCache(t)
-	external := &countingCacheClient{CacheClient: redisCache}
+	external := &countingCacheClient{CacheClient: redisCache, setErr: errors.New("write failed")}
+
+	// The external cache rejects the marker at start-up, so no write time is recorded.
 	client := NewTwoLevelClient(external, time.Minute)
 	client.externalCacheCheckInterval = 0
-
-	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
-	external.setErr = errors.New("write failed")
-
-	// The check finds no marker and cannot write it, so the unchanged value goes to the external cache and fails too.
-	require.Error(t, client.Set(&Item{Key: "key", Object: "value"}))
 	assert.Zero(t, client.externalCacheMarkerWrittenAt.Load())
+
+	// Once the external cache accepts writes, the first check finds no marker, flushes and writes it. The marker was
+	// never written, so this is not logged as data loss.
+	external.setErr = nil
+	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
+	require.NoError(t, client.Set(&Item{Key: "key", Object: "value"}))
+	assert.NotZero(t, client.externalCacheMarkerWrittenAt.Load())
+	assert.Equal(t, 0, missingMarkerInfoLogs(hook))
 }
 
 func TestTwoLevelClient_SetRetriesValueAfterExternalWriteError(t *testing.T) {
@@ -220,10 +226,6 @@ func TestTwoLevelClient_SetRetriesValueAfterExternalWriteError(t *testing.T) {
 	external := &countingCacheClient{CacheClient: redisCache}
 	client := NewTwoLevelClient(external, time.Minute)
 	client.externalCacheCheckInterval = time.Hour
-
-	// Store the marker, so that the next unchanged write is skipped without a check.
-	require.NoError(t, client.Set(&Item{Key: "other", Object: "value"}))
-	require.NoError(t, client.Set(&Item{Key: "other", Object: "value"}))
 
 	external.setErr = errors.New("write failed")
 	require.Error(t, client.Set(&Item{Key: "key", Object: "value"}))

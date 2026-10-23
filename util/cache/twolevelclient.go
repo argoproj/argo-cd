@@ -21,12 +21,15 @@ const (
 // NewTwoLevelClient creates cache client that proxies requests to given external cache and tries to minimize
 // number of requests to external client by storing cache entries in local in-memory cache.
 func NewTwoLevelClient(client CacheClient, inMemoryExpiration time.Duration) *twoLevelClient {
-	return &twoLevelClient{
+	c := &twoLevelClient{
 		inMemoryCache:              NewInMemoryCache(inMemoryExpiration),
 		externalCache:              client,
 		externalCacheMarkerKey:     "twolevelclient|marker|" + uuid.NewString(),
 		externalCacheCheckInterval: defaultExternalCacheCheckInterval,
 	}
+	// Write the marker now, so that the first check finds it unless the external cache lost it since.
+	c.saveExternalCacheMarker()
+	return c
 }
 
 type twoLevelClient struct {
@@ -97,7 +100,7 @@ func (c *twoLevelClient) externalCacheWasReset() bool {
 	}
 
 	// A marker written less than externalCacheMarkerExpiration ago can only be missing because the external cache lost
-	// it. Otherwise it was never written (first check after start-up) or it expired, and the flush is a precaution
+	// it. Otherwise it was never written (the write at start-up failed) or it expired, and the flush is a precaution
 	// that costs one extra write per key. Data lost after the marker expired but before this check is logged as an
 	// expiry; the flush is the same either way.
 	writtenAt := c.externalCacheMarkerWrittenAt.Load()
@@ -107,21 +110,25 @@ func (c *twoLevelClient) externalCacheWasReset() bool {
 		log.Debugf("Marker key '%s' is not in external cache yet or expired, flushing in-memory cache", c.externalCacheMarkerKey)
 	}
 	c.inMemoryCache.Flush()
+	c.saveExternalCacheMarker()
+	return true
+}
 
+// saveExternalCacheMarker writes the marker key to the external cache and records when it was written.
+func (c *twoLevelClient) saveExternalCacheMarker() {
 	// Take the time before the write, so that the marker always expires in the external cache after
 	// externalCacheMarkerExpiration has passed by this clock.
 	writeTime := time.Now().UnixNano()
-	err = c.externalCache.Set(&Item{
+	err := c.externalCache.Set(&Item{
 		Key:             c.externalCacheMarkerKey,
 		Object:          c.externalCacheMarkerKey,
 		CacheActionOpts: CacheActionOpts{Expiration: externalCacheMarkerExpiration},
 	})
 	if err != nil {
 		log.Warnf("Failed to save marker key '%s' in external cache: %v", c.externalCacheMarkerKey, err)
-		return true
+		return
 	}
 	c.externalCacheMarkerWrittenAt.Store(writeTime)
-	return true
 }
 
 // Get returns cache value from in-memory cache if it present. Otherwise loads it from external cache and persists
