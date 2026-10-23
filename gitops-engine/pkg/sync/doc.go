@@ -82,6 +82,7 @@ The sync options allows customizing the synchronization of selected resources. T
 annotation 'argocd.argoproj.io/sync-options'. Following sync options are supported:
 
 - SkipDryRunOnMissingResource=true - disables dry run in resource is missing in the cluster
+- SkipHealthCheck=true - considers the resource synced once applied, without waiting for it to become healthy
 - Prune=false - disables resource pruning
 - Validate=false - disables resource validation (equivalent to 'kubectl apply --validate=false')
 
@@ -100,6 +101,6 @@ in-sync and healthy.
 
 # Example
 
-Find real-life example in https://github.com/argoproj/gitops-engine/blob/master/pkg/engine/engine.go
+Find real-life example in https://github.com/argoproj/argo-cd/blob/master/gitops-engine/pkg/engine/engine.go
 */
 package sync

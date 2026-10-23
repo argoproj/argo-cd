@@ -7,8 +7,14 @@ set -o pipefail
 SRCROOT="$( CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P )"
 AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
 
+# shellcheck disable=SC2128
+PROJECT_ROOT=$(
+    cd "$(dirname "${BASH_SOURCE}")"/..
+    pwd
+)
+PATH="${PROJECT_ROOT}/dist:${PATH}"
+
 KUSTOMIZE=kustomize
-[ -f "$SRCROOT/dist/kustomize" ] && KUSTOMIZE="$SRCROOT/dist/kustomize"
 
 cd "${SRCROOT}/manifests/ha/base/redis-ha" && ./generate.sh
 
@@ -70,6 +76,10 @@ fi
 # if the tag has not been declared, and we are on a release branch, use the VERSION file.
 if [ "$IMAGE_TAG" = "" ]; then
   branch=$(git rev-parse --abbrev-ref HEAD)
+  # In GitHub Actions PRs, HEAD is detached; use GITHUB_BASE_REF (the target branch) instead
+  if [ "$branch" = "HEAD" ] && [ -n "${GITHUB_BASE_REF:-}" ]; then
+    branch="$GITHUB_BASE_REF"
+  fi
   if [[ $branch = release-* ]]; then
     pwd
     IMAGE_TAG=v$(cat "$SRCROOT/VERSION")

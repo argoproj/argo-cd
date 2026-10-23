@@ -10,6 +10,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/notification/expression/shared"
 	mock "github.com/stretchr/testify/mock"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/tools/cache"
 )
 
 // NewService creates a new instance of Service. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -18,10 +20,19 @@ func NewService(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *Service {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &Service{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -75,7 +86,7 @@ type Service_GetAppDetails_Call struct {
 // GetAppDetails is a helper method to define mock.On call
 //   - ctx context.Context
 //   - app *v1alpha1.Application
-func (_e *Service_Expecter) GetAppDetails(ctx interface{}, app interface{}) *Service_GetAppDetails_Call {
+func (_e *Service_Expecter) GetAppDetails(ctx any, app any) *Service_GetAppDetails_Call {
 	return &Service_GetAppDetails_Call{Call: _e.mock.On("GetAppDetails", ctx, app)}
 }
 
@@ -103,6 +114,74 @@ func (_c *Service_GetAppDetails_Call) Return(appDetail *shared.AppDetail, err er
 }
 
 func (_c *Service_GetAppDetails_Call) RunAndReturn(run func(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error)) *Service_GetAppDetails_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAppProject provides a mock function for the type Service
+func (_mock *Service) GetAppProject(ctx context.Context, projectName string) (*unstructured.Unstructured, error) {
+	ret := _mock.Called(ctx, projectName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAppProject")
+	}
+
+	var r0 *unstructured.Unstructured
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*unstructured.Unstructured, error)); ok {
+		return returnFunc(ctx, projectName)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *unstructured.Unstructured); ok {
+		r0 = returnFunc(ctx, projectName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*unstructured.Unstructured)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, projectName)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Service_GetAppProject_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAppProject'
+type Service_GetAppProject_Call struct {
+	*mock.Call
+}
+
+// GetAppProject is a helper method to define mock.On call
+//   - ctx context.Context
+//   - projectName string
+func (_e *Service_Expecter) GetAppProject(ctx any, projectName any) *Service_GetAppProject_Call {
+	return &Service_GetAppProject_Call{Call: _e.mock.On("GetAppProject", ctx, projectName)}
+}
+
+func (_c *Service_GetAppProject_Call) Run(run func(ctx context.Context, projectName string)) *Service_GetAppProject_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Service_GetAppProject_Call) Return(unstructured1 *unstructured.Unstructured, err error) *Service_GetAppProject_Call {
+	_c.Call.Return(unstructured1, err)
+	return _c
+}
+
+func (_c *Service_GetAppProject_Call) RunAndReturn(run func(ctx context.Context, projectName string) (*unstructured.Unstructured, error)) *Service_GetAppProject_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -145,7 +224,7 @@ type Service_GetCommitMetadata_Call struct {
 //   - repoURL string
 //   - commitSHA string
 //   - project string
-func (_e *Service_Expecter) GetCommitMetadata(ctx interface{}, repoURL interface{}, commitSHA interface{}, project interface{}) *Service_GetCommitMetadata_Call {
+func (_e *Service_Expecter) GetCommitMetadata(ctx any, repoURL any, commitSHA any, project any) *Service_GetCommitMetadata_Call {
 	return &Service_GetCommitMetadata_Call{Call: _e.mock.On("GetCommitMetadata", ctx, repoURL, commitSHA, project)}
 }
 
@@ -184,5 +263,45 @@ func (_c *Service_GetCommitMetadata_Call) Return(commitMetadata *shared.CommitMe
 
 func (_c *Service_GetCommitMetadata_Call) RunAndReturn(run func(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error)) *Service_GetCommitMetadata_Call {
 	_c.Call.Return(run)
+	return _c
+}
+
+// SetAppProjectInformer provides a mock function for the type Service
+func (_mock *Service) SetAppProjectInformer(informer cache.SharedIndexInformer) {
+	_mock.Called(informer)
+	return
+}
+
+// Service_SetAppProjectInformer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetAppProjectInformer'
+type Service_SetAppProjectInformer_Call struct {
+	*mock.Call
+}
+
+// SetAppProjectInformer is a helper method to define mock.On call
+//   - informer cache.SharedIndexInformer
+func (_e *Service_Expecter) SetAppProjectInformer(informer any) *Service_SetAppProjectInformer_Call {
+	return &Service_SetAppProjectInformer_Call{Call: _e.mock.On("SetAppProjectInformer", informer)}
+}
+
+func (_c *Service_SetAppProjectInformer_Call) Run(run func(informer cache.SharedIndexInformer)) *Service_SetAppProjectInformer_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 cache.SharedIndexInformer
+		if args[0] != nil {
+			arg0 = args[0].(cache.SharedIndexInformer)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Service_SetAppProjectInformer_Call) Return() *Service_SetAppProjectInformer_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *Service_SetAppProjectInformer_Call) RunAndReturn(run func(informer cache.SharedIndexInformer)) *Service_SetAppProjectInformer_Call {
+	_c.Run(run)
 	return _c
 }

@@ -2,6 +2,7 @@
 
 | Workflow           | Description                                                    |
 |--------------------|----------------------------------------------------------------|
+| auto-assign-pr-author.yaml | Assign the PR author to their pull request            |
 | ci-build.yaml      | Build, lint, test, codegen, build-ui, analyze, e2e-test        |
 | codeql.yaml        | CodeQL analysis                                                |
 | image-reuse.yaml   | Build, push, and Sign container images                         |
@@ -11,6 +12,7 @@
 | release.yaml       | Build images, cli-binaries, provenances, and post actions      |
 | scorecard.yaml     | Generate scorecard for supply-chain security                   |
 | update-snyk.yaml   | Scheduled snyk reports                                         |
+| stale.yaml         | Labels stale issues and PRs                                    |
 
 # Reusable workflows
 

@@ -1,7 +1,7 @@
 # Verification of Argo CD Artifacts
 
 ## Prerequisites
-- cosign `v2.0.0` or higher [installation instructions](https://docs.sigstore.dev/cosign/installation)
+- cosign `v2.0.0` or higher [installation instructions](https://docs.sigstore.dev/cosign/system_config/installation/)
 - slsa-verifier [installation instructions](https://github.com/slsa-framework/slsa-verifier#installation)
 - crane [installation instructions](https://github.com/google/go-containerregistry/blob/main/cmd/crane/README.md) (for container verification only)
 
@@ -154,4 +154,4 @@ slsa-verifier verify-artifact sbom.tar.gz \
 > [!NOTE]
 > We encourage all users to verify signatures and provenances with your admission/policy controller of choice. Doing so will verify that an image was built by us before it's deployed on your Kubernetes cluster.
 
-Cosign signatures and SLSA provenances are compatible with several types of admission controllers. Please see the [cosign documentation](https://docs.sigstore.dev/cosign/overview/#kubernetes-integrations) and [slsa-github-generator](https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#verification) for supported controllers.
+Cosign signatures and SLSA provenances are compatible with several types of admission controllers. Please see the [cosign documentation](https://docs.sigstore.dev/policy-controller/overview/) and [slsa-github-generator](https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#verification) for supported controllers.

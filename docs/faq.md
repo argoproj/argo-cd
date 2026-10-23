@@ -83,6 +83,26 @@ or a randomly generated password stored in a secret (Argo CD 1.9 and later).
 Add `admin.enabled: "false"` to the `argocd-cm` ConfigMap
 (see [user management](./operator-manual/user-management/index.md)).
 
+## How to view orphaned resources?
+
+Orphaned Kubernetes resources are top-level namespaced resources that do not belong to any Argo CD Application. For more information, see [Orphaned Resources Monitoring](./user-guide/orphaned-resources.md).
+
+!!! warning
+    Enabling orphaned resource monitoring has performance implications. If an AppProject monitors a namespace containing many resources not managed by Argo CD (e.g. `kube-system`), it can significantly impact your Argo CD instance. Enable this feature only on projects with well-scoped namespaces.
+
+To view orphaned resources in the Argo CD UI:
+
+1. Click on **Settings** in the sidebar.
+2. Click on **Projects**.
+3. Select the desired project.
+4. Scroll down to the **RESOURCE MONITORING** section.
+5. Click **Edit** and enable the monitoring feature.
+6. Check **Enable application warning conditions?** to enable warnings.
+7. Click **Save**.
+8. Navigate back to **Applications** and select an application under the configured project.
+9. In the **Sync Panel**, under **APP CONDITIONS**, you will see the orphaned resources warning.
+10. Click **Show Orphaned** below the **HEALTH STATUS** filters to display orphaned resources.
+
 ## Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?
 
 Argo CD might fail to generate Helm chart manifests if the chart has dependencies located in external repositories. To
@@ -232,6 +252,11 @@ fixed CRD if you want this feature to work at all.
 
 The controller of the `SealedSecret` resource may expose the status condition on resource it provisioned. Since
 version `v2.0.0` Argo CD picks up that status condition to derive a health status for the `SealedSecret`.
+The health check waits for `status.observedGeneration` to match `metadata.generation` before using the condition,
+so a status from an earlier update cannot mark the current `SealedSecret` healthy.
+Version `v0.24.2` of the `SealedSecret` controller does not keep `status.observedGeneration` in sync with
+`metadata.generation`, so `SealedSecret` resources stay `Progressing` with that version. Upgrade the controller
+to `v0.24.3` or later to fix this.
 
 Versions before `v0.15.0` of the `SealedSecret` controller are affected by an issue regarding this status
 conditions updates, which is why this feature is disabled by default in these versions. Status condition updates may be
@@ -311,7 +336,7 @@ Argo CD default installation is now configured to automatically enable Redis aut
 If for some reason authenticated Redis does not work for you and you want to use non-authenticated Redis, here are the steps:
 
 1. You need to have your own Redis installation.
-2. Configure Argo CD to use your own Redis instance. See this [doc](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cmd-params-cm-yaml/) for the Argo CD configuration.
+2. Configure Argo CD to use your own Redis instance, as shown in the [example configuration](operator-manual/argocd-cmd-params-cm-yaml.md).
 3. If you already installed Redis shipped with Argo CD, you also need to clean up the existing components:
 
     * When HA Redis is used:

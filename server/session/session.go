@@ -7,6 +7,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -42,36 +43,42 @@ func NewServer(mgr *sessionmgr.SessionManager, settingsMgr *settings.SettingsMan
 // Create generates a JWT token signed by Argo CD intended for web/CLI logins of the admin user
 // using username/password
 func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*session.SessionResponse, error) {
+	logCtx := log.WithFields(log.Fields{"username": q.Username, "login.type": "local"})
+	resp, err := s.create(q)
+	if err != nil {
+		s.mgr.IncLoginRequestCounter(failure)
+		logCtx.WithError(err).Warn("Login failed")
+		return nil, err
+	}
+	s.mgr.IncLoginRequestCounter(success)
+	logCtx.Info("Login successful")
+	return resp, nil
+}
+
+func (s *Server) create(q *session.SessionCreateRequest) (*session.SessionResponse, error) {
 	if s.limitLoginAttempts != nil {
 		closer, err := s.limitLoginAttempts()
 		if err != nil {
-			s.mgr.IncLoginRequestCounter(failure)
 			return nil, err
 		}
 		defer utilio.Close(closer)
 	}
 
 	if q.Token != "" {
-		s.mgr.IncLoginRequestCounter(failure)
 		return nil, status.Errorf(codes.Unauthenticated, "token-based session creation no longer supported. please upgrade argocd cli to v0.7+")
 	}
 	if q.Username == "" || q.Password == "" {
-		s.mgr.IncLoginRequestCounter(failure)
 		return nil, status.Errorf(codes.Unauthenticated, "no credentials supplied")
 	}
-	err := s.mgr.VerifyUsernamePassword(q.Username, q.Password)
-	if err != nil {
-		s.mgr.IncLoginRequestCounter(failure)
+	if err := s.mgr.VerifyUsernamePassword(q.Username, q.Password); err != nil {
 		return nil, err
 	}
 	uniqueId, err := uuid.NewRandom()
 	if err != nil {
-		s.mgr.IncLoginRequestCounter(failure)
 		return nil, err
 	}
 	argoCDSettings, err := s.settingsMgr.GetSettings()
 	if err != nil {
-		s.mgr.IncLoginRequestCounter(failure)
 		return nil, err
 	}
 	jwtToken, err := s.mgr.Create(
@@ -79,10 +86,8 @@ func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*se
 		int64(argoCDSettings.UserSessionDuration.Seconds()),
 		uniqueId.String())
 	if err != nil {
-		s.mgr.IncLoginRequestCounter(failure)
 		return nil, err
 	}
-	s.mgr.IncLoginRequestCounter(success)
 	return &session.SessionResponse{Token: jwtToken}, nil
 }
 

@@ -2,22 +2,104 @@ package trace
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.6.1"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/argoproj/argo-cd/v3/util/cert"
 )
 
+// collectorTLSCredentials builds TLS credentials from the standard
+// OTEL_EXPORTER_OTLP_[<signal>_]CERTIFICATE, CLIENT_CERTIFICATE and CLIENT_KEY
+// env vars (signal-specific wins, as in the SDK), falling back to the CA for
+// the collector host in argocd-tls-certs-cm, else the system roots.
+//
+// Not left to the exporter: it silently skips a bad CA or an incomplete client
+// pair, and without credentials honors OTEL_EXPORTER_OTLP_INSECURE.
+func collectorTLSCredentials(otlpAddress, signal string) (credentials.TransportCredentials, error) {
+	env := func(name string) string {
+		return strings.TrimSpace(os.Getenv("OTEL_EXPORTER_OTLP_" + name))
+	}
+	cfg := &tls.Config{}
+
+	caPath := env(signal + "_CERTIFICATE")
+	if caPath == "" {
+		caPath = env("CERTIFICATE")
+	}
+	if caPath != "" {
+		data, err := os.ReadFile(caPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read OTLP collector CA: %w", err)
+		}
+		cfg.RootCAs = x509.NewCertPool()
+		if !cfg.RootCAs.AppendCertsFromPEM(data) {
+			return nil, fmt.Errorf("no certificates found in OTLP collector CA %s", caPath)
+		}
+	} else {
+		certs, err := cert.GetCertificateForConnect(otlpAddress)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load TLS certificates for OTLP collector %s: %w", otlpAddress, err)
+		}
+		if len(certs) > 0 {
+			cfg.RootCAs = cert.GetCertPoolFromPEMData(certs)
+		}
+	}
+
+	// Like the SDK, the cert and key are read as a pair: the signal-specific
+	// pair if both are set, else the generic one. Unlike the SDK, a lone half is
+	// an error rather than silently dropping the client cert.
+	var certPath, keyPath string
+	sc, sk := env(signal+"_CLIENT_CERTIFICATE"), env(signal+"_CLIENT_KEY")
+	gc, gk := env("CLIENT_CERTIFICATE"), env("CLIENT_KEY")
+	switch {
+	case sc != "" && sk != "":
+		certPath, keyPath = sc, sk
+	case gc != "" && gk != "":
+		certPath, keyPath = gc, gk
+	case sc != "" || sk != "" || gc != "" || gk != "":
+		return nil, errors.New("OTLP client certificate and key must both be set")
+	}
+	if certPath != "" {
+		pair, err := tls.LoadX509KeyPair(certPath, keyPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load OTLP client certificate: %w", err)
+		}
+		cfg.Certificates = []tls.Certificate{pair}
+	}
+	return credentials.NewTLS(cfg), nil
+}
+
 // InitTracer initializes the trace provider and the otel grpc exporter.
-func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecure bool, otlpHeaders map[string]string, otlpAttrs []string) (func(), error) {
+//
+// sampleRatio controls head-based sampling: 1.0 samples every trace, 0.0 samples
+// none, and values in between sample that fraction of traces. Callers are expected to
+// pass a value in [0.0, 1.0] (the --otlp-sample-ratio flag is range-validated at parse
+// time via cli.BoundedFloat64Var). The sampler is parent-based, so a sampling decision
+// made upstream (e.g. the controller) is honored by every downstream service the trace
+// context propagates to (repo-server, commit-server, ...), keeping each trace whole
+// rather than partially sampled across process boundaries.
+//
+// Because the sampler is parent-based, an incoming request that already carries a
+// W3C traceparent marked "not sampled" is not recorded even when sampleRatio is 1.0:
+// the upstream sampling decision wins. This differs from the previous always-on
+// sampler, which recorded every request regardless of any inbound sampling flag.
+func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecure bool, otlpHeaders map[string]string, otlpAttrs []string, sampleRatio float64) (func(), error) {
 	attrs := make([]attribute.KeyValue, 0, len(otlpAttrs))
 	for i := range otlpAttrs {
 		attr := otlpAttrs[i]
@@ -39,20 +121,26 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	// set up grpc options based on secure/insecure connection
-	var secureOption otlptracegrpc.Option
+	// Explicit options override the OTEL_EXPORTER_OTLP_* env vars, so headers
+	// are only set when configured.
+	opts := []otlptracegrpc.Option{otlptracegrpc.WithEndpoint(otlpAddress)}
 	if otlpInsecure {
-		secureOption = otlptracegrpc.WithInsecure()
+		// Credentials, not WithInsecure: the exporter prefers TLS built from the
+		// OTEL_EXPORTER_OTLP_*CERTIFICATE env vars over its insecure flag.
+		opts = append(opts, otlptracegrpc.WithTLSCredentials(insecure.NewCredentials()))
 	} else {
-		secureOption = otlptracegrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, ""))
+		creds, err := collectorTLSCredentials(otlpAddress, "TRACES")
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, otlptracegrpc.WithTLSCredentials(creds))
+	}
+	if len(otlpHeaders) > 0 {
+		opts = append(opts, otlptracegrpc.WithHeaders(otlpHeaders))
 	}
 
 	// set up a trace exporter
-	exporter, err := otlptracegrpc.New(ctx,
-		secureOption,
-		otlptracegrpc.WithEndpoint(otlpAddress),
-		otlptracegrpc.WithHeaders(otlpHeaders),
-	)
+	exporter, err := otlptracegrpc.New(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
 	}
@@ -61,7 +149,7 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 	// span processor to aggregate spans before export.
 	bsp := sdktrace.NewBatchSpanProcessor(exporter)
 	provider := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.TraceIDRatioBased(sampleRatio))),
 		sdktrace.WithResource(res),
 		sdktrace.WithSpanProcessor(bsp),
 	)
@@ -75,4 +163,17 @@ func InitTracer(ctx context.Context, serviceName, otlpAddress string, otlpInsecu
 			log.Errorf("failed to stop exporter: %v", err)
 		}
 	}, nil
+}
+
+// EndSpan ends span, recording an error status when err is non-nil. Defer it inside a
+// closure so err is read at function exit rather than at defer-statement time (when a
+// named return is still nil):
+//
+//	defer func() { trace.EndSpan(span, retErr) }()
+func EndSpan(span oteltrace.Span, err error) {
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		span.RecordError(err)
+	}
+	span.End()
 }

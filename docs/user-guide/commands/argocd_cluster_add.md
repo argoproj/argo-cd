@@ -25,12 +25,15 @@ argocd cluster add CONTEXT [flags]
       --exec-command-install-hint string   Text shown to the user when the --exec-command executable doesn't seem to be present
   -h, --help                               help for add
       --in-cluster                         Indicates Argo CD resides inside this cluster and should connect using the internal k8s hostname (kubernetes.default.svc)
+      --k8s-client-burst int               Burst limit for K8s API client requests to the cluster (default 0, which uses global controller default)
+      --k8s-client-qps float32             QPS limit for K8s API client requests to the cluster (default 0, which uses global controller default)
       --kubeconfig string                  use a particular kubeconfig file
       --label stringArray                  Set metadata labels (e.g. --label key=value)
       --name string                        Overwrite the cluster name
       --namespace stringArray              List of namespaces which are allowed to manage
       --project string                     project of the cluster
       --proxy-url string                   use proxy to connect cluster
+      --server-proxy-url string            use a different proxy URL (or "" for no proxy) for the ArgoCD server to connect to the cluster; if omitted the value from --proxy-url or the kubeconfig is used
       --service-account string             System namespace service account to use for kubernetes resource management. If not set then default "argocd-manager" SA will be created
       --shard int                          Cluster shard number; inferred from hostname if not set (default -1)
       --system-namespace string            Use different system namespace (default "kube-system")

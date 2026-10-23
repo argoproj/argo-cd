@@ -72,6 +72,7 @@ func (m *mockResourceInterface) Namespace(string) dynamic.ResourceInterface {
 // TestListResourcesNilPointerFix tests that our fix prevents panic when
 // resClient.List() returns (nil, error)
 func TestListResourcesNilPointerFix(t *testing.T) {
+	t.Parallel()
 	// Create a cluster cache with proper configuration
 	cache := &clusterCache{
 		listSemaphore:       semaphore.NewWeighted(1),
@@ -87,10 +88,10 @@ func TestListResourcesNilPointerFix(t *testing.T) {
 	mockClient := &mockResourceInterface{}
 
 	// This should not panic even though mockClient.List() returns (nil, error)
-	_, err := cache.listResources(context.Background(), mockClient, func(listPager *pager.ListPager) error {
+	_, err := cache.listResources(t.Context(), mockClient, func(listPager *pager.ListPager) error {
 		// The fix ensures the pager receives a non-nil UnstructuredList
 		// preventing panic in GetContinue()
-		return listPager.EachListItem(context.Background(), metav1.ListOptions{}, func(obj runtime.Object) error {
+		return listPager.EachListItem(t.Context(), metav1.ListOptions{}, func(obj runtime.Object) error {
 			return nil
 		})
 	})

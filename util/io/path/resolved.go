@@ -26,8 +26,7 @@ func resolveSymbolicLinkRecursive(path string, maxDepth int) (string, error) {
 	resolved, err := os.Readlink(path)
 	if err != nil {
 		// path is not a symbolic link
-		var pathErr *os.PathError
-		if errors.As(err, &pathErr) {
+		if _, ok := errors.AsType[*os.PathError](err); ok {
 			return path, nil
 		}
 		// Other error has occurred

@@ -2,26 +2,31 @@ package git
 
 import (
 	"context"
+	_ "embed"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kballard/go-shellquote"
 	gocache "github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
+	argoio "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/io"
 
 	"github.com/argoproj/argo-cd/v3/util/cert"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -72,13 +77,7 @@ func TestHTTPSCreds_Environ_insecure_true(t *testing.T) {
 		utilio.Close(closer)
 	})
 	require.NoError(t, err)
-	found := false
-	for _, envVar := range env {
-		if envVar == "GIT_SSL_NO_VERIFY=true" {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(env, "GIT_SSL_NO_VERIFY=true")
 	assert.True(t, found)
 }
 
@@ -89,13 +88,7 @@ func TestHTTPSCreds_Environ_insecure_false(t *testing.T) {
 		utilio.Close(closer)
 	})
 	require.NoError(t, err)
-	found := false
-	for _, envVar := range env {
-		if envVar == "GIT_SSL_NO_VERIFY=true" {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(env, "GIT_SSL_NO_VERIFY=true")
 	assert.False(t, found)
 }
 
@@ -282,15 +275,44 @@ func Test_SSHCreds_Environ_WithProxy(t *testing.T) {
 			hostsPath := cert.GetSSHKnownHostsDataPath()
 			assert.Contains(t, env[1], "-o UserKnownHostsFile="+hostsPath)
 		}
-		assert.Contains(t, env[1], "-o ProxyCommand='connect-proxy -S 127.0.0.1:1080 -5 %h %p'")
+
+		proxyScript := proxyScriptFromSSHCommand(t, env[1])
+		assert.FileExists(t, proxyScript)
+
+		scriptBytes, err := os.ReadFile(proxyScript)
+		require.NoError(t, err)
+		assert.Contains(t, string(scriptBytes), "127.0.0.1:1080")
+		assert.Contains(t, string(scriptBytes), "connect-proxy")
 
 		envRegex := regexp.MustCompile("-i ([^ ]+)")
 		assert.Regexp(t, envRegex, env[1])
 		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
 		assert.FileExists(t, privateKeyFile)
+
 		utilio.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
+		assert.NoFileExists(t, proxyScript)
 	}
+}
+
+func proxyScriptFromSSHCommand(t *testing.T, gitSSHCommandEnv string) string {
+	t.Helper()
+	args, err := shellquote.Split(strings.TrimPrefix(gitSSHCommandEnv, "GIT_SSH_COMMAND="))
+	require.NoError(t, err)
+	for _, arg := range args {
+		proxyCommand, ok := strings.CutPrefix(arg, "ProxyCommand=")
+		if !ok {
+			continue
+		}
+		fields, err := shellquote.Split(proxyCommand)
+		require.NoError(t, err)
+		require.Len(t, fields, 4, "ProxyCommand must be a single argument")
+		assert.Equal(t, "/bin/sh", fields[0])
+		assert.Equal(t, []string{"%h", "%p"}, fields[2:])
+		return fields[1]
+	}
+	require.FailNow(t, "GIT_SSH_COMMAND has no ProxyCommand", gitSSHCommandEnv)
+	return ""
 }
 
 func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
@@ -310,32 +332,65 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 		assert.Equal(t, "SOCKS5_USER=user", env[2], "SOCKS5 user env var must be set")
 		assert.Equal(t, "SOCKS5_PASSWD=password", env[3], "SOCKS5 password env var must be set")
 
-		if insecureIgnoreHostKey {
-			assert.Contains(t, env[1], "-o StrictHostKeyChecking=no")
-			assert.Contains(t, env[1], "-o UserKnownHostsFile=/dev/null")
-		} else {
-			assert.Contains(t, env[1], "-o StrictHostKeyChecking=yes")
-			hostsPath := cert.GetSSHKnownHostsDataPath()
-			assert.Contains(t, env[1], "-o UserKnownHostsFile="+hostsPath)
-		}
-		assert.Contains(t, env[1], "-o ProxyCommand='connect-proxy -S 127.0.0.1:1080 -5 %h %p'")
+		proxyScript := proxyScriptFromSSHCommand(t, env[1])
+		assert.FileExists(t, proxyScript)
+
+		scriptBytes, err := os.ReadFile(proxyScript)
+		require.NoError(t, err)
+		assert.Contains(t, string(scriptBytes), "127.0.0.1:1080")
 
 		envRegex := regexp.MustCompile("-i ([^ ]+)")
 		assert.Regexp(t, envRegex, env[1])
 		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
 		assert.FileExists(t, privateKeyFile)
+
 		utilio.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
+		assert.NoFileExists(t, proxyScript)
 	}
 }
 
-func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
-	// Previously, if the proxy URL was invalid, a temporary file would be left in /dev/shm. This ensures the file is cleaned up in this case.
+func Test_SSHCreds_Environ_ProxyCommandPassesTargetToConnectProxy(t *testing.T) {
+	if _, err := exec.LookPath("ssh"); err != nil {
+		t.Skip("ssh is not installed")
+	}
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
+	}
 
-	// argoio.TempDir will be /dev/shm or "" (on an OS without /dev/shm).
-	// In this case os.CreateTemp(), which is used by creds.Environ(),
-	// will use os.TempDir for the temporary directory.
-	// Reproducing this logic here:
+	binDir := t.TempDir()
+	argsFile := path.Join(t.TempDir(), "connect-proxy-args")
+	fakeConnectProxy := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CONNECT_PROXY_ARGS_FILE\"\nexit 1\n"
+	require.NoError(t, os.WriteFile(path.Join(binDir, "connect-proxy"), []byte(fakeConnectProxy), 0o755))
+
+	closer, env, err := NewSSHCreds("sshPrivateKey", "", true, "socks5://127.0.0.1:1080").Environ()
+	require.NoError(t, err)
+	defer utilio.Close(closer)
+
+	proxyScript := proxyScriptFromSSHCommand(t, env[0])
+	info, err := os.Stat(proxyScript)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm(), "the proxy script must run without the exec bit, /dev/shm is often mounted noexec")
+
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", "ls-remote", "ssh://git@git.example.com:2222/org/repo.git")
+	cmd.WaitDelay = 5 * time.Second
+	cmd.Env = append(os.Environ(), env...)
+	cmd.Env = append(cmd.Env,
+		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"CONNECT_PROXY_ARGS_FILE="+argsFile,
+		"GIT_TERMINAL_PROMPT=0",
+	)
+	out, err := cmd.CombinedOutput()
+	require.Error(t, err, "the fake connect-proxy always fails")
+
+	args, readErr := os.ReadFile(argsFile)
+	require.NoError(t, readErr, "connect-proxy was never invoked: %s", out)
+	assert.Equal(t, []string{"-5", "-S", "127.0.0.1:1080", "git.example.com", "2222"}, strings.Fields(string(args)))
+}
+
+func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 	argoioTempDir := argoio.TempDir
 	if argoioTempDir == "" {
 		argoioTempDir = os.TempDir()
@@ -355,15 +410,95 @@ func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 		err := os.WriteFile(caFile, []byte(""), os.FileMode(0o600))
 		require.NoError(t, err)
 		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, ":invalid-proxy-url")
+		require.Empty(t, creds.proxy, "invalid proxy must not be stored on the creds struct")
 
 		filesInDevShmBeforeInvocation := countFilesInDevShm()
 
-		_, _, err = creds.Environ()
-		require.Error(t, err)
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		if closer != nil {
+			require.NoError(t, closer.Close())
+		}
+		for _, e := range env {
+			require.NotContains(t, e, "ProxyCommand", "no ProxyCommand must be set for a rejected proxy")
+		}
 
 		filesInDevShmAfterInvocation := countFilesInDevShm()
-
 		assert.Equal(t, filesInDevShmBeforeInvocation, filesInDevShmAfterInvocation, "no temporary files should leak if the proxy url cannot be parsed")
+	}
+}
+
+func TestValidateProxyURL_RejectsUnsafeHostnames(t *testing.T) {
+	t.Parallel()
+	malicious := []struct {
+		name string
+		url  string
+	}{
+		{"single quote and command substitution", "socks5://evil'$(id>/tmp/x)'host:1080"},
+		{"semicolon", "socks5://host;id:1080"},
+		{"pipe", "socks5://host|id:1080"},
+		{"ampersand", "socks5://host&id:1080"},
+		{"dollar sign", "socks5://host$(x):1080"},
+		{"backtick", "socks5://host`x`:1080"},
+		{"redirect gt", "socks5://host>x:1080"},
+		{"redirect lt", "socks5://host<x:1080"},
+		{"whitespace in host", "socks5://ho st:1080"},
+		{"newline in port", "socks5://host:\n1080"},
+		{"port zero", "socks5://host:0"},
+		{"port too high", "socks5://host:65536"},
+		{"empty host", "socks5://:1080"},
+		{"wrong scheme http", "http://host:1080"},
+		{"wrong scheme https", "https://host:1080"},
+		{"wrong scheme socks4", "socks4://host:1080"},
+	}
+	for _, tc := range malicious {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateProxyURL(tc.url)
+			require.Error(t, err, "expected rejection of: %s", tc.url)
+		})
+	}
+}
+
+func TestValidateProxyURL_AcceptsValidURLs(t *testing.T) {
+	t.Parallel()
+	valid := []struct {
+		name string
+		url  string
+	}{
+		{"IPv4", "socks5://127.0.0.1:1080"},
+		{"hostname", "socks5://proxy.example.com:1080"},
+		{"IPv6 bracketed", "socks5://[::1]:1080"},
+		{"IPv6 full address", "socks5h://proxy.internal:9050"},
+		{"port 1", "socks5://proxy.example.com:1"},
+		{"port 65535", "socks5://proxy.example.com:65535"},
+	}
+	for _, tc := range valid {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateProxyURL(tc.url)
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestSSHCreds_Environ_RejectsMaliciousProxyURL(t *testing.T) {
+	t.Parallel()
+	// Verify that the malicious PoC proxy URL from the advisory is rejected
+	// at construction time (NewSSHCreds), so it never flows into Environ(),
+	// GIT_SSH_COMMAND, or any persisted creds state.
+	creds := NewSSHCreds("sshPrivateKey", "", false,
+		"socks5://evil'$(id>/tmp/PWNED)'host:1080")
+	require.Empty(t, creds.proxy, "malicious proxy must not be stored on the creds struct")
+
+	closer, env, err := creds.Environ()
+	require.NoError(t, err)
+	if closer != nil {
+		defer closer.Close()
+	}
+	for _, e := range env {
+		assert.NotContains(t, e, "ProxyCommand", "no ProxyCommand must be set for a rejected proxy")
+		assert.NotContains(t, e, "PWNED", "no part of the malicious proxy must leak into the environment")
 	}
 }
 
@@ -567,7 +702,7 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 		})
 
 		// Execute
-		ctx := context.Background()
+		ctx := t.Context()
 		actualId, err := DiscoverGitHubAppInstallationID(ctx, appId, "fake-key", "", org)
 
 		// Assert
@@ -602,13 +737,42 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 		})
 
 		// Execute & Assert
-		ctx := context.Background()
+		ctx := t.Context()
 		// Pass the mock server URL as the enterpriseBaseURL so the GitHub client uses it
 		// Note: The mock server will have a different domain (e.g., 127.0.0.1) than the first test (github.com),
 		// so there's no cache collision between the two subtests.
 		actualId, err := DiscoverGitHubAppInstallationID(ctx, 12345, fakeGitHubAppPrivateKey, server.URL, "test-org")
 		require.NoError(t, err)
 		assert.Equal(t, int64(98765), actualId)
+	})
+
+	t.Run("returns correct installation ID when app is installed on multiple orgs", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasSuffix(r.URL.Path, "/app/installations") {
+				w.WriteHeader(http.StatusOK)
+				//nolint:errcheck
+				json.NewEncoder(w).Encode([]map[string]any{
+					{"id": 11111, "account": map[string]any{"login": "org-alpha"}},
+					{"id": 22222, "account": map[string]any{"login": "target-org"}},
+					{"id": 33333, "account": map[string]any{"login": "org-gamma"}},
+				})
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		t.Cleanup(func() {
+			domain, _ := domainFromBaseURL(server.URL)
+			for _, org := range []string{"org-alpha", "target-org", "org-gamma"} {
+				githubInstallationIdCache.Delete(fmt.Sprintf("%s:%s:%d", org, domain, 12345))
+			}
+		})
+
+		ctx := t.Context()
+		actualId, err := DiscoverGitHubAppInstallationID(ctx, 12345, fakeGitHubAppPrivateKey, server.URL, "target-org")
+		require.NoError(t, err)
+		assert.Equal(t, int64(22222), actualId, "should return the installation ID for the requested org, not the last one in the list")
 	})
 }
 
@@ -645,6 +809,450 @@ func TestExtractOrgFromRepoURL(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, tt.expected, actual)
 			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// GitHub App based authentication
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// 1. TLS Errors
+// ---------------------------------------------------------------------------
+func TestGitHubAppGetAccessToken_TLSErrors(t *testing.T) {
+	t.Run("self-signed certificate rejected when insecure=false", func(t *testing.T) {
+		t.Cleanup(func() {
+			githubAppTokenCache.Flush()
+		})
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprint(w, githubTokenResponse("ghs_tls"))
+		}))
+		defer server.Close()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, server.URL,
+			func(c *GitHubAppCreds) { c.insecure = false })
+		token, err := creds.getAccessToken()
+
+		require.Error(t, err)
+		require.Empty(t, token)
+		errLower := strings.ToLower(err.Error())
+		require.True(t,
+			strings.Contains(errLower, "failed to verify certificate") &&
+				strings.Contains(errLower, "certificate signed by unknown authority") &&
+				strings.Contains(errLower, "x509"),
+			"error should indicate TLS/certificate verification failure, got: %s", err.Error())
+	})
+
+	t.Run("TLS handshake timeout - server never completes handshake", func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("skipping slow TLS handshake timeout test (~15s)")
+		}
+		t.Cleanup(func() {
+			githubAppTokenCache.Flush()
+		})
+
+		// Create a TCP listener that accepts but never sends TLS handshake data.
+		lcfg := &net.ListenConfig{}
+		ln, err := lcfg.Listen(t.Context(), "tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer ln.Close()
+
+		go func() {
+			for {
+				conn, err := ln.Accept()
+				if err != nil {
+					return
+				}
+				// Hold the connection open; never respond with TLS ServerHello.
+				go func(c net.Conn) {
+					defer c.Close()
+					buf := make([]byte, 1024)
+					for {
+						if _, err := c.Read(buf); err != nil {
+							return
+						}
+					}
+				}(conn)
+			}
+		}()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey,
+			"https://"+ln.Addr().String(),
+			func(c *GitHubAppCreds) { c.insecure = true })
+
+		start := time.Now()
+		token, tokenErr := creds.getAccessToken()
+		elapsed := time.Since(start)
+
+		require.Error(t, tokenErr)
+		require.Empty(t, token)
+		errLower := strings.ToLower(tokenErr.Error())
+		require.True(t,
+			strings.Contains(errLower, "timeout") ||
+				strings.Contains(errLower, "tls handshake"),
+			"error should indicate timeout during TLS handshake, got: %s", tokenErr.Error())
+		require.Less(t, elapsed, 20*time.Second,
+			"should not hang indefinitely")
+	})
+}
+
+// ---------------------------------------------------------------------------
+// 2. Invalid Private key
+// ---------------------------------------------------------------------------
+func TestGitHubAppGetAccessToken_InvalidPrivateKey(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		privateKey      string
+		wantErrContains []string
+	}{
+		{
+			name:            "empty private key",
+			privateKey:      "",
+			wantErrContains: []string{"private key"},
+		},
+		{
+			name:            "random garbage as private key",
+			privateKey:      "this-is-not-a-valid-key",
+			wantErrContains: []string{"private key"},
+		},
+		{
+			name:            "truncated PEM block",
+			privateKey:      "-----BEGIN RSA PRIVATE KEY-----\nMIIE\n-----END RSA PRIVATE KEY-----",
+			wantErrContains: []string{"private key"},
+		},
+		{
+			name:            "PEM with wrong type marker",
+			privateKey:      "-----BEGIN CERTIFICATE-----\nMIIE\n-----END CERTIFICATE-----",
+			wantErrContains: []string{"private key"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusCreated)
+				fmt.Fprint(w, githubTokenResponse("ghs_unused"))
+			}))
+			defer server.Close()
+
+			creds := newTestGitHubAppCreds(12345, 67890, tt.privateKey, server.URL)
+			token, err := creds.getAccessToken()
+
+			require.Error(t, err, "should fail with invalid private key")
+			require.Empty(t, token)
+			for _, want := range tt.wantErrContains {
+				require.Contains(t, strings.ToLower(err.Error()), strings.ToLower(want),
+					"error should contain %q for diagnostics", want)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// 3. TCP Connection Errors
+// ---------------------------------------------------------------------------
+
+func TestGitHubAppGetAccessToken_TCPConnectionErrors(t *testing.T) {
+	t.Parallel()
+	t.Cleanup(func() {
+		githubAppTokenCache.Flush()
+	})
+	t.Run("connection refused - no server listening", func(t *testing.T) {
+		t.Parallel()
+		// Grab a port then close it so nothing is listening.
+		lcfg := &net.ListenConfig{}
+		ln, err := lcfg.Listen(t.Context(), "tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		addr := ln.Addr().String()
+		ln.Close()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, "http://"+addr)
+		token, tokenErr := creds.getAccessToken()
+
+		require.Error(t, tokenErr)
+		require.Empty(t, token)
+		require.Contains(t, strings.ToLower(tokenErr.Error()), "connection refused",
+			"error should clearly indicate the connection was refused")
+	})
+
+	t.Run("connection reset by peer", func(t *testing.T) {
+		t.Parallel()
+		// Accept then immediately RST-close the connection.
+		lcfg := &net.ListenConfig{}
+		ln, err := lcfg.Listen(t.Context(), "tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer ln.Close()
+
+		go func() {
+			for {
+				conn, err := ln.Accept()
+				if err != nil {
+					return
+				}
+				if tcp, ok := conn.(*net.TCPConn); ok {
+					err := tcp.SetLinger(0) // trigger RST
+					require.NoError(t, err)
+				}
+				conn.Close()
+			}
+		}()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, "http://"+ln.Addr().String())
+		token, tokenErr := creds.getAccessToken()
+
+		require.Error(t, tokenErr)
+		require.Empty(t, token)
+		errLower := strings.ToLower(tokenErr.Error())
+		require.True(t,
+			strings.Contains(errLower, "connection reset") ||
+				strings.Contains(errLower, "eof") ||
+				strings.Contains(errLower, "broken pipe"),
+			"error should indicate connection reset, got: %s", tokenErr.Error())
+	})
+
+	t.Run("DNS resolution failure", func(t *testing.T) {
+		t.Parallel()
+		if testing.Short() {
+			t.Skip("skipping DNS failure test (~15s due to hardcoded context timeout)")
+		}
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey,
+			"http://this-host-does-not-exist-anywhere.invalid:8080")
+		token, err := creds.getAccessToken()
+
+		require.Error(t, err)
+		require.Empty(t, token)
+		errLower := strings.ToLower(err.Error())
+		require.True(t,
+			strings.Contains(errLower, "no such host") ||
+				strings.Contains(errLower, "dns") ||
+				strings.Contains(errLower, "lookup"),
+			"error should indicate DNS resolution failure, got: %s", err.Error())
+	})
+}
+
+// ---------------------------------------------------------------------------
+// 4. Timeout and Latency
+// ---------------------------------------------------------------------------
+
+func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
+	// These tests mutate gitClientTimeout so they must NOT run in parallel
+	// with each other.
+	// Initialize the cache key
+	org := "test-org"
+	domain := "github.com"
+	appID := int64(12345)
+	cacheKey := fmt.Sprintf("%s:%s:%d", strings.ToLower(org), domain, appID)
+	githubInstallationIdCache.Delete(cacheKey)
+	t.Cleanup(func() {
+		githubInstallationIdCache.Delete(cacheKey)
+		// Reset gitClientTimeout back to default value
+		gitClientTimeout = 15 * time.Second
+	})
+
+	t.Run("gitClientTimeout must be honoured for token requests as well", func(t *testing.T) {
+		gitClientTimeout = 1 * time.Second // Very short — should cause timeout but won't
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "/access_tokens") {
+				time.Sleep(3 * time.Second) // 3× the gitClientTimeout
+				w.WriteHeader(http.StatusCreated)
+				fmt.Fprint(w, githubTokenResponse("ghs_despite_timeout"))
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, server.URL)
+		token, err := creds.getAccessToken()
+
+		// This SHOULD fail with a timeout error
+		require.Error(t, err,
+			"gitClientTimeout (1s) should cause timeout for a 3s response, but "+
+				"it does not because only the transport is passed to ghinstallation")
+		if err == nil {
+			require.Equal(t, "ghs_despite_timeout", token,
+				"token was returned despite delay exceeding gitClientTimeout")
+		}
+	})
+
+	t.Run("slow response within timeout succeeds", func(t *testing.T) {
+		githubInstallationIdCache.Delete(cacheKey)
+		gitClientTimeout = 5 * time.Second
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "/access_tokens") {
+				time.Sleep(1 * time.Second) // within 5s timeout
+				w.WriteHeader(http.StatusCreated)
+				fmt.Fprint(w, githubTokenResponse("ghs_slow_ok"))
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, server.URL)
+		token, err := creds.getAccessToken()
+
+		require.NoError(t, err, "should succeed when response arrives within timeout")
+		require.Equal(t, "ghs_slow_ok", token)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// 5. Dialer Default Timeout (30 seconds)
+// ---------------------------------------------------------------------------
+
+func TestGitHubAppGetAccessToken_DialerDefaultTimeout(t *testing.T) {
+	t.Run("dialer 30s timeout governs when connecting to unreachable host", func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("skipping slow dialer timeout test (~30s)")
+		}
+
+		githubAppTokenCache.Flush()
+		t.Cleanup(func() {
+			githubAppTokenCache.Flush()
+			gitClientTimeout = 15 * time.Second
+		})
+		// Set a timeout value higher than the default dial context timeout 30s
+		gitClientTimeout = 35 * time.Second
+		// Use the transport directly (as ghinstallation does internally)
+		// without any context deadline, isolating the dialer's 30s timeout.
+		const unreachableAddr = "192.0.2.1:12345"
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, "http://"+unreachableAddr)
+		token, err := creds.getAccessToken()
+		require.Empty(t, token)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), fmt.Sprintf("dial tcp %s: i/o timeout", unreachableAddr))
+	})
+
+	t.Run("successful connection completes well within dialer 30s timeout", func(t *testing.T) {
+		githubAppTokenCache.Flush()
+		t.Cleanup(func() {
+			githubAppTokenCache.Flush()
+			gitClientTimeout = 15 * time.Second
+		})
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "/access_tokens") {
+				w.WriteHeader(http.StatusCreated)
+				fmt.Fprint(w, githubTokenResponse("ghs_dialer_ok"))
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, server.URL)
+
+		start := time.Now()
+		token, err := creds.getAccessToken()
+		elapsed := time.Since(start)
+
+		require.NoError(t, err)
+		require.Equal(t, "ghs_dialer_ok", token)
+		require.Less(t, elapsed, 5*time.Second,
+			"reachable server should connect well within dialer's 30s timeout")
+	})
+}
+
+// newTestGitHubAppCreds creates GitHubAppCreds pointed at a test server.
+// By default insecure=true so plain-HTTP test servers work without TLS issues.
+func newTestGitHubAppCreds(appID, installID int64, privateKey, baseURL string, opts ...func(*GitHubAppCreds)) GitHubAppCreds {
+	creds := GitHubAppCreds{
+		appID:        appID,
+		appInstallId: installID,
+		privateKey:   privateKey,
+		baseURL:      baseURL,
+		insecure:     true,
+		store:        &NoopCredsStore{},
+		repoURL:      "https://github.com/test-org/test-repo.git",
+	}
+	for _, opt := range opts {
+		opt(&creds)
+	}
+	return creds
+}
+
+// githubTokenResponse returns a JSON body that ghinstallation accepts as a
+// valid access-token response.
+func githubTokenResponse(token string) string {
+	b, _ := json.Marshal(map[string]string{
+		"token":      token,
+		"expires_at": time.Now().Add(1 * time.Hour).Format(time.RFC3339),
+	})
+	return string(b)
+}
+
+//go:embed testdata/gcpExternalAccountKey.json
+var gcpExternalAccountKeyJSON string
+
+//go:embed testdata/gcpImpersonatedServiceAccountKey.json
+var gcpImpersonatedServiceAccountKeyJSON string
+
+//go:embed testdata/gcpAuthorizedUser.json
+var gcpAuthorizedUserJSON string
+
+func TestCredentialTypeFromJSON(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		input    string
+		expected google.CredentialsType
+	}{
+		{
+			name:     "service_account maps to google.ServiceAccount",
+			input:    gcpServiceAccountKeyJSON,
+			expected: google.ServiceAccount,
+		},
+		{
+			name:     "external_account maps to google.ExternalAccount",
+			input:    gcpExternalAccountKeyJSON,
+			expected: google.ExternalAccount,
+		},
+		{
+			name:     "impersonated_service_account maps to google.ImpersonatedServiceAccount",
+			input:    gcpImpersonatedServiceAccountKeyJSON,
+			expected: google.ImpersonatedServiceAccount,
+		},
+		{
+			name:     "authorized_user maps to google.UserCredentials",
+			input:    gcpAuthorizedUserJSON,
+			expected: google.AuthorizedUser,
+		},
+		{
+			name:     "unknown type defaults to google.ServiceAccount",
+			input:    `{"type": "some_future_unknown_type"}`,
+			expected: google.ServiceAccount,
+		},
+		{
+			name:     "missing type field defaults to google.ServiceAccount",
+			input:    `{"project_id": "my-project"}`,
+			expected: google.ServiceAccount,
+		},
+		{
+			name:     "invalid JSON defaults to google.ServiceAccount",
+			input:    `{not valid json`,
+			expected: google.ServiceAccount,
+		},
+		{
+			name:     "empty string defaults to google.ServiceAccount",
+			input:    ``,
+			expected: google.ServiceAccount,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			actual := credentialTypeFromJSON([]byte(tt.input))
+			assert.Equal(t, tt.expected, actual)
 		})
 	}
 }
