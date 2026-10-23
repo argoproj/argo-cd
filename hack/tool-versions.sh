@@ -23,4 +23,4 @@ KUSTOMIZE_VERSION=5.8.3
 protoc_version=29.3
 oras_version=1.2.0
 # renovate: datasource=github-releases depName=git-lfs/git-lfs packageName=git-lfs/git-lfs extractVersion=^v(?<version>.*)$
-GIT_LFS_VERSION=3.8.0
+GIT_LFS_VERSION=3.8.1
