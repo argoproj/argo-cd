@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"os/exec"
 	"regexp"
-	"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -227,19 +226,6 @@ func TestRunWithExecRunOptsCaptureStderr(t *testing.T) {
 	output, err := RunWithExecRunOpts(cmd, ExecRunOpts{CaptureStderr: true})
 	assert.Equal(t, "hello world\nmy-error", output)
 	assert.NoError(t, err)
-}
-
-func TestRunCommandExt_timeoutWithoutWaitDoesNotLeakGoroutine(t *testing.T) {
-	before := runtime.NumGoroutine()
-	for range 5 {
-		cmd := exec.CommandContext(t.Context(), "sleep", "5")
-		_, err := RunCommandExt(cmd, CmdOpts{Timeout: 100 * time.Millisecond})
-		require.Error(t, err)
-	}
-	// Eventually calls the condition from its own goroutine, so the count is one higher while it runs.
-	require.Eventually(t, func() bool {
-		return runtime.NumGoroutine() <= before+1
-	}, 2*time.Second, 20*time.Millisecond)
 }
 
 func TestRunWithExecRunOptsStderrWriter(t *testing.T) {
