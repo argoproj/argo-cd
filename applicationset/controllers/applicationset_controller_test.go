@@ -2438,7 +2438,8 @@ func TestValidateGeneratedApplications(t *testing.T) {
 			}
 
 			appSetInfo := v1alpha1.ApplicationSet{}
-			validationErrors, _ := r.validateGeneratedApplications(t.Context(), cc.apps, appSetInfo)
+			validationErrors, err := r.validateGeneratedApplications(t.Context(), cc.apps, appSetInfo)
+			require.NoError(t, err)
 			assert.Equal(t, cc.validationErrors, validationErrors)
 		})
 	}
