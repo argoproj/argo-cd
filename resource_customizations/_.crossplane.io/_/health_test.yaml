@@ -55,3 +55,7 @@ tests:
       status: Progressing
       message: "Provisioning ..."
     inputPath: testdata/managedresourcedefinition_pending_progressing.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Provisioning ..."
+    inputPath: testdata/managedresourcedefinition_activating_progressing.yaml
