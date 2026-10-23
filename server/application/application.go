@@ -67,6 +67,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/session"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/syncwindow"
 
 	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
 
@@ -106,6 +107,7 @@ type Server struct {
 	projInformer           cache.SharedIndexInformer
 	enabledNamespaces      []string
 	syncWithReplaceAllowed bool
+	syncWindowLister       applisters.SyncWindowLister
 }
 
 // NewServer returns a new instance of the Application service
@@ -127,6 +129,7 @@ func NewServer(
 	enabledNamespaces []string,
 	enableK8sEvent []string,
 	syncWithReplaceAllowed bool,
+	syncWindowLister applisters.SyncWindowLister,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
 		appBroadcaster = broadcast.NewHandler[v1alpha1.Application, v1alpha1.ApplicationWatchEvent](
@@ -160,6 +163,7 @@ func NewServer(
 		projInformer:           projInformer,
 		enabledNamespaces:      enabledNamespaces,
 		syncWithReplaceAllowed: syncWithReplaceAllowed,
+		syncWindowLister:       syncWindowLister,
 	}
 	return s, s.getAppResources
 }
@@ -2105,7 +2109,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	s.inferResourcesStatusHealth(a)
 
-	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true, nil)
+	canSync, err := s.resolveSyncWindows(a, proj).CanSync(true, nil)
 	if err != nil {
 		return a, status.Errorf(codes.PermissionDenied, "cannot sync: invalid sync window: %v", err)
 	}
@@ -2907,19 +2911,20 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 		return nil, err
 	}
 
-	windows := proj.Spec.SyncWindows.Matches(a)
-	sync, err := windows.CanSync(true, nil)
+	syncWindows := s.resolveSyncWindows(a, proj)
+	sync, err := syncWindows.CanSync(true, nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid sync windows: %w", err)
 	}
 
-	activeWindows, err := windows.Active()
+	allWindows := syncWindows.All()
+	activeWindows, err := allWindows.Active()
 	if err != nil {
 		return nil, fmt.Errorf("invalid sync windows: %w", err)
 	}
 	res := &application.ApplicationSyncWindowsResponse{
 		ActiveWindows:   convertSyncWindows(activeWindows),
-		AssignedWindows: convertSyncWindows(windows),
+		AssignedWindows: convertSyncWindows(&allWindows),
 		CanSync:         &sync,
 	}
 
@@ -2947,6 +2952,15 @@ func (s *Server) inferResourcesStatusHealth(app *v1alpha1.Application) {
 			}
 		}
 	}
+}
+
+// resolveSyncWindows returns the app's effective sync windows, logging any refs that could not be resolved.
+func (s *Server) resolveSyncWindows(a *v1alpha1.Application, proj *v1alpha1.AppProject) syncwindow.EffectiveWindows {
+	syncWindows := syncwindow.NewResolver(s.syncWindowLister, s.ns).Resolve(a, proj)
+	if err := syncWindows.RefsErr(); err != nil {
+		log.WithFields(applog.GetAppLogFields(a)).WithError(err).Warn("Failed to resolve some sync window refs")
+	}
+	return syncWindows
 }
 
 func convertSyncWindows(w *v1alpha1.SyncWindows) []*application.ApplicationSyncWindow {

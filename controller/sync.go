@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/controller/syncid"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
@@ -39,6 +40,7 @@ import (
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	"github.com/argoproj/argo-cd/v3/util/lua"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/syncwindow"
 )
 
 const (
@@ -188,7 +190,17 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		state.SyncResult = newSyncOperationResult(app, syncOp)
 	}
 
-	if isBlocked, err := syncWindowPreventsSync(app, project); isBlocked {
+	syncWindows := resolveSyncWindows(m.syncWindowLister, m.namespace, app, project)
+	isManual := false
+	var operationStartTime *time.Time
+	if app.Status.OperationState != nil {
+		isManual = !app.Status.OperationState.Operation.InitiatedBy.Automated
+		if !app.Status.OperationState.StartedAt.IsZero() {
+			t := app.Status.OperationState.StartedAt.Time
+			operationStartTime = &t
+		}
+	}
+	if canSync, err := syncWindows.CanSync(isManual, operationStartTime); !canSync {
 		// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
 		if state.Phase == common.OperationRunning {
 			state.Message = "Sync operation blocked by sync window"
@@ -724,23 +736,13 @@ func delayBetweenSyncWaves(_ common.SyncPhase, _ int, finalWave bool) error {
 	return nil
 }
 
-func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject) (bool, error) {
-	window := proj.Spec.SyncWindows.Matches(app)
-	isManual := false
-	var operationStartTime *time.Time
-	if app.Status.OperationState != nil {
-		isManual = !app.Status.OperationState.Operation.InitiatedBy.Automated
-		if !app.Status.OperationState.StartedAt.IsZero() {
-			t := app.Status.OperationState.StartedAt.Time
-			operationStartTime = &t
-		}
+// resolveSyncWindows returns the app's effective sync windows, logging any refs that could not be resolved.
+func resolveSyncWindows(lister applisters.SyncWindowLister, namespace string, app *v1alpha1.Application, proj *v1alpha1.AppProject) syncwindow.EffectiveWindows {
+	syncWindows := syncwindow.NewResolver(lister, namespace).Resolve(app, proj)
+	if err := syncWindows.RefsErr(); err != nil {
+		log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to resolve some sync window refs")
 	}
-	canSync, err := window.CanSync(isManual, operationStartTime)
-	if err != nil {
-		// prevents sync because sync window has an error
-		return true, err
-	}
-	return !canSync, nil
+	return syncWindows
 }
 
 // validateSyncPermissions checks whether the given resource is permitted by the project's

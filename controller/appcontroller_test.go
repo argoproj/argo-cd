@@ -2614,6 +2614,40 @@ func TestRefreshAppConditions(t *testing.T) {
 		assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
 		assert.Contains(t, app.Status.Conditions[0].Message, "does-not-exist")
 	})
+
+	t.Run("UnresolvedSyncWindowRefsSetWarning", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.SyncWindowRefs = []v1alpha1.SyncWindowRef{{Name: "missing-app-window"}}
+		proj := defaultProj.DeepCopy()
+		proj.Spec.SyncWindowRefs = []v1alpha1.SyncWindowProjectRef{{Ref: v1alpha1.SyncWindowRef{Name: "missing-proj-window"}}}
+
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, proj}}, nil)
+
+		_, hasErrors := ctrl.refreshAppConditions(t.Context(), app)
+		assert.False(t, hasErrors)
+		require.Len(t, app.Status.Conditions, 2)
+		var messages []string
+		for _, c := range app.Status.Conditions {
+			assert.Equal(t, v1alpha1.ApplicationConditionSyncWindowRefWarning, c.Type)
+			messages = append(messages, c.Message)
+		}
+		assert.Contains(t, strings.Join(messages, "\n"), "missing-proj-window")
+		assert.Contains(t, strings.Join(messages, "\n"), "missing-app-window")
+	})
+
+	t.Run("ResolvedSyncWindowRefClearsWarning", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.SyncWindowRefs = []v1alpha1.SyncWindowRef{{Name: "my-window"}}
+		app.Status.SetConditions([]v1alpha1.ApplicationCondition{{Type: v1alpha1.ApplicationConditionSyncWindowRefWarning, Message: "stale"}}, nil)
+		sw := &v1alpha1.SyncWindow{Name: "my-window", Namespace: test.FakeArgoCDNamespace}
+
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
+		require.NoError(t, ctrl.syncWindowInformer.GetIndexer().Add(sw))
+
+		_, hasErrors := ctrl.refreshAppConditions(t.Context(), app)
+		assert.False(t, hasErrors)
+		assert.Empty(t, app.Status.Conditions)
+	})
 }
 
 func TestUpdateReconciledAt(t *testing.T) {
