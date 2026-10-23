@@ -1441,7 +1441,7 @@ stringData:
 ```
 
 > [!NOTE]
-> `insecureOCIForceHttp` disables TLS entirely, so do not combine it with `insecure` on the same repository: with Helm v4, `insecure` (`--insecure-skip-tls-verify`) takes precedence and the plain-HTTP setting is silently dropped. Use `insecure` for HTTPS registries with self-signed certificates and `insecureOCIForceHttp` for plain-HTTP registries.
+> `insecureOCIForceHttp` disables TLS entirely, so do not combine it with `insecure`: with Helm v4, `insecure` (`--insecure-skip-tls-verify`) takes precedence and the plain-HTTP setting is silently dropped. This happens on a single repository that sets both, and across a dependency chain: a chart repository with `insecure` whose OCI dependencies come from a registry with `insecureOCIForceHttp` fails at `helm dependency build`. Use `insecure` for HTTPS registries with self-signed certificates and `insecureOCIForceHttp` for plain-HTTP registries, and do not mix the two within one chart and its dependencies.
 
 ## Resource Exclusion/Inclusion
 
