@@ -300,6 +300,10 @@ func TestResyncAppsAfterShardChange_InvalidatesLocalCache(t *testing.T) {
 
 	app := newFakeApp()
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	// The informer's add handler for the app reads the cache client, then queues the app. Wait for
+	// it before withSharedTreeCache replaces the client (#30384); this also empties the queue for
+	// the check at the end.
+	assert.Contains(t, assertEnqueued(t, ctrl.appRefreshQueue), "my-app")
 	other, reader := withSharedTreeCache(ctrl)
 	name := app.InstanceName(ctrl.namespace)
 
