@@ -211,7 +211,9 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		return "", err
 	}
 
-	done := make(chan error)
+	// Buffered so the timeout path can return without waiting on Wait. An
+	// unbuffered channel leaks the Wait goroutine, which blocks forever on send.
+	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 
 	// Start timers for timeout
