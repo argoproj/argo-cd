@@ -60,6 +60,13 @@ for _, condition in ipairs(obj.status.conditions) do
     health_status.status = "Healthy"
     health_status.message = "Resource is up-to-date."
   end
+
+  -- A ManagedResourceDefinition with spec.state Inactive never gets a CRD, so it
+  -- stays Established=False by design.
+  if condition.type == "Established" and condition.reason == "InactiveManagedResource" then
+    health_status.status = "Healthy"
+    health_status.message = "Resource is up-to-date."
+  end
 end
 
 return health_status
