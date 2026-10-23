@@ -3,6 +3,8 @@
 package exec
 
 import (
+	"os/exec"
+	"runtime"
 	"testing"
 	"time"
 
@@ -11,6 +13,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// This test lives here, rather than beside the rest, for the same reason
+// TestRunCommandTimeout does: it takes the timeout path that reads the output
+// buffers while os/exec is still writing to them. A later commit fixes that
+// race and moves both tests back.
+func TestRunCommandExt_timeoutWithoutWaitDoesNotLeakGoroutine(t *testing.T) {
+	before := runtime.NumGoroutine()
+	for range 5 {
+		cmd := exec.CommandContext(t.Context(), "sleep", "5")
+		_, err := RunCommandExt(cmd, CmdOpts{Timeout: 100 * time.Millisecond})
+		require.Error(t, err)
+	}
+	// Eventually calls the condition from its own goroutine, so the count is one higher while it runs.
+	require.Eventually(t, func() bool {
+		return runtime.NumGoroutine() <= before+1
+	}, 2*time.Second, 20*time.Millisecond)
+}
 
 // FIXME: there's a race in RunCommand that causes the test to fail when -race is enabled. The race is in the timeout
 // handling, which shares bytes buffers between the exec goroutine and the timeout handler code.
