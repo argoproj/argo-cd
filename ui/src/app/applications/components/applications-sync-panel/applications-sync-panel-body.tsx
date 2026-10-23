@@ -95,9 +95,7 @@ export const ApplicationsSyncPanelBody = ({apps, getApi, setPending}: {apps: mod
                             {progress !== null && <ProgressPopup onClose={() => setProgress(null)} percentage={progress.percentage} title={progress.title} />}
                             <div style={{marginBottom: '1em'}}>
                                 <FormField formApi={formApi} field='syncFlags' component={ApplicationManualSyncFlags} />
-                                <div style={{marginTop: '0.5em', fontSize: '12px', color: '#6d7f8b'}}>
-                                    Untouched options use each app&apos;s manual sync defaults.
-                                </div>
+                                <div style={{marginTop: '0.5em', fontSize: '12px', color: '#6d7f8b'}}>Untouched options use each app&apos;s manual sync defaults.</div>
                             </div>
                             <div style={{marginBottom: '1em'}}>
                                 <label>Sync Options</label>
