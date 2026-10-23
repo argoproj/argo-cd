@@ -60,6 +60,9 @@ func TestManualDefaultsDryRunAllowsLocalSyncWithAutosync(t *testing.T) {
 			}
 		}).
 		Then().
+		// Wait for the controller's auto-sync to finish before starting a manual local sync.
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_, err := fixture.RunCli("app", "sync", app.Name, "--local-repo-root", ".", "--local", guestbookPathLocal)
 			require.NoError(t, err)
