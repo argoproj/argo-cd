@@ -240,6 +240,46 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	assert.False(t, atag)
 }
 
+func Test_gitCancelGracePeriod(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		assert.Equal(t, 10*time.Second, gitCancelGracePeriod())
+	})
+	t.Run("respects ARGOCD_EXEC_FATAL_TIMEOUT", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "500ms")
+		assert.Equal(t, 500*time.Millisecond, gitCancelGracePeriod())
+	})
+}
+
+func Test_nativeGitClient_runCmdOutput_killsProcessIgnoringSIGTERMAfterGracePeriod(t *testing.T) {
+	t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "500ms")
+
+	client := &nativeGitClient{root: t.TempDir(), repoURL: "https://example.com/repo.git"}
+	marker := filepath.Join(t.TempDir(), "started")
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	cmdErr := make(chan error, 1)
+	go func() {
+		cmd := exec.CommandContext(ctx, "sh", "-c", fmt.Sprintf("trap '' TERM; touch '%s'; exec sleep 30", marker))
+		_, err := client.runCmdOutput(cmd, runOpts{})
+		cmdErr <- err
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(marker)
+		return err == nil
+	}, 10*time.Second, 10*time.Millisecond, "command never started")
+
+	cancel()
+
+	select {
+	case err := <-cmdErr:
+		require.Error(t, err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("command ignoring SIGTERM was not killed after the grace period")
+	}
+}
+
 func Test_resolveTagReference(t *testing.T) {
 	// Setup
 	commitHash := plumbing.NewHash("0123456789abcdef0123456789abcdef01234567")
