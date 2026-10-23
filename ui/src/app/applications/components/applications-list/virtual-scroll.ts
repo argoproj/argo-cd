@@ -137,3 +137,26 @@ export function appsLayoutKey(apps: models.AbstractApplication[]): string {
     }
     return `${apps.length}:${hash >>> 0}`;
 }
+
+/** Hash of resource identities. Used to refresh WindowScroller when the list set or order changes. */
+export function resourcesLayoutKey(
+    resources: Array<{
+        name?: string;
+        namespace?: string;
+        kind?: string;
+        group?: string;
+        appName?: string;
+        appNamespace?: string;
+    }>
+): string {
+    let hash = 2166136261;
+    for (let i = 0; i < resources.length; i++) {
+        const r = resources[i];
+        const id = `${r.appNamespace || ''}/${r.appName || ''}/${r.group || ''}/${r.kind || ''}/${r.namespace || ''}/${r.name || ''}`;
+        for (let j = 0; j < id.length; j++) {
+            hash ^= id.charCodeAt(j);
+            hash = Math.imul(hash, 16777619);
+        }
+    }
+    return `${resources.length}:${hash >>> 0}`;
+}
