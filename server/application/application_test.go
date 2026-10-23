@@ -5063,6 +5063,94 @@ func TestServerSideDiff(t *testing.T) {
 			"ConfigMap data must not be masked")
 	})
 
+	t.Run("MaskedSecretSkipsServerSideApplyDryRun", func(t *testing.T) {
+		// Secret values are masked long before they reach this endpoint, so a
+		// server-side apply dry run of a Secret manifest sends the mask to the API
+		// server. For a kubernetes.io/dockerconfigjson Secret the API server
+		// base64-decodes the mask and then fails to parse it as JSON, which used to
+		// take the whole diff down. Secrets must be diffed without the dry run,
+		// while other resources in the same request still go through it.
+		liveSecret := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"repro-pullsecret","namespace":"default"},"type":"kubernetes.io/dockerconfigjson","data":{".dockerconfigjson":"++++++++++++"}}`
+		targetSecret := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"repro-pullsecret","namespace":"default"},"type":"kubernetes.io/dockerconfigjson","data":{".dockerconfigjson":"++++++++"}}`
+		liveConfigMap := `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"repro-config","namespace":"default"},"data":{"key":"value"}}`
+		targetConfigMap := `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"repro-config","namespace":"default"},"data":{"key":"new-value"}}`
+
+		toUnstructured := func(manifest string) *unstructured.Unstructured {
+			obj := &unstructured.Unstructured{}
+			require.NoError(t, json.Unmarshal([]byte(manifest), obj))
+			return obj
+		}
+
+		var dryRunKinds []string
+		mockApplier := &kubetest.MockKubeApplier{
+			ApplyResourceFunc: func(_ context.Context, obj *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _, _, _ bool, _ string) (string, error) {
+				dryRunKinds = append(dryRunKinds, obj.GetKind())
+				if obj.GetKind() == kube.SecretKind {
+					// What the API server answers for a masked dockerconfigjson Secret.
+					return "", errors.New(`Secret "repro-pullsecret" is invalid: data[.dockerconfigjson]: Invalid value: invalid character looking for beginning of value`)
+				}
+				return targetConfigMap, nil
+			},
+		}
+		mockKubectl := &kubetest.MockKubectlCmd{}
+		mockKubectl.WithManageServerSideDiffDryRunFunc(func(_ *rest.Config) (diff.KubeApplier, func(), error) {
+			return mockApplier, func() {}, nil
+		})
+
+		// Skip webhook-mutation removal, which would need managedFields on the mock
+		// dry-run result. This test is about the dry run, not webhook handling.
+		secretApp := newTestApp(func(app *v1alpha1.Application) {
+			app.Name = "secret-app"
+			app.Namespace = testNamespace
+			app.Spec.Project = "test-project"
+			app.Annotations = map[string]string{
+				"argocd.argoproj.io/compare-options": "IncludeMutationWebhook=true",
+			}
+		})
+
+		appServerSecret := newTestAppServer(t, testProj, secretApp)
+		appServerSecret.kubectl = mockKubectl
+		appServerSecret.cache = newCachedManagedResources(t, appServerSecret, secretApp, toUnstructured(liveSecret), toUnstructured(liveConfigMap))
+
+		query := &application.ApplicationServerSideDiffQuery{
+			AppName:      new(secretApp.Name),
+			AppNamespace: new(secretApp.Namespace),
+			Project:      new(secretApp.Spec.Project),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      kube.SecretKind,
+					Namespace: "default",
+					Name:      "repro-pullsecret",
+					LiveState: liveSecret,
+				},
+				{
+					Group:     "",
+					Kind:      "ConfigMap",
+					Namespace: "default",
+					Name:      "repro-config",
+					LiveState: liveConfigMap,
+				},
+			},
+			TargetManifests: []string{targetSecret, targetConfigMap},
+		}
+
+		resp, err := appServerSecret.ServerSideDiff(t.Context(), query)
+		require.NoError(t, err)
+		require.Len(t, resp.Items, 2)
+
+		assert.NotContains(t, dryRunKinds, kube.SecretKind,
+			"a Secret must not be sent through the server-side apply dry run")
+		assert.Contains(t, dryRunKinds, "ConfigMap",
+			"resources other than Secrets must still use the server-side apply dry run")
+
+		// Results stay aligned with the request, and both resources are still diffed.
+		assert.Equal(t, kube.SecretKind, resp.Items[0].Kind)
+		assert.True(t, resp.Items[0].Modified, "the Secret still has to be diffed")
+		assert.Equal(t, "ConfigMap", resp.Items[1].Kind)
+		assert.True(t, resp.Items[1].Modified, "the ConfigMap still has to be diffed")
+	})
+
 	t.Run("LiveObjectConsistency", func(t *testing.T) {
 		// Test that ServerSideDiff validates that the JSON object in LiveState
 		// matches the Group, Kind, Namespace, Name fields of the ResourceDiff
