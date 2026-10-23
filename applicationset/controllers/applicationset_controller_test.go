@@ -2755,8 +2755,9 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 			name: "updating an unchanged condition does not mutate existing conditions",
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
+					Name:       "name",
+					Namespace:  "argocd",
+					Generation: 1,
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{
@@ -2811,6 +2812,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 
 				assert.Equal(t, v1alpha1.ApplicationSetConditionParametersGenerated, conditions[1].Type)
 				assert.Equal(t, someTime, conditions[1].LastTransitionTime)
+				assert.Equal(t, int64(1), conditions[1].ObservedGeneration)
 
 				assert.Equal(t, v1alpha1.ApplicationSetConditionResourcesUpToDate, conditions[2].Type)
 				assert.Equal(t, someTime, conditions[2].LastTransitionTime)
@@ -2820,11 +2822,50 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 			},
 		},
 		{
+			// A bumped generation must refresh the condition even when message, reason and status are identical
+			name: "bumping the generation refreshes an otherwise unchanged condition",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "name",
+					Namespace:  "argocd",
+					Generation: 2,
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Conditions: []v1alpha1.ApplicationSetCondition{existingParameterGeneratedCondition},
+				},
+			},
+			condition:           []v1alpha1.ApplicationSetCondition{},
+			parametersGenerated: true,
+			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
+				t.Helper()
+				require.Len(t, conditions, 1)
+
+				assert.Equal(t, v1alpha1.ApplicationSetConditionParametersGenerated, conditions[0].Type)
+				assert.Equal(t, "Successfully generated parameters for all Applications", conditions[0].Message)
+				assert.Equal(t, v1alpha1.ApplicationSetReasonParametersGenerated, conditions[0].Reason)
+				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusTrue, conditions[0].Status)
+
+				assert.Equal(t, int64(2), conditions[0].ObservedGeneration)
+				assert.NotEqual(t, someTime, conditions[0].LastTransitionTime)
+			},
+		},
+		{
 			name: "progressing conditions is removed when AppSet is not configured",
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
+					Name:       "name",
+					Namespace:  "argocd",
+					Generation: 1,
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{
@@ -2883,8 +2924,9 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 			name: "progressing conditions is ignored when AppSet is not configured",
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
+					Name:       "name",
+					Namespace:  "argocd",
+					Generation: 1,
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{
@@ -2938,8 +2980,9 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 			name: "progressing conditions is updated correctly when configured",
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "argocd",
+					Name:       "name",
+					Namespace:  "argocd",
+					Generation: 1,
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{
@@ -5214,13 +5257,15 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 		applications        []v1alpha1.Application
 		desiredApplications []v1alpha1.Application
 		expectedSyncMap     map[string]bool
+		expectedConditions []v1alpha1.ApplicationSetCondition
 	}{
 		{
 			name: "blocks sync when applications not reconciled",
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-appset",
-					Namespace: "argocd",
+					Name:       "test-appset",
+					Namespace:  "argocd",
+					Generation: 1,
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
@@ -5277,13 +5322,17 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 				},
 			},
 			expectedSyncMap: map[string]bool{},
+			// Reconciliation is still pending, so PerformProgressiveSyncs returns before it
+			// evaluates any rollout condition.
+			expectedConditions: nil,
 		},
 		{
 			name: "allows sync when all applications reconciled",
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-appset",
-					Namespace: "argocd",
+					Name:       "test-appset",
+					Namespace:  "argocd",
+					Generation: 2,
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
@@ -5341,6 +5390,157 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 				},
 			},
 			expectedSyncMap: map[string]bool{"app1": true},
+			expectedConditions: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:               v1alpha1.ApplicationSetConditionInvalidRolloutConfig,
+					Status:             v1alpha1.ApplicationSetConditionStatusFalse,
+					Message:            "Rolling Sync Configured correctly",
+					Reason:             v1alpha1.ApplicationSetReasonValidRolloutConfig,
+					ObservedGeneration: 2,
+				},
+				{
+					Type:               v1alpha1.ApplicationSetConditionParametersGenerated,
+					Status:             v1alpha1.ApplicationSetConditionStatusTrue,
+					Message:            "Successfully generated parameters for all Applications",
+					Reason:             v1alpha1.ApplicationSetReasonParametersGenerated,
+					ObservedGeneration: 2,
+				},
+				{
+					Type:               v1alpha1.ApplicationSetConditionRolloutProgressing,
+					Status:             v1alpha1.ApplicationSetConditionStatusFalse,
+					Message:            "ApplicationSet Rollout has completed",
+					Reason:             v1alpha1.ApplicationSetReasonApplicationSetRolloutComplete,
+					ObservedGeneration: 2,
+				},
+			},
+		},
+		{
+			// Step 1 is complete but step 2 is not, so the rollout reports itself as progressing
+			// and names the first incomplete step.
+			name: "reports rollout progressing on the first incomplete step",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "test-appset",
+					Namespace:  "argocd",
+					Generation: 3,
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values:   []string{"dev"},
+										},
+									},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values:   []string{"prod"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{},
+				},
+			},
+			applications: []v1alpha1.Application{
+				{
+					Name:      "app1",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"env": "dev",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &after,
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						Sync: v1alpha1.SyncStatus{
+							Status:   v1alpha1.SyncStatusCodeSynced,
+							Revision: "revision1",
+						},
+					},
+				},
+				{
+					Name:      "app2",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"env": "prod",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &after,
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						Sync: v1alpha1.SyncStatus{
+							Status:   v1alpha1.SyncStatusCodeOutOfSync,
+							Revision: "revision1",
+						},
+					},
+				},
+			},
+			desiredApplications: []v1alpha1.Application{
+				{
+					Name:      "app1",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"env": "dev",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Revision: "revision1",
+						},
+					},
+				},
+				{
+					Name:      "app2",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"env": "prod",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Revision: "revision1",
+						},
+					},
+				},
+			},
+			expectedSyncMap: map[string]bool{"app1": true, "app2": true},
+			expectedConditions: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:               v1alpha1.ApplicationSetConditionInvalidRolloutConfig,
+					Status:             v1alpha1.ApplicationSetConditionStatusFalse,
+					Message:            "Rolling Sync Configured correctly",
+					Reason:             v1alpha1.ApplicationSetReasonValidRolloutConfig,
+					ObservedGeneration: 3,
+				},
+				{
+					Type:               v1alpha1.ApplicationSetConditionParametersGenerated,
+					Status:             v1alpha1.ApplicationSetConditionStatusTrue,
+					Message:            "Successfully generated parameters for all Applications",
+					Reason:             v1alpha1.ApplicationSetReasonParametersGenerated,
+					ObservedGeneration: 3,
+				},
+				{
+					Type:               v1alpha1.ApplicationSetConditionRolloutProgressing,
+					Status:             v1alpha1.ApplicationSetConditionStatusTrue,
+					Message:            "ApplicationSet is performing rollout of step 2",
+					Reason:             v1alpha1.ApplicationSetReasonApplicationSetModified,
+					ObservedGeneration: 3,
+				},
+			},
 		},
 	}
 
@@ -5377,6 +5577,16 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedSyncMap, syncMap)
+
+			var persisted v1alpha1.ApplicationSet
+			require.NoError(t, client.Get(t.Context(), crtclient.ObjectKeyFromObject(&tt.appset), &persisted))
+
+			var actualConditions []v1alpha1.ApplicationSetCondition
+			for _, condition := range persisted.Status.Conditions {
+				condition.LastTransitionTime = nil
+				actualConditions = append(actualConditions, condition)
+			}
+			assert.Equal(t, tt.expectedConditions, actualConditions)
 		})
 	}
 }

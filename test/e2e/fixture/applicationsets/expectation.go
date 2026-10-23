@@ -317,10 +317,11 @@ func filterConditionFields(input *[]v1alpha1.ApplicationSetCondition) *[]v1alpha
 	var filteredConditions []v1alpha1.ApplicationSetCondition
 	for _, condition := range *input {
 		newCondition := &v1alpha1.ApplicationSetCondition{
-			Type:    condition.Type,
-			Status:  condition.Status,
-			Message: condition.Message,
-			Reason:  condition.Reason,
+			Type:               condition.Type,
+			Status:             condition.Status,
+			Message:            condition.Message,
+			Reason:             condition.Reason,
+			ObservedGeneration: condition.ObservedGeneration,
 		}
 		filteredConditions = append(filteredConditions, *newCondition)
 	}

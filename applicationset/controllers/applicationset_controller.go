@@ -580,7 +580,11 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 	if !needToUpdateConditions {
 		for i, c := range applicationSet.Status.Conditions {
 			previous := previousConditions[i]
-			if c.Type != previous.Type || c.Reason != previous.Reason || c.Status != previous.Status || c.Message != previous.Message {
+			if c.Type != previous.Type ||
+				c.Reason != previous.Reason ||
+				c.Status != previous.Status ||
+				c.Message != previous.Message ||
+				c.ObservedGeneration != previous.ObservedGeneration {
 				needToUpdateConditions = true
 				break
 			}
