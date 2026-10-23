@@ -232,7 +232,7 @@ func TestRunWithExecRunOptsCaptureStderr(t *testing.T) {
 func TestRunCommandExt_timeoutWithoutWaitDoesNotLeakGoroutine(t *testing.T) {
 	before := runtime.NumGoroutine()
 	for range 5 {
-		cmd := exec.Command("sleep", "5")
+		cmd := exec.CommandContext(t.Context(), "sleep", "5")
 		_, err := RunCommandExt(cmd, CmdOpts{Timeout: 100 * time.Millisecond})
 		require.Error(t, err)
 	}
