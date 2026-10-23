@@ -1407,6 +1407,42 @@ stringData:
   enableOCI: "true"
 ```
 
+Repositories that hold plain manifests, Kustomize directories or Helm charts as OCI artifacts (see [OCI](../user-guide/oci.md)) use `type: oci` and an `oci://` URL:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: private-oci-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  url: oci://my.registry.com/namespace/service
+  type: oci
+  username: my-username
+  password: my-password
+```
+
+A registry served over plain HTTP, such as a local registry in a test cluster, must be marked with `insecureOCIForceHttp: "true"` (the CLI flag is `--insecure-oci-force-http`); otherwise Argo CD connects with TLS and the connection fails. The field applies to `type: oci` repositories and to Helm repositories with `enableOCI: "true"`. Since Argo CD 3.5, a plain-HTTP registry that a chart's OCI dependencies come from needs its own repository secret with this field as well.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: local-oci-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  url: oci://registry.kube-system.svc:5000/releases
+  type: oci
+  insecureOCIForceHttp: "true"
+```
+
+> [!NOTE]
+> `insecureOCIForceHttp` disables TLS entirely, so do not combine it with `insecure` on the same repository: with Helm v4, `insecure` (`--insecure-skip-tls-verify`) takes precedence and the plain-HTTP setting is silently dropped. Use `insecure` for HTTPS registries with self-signed certificates and `insecureOCIForceHttp` for plain-HTTP registries.
+
 ## Resource Exclusion/Inclusion
 
 Resources can be excluded from discovery and sync so that Argo CD is unaware of them. For example, the apiGroup/kind `events.k8s.io/*`, `metrics.k8s.io/*` and `coordination.k8s.io/Lease` are always excluded. Use cases:
