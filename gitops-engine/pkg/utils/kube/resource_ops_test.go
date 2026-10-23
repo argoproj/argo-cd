@@ -1,6 +1,8 @@
 package kube
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -12,12 +14,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubectl/pkg/cmd/apply"
 	"k8s.io/kubectl/pkg/cmd/auth"
 	"k8s.io/kubectl/pkg/cmd/create"
@@ -625,4 +631,140 @@ func TestRealKubectlOptionsRunner_AuthReconcile_VisitorError(t *testing.T) {
 
 	err := runner.AuthReconcile(opts)
 	require.ErrorIs(t, err, expectedErr)
+}
+
+// countingRESTClientGetter records calls and returns fixed sentinels.
+type countingRESTClientGetter struct {
+	config          *rest.Config
+	mapper          meta.RESTMapper
+	discovery       discovery.CachedDiscoveryInterface
+	rawLoader       clientcmd.ClientConfig
+	restConfigCalls int
+	mapperCalls     int
+	discoveryCalls  int
+	rawLoaderCalls  int
+}
+
+func (g *countingRESTClientGetter) ToRESTConfig() (*rest.Config, error) {
+	g.restConfigCalls++
+	return g.config, nil
+}
+
+func (g *countingRESTClientGetter) ToRESTMapper() (meta.RESTMapper, error) {
+	g.mapperCalls++
+	return g.mapper, nil
+}
+
+func (g *countingRESTClientGetter) ToDiscoveryClient() (discovery.CachedDiscoveryInterface, error) {
+	g.discoveryCalls++
+	return g.discovery, nil
+}
+
+func (g *countingRESTClientGetter) ToRawKubeConfigLoader() clientcmd.ClientConfig {
+	g.rawLoaderCalls++
+	return g.rawLoader
+}
+
+func TestWarningRESTClientGetter(t *testing.T) {
+	t.Parallel()
+
+	t.Run("ToRESTConfig injects the handler on a copy without mutating the shared config", func(t *testing.T) {
+		t.Parallel()
+		shared := &countingRESTClientGetter{config: &rest.Config{Host: "https://example.com"}}
+		wh := rest.NewWarningWriter(&bytes.Buffer{}, rest.WarningWriterOptions{})
+		getter := &warningRESTClientGetter{RESTClientGetter: shared, warningHandler: wh}
+
+		cfg, err := getter.ToRESTConfig()
+		require.NoError(t, err)
+		assert.NotSame(t, shared.config, cfg, "config must be a copy")
+		assert.Equal(t, "https://example.com", cfg.Host, "copy preserves the shared config values")
+		assert.Equal(t, rest.WarningHandler(wh), cfg.WarningHandler)
+		assert.Nil(t, shared.config.WarningHandler, "the shared config must not be mutated")
+		assert.Equal(t, 1, shared.restConfigCalls, "expected one delegated REST config lookup")
+	})
+
+	t.Run("discovery and mapper lookups delegate to the shared getter", func(t *testing.T) {
+		t.Parallel()
+		shared := &countingRESTClientGetter{config: &rest.Config{}}
+		getter := &warningRESTClientGetter{RESTClientGetter: shared}
+
+		gotMapper, err := getter.ToRESTMapper()
+		require.NoError(t, err)
+		gotDiscovery, err := getter.ToDiscoveryClient()
+		require.NoError(t, err)
+		gotLoader := getter.ToRawKubeConfigLoader()
+
+		assert.Equal(t, shared.mapper, gotMapper)
+		assert.Equal(t, shared.discovery, gotDiscovery)
+		assert.Equal(t, shared.rawLoader, gotLoader)
+		assert.Equal(t, 1, shared.mapperCalls)
+		assert.Equal(t, 1, shared.discoveryCalls)
+		assert.Equal(t, 1, shared.rawLoaderCalls)
+	})
+}
+
+func TestRunResourceCommandSeparatesWarningsFromStderr(t *testing.T) {
+	t.Parallel()
+	k, _ := newTestKubectlResourceOperations(t)
+
+	const clientSideStderr = "Warning: resource clusterrolebindings/my-crb is missing the " +
+		"kubectl.kubernetes.io/last-applied-configuration annotation which is required by kubectl apply."
+	const serverWarning = `would violate PodSecurity "restricted"`
+
+	message, err := k.runResourceCommand(context.Background(), testingutils.NewClusterRoleBinding(),
+		func(ioStreams genericiooptions.IOStreams, _ string, warningHandler rest.WarningHandler) error {
+			_, _ = ioStreams.Out.Write([]byte("clusterrolebinding.rbac.authorization.k8s.io/my-crb configured"))
+			_, _ = ioStreams.ErrOut.Write([]byte(clientSideStderr))
+			require.NotNil(t, warningHandler, "log output mode must supply a warning handler")
+			warningHandler.HandleWarningHeader(299, "", serverWarning)
+			return nil
+		})
+	require.NoError(t, err)
+
+	assert.Contains(t, message, "clusterrolebinding.rbac.authorization.k8s.io/my-crb configured")
+	assert.Contains(t, message, serverWarning)
+	assert.NotContains(t, message, "last-applied-configuration")
+}
+
+func TestHandleLogOutput(t *testing.T) {
+	t.Parallel()
+	k, _ := newTestKubectlResourceOperations(t)
+
+	t.Run("stdout and API server warnings only", func(t *testing.T) {
+		t.Parallel()
+		msg, err := k.handleLogOutput("pod/my-pod created", `Warning: would violate PodSecurity "restricted"`)
+		require.NoError(t, err)
+		assert.Equal(t, `pod/my-pod created. Warning: would violate PodSecurity "restricted"`, msg)
+	})
+
+	t.Run("stdout only", func(t *testing.T) {
+		t.Parallel()
+		msg, err := k.handleLogOutput("pod/my-pod created", "")
+		require.NoError(t, err)
+		assert.Equal(t, "pod/my-pod created", msg)
+	})
+}
+
+func TestWarningClients(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil handler reuses the shared factory and config", func(t *testing.T) {
+		t.Parallel()
+		k, _ := newTestKubectlResourceOperations(t)
+		fact, cfg := k.warningClients(nil)
+		assert.Same(t, k.config, cfg)
+		assert.Equal(t, k.fact, fact)
+	})
+
+	t.Run("non-nil handler returns an isolated config carrying the handler", func(t *testing.T) {
+		t.Parallel()
+		k, _ := newTestKubectlResourceOperations(t)
+		wh := rest.NewWarningWriter(&bytes.Buffer{}, rest.WarningWriterOptions{})
+
+		fact, cfg := k.warningClients(wh)
+		require.NotNil(t, fact)
+		assert.NotSame(t, k.config, cfg, "config must be a copy, not the shared one")
+		assert.Equal(t, rest.WarningHandler(wh), cfg.WarningHandler)
+		assert.Nil(t, k.config.WarningHandler, "the shared config must not be mutated")
+	})
 }
