@@ -3064,9 +3064,14 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 			if !ctrl.canProcessApp(new) {
 				return
 			}
-			if !ctrl.canProcessApp(old) {
-				// The app was previously handled by another controller (e.g. its destination moved to
-				// a cluster managed by this shard), which may have overwritten its cached state.
+			oldApp, oldOK := old.(*appv1.Application)
+			newApp, newOK := new.(*appv1.Application)
+			// Only the destination or skip-reconcile annotation can make old unprocessable here, so
+			// skip resolving it again on every other update.
+			if oldOK && newOK &&
+				(oldApp.Spec.Destination != newApp.Spec.Destination || oldApp.Annotations[common.AnnotationKeyAppSkipReconcile] != newApp.Annotations[common.AnnotationKeyAppSkipReconcile]) &&
+				!ctrl.canProcessApp(old) {
+				// Another controller may have written the app's cached state while it handled the app.
 				ctrl.invalidateAppLocalCache(new)
 			}
 
@@ -3078,8 +3083,6 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 			var compareWith *CompareWith
 			var delay *time.Duration
 
-			oldApp, oldOK := old.(*appv1.Application)
-			newApp, newOK := new.(*appv1.Application)
 			if oldOK && newOK {
 				if automatedSyncEnabled(oldApp, newApp) {
 					log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
