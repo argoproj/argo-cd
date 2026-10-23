@@ -201,6 +201,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        enableDNS:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -444,6 +446,8 @@ spec:
                                               items:
                                                 type: string
                                               type: array
+                                            enableDNS:
+                                              type: boolean
                                             fileParameters:
                                               items:
                                                 properties:
@@ -709,6 +713,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          enableDNS:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -1121,6 +1127,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        enableDNS:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -1364,6 +1372,8 @@ spec:
                                               items:
                                                 type: string
                                               type: array
+                                            enableDNS:
+                                              type: boolean
                                             fileParameters:
                                               items:
                                                 properties:
@@ -1629,6 +1639,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          enableDNS:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -2042,6 +2054,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        enableDNS:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -2285,6 +2299,8 @@ spec:
                                               items:
                                                 type: string
                                               type: array
+                                            enableDNS:
+                                              type: boolean
                                             fileParameters:
                                               items:
                                                 properties:
@@ -2550,6 +2566,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          enableDNS:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -2941,6 +2959,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        enableDNS:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -3184,6 +3204,8 @@ spec:
                                               items:
                                                 type: string
                                               type: array
+                                            enableDNS:
+                                              type: boolean
                                             fileParameters:
                                               items:
                                                 properties:
@@ -3449,6 +3471,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          enableDNS:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -3865,6 +3889,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  enableDNS:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -4108,6 +4134,8 @@ spec:
                                                         items:
                                                           type: string
                                                         type: array
+                                                      enableDNS:
+                                                        type: boolean
                                                       fileParameters:
                                                         items:
                                                           properties:
@@ -4373,6 +4401,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    enableDNS:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -4785,6 +4815,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  enableDNS:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -5028,6 +5060,8 @@ spec:
                                                         items:
                                                           type: string
                                                         type: array
+                                                      enableDNS:
+                                                        type: boolean
                                                       fileParameters:
                                                         items:
                                                           properties:
@@ -5293,6 +5327,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    enableDNS:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -5706,6 +5742,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  enableDNS:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -5949,6 +5987,8 @@ spec:
                                                         items:
                                                           type: string
                                                         type: array
+                                                      enableDNS:
+                                                        type: boolean
                                                       fileParameters:
                                                         items:
                                                           properties:
@@ -6214,6 +6254,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    enableDNS:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -6605,6 +6647,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  enableDNS:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -6848,6 +6892,8 @@ spec:
                                                         items:
                                                           type: string
                                                         type: array
+                                                      enableDNS:
+                                                        type: boolean
                                                       fileParameters:
                                                         items:
                                                           properties:
@@ -7113,6 +7159,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    enableDNS:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -7526,6 +7574,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  enableDNS:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -7769,6 +7819,8 @@ spec:
                                                         items:
                                                           type: string
                                                         type: array
+                                                      enableDNS:
+                                                        type: boolean
                                                       fileParameters:
                                                         items:
                                                           properties:
@@ -8034,6 +8086,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    enableDNS:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -8436,6 +8490,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  enableDNS:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -8679,6 +8735,8 @@ spec:
                                                         items:
                                                           type: string
                                                         type: array
+                                                      enableDNS:
+                                                        type: boolean
                                                       fileParameters:
                                                         items:
                                                           properties:
@@ -8944,6 +9002,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    enableDNS:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -9570,6 +9630,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  enableDNS:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -9813,6 +9875,8 @@ spec:
                                                         items:
                                                           type: string
                                                         type: array
+                                                      enableDNS:
+                                                        type: boolean
                                                       fileParameters:
                                                         items:
                                                           properties:
@@ -10078,6 +10142,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    enableDNS:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -10701,6 +10767,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  enableDNS:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -10944,6 +11012,8 @@ spec:
                                                         items:
                                                           type: string
                                                         type: array
+                                                      enableDNS:
+                                                        type: boolean
                                                       fileParameters:
                                                         items:
                                                           properties:
@@ -11209,6 +11279,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    enableDNS:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -11617,6 +11689,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        enableDNS:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -11860,6 +11934,8 @@ spec:
                                               items:
                                                 type: string
                                               type: array
+                                            enableDNS:
+                                              type: boolean
                                             fileParameters:
                                               items:
                                                 properties:
@@ -12125,6 +12201,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          enableDNS:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -12543,6 +12621,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  enableDNS:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -12786,6 +12866,8 @@ spec:
                                                         items:
                                                           type: string
                                                         type: array
+                                                      enableDNS:
+                                                        type: boolean
                                                       fileParameters:
                                                         items:
                                                           properties:
@@ -13051,6 +13133,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    enableDNS:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -13463,6 +13547,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  enableDNS:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -13706,6 +13792,8 @@ spec:
                                                         items:
                                                           type: string
                                                         type: array
+                                                      enableDNS:
+                                                        type: boolean
                                                       fileParameters:
                                                         items:
                                                           properties:
@@ -13971,6 +14059,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    enableDNS:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -14384,6 +14474,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  enableDNS:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -14627,6 +14719,8 @@ spec:
                                                         items:
                                                           type: string
                                                         type: array
+                                                      enableDNS:
+                                                        type: boolean
                                                       fileParameters:
                                                         items:
                                                           properties:
@@ -14892,6 +14986,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    enableDNS:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -15283,6 +15379,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  enableDNS:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -15526,6 +15624,8 @@ spec:
                                                         items:
                                                           type: string
                                                         type: array
+                                                      enableDNS:
+                                                        type: boolean
                                                       fileParameters:
                                                         items:
                                                           properties:
@@ -15791,6 +15891,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    enableDNS:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -16204,6 +16306,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  enableDNS:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -16447,6 +16551,8 @@ spec:
                                                         items:
                                                           type: string
                                                         type: array
+                                                      enableDNS:
+                                                        type: boolean
                                                       fileParameters:
                                                         items:
                                                           properties:
@@ -16712,6 +16818,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    enableDNS:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -17114,6 +17222,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  enableDNS:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -17357,6 +17467,8 @@ spec:
                                                         items:
                                                           type: string
                                                         type: array
+                                                      enableDNS:
+                                                        type: boolean
                                                       fileParameters:
                                                         items:
                                                           properties:
@@ -17622,6 +17734,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    enableDNS:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -18248,6 +18362,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  enableDNS:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -18491,6 +18607,8 @@ spec:
                                                         items:
                                                           type: string
                                                         type: array
+                                                      enableDNS:
+                                                        type: boolean
                                                       fileParameters:
                                                         items:
                                                           properties:
@@ -18756,6 +18874,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    enableDNS:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -19379,6 +19499,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  enableDNS:
+                                                    type: boolean
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -19622,6 +19744,8 @@ spec:
                                                         items:
                                                           type: string
                                                         type: array
+                                                      enableDNS:
+                                                        type: boolean
                                                       fileParameters:
                                                         items:
                                                           properties:
@@ -19887,6 +20011,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    enableDNS:
+                                                      type: boolean
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -20299,6 +20425,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        enableDNS:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -20542,6 +20670,8 @@ spec:
                                               items:
                                                 type: string
                                               type: array
+                                            enableDNS:
+                                              type: boolean
                                             fileParameters:
                                               items:
                                                 properties:
@@ -20807,6 +20937,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          enableDNS:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -21219,6 +21351,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        enableDNS:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -21462,6 +21596,8 @@ spec:
                                               items:
                                                 type: string
                                               type: array
+                                            enableDNS:
+                                              type: boolean
                                             fileParameters:
                                               items:
                                                 properties:
@@ -21727,6 +21863,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          enableDNS:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -22129,6 +22267,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        enableDNS:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -22372,6 +22512,8 @@ spec:
                                               items:
                                                 type: string
                                               type: array
+                                            enableDNS:
+                                              type: boolean
                                             fileParameters:
                                               items:
                                                 properties:
@@ -22637,6 +22779,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          enableDNS:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -23263,6 +23407,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        enableDNS:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -23506,6 +23652,8 @@ spec:
                                               items:
                                                 type: string
                                               type: array
+                                            enableDNS:
+                                              type: boolean
                                             fileParameters:
                                               items:
                                                 properties:
@@ -23771,6 +23919,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          enableDNS:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -24394,6 +24544,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        enableDNS:
+                                          type: boolean
                                         fileParameters:
                                           items:
                                             properties:
@@ -24637,6 +24789,8 @@ spec:
                                               items:
                                                 type: string
                                               type: array
+                                            enableDNS:
+                                              type: boolean
                                             fileParameters:
                                               items:
                                                 properties:
@@ -24902,6 +25056,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          enableDNS:
+                                            type: boolean
                                           fileParameters:
                                             items:
                                               properties:
@@ -25387,6 +25543,8 @@ spec:
                                 items:
                                   type: string
                                 type: array
+                              enableDNS:
+                                type: boolean
                               fileParameters:
                                 items:
                                   properties:
@@ -25630,6 +25788,8 @@ spec:
                                     items:
                                       type: string
                                     type: array
+                                  enableDNS:
+                                    type: boolean
                                   fileParameters:
                                     items:
                                       properties:
@@ -25895,6 +26055,8 @@ spec:
                                   items:
                                     type: string
                                   type: array
+                                enableDNS:
+                                  type: boolean
                                 fileParameters:
                                   items:
                                     properties:

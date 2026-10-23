@@ -1374,6 +1374,7 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1a
 		templateOpts.SkipCrds = appHelm.SkipCrds
 		templateOpts.SkipSchemaValidation = appHelm.SkipSchemaValidation
 		templateOpts.SkipTests = appHelm.SkipTests
+		templateOpts.EnableDNS = appHelm.EnableDNS
 	}
 	if templateOpts.Name == "" {
 		templateOpts.Name = q.AppName

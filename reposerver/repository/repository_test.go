@@ -1816,6 +1816,7 @@ func TestListApps(t *testing.T) {
 		"invalid-kustomize":                 "Kustomize",
 		"kustomization_yaml":                "Kustomize",
 		"kustomization_yml":                 "Kustomize",
+		"dns-resolution":                    "Helm",
 		"my-chart":                          "Helm",
 		"my-chart-2":                        "Helm",
 		"oci-dependencies":                  "Helm",
@@ -6449,6 +6450,46 @@ func Test_SkipSchemaValidation(t *testing.T) {
 		_, err := service.GenerateManifest(t.Context(), &q)
 
 		require.ErrorContains(t, err, "values don't meet the specifications of the schema(s)")
+	})
+}
+
+func Test_EnableDNS(t *testing.T) {
+	t.Run("helm", func(t *testing.T) {
+		service := newService(t, "testdata/dns-resolution")
+
+		q := apiclient.ManifestRequest{
+			AppName: "test-app",
+			Repo:    &v1alpha1.Repository{},
+			ApplicationSource: &v1alpha1.ApplicationSource{
+				Path: ".",
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					EnableDNS: true,
+				},
+			},
+		}
+
+		res, err := service.GenerateManifest(t.Context(), &q)
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{"helm template . --name-template test-app --include-crds --enable-dns"}, res.Commands)
+	})
+	t.Run("helm", func(t *testing.T) {
+		service := newService(t, "testdata/dns-resolution")
+
+		q := apiclient.ManifestRequest{
+			AppName: "test-app",
+			Repo:    &v1alpha1.Repository{},
+			ApplicationSource: &v1alpha1.ApplicationSource{
+				Path: ".",
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					EnableDNS: false,
+				},
+			},
+		}
+
+		res, err := service.GenerateManifest(t.Context(), &q)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"helm template . --name-template test-app --include-crds"}, res.Commands)
 	})
 }
 

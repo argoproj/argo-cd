@@ -598,6 +598,9 @@ message ApplicationSourceHelm {
 
   // SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)
   optional bool skipSchemaValidation = 15;
+
+  // EnableDNS enables DNS lookups when rendering templates (Helm's --enable-dns)
+  optional bool enableDNS = 16;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
