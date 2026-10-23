@@ -5,6 +5,7 @@ import (
 	"context"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -215,6 +216,35 @@ func TestRedact(t *testing.T) {
 	assert.Equal(t, "****** ******", Redact([]string{"foo"})("foo foo"))
 }
 
+func TestRunCommandTimeout(t *testing.T) {
+	hook := test.NewGlobal()
+	log.SetLevel(log.DebugLevel)
+	defer log.SetLevel(log.InfoLevel)
+
+	output, err := RunCommand("sh", CmdOpts{Timeout: 500 * time.Millisecond}, "-c", "echo hello world && echo my-error >&2 && sleep 2")
+	assert.Equal(t, "hello world", output)
+	require.EqualError(t, err, "`sh -c echo hello world && echo my-error >&2 && sleep 2` failed timeout after 500ms")
+
+	assert.Len(t, hook.Entries, 3)
+
+	entry := hook.Entries[0]
+	assert.Equal(t, log.InfoLevel, entry.Level)
+	assert.Equal(t, "sh -c echo hello world && echo my-error >&2 && sleep 2", entry.Message)
+	assert.Contains(t, entry.Data, "dir")
+	assert.Contains(t, entry.Data, "execID")
+
+	entry = hook.Entries[1]
+	assert.Equal(t, log.DebugLevel, entry.Level)
+	assert.Equal(t, "hello world\n", entry.Message)
+	assert.Contains(t, entry.Data, "duration")
+	assert.Contains(t, entry.Data, "execID")
+
+	entry = hook.Entries[2]
+	assert.Equal(t, log.ErrorLevel, entry.Level)
+	assert.Equal(t, "`sh -c echo hello world && echo my-error >&2 && sleep 2` failed timeout after 500ms", entry.Message)
+	assert.Contains(t, entry.Data, "execID")
+}
+
 func TestRunCaptureStderr(t *testing.T) {
 	output, err := RunCommand("sh", CmdOpts{CaptureStderr: true}, "-c", "echo hello world && echo my-error >&2 && exit 0")
 	assert.Equal(t, "hello world\nmy-error", output)
@@ -227,6 +257,28 @@ func TestRunWithExecRunOptsCaptureStderr(t *testing.T) {
 	output, err := RunWithExecRunOpts(cmd, ExecRunOpts{CaptureStderr: true})
 	assert.Equal(t, "hello world\nmy-error", output)
 	assert.NoError(t, err)
+}
+
+func TestRunCommandExt_timeoutDoesNotRaceOnOutputBuffers(t *testing.T) {
+	cmd := exec.Command("sh", "-c", "echo hi; sleep 1; echo bye")
+	_, err := RunCommandExt(cmd, CmdOpts{Timeout: 200 * time.Millisecond})
+	require.Error(t, err)
+	// Keep the process alive past RunCommandExt's return so the race detector
+	// can observe a write to the output buffers after they were read.
+	time.Sleep(1500 * time.Millisecond)
+}
+
+func TestRunCommandExt_timeoutWithoutWaitDoesNotLeakGoroutine(t *testing.T) {
+	before := runtime.NumGoroutine()
+	for range 5 {
+		cmd := exec.CommandContext(t.Context(), "sleep", "5")
+		_, err := RunCommandExt(cmd, CmdOpts{Timeout: 100 * time.Millisecond})
+		require.Error(t, err)
+	}
+	// Eventually calls the condition from its own goroutine, so the count is one higher while it runs.
+	require.Eventually(t, func() bool {
+		return runtime.NumGoroutine() <= before+1
+	}, 2*time.Second, 20*time.Millisecond)
 }
 
 func TestRunCommandExt_timeoutDoesNotWaitForGrandchildPipe(t *testing.T) {
