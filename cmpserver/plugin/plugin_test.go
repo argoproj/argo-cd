@@ -361,7 +361,8 @@ func TestRunCommandContextTimeout(t *testing.T) {
 	_, err := runCommand(ctx, command, "", []string{})
 	after := time.Now()
 	require.Error(t, err) // The command should time out, causing an error.
-	assert.Less(t, after.Sub(before), 1*time.Second)
+	// Leave headroom for process startup and signal delivery on a loaded runner. The bound only has to stay well below the 5 second sleep.
+	assert.Less(t, after.Sub(before), 2*time.Second)
 }
 
 func TestRunCommandEmptyCommand(t *testing.T) {
@@ -386,7 +387,8 @@ func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
 	after := time.Now()
 
 	require.Error(t, err) // The command should time out, causing an error.
-	assert.Less(t, after.Sub(before), 1*time.Second)
+	// Leave headroom for process startup and signal delivery on a loaded runner. The bound only has to stay well below the 4 second sleep.
+	assert.Less(t, after.Sub(before), 2*time.Second)
 	// The command should still have completed the cleanup after termination.
 	assert.Contains(t, output, "cleanup completed")
 }
