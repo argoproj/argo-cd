@@ -8,6 +8,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/security"
 )
 
 func Test_newNamespaceFilterTransform(t *testing.T) {
@@ -22,50 +23,50 @@ func Test_newNamespaceFilterTransform(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		allowed         []string
+		allowed         *security.ApplicationNamespaceSet
 		obj             any
 		wantKept        bool
 		wantPassthrough bool // for non-meta objects we expect the original obj returned unchanged
 	}{
 		{
 			name:     "control-plane namespace is always kept",
-			allowed:  []string{"team-*"},
+			allowed:  security.NewApplicationNamespaceSet([]string{"team-*"}),
 			obj:      app(serverNS),
 			wantKept: true,
 		},
 		{
 			name:     "namespace matching an allowed glob pattern is kept",
-			allowed:  []string{"team-*"},
+			allowed:  security.NewApplicationNamespaceSet([]string{"team-*"}),
 			obj:      app("team-alpha"),
 			wantKept: true,
 		},
 		{
 			name:     "namespace not matching any pattern is dropped",
-			allowed:  []string{"team-*"},
+			allowed:  security.NewApplicationNamespaceSet([]string{"team-*"}),
 			obj:      app("other"),
 			wantKept: false,
 		},
 		{
 			name:     "exact namespace match is kept",
-			allowed:  []string{"foo", "bar"},
+			allowed:  security.NewApplicationNamespaceSet([]string{"foo", "bar"}),
 			obj:      app("bar"),
 			wantKept: true,
 		},
 		{
 			name:     "applicationset in disallowed namespace is dropped",
-			allowed:  []string{"team-a"},
+			allowed:  security.NewApplicationNamespaceSet([]string{"team-a"}),
 			obj:      appSet("team-b"),
 			wantKept: false,
 		},
 		{
 			name:     "applicationset in allowed namespace is kept",
-			allowed:  []string{"team-a"},
+			allowed:  security.NewApplicationNamespaceSet([]string{"team-a"}),
 			obj:      appSet("team-a"),
 			wantKept: true,
 		},
 		{
 			name:            "tombstone-like non-meta object is passed through",
-			allowed:         []string{"foo"},
+			allowed:         security.NewApplicationNamespaceSet([]string{"foo"}),
 			obj:             cache.DeletedFinalStateUnknown{Key: "ns/name", Obj: nil},
 			wantKept:        true,
 			wantPassthrough: true,

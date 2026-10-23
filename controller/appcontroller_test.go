@@ -50,6 +50,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
+	"github.com/argoproj/argo-cd/v3/util/security"
 
 	mockcommitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient/mocks"
 	mockstatecache "github.com/argoproj/argo-cd/v3/controller/cache/mocks"
@@ -262,6 +263,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		false,
 		normalizers.IgnoreNormalizerOpts{},
 		testEnableEventList,
+		false,
 		false,
 	)
 	db := &dbmocks.ArgoDB{}
@@ -3005,7 +3007,7 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 		common.DefaultPortArgoCDMetrics, 0,
 		[]string{}, []string{}, false, []string{},
 		0, true, nil, nil, nil, false, false,
-		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false, false,
 	)
 	require.NoError(t, err)
 
@@ -3068,7 +3070,7 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 		common.DefaultPortArgoCDMetrics, 0,
 		[]string{}, []string{}, false, []string{},
 		0, true, nil, nil, nil, false, false,
-		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false, false,
 	)
 	require.NoError(t, err)
 
@@ -3931,7 +3933,7 @@ func TestToAppKey(t *testing.T) {
 func Test_canProcessApp(t *testing.T) {
 	app := newFakeApp()
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-	ctrl.applicationNamespaces = []string{"good"}
+	ctrl.applicationNamespaces = security.NewApplicationNamespaceSet([]string{"good"})
 	t.Run("without cluster filter, good namespace", func(t *testing.T) {
 		app.Namespace = "good"
 		canProcess := ctrl.canProcessApp(app)

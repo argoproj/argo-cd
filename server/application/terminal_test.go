@@ -333,7 +333,7 @@ func TestTerminalHandler_ServeHTTP_empty_params(t *testing.T) {
 }
 
 func TestTerminalHandler_ServeHTTP_disallowed_namespace(t *testing.T) {
-	handler := terminalHandler{namespace: "argocd", enabledNamespaces: []string{"allowed"}}
+	handler := terminalHandler{namespace: "argocd", enabledNamespaces: security.NewApplicationNamespaceSet([]string{"allowed"})}
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/api/v1/terminal?pod=valid&container=valid&appName=valid&projectName=valid&namespace=test&appNamespace=disallowed", http.NoBody)
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)

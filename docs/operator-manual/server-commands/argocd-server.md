@@ -53,6 +53,7 @@ argocd-server [flags]
       --disable-auth                                    Disable client authentication
       --disable-compression                             If true, opt-out of response compression for all requests to the server
       --disable-swagger-ui                              Disable the Swagger UI (/swagger-ui) endpoint
+      --enable-app-namespace-discovery                  Enable application namespaces to be discovered by label
       --enable-gzip                                     Enable GZIP compression (default true)
       --enable-k8s-event none                           Enable ArgoCD to use k8s event. For disabling all events, set the value as none. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated) (default [all])
       --enable-proxy-extension                          Enable Proxy Extension feature

@@ -444,6 +444,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: server.sync.replace.allowed
                   optional: true
+            - name: ARGOCD_APP_NAMESPACE_DISCOVERY
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: application.namespaces.discovery
+                  optional: true
           volumeMounts:
             - name: ssh-known-hosts
               mountPath: /app/config/ssh

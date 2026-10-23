@@ -62,6 +62,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -320,7 +321,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 		sync.NewKeyLock(),
 		settingsMgr,
 		projInformer,
-		[]string{},
+		&security.ApplicationNamespaceSet{},
 		testEnableEventList,
 		true,
 	)
@@ -498,7 +499,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 		sync.NewKeyLock(),
 		settingsMgr,
 		projInformer,
-		[]string{},
+		&security.ApplicationNamespaceSet{},
 		testEnableEventList,
 		true,
 	)
@@ -1371,7 +1372,7 @@ func TestListAppWithNamespacedNames(t *testing.T) {
 		app.Name = "App1"
 		app.Namespace = "argocd-1"
 	}))
-	appServer.enabledNamespaces = []string{"argocd-1"}
+	appServer.enabledNamespaces = security.NewApplicationNamespaceSet([]string{"argocd-1"})
 
 	t.Run("List apps with a namespace qualified name returns only the app in that namespace", func(t *testing.T) {
 		appQuery := application.ApplicationQuery{Names: []string{"argocd-1/App1"}}
@@ -1432,7 +1433,7 @@ func TestWatchAppsWithNamespacedNamesFilter(t *testing.T) {
 		app.Name = "match-app"
 	})
 	appServer := newTestAppServer(t, matchApp, otherApp)
-	appServer.enabledNamespaces = []string{"argocd-1"}
+	appServer.enabledNamespaces = security.NewApplicationNamespaceSet([]string{"argocd-1"})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	// Cancel immediately so Watch returns after emitting the initial ADDED events for the existing
@@ -3872,7 +3873,7 @@ func TestIsApplicationPermitted(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
 		appServer.ns = "server-ns"
-		appServer.enabledNamespaces = []string{"demo"}
+		appServer.enabledNamespaces = security.NewApplicationNamespaceSet([]string{"demo"})
 		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, nil, *testApp)
 		assert.False(t, permitted)
 	})
@@ -3881,7 +3882,7 @@ func TestIsApplicationPermitted(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
 		appServer.ns = "server-ns"
-		appServer.enabledNamespaces = []string{testApp.Namespace}
+		appServer.enabledNamespaces = security.NewApplicationNamespaceSet([]string{testApp.Namespace})
 		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, nil, *testApp)
 		assert.True(t, permitted)
 	})
@@ -3925,7 +3926,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp1 := newTestApp()
 		testApp1.Namespace = "argocd-1"
 		appServer := newTestAppServer(t, testApp1)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.enabledNamespaces = security.NewApplicationNamespaceSet([]string{"argocd-1"})
 		apps, err := appServer.List(t.Context(), &application.ApplicationQuery{})
 		require.NoError(t, err)
 		require.Len(t, apps.Items, 1)
@@ -3967,7 +3968,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.enabledNamespaces = security.NewApplicationNamespaceSet([]string{"argocd-1"})
 		app, err := appServer.Get(t.Context(), &application.ApplicationQuery{
 			Name:         new("test-app"),
 			AppNamespace: new("argocd-1"),
@@ -3991,7 +3992,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.enabledNamespaces = security.NewApplicationNamespaceSet([]string{"argocd-1"})
 		app, err := appServer.Get(t.Context(), &application.ApplicationQuery{
 			Name:         new("test-app"),
 			AppNamespace: new("argocd-1"),
@@ -4014,7 +4015,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.enabledNamespaces = security.NewApplicationNamespaceSet([]string{"argocd-1"})
 		app, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{
 			Application: testApp,
 		})
@@ -4038,7 +4039,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.enabledNamespaces = security.NewApplicationNamespaceSet([]string{"argocd-1"})
 		app, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{
 			Application: testApp,
 		})
@@ -4061,7 +4062,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-2"}
+		appServer.enabledNamespaces = security.NewApplicationNamespaceSet([]string{"argocd-2"})
 		app, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{
 			Application: testApp,
 		})
@@ -4083,7 +4084,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.enabledNamespaces = security.NewApplicationNamespaceSet([]string{"argocd-1"})
 		active, err := appServer.GetApplicationSyncWindows(t.Context(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
 		require.NoError(t, err)
 		assert.Empty(t, active.ActiveWindows)
@@ -4102,7 +4103,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.enabledNamespaces = security.NewApplicationNamespaceSet([]string{"argocd-1"})
 		active, err := appServer.GetApplicationSyncWindows(t.Context(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
 		require.Error(t, err)
 		require.Nil(t, active)
@@ -4122,7 +4123,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.enabledNamespaces = security.NewApplicationNamespaceSet([]string{"argocd-1"})
 		links, err := appServer.ListLinks(t.Context(), &application.ListAppLinksRequest{
 			Name:      new("test-app"),
 			Namespace: new("argocd-1"),
@@ -4145,7 +4146,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.enabledNamespaces = security.NewApplicationNamespaceSet([]string{"argocd-1"})
 		links, err := appServer.ListLinks(t.Context(), &application.ListAppLinksRequest{
 			Name:      new("test-app"),
 			Namespace: new("argocd-1"),
