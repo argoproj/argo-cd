@@ -15,7 +15,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	"github.com/argoproj/argo-cd/v3/util/assets"
 )
@@ -123,6 +125,25 @@ func Test_PolicyFromCSV(t *testing.T) {
 	require.NotEmpty(t, uPol)
 	require.Empty(t, dRole)
 	require.Empty(t, matchMode)
+}
+
+func Test_getLocalUserStrictMode(t *testing.T) {
+	ctx := t.Context()
+	newClient := func(data map[string]string) *fake.Clientset {
+		return fake.NewClientset(&corev1.ConfigMap{Name: "argocd-cm", Namespace: "argocd", Data: data})
+	}
+
+	assert.True(t, getLocalUserStrictMode(ctx, newClient(map[string]string{settings.RBACLocalUserStrictModeKey: "true"}), "argocd"))
+	assert.False(t, getLocalUserStrictMode(ctx, newClient(map[string]string{settings.RBACLocalUserStrictModeKey: "false"}), "argocd"))
+	assert.False(t, getLocalUserStrictMode(ctx, newClient(nil), "argocd"))
+	assert.False(t, getLocalUserStrictMode(ctx, fake.NewClientset(), "argocd"), "missing argocd-cm defaults to disabled")
+}
+
+// Test_BuiltinAdminBindingByMode mirrors the server: in strict mode only admin@local inherits role:admin.
+func Test_BuiltinAdminBindingByMode(t *testing.T) {
+	assert.True(t, checkPolicy("admin", "create", "applications", "*/*", rbacpolicy.BuiltinPolicyCSV(false), "", "", "", true))
+	assert.False(t, checkPolicy("admin", "create", "applications", "*/*", rbacpolicy.BuiltinPolicyCSV(true), "", "", "", true))
+	assert.True(t, checkPolicy("admin@local", "create", "applications", "*/*", rbacpolicy.BuiltinPolicyCSV(true), "", "", "", true))
 }
 
 func Test_PolicyFromYAML(t *testing.T) {
