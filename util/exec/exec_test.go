@@ -228,6 +228,30 @@ func TestRunWithExecRunOptsCaptureStderr(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestRunCommandExt_timeoutDoesNotWaitForGrandchildPipe(t *testing.T) {
+	cmd := exec.Command("sh", "-c", "sleep 30 & wait")
+	start := time.Now()
+	done := make(chan error, 1)
+	go func() {
+		_, err := RunCommandExt(cmd, CmdOpts{
+			Timeout:      200 * time.Millisecond,
+			FatalTimeout: 500 * time.Millisecond,
+			TimeoutBehavior: TimeoutBehavior{
+				Signal:     syscall.SIGTERM,
+				ShouldWait: true,
+			},
+		})
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		require.Error(t, err)
+		require.Less(t, time.Since(start), 3*time.Second)
+	case <-time.After(3 * time.Second):
+		t.Fatal("command did not return after the timeout")
+	}
+}
+
 func TestRunWithExecRunOptsStderrWriter(t *testing.T) {
 	var stderr bytes.Buffer
 	cmd := exec.CommandContext(t.Context(), "sh", "-c", "printf stdout && printf stderr >&2")
