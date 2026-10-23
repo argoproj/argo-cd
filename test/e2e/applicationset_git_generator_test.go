@@ -32,7 +32,6 @@ func randStr(t *testing.T) string {
 }
 
 func TestSimpleGitDirectoryGenerator(t *testing.T) {
-	// Create, then two spec updates.
 	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
 
 	generateExpectedApp := func(name string) v1alpha1.Application {
@@ -137,7 +136,6 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 }
 
 func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
-	// Create, then two spec updates.
 	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
 
 	generateExpectedApp := func(name string) v1alpha1.Application {
@@ -435,7 +433,6 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 }
 
 func TestSimpleGitFilesGenerator(t *testing.T) {
-	// Create, then two spec updates.
 	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
 
 	generateExpectedApp := func(name string) v1alpha1.Application {
@@ -730,7 +727,6 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 }
 
 func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
-	// Create, then two spec updates.
 	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
 
 	generateExpectedApp := func(name string) v1alpha1.Application {

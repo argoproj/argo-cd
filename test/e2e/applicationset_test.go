@@ -132,8 +132,6 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 	externalNamespace := string(utils.ArgoCDExternalNamespace)
 	externalNamespace2 := string(utils.ArgoCDExternalNamespace2)
 
-	// Asserted against the ApplicationSet in externalNamespace: create, then two spec updates.
-	// The one in externalNamespace2 is never updated.
 	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3}) 
 
 	expectedApp := v1alpha1.Application{
@@ -305,7 +303,6 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 }
 
 func TestSimpleListGenerator(t *testing.T) {
-	// Create, then two spec updates.
 	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
 
 	expectedApp := v1alpha1.Application{
@@ -393,7 +390,6 @@ func TestSimpleListGenerator(t *testing.T) {
 }
 
 func TestSimpleListGeneratorGoTemplate(t *testing.T) {
-	// Create, then two spec updates.
 	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
 
 	expectedApp := v1alpha1.Application{
@@ -549,7 +545,6 @@ func TestRenderHelmValuesObject(t *testing.T) {
 }
 
 func TestTemplatePatch(t *testing.T) {
-	// Create, then two spec updates.
 	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
 
 	expectedApp := v1alpha1.Application{
@@ -670,8 +665,6 @@ func TestTemplatePatch(t *testing.T) {
 }
 
 func TestUpdateHelmValuesObject(t *testing.T) {
-	// Asserted right after Create, before this test's only spec update.
-	
 	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 1})
 
 
@@ -753,8 +746,7 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 }
 
 func TestSyncPolicyCreateUpdate(t *testing.T) {
-	// Create, then three spec updates.
-	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 1})
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 4})
 
 	expectedApp := v1alpha1.Application{
 		Kind:       "Application",
@@ -863,7 +855,6 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 }
 
 func TestSyncPolicyCreateDelete(t *testing.T) {
-	// Create, then three spec updates.
 	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 4})
 
 	expectedApp := v1alpha1.Application{
@@ -957,7 +948,6 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 }
 
 func TestSyncPolicyCreateOnly(t *testing.T) {
-	// Create, then three spec updates.
 	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 4})
 
 	expectedApp := v1alpha1.Application{

@@ -338,7 +338,6 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 		t.Skip("Skipping progressive sync tests - ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS not enabled")
 	}
 
-	// Create only, this test never updates the spec.
 	expectedConditions := []v1alpha1.ApplicationSetCondition{
 		{
 			Type:               v1alpha1.ApplicationSetConditionErrorOccurred,
