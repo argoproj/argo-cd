@@ -2,6 +2,7 @@ package exec
 
 import (
 	"bytes"
+	"context"
 	"os/exec"
 	"regexp"
 	"syscall"
@@ -250,6 +251,16 @@ func TestRunCommandExt_timeoutDoesNotWaitForGrandchildPipe(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("command did not return after the timeout")
 	}
+}
+
+func TestRunCommandExt_contextCancelDoesNotRaceOnWaitDelay(t *testing.T) {
+	// os/exec starts a goroutine in Start that reads WaitDelay once the context
+	// is done, so WaitDelay must not be written after Start.
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "sleep", "5")
+	_, err := RunCommandExt(cmd, CmdOpts{Timeout: 5 * time.Second, FatalTimeout: time.Second})
+	require.Error(t, err)
 }
 
 func TestRunWithExecRunOptsStderrWriter(t *testing.T) {

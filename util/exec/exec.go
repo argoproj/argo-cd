@@ -205,12 +205,6 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		cmd.Stderr = io.MultiWriter(&stderr, opts.StderrWriter)
 	}
 
-	start := time.Now()
-	err = cmd.Start()
-	if err != nil {
-		return "", err
-	}
-
 	// Start timers for timeout
 	timeout := DefaultCmdOpts.Timeout
 	fatalTimeout := DefaultCmdOpts.FatalTimeout
@@ -225,9 +219,16 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	// Bound the wait for inherited pipes. A grandchild that outlives the command
 	// would otherwise keep Wait blocked until that grandchild exits. A caller that
 	// already set WaitDelay, such as the git client, keeps its own value.
-	// WaitDelay has to be set before Wait.
+	// WaitDelay has to be set before Start: for a command created with a
+	// cancelable context, Start launches a goroutine that reads it.
 	if cmd.WaitDelay == 0 && fatalTimeout != 0 {
 		cmd.WaitDelay = fatalTimeout
+	}
+
+	start := time.Now()
+	err = cmd.Start()
+	if err != nil {
+		return "", err
 	}
 
 	// Buffered so the timeout path can return without waiting on Wait. An
