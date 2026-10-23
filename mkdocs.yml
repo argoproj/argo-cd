@@ -19,6 +19,7 @@ markdown_extensions:
 - admonition
 - toc:
     permalink: true
+- pymdownx.magiclink
 - pymdownx.superfences:
     custom_fences:
     - class: mermaid
