@@ -208,5 +208,38 @@ metadata:
   name: example
 data:
   not-actually: a-manifest
+
+### Tip: Avoid mixing Helm charts with plain manifests when using recurse
+
+If you set `directory.recurse: true` and your repository path contains both plain Kubernetes YAML and Helm charts in subdirectories, Argo CD will try to parse Helm charts as plain manifests and fail with `Failed to load target state`.
+
+**Recommended pattern:** Split into two Applications.
+
+```yaml
+# App 1 - Plain manifests
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app-plain
+spec:
+  source:
+    path: manifests/plain
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+---
+# App 2 - Helm charts
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app-helm
+spec:
+  source:
+    path: charts/my-app
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
 ```
 
