@@ -422,6 +422,93 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	assert.False(t, atag)
 }
 
+func Test_nativeGitClient_Checkout_cancelDoesNotLeaveIndexLock(t *testing.T) {
+	client, err := NewClientExt("file://"+t.TempDir(), t.TempDir(), NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	root := client.Root()
+	indexLock := filepath.Join(root, ".git", "index.lock")
+
+	require.NoError(t, os.WriteFile(filepath.Join(root, "file.txt"), []byte("first"), 0o644))
+	require.NoError(t, runCmd(t.Context(), root, "git", "add", "file.txt"))
+	require.NoError(t, runCmd(t.Context(), root, "git", "commit", "-m", "first"))
+	firstSHA, err := outputCmd(t.Context(), root, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(root, "file.txt"), []byte("second"), 0o644))
+	require.NoError(t, runCmd(t.Context(), root, "git", "commit", "-am", "second"))
+
+	// A smudge filter that hangs, so checkout blocks while holding index.lock. The
+	// marker tells the test that git has reached the filter and holds the lock.
+	marker := filepath.Join(t.TempDir(), "smudge-started")
+	require.NoError(t, os.MkdirAll(filepath.Join(root, ".git", "info"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, ".git", "info", "attributes"), []byte("* filter=slow\n"), 0o644))
+	require.NoError(t, runCmd(t.Context(), root, "git", "config", "filter.slow.smudge", fmt.Sprintf("exec 2>/dev/null; touch '%s'; sleep 30; cat", marker)))
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	checkoutErr := make(chan error, 1)
+	go func() {
+		_, err := client.Checkout(ctx, strings.TrimSpace(string(firstSHA)), false, false)
+		checkoutErr <- err
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(marker)
+		return err == nil
+	}, 10*time.Second, 10*time.Millisecond, "checkout never reached the smudge filter")
+	require.FileExists(t, indexLock)
+
+	cancel()
+
+	select {
+	case err := <-checkoutErr:
+		require.Error(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("checkout did not return after cancellation")
+	}
+	require.NoFileExists(t, indexLock, "cancelled git left a stale index.lock behind")
+}
+
+func Test_gitCancelGracePeriod(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		assert.Equal(t, 10*time.Second, gitCancelGracePeriod())
+	})
+	t.Run("respects ARGOCD_EXEC_FATAL_TIMEOUT", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "500ms")
+		assert.Equal(t, 500*time.Millisecond, gitCancelGracePeriod())
+	})
+}
+
+func Test_nativeGitClient_runCmdOutput_killsProcessIgnoringSIGTERMAfterGracePeriod(t *testing.T) {
+	t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "500ms")
+
+	client := &nativeGitClient{root: t.TempDir(), repoURL: "https://example.com/repo.git"}
+	marker := filepath.Join(t.TempDir(), "started")
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	cmdErr := make(chan error, 1)
+	go func() {
+		cmd := exec.CommandContext(ctx, "sh", "-c", fmt.Sprintf("trap '' TERM; touch '%s'; exec sleep 30", marker))
+		_, err := client.runCmdOutput(cmd, runOpts{})
+		cmdErr <- err
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(marker)
+		return err == nil
+	}, 10*time.Second, 10*time.Millisecond, "command never started")
+
+	cancel()
+
+	select {
+	case err := <-cmdErr:
+		require.Error(t, err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("command ignoring SIGTERM was not killed after the grace period")
+	}
+}
+
 func Test_resolveTagReference(t *testing.T) {
 	// Setup
 	commitHash := plumbing.NewHash("0123456789abcdef0123456789abcdef01234567")
