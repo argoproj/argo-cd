@@ -229,7 +229,7 @@ func TestRunWithExecRunOptsCaptureStderr(t *testing.T) {
 }
 
 func TestRunCommandExt_timeoutDoesNotWaitForGrandchildPipe(t *testing.T) {
-	cmd := exec.Command("sh", "-c", "sleep 30 & wait")
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "sleep 30 & wait")
 	start := time.Now()
 	done := make(chan error, 1)
 	go func() {
