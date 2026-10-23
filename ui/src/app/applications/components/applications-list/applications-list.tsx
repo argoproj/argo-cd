@@ -122,10 +122,10 @@ export const ViewPref = ({children}: {children: (pref: AppsListPreferences & {pa
     return (
         <DataLoader
             load={() =>
-                combineLatest([services.viewPreferences.getPreferences().pipe(map(item => item.appList)), observableQuery$]).pipe(
+                combineLatest([services.viewPreferences.getPreferences().pipe(map(item => ({...item.appList, search: item.appListSearch}))), observableQuery$]).pipe(
                     map(items => {
                         const params = items[1];
-                        const viewPref: AppsListPreferences = {...items[0]};
+                        const viewPref = {...items[0]};
                         if (params.get('proj') != null) {
                             viewPref.projectsFilter = params
                                 .get('proj')
@@ -253,7 +253,7 @@ function tryJsonParse(input: string) {
 }
 
 export const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; apps: models.Application[]; pref: AppsListPreferences}) => {
-    const {content, searchRegex, ctx, apps, pref} = props;
+    const {content, searchRegex, ctx, apps} = props;
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
     const query = new URLSearchParams(window.location.search);
@@ -263,7 +263,7 @@ export const ApplicationsListSearchBar = (props: {content: string; searchRegex: 
         <SearchBar
             value={content || ''}
             onChange={value => {
-                services.viewPreferences.updatePreferences({appList: {...pref, search: value}});
+                services.viewPreferences.updatePreferences({appListSearch: value});
                 ctx.navigation.goto('.', {search: value}, {replace: true});
             }}
             placeholder={searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search applications...'}

@@ -30,23 +30,23 @@ test('restores search text and other list preferences after reloading', async ()
     const service = new ViewPreferencesService();
     service.init();
     const preferences = await firstValueFrom(service.getPreferences());
-    service.updatePreferences({appList: {...preferences.appList, search: '^prod-', searchRegex: true, projectsFilter: ['production']}});
+    service.updatePreferences({appListSearch: '^prod-', appList: {...preferences.appList, searchRegex: true, projectsFilter: ['production']}});
 
     const reloaded = new ViewPreferencesService();
     reloaded.init();
     const restored = await firstValueFrom(reloaded.getPreferences());
-    expect(restored.appList.search).toBe('^prod-');
+    expect(restored.appListSearch).toBe('^prod-');
     expect(restored.appList.searchRegex).toBe(true);
     expect(restored.appList.projectsFilter).toEqual(['production']);
 });
 
 test.each([undefined, null, 42, {}])('initializes absent or invalid saved search text (%p)', async search => {
     window.localStorage.clear();
-    window.localStorage.setItem('view_preferences', JSON.stringify({version: 5, appList: {search, projectsFilter: ['production']}}));
+    window.localStorage.setItem('view_preferences', JSON.stringify({version: 5, appListSearch: search, appList: {projectsFilter: ['production']}}));
     const service = new ViewPreferencesService();
     service.init();
 
     const preferences = await firstValueFrom(service.getPreferences());
-    expect(preferences.appList.search).toBe('');
+    expect(preferences.appListSearch).toBe('');
     expect(preferences.appList.projectsFilter).toEqual(['production']);
 });

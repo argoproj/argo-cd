@@ -7,6 +7,8 @@ list filters. Returning from an application's details page restores the search,
 including regular expressions when regex search is enabled. Clearing the search
 also clears the saved text. A `search` parameter in the URL takes precedence over
 the saved text, including an explicitly empty `?search=` parameter.
+Changing filters or search text on the ApplicationSets list does not replace the
+saved Applications search.
 
 ## Default Application Details View
 

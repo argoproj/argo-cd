@@ -63,19 +63,19 @@ test('typing a search preserves it when returning without a search URL', async (
 });
 
 test('a shared search URL takes precedence over the saved search', async () => {
-    services.viewPreferences.updatePreferences({appList: {...getPreferences(), search: 'saved'} as AppsListPreferences});
+    services.viewPreferences.updatePreferences({appListSearch: 'saved'});
     renderList('?search=shared');
     expect(await screen.findByDisplayValue('shared')).toBeInTheDocument();
 });
 
 test('an explicitly empty search URL overrides a saved search', async () => {
-    services.viewPreferences.updatePreferences({appList: {...getPreferences(), search: 'saved'} as AppsListPreferences});
+    services.viewPreferences.updatePreferences({appListSearch: 'saved'});
     renderList('?search=');
     expect(await screen.findByPlaceholderText('Search applications...')).toHaveValue('');
 });
 
 test('clearing search remains cleared on the next visit', async () => {
-    services.viewPreferences.updatePreferences({appList: {...getPreferences(), search: 'saved'} as AppsListPreferences});
+    services.viewPreferences.updatePreferences({appListSearch: 'saved'});
     const view = renderList('?search=saved');
     fireEvent.change(await screen.findByDisplayValue('saved'), {target: {value: ''}});
     view.unmount();
@@ -84,7 +84,7 @@ test('clearing search remains cleared on the next visit', async () => {
     services.viewPreferences.init();
     renderList();
     expect(await screen.findByPlaceholderText('Search applications...')).toHaveValue('');
-    expect(getPreferences()).toHaveProperty('search', '');
+    expect(JSON.parse(window.localStorage.getItem('view_preferences')).appListSearch).toBe('');
 });
 
 test('regex searches survive returning to the list and retain the matching mode', async () => {
@@ -105,4 +105,16 @@ test('browser back navigation restores the previous URL search', async () => {
     expect(await screen.findByDisplayValue('second')).toBeInTheDocument();
     act(() => view.history.goBack());
     expect(await screen.findByDisplayValue('first')).toBeInTheDocument();
+});
+
+test.each([undefined, 'sets-only'])('ApplicationSets preference writes do not replace the Applications search (%p)', async search => {
+    const view = renderList();
+    fireEvent.change(await screen.findByPlaceholderText('Search applications...'), {target: {value: 'production'}});
+    view.unmount();
+
+    services.viewPreferences.updatePreferences({appList: {...getPreferences(), search, searchRegex: true} as AppsListPreferences});
+    services.viewPreferences = new ViewPreferencesService();
+    services.viewPreferences.init();
+    renderList();
+    expect(await screen.findByDisplayValue('production')).toBeInTheDocument();
 });
