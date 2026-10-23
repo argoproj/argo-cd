@@ -148,6 +148,18 @@ func (c *twoLevelClient) Delete(key string) error {
 	return c.externalCache.Delete(key)
 }
 
+// InvalidateLocal removes the key from the in-memory cache only, so the next Set of that key
+// always reaches the external cache. Use it when another client may have overwritten the key
+// in the external cache since this client last wrote it.
+func (c *twoLevelClient) InvalidateLocal(key string) {
+	_ = c.inMemoryCache.Delete(key)
+}
+
+// GetLocal reads the key from the in-memory cache only, without querying the external cache.
+func (c *twoLevelClient) GetLocal(key string, obj any) error {
+	return c.inMemoryCache.Get(key, obj)
+}
+
 func (c *twoLevelClient) OnUpdated(ctx context.Context, key string, callback func() error) error {
 	return c.externalCache.OnUpdated(ctx, key, callback)
 }
