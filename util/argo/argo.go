@@ -543,6 +543,12 @@ func validateRepo(ctx context.Context,
 			return nil, err
 		}
 		if err := TestRepoWithKnownType(ctx, repoClient, repo, source.IsHelm(), source.IsHelmOci(), source.IsOCI()); err != nil {
+			// As in verifyGenerateManifests below, a canceled or timed out repository check
+			// says nothing about the spec, so it is reported with its gRPC code instead of
+			// an InvalidSpecError condition.
+			if code := status.Code(err); code == codes.Canceled || code == codes.DeadlineExceeded {
+				return nil, status.Error(code, fmt.Sprintf("unable to test repository %s: %s", repo.StringForLogging(), err))
+			}
 			errMessage = fmt.Sprintf("repositories not accessible: %v: %v", repo.StringForLogging(), err)
 		}
 		repoAccessible := false
