@@ -18,9 +18,10 @@ last-updated: 2026-10-23
 ## Summary
 
 Today, a sync is requested through the API, CLI or UI, or by writing `operation` on the Application. Each request
-covers one app and changes the Application, and nothing records it once the next operation replaces
-`status.operationState`. Ordering syncs across apps needs ApplicationSet RollingSync, which is tied to one
-ApplicationSet, or app-of-apps sync waves.
+covers one app and changes the Application. Only successful syncs are recorded, per app, in `status.history`; a failed
+sync is gone once the next operation replaces `status.operationState`, and nothing records which syncs belong
+together. Ordering syncs across apps needs ApplicationSet RollingSync, which is tied to one ApplicationSet, or
+app-of-apps sync waves.
 
 This proposal adds two resources:
 
@@ -30,6 +31,9 @@ This proposal adds two resources:
   group of apps.
 
 RollingSync could later be rebuilt on top of them (see [Future work](#future-work)).
+
+This proposal asks for the controller to ship with Argo CD. The prototype, which runs next to an existing installation
+(see [Appendix: prototype notes](#appendix-prototype-notes)), validates the design until then.
 
 ## Open Questions
 
@@ -52,7 +56,8 @@ RollingSync could later be rebuilt on top of them (see [Future work](#future-wor
 - **Progressive sync outside the ApplicationSet.** In [#28927](https://github.com/argoproj/argo-cd/issues/28927),
   maintainers supported eventually giving Progressive Sync its own CRD and controller. Several open RollingSync bugs
   come from the ApplicationSet controller rebuilding a sync state machine out of Application status fields.
-- **History and group auto-sync.** Today, nothing records a sync request, and auto-sync works one app at a time.
+- **History and group auto-sync.** Today, only successful syncs are recorded, per app, and auto-sync works one app at
+  a time.
 
 ### Goals
 
@@ -65,7 +70,8 @@ RollingSync could later be rebuilt on top of them (see [Future work](#future-wor
 
 - Removing `operation` from the Application: the controller still writes it, and auto-sync, rollbacks and local
   syncs keep using it directly.
-- Enforcing Argo CD RBAC on requests made through the Kubernetes API (see [Alternatives](#alternatives)).
+- Enforcing Argo CD RBAC on requests made through the Kubernetes API (see [Alternatives](#alternatives)). In-tree,
+  the API checks Argo CD RBAC (see [Security Considerations](#security-considerations)).
 - Syncing Applications in more than one namespace from one ApplicationSync.
 - A workflow engine: no arbitrary steps, approvals or hooks between apps.
 - Rollout analysis beyond health, such as metric checks
@@ -93,7 +99,9 @@ As an operator, I find that the last release broke something. The ApplicationSyn
 each app synced to, so I create a new ApplicationSync that pins those revisions for the same apps and groups, and
 the rollback runs in the same order with the same health gates
 ([#25741](https://github.com/argoproj/argo-cd/issues/25741)). Today I would roll back each app separately, and
-nothing records which revisions belonged together.
+nothing records which revisions belonged together. This restores revisions only: if an app's source settings (path,
+Helm parameters) changed since, they stay as they are now, unlike `argocd app rollback` (see
+[Future work](#future-work)).
 
 #### Use case 3: auto-sync a group
 
@@ -173,6 +181,10 @@ Semantics:
   and operations already running finish. Without it, a run can wait indefinitely.
 - **Immutable.** The spec can't change after creation, apart from the TTL. To stop a run, delete it: operations
   already running finish and nothing new starts. To sync again, create a new one.
+- **Runs managed from Git.** As with Jobs, commit a run as a sync hook with `generateName`: each sync of the parent
+  app creates one run, which Argo CD then neither prunes nor recreates, and a health check for ApplicationSync makes
+  the parent's sync wait for it. A run committed as an ordinary resource would be pruned or rerun. For ongoing
+  rollouts, use a policy.
 - **No auto-sync on listed apps.** Auto-sync could otherwise sync an app ahead of its dependencies, so the controller
   refuses such an app. Group auto-sync is the [ApplicationSyncPolicy](#applicationsyncpolicy).
 
@@ -315,9 +327,10 @@ None of this is part of the proposal; each item depends on `ApplicationSync` mov
   ApplicationSync, the ApplicationSet view would show its current run, covering most of
   [#27879](https://github.com/argoproj/argo-cd/issues/27879).
 - **API and UI syncs as ApplicationSyncs.** The Sync handler could create a single-app run instead of writing
-  `operation`, so every sync leaves a record; a busy app still fails, and a timed-out request deletes its run.
-  Rollbacks restore the source settings recorded in history (path, Helm parameters, …), not only the revision, so a
-  run would need a way to name a history entry. Local syncs keep writing `operation`, at least for now.
+  `operation`, so every sync leaves a record, and new endpoints would create runs and policies for users, checking
+  Argo CD RBAC; a busy app still fails, and a timed-out request deletes its run. Rollbacks restore the source settings
+  recorded in history (path, Helm parameters, …), not only the revision, so a run would need a way to name a history
+  entry. Local syncs keep writing `operation`, at least for now.
 - **Auto-sync as a generated policy.** The application controller could keep a single-app policy for each auto-synced
   app, so auto-sync and group auto-sync share one engine. The cost is one policy per app and one run per auto-sync.
 - **RollingSync as a generated policy.** RollingSync is evaluated on every ApplicationSet reconcile, so the
@@ -333,16 +346,19 @@ None of this is part of the proposal; each item depends on `ApplicationSync` mov
 
 ### Security Considerations
 
-- **Kubernetes RBAC decides.** ApplicationSyncs and policies are created through the Kubernetes API, so Kubernetes RBAC
-  governs them and Argo CD RBAC isn't consulted, as when writing `operation` today. `create` on `applicationsyncs`
-  therefore means sync on every Application in that namespace, and `create` on `applicationsyncpolicies` means
-  deciding when those apps sync. The docs must say so, and no default or aggregated role should include them.
+- **Kubernetes RBAC for now.** Out of tree, runs and policies are created through the Kubernetes API, so Kubernetes
+  RBAC governs them, as for writing `operation` today. Without [apps in any
+  namespace](../operator-manual/app-any-namespace.md), every Application lives in the control-plane namespace, so
+  `create` on either is effectively admin. This is a stopgap: in-tree, `argocd-server` creates them for users and
+  checks Argo CD RBAC.
 - **Other verbs matter too.** `update` or `patch` can set a run's TTL to 0, which deletes it, and can add or remove a
   policy owner reference, which changes whether sync windows treat the run as automatic. `delete` on a policy's
   latest run makes the policy roll out its change again. Grant these as carefully as `create`.
-- **Existing guards still apply.** The controller checks sync windows and `server.sync.replace.allowed` before it
-  starts a sync, and the application controller enforces project destinations and source integrity, as today.
-  Local manifests and source overrides aren't exposed, and `initiatedBy` is informational only.
+- **Existing guards still apply.** Before starting a sync, the controller applies the same checks as an API sync:
+  sync windows, `server.sync.replace.allowed`, and refusing an app that is being deleted. In-tree, these should be
+  one check shared with the Sync API rather than a copy. The application controller still enforces project
+  destinations and source integrity, as today. Local manifests and source overrides aren't exposed, and
+  `initiatedBy` is informational only.
 - **The controller's own access.** It can write `operation` on the Applications it watches, as the application
   controller can, and reads AppProjects and Argo CD's ConfigMaps. Resolving branch pins (Open Question 2) would add
   read access to repository credentials.
@@ -379,6 +395,10 @@ None of this is part of the proposal; each item depends on `ApplicationSync` mov
 
 - **Status quo.** Keep writing `operation` and using app-of-apps sync waves. That edits managed objects and needs a
   parent app.
+- **A long-lived rollout object.** Editing its spec would roll out again, with its status keeping the last few runs.
+  But syncing again needs a dummy edit, two requests close together can overwrite each other, and history lives in one
+  size-limited status. The policy is that long-lived object for auto-sync; one-off requests stay separate, immutable
+  runs.
 - **Argo CD RBAC on kubectl-created runs.** An admission webhook could record the creator, and the controller could
   check Argo CD RBAC before each sync. Deferred: it needs a mapping from Kubernetes identities to Argo CD subjects, a
   way to trust the recorded identity, and a webhook to run. 
@@ -427,4 +447,5 @@ through the Kubernetes API. These notes describe how it implements the proposal;
   resources, and leave out apps that run left OutOfSync.
 - **Events.** Routine waits (a refresh, or a `maxParallel` slot) aren't reported.
 - **RBAC.** It needs `applications` (write), `applicationsyncs` and `applicationsyncpolicies` with their status, and
-  `events` in the app namespaces; `appprojects` and `configmaps` (read) and a `lease` in Argo CD's namespace.
+  `events` in the app namespaces; `update` on `applicationsyncpolicies/finalizers`, since runs carry a blocking owner
+  reference to their policy; `appprojects` and `configmaps` (read) and a `lease` in Argo CD's namespace.
