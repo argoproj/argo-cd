@@ -42,6 +42,7 @@ argocd-repo-server [flags]
       --otlp-sample-ratio float                        Fraction of traces to sample, from 0.0 (none) to 1.0 (all). Parent-based, so downstream services honor the upstream sampling decision (default 1)
       --parallelismlimit int                           Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
       --plugin-tar-exclude stringArray                 Globs to filter when sending tarballs to plugins.
+      --plugin-tar-manifest-generate-paths-only        Only send the paths described in argocd.argoproj.io/manifest-generate-paths to the cmpserver instead of their whole common root. Requires --plugin-use-manifest-generate-paths.
       --plugin-use-manifest-generate-paths             Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.
       --port int                                       Listen on given port for incoming connections (default 8081)
       --redis string                                   Redis server hostname and port (e.g. argocd-redis:6379). 

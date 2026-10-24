@@ -58,6 +58,10 @@ func getApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath stri
 func getPaths(q *apiclient.ManifestRequest, appPath, repoPath string) []string {
 	var paths []string
 	for annotationPath := range strings.SplitSeq(q.AnnotationManifestGeneratePaths, ";") {
+		// Trim whitespace because annotation values may contain spaces around
+		// separators (e.g. ".; /path"). Without trimming, paths like " /path"
+		// are not treated as absolute.
+		annotationPath = strings.TrimSpace(annotationPath)
 		if annotationPath == "" {
 			continue
 		}
@@ -84,6 +88,55 @@ func getPaths(q *apiclient.ManifestRequest, appPath, repoPath string) []string {
 		paths = append(paths, path)
 	}
 	return paths
+}
+
+// getManifestGenerateIncludePaths returns the paths, relative to rootPath, that a
+// config management plugin needs to generate the application manifests, based on
+// the manifest generate paths annotation. Returns nil when the annotation is
+// empty, as rootPath is then the whole repository and there is nothing to narrow
+// down.
+func getManifestGenerateIncludePaths(q *apiclient.ManifestRequest, appPath, rootPath, repoPath string) ([]string, error) {
+	paths := getPaths(q, appPath, repoPath)
+	if len(paths) == 0 {
+		return nil, nil
+	}
+
+	// The application path is always needed, it is the plugin working directory.
+	var includePaths []string
+	seen := make(map[string]bool, len(paths)+1)
+	for _, path := range append([]string{appPath}, paths...) {
+		relPath, err := files.RelativePath(path, rootPath)
+		if err != nil {
+			return nil, fmt.Errorf("error building relative path for %q under %q: %w", path, rootPath, err)
+		}
+		if seen[relPath] {
+			continue
+		}
+		seen[relPath] = true
+		includePaths = append(includePaths, relPath)
+	}
+	return includePaths, nil
+}
+
+// getCMPRootAndIncludePaths returns the directory streamed to a config management
+// plugin, and the paths relative to it the stream is restricted to. The whole
+// repository is streamed unless useManifestGeneratePaths is set, in which case the
+// common root of the manifest generate paths annotation is streamed instead. That
+// common root is narrowed down to the paths the annotation names only when
+// manifestGeneratePathsOnly is set as well.
+func getCMPRootAndIncludePaths(q *apiclient.ManifestRequest, appPath, repoPath string, useManifestGeneratePaths, manifestGeneratePathsOnly bool) (string, []string, error) {
+	if !useManifestGeneratePaths {
+		return repoPath, nil, nil
+	}
+	rootPath := getApplicationRootPath(q, appPath, repoPath)
+	if !manifestGeneratePathsOnly {
+		return rootPath, nil, nil
+	}
+	includePaths, err := getManifestGenerateIncludePaths(q, appPath, rootPath, repoPath)
+	if err != nil {
+		return "", nil, err
+	}
+	return rootPath, includePaths, nil
 }
 
 // walkDirectoryTree walks a directory tree and returns relative paths to all subdirectories.
