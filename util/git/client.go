@@ -171,8 +171,6 @@ type Client interface {
 	// CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
 	// the base branch.
 	CheckoutOrNew(ctx context.Context, branch, base string, submoduleEnabled bool) (string, error)
-	// RemoveContents removes all files from the given paths in the git repository.
-	RemoveContents(ctx context.Context, paths []string) (string, error)
 	// Commit stages all changes and creates a single commit. If signingKeyID
 	// is non-empty, the commit is GPG-signed with the given key from the
 	// shared GNUPGHOME (common.GetGnuPGHomePath()); the key's passphrase, if
@@ -1946,19 +1944,6 @@ func (m *nativeGitClient) CheckoutOrNew(ctx context.Context, branch, base string
 		if err != nil {
 			return out, fmt.Errorf("failed to create branch: %w", err)
 		}
-	}
-	return "", nil
-}
-
-// RemoveContents removes all files from the path of git repository.
-func (m *nativeGitClient) RemoveContents(ctx context.Context, paths []string) (string, error) {
-	if len(paths) == 0 {
-		return "", nil
-	}
-	args := append([]string{"rm", "-r", "--ignore-unmatch", "--"}, paths...)
-	out, err := m.runCmd(ctx, args...)
-	if err != nil {
-		return out, fmt.Errorf("failed to clear paths %v: %w", paths, err)
 	}
 	return "", nil
 }
