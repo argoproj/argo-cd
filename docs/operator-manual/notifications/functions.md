@@ -155,3 +155,103 @@ Returns application details. `AppDetail` fields:
 *
 * `Kustomize *apiclient.KustomizeAppSpec` - Kustomize details
 * `Directory *apiclient.DirectoryAppSpec` - Directory details
+
+### **argo**
+
+Argo CD Application helpers for building Adaptive Card notification templates.
+
+<hr>
+
+**`argo.StatusCard(argocdURL string) string`**
+
+Returns a complete Adaptive Card 1.4 JSON payload for the current Application.
+
+The card contains a state-aware header, Application summary, and an Argo CD Application link when `argocdURL` is provided.
+
+```text
+{{ call .argo.StatusCard .context.argocdUrl }}
+```
+
+<hr>
+
+**`argo.HeaderPanel() string`**
+
+Returns the Adaptive Card `TextBlock` used by `StatusCard` for the state-aware header.
+
+The header reflects common Application states such as sync failure, degraded health, progressing, successful deployment, out-of-sync, and unknown sync status.
+
+<hr>
+
+**`argo.SummaryPanel() string`**
+
+Returns an Adaptive Card `FactSet` containing the Application name, namespace, sync status, health status, and revision information when available.
+
+<hr>
+
+**`argo.ApplicationLink(argocdURL string) string`**
+
+Returns an Adaptive Card `Action.OpenUrl` linking to the current Application in Argo CD.
+
+If `argocdURL` is empty, no action is added to `StatusCard`.
+
+The smaller helpers can be combined with custom Adaptive Card elements:
+
+```text
+{
+  "type": "AdaptiveCard",
+  "version": "1.4",
+  "body": [
+    {{ call .argo.HeaderPanel }},
+    {{ call .argo.SummaryPanel }}
+  ],
+  "actions": [
+    {{ call .argo.ApplicationLink .context.argocdUrl }}
+  ]
+}
+```
+
+#### Example
+
+> [!NOTE]
+> The Teams Workflows notification service and `context.argocdUrl` must be configured before using this example.
+
+One template can be reused across the basic sync lifecycle. The subscription value must match a key in `recipientUrls`. The subscription example below uses `ArgoCD` as a placeholder key:
+
+```yaml
+template.app-status-card: |
+  teams-workflows:
+    adaptiveCard: |
+      {{ call .argo.StatusCard .context.argocdUrl }}
+
+trigger.on-status-card: |
+  - description: Application sync is running
+    send:
+      - app-status-card
+    when: >
+      app.status.operationState != nil
+      and app.status.operationState.phase == 'Running'
+
+  - description: Application synced successfully
+    send:
+      - app-status-card
+    when: >
+      app.status.operationState != nil
+      and app.status.operationState.phase == 'Succeeded'
+      and app.status.sync.status == 'Synced'
+      and app.status.health.status == 'Healthy'
+
+  - description: Application sync failed
+    send:
+      - app-status-card
+    when: >
+      app.status.operationState != nil
+      and app.status.operationState.phase in ['Error', 'Failed']
+```
+
+An Application can subscribe to the trigger defined above using the standard notification subscription annotation:
+
+```yaml
+metadata:
+  annotations:
+    notifications.argoproj.io/subscribe.on-status-card.teams-workflows: ArgoCD
+```
