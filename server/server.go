@@ -1274,6 +1274,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	} else {
 		log.WithField(common.SecurityField, common.SecurityHigh).Warnf("Content-Type enforcement is disabled, which may make your API vulnerable to CSRF attacks")
 	}
+	handler = withNoCacheHeaders(handler)
 	mux.Handle("/api/", handler)
 
 	terminalOpts := application.TerminalOptions{
@@ -1345,6 +1346,17 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	}
 	mux.Handle("/", assetsHandler)
 	return &httpS
+}
+
+// withNoCacheHeaders marks responses as uncacheable. API responses may contain sensitive data, and without
+// an explicit Cache-Control header, intermediate proxies or CDNs may cache them and serve them to other users.
+func withNoCacheHeaders(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for k, v := range noCacheHeaders {
+			w.Header().Set(k, v)
+		}
+		handler.ServeHTTP(w, r)
+	})
 }
 
 func enforceContentTypes(handler http.Handler, types []string) http.Handler {
