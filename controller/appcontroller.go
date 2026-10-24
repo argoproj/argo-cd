@@ -1793,7 +1793,13 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 			messages = []string{"Sync operation"}
 		}
 		if state.SyncResult != nil {
-			messages = append(messages, "to", state.SyncResult.Revision)
+			revision := state.SyncResult.Revision
+			// Multi-source apps only populate Revisions. Join without spaces so the
+			// revision stays a single token, matching the manual sync event.
+			if len(state.SyncResult.Revisions) > 0 {
+				revision = strings.Join(state.SyncResult.Revisions, ",")
+			}
+			messages = append(messages, "to", revision)
 		}
 		if state.Phase.Successful() {
 			eventInfo.Type = corev1.EventTypeNormal
