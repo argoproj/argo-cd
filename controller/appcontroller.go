@@ -1713,14 +1713,18 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			state.Message = fmt.Sprintf("Retrying operation%s. Attempt #%d", extraMsg, state.RetryCount)
 			state.FinishedAt = nil
 			state.SyncResult = nil
-			ctrl.setOperationState(ctx, app, state)
+			ctrl.setOperationStateIfPhase(ctx, app, state, synccommon.OperationRunning)
 			logCtx.Infof("Retrying operation%s. Attempt #%d", extraMsg, state.RetryCount)
 		default:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 		}
 	} else {
 		state = NewOperationState(*app.Operation)
-		ctrl.setOperationState(ctx, app, state)
+		var expectedPhase synccommon.OperationPhase
+		if app.Status.OperationState != nil {
+			expectedPhase = app.Status.OperationState.Phase
+		}
+		ctrl.setOperationStateIfPhase(ctx, app, state, expectedPhase)
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
@@ -1738,19 +1742,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	ts.AddCheckpoint("sync_app_state_ms")
 
 	switch state.Phase {
-	case synccommon.OperationRunning:
-		// It's possible for an app to be terminated while we were operating on it. We do not want
-		// to clobber the Terminated state with Running. Get the latest app state to check for this.
-		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
-		if err == nil {
-			if freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase == synccommon.OperationTerminating {
-				state.Phase = synccommon.OperationTerminating
-				state.Message = "operation is terminating"
-				// after this, we will get requeued to the workqueue, but next time the
-				// SyncAppState will operate in a Terminating phase, allowing the worker to perform
-				// cleanup (e.g. delete jobs, workflows, etc...)
-			}
-		}
 	case synccommon.OperationFailed, synccommon.OperationError:
 		if !terminating && (state.RetryCount < state.Operation.Retry.Limit || state.Operation.Retry.Limit < 0) {
 			now := metav1.Now()
@@ -1775,7 +1766,21 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 	}
 
-	ctrl.setOperationState(ctx, app, state)
+	var expectedPhase synccommon.OperationPhase
+	if state.Phase == synccommon.OperationRunning {
+		// It's possible for an app to be terminated while we were operating on it. We do not want
+		// to clobber the Terminated state with Running. Get the latest app state to check for this.
+		// If it was, we will get requeued to the workqueue, but next time the SyncAppState will
+		// operate in a Terminating phase, allowing the worker to perform cleanup (e.g. delete jobs,
+		// workflows, etc...)
+		expectedPhase = synccommon.OperationRunning
+		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
+		if err == nil {
+			expectedPhase = keepTerminating(freshApp, state)
+		}
+	}
+
+	ctrl.setOperationStateIfPhase(ctx, app, state, expectedPhase)
 	ts.AddCheckpoint("final_set_operation_state_ms")
 	if state.Phase.Completed() && (app.Operation.Sync != nil && !app.Operation.Sync.DryRun) {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
@@ -1800,7 +1805,37 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	ts.AddCheckpoint("request_app_refresh_ms")
 }
 
+func keepTerminating(freshApp *appv1.Application, state *appv1.OperationState) synccommon.OperationPhase {
+	if freshApp.Status.OperationState == nil {
+		return ""
+	}
+	if freshApp.Status.OperationState.Phase == synccommon.OperationTerminating {
+		state.Phase = synccommon.OperationTerminating
+		state.Message = "operation is terminating"
+		state.FinishedAt = nil
+	}
+	return freshApp.Status.OperationState.Phase
+}
+
+func operationStatePatch(state *appv1.OperationState, expectedPhase synccommon.OperationPhase) ([]byte, error) {
+	var patchOps []map[string]any
+	if expectedPhase != "" {
+		patchOps = append(patchOps, map[string]any{"op": "test", "path": "/status/operationState/phase", "value": expectedPhase})
+	}
+	// Replace the whole operationState since we re-evaluated the whole object
+	patchOps = append(patchOps, map[string]any{"op": "add", "path": "/status/operationState", "value": state})
+	if state.Phase.Completed() {
+		// If operation is completed, clear the operation field to indicate no operation is in progress.
+		patchOps = append(patchOps, map[string]any{"op": "add", "path": "/operation", "value": nil})
+	}
+	return json.Marshal(patchOps)
+}
+
 func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *appv1.Application, state *appv1.OperationState) {
+	ctrl.setOperationStateIfPhase(ctx, app, state, "")
+}
+
+func (ctrl *ApplicationController) setOperationStateIfPhase(ctx context.Context, app *appv1.Application, state *appv1.OperationState, expectedPhase synccommon.OperationPhase) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	if state.Phase == "" {
 		// expose any bugs where we neglect to set phase
@@ -1815,23 +1850,15 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
 		return
 	}
-	// Replace the whole operationState since we re-evaluated the whole object
-	patchOps := []map[string]any{
-		{"op": "add", "path": "/status/operationState", "value": state},
-	}
-	if state.Phase.Completed() {
-		// If operation is completed, clear the operation field to indicate no operation is in progress.
-		patchOps = append(patchOps, map[string]any{"op": "add", "path": "/operation", "value": nil})
-	}
-	patchJSON, err := json.Marshal(patchOps)
-	if err != nil {
-		logCtx.WithError(err).Error("error marshaling json")
-		return
-	}
-
+	var marshalErr error
 	var nonRetryableError error
 	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-		_, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.JSONPatchType, patchJSON, metav1.PatchOptions{})
+		patchJSON, err := operationStatePatch(state, expectedPhase)
+		if err != nil {
+			marshalErr = err
+			return nil
+		}
+		_, err = ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.JSONPatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierrors.IsNotFound(err) {
@@ -1843,6 +1870,11 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 				nonRetryableError = err
 				return nil
 			}
+			if expectedPhase != "" {
+				if freshApp, getErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{}); getErr == nil {
+					expectedPhase = keepTerminating(freshApp, state)
+				}
+			}
 			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
 			// warning.
 			logCtx.WithError(err).Warn("error patching application with operation state")
@@ -1850,6 +1882,10 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		}
 		return nil
 	})
+	if marshalErr != nil {
+		logCtx.WithError(marshalErr).Error("error marshaling json")
+		return
+	}
 
 	// persistedState is the operation state actually written to the server. On the happy path
 	// that's the state we were asked to persist; on the fallback path it's a different, shrunken
