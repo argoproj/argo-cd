@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	goruntime "runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -3328,6 +3329,41 @@ func TestMaxPodLogsRender(t *testing.T) {
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 		assert.EqualError(t, err, "rpc error: code = InvalidArgument desc = max pods to view logs are reached. Please provide more granular query")
 	})
+}
+
+// disconnectingPodLogsServer simulates a client that disconnects mid-stream: Send cancels the
+// stream context and then fails.
+type disconnectingPodLogsServer struct {
+	TestPodLogsServer
+	cancel context.CancelFunc
+}
+
+func (s *disconnectingPodLogsServer) Send(_ *application.LogEntry) error {
+	s.cancel()
+	// Give PodLogs time to return via ctx.Done() before the send error is reported.
+	time.Sleep(50 * time.Millisecond)
+	return errors.New("client disconnected")
+}
+
+func TestPodLogsNoGoroutineLeakOnSendError(t *testing.T) {
+	appServer, adminCtx := createAppServerWithMaxLodLogs(t, 1)
+	ctx, cancel := context.WithCancel(adminCtx)
+	defer cancel()
+
+	err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: new("test")}, &disconnectingPodLogsServer{TestPodLogsServer{ctx: ctx}, cancel})
+	require.NoError(t, err)
+
+	// The log-sending goroutine must exit once its Send fails, even though nobody reads done anymore.
+	time.Sleep(500 * time.Millisecond)
+	buf := make([]byte, 1<<22)
+	n := goruntime.Stack(buf, true)
+	var leaked []string
+	for _, g := range strings.Split(string(buf[:n]), "\n\n") {
+		if strings.Contains(g, "(*Server).PodLogs.func") {
+			leaked = append(leaked, g)
+		}
+	}
+	assert.Empty(t, leaked, "PodLogs goroutines still running after PodLogs returned")
 }
 
 // createAppServerWithMaxLodLogs creates a new app server with given number of pods and resources
