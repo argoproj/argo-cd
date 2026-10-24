@@ -866,6 +866,8 @@ type ApplicationSetCondition struct {
 	Status ApplicationSetConditionStatus `json:"status" protobuf:"bytes,4,opt,name=status"`
 	// Single word camelcase representing the reason for the status eg ErrorOccurred
 	Reason string `json:"reason" protobuf:"bytes,5,opt,name=reason"`
+	// Generation which controller has processed
+	ObservedGeneration int64 `json:"observedGeneration,omitempty" protobuf:"varint,6,opt,name=observedGeneration"`
 }
 
 // ApplicationSetConditionStatus is a type which represents possible comparison results
@@ -1065,7 +1067,7 @@ func (status *ApplicationSetStatus) SetConditions(conditions []ApplicationSetCon
 			condition.LastTransitionTime = &now
 		}
 		eci := condition.Type.findConditionIndex(status.Conditions)
-		if eci >= 0 && status.Conditions[eci].Message == condition.Message && status.Conditions[eci].Reason == condition.Reason && status.Conditions[eci].Status == condition.Status {
+		if eci >= 0 && conditionsMatch(status.Conditions[eci], condition) {
 			// If we already have a condition of this type and nothing has changed, do not update it
 			newConditions = append(newConditions, status.Conditions[eci])
 		} else {
@@ -1105,6 +1107,13 @@ func (t ApplicationSetConditionType) findConditionIndex(conditions []Application
 		}
 	}
 	return -1
+}
+
+func conditionsMatch(cond1 ApplicationSetCondition, cond2 ApplicationSetCondition) bool {
+	return cond1.Message == cond2.Message &&
+		cond1.Reason == cond2.Reason &&
+		cond1.Status == cond2.Status &&
+		cond1.ObservedGeneration == cond2.ObservedGeneration
 }
 
 // QualifiedName returns the full qualified name of the applicationset, including
