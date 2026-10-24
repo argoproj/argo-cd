@@ -331,6 +331,41 @@ stringData:
   azureServicePrincipalClientSecret: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 
+Example for an OCI repository holding plain manifests, Kustomize directories or Helm charts as OCI artifacts (see [OCI](../user-guide/oci.md)), with `type: oci` and an `oci://` URL:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: private-oci-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  url: oci://my.registry.com/namespace/service
+  type: oci
+  username: my-username
+  password: my-password
+```
+
+A registry served over plain HTTP, such as a local registry in a test cluster, must be marked with `insecureOCIForceHttp: "true"` (the CLI flag is `--insecure-oci-force-http`); otherwise Argo CD connects with TLS and the connection fails. The field applies to `type: oci` repositories and to Helm repositories with `enableOCI: "true"`. Since Argo CD 3.5, a plain-HTTP registry that a chart's OCI dependencies come from needs its own repository secret with this field as well.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: local-oci-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  url: oci://registry.kube-system.svc:5000/releases
+  type: oci
+  insecureOCIForceHttp: "true"
+```
+
+`insecureOCIForceHttp` disables TLS entirely; `insecure` keeps TLS but skips certificate verification. For a `type: oci` repository Argo CD's own OCI client honours both settings independently. For Helm, see the note under [Helm](#helm) before combining them.
+
 ### Repository Credentials
 
 If you want to use the same credentials for multiple repositories, you can configure credential templates. Credential templates can carry the same credentials information as repositories.
@@ -1407,41 +1442,10 @@ stringData:
   enableOCI: "true"
 ```
 
-Repositories that hold plain manifests, Kustomize directories or Helm charts as OCI artifacts (see [OCI](../user-guide/oci.md)) use `type: oci` and an `oci://` URL:
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: private-oci-repo
-  namespace: argocd
-  labels:
-    argocd.argoproj.io/secret-type: repository
-stringData:
-  url: oci://my.registry.com/namespace/service
-  type: oci
-  username: my-username
-  password: my-password
-```
-
-A registry served over plain HTTP, such as a local registry in a test cluster, must be marked with `insecureOCIForceHttp: "true"` (the CLI flag is `--insecure-oci-force-http`); otherwise Argo CD connects with TLS and the connection fails. The field applies to `type: oci` repositories and to Helm repositories with `enableOCI: "true"`. Since Argo CD 3.5, a plain-HTTP registry that a chart's OCI dependencies come from needs its own repository secret with this field as well.
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: local-oci-repo
-  namespace: argocd
-  labels:
-    argocd.argoproj.io/secret-type: repository
-stringData:
-  url: oci://registry.kube-system.svc:5000/releases
-  type: oci
-  insecureOCIForceHttp: "true"
-```
+For an OCI registry served over plain HTTP, set `insecureOCIForceHttp: "true"` as well; see [Repositories](#repositories).
 
 > [!NOTE]
-> `insecureOCIForceHttp` disables TLS entirely, so do not combine it with `insecure`: with Helm v4, `insecure` (`--insecure-skip-tls-verify`) takes precedence and the plain-HTTP setting is silently dropped. This happens on a single repository that sets both, and across a dependency chain: a chart repository with `insecure` whose OCI dependencies come from a registry with `insecureOCIForceHttp` fails at `helm dependency build`. Use `insecure` for HTTPS registries with self-signed certificates and `insecureOCIForceHttp` for plain-HTTP registries, and do not mix the two within one chart and its dependencies.
+> With Helm v4, do not set `insecure` and `insecureOCIForceHttp` together: `insecure` (`--insecure-skip-tls-verify`) takes precedence and the plain-HTTP setting (`--plain-http`) is silently dropped. This applies to a Helm repository that sets both, and across a dependency chain: a chart repository with `insecure` whose OCI dependencies come from a registry with `insecureOCIForceHttp` fails at `helm dependency build`. Use `insecure` for HTTPS registries with self-signed certificates and `insecureOCIForceHttp` for plain-HTTP registries, and do not mix the two within one chart and its dependencies. This limitation is Helm's; `type: oci` repositories that hold plain manifests or Kustomize are not affected.
 
 ## Resource Exclusion/Inclusion
 
