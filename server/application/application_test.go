@@ -3332,16 +3332,16 @@ func TestMaxPodLogsRender(t *testing.T) {
 }
 
 // disconnectingPodLogsServer simulates a client that disconnects mid-stream: Send cancels the
-// stream context and then fails.
+// stream context and fails only after PodLogs has returned, so nothing reads done anymore.
 type disconnectingPodLogsServer struct {
 	TestPodLogsServer
-	cancel context.CancelFunc
+	cancel          context.CancelFunc
+	podLogsReturned chan struct{}
 }
 
 func (s *disconnectingPodLogsServer) Send(_ *application.LogEntry) error {
 	s.cancel()
-	// Give PodLogs time to return via ctx.Done() before the send error is reported.
-	time.Sleep(50 * time.Millisecond)
+	<-s.podLogsReturned
 	return errors.New("client disconnected")
 }
 
@@ -3349,21 +3349,27 @@ func TestPodLogsNoGoroutineLeakOnSendError(t *testing.T) {
 	appServer, adminCtx := createAppServerWithMaxLodLogs(t, 1)
 	ctx, cancel := context.WithCancel(adminCtx)
 	defer cancel()
+	ws := &disconnectingPodLogsServer{TestPodLogsServer{ctx: ctx}, cancel, make(chan struct{})}
 
-	err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: new("test")}, &disconnectingPodLogsServer{TestPodLogsServer{ctx: ctx}, cancel})
+	// Send blocks until podLogsReturned is closed, so PodLogs can only return via ctx.Done().
+	err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: new("test")}, ws)
+	close(ws.podLogsReturned)
 	require.NoError(t, err)
 
 	// The log-sending goroutine must exit once its Send fails, even though nobody reads done anymore.
-	time.Sleep(500 * time.Millisecond)
-	buf := make([]byte, 1<<22)
-	n := goruntime.Stack(buf, true)
-	var leaked []string
-	for _, g := range strings.Split(string(buf[:n]), "\n\n") {
-		if strings.Contains(g, "(*Server).PodLogs.func") {
-			leaked = append(leaked, g)
+	podLogsGoroutines := func() []string {
+		buf := make([]byte, 1<<22)
+		n := goruntime.Stack(buf, true)
+		var found []string
+		for _, g := range strings.Split(string(buf[:n]), "\n\n") {
+			if strings.Contains(g, "(*Server).PodLogs.func") {
+				found = append(found, g)
+			}
 		}
+		return found
 	}
-	assert.Empty(t, leaked, "PodLogs goroutines still running after PodLogs returned")
+	assert.Eventually(t, func() bool { return len(podLogsGoroutines()) == 0 }, 5*time.Second, 50*time.Millisecond,
+		"PodLogs goroutines still running after PodLogs returned: %v", podLogsGoroutines())
 }
 
 // createAppServerWithMaxLodLogs creates a new app server with given number of pods and resources
