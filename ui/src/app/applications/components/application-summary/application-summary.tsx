@@ -51,6 +51,72 @@ function swap(array: any[], a: number, b: number) {
     return array;
 }
 
+type ManualDefaultKey = keyof models.ManualDefaults;
+
+const MANUAL_SYNC_DEFAULT_FIELDS: Array<{
+    key: ManualDefaultKey;
+    id: string;
+    label: string;
+    help: string;
+    enableTitle: string;
+    disableTitle: string;
+    enableText: string;
+    disableText: string;
+}> = [
+    {
+        key: 'prune',
+        id: 'prune-on-manual-sync',
+        label: 'PRUNE ON MANUAL SYNC',
+        help: 'Default prune for manual syncs when manualDefaults is set (default: true). Independent of automated prune. Unset keeps legacy manual-sync behavior.',
+        enableTitle: 'Enable Prune on Manual Sync?',
+        disableTitle: 'Disable Prune on Manual Sync?',
+        enableText: 'Are you sure you want manual syncs to prune resources by default?',
+        disableText: 'Are you sure you want to disable pruning by default on manual syncs?'
+    },
+    {
+        key: 'dryRun',
+        id: 'dry-run-on-manual-sync',
+        label: 'DRY RUN ON MANUAL SYNC',
+        help: 'Default dry-run for manual syncs (default: false)',
+        enableTitle: 'Enable Dry Run on Manual Sync?',
+        disableTitle: 'Disable Dry Run on Manual Sync?',
+        enableText: 'Are you sure you want manual syncs to dry-run by default?',
+        disableText: 'Are you sure you want to disable dry-run by default on manual syncs?'
+    },
+    {
+        key: 'applyOnly',
+        id: 'apply-only-on-manual-sync',
+        label: 'APPLY ONLY ON MANUAL SYNC',
+        help: 'Default apply-only strategy for manual syncs (default: false)',
+        enableTitle: 'Enable Apply Only on Manual Sync?',
+        disableTitle: 'Disable Apply Only on Manual Sync?',
+        enableText: 'Are you sure you want manual syncs to use apply-only by default?',
+        disableText: 'Are you sure you want to disable apply-only by default on manual syncs?'
+    },
+    {
+        key: 'force',
+        id: 'force-on-manual-sync',
+        label: 'FORCE ON MANUAL SYNC',
+        help: 'Default force for manual syncs (default: false)',
+        enableTitle: 'Enable Force on Manual Sync?',
+        disableTitle: 'Disable Force on Manual Sync?',
+        enableText: 'Are you sure you want manual syncs to force by default?',
+        disableText: 'Are you sure you want to disable force by default on manual syncs?'
+    }
+];
+
+function isManualDefaultChecked(app: models.Application, key: ManualDefaultKey): boolean {
+    const defaults = app.spec.syncPolicy?.manualDefaults;
+    if (!defaults) {
+        return false;
+    }
+    // prune defaults to true when manualDefaults is set and the field is omitted
+    if (key === 'prune') {
+        return defaults.prune ?? true;
+    }
+    return !!defaults[key];
+}
+
 function processPath(path: string) {
     if (path !== null && path !== undefined) {
         if (path === '.') {
@@ -631,6 +697,35 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         }
     }
 
+    async function setManualSyncDefaults(ctx: ContextApis, patch: Partial<models.ManualDefaults>, title: string, text: string) {
+        const confirmed = await ctx.popup.confirm(title, text);
+        if (confirmed) {
+            try {
+                setChangeSync(true);
+                const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
+                if (!updatedApp.spec.syncPolicy) {
+                    updatedApp.spec.syncPolicy = {};
+                }
+                const existing = updatedApp.spec.syncPolicy.manualDefaults;
+                // Creating manualDefaults for a non-prune field must not opt into
+                // the API's true-when-nil prune default; keep legacy prune=false.
+                updatedApp.spec.syncPolicy.manualDefaults = {
+                    ...(!existing && patch.prune === undefined ? {prune: false} : {}),
+                    ...(existing || {}),
+                    ...patch
+                };
+                await updateApp(updatedApp, {validate: false});
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title='Unable to update manual sync defaults' e={e} />,
+                    type: NotificationType.Error
+                });
+            } finally {
+                setChangeSync(false);
+            }
+        }
+    }
+
     const items = app.spec.info || [];
     const [adjustedCount, setAdjustedCount] = React.useState(0);
 
@@ -756,6 +851,28 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                     </div>
                                 </div>
                             </div>
+                            {MANUAL_SYNC_DEFAULT_FIELDS.map(field => (
+                                <div className='row white-box__details-row' key={field.key}>
+                                    <div className='columns small-12'>
+                                        <div className='checkbox-container'>
+                                            <Checkbox
+                                                onChange={async (value: boolean) => {
+                                                    await setManualSyncDefaults(
+                                                        ctx,
+                                                        {[field.key]: value},
+                                                        value ? field.enableTitle : field.disableTitle,
+                                                        value ? field.enableText : field.disableText
+                                                    );
+                                                }}
+                                                checked={isManualDefaultChecked(app, field.key)}
+                                                id={field.id}
+                                            />
+                                            <label htmlFor={field.id}>{field.label}</label>
+                                            <HelpIcon title={field.help} />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                             {app.spec.syncPolicy && app.spec.syncPolicy.automated && (
                                 <React.Fragment>
                                     <div className='row white-box__details-row'>
