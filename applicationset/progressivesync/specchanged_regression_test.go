@@ -168,6 +168,54 @@ func TestInvalidIgnoreRuleDoesNotReportSpecChange(t *testing.T) {
 			"a spec change; the write path is erroring, so a change reported here can never be acted on")
 }
 
+// A spec change detected while the live Application is still Synced and Healthy (it has
+// only synced the old spec; the new spec is written later in the reconcile) must leave
+// the Application Waiting, so that SyncDesiredApplications picks it up. Promoting it to
+// Healthy in the same pass strands it OutOfSync with no further trigger to sync.
+func TestSpecChangedKeepsWaitingWhenLiveAppStillSynced(t *testing.T) {
+	t.Parallel()
+
+	appSet := regressionAppSet(nil)
+	live := regressionApp("refs/heads/does-not-exist", new(false))
+	live.Status.Sync.Status = argov1alpha1.SyncStatusCodeSynced
+	desired := regressionApp("HEAD", new(false))
+
+	m := regressionManager(t, &appSet)
+	statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+		&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
+		map[string]int{"storm-a": 0})
+	require.NoError(t, err)
+	require.Len(t, statuses, 1)
+
+	assert.Equal(t, argov1alpha1.ProgressiveSyncWaiting, statuses[0].Status,
+		"a spec change detected in this pass must stay Waiting even though the live app "+
+			"is Synced and Healthy for the old spec: %s", statuses[0].Message)
+	assert.Contains(t, statuses[0].Message, "spec differs")
+}
+
+// A revision change alone, where the Application has already synced the new revision,
+// must still be promoted from Waiting to Healthy in the same pass.
+func TestRevisionChangedStillPromotesToHealthy(t *testing.T) {
+	t.Parallel()
+
+	appSet := regressionAppSet(nil)
+	appSet.Status.ApplicationStatus[0].TargetRevisions = []string{"old456"}
+	live := regressionApp("HEAD", new(false))
+	live.Status.Sync.Status = argov1alpha1.SyncStatusCodeSynced
+	desired := regressionApp("HEAD", new(false))
+
+	m := regressionManager(t, &appSet)
+	statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+		&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
+		map[string]int{"storm-a": 0})
+	require.NoError(t, err)
+	require.Len(t, statuses, 1)
+
+	assert.Equal(t, argov1alpha1.ProgressiveSyncHealthy, statuses[0].Status,
+		"a revision-only change whose new revision is already synced must promote to Healthy: %s",
+		statuses[0].Message)
+}
+
 // disableAutomatedSync is the single definition of the rule, used by both the writer and the comparer.
 // The end state must be the same for every Enabled value, including the one the original guard skipped
 // because it was already false.
