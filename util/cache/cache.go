@@ -364,6 +364,29 @@ func (c *Cache) GetItem(key string, item any) error {
 	return client.Get(key, item)
 }
 
+// localCacheClient is implemented by clients that keep a local copy of external cache entries.
+type localCacheClient interface {
+	GetLocal(key string, obj any) error
+	InvalidateLocal(key string)
+}
+
+// GetLocalItem reads the item from the client's local copy only. It returns ErrCacheMiss if the
+// client keeps no local copy or the key is not in it.
+func (c *Cache) GetLocalItem(key string, item any) error {
+	if client, ok := c.GetClient().(localCacheClient); ok {
+		return client.GetLocal(c.generateFullKey(key), item)
+	}
+	return ErrCacheMiss
+}
+
+// InvalidateLocalItem drops the local copy of the item, if the client keeps one,
+// so the next SetItem for that key is always written to the external cache.
+func (c *Cache) InvalidateLocalItem(key string) {
+	if client, ok := c.GetClient().(localCacheClient); ok {
+		client.InvalidateLocal(c.generateFullKey(key))
+	}
+}
+
 func (c *Cache) OnUpdated(ctx context.Context, key string, callback func() error) error {
 	return c.client.OnUpdated(ctx, c.generateFullKey(key), callback)
 }
