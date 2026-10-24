@@ -335,8 +335,14 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		// cmd.Wait comes with it: a grandchild that left the group survives the SIGKILL still holding
 		// the inherited pipes, and every <-done below would then block forever - including the one on
 		// the shutdown path, which the repo-server's drain waits on.
-		stopEscalation := TerminateGroupOnCancel(cmd, CancelGrace())
-		defer stopEscalation()
+		if cmd.Cancel != nil {
+			stopEscalation := TerminateGroupOnCancel(cmd, CancelGrace())
+			defer stopEscalation()
+		} else {
+			// exec.Command leaves Cancel nil where exec.CommandContext sets it, and Start rejects a
+			// Cancel without a context. With no context to cancel, only the pipe bound applies.
+			cmd.WaitDelay = CancelGrace()
+		}
 	}
 
 	// Start timers for timeout
@@ -474,12 +480,13 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			return finish(waitErr)
 		default:
 		}
-		// Every command reaching here has the group-terminating Cancel - its own, or the one installed
-		// above - so this runs the same SIGTERM-then-SIGKILL sequence cancellation does. Waiting on
-		// done is bounded without the context ever being cancelled: once the process is reaped, Wait
-		// bounds the drain of pipes a grandchild still holds by cmd.WaitDelay. A caller that set only
-		// WaitDelay keyed itself out of that install and has no Cancel to call, so it gets the signal
-		// without the escalation rather than a nil dereference.
+		// A command from exec.CommandContext has the group-terminating Cancel - its own, or the one
+		// installed above - so this runs the same SIGTERM-then-SIGKILL sequence cancellation does.
+		// Waiting on done is bounded without the context ever being cancelled: once the process is
+		// reaped, Wait bounds the drain of pipes a grandchild still holds by cmd.WaitDelay. A caller
+		// that set only WaitDelay keyed itself out of that install, and a plain exec.Command never
+		// gets it; neither has a Cancel to call, so each gets the signal without the escalation
+		// rather than a nil dereference.
 		if cmd.Cancel != nil {
 			_ = cmd.Cancel()
 		} else {

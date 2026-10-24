@@ -533,6 +533,16 @@ func TestRunCommandExtKeepsCallerWaitDelay(t *testing.T) {
 	assert.Equal(t, time.Hour, cmd.WaitDelay)
 }
 
+func TestRunCommandExtAcceptsPlainCommand(t *testing.T) {
+	// A non-nil Cancel on a command without a context fails Start, so none may be installed.
+	cmd := exec.Command("true") //nolint:noctx // the case under test
+	_, err := RunCommandExt(cmd, CmdOpts{Timeout: time.Minute})
+
+	require.NoError(t, err)
+	assert.Nil(t, cmd.Cancel)
+	assert.Equal(t, CancelGrace(), cmd.WaitDelay, "the wait on held pipes must stay bounded")
+}
+
 func TestCancelGrace(t *testing.T) {
 	// Cleanups run LIFO, so registering before t.Setenv is what makes initTimeout re-read the
 	// restored environment rather than the test's own value.
