@@ -639,6 +639,7 @@ export interface AuthSettings {
     hydratorEnabled: boolean;
     syncWithReplaceAllowed: boolean;
     resourceViewEnabled: boolean;
+    ssoAutoLogin: boolean;
     appLabelKey: string;
     trackingMethod: string;
     additionalUrls: string[];
