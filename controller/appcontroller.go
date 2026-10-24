@@ -783,6 +783,17 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 	return hosts, nil
 }
 
+// isEmptyDiffState reports whether a diff result state holds no object. Besides
+// empty and "null", this covers the "{}" placeholder that CompareAppState stores
+// for every resource when the diff itself failed.
+func isEmptyDiffState(state []byte) bool {
+	switch string(state) {
+	case "", "null", "{}":
+		return true
+	}
+	return false
+}
+
 func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destCluster *appv1.Cluster, app *appv1.Application, comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
 	items := make([]*appv1.ResourceDiff, len(comparisonResult.managedResources))
 	for i := range comparisonResult.managedResources {
@@ -815,13 +826,13 @@ func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destClust
 			// Secret data and annotations. Re-mask both sides as a pair.
 			if useSSDResult {
 				var predicted, normalized *unstructured.Unstructured
-				if len(resDiff.PredictedLive) > 0 && string(resDiff.PredictedLive) != "null" {
+				if !isEmptyDiffState(resDiff.PredictedLive) {
 					predicted = &unstructured.Unstructured{}
 					if err := json.Unmarshal(resDiff.PredictedLive, predicted); err != nil {
 						return nil, fmt.Errorf("error unmarshaling predicted live for secret masking: %w", err)
 					}
 				}
-				if len(resDiff.NormalizedLive) > 0 && string(resDiff.NormalizedLive) != "null" {
+				if !isEmptyDiffState(resDiff.NormalizedLive) {
 					normalized = &unstructured.Unstructured{}
 					if err := json.Unmarshal(resDiff.NormalizedLive, normalized); err != nil {
 						return nil, fmt.Errorf("error unmarshaling normalized live for secret masking: %w", err)
