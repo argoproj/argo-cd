@@ -1868,7 +1868,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 
 	output, err := captureOutput(
 		func() error {
-			_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+			_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json", 0)
 			return nil
 		},
 	)
@@ -1876,7 +1876,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	assert.True(t, json.Valid([]byte(output)))
 
 	output, err = captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "yaml")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "yaml", 0)
 		return nil
 	})
 
@@ -1885,7 +1885,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	require.NoError(t, err)
 
 	output, _ = captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "", 0)
 		return nil
 	})
 	output = maskResourceTimestamps(output)
@@ -1953,7 +1953,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput_With_Timeout(t *testing.T)
 	watch = getWatchOpts(watch)
 
 	output, _ := captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 5, watch, selectResource, "")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 5, watch, selectResource, "", 0)
 		return nil
 	})
 	output = maskResourceTimestamps(output)
@@ -2211,7 +2211,7 @@ func TestWaitOnApplicationStatus_ReturnsImmediatelyWhenAlreadyInDesiredState(t *
 	}
 
 	start := time.Now()
-	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json", 0)
 	elapsed := time.Since(start)
 
 	require.NoError(t, err)
@@ -2227,7 +2227,7 @@ func TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn(t *testing.T) {
 	ctx := t.Context()
 	watch := watchOpts{delete: true}
 
-	app, opState, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "")
+	app, opState, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "", 0)
 	require.NoError(t, err)
 	assert.Nil(t, app)
 	assert.Nil(t, opState)
@@ -2242,7 +2242,7 @@ func TestWaitOnApplicationStatus_ReturnsFromWatchLoopWhenEventSatisfiesCondition
 	ctx := t.Context()
 	watch := watchOpts{sync: true, health: true}
 
-	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "json")
+	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "json", 0)
 	require.NoError(t, err)
 	// The function returns via the readiness path inside the watch loop.
 	// The returned app may be re-fetched by printFinalStatus so we only
@@ -2919,4 +2919,11 @@ func TestIsContextCanceledErr(t *testing.T) {
 		t.Parallel()
 		assert.False(t, isContextCanceledErr(errors.New("some other error")))
 	})
+}
+
+func TestFormatPendingResources(t *testing.T) {
+	assert.Equal(t, "a, b, c", formatPendingResources([]string{"a", "b", "c"}, 0))
+	assert.Equal(t, "a, b, c", formatPendingResources([]string{"a", "b", "c"}, 5))
+	assert.Equal(t, "a, ... and 2 more", formatPendingResources([]string{"a", "b", "c"}, 1))
+	assert.Empty(t, formatPendingResources([]string{}, 1))
 }
