@@ -121,7 +121,7 @@ argocd login <ARGOCD_SERVER>
 > The CLI environment must be able to communicate with the Argo CD API server. If it isn't directly accessible as described above in step 3, you can tell the CLI to access it using port forwarding through one of these mechanisms: 1) add `--port-forward-namespace argocd` flag to every CLI command; or 2) set `ARGOCD_OPTS` environment variable: `export ARGOCD_OPTS='--port-forward-namespace argocd'`.
 
 > [!NOTE]
-> The `argocd` CLI communicates with the Argo CD API server over HTTP/2 (gRPC). If you access Argo CD through an ingress or reverse proxy rather than port forwarding, make sure that ingress supports HTTP/2, otherwise CLI commands such as `argocd login` may time out. See the [Ingress Configuration](operator-manual/ingress.md) page for details.
+> The `argocd` CLI talks to the Argo CD API server over gRPC, which uses HTTP/2. If you access Argo CD through an ingress or reverse proxy that does not support HTTP/2, commands such as `argocd login` may time out. In that case, either enable HTTP/2 (gRPC) on the ingress, or run the CLI in gRPC-Web mode over HTTP/1.1 with the `--grpc-web` flag. See the [Ingress Configuration](operator-manual/ingress.md) page for details.
 
 Change the password using the command:
 
