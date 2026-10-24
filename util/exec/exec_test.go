@@ -1,9 +1,9 @@
 package exec
 
 import (
-	"os"
 	"bytes"
 	"context"
+	"os"
 	"os/exec"
 	"path"
 	"regexp"

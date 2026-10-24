@@ -33,6 +33,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
@@ -584,24 +585,9 @@ func Test_nativeGitClient_Checkout_cancelDoesNotLeaveIndexLock(t *testing.T) {
 	require.NoFileExists(t, indexLock, "cancelled git left a stale index.lock behind")
 }
 
-func Test_gitCancelGracePeriod(t *testing.T) {
-	t.Run("default", func(t *testing.T) {
-		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "")
-		assert.Equal(t, 10*time.Second, gitCancelGracePeriod())
-	})
-	t.Run("respects ARGOCD_EXEC_FATAL_TIMEOUT", func(t *testing.T) {
-		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "500ms")
-		assert.Equal(t, 500*time.Millisecond, gitCancelGracePeriod())
-	})
-	t.Run("rejects a zero grace period, falling back to the default", func(t *testing.T) {
-		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "0s")
-		assert.Equal(t, 10*time.Second, gitCancelGracePeriod())
-	})
-}
-
 func Test_nativeGitClient_runCmdOutput_killsProcessIgnoringSIGTERMAfterGracePeriod(t *testing.T) {
-	t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "500ms")
-
+	// util/exec reads ARGOCD_EXEC_FATAL_TIMEOUT once at init, so this runs on the default grace:
+	// SIGKILL lands at exec.CancelGrace()/2.
 	client := &nativeGitClient{root: t.TempDir(), repoURL: "https://example.com/repo.git"}
 	marker := filepath.Join(t.TempDir(), "started")
 
@@ -624,7 +610,7 @@ func Test_nativeGitClient_runCmdOutput_killsProcessIgnoringSIGTERMAfterGracePeri
 	select {
 	case err := <-cmdErr:
 		require.Error(t, err)
-	case <-time.After(3 * time.Second):
+	case <-time.After(executil.CancelGrace()):
 		t.Fatal("command ignoring SIGTERM was not killed after the grace period")
 	}
 }

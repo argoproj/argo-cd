@@ -2224,28 +2224,12 @@ func (m *nativeGitClient) runCredentialedCmdOutput(ctx context.Context, ropts ru
 	return m.runCmdOutput(cmd, ropts)
 }
 
-// gitCancelGracePeriod is how long a cancelled git command has to exit after
-// SIGTERM before it is killed. It reads ARGOCD_EXEC_FATAL_TIMEOUT, the same
-// env var util/exec uses to bound its own timeout-then-SIGKILL escalation, so
-// one knob governs both. Duplicating the read here instead of sharing an
-// accessor with util/exec is a shortcut; a later layer should clean it up.
-//
-// Unlike util/exec, where ARGOCD_EXEC_FATAL_TIMEOUT=0 intentionally disables
-// the fatal-SIGKILL escalation, a zero result here would become cmd.WaitDelay,
-// which disables os/exec's own bound on waiting for inherited pipes to close.
-// Reject zero (and negative) so it falls back to the default instead of
-// removing the bound entirely.
-func gitCancelGracePeriod() time.Duration {
-	return env.ParseDurationFromEnv("ARGOCD_EXEC_FATAL_TIMEOUT", 10*time.Second, time.Nanosecond, math.MaxInt64)
-}
-
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {
 	if ropts.Dir == "" {
 		cmd.Dir = m.root
 	} else {
 		cmd.Dir = ropts.Dir
 	}
-	cmd.Dir = m.root
 	// SIGTERM before SIGKILL on cancellation: git removes .git/index.lock only when signalled
 	// gracefully, and nothing ever reclaims a stale one - every later checkout in the repo fails.
 	stopEscalation := executil.TerminateGroupOnCancel(cmd, executil.CancelGrace())
@@ -2282,10 +2266,6 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 		}
 	}
 	cmd.Env = proxy.UpsertEnv(cmd, m.proxy, m.noProxy)
-	// On context cancellation, send SIGTERM (not os/exec's default SIGKILL) so git can
-	// remove its lock files; os/exec sends SIGKILL if git is still running after WaitDelay.
-	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
-	cmd.WaitDelay = gitCancelGracePeriod()
 	opts := executil.ExecRunOpts{
 		TimeoutBehavior: executil.TimeoutBehavior{
 			Signal:     syscall.SIGTERM,

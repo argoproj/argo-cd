@@ -238,8 +238,8 @@ func NewCommand() *cobra.Command {
 			// Graceful shutdown code adapted from https://gist.github.com/embano1/e0bf49d24f1cdd07cffad93097c04f0a
 			wg := sync.WaitGroup{}
 			wg.Go(func() {
-				s := <-sigCh
-				log.Infof("got signal %v, draining for up to %v", s, shutdownDrainTimeout)
+				<-ctx.Done()
+				log.Infof("draining for up to %v", shutdownDrainTimeout)
 				drained := make(chan struct{})
 				go func() {
 					defer close(drained)

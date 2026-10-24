@@ -350,14 +350,6 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	if opts.FatalTimeout != time.Duration(0) {
 		fatalTimeout = opts.FatalTimeout
 	}
-	// Bound the wait for inherited pipes. A grandchild that outlives the command
-	// would otherwise keep Wait blocked until that grandchild exits. A caller that
-	// already set WaitDelay, such as the git client, keeps its own value.
-	// WaitDelay has to be set before Start: for a command created with a
-	// cancelable context, Start launches a goroutine that reads it.
-	if cmd.WaitDelay == 0 && fatalTimeout != 0 {
-		cmd.WaitDelay = fatalTimeout
-	}
 
 	select {
 	case <-shutdown:

@@ -24,8 +24,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/common"
 	argoerrors "github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/grpc"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
+	"github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/log"
 )
 
