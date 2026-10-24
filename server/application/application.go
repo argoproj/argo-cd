@@ -14,7 +14,10 @@ import (
 	"strings"
 	"time"
 
+	hookutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
+
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	diff_util "github.com/argoproj/argo-cd/v3/util/diff"
 	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 
 	kubecache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
@@ -3079,50 +3082,23 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, fmt.Errorf("error building diff config: %w", err)
 	}
 
-	managedResources := make([]*v1alpha1.ResourceDiff, 0)
-	err = s.getCachedAppState(ctx, a, func() error {
-		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &managedResources)
+	// Convert live resources to unstructured objects
+	liveResources, err := s.ManagedResources(ctx, &application.ResourcesQuery{
+		ApplicationName: q.AppName,
+		AppNamespace:    q.AppNamespace,
+		Project:         q.Project,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error getting managed resources: %w", err)
 	}
 
-	// Convert live resources to unstructured objects
-	liveObjs := make([]*unstructured.Unstructured, 0, len(q.GetLiveResources()))
-	for _, liveResource := range q.GetLiveResources() {
-		if liveResource.LiveState != "" && liveResource.LiveState != "null" {
-			liveObj := &unstructured.Unstructured{}
-			err := json.Unmarshal([]byte(liveResource.LiveState), liveObj)
-			if err != nil {
-				return nil, fmt.Errorf("error unmarshaling live state for %s/%s: %w", liveResource.Kind, liveResource.Name, err)
-			}
-			if liveObj.GetName() != liveResource.Name {
-				return nil, status.Errorf(codes.InvalidArgument, "name mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Name, liveObj.GetName(), liveResource.Group, liveResource.Kind, liveResource.Name)
-			}
-			if liveObj.GetNamespace() != liveResource.Namespace {
-				return nil, status.Errorf(codes.InvalidArgument, "namespace mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Namespace, liveObj.GetNamespace(), liveResource.Group, liveResource.Kind, liveResource.Name)
-			}
-			if liveObj.GroupVersionKind().Group != liveResource.Group {
-				return nil, status.Errorf(codes.InvalidArgument, "group mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Group, liveObj.GroupVersionKind().Group, liveResource.Group, liveResource.Kind, liveResource.Name)
-			}
-			if liveObj.GroupVersionKind().Kind != liveResource.Kind {
-				return nil, status.Errorf(codes.InvalidArgument, "kind mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Kind, liveObj.GroupVersionKind().Kind, liveResource.Group, liveResource.Kind, liveResource.Name)
-			}
-			// Validate permissions for the requested live object. It has to be part of the application's managed resources.
-			found := false
-			for _, item := range managedResources {
-				if item.Kind == liveResource.Kind && item.Group == liveResource.Group && item.Namespace == liveResource.Namespace && item.Name == liveResource.Name {
-					found = true
-					break
-				}
-			}
-			if !found {
-				return nil, status.Errorf(codes.PermissionDenied, "%s/%s %s not found as part of application %s", liveResource.Group, liveResource.Kind, liveResource.Name, a.Name)
-			}
-			liveObjs = append(liveObjs, liveObj)
-		} else {
-			liveObjs = append(liveObjs, nil)
+	liveObjs := make([]*unstructured.Unstructured, len(liveResources.Items))
+	for i, res := range liveResources.Items {
+		liveObj, err := v1alpha1.UnmarshalToUnstructured(res.NormalizedLiveState)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal live resource: %w", err)
 		}
+		liveObjs[i] = liveObj
 	}
 
 	// Convert target manifests to unstructured objects
@@ -3135,7 +3111,16 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		targetObjs = append(targetObjs, obj)
 	}
 
-	diffResults, err := argodiff.StateDiffs(ctx, liveObjs, targetObjs, diffConfig)
+	// Build aligned arrays
+	aligned := diff_util.GetComparisonObjects(targetObjs, liveObjs)
+	alignedTargetObjs := make([]*unstructured.Unstructured, len(aligned))
+	alignedLiveObjs := make([]*unstructured.Unstructured, len(aligned))
+	for i := range aligned {
+		alignedTargetObjs[i] = aligned[i].Target
+		alignedLiveObjs[i] = aligned[i].Live
+	}
+
+	diffResults, err := argodiff.StateDiffs(ctx, alignedLiveObjs, alignedTargetObjs, diffConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error performing state diffs: %w", err)
 	}
@@ -3149,36 +3134,12 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 			modified = true
 		}
 
-		// Extract resource metadata for the diff result. Resources should be pre-aligned by the CLI.
-		var group, kind, namespace, name string
-		var hook bool
+		item := aligned[i]
+		group, kind, namespace, name := item.Key.Group, item.Key.Kind, item.Key.Namespace, item.Key.Name
+		hook := item.Live != nil && hookutil.IsHook(item.Live)
 		var resourceVersion string
-
-		// Extract resource metadata for the ResourceDiff response. The CLI sends aligned arrays
-		// of live resources and target manifests, but individual resources may only exist in one
-		// array depending on the operation
-		switch {
-		case i < len(q.GetLiveResources()):
-			// A live resource exists at this index
-			lr := q.GetLiveResources()[i]
-			group = lr.Group
-			kind = lr.Kind
-			namespace = lr.Namespace
-			name = lr.Name
-			hook = lr.Hook
-			resourceVersion = lr.ResourceVersion
-		case i < len(targetObjs) && targetObjs[i] != nil:
-			// A target resource exists at this index, but no live resource exists at this index
-			obj := targetObjs[i]
-			group = obj.GroupVersionKind().Group
-			kind = obj.GroupVersionKind().Kind
-			namespace = obj.GetNamespace()
-			name = obj.GetName()
-			hook = false
-			resourceVersion = ""
-		default:
-			return nil, fmt.Errorf("diff result index %d out of bounds: live resources (%d), target objects (%d)",
-				i, len(q.GetLiveResources()), len(targetObjs))
+		if item.Live != nil {
+			resourceVersion = item.Live.GetResourceVersion()
 		}
 
 		// Create ResourceDiff with StateDiffs results
@@ -3187,15 +3148,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		targetState := string(diffRes.PredictedLive)
 		liveState := string(diffRes.NormalizedLive)
 
-		// Whether to mask Secret data must be decided from the objects the server
-		// itself parsed (targetObjs[i]/liveObjs[i]), never from the caller-supplied
-		// kind/group metadata. Otherwise a request can pair a spoofed non-Secret
-		// liveResources[i].Kind with a Secret target manifest to bypass masking and
-		// leak the dry-run result's Secret data. The live side is checked too as
-		// defense-in-depth, in case the live-resource consistency validation above
-		// is ever relaxed.
-		isSecret := (i < len(targetObjs) && isCoreSecret(targetObjs[i])) ||
-			(i < len(liveObjs) && isCoreSecret(liveObjs[i]))
+		isSecret := isCoreSecret(item.Target) || isCoreSecret(item.Live)
 
 		if isSecret {
 			var targetObj, liveObj *unstructured.Unstructured
