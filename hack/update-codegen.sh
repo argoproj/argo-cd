@@ -30,7 +30,9 @@ GOPATH_PROJECT_ROOT="${GOPATH}/src/github.com/argoproj/argo-cd"
 TARGET_SCRIPT=kube_codegen.sh
 
 # Read kube_codegen.sh from the module cache rather than vendor/, so this script does not require a
-# vendored tree. -mod=mod is needed because `go list -m` reports no directory in vendor mode.
+# vendored tree. -mod=mod is needed because `go list -m` reports no directory in vendor mode, and the
+# download because it reports none for a module missing from the cache.
+go mod download k8s.io/code-generator
 CODEGEN_PKG="$(go list -mod=mod -m -f '{{.Dir}}' k8s.io/code-generator)"
 
 # codegen utilities are installed outside kube_codegen.sh so remove the `go install` step in the script.
