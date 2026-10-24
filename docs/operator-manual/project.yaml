@@ -126,6 +126,8 @@ spec:
         - repos:
             - url: 'https://github.com/foo/*'
             - url: '!https://github.com/foo/bar.git'
+          # Only permit syncing from annotated tags - lightweight tags, branches and commit SHAs cannot be signed
+          signedTagsOnly: false
           gpg:
             mode: strict
             keys:
