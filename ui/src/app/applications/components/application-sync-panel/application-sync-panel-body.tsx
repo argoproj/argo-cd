@@ -17,6 +17,8 @@ import {
     PRUNE_SOME_WARNING
 } from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
+import {ApplicationSyncPanelKindFilter} from './application-sync-panel-kind-filter';
+import {getKindCounts, isVisible, selectionForLink} from './application-sync-panel-utils';
 
 export const ApplicationSyncPanelBody = ({
     application,
@@ -37,6 +39,10 @@ export const ApplicationSyncPanelBody = ({
     const syncResIndex = appResources.findIndex(item => nodeKey(item) === selectedResource);
     const syncStrategy = {} as models.SyncStrategy;
     const source = getAppDefaultSource(application);
+    const [kindFilter, setKindFilter] = React.useState<string[]>([]);
+    const kindCounts = getKindCounts(appResources);
+    // Ignore kinds that left the app while the panel was open (for example after a prune), so a stale choice cannot hide every row.
+    const activeKinds = kindFilter.filter(kind => kindCounts.some(count => count.kind === kind));
 
     return (
         <Consumer>
@@ -272,38 +278,20 @@ export const ApplicationSyncPanelBody = ({
 
                                 <label>Synchronize resources:</label>
                                 <div style={{float: 'right'}}>
-                                    <a
-                                        onClick={() =>
-                                            formApi.setValue(
-                                                'resources',
-                                                formApi.values.resources.map(() => true)
-                                            )
-                                        }>
-                                        all
-                                    </a>{' '}
-                                    /{' '}
-                                    <a
-                                        onClick={() =>
-                                            formApi.setValue(
-                                                'resources',
-                                                application.status.resources
-                                                    .filter(item => !item.hook)
-                                                    .map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync)
-                                            )
-                                        }>
+                                    <a onClick={() => formApi.setValue('resources', selectionForLink(appResources, formApi.values.resources, activeKinds, 'all'))}>all</a> /{' '}
+                                    <a onClick={() => formApi.setValue('resources', selectionForLink(appResources, formApi.values.resources, activeKinds, 'outOfSync'))}>
                                         out of sync
                                     </a>{' '}
-                                    /{' '}
-                                    <a
-                                        onClick={() =>
-                                            formApi.setValue(
-                                                'resources',
-                                                formApi.values.resources.map(() => false)
-                                            )
-                                        }>
-                                        none
-                                    </a>
+                                    / <a onClick={() => formApi.setValue('resources', selectionForLink(appResources, formApi.values.resources, activeKinds, 'none'))}>none</a>
                                 </div>
+                                <ApplicationSyncPanelKindFilter
+                                    resources={appResources}
+                                    selection={formApi.values.resources}
+                                    kindCounts={kindCounts}
+                                    kinds={activeKinds}
+                                    onKindsChange={setKindFilter}
+                                    onSelectionChange={selection => formApi.setValue('resources', selection)}
+                                />
                                 <div className='application-details__warning'>
                                     {!formApi.values.resources.every((item: boolean) => item) && <div>WARNING: partial synchronization is not recorded in history</div>}
                                 </div>
@@ -311,6 +299,10 @@ export const ApplicationSyncPanelBody = ({
                                     {application.status.resources
                                         .filter(item => !item.hook)
                                         .map((item, i) => {
+                                            // Keep the original index i: it is the position of the row in the positional `resources` form value.
+                                            if (!isVisible(item, activeKinds)) {
+                                                return null;
+                                            }
                                             const resKey = nodeKey(item);
                                             const contentStart = resKey.substr(0, Math.floor(resKey.length / 2));
                                             let contentEnd = resKey.substr(-Math.floor(resKey.length / 2));
