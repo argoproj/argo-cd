@@ -263,7 +263,7 @@ func TestRunCommandExt_FatalTimeoutNoWait(t *testing.T) {
 		if _, err := exec.LookPath("sh"); err != nil {
 			t.Skip("sh not available on PATH")
 		}
-		cmd = exec.CommandContext(t.Context(), "sh", "-c", "trap '' TERM; sleep 2")
+		cmd = exec.CommandContext(t.Context(), "sh", "-c", "trap '' TERM; exec sleep 2")
 	}
 	_, err := RunCommandExt(cmd, CmdOpts{
 		Timeout:         50 * time.Millisecond,
