@@ -147,6 +147,7 @@ type ClientOptions struct {
 	GRPCWeb              bool
 	GRPCWebRootPath      string
 	Core                 bool
+	CoreConfigPath       string
 	PortForward          bool
 	PortForwardNamespace string
 	Headers              []string
