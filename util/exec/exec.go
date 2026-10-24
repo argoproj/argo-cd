@@ -268,6 +268,17 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 				logCtx.Error(err.Error())
 				return strings.TrimSuffix(output, "\n"), err
 			}
+		} else {
+			if fatalTimeoutCh != nil {
+				select {
+				case <-done: //nolint:errcheck
+				case <-fatalTimeoutCh:
+					_ = cmd.Process.Signal(fatalTimeoutBehaviour)
+					<-done //nolint:errcheck
+				}
+			} else {
+				<-done //nolint:errcheck
+			}
 		}
 		// either did not wait for timeout or cmd did respect SIGTERM
 		output := stdout.String()

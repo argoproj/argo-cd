@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -235,4 +236,21 @@ func TestRunWithExecRunOptsStderrWriter(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "stdout", output)
 	assert.Equal(t, "stderr", stderr.String())
+}
+
+func TestRunCommandExt_TimeoutNoRace(t *testing.T) {
+	var cmd *exec.Cmd
+	var stderr bytes.Buffer
+	if runtime.GOOS == "windows" {
+		cmd = exec.CommandContext(t.Context(), "cmd", "/c", "echo hi >&2 & ping -n 3 127.0.0.1 >nul & echo bye >&2")
+	} else {
+		if _, err := exec.LookPath("sh"); err != nil {
+			t.Skip("sh not available on PATH")
+		}
+		cmd = exec.CommandContext(t.Context(), "sh", "-c", "echo hi >&2; sleep 1; echo bye >&2")
+	}
+	_, err := RunCommandExt(cmd, CmdOpts{Timeout: 50 * time.Millisecond, StderrWriter: &stderr})
+	require.Error(t, err)
+	// Accessing stderr immediately verifies os/exec copy goroutines have completed before return
+	assert.Contains(t, stderr.String(), "hi")
 }
