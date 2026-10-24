@@ -189,7 +189,8 @@ spec:
     secretName: your-certificate-name
 ```
 
-The public ingress must allow both `/api/dex/callback` and `/api/dex/auth` for Dex SSO flows that use the auth continuation endpoint.
+> [!NOTE]
+> The public ingress must allow both `/api/dex/callback` and `/api/dex/auth` for Dex SSO flows that use the auth continuation endpoint.
 
 The argocd-server Service needs to be annotated with `projectcontour.io/upstream-protocol.h2c: "https,443"` to wire up the gRPC protocol proxying.
 
