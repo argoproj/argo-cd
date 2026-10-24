@@ -865,3 +865,41 @@ func TestSanitizeClusterName(t *testing.T) {
 		assert.Equal(t, "cluster-name", utils.SanitizeName(invalidName))
 	})
 }
+
+func TestGetClusterParametersExcludesReservedAnnotations(t *testing.T) {
+	cluster := corev1.Secret{
+		Name: "staging-01",
+		Annotations: map[string]string{
+			"my-custom-annotation":                             "keep",
+			"argocd.argoproj.io/refresh":                       "2026-10-17T03:59:07Z",
+			"argocd.argoproj.io/refresh-timestamp":             "1",
+			"argocd.argoproj.io/hydrate":                       "normal",
+			"argocd.argoproj.io/hydrate-timestamp":             "1",
+			"argocd.argoproj.io/tracking-id":                   "clusters:/Secret:argocd/staging-01",
+			"argocd.argoproj.io/installation-id":               "id",
+			"kubectl.kubernetes.io/last-applied-configuration": `{"data":{"config":"c2VjcmV0"}}`,
+		},
+		Data: map[string][]byte{
+			"name":   []byte("staging-01"),
+			"server": []byte("https://staging-01.example.com"),
+		},
+	}
+	g := &ClusterGenerator{}
+
+	t.Run("go template", func(t *testing.T) {
+		params := g.getClusterParameters(cluster, &argoprojiov1alpha1.ApplicationSet{Spec: argoprojiov1alpha1.ApplicationSetSpec{GoTemplate: true}})
+		meta, ok := params["metadata"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, map[string]string{"my-custom-annotation": "keep"}, meta["annotations"])
+	})
+
+	t.Run("flat", func(t *testing.T) {
+		params := g.getClusterParameters(cluster, &argoprojiov1alpha1.ApplicationSet{})
+		assert.Equal(t, "keep", params["metadata.annotations.my-custom-annotation"])
+		for key := range cluster.Annotations {
+			if key != "my-custom-annotation" {
+				assert.NotContains(t, params, "metadata.annotations."+key)
+			}
+		}
+	})
+}
