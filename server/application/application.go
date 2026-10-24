@@ -1306,10 +1306,17 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	}
 
 	events := make(chan *v1alpha1.ApplicationWatchEvent, watchAPIBufferSize)
-	// Mimic watch API behavior: send ADDED events if no resource version provided
-	// If watch API is executed for one application when emit event even if resource version is provided
-	// This is required since single app watch API is used for during operations like app syncing and it is
-	// critical to never miss events.
+	// Subscribe before listing. An update that lands after the list and before
+	// the subscription is otherwise discarded, and a sync watch then blocks until
+	// timeout because the application never changes again.
+	unsubscribe := s.appBroadcaster.Subscribe(events)
+	defer unsubscribe()
+
+	// Mimic watch API behavior: send ADDED events if no resource version provided.
+	// A watch for one application emits its current state even when a resource
+	// version is provided. Single-app watches back operations such as sync, so
+	// missing the current state means the client waits until timeout.
+	sentVersion := map[string]int{}
 	if q.GetResourceVersion() == "" || q.GetName() != "" {
 		apps, err := s.appLister.List(selector)
 		if err != nil {
@@ -1319,14 +1326,25 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 			return apps[i].QualifiedName() < apps[j].QualifiedName()
 		})
 		for i := range apps {
+			if rv, err := strconv.Atoi(apps[i].ResourceVersion); err == nil {
+				sentVersion[apps[i].QualifiedName()] = rv
+			}
 			sendIfPermitted(*apps[i], watch.Added)
 		}
 	}
-	unsubscribe := s.appBroadcaster.Subscribe(events)
-	defer unsubscribe()
 	for {
 		select {
 		case event := <-events:
+			// The list can observe a newer version than an event already buffered
+			// from the subscription. Sending that older event would move the
+			// client backward. Later events are not recorded: the informer
+			// delivers them in order, and storing every name would grow for the
+			// life of the watch.
+			if rv, err := strconv.Atoi(event.Application.ResourceVersion); err == nil {
+				if sent, ok := sentVersion[event.Application.QualifiedName()]; ok && rv <= sent {
+					continue
+				}
+			}
 			sendIfPermitted(event.Application, event.Type)
 		case <-ws.Context().Done():
 			return nil
