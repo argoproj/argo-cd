@@ -207,11 +207,7 @@ kind: ConfigMap
 metadata:
   name: example
 data:
-  ```
-     not-actually: a-manifest 
-  ```
 ```
-
 **Recommended pattern:** Split into two Applications: one with `path` pointing to the Helm chart directory, and another with `path` pointing to the directory containing only plain manifests with `directory.recurse: true`. If you set `directory.recurse: true` and your repository path contains both, Argo CD will silently ignore `Chart.yaml` and `values.yaml` (they don't pass the "looks like a resource" check), but Helm template files under `templates/` contain Go templating and are not valid YAML, so they are rejected and the Application fails with `Failed to load target state`.
 
 ```yaml
