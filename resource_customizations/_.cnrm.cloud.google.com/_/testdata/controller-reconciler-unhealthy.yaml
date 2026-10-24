@@ -1,0 +1,14 @@
+apiVersion: customize.core.cnrm.cloud.google.com/v1beta1
+kind: ControllerReconciler
+metadata:
+  generation: 1
+  name: cnrm-controller-manager
+spec:
+  rateLimit:
+    burst: 100
+    qps: 50
+status:
+  healthy: false
+  observedGeneration: 0
+  errors:
+  - failed to apply rate limit customization
