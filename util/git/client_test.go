@@ -33,6 +33,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
@@ -584,24 +585,9 @@ func Test_nativeGitClient_Checkout_cancelDoesNotLeaveIndexLock(t *testing.T) {
 	require.NoFileExists(t, indexLock, "cancelled git left a stale index.lock behind")
 }
 
-func Test_gitCancelGracePeriod(t *testing.T) {
-	t.Run("default", func(t *testing.T) {
-		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "")
-		assert.Equal(t, 10*time.Second, gitCancelGracePeriod())
-	})
-	t.Run("respects ARGOCD_EXEC_FATAL_TIMEOUT", func(t *testing.T) {
-		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "500ms")
-		assert.Equal(t, 500*time.Millisecond, gitCancelGracePeriod())
-	})
-	t.Run("rejects a zero grace period, falling back to the default", func(t *testing.T) {
-		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "0s")
-		assert.Equal(t, 10*time.Second, gitCancelGracePeriod())
-	})
-}
-
 func Test_nativeGitClient_runCmdOutput_killsProcessIgnoringSIGTERMAfterGracePeriod(t *testing.T) {
-	t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "500ms")
-
+	// util/exec reads ARGOCD_EXEC_FATAL_TIMEOUT once at init, so this runs on the default grace:
+	// SIGKILL lands at exec.CancelGrace()/2.
 	client := &nativeGitClient{root: t.TempDir(), repoURL: "https://example.com/repo.git"}
 	marker := filepath.Join(t.TempDir(), "started")
 
@@ -624,7 +610,7 @@ func Test_nativeGitClient_runCmdOutput_killsProcessIgnoringSIGTERMAfterGracePeri
 	select {
 	case err := <-cmdErr:
 		require.Error(t, err)
-	case <-time.After(3 * time.Second):
+	case <-time.After(executil.CancelGrace()):
 		t.Fatal("command ignoring SIGTERM was not killed after the grace period")
 	}
 }
@@ -3375,4 +3361,58 @@ func Test_fetch_authPromptRewrite(t *testing.T) {
 	assert.Contains(t, err.Error(), "terminal prompts disabled", "expected to reproduce the raw git auth-prompt failure")
 	// ... and the fix surfaces it as an actionable authentication error (the fix).
 	assert.Contains(t, err.Error(), "failed to authenticate to git repository", "expected the humanized authentication error")
+}
+
+// Test_nativeGitClient_CheckoutCancelled asserts that a cancelled checkout leaves no
+// .git/index.lock behind: git removes it only when signalled gracefully, and nothing else ever
+// reclaims a stale one.
+func Test_nativeGitClient_CheckoutCancelled(t *testing.T) {
+	tempDir := t.TempDir()
+	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+
+	readme := path.Join(client.Root(), "README")
+	require.NoError(t, os.WriteFile(readme, []byte("Hello.\n"), 0o600))
+	require.NoError(t, os.WriteFile(path.Join(client.Root(), ".gitattributes"), []byte("README filter=slow\n"), 0o600))
+	// A smudge filter keeps the checkout, and so index.lock, busy long enough to cancel it. Its
+	// sentinel marks the lock as registered for cleanup, which happens after the file appears - so
+	// waiting for the lock alone would sometimes cancel inside that window.
+	require.NoError(t, runCmd(t.Context(), client.Root(), "git", "config", "filter.slow.smudge", "sh -c 'touch .filter-started; sleep 10; cat'"))
+	require.NoError(t, runCmd(t.Context(), client.Root(), "git", "add", "README", ".gitattributes"))
+	require.NoError(t, runCmd(t.Context(), client.Root(), "git", "commit", "-m", "initial commit"))
+	sha, err := outputCmd(t.Context(), client.Root(), "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	// Removing the file forces the checkout to run the smudge filter.
+	require.NoError(t, os.Remove(readme))
+
+	lockPath := path.Join(client.Root(), ".git", "index.lock")
+	filterStarted := path.Join(client.Root(), ".filter-started")
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	errCh := make(chan error, 1)
+	go func() {
+		_, checkoutErr := client.Checkout(ctx, strings.TrimSpace(string(sha)), false, true)
+		errCh <- checkoutErr
+	}()
+
+	// Cancel inside the window this fix is about: lock held, filter running.
+	require.Eventually(t, func() bool {
+		_, lockErr := os.Stat(lockPath)
+		_, filterErr := os.Stat(filterStarted)
+		return lockErr == nil && filterErr == nil
+	}, 10*time.Second, 5*time.Millisecond, "Git never reached the filter while holding the index lock")
+	cancel()
+	cancelled := time.Now()
+
+	select {
+	case err = <-errCh:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Checkout did not return after its context was cancelled")
+	}
+	// The filter is signalled too, so the rest of its sleep must not delay the return.
+	assert.Less(t, time.Since(cancelled), 5*time.Second, "checkout should not wait for the smudge filter to finish")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "signal: terminated", "checkout should have been terminated gracefully, not killed")
+	assert.NoFileExists(t, lockPath, "cancelled checkout left a stale index lock")
 }
