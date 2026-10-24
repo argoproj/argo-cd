@@ -42,6 +42,30 @@ func TestCmd_template_noApiVersionsInError(t *testing.T) {
 	assert.ErrorContains(t, err, "<api versions removed> ")
 }
 
+func TestCmd_template_skipErrorLogging(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name             string
+		skipErrorLogging bool
+	}{
+		{name: "default does not skip error logging", skipErrorLogging: false},
+		{name: "propagates SkipErrorLogging to the executor", skipErrorLogging: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var gotSkipErrorLogging bool
+			c, err := newCmdWithVersion(".", false, "", "", func(_ *exec.Cmd, _ func(string) string, skipErrorLogging bool) (string, error) {
+				gotSkipErrorLogging = skipErrorLogging
+				return "", nil
+			})
+			require.NoError(t, err)
+			_, _, err = c.template("testdata/redis", &TemplateOpts{SkipErrorLogging: tc.skipErrorLogging})
+			require.NoError(t, err)
+			assert.Equal(t, tc.skipErrorLogging, gotSkipErrorLogging)
+		})
+	}
+}
+
 func TestNewCmd_helmInvalidVersion(t *testing.T) {
 	t.Parallel()
 	_, err := NewCmd(".", "abcd", "", "")
@@ -145,7 +169,7 @@ func TestRegistryLogin(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string, _ bool) (string, error) {
 				var stdin []byte
 				if cmd.Stdin != nil {
 					var readErr error
@@ -207,7 +231,7 @@ func TestPullOCI(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string, _ bool) (string, error) {
 				return strings.Join(cmd.Args, " "), nil
 			})
 			require.NoError(t, err)
@@ -252,7 +276,7 @@ func TestDependencyBuild(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string, _ bool) (string, error) {
 				return strings.Join(cmd.Args, " "), nil
 			})
 			require.NoError(t, err)
@@ -287,7 +311,7 @@ func TestRegistryLogout(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string, _ bool) (string, error) {
 				if tc.execErr != nil {
 					return "", tc.execErr
 				}
