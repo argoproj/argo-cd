@@ -978,3 +978,36 @@ func TestGetOciFiles(t *testing.T) {
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
 	})
 }
+
+func TestRefSourceManifestKeyDiffersOnCommitChange(t *testing.T) {
+	chartSource := &v1alpha1.ApplicationSource{
+		RepoURL:        "https://github.com/org/chart-repo.git",
+		TargetRevision: "main",
+		Path:           "charts/myapp",
+		Helm: &v1alpha1.ApplicationSourceHelm{
+			ReleaseName: "myapp",
+			ValueFiles:  []string{"$values/app/values.yaml"},
+		},
+	}
+	refSources := map[string]*v1alpha1.RefTarget{
+		"$values": {
+			Repo: v1alpha1.Repository{
+				Repo: "https://github.com/org/values-repo.git",
+			},
+			TargetRevision: "main",
+		},
+	}
+	refSourceCommitSHAs1 := ResolvedRevisions{
+		"https://github.com/org/values-repo": "ccb296e1a8d3b47d",
+	}
+	refSourceCommitSHAs2 := ResolvedRevisions{
+		"https://github.com/org/values-repo": "d670a7d8f1e11e5d",
+	}
+
+	key1 := NewManifestKey("4a1e987450c9fc2726f6da4c878a64c396d017ba", chartSource, refSources, "default", "", "", "test-app", "", nil, nil, refSourceCommitSHAs1)
+	key2 := NewManifestKey("4a1e987450c9fc2726f6da4c878a64c396d017ba", chartSource, refSources, "default", "", "", "test-app", "", nil, nil, refSourceCommitSHAs2)
+
+	assert.NotEmpty(t, key1.String())
+	assert.NotEmpty(t, key2.String())
+	assert.NotEqual(t, key1.String(), key2.String())
+}
