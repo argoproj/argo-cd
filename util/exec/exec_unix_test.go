@@ -134,7 +134,8 @@ while :; do sleep 0.05; done`
 	cancel()
 
 	select {
-	case <-errCh:
+	case err := <-errCh:
+		require.Error(t, err, "a cancelled command must fail")
 	case <-time.After(30 * time.Second):
 		t.Fatal("RunCommandExt never returned")
 	}
