@@ -76,6 +76,11 @@ the appropriate tool.
   waiting for 24h. Use `--repo-cache-expiration duration`, and we'd suggest in low volume environments you try `1h`.
   Bear in mind that this will negate the benefits of caching if set too low.
 
+* Concurrent Helm repository connectivity checks with identical repository configurations share an in-flight check
+  within each `argocd-repo-server` instance. Results are not cached after the check completes, so subsequent checks
+  still validate live connectivity. Each caller can cancel its wait independently; the shared check receives a
+  60-second context deadline. Different credentials or repository settings use separate checks.
+
 * `argocd-repo-server` executes config management tools such as `helm` or `kustomize` and enforces a 90 second timeout.
   This timeout can be changed by using the `ARGOCD_EXEC_TIMEOUT` env variable. The value should be in the Go time
   duration string format, for example, `2m30s`.
