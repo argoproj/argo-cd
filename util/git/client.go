@@ -1800,8 +1800,14 @@ func (m *nativeGitClient) runCredentialedCmd(ctx context.Context, args ...string
 // env var util/exec uses to bound its own timeout-then-SIGKILL escalation, so
 // one knob governs both. Duplicating the read here instead of sharing an
 // accessor with util/exec is a shortcut; a later layer should clean it up.
+//
+// Unlike util/exec, where ARGOCD_EXEC_FATAL_TIMEOUT=0 intentionally disables
+// the fatal-SIGKILL escalation, a zero result here would become cmd.WaitDelay,
+// which disables os/exec's own bound on waiting for inherited pipes to close.
+// Reject zero (and negative) so it falls back to the default instead of
+// removing the bound entirely.
 func gitCancelGracePeriod() time.Duration {
-	return env.ParseDurationFromEnv("ARGOCD_EXEC_FATAL_TIMEOUT", 10*time.Second, 0, math.MaxInt64)
+	return env.ParseDurationFromEnv("ARGOCD_EXEC_FATAL_TIMEOUT", 10*time.Second, time.Nanosecond, math.MaxInt64)
 }
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {
