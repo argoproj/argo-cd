@@ -2983,6 +2983,7 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 // and for the same application source. If the revision(s) have changed or the Application source configuration has been updated,
 // it will return false, indicating that a new sync should be attempted.
 // When newRevisionHasChanges is false, due to commits not having direct changes on the application, it will not compare the revision(s), but only the sources.
+// This relies on newRevisionHasChanges using the last sync attempt as its base unless the app is Synced (#27875, #28227).
 // It also returns the last synced revisions if any, and the result of that last sync operation.
 func alreadyAttemptedSync(app *appv1.Application, desiredRevisions []string, newRevisionHasChanges bool) (bool, []string, synccommon.OperationPhase) {
 	if app.Status.OperationState == nil {
