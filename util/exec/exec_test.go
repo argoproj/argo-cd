@@ -2,6 +2,7 @@ package exec
 
 import (
 	"bytes"
+	"context"
 	"os/exec"
 	"regexp"
 	"syscall"
@@ -226,6 +227,40 @@ func TestRunWithExecRunOptsCaptureStderr(t *testing.T) {
 	output, err := RunWithExecRunOpts(cmd, ExecRunOpts{CaptureStderr: true})
 	assert.Equal(t, "hello world\nmy-error", output)
 	assert.NoError(t, err)
+}
+
+func TestRunCommandExt_timeoutDoesNotWaitForGrandchildPipe(t *testing.T) {
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "sleep 30 & wait")
+	start := time.Now()
+	done := make(chan error, 1)
+	go func() {
+		_, err := RunCommandExt(cmd, CmdOpts{
+			Timeout:      200 * time.Millisecond,
+			FatalTimeout: 500 * time.Millisecond,
+			TimeoutBehavior: TimeoutBehavior{
+				Signal:     syscall.SIGTERM,
+				ShouldWait: true,
+			},
+		})
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		require.Error(t, err)
+		require.Less(t, time.Since(start), 3*time.Second)
+	case <-time.After(3 * time.Second):
+		t.Fatal("command did not return after the timeout")
+	}
+}
+
+func TestRunCommandExt_contextCancelDoesNotRaceOnWaitDelay(t *testing.T) {
+	// os/exec starts a goroutine in Start that reads WaitDelay once the context
+	// is done, so WaitDelay must not be written after Start.
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "sleep", "5")
+	_, err := RunCommandExt(cmd, CmdOpts{Timeout: 5 * time.Second, FatalTimeout: time.Second})
+	require.Error(t, err)
 }
 
 func TestRunWithExecRunOptsStderrWriter(t *testing.T) {
