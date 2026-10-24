@@ -227,7 +227,8 @@ The controls rely on three behaviors:
   otherwise the controller requests a refresh. Today, RollingSync can act on stale status
   ([#29410](https://github.com/argoproj/argo-cd/issues/29410),
   [#27949](https://github.com/argoproj/argo-cd/issues/27949)).
-- **Sync windows.** Policy runs count as automatic and other runs as manual, and windows apply as they do today. A
+- **Sync windows.** Policy runs count as automatic and other runs as manual, and windows apply as they do today: the
+  controller marks a run's operations as automatic (`operation.initiatedBy.automated`) when a policy owns the run. A
   closed window delays an app without starting an operation or using a `maxParallel` slot. Today, RollingSync writes
   the operation anyway ([#29307](https://github.com/argoproj/argo-cd/issues/29307)).
 - **Empty syncs.** In a policy run with prune, an app whose resources would all be pruned fails unless `allowEmpty` is
@@ -301,8 +302,9 @@ spec:
 - **When it starts a run.** Today, auto-sync acts on one app when a reconcile finds it OutOfSync. A policy does the
   same for its group: when a listed app is OutOfSync, it starts a run with every source pinned to the revision the app
   was last compared against. It has no schedule of its own.
-- **One run per change.** As auto-sync does today, a policy doesn't retry a change whose run failed. Deleting that
-  run makes the change new again, which is how to retry it.
+- **One run per change.** As auto-sync does today, a policy rolls out each change once: drift at revisions it already
+  rolled out only starts a run with `selfHeal: true`, and a change whose run failed isn't retried. Deleting that run
+  makes the change new again, which is how to retry it.
 - **Concurrency.** With `Forbid`, a new change waits for the current run to finish. With `Replace`, the current run is
   canceled and a new one starts.
 - **Self-heal.** With `selfHeal: true`, drift after a successful run starts a run that syncs only what drifted, with
@@ -354,11 +356,11 @@ None of this is part of the proposal; each item depends on `ApplicationSync` mov
 - **Other verbs matter too.** `update` or `patch` can set a run's TTL to 0, which deletes it, and can add or remove a
   policy owner reference, which changes whether sync windows treat the run as automatic. `delete` on a policy's
   latest run makes the policy roll out its change again. Grant these as carefully as `create`.
-- **Existing guards still apply.** Before starting a sync, the controller applies the same checks as an API sync:
-  sync windows, `server.sync.replace.allowed`, and refusing an app that is being deleted. In-tree, these should be
-  one check shared with the Sync API rather than a copy. The application controller still enforces project
-  destinations and source integrity, as today. Local manifests and source overrides aren't exposed, and
-  `initiatedBy` is informational only.
+- **Existing guards still apply.** Before starting a sync, the controller applies the same checks as an API sync: sync
+  windows, `server.sync.replace.allowed`, and refusing an app that is being deleted. In-tree, these should be one
+  check shared with the Sync API rather than a copy. The application controller still enforces project destinations
+  and source integrity, as today. Local manifests and source overrides aren't exposed, and the username in
+  `spec.initiatedBy` is informational only.
 - **The controller's own access.** It can write `operation` on the Applications it watches, as the application
   controller can, and reads AppProjects and Argo CD's ConfigMaps. Resolving branch pins (Open Question 2) would add
   read access to repository credentials.
