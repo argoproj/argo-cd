@@ -84,6 +84,66 @@ func TestGetManifestGenerateIncludePaths(t *testing.T) {
 	}
 }
 
+func TestGetCMPRootAndIncludePaths(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731"
+	appPath := repoRoot + "/services/helloworld"
+
+	tests := []struct {
+		name                      string
+		annotation                string
+		useManifestGeneratePaths  bool
+		manifestGeneratePathsOnly bool
+		expectedRootPath          string
+		expectedIncludePaths      []string
+	}{
+		{
+			name:             "sends the whole repository by default",
+			annotation:       "/infra;.",
+			expectedRootPath: repoRoot,
+		},
+		{
+			name:                      "ignores paths only without manifest generate paths",
+			annotation:                "/infra;.",
+			manifestGeneratePathsOnly: true,
+			expectedRootPath:          repoRoot,
+		},
+		{
+			name:                     "sends the whole common root",
+			annotation:               "/services;.",
+			useManifestGeneratePaths: true,
+			expectedRootPath:         repoRoot + "/services",
+		},
+		{
+			name:                      "sends only the annotation paths under the common root",
+			annotation:                "/infra;.",
+			useManifestGeneratePaths:  true,
+			manifestGeneratePathsOnly: true,
+			expectedRootPath:          repoRoot,
+			expectedIncludePaths:      []string{"services/helloworld", "infra"},
+		},
+		{
+			name:                      "sends the whole repository without an annotation",
+			useManifestGeneratePaths:  true,
+			manifestGeneratePathsOnly: true,
+			expectedRootPath:          repoRoot,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := &apiclient.ManifestRequest{AnnotationManifestGeneratePaths: tt.annotation}
+			rootPath, includePaths, err := getCMPRootAndIncludePaths(req, appPath, repoRoot, tt.useManifestGeneratePaths, tt.manifestGeneratePathsOnly)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedRootPath, rootPath)
+			assert.Equal(t, tt.expectedIncludePaths, includePaths)
+		})
+	}
+}
+
 func TestGetManifestGenerateIncludePathsError(t *testing.T) {
 	t.Parallel()
 

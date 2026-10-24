@@ -130,6 +130,7 @@ type RepoServerInitConstants struct {
 	DisableHelmManifestMaxExtractedSize          bool
 	IncludeHiddenDirectories                     bool
 	CMPUseManifestGeneratePaths                  bool
+	CMPTarManifestGeneratePathsOnly              bool
 	EnableBuiltinGitConfig                       bool
 	GitLsRemoteOptimizedEnabled                  bool
 	HelmUserAgent                                string
@@ -959,7 +960,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths), WithCMPTarManifestGeneratePathsOnly(s.initConstants.CMPTarManifestGeneratePathsOnly))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1699,9 +1700,10 @@ func verifyGlobMatchesWithinRoot(matches []string, effectiveRoot string) error {
 type (
 	GenerateManifestOpt func(*generateManifestOpt)
 	generateManifestOpt struct {
-		cmpTarDoneCh                chan<- bool
-		cmpTarExcludedGlobs         []string
-		cmpUseManifestGeneratePaths bool
+		cmpTarDoneCh                    chan<- bool
+		cmpTarExcludedGlobs             []string
+		cmpUseManifestGeneratePaths     bool
+		cmpTarManifestGeneratePathsOnly bool
 	}
 )
 
@@ -1735,6 +1737,16 @@ func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 	return func(o *generateManifestOpt) {
 		o.cmpUseManifestGeneratePaths = enabled
+	}
+}
+
+// WithCMPTarManifestGeneratePathsOnly enables or disables restricting the tarball
+// streamed to a CMP sidecar to the paths named by the
+// 'argocd.argoproj.io/manifest-generate-paths' annotation instead of their whole
+// common root. It has no effect unless WithCMPUseManifestGeneratePaths is enabled.
+func WithCMPTarManifestGeneratePathsOnly(enabled bool) GenerateManifestOpt {
+	return func(o *generateManifestOpt) {
+		o.cmpTarManifestGeneratePathsOnly = enabled
 	}
 }
 
@@ -1792,7 +1804,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			pluginName = q.ApplicationSource.Plugin.Name
 		}
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
-		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths)
+		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths, opt.cmpTarManifestGeneratePathsOnly)
 		if err != nil {
 			return nil, fmt.Errorf("CMP processing failed for application %q: %w", q.AppName, err)
 		}
@@ -2432,7 +2444,7 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 	return env, nil
 }
 
-func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string, useManifestGeneratePaths bool) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string, useManifestGeneratePaths, tarManifestGeneratePathsOnly bool) ([]*unstructured.Unstructured, error) {
 	ctx, span := tracer.Start(ctx, "repository.runConfigManagementPluginSidecars")
 	defer span.End()
 
@@ -2449,16 +2461,13 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	}
 	defer utilio.Close(conn)
 
-	rootPath := repoPath
-	var includePaths []string
+	// Transmit the paths related to the manifest generate paths annotation, rooted
+	// at their common root path so that relative paths keep working.
+	rootPath, includePaths, err := getCMPRootAndIncludePaths(q, appPath, repoPath, useManifestGeneratePaths, tarManifestGeneratePathsOnly)
+	if err != nil {
+		return nil, fmt.Errorf("error computing manifest generate include paths: %w", err)
+	}
 	if useManifestGeneratePaths {
-		// Transmit the paths related to the manifest generate paths annotation,
-		// rooted at their common root path so that relative paths keep working.
-		rootPath = getApplicationRootPath(q, appPath, repoPath)
-		includePaths, err = getManifestGenerateIncludePaths(q, appPath, rootPath, repoPath)
-		if err != nil {
-			return nil, fmt.Errorf("error computing manifest generate include paths: %w", err)
-		}
 		log.Debugf("common root path calculated for application %s: %s (included paths: %v)", q.AppName, rootPath, includePaths)
 	}
 

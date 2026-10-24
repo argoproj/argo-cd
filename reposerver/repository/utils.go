@@ -118,6 +118,27 @@ func getManifestGenerateIncludePaths(q *apiclient.ManifestRequest, appPath, root
 	return includePaths, nil
 }
 
+// getCMPRootAndIncludePaths returns the directory streamed to a config management
+// plugin, and the paths relative to it the stream is restricted to. The whole
+// repository is streamed unless useManifestGeneratePaths is set, in which case the
+// common root of the manifest generate paths annotation is streamed instead. That
+// common root is narrowed down to the paths the annotation names only when
+// manifestGeneratePathsOnly is set as well.
+func getCMPRootAndIncludePaths(q *apiclient.ManifestRequest, appPath, repoPath string, useManifestGeneratePaths, manifestGeneratePathsOnly bool) (string, []string, error) {
+	if !useManifestGeneratePaths {
+		return repoPath, nil, nil
+	}
+	rootPath := getApplicationRootPath(q, appPath, repoPath)
+	if !manifestGeneratePathsOnly {
+		return rootPath, nil, nil
+	}
+	includePaths, err := getManifestGenerateIncludePaths(q, appPath, rootPath, repoPath)
+	if err != nil {
+		return "", nil, err
+	}
+	return rootPath, includePaths, nil
+}
+
 // walkDirectoryTree walks a directory tree and returns relative paths to all subdirectories.
 func walkDirectoryTree(rootPath string, includeHidden bool) ([]string, error) {
 	var paths []string

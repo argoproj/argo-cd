@@ -79,6 +79,7 @@ func NewCommand() *cobra.Command {
 		disableManifestMaxExtractedSize    bool
 		includeHiddenDirectories           bool
 		cmpUseManifestGeneratePaths        bool
+		cmpTarManifestGeneratePathsOnly    bool
 		ociMediaTypes                      []string
 		enableBuiltinGitConfig             bool
 		gitLsRemoteOptimizedEnabled        bool
@@ -162,6 +163,7 @@ func NewCommand() *cobra.Command {
 				DisableOCIManifestMaxExtractedSize:           disableOCIManifestMaxExtractedSize,
 				IncludeHiddenDirectories:                     includeHiddenDirectories,
 				CMPUseManifestGeneratePaths:                  cmpUseManifestGeneratePaths,
+				CMPTarManifestGeneratePathsOnly:              cmpTarManifestGeneratePathsOnly,
 				OCIMediaTypes:                                ociMediaTypes,
 				EnableBuiltinGitConfig:                       enableBuiltinGitConfig,
 				GitLsRemoteOptimizedEnabled:                  gitLsRemoteOptimizedEnabled,
@@ -275,6 +277,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
 	command.Flags().BoolVar(&includeHiddenDirectories, "include-hidden-directories", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES", false), "Include hidden directories from Git")
 	command.Flags().BoolVar(&cmpUseManifestGeneratePaths, "plugin-use-manifest-generate-paths", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS", false), "Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.")
+	command.Flags().BoolVar(&cmpTarManifestGeneratePathsOnly, "plugin-tar-manifest-generate-paths-only", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_PLUGIN_TAR_MANIFEST_GENERATE_PATHS_ONLY", false), "Only send the paths described in argocd.argoproj.io/manifest-generate-paths to the cmpserver instead of their whole common root. Requires --plugin-use-manifest-generate-paths.")
 	command.Flags().StringSliceVar(&ociMediaTypes, "oci-layer-media-types", env.StringsFromEnv("ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES", []string{"application/vnd.oci.image.layer.v1.tar", "application/vnd.oci.image.layer.v1.tar+gzip", "application/vnd.cncf.helm.chart.content.v1.tar+gzip"}, ","), "Comma separated list of allowed media types for OCI media types. This only accounts for media types within layers.")
 	command.Flags().BoolVar(&enableBuiltinGitConfig, "enable-builtin-git-config", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG", true), "Enable builtin git configuration options that are required for correct argocd-repo-server operation.")
 	command.Flags().BoolVar(&gitLsRemoteOptimizedEnabled, "git-ls-remote-optimized", env.ParseBoolFromEnv("ARGOCD_GIT_LS_REMOTE_OPTIMIZED_ENABLED", false), "Enable native Git protocol v2 ref resolution with server-side HEAD, branch, and tag narrowing.")

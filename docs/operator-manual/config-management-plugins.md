@@ -386,6 +386,17 @@ You can set it one of three ways:
 2. The `reposerver.plugin.use.manifest.generate.paths` key if you are using `argocd-cmd-params-cm`
 3. Directly setting `ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS` environment variable on the repo server to `true`.
 
+By default, the CMP server receives every file under the common root of the paths listed in the annotation. In a
+monorepo that common root is often the repository itself. To send only the paths the annotation names, plus the
+application path, additionally enable one of:
+
+1. The `--plugin-tar-manifest-generate-paths-only` argument on the repo server.
+2. The `reposerver.plugin.tar.manifest.generate.paths.only` key if you are using `argocd-cmd-params-cm`
+3. Directly setting `ARGOCD_REPO_SERVER_PLUGIN_TAR_MANIFEST_GENERATE_PATHS_ONLY` environment variable on the repo server to `true`.
+
+With this enabled, files that the annotation does not name are not sent to the plugin. This option has no effect unless
+`--plugin-use-manifest-generate-paths` is enabled.
+
 ## Migrating from argocd-cm plugins
 
 Installing plugins by modifying the argocd-cm ConfigMap is deprecated as of v2.4 and has been completely removed starting in v2.8.
