@@ -2098,9 +2098,7 @@ func getObjsFromYAMLOrJSON(logCtx *log.Entry, manifestPath string, filename stri
 				return status.Errorf(codes.FailedPrecondition, "Failed to read %q: %v", filename, rerr)
 			}
 			// Otherwise, let's see if it looks like a resource, if yes, we return error
-			if bytes.Contains(out, []byte("apiVersion:")) &&
-				bytes.Contains(out, []byte("kind:")) &&
-				bytes.Contains(out, []byte("metadata:")) {
+			if looksLikeManifest(out) {
 				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", filename, err)
 			}
 			// Otherwise, it might be an unrelated YAML file which we will ignore
@@ -2129,6 +2127,34 @@ func splitYAMLOrJSON(reader goio.Reader) ([]*unstructured.Unstructured, error) {
 		objs = append(objs, u)
 	}
 	return objs, nil
+}
+
+// looksLikeManifest reports whether a YAML file that could not be decoded into Kubernetes objects still looks like it
+// was meant to be one, in which case the decoding error should be surfaced rather than the file being ignored.
+//
+// If the file is valid YAML, it looks like a manifest only if one of its documents has both apiVersion and kind at the
+// root. Kubernetes-shaped YAML nested below the root (e.g. a Helm values file with an extraManifests list) does not
+// count. If the file is not valid YAML (e.g. an unrendered Helm template), fall back to searching for the keys anywhere.
+func looksLikeManifest(data []byte) bool {
+	d := kubeyaml.NewYAMLOrJSONDecoder(bytes.NewReader(data), 4096)
+	for {
+		var doc any
+		if err := d.Decode(&doc); err != nil {
+			if errors.Is(err, goio.EOF) {
+				return false
+			}
+			return bytes.Contains(data, []byte("apiVersion:")) &&
+				bytes.Contains(data, []byte("kind:")) &&
+				bytes.Contains(data, []byte("metadata:"))
+		}
+		if m, ok := doc.(map[string]any); ok {
+			_, hasAPIVersion := m["apiVersion"]
+			_, hasKind := m["kind"]
+			if hasAPIVersion && hasKind {
+				return true
+			}
+		}
+	}
 }
 
 // getPotentiallyValidManifestFile checks whether the given path/FileInfo may be a valid manifest file. Returns a non-nil error if
