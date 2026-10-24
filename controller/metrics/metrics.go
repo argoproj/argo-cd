@@ -292,10 +292,21 @@ func (m *MetricsServer) IncSync(app *argoappv1.Application, destServer string, s
 
 // IncAppSyncDuration observes app sync duration
 func (m *MetricsServer) IncAppSyncDuration(app *argoappv1.Application, destServer string, state *argoappv1.OperationState) {
-	if state.FinishedAt != nil {
-		m.syncDuration.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), destServer).
-			Add(float64(time.Duration(state.FinishedAt.Unix() - state.StartedAt.Unix())))
+	if state.FinishedAt == nil {
+		return
 	}
+	seconds := state.FinishedAt.Unix() - state.StartedAt.Unix()
+	if seconds < 0 {
+		// StartedAt and FinishedAt are wall-clock samples, so a backward clock
+		// step (NTP correction) or clock skew between controller pods for a
+		// resumed operation can sample FinishedAt before StartedAt. Counters
+		// must not decrease: adding the negative difference would panic after
+		// the terminal phase was already persisted, flipping a Succeeded
+		// operation to Error (see #30247). Skip the invalid sample instead.
+		return
+	}
+	m.syncDuration.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), destServer).
+		Add(float64(time.Duration(seconds)))
 }
 
 func (m *MetricsServer) IncKubectlExec(command string) {
