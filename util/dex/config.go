@@ -13,6 +13,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// deviceCodeGrantType is the URN for the OAuth 2.0 Device Authorization Grant (RFC 8628).
+const deviceCodeGrantType = "urn:ietf:params:oauth:grant-type:device_code"
+
 func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS bool) ([]byte, error) {
 	if !argocdSettings.IsDexConfigured() {
 		return nil, nil
@@ -56,6 +59,25 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 			if minVersion, ok := existingWeb["tlsMinVersion"]; ok && minVersion != "" {
 				webCfg["tlsMinVersion"] = minVersion
 			}
+			if ciphers, exists := existingWeb["tlsCiphers"]; exists {
+				if ciphersList, ok := ciphers.([]any); ok {
+					if len(ciphersList) > 0 {
+						webCfg["tlsCiphers"] = ciphersList
+					}
+				} else {
+					log.Warnf("Invalid 'tlsCiphers' value, expected a list, using default ciphers")
+				}
+			}
+
+			if curvePreferences, exists := existingWeb["tlsCurvePreferences"]; exists {
+				if curvePreferencesList, ok := curvePreferences.([]any); ok {
+					if len(curvePreferencesList) > 0 {
+						webCfg["tlsCurvePreferences"] = curvePreferencesList
+					}
+				} else {
+					log.Warnf("Invalid 'tlsCurvePreferences' value, expected a list, using default curve preferences")
+				}
+			}
 		}
 		dexCfg["web"] = webCfg
 	}
@@ -85,6 +107,25 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 		if _, found := oauth2Cfg["skipApprovalScreen"].(bool); !found {
 			oauth2Cfg["skipApprovalScreen"] = true
 		}
+		// If the operator has explicitly set oauth2.grantTypes but omitted
+		// device_code, respect that restriction — do not silently override it.
+		// Emit a warning so the operator knows the CLI device authorization flow
+		// will not work until they add the grant type themselves.
+		if existing, found := oauth2Cfg["grantTypes"].([]any); found {
+			hasDeviceCode := false
+			for _, g := range existing {
+				if g == deviceCodeGrantType {
+					hasDeviceCode = true
+					break
+				}
+			}
+			if !hasDeviceCode {
+				log.Warnf("oauth2.grantTypes is explicitly configured but does not include %q. "+
+					"The Argo CD CLI device authorization flow will not work. "+
+					"Add %q to oauth2.grantTypes in your Dex configuration to enable it.",
+					deviceCodeGrantType, deviceCodeGrantType)
+			}
+		}
 	} else {
 		dexCfg["oauth2"] = map[string]any{
 			"skipApprovalScreen": true,
@@ -109,6 +150,10 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 		},
 		"public": true,
 	}
+	// Device code flow: after the user authenticates via the connector (e.g.
+	// GitHub), Dex redirects back to its own device callback endpoint. Because
+	// Argo CD proxies Dex under /api/dex, the path seen by Dex—and sent as
+	// redirect_uri to the upstream IdP—is /api/dex/device/callback.
 	argoCDCLIStaticClient := map[string]any{
 		"id":     common.ArgoCDCLIClientAppID,
 		"name":   common.ArgoCDCLIClientAppName,
@@ -116,6 +161,7 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 		"redirectURIs": []string{
 			"http://localhost",
 			"http://localhost:8085/auth/callback",
+			common.DexDeviceCallbackEndpoint,
 		},
 	}
 

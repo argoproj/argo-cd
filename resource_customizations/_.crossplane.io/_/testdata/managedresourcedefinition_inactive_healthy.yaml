@@ -1,0 +1,28 @@
+# Crossplane v2 does not create a CRD for an MRD whose spec.state is
+# Inactive, so Established stays False with reason InactiveManagedResource.
+# That is the intended steady state, not a failure to provision.
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceDefinition
+metadata:
+  name: buckets.s3.aws.m.upbound.io
+spec:
+  group: s3.aws.m.upbound.io
+  names:
+    kind: Bucket
+    plural: buckets
+  scope: Namespaced
+  state: Inactive
+  versions:
+    - name: v1beta1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+status:
+  conditions:
+    - lastTransitionTime: "2025-11-12T08:22:32Z"
+      observedGeneration: 1
+      reason: InactiveManagedResource
+      status: "False"
+      type: Established

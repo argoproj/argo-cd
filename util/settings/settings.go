@@ -175,7 +175,7 @@ type ArgoCDSettings struct {
 	// ImpersonationEnabled indicates whether Application sync privileges can be decoupled from control plane
 	// privileges using impersonation
 	ImpersonationEnabled bool `json:"impersonationEnabled"`
-	// RequireOverridePrivilegeForRevisionSync indicates whether giving an external revision during snyc is considered an override.
+	// RequireOverridePrivilegeForRevisionSync indicates whether giving an external revision during sync is considered an override.
 	// Up to revision 3.2, this was always false. It is now still false by default, in order to not breaking existing usage.
 	RequireOverridePrivilegeForRevisionSync bool `json:"requireOverridePrivilegeForRevisionSync"`
 }
@@ -232,6 +232,8 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		RootCA:                   o.RootCA,
 		EnablePKCEAuthentication: o.EnablePKCEAuthentication,
 		DomainHint:               o.DomainHint,
+		DeviceURL:                o.DeviceURL,
+		TokenURL:                 o.TokenURL,
 	}
 }
 
@@ -253,6 +255,8 @@ type OIDCConfig struct {
 	DomainHint               string                 `json:"domainHint,omitempty"`
 	Azure                    *AzureOIDCConfig       `json:"azure,omitempty"`
 	RefreshTokenThreshold    string                 `json:"refreshTokenThreshold,omitempty"`
+	DeviceURL                string                 `json:"deviceURL,omitempty"`
+	TokenURL                 string                 `json:"tokenURL,omitempty"`
 }
 
 type AzureOIDCConfig struct {
@@ -2489,12 +2493,24 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 }
 
 func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
+	requestURL := r.URL
+	// withRootPath uses http.StripPrefix to remove the root path from r.URL.Path.
+	// Prefer r.RequestURI so URL matching still includes the original root path.
+	if r.RequestURI != "" {
+		var err error
+		requestURL, err = url.ParseRequestURI(r.RequestURI)
+		if err != nil {
+			return "", fmt.Errorf("error parsing request URI: %w", err)
+		}
+	}
+	requestPath := requestURL.EscapedPath()
 	for _, candidateURL := range append([]string{a.URL}, a.AdditionalURLs...) {
 		u, err := url.Parse(candidateURL)
 		if err != nil {
 			return "", err
 		}
-		if u.Host == r.Host && strings.HasPrefix(r.URL.RequestURI(), u.RequestURI()) {
+		basePath := strings.TrimSuffix(u.EscapedPath(), "/")
+		if u.Host == r.Host && (requestPath == basePath || strings.HasPrefix(requestPath, basePath+"/")) {
 			return candidateURL, nil
 		}
 	}
