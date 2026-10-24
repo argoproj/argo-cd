@@ -275,6 +275,14 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 				case <-fatalTimeoutCh:
 					_ = cmd.Process.Signal(fatalTimeoutBehaviour)
 					<-done //nolint:errcheck
+					output := stdout.String()
+					if opts.CaptureStderr {
+						output += stderr.String()
+					}
+					logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
+					err = newCmdError(redactor(args), fmt.Errorf("fatal timeout after %v", timeout+fatalTimeout), "")
+					logCtx.Error(err.Error())
+					return strings.TrimSuffix(output, "\n"), err
 				}
 			} else {
 				<-done //nolint:errcheck

@@ -254,3 +254,22 @@ func TestRunCommandExt_TimeoutNoRace(t *testing.T) {
 	// Accessing stderr immediately verifies os/exec copy goroutines have completed before return
 	assert.Contains(t, stderr.String(), "hi")
 }
+
+func TestRunCommandExt_FatalTimeoutNoWait(t *testing.T) {
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.CommandContext(t.Context(), "cmd", "/c", "ping -n 3 127.0.0.1 >nul")
+	} else {
+		if _, err := exec.LookPath("sh"); err != nil {
+			t.Skip("sh not available on PATH")
+		}
+		cmd = exec.CommandContext(t.Context(), "sh", "-c", "trap '' TERM; sleep 2")
+	}
+	_, err := RunCommandExt(cmd, CmdOpts{
+		Timeout:         50 * time.Millisecond,
+		FatalTimeout:    50 * time.Millisecond,
+		TimeoutBehavior: TimeoutBehavior{Signal: syscall.SIGTERM, ShouldWait: false},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "fatal timeout after")
+}
