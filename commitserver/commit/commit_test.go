@@ -21,6 +21,7 @@ import (
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
 	"github.com/argoproj/argo-cd/v3/util/gpgsign"
 	"github.com/argoproj/argo-cd/v3/util/gpgsign/gpgsigntest"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func Test_CommitHydratedManifests(t *testing.T) {
@@ -452,6 +453,58 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		// BUG FIX: When manifests don't change (no-op), the existing hydrated SHA should be returned.
 		assert.Equal(t, "root-and-blank-sha", resp.HydratedSha, "Should return existing hydrated SHA for no-op")
 	})
+}
+
+// Test_CommitHydratedManifests_ReadmeUsesDrySourceRepoURL is a regression test
+// for https://github.com/argoproj/argo-cd/issues/29197: when hydrating into a
+// separate repository, the generated README.md's git clone command must point
+// at the dry source repository, not the hydration destination.
+func Test_CommitHydratedManifests_ReadmeUsesDrySourceRepoURL(t *testing.T) {
+	t.Parallel()
+
+	origin := newOriginRepo(t)
+	service := NewService(git.NoopCredsStore{}, metrics.NewMetricsServer(), nil)
+
+	readmeForBranch := func(branch string) string {
+		cmd := exec.CommandContext(t.Context(), "git", "-C", origin, "show", branch+":README.md")
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, "git show: %s", out)
+		return string(out)
+	}
+
+	newReq := func(targetBranch, drySha, drySourceRepoURL string) *apiclient.CommitHydratedManifestsRequest {
+		return &apiclient.CommitHydratedManifestsRequest{
+			Repo:          &v1alpha1.Repository{Repo: "file://" + origin},
+			TargetBranch:  targetBranch,
+			SyncBranch:    "env/test",
+			CommitMessage: "hydrate manifests",
+			DrySha:        drySha,
+			Paths: []*apiclient.PathDetails{{
+				Path: ".",
+				Manifests: []*apiclient.HydratedManifestDetails{{
+					ManifestJSON: `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"x"}}`,
+				}},
+			}},
+			ReadmeMessage:    settings.DefaultManifestHydrationReadmeTemplate,
+			DrySourceRepoURL: drySourceRepoURL,
+		}
+	}
+
+	// The commit server was sent a dry source URL: the README must clone it.
+	resp, err := service.CommitHydratedManifests(t.Context(), newReq("hydrated-dry", "0123456789abcdef0123456789abcdef01234567", "https://example.com/dry-source.git"))
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.HydratedSha)
+	readme := readmeForBranch("hydrated-dry")
+	assert.Contains(t, readme, "git clone https://example.com/dry-source.git")
+	assert.NotContains(t, readme, "file://")
+
+	// Backwards compatibility: when the controller does not send a dry source
+	// URL, the README keeps cloning the hydration destination.
+	resp, err = service.CommitHydratedManifests(t.Context(), newReq("hydrated-fallback", "fedcba9876543210fedcba9876543210fedcba98", ""))
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.HydratedSha)
+	readme = readmeForBranch("hydrated-fallback")
+	assert.Contains(t, readme, "git clone file://"+origin)
 }
 
 func Test_CommitHydratedManifests_Signing(t *testing.T) {
