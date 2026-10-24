@@ -509,7 +509,10 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			newAppStatus.LastTransitionTime = &now
 		}
 
-		if newAppStatus.Status == argov1alpha1.ProgressiveSyncWaiting {
+		// A spec change detected in this pass must keep the app Waiting: the live
+		// sync status still describes the old spec, which is only replaced later
+		// in the reconcile, so it cannot show that the new spec has synced.
+		if newAppStatus.Status == argov1alpha1.ProgressiveSyncWaiting && !specChanged {
 			// App has changed to waiting because the TargetRevisions changed or it is a new selected app
 			// This does not mean we should always sync the app. The app may not be OutOfSync
 			// and may not require a sync if it does not have differences.
