@@ -29,3 +29,13 @@ func Shutdown() int64 {
 	// command waits out the SIGTERM grace before returning.
 	return inFlight.Load()
 }
+
+// ShuttingDown reports whether Shutdown has been called.
+func ShuttingDown() bool {
+	select {
+	case <-shutdown:
+		return true
+	default:
+		return false
+	}
+}

@@ -598,6 +598,13 @@ func TestShutdownRefusesNewCommands(t *testing.T) {
 	assert.NoFileExists(t, sentinel, "the command must not have been started")
 }
 
+func TestShuttingDown(t *testing.T) {
+	t.Cleanup(resetShutdown)
+	assert.False(t, ShuttingDown())
+	Shutdown()
+	assert.True(t, ShuttingDown())
+}
+
 func TestShutdownReportsRunningCount(t *testing.T) {
 	t.Cleanup(resetShutdown)
 	assert.Zero(t, Shutdown(), "nothing is running")
