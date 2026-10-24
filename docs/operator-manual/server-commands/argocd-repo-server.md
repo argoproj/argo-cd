@@ -23,6 +23,7 @@ argocd-repo-server [flags]
       --disable-oci-manifest-max-extracted-size        Disable maximum size of oci manifest archives when extracted
       --disable-tls                                    Disable TLS for the repo-server gRPC endpoint
       --enable-builtin-git-config                      Enable builtin git configuration options that are required for correct argocd-repo-server operation. (default true)
+      --git-ls-remote-optimized                        Enable native Git protocol v2 ref resolution with server-side HEAD, branch, and tag narrowing.
       --helm-manifest-max-extracted-size string        Maximum size of helm manifest archives when extracted (default "1G")
       --helm-registry-max-index-size string            Maximum size of registry index file (default "1G")
   -h, --help                                           help for argocd-repo-server
@@ -59,6 +60,7 @@ argocd-repo-server [flags]
       --streamed-manifest-max-extracted-size string    Maximum size of streamed manifest archives when extracted (default "1G")
       --streamed-manifest-max-tar-size string          Maximum size of streamed manifest archives (default "100M")
       --tlsciphers string                              The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
+      --tlscurvepreferences string                     Colon-separated list of TLS curve preferences to be used when establishing TLS connections (e.g. X25519:CurveP256).
       --tlsmaxversion string                           The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
       --tlsminversion string                           The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
 ```

@@ -1,7 +1,7 @@
 -- Health check for VictoriaMetrics operator CRDs.
 -- Status field reference:
 --   https://github.com/VictoriaMetrics/operator/blob/master/api/operator/v1beta1/vmextra_types.go
--- UpdateStatus values: "expanding", "operational", "failed", "paused".
+-- UpdateStatus values: "expanding", "operational", "failed", "paused", "ignored".
 -- Request: https://github.com/VictoriaMetrics/operator/issues/1181
 
 local hs = { status = "Progressing", message = "Waiting for the operator to reconcile" }
@@ -24,6 +24,10 @@ local reason = obj.status.reason or ""
 if updateStatus == "operational" then
   hs.status = "Healthy"
   hs.message = "All components are operational"
+-- ignored => Healthy
+elseif updateStatus == "ignored" then
+  hs.status = "Healthy"
+  hs.message = "Resource was not picked by any parent object"
 -- expanding => reconciliation in progress
 elseif updateStatus == "expanding" then
   hs.status = "Progressing"

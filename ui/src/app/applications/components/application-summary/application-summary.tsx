@@ -32,6 +32,7 @@ import {
     formatCreationTimestamp,
     getAppDefaultSource,
     getAppSpecDefaultSource,
+    getClusterOptions,
     getHydratorSyncSourceRepoURL,
     appRBACName
 } from '../utils';
@@ -128,7 +129,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             title: 'CLUSTER',
             view: <Cluster server={app.spec.destination.server} name={app.spec.destination.name} showUrl={true} />,
             edit: (formApi: FormApi) => (
-                <DataLoader load={() => services.clusters.list().then(clusters => clusters.sort())}>
+                <DataLoader load={() => services.clusters.list()}>
                     {clusters => {
                         return (
                             <div className='row'>
@@ -137,7 +138,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                         <FormField
                                             formApi={formApi}
                                             field='spec.destination.server'
-                                            componentProps={{items: clusters.map(cluster => cluster.server)}}
+                                            componentProps={{items: getClusterOptions(clusters, 'server')}}
                                             component={AutocompleteField}
                                         />
                                     </div>
@@ -146,7 +147,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                         <FormField
                                             formApi={formApi}
                                             field='spec.destination.name'
-                                            componentProps={{items: clusters.map(cluster => cluster.name)}}
+                                            componentProps={{items: getClusterOptions(clusters, 'name')}}
                                             component={AutocompleteField}
                                         />
                                     </div>
@@ -519,10 +520,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             view: (
                 <Revision
                     repoUrl={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)}
-                    revision={
-                        app.spec.sourceHydrator?.hydrateTo?.targetBranch ||
-                        (app.spec.sourceHydrator?.syncSource?.targetBranch ? `${app.spec.sourceHydrator.syncSource.targetBranch}-next` : 'HEAD')
-                    }
+                    revision={app.spec.sourceHydrator?.hydrateTo?.targetBranch || app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'}
                 />
             ),
             edit: (formApi: FormApi) => {
@@ -656,28 +654,30 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 info.value
             ),
             titleEdit: (formApi: FormApi) => (
-                <React.Fragment>
-                    {i > 0 && (
+                <div className='application-summary__info-field'>
+                    <div className='application-summary__info-sort'>
                         <i
-                            className='fa fa-sort-up application-summary__sort-icon'
+                            className={`fa fa-sort-up application-summary__sort-icon${i > 0 ? '' : ' application-summary__sort-icon--hidden'}`}
                             onClick={() => {
-                                formApi.setValue('spec.info', swap(formApi.getFormState().values.spec.info || [], i, i - 1));
+                                if (i > 0) {
+                                    formApi.setValue('spec.info', swap(formApi.getFormState().values.spec.info || [], i, i - 1));
+                                }
                             }}
                         />
-                    )}
-                    <FormField formApi={formApi} field={`spec.info[${[i]}].name`} component={Text} componentProps={{style: {width: '99%'}}} />
-                    {i < allItems.length - 1 && (
                         <i
-                            className='fa fa-sort-down application-summary__sort-icon'
+                            className={`fa fa-sort-down application-summary__sort-icon${i < allItems.length - 1 ? '' : ' application-summary__sort-icon--hidden'}`}
                             onClick={() => {
-                                formApi.setValue('spec.info', swap(formApi.getFormState().values.spec.info || [], i, i + 1));
+                                if (i < allItems.length - 1) {
+                                    formApi.setValue('spec.info', swap(formApi.getFormState().values.spec.info || [], i, i + 1));
+                                }
                             }}
                         />
-                    )}
-                </React.Fragment>
+                    </div>
+                    <FormField formApi={formApi} field={`spec.info[${[i]}].name`} component={Text} />
+                </div>
             ),
             edit: (formApi: FormApi) => (
-                <React.Fragment>
+                <div className='application-summary__info-field'>
                     <FormField formApi={formApi} field={`spec.info[${[i]}].value`} component={Text} />
                     <i
                         className='fa fa-times application-summary__remove-icon'
@@ -687,7 +687,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                             setAdjustedCount(adjustedCount - 1);
                         }}
                     />
-                </React.Fragment>
+                </div>
             )
         }))
         .concat({
@@ -813,16 +813,18 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 )}
             </Consumer>
             <BadgePanel app={props.app.metadata.name} appNamespace={props.app.metadata.namespace} nsEnabled={useAuthSettingsCtx?.appsInAnyNamespaceEnabled} />
-            <EditablePanel
-                save={updateApp}
-                values={app}
-                title='INFO'
-                items={infoItems}
-                onModeSwitch={() => {
-                    setAdjustedCount(0);
-                    notificationSubscriptions.onResetNotificationSubscriptions();
-                }}
-            />
+            <div className='application-summary__info-panel'>
+                <EditablePanel
+                    save={updateApp}
+                    values={app}
+                    title='INFO'
+                    items={infoItems}
+                    onModeSwitch={() => {
+                        setAdjustedCount(0);
+                        notificationSubscriptions.onResetNotificationSubscriptions();
+                    }}
+                />
+            </div>
         </div>
     );
 };

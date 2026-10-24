@@ -8,7 +8,7 @@ import {ActionMenu, DataLoader, EmptyState, ErrorNotification, IconColumn, Page,
 import {Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {useQuery} from '../../../shared/hooks/query';
+import {useSearchParams} from '../../../shared/hooks/query';
 import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {FlexTopBar} from '../../../shared/components';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
@@ -28,7 +28,7 @@ interface NewSSHKnownHostParams {
 
 export const CertsList = ({match, location}: RouteComponentProps) => {
     const ctx = React.useContext(Context);
-    const query = useQuery();
+    const query = useSearchParams();
     const searchText = query.get('search') || '';
     const [page, setPage] = React.useState(0);
     const sidebarTarget = useSidebarTarget();
@@ -256,7 +256,7 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                                                                 <div className='columns small-3'>
                                                                     {cert.certType} {cert.certSubType}
                                                                 </div>
-                                                                <div className='columns small-5'>
+                                                                <div className='columns small-5' title={cert.certInfo}>
                                                                     {cert.certInfo}
                                                                     <ActionMenu
                                                                         items={[

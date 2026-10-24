@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: Backend is accepted
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: Backend is not accepted due to invalid configuration
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for Backend status
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for Backend status to be updated
+  inputPath: testdata/stale.yaml

@@ -38,6 +38,37 @@ the appropriate tool.
   and might fail. To avoid failed syncs use the `ARGOCD_GIT_ATTEMPTS_COUNT` environment variable to retry failed
   requests.
 
+* For repositories with very large ref advertisements, enable `--git-ls-remote-optimized` to resolve `HEAD`, branches,
+  and tags with protocol v2 server-side narrowing. For each optimized cache refresh, one cache-lock owner runs
+  `git -c protocol.version=2 ls-remote --heads --tags` and a targeted
+  `git -c protocol.version=2 fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0 <repository> HEAD` from a
+  temporary bare repository.
+  The results are stored together, so concurrent `HEAD` requests share the same two-query cache fill. The dry-run fetch
+  uses a bounded set of `HEAD`-related ref prefixes with protocol v2 servers. Because Git still transfers a pack during
+  a dry-run, `--depth=1` prevents full-history transfer and `--filter=tree:0` omits trees and blobs when the server
+  supports object filtering. The temporary repository is removed after the query. If either optimized query fails,
+  Argo CD uses the default go-git resolver as a last resort. This fallback can require another full remote listing, so
+  disable the optimization if native queries fail persistently. Unsupported refs, including GitHub pull request refs such
+  as `refs/pull/<pr-number>/head` and GitLab merge request refs such as `refs/merge-requests/<mr-number>/head`, continue
+  to use the default resolver directly. See
+  [Use Fully Qualified Git References](#use-fully-qualified-git-references) for related `targetRevision` guidance.
+
+  > [!WARNING]
+  > `--filter=tree:0` limits object transfer only when the Git server supports partial-fetch object filtering. On
+  > self-hosted servers, enable [`uploadpack.allowFilter`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-uploadpackallowFilter)
+  > and ensure `tree` filters are allowed before enabling this optimization. Otherwise, Git ignores the filter and the
+  > targeted `HEAD` query may transfer the complete tip tree on every revision-cache refresh. Argo CD logs a warning
+  > when Git reports that the filter was ignored.
+
+  > [!NOTE]
+  > `--git-ls-remote-optimized` is a global repo-server flag. Configure it consistently across all repo-server replicas.
+  > During a rolling update, the optimized and default resolvers use separate cache entries, so mutable refs might briefly
+  > resolve from snapshots captured at different times.
+
+  > [!NOTE]
+  > The heads/tags query and targeted `HEAD` query run concurrently, and each receives the configured Git request timeout.
+  > The optimized cache refresh can therefore wait up to one Git request timeout before falling back to the default resolver.
+
 * `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default
   that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With
   Kustomize remote bases, or in case a Helm chart gets changed without bumping its version number, the expected
@@ -215,6 +246,13 @@ stringData:
   The valid value is in the format of Go time duration string, e.g. `1ms`, `1s`, `1m`, `1h`. The default value is
   `100ms`.
   The variable is used only when `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` is set to `true`.
+
+* `resource.manifest.storage` - `argocd-cm` setting controlling the serialization format for cached resource
+  manifests when manifest compression is enabled. Valid values: `json` (default), `msgpack`.
+
+* `resource.manifest.compression` - `argocd-cm` setting controlling the compression algorithm for cached resource
+  manifests when manifest compression is enabled. Valid values: `gzip-bestspeed` (default), `gzip-default`, `s2-encode`,
+  `s2-encodebetter`, `zlib`, `none`.
 
 * `ARGOCD_APPLICATION_TREE_SHARD_SIZE` - environment variable controlling the max number of resources stored in one
   Redis
@@ -622,6 +660,53 @@ backoff = time.Since(lastRequeueTime) >= WORKQUEUE_FAILURE_COOLDOWN_NS ?
 ```
 backoff = WORKQUEUE_BASE_DELAY_NS
 ```
+
+## Rate Limiting ApplicationSet Reconciliations
+
+The `argocd-applicationset-controller` also exposes workqueue rate limiter flags, using the same two-layer model
+(global bucket + per-item exponential backoff) as the application controller. Because ApplicationSet generators may
+call external APIs (SCM providers, Kubernetes secrets, cluster API servers), the defaults are deliberately conservative
+to avoid hammering downstream services during failure storms.
+
+### Global rate limits (ApplicationSet controller)
+
+Disabled by default. Limits the total number of reconcile requests queued per second across all ApplicationSets.
+
+| Flag | Env var | Default | Description |
+|------|---------|---------|-------------|
+| `--wq-bucket-size` | `ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BUCKET_SIZE` | `500` | Burst size — max items queued in a single burst |
+| `--wq-bucket-qps` | `ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BUCKET_QPS` | `MaxFloat64` (disabled) | Max items queued per second |
+
+### Per-item rate limits (ApplicationSet controller)
+
+Disabled by default (cooldown = 0). When enabled, applies exponential backoff per ApplicationSet.
+
+| Flag | Env var | Default | Description |
+|------|---------|---------|-------------|
+| `--wq-cooldown` | `ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_FAILURE_COOLDOWN_NS` | `0` (disabled) | Cooldown before backoff resets. Set to a non-zero value to enable per-item backoff. |
+| `--wq-basedelay` | `ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BASE_DELAY_NS` | `1ms` | Initial backoff delay |
+| `--wq-maxdelay` | `ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_MAX_DELAY_NS` | `16m40s` | Maximum backoff cap |
+| `--wq-backoff-factor` | `ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BACKOFF_FACTOR` | `1.5` | Exponential backoff multiplier |
+
+### When to tune these settings
+
+The default max delay of ~16m40s means that after repeated failures an ApplicationSet may not be retried for up to
+16 minutes. This is intentional — SCM generators (GitHub, GitLab, Bitbucket) and cluster secret lookups benefit from
+this back-pressure during outages.
+
+If you have ApplicationSets backed only by internal sources (Git repositories, cluster secrets with no external
+dependencies) and need faster recovery from transient errors, you can lower the max delay:
+
+```bash
+# Example: lower max backoff to 2 minutes, enable per-item backoff with 30s cooldown
+--wq-maxdelay=2m
+--wq-cooldown=30s
+--wq-basedelay=1ms
+```
+
+> [!WARNING]
+> Setting `--wq-maxdelay` to a very low value (e.g. `1s`) with SCM-backed ApplicationSets can cause a high volume
+> of requests to external APIs when generators fail repeatedly. Ensure your SCM provider rate limits are accounted for.
 
 ## HTTP Request Retry Strategy
 
