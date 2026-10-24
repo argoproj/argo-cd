@@ -32,7 +32,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
-
 func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 	externalNamespace := string(utils.ArgoCDExternalNamespace)
 
@@ -132,7 +131,7 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 	externalNamespace := string(utils.ArgoCDExternalNamespace)
 	externalNamespace2 := string(utils.ArgoCDExternalNamespace2)
 
-	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3}) 
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
 
 	expectedApp := v1alpha1.Application{
 		Kind:       "Application",
@@ -666,7 +665,6 @@ func TestTemplatePatch(t *testing.T) {
 
 func TestUpdateHelmValuesObject(t *testing.T) {
 	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 1})
-
 
 	expectedApp := v1alpha1.Application{
 		Kind:       application.ApplicationKind,
