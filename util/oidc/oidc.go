@@ -926,14 +926,20 @@ func createClaimsAuthenticationRequestParameter(requestedClaims map[string]*oidc
 	return oauth2.SetAuthURLParam("claims", string(claimsRequestRAW)), nil
 }
 
+// protectedClaims are identity and validity claims that UserInfo must never overwrite.
+var protectedClaims = map[string]struct{}{
+	"iss": {}, "sub": {}, "aud": {}, "exp": {}, "iat": {}, "nbf": {}, "jti": {}, "federated_claims": {},
+}
+
 // SetGroupsClaimFromEndpoint takes a claims object and adds groups claim from either:
 // - the UserInfo endpoint if enabled
 // - the Microsoft Graph API if Azure groups overage claim is detected and enabled
 // This is required by some SSO implementations as they don't provide the groups claim in the ID token.
+// For the UserInfo endpoint, the claims named in scopes (the RBAC `scopes` setting) are copied into the claims.
 // If querying the endpoint fails, we return an error to indicate the session is invalid.
 // We assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
 // otherwise this would cause a panic.
-func (a *ClientApp) SetGroupsClaimFromEndpoint(ctx context.Context, claims jwt.Claims, sessionManagerClaimsIssuer string) (jwt.MapClaims, error) {
+func (a *ClientApp) SetGroupsClaimFromEndpoint(ctx context.Context, claims jwt.Claims, sessionManagerClaimsIssuer string, scopes []string) (jwt.MapClaims, error) {
 	var groupClaims jwt.MapClaims
 	var ok bool
 	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
@@ -959,7 +965,17 @@ func (a *ClientApp) SetGroupsClaimFromEndpoint(ctx context.Context, claims jwt.C
 			if groupClaims["sub"] != userInfo["sub"] {
 				return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
 			}
-			groupClaims["groups"] = userInfo["groups"]
+			for _, scope := range scopes {
+				if _, protected := protectedClaims[scope]; protected {
+					continue
+				}
+				// Overwrite even when absent so revoked memberships in a still-valid ID token are not kept.
+				value, found := userInfo[scope]
+				if !found {
+					log.Warnf("claim '%s' from RBAC scopes not found in UserInfo response (sub=%s), clearing it", scope, jwtutil.StringField(groupClaims, "sub"))
+				}
+				groupClaims[scope] = value
+			}
 			return groupClaims, nil
 		}
 
