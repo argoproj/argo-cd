@@ -235,11 +235,10 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
     const [itemsPer, setItemsPer] = React.useState(0);
 
     React.useEffect(() => {
+        let timeoutId: ReturnType<typeof setTimeout>;
         const handleResize = () => {
-            let timeoutId: any;
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
-                timeoutId = null;
                 const itemWidth = itemRef.current ? itemRef.current.offsetWidth : -1;
                 const containerWidth = containerRef.current ? containerRef.current.offsetWidth : -1;
                 const curItemsPer = containerWidth > 0 && itemWidth > 0 ? Math.floor(containerWidth / itemWidth) : 1;
@@ -251,6 +250,7 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
         window.addEventListener('resize', handleResize);
         handleResize();
         return () => {
+            clearTimeout(timeoutId);
             window.removeEventListener('resize', handleResize);
         };
     }, []);
@@ -377,15 +377,15 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
 
     function onAppSetFilterPrefChanged(ctx: ContextApis, newPref: AppSetsListPreferences) {
         services.viewPreferences.updatePreferences({appList: newPref as AppsListPreferences});
-        ctx.navigation.goto(
-            '.',
-            {
-                health: newPref.healthFilter.join(','),
-                labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
-                showFavorites: newPref.showFavorites ? 'true' : null
-            },
-            {replace: true}
-        );
+        const params = {
+            health: newPref.healthFilter.join(','),
+            labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
+            showFavorites: newPref.showFavorites ? 'true' : null
+        };
+        // Every filter in the sidebar reports its state up when it mounts, so a remount produces one
+        // call per filter with nothing changed. Browsers rate limit history updates and Safari throws
+        // once the cap is hit, so only navigate when the query string actually changes.
+        ctx.navigation.goto('.', params, {replace: true, skipIfUnchanged: true});
     }
 
     function getPageTitle(view: string) {

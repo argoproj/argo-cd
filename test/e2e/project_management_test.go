@@ -508,6 +508,17 @@ func createAndConfigGlobalProject(ctx context.Context, testName string) error {
 	return nil
 }
 
+func waitForAppResources(t *testing.T, appName string) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(t.Context(), appName, metav1.GetOptions{})
+		if err != nil {
+			return false
+		}
+		return len(app.Status.Resources) > 0
+	}, 30*time.Second, 500*time.Millisecond, "timed out waiting for the resources of app %s", appName)
+}
+
 func TestGetVirtualProjectNoMatch(t *testing.T) {
 	ctx := fixture.EnsureCleanState(t)
 	err := createAndConfigGlobalProject(t.Context(), ctx.GetName())
@@ -529,6 +540,8 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	_, err = fixture.RunCli("app", "create", ctx.GetName(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
 		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", ctx.DeploymentNamespace())
 	require.NoError(t, err)
+
+	waitForAppResources(t, ctx.GetName())
 
 	// App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", ctx.GetName(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", strconv.Itoa(10))
@@ -566,6 +579,8 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 	_, err = fixture.RunCli("app", "create", testCtx.GetName(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
 		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", testCtx.DeploymentNamespace())
 	require.NoError(t, err)
+
+	waitForAppResources(t, testCtx.GetName())
 
 	// App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", testCtx.GetName(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", strconv.Itoa(10))
