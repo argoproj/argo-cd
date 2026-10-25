@@ -1947,7 +1947,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 				Last:         new(false),
 			}); err != nil {
 				done <- err
-				break
+				return
 			}
 		}
 		now := time.Now()
