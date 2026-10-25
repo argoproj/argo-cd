@@ -77,6 +77,14 @@
 .sb-page-wrapper {
     padding-left: $sidebar-width;
 
+    // The Argo CD page wrapper is different when a toolbar has content. In that case,
+    // the upstream page styles reserve 100px for the toolbar, which can leave an
+    // invisible part of the fixed toolbar covering controls immediately below it.
+    // Let the toolbar size itself to its content so only the visible toolbar intercepts clicks.
+    .page--has-toolbar .page__top-bar {
+        height: auto;
+    }
+
     &__sidebar-collapsed {
         padding-left: $collapsed-sidebar-width;
         .flex-top-bar {
