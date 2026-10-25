@@ -286,13 +286,8 @@ func TestRunCommandErrCaptureStderrStripsAnsi(t *testing.T) {
 func TestRunCommandTimeoutStripsAnsi(t *testing.T) {
 	// A command that emits ANSI color codes and then exceeds the timeout must
 	// have the codes stripped from the returned output.
-	// ShouldWait is required here: the non-wait timeout path reads the output
-	// buffers without synchronizing with os/exec's pipe-copy goroutines
-	// (pre-existing race), so the test must take the waiting branch.
-	timeoutBehavior := TimeoutBehavior{Signal: syscall.SIGTERM, ShouldWait: true}
-	opts := CmdOpts{Timeout: 200 * time.Millisecond, CaptureStderr: true, TimeoutBehavior: timeoutBehavior}
-	// `exec` makes sleep the direct process receiving SIGTERM so it dies
-	// promptly and closes its pipes.
+	opts := CmdOpts{Timeout: 200 * time.Millisecond, CaptureStderr: true}
+	// `exec` makes sleep the direct process so the kill closes its pipes promptly.
 	output, err := RunCommand("sh", opts, "-c", `printf '\033[1;31mred error\033[0m\n'; exec sleep 5`)
 	require.ErrorContains(t, err, "timeout after 200ms")
 	assert.NotContains(t, output, "\x1b[")
