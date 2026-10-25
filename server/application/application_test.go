@@ -3361,7 +3361,7 @@ func TestPodLogsNoGoroutineLeakOnSendError(t *testing.T) {
 		buf := make([]byte, 1<<22)
 		n := goruntime.Stack(buf, true)
 		var found []string
-		for _, g := range strings.Split(string(buf[:n]), "\n\n") {
+		for g := range strings.SplitSeq(string(buf[:n]), "\n\n") {
 			if strings.Contains(g, "(*Server).PodLogs.func") {
 				found = append(found, g)
 			}
