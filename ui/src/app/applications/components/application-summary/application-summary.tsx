@@ -283,7 +283,9 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             view: (
                 <div className='application-summary__links-rows'>
                     {urls
-                        .map(item => item.split('|'))
+                        // Preserve valid URLs as-is because Ingress regex paths may contain '|'.
+                        // Only split title|URL annotations when the full value is not a URL.
+                        .map(item => (isValidURL(item) ? [item] : item.split('|')))
                         // Drop entries whose URL uses an unsafe protocol (e.g. javascript:, data:,
                         // vbscript:) to prevent XSS via attacker-controlled
                         // link.argocd.argoproj.io/* annotations on managed resources.
